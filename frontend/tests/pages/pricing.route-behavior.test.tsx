@@ -87,6 +87,18 @@ describe("Pricing route behavior", () => {
               monthly_credits_cents: 3000,
               storage_limit_bytes: 107374182400,
               is_active: true,
+              offers: {
+                year: {
+                  id: "studio_year",
+                  billing_interval: "year",
+                  recurring_price_cents: 39000,
+                  monthly_credits_cents: 3000,
+                  storage_limit_bytes: 107374182400,
+                  stripe_price_id: "price_studio_year",
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+              },
             },
           ],
           packages: [],
@@ -98,10 +110,11 @@ describe("Pricing route behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign up for Studio" }));
 
     await waitFor(() => {
-      expect(routerPushMock).toHaveBeenCalledWith(
-        "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
-      );
+      expect(routerPushMock).toHaveBeenCalledTimes(1);
     });
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+    );
   });
 
   it("shows top-right login and signup actions for guests", () => {
@@ -183,6 +196,18 @@ describe("Pricing route behavior", () => {
               monthly_credits_cents: 350,
               storage_limit_bytes: 1073741824,
               is_active: true,
+              offers: {
+                year: {
+                  id: "starter_year",
+                  billing_interval: "year",
+                  recurring_price_cents: 15000,
+                  monthly_credits_cents: 350,
+                  storage_limit_bytes: 1073741824,
+                  stripe_price_id: "price_starter_year",
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+              },
             },
             {
               id: "studio",
@@ -192,6 +217,18 @@ describe("Pricing route behavior", () => {
               monthly_credits_cents: 3200,
               storage_limit_bytes: 107374182400,
               is_active: true,
+              offers: {
+                year: {
+                  id: "studio_year",
+                  billing_interval: "year",
+                  recurring_price_cents: 129000,
+                  monthly_credits_cents: 3200,
+                  storage_limit_bytes: 107374182400,
+                  stripe_price_id: "price_studio_year",
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+              },
             },
           ],
           packages: [],
@@ -200,7 +237,7 @@ describe("Pricing route behavior", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Create free account" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create account" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign up for Starter" })).toBeInTheDocument();
   });
 
@@ -247,6 +284,18 @@ describe("Pricing route behavior", () => {
               monthly_credits_cents: 3000,
               storage_limit_bytes: 107374182400,
               is_active: true,
+              offers: {
+                year: {
+                  id: "studio_year",
+                  billing_interval: "year",
+                  recurring_price_cents: 39000,
+                  monthly_credits_cents: 3000,
+                  storage_limit_bytes: 107374182400,
+                  stripe_price_id: "price_studio_year",
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+              },
             },
           ],
           packages: [],
@@ -275,6 +324,54 @@ describe("Pricing route behavior", () => {
       configurable: true,
       value: originalWindowLocation,
     });
+  });
+
+  it("disables annual plan actions when no live annual offer exists", () => {
+    useRouterMock.mockReturnValue({
+      query: {
+        intent: "create-project",
+        plan: "studio",
+        interval: "year",
+      },
+      push: routerPushMock,
+      replace: routerReplaceMock,
+    });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1", email: "user@example.com" },
+    });
+
+    render(
+      <PricingPage
+        billingCatalog={{
+          plans: [
+            {
+              id: "free",
+              display_name: "Free",
+              sort_order: 0,
+              monthly_price_cents: 0,
+              monthly_credits_cents: 100,
+              storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+            {
+              id: "studio",
+              display_name: "Studio",
+              sort_order: 20,
+              monthly_price_cents: 3900,
+              monthly_credits_cents: 3000,
+              storage_limit_bytes: 107374182400,
+              is_active: true,
+            },
+          ],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Annual unavailable" })).toBeDisabled();
   });
 
   it("preserves annual interval state through guest auth links", () => {
@@ -331,7 +428,7 @@ describe("Pricing route behavior", () => {
       "href",
       "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
     );
-    expect(screen.getByRole("button", { name: /annual/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();
     expect(
       screen.getByText("Upgrade anytime. Downgrades apply at the next billing cycle.")

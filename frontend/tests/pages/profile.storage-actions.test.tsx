@@ -1,7 +1,7 @@
 /**
  * Profile storage-section tests for recurring storage add-on presentation.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
@@ -11,6 +11,8 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const refreshQuotaSummaryMock = vi.hoisted(() => vi.fn());
+const activeStorageAddonsQueryMock = vi.hoisted(() => vi.fn());
 
 const routerState = vi.hoisted(() => ({
   query: { section: "storage" } as Record<string, string>,
@@ -148,21 +150,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               is: () => ({
-                eq: async () => ({
-                  data: [
-                    {
-                      id: "storage_row_1",
-                      storage_addon_id: "addon_100gb",
-                      offer_id: "addon_100gb__current",
-                      stripe_subscription_item_id: "si_storage_100",
-                      storage_limit_bytes: 107374182400,
-                      quantity: 1,
-                      recurring_price_cents: 1500,
-                      status: "active",
-                    },
-                  ],
-                  error: null,
-                }),
+                eq: activeStorageAddonsQueryMock,
               }),
             }),
           }),
@@ -175,7 +163,30 @@ vi.mock("../../lib/supabaseClient", () => ({
 
 describe("Profile storage actions", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     routerState.query = { section: "storage" };
+    billingProfileState.plan_id = "business";
+    billingProfileState.subscription_status = "active";
+    billingProfileState.current_period_end = "2026-05-01T00:00:00.000Z";
+    billingProfileState.stripe_customer_id = "cus_123";
+    billingProfileState.stripe_subscription_id = "sub_123";
+    billingContractState.value = {
+      id: "contract_1",
+      plan_id: "business",
+      offer_id: "business__public",
+      stripe_price_id: "price_business",
+      stripe_subscription_id: "sub_123",
+      contract_source: "stripe",
+      recurring_price_cents: 4900,
+      monthly_credits_cents: 60000,
+      storage_limit_bytes: 536870912000,
+      status: "active",
+      current_period_start: "2026-04-01T00:00:00.000Z",
+      current_period_end: "2026-05-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-01T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {
@@ -219,8 +230,34 @@ describe("Profile storage actions", () => {
           }),
         };
       }
+      if (url === "/api/billing/storage-addon/change") {
+        return {
+          ok: true,
+          json: async () => ({
+            message: "Storage add-on update submitted. Stripe is syncing your workspace now.",
+          }),
+        };
+      }
       throw new Error(`Unexpected fetch ${String(url)}`);
     });
+    activeStorageAddonsQueryMock.mockReset();
+    activeStorageAddonsQueryMock.mockResolvedValue({
+      data: [
+        {
+          id: "storage_row_1",
+          storage_addon_id: "addon_100gb",
+          offer_id: "addon_100gb__current",
+          stripe_subscription_item_id: "si_storage_100",
+          storage_limit_bytes: 107374182400,
+          quantity: 1,
+          recurring_price_cents: 1500,
+          status: "active",
+        },
+      ],
+      error: null,
+    });
+    refreshQuotaSummaryMock.mockReset();
+    refreshQuotaSummaryMock.mockResolvedValue(undefined);
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -253,7 +290,7 @@ describe("Profile storage actions", () => {
         isOverLimit: false,
       },
       loading: false,
-      refreshQuotaSummary: vi.fn(),
+      refreshQuotaSummary: refreshQuotaSummaryMock,
     });
   });
 
@@ -339,4 +376,28 @@ describe("Profile storage actions", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Managed internally" })).toBeDisabled();
   });
+
+  it("re-polls storage state after a successful add-on change", async () => {
+    render(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageAddonId: "addon_100gb", action: "remove" }),
+      });
+    });
+
+    const initialStorageQueryCalls = activeStorageAddonsQueryMock.mock.calls.length;
+    const initialQuotaRefreshCalls = refreshQuotaSummaryMock.mock.calls.length;
+
+    await new Promise((resolve) => window.setTimeout(resolve, 1800));
+
+    expect(activeStorageAddonsQueryMock.mock.calls.length).toBeGreaterThan(
+      initialStorageQueryCalls
+    );
+    expect(refreshQuotaSummaryMock.mock.calls.length).toBeGreaterThan(initialQuotaRefreshCalls);
+  }, 15000);
 });

@@ -44,6 +44,7 @@ export type AdminBillingContractSnapshot = {
   id: string;
   planId: string | null;
   offerId: string | null;
+  stripeCustomerId: string | null;
   stripePriceId: string | null;
   stripeSubscriptionId: string | null;
   contractSource: "stripe" | "internal_comp" | null;

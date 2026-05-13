@@ -81,9 +81,7 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
-    });
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -134,31 +132,30 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
-    });
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Create free account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 
   it("submits signup with the free plan and returns to sign-in with a confirmation notice", async () => {
     render(<AuthPage />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Sign up" })[0]);
+    fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create free account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => {
-      expect(signUpMock).toHaveBeenCalledWith({
-        email: "new@example.com",
-        password: "strongpass",
-        options: {
-          data: {
-            plan: "free",
-          },
+      expect(signUpMock).toHaveBeenCalled();
+    });
+    expect(signUpMock).toHaveBeenCalledWith({
+      email: "new@example.com",
+      password: "strongpass",
+      options: {
+        data: {
+          plan: "free",
         },
-      });
+      },
     });
 
     expect(

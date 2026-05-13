@@ -11,6 +11,10 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const billingProfileMaybeSingleMock = vi.hoisted(() => vi.fn());
+const billingContractMaybeSingleMock = vi.hoisted(() => vi.fn());
+const billingLedgerLimitMock = vi.hoisted(() => vi.fn());
 
 const routerState = vi.hoisted(() => ({
   query: {} as Record<string, string>,
@@ -62,8 +66,72 @@ vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../lib/supabaseClient", () => ({
+  ensureSupabaseClient: () => ({
+    from: (table: string) => {
+      if (table === "billing_profiles") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: billingProfileMaybeSingleMock,
+            }),
+          }),
+        };
+      }
+      if (table === "billing_subscription_contracts") {
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: billingContractMaybeSingleMock,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "ai_credit_ledger") {
+        return {
+          select: () => ({
+            eq: () => ({
+              in: () => ({
+                order: () => ({
+                  limit: billingLedgerLimitMock,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "billing_subscription_storage_addons") {
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                eq: async () => ({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table mock: ${table}`);
+    },
+  }),
+}));
+
 describe("Profile route state", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     routerState.query = {};
     routerState.isReady = true;
     routerReplaceMock.mockReset();
@@ -79,6 +147,60 @@ describe("Profile route state", () => {
     });
 
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
+    fetchWithAuthMock.mockReset();
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({ plans: [], packages: [], storageAddons: [] }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+    billingProfileMaybeSingleMock.mockReset();
+    billingProfileMaybeSingleMock.mockResolvedValue({
+      data: {
+        plan_id: "media",
+        subscription_status: "active",
+        current_period_end: "2026-05-01T00:00:00.000Z",
+        stripe_customer_id: "cus_123",
+        stripe_subscription_id: "sub_123",
+      },
+      error: null,
+    });
+    billingContractMaybeSingleMock.mockReset();
+    billingContractMaybeSingleMock.mockResolvedValue({
+      data: {
+        id: "contract_1",
+        plan_id: "media",
+        offer_id: "media__monthly",
+        billing_interval: "month",
+        stripe_subscription_id: "sub_123",
+        stripe_price_id: "price_media",
+        contract_source: "stripe",
+        recurring_price_cents: 1900,
+        monthly_credits_cents: 20000,
+        storage_limit_bytes: 26843545600,
+        status: "active",
+        current_period_start: "2026-04-01T00:00:00.000Z",
+        current_period_end: "2026-05-01T00:00:00.000Z",
+        cancel_at_period_end: false,
+        started_at: "2026-04-01T00:00:00.000Z",
+        ended_at: null,
+      },
+      error: null,
+    });
+    billingLedgerLimitMock.mockReset();
+    billingLedgerLimitMock.mockResolvedValue({
+      data: [],
+      error: null,
+    });
     useCreditsMock.mockReturnValue({
       balanceCents: 0,
       balanceUpdatedAt: null,
@@ -173,4 +295,42 @@ describe("Profile route state", () => {
       );
     });
   });
+
+  it("re-polls local subscription state after a successful plan-change return", async () => {
+    routerState.query = { section: "subscription", plan_change: "checkout_success" };
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: { plan: "media" },
+      },
+    });
+
+    render(<ProfilePage />);
+
+    expect(
+      await screen.findByText("Subscription checkout completed. Your plan is syncing now.")
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(billingProfileMaybeSingleMock).toHaveBeenCalled();
+      expect(billingContractMaybeSingleMock).toHaveBeenCalled();
+    });
+
+    const initialProfileCalls = billingProfileMaybeSingleMock.mock.calls.length;
+    const initialContractCalls = billingContractMaybeSingleMock.mock.calls.length;
+
+    await waitFor(
+      () => {
+        expect(billingProfileMaybeSingleMock.mock.calls.length).toBeGreaterThan(
+          initialProfileCalls
+        );
+        expect(billingContractMaybeSingleMock.mock.calls.length).toBeGreaterThan(
+          initialContractCalls
+        );
+      },
+      { timeout: 4000 }
+    );
+  }, 15000);
 });

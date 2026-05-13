@@ -53,6 +53,8 @@ const sections: readonly ProfileSectionItem[] = [
   { key: "transactions", label: "Transactions", icon: Receipt },
 ];
 
+type BillingSyncScope = "credits" | "subscription" | "storage";
+
 function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | null {
   if (!startedAt) return null;
 
@@ -152,6 +154,10 @@ export default function ProfilePage() {
     null
   );
   const [refreshingCredits, setRefreshingCredits] = useState(false);
+  const [billingSyncRequest, setBillingSyncRequest] = useState<{
+    scope: BillingSyncScope;
+    key: number;
+  } | null>(null);
 
   const section = useMemo<ProfileSection>(() => {
     const query = (router.query.section as string | undefined)?.toLowerCase();
@@ -178,6 +184,10 @@ export default function ProfilePage() {
     const queryValue = router.query.plan_change;
     return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
   }, [router.query.plan_change]);
+
+  const requestBillingSync = (scope: BillingSyncScope) => {
+    setBillingSyncRequest({ scope, key: Date.now() });
+  };
 
   useEffect(() => {
     const defaultName = user?.user_metadata?.full_name || user?.email || "User";
@@ -434,6 +444,67 @@ export default function ProfilePage() {
     void loadAllTransactions();
   }, [section, user]);
 
+  const activePlan = buildPlanView({
+    planId: resolveProfileActivePlanId({ billingContract, billingProfile }),
+    plans: billingPlans,
+  });
+  const { quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
+    fallbackPlanId: activePlan.id,
+  });
+
+  useEffect(() => {
+    if (!billingSyncRequest || !user) return;
+
+    const requestKey = billingSyncRequest.key;
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+
+    const runSyncAttempt = async (attempt: number) => {
+      const refreshTasks: Promise<unknown>[] = [];
+
+      if (billingSyncRequest.scope === "credits") {
+        refreshTasks.push(refreshBalance({ silent: true }));
+        refreshTasks.push(loadBillingActivity(user));
+      } else {
+        refreshTasks.push(loadBillingProfile(user));
+        refreshTasks.push(loadBillingContract(user));
+        refreshTasks.push(loadBillingActivity(user));
+        refreshTasks.push(refreshQuotaSummary());
+
+        if (billingSyncRequest.scope === "subscription") {
+          refreshTasks.push(loadSubscriptionTransactions());
+        }
+
+        if (billingSyncRequest.scope === "storage") {
+          refreshTasks.push(loadActiveStorageAddons(user));
+          refreshTasks.push(loadStorageTransactions());
+        }
+      }
+
+      await Promise.allSettled(refreshTasks);
+
+      if (cancelled) return;
+
+      if (attempt >= 2) {
+        setBillingSyncRequest((current) => (current?.key === requestKey ? null : current));
+        return;
+      }
+
+      timeoutId = window.setTimeout(() => {
+        void runSyncAttempt(attempt + 1);
+      }, 1500);
+    };
+
+    void runSyncAttempt(0);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [billingSyncRequest, refreshBalance, refreshQuotaSummary, user]);
+
   useEffect(() => {
     if (!router.isReady || !checkoutStatus) return;
 
@@ -446,6 +517,7 @@ export default function ProfilePage() {
       if (user) {
         void loadBillingActivity(user);
       }
+      requestBillingSync("credits");
     }
 
     if (checkoutStatus === "cancel") {
@@ -467,6 +539,7 @@ export default function ProfilePage() {
         tone: "success",
         message: "Subscription checkout completed. Your plan is syncing now.",
       });
+      requestBillingSync("subscription");
     } else if (planChangeStatus === "checkout_cancel") {
       setNotice({
         tone: "info",
@@ -477,16 +550,19 @@ export default function ProfilePage() {
         tone: "success",
         message: "Plan change submitted. Your subscription is syncing now.",
       });
+      requestBillingSync("subscription");
     } else if (planChangeStatus === "canceled") {
       setNotice({
         tone: "success",
         message: "Downgrade requested. Stripe will update your subscription shortly.",
       });
+      requestBillingSync("subscription");
     } else if (planChangeStatus === "switched_free") {
       setNotice({
         tone: "success",
-        message: "Your workspace is now on the Free plan.",
+        message: "Your paid plan has ended.",
       });
+      requestBillingSync("subscription");
     }
 
     const nextQuery = { ...router.query };
@@ -505,13 +581,6 @@ export default function ProfilePage() {
 
   const displayName = displayNameInput || user?.email || "User";
   const displayInitials = displayName.slice(0, 2).toUpperCase();
-  const activePlan = buildPlanView({
-    planId: resolveProfileActivePlanId({ billingContract, billingProfile }),
-    plans: billingPlans,
-  });
-  const { quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
-    fallbackPlanId: activePlan.id,
-  });
 
   const currentSubscriptionPriceCents =
     billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
@@ -822,6 +891,7 @@ export default function ProfilePage() {
         loadStorageTransactions(),
       ]);
       void refreshQuotaSummary();
+      requestBillingSync("storage");
     } catch (error) {
       setNotice({
         tone: "error",
@@ -971,8 +1041,8 @@ export default function ProfilePage() {
 
         {pendingCancelPlanId ? (
           <ProfileConfirmModal
-            title={isInternalCompContract ? "Switch to Free?" : "Manage your downgrade?"}
-            confirmLabel={isInternalCompContract ? "Switch to Free" : "Continue to Stripe"}
+            title={isInternalCompContract ? "End paid access?" : "Manage your downgrade?"}
+            confirmLabel={isInternalCompContract ? "End paid access" : "Continue to Stripe"}
             onCancel={() => setPendingCancelPlanId(null)}
             onConfirm={() => {
               const nextPlanId = pendingCancelPlanId;
@@ -984,8 +1054,8 @@ export default function ProfilePage() {
           >
             <p>
               {isInternalCompContract
-                ? "Switching to Free ends the current plan now. Unused credits stay available."
-                : `Free starts after ${formatDateLabel(
+                ? "Ending paid access changes the workspace immediately. Unused credits stay available."
+                : `Your paid subscription ends after ${formatDateLabel(
                     billingContract?.current_period_end ??
                       billingProfile?.current_period_end ??
                       null

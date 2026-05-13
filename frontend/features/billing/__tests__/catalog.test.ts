@@ -30,7 +30,7 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "studio", plans }).seatsLabel).toBe("1 workspace seat");
   });
 
-  it("keeps free as the system free plan label", () => {
+  it("keeps the hidden free tier on neutral customer-facing copy", () => {
     expect(
       buildPlanView({
         planId: "free",
@@ -45,7 +45,7 @@ describe("buildPlanView", () => {
           },
         ],
       }).displayName
-    ).toBe("Free");
+    ).toBe("Default access");
   });
 
   it("uses starter as the paid first-tier presentation model", () => {
@@ -95,7 +95,7 @@ describe("buildPlanView", () => {
     expect(businessPlan.cardFooterDescription).toBe(
       "Best for serious creators with heavy workflow & storage needs"
     );
-    expect(businessPlan.bonusCreditsLabel).toBe("+ 500 BONUS credits every month for FREE");
+    expect(businessPlan.bonusCreditsLabel).toBe("+ 500 bonus credits every month included");
     expect(studioPlan.displayPricing).toEqual(
       expect.objectContaining({
         monthlyDisplayPriceCents: 12900,
@@ -123,7 +123,7 @@ describe("buildPlanView", () => {
     expect(businessPlan.cardFeatures).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: "Create studio", included: true }),
-        expect.objectContaining({ label: "Free BONUS credits", included: true }),
+        expect.objectContaining({ label: "Bonus credits", included: true }),
       ])
     );
   });

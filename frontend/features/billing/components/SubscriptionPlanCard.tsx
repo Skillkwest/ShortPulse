@@ -6,6 +6,7 @@ import {
   type BillingInterval,
   type BillingPlanRecord,
 } from "../catalog";
+import { formatStorageBytes } from "../storage";
 
 type SubscriptionPlanCardProps = {
   plan: BillingPlanRecord;
@@ -44,22 +45,25 @@ export function SubscriptionPlanCard({
   className = "",
 }: SubscriptionPlanCardProps) {
   const planView = buildPlanView({ planId: plan.id, plans });
-  const pricing = resolvePlanPricingForInterval(plan, billingInterval);
-  const displayPricing = planView.displayPricing;
+  const monthlyPricing = resolvePlanPricingForInterval(plan, "month");
+  const selectedPricing = resolvePlanPricingForInterval(plan, billingInterval);
+  const pricing =
+    billingInterval === "year" && !selectedPricing.hasLiveOffer ? monthlyPricing : selectedPricing;
   const showsAnnualSavings =
     billingInterval === "year" &&
-    Boolean(
-      displayPricing?.annualComparePriceCents != null &&
-      displayPricing.annualComparePriceCents > (displayPricing.annualDisplayPriceCents ?? 0)
-    );
+    selectedPricing.hasLiveOffer &&
+    monthlyPricing.monthlyEquivalentCents > pricing.monthlyEquivalentCents &&
+    pricing.savingsAmountCents > 0;
+  const creditsLabel = `${pricing.monthlyCreditsCents.toLocaleString()} credits every month`;
+  const storageLabel = `${formatStorageBytes(pricing.storageLimitBytes)} of media storage`;
   const featureRows = [
     {
-      label: planView.displayBenefits.monthlyCreditsLabel,
+      label: creditsLabel,
       included: true,
       annotation: planView.bonusCreditsLabel,
     },
     {
-      label: planView.displayBenefits.storageLabel,
+      label: storageLabel,
       included: true,
       annotation: null,
     },
@@ -79,17 +83,16 @@ export function SubscriptionPlanCard({
       annotation: null,
     })),
   ];
-  const monthlyDisplayPriceCents =
-    displayPricing?.monthlyDisplayPriceCents ?? pricing.monthlyEquivalentCents;
-  const annualDisplayPriceCents =
-    displayPricing?.annualDisplayPriceCents ?? pricing.monthlyEquivalentCents;
-  const priceDisplay = formatPlanCurrency(
-    billingInterval === "year" ? annualDisplayPriceCents : monthlyDisplayPriceCents
-  );
+  const priceDisplay = formatPlanCurrency(pricing.monthlyEquivalentCents);
   const priceCompareDisplay = showsAnnualSavings
-    ? formatPlanCurrency(displayPricing?.annualComparePriceCents ?? monthlyDisplayPriceCents)
+    ? formatPlanCurrency(monthlyPricing.monthlyEquivalentCents)
     : null;
-  const billingCopy = billingInterval === "year" ? "per month billed annually" : "Billed monthly";
+  const billingCopy =
+    billingInterval === "year"
+      ? selectedPricing.hasLiveOffer
+        ? "per month billed annually"
+        : "Annual pricing unavailable"
+      : "Billed monthly";
   const cardClasses = [
     "subscription-plan-card",
     planView.className,
@@ -112,8 +115,7 @@ export function SubscriptionPlanCard({
               ) : null}
               {showsAnnualSavings ? (
                 <span className="subscription-plan-card-tag is-discount">
-                  {displayPricing?.annualDiscountLabel ??
-                    formatSavingsPercent(pricing.savingsPercent)}
+                  {formatSavingsPercent(pricing.savingsPercent)}
                 </span>
               ) : null}
               {stateBadgeLabel ? (
@@ -164,8 +166,7 @@ export function SubscriptionPlanCard({
 
         {showsAnnualSavings ? (
           <div className="subscription-plan-card-save-chip">
-            {displayPricing?.annualSaveLabel ??
-              `Save ${formatPlanCurrency(pricing.savingsAmountCents)}`}
+            {`Save ${formatPlanCurrency(pricing.savingsAmountCents)}`}
           </div>
         ) : (
           <div className="subscription-plan-card-save-chip is-placeholder" aria-hidden="true" />

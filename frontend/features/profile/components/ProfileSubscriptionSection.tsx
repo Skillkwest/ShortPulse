@@ -90,27 +90,20 @@ export function ProfileSubscriptionSection({
       Math.max(
         0,
         ...visibleBillingPlans.map((plan) => {
-          const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
-          const displayPricing = planView.displayPricing;
-          if (
-            displayPricing?.annualComparePriceCents &&
-            displayPricing.annualDisplayPriceCents > 0
-          ) {
-            return Math.round(
-              ((displayPricing.annualComparePriceCents - displayPricing.annualDisplayPriceCents) /
-                displayPricing.annualComparePriceCents) *
-                100
-            );
-          }
           const pricing = resolvePlanPricingForInterval(plan, "year");
-          return pricing.savingsAmountCents > 0 ? Math.round(pricing.savingsPercent) : 0;
+          return pricing.hasLiveOffer && pricing.savingsAmountCents > 0
+            ? Math.round(pricing.savingsPercent)
+            : 0;
         })
       ),
     [visibleBillingPlans]
   );
-  const currentPlanSummary =
-    currentSubscriptionPriceCents === 0
-      ? "Free forever"
+  const activePlanDisplayName =
+    activePlan.id === "free" ? "No active paid plan" : activePlan.displayName;
+  const currentPlanSummary = isInternalCompContract
+    ? "Managed internally"
+    : currentSubscriptionPriceCents === 0
+      ? "No active paid subscription"
       : currentSubscriptionBillingInterval === "year"
         ? `${formatCurrencyFromCents(Math.round(currentSubscriptionPriceCents / 12))} per month billed annually`
         : `${formatCurrencyFromCents(currentSubscriptionPriceCents)} / month`;
@@ -136,7 +129,7 @@ export function ProfileSubscriptionSection({
         <div className="profile-hero-copy">
           <p className="eyebrow">Current plan</p>
           <h2 className="profile-hero-title">Your subscription</h2>
-          <p className="profile-hero-value profile-hero-value-text">{activePlan.displayName}</p>
+          <p className="profile-hero-value profile-hero-value-text">{activePlanDisplayName}</p>
           <p className="tiny subdued">
             {currentPlanSummary} · {activePlan.description}
           </p>
@@ -207,6 +200,7 @@ export function ProfileSubscriptionSection({
           ) : (
             visibleBillingPlans.map((plan) => {
               const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
+              const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
               const isCurrentPlan = activePlan.id === plan.id;
               const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
               const isHigherTier = candidatePlanRank > activePlanRank;
@@ -216,9 +210,22 @@ export function ProfileSubscriptionSection({
               const isActionLoading = planChangeLoadingPlanId === plan.id;
               const paidPlanLabel = activePlan.id === "free" || isInternalCompContract;
               const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
+              const intervalUnavailable =
+                selectedBillingInterval === "year" &&
+                !isCurrentPlan &&
+                !isFree &&
+                !planPricing.hasLiveOffer;
               const actionButton = isCurrentPlan ? (
                 <button type="button" className="profile-button ghost-btn" disabled>
                   Current Plan
+                </button>
+              ) : intervalUnavailable ? (
+                <button
+                  type="button"
+                  className={`profile-button ${isHigherTier ? "primary-btn" : "ghost-btn"}`}
+                  disabled
+                >
+                  Annual unavailable
                 </button>
               ) : isCurrentInternalCompPlan ? (
                 <button
@@ -267,7 +274,7 @@ export function ProfileSubscriptionSection({
                   className="profile-button ghost-btn"
                   onClick={() => onRequestCancel(plan.id)}
                 >
-                  {isInternalCompContract ? "Switch to Free" : "Downgrade to Free"}
+                  {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
                 </button>
               ) : null;
 
@@ -296,7 +303,7 @@ export function ProfileSubscriptionSection({
               className="profile-button ghost-btn"
               onClick={() => onRequestCancel("free")}
             >
-              {isInternalCompContract ? "Switch to Free" : "Cancel to Free"}
+              {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
             </button>
           </div>
         ) : null}

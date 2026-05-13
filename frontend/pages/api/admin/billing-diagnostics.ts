@@ -30,6 +30,7 @@ type BillingContractRow = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  stripe_customer_id: string | null;
   stripe_price_id: string | null;
   stripe_subscription_id: string | null;
   contract_source: "stripe" | "internal_comp" | null;
@@ -334,7 +335,7 @@ export default async function handler(
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_end"
+          "id, plan_id, offer_id, stripe_customer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_end"
         )
         .eq("user_id", userId)
         .is("ended_at", null)
@@ -564,6 +565,7 @@ export default async function handler(
           id: currentContract.id,
           planId: currentContract.plan_id ?? null,
           offerId: currentContract.offer_id ?? null,
+          stripeCustomerId: currentContract.stripe_customer_id ?? null,
           stripePriceId: currentContract.stripe_price_id ?? null,
           stripeSubscriptionId: currentContract.stripe_subscription_id ?? null,
           contractSource: currentContract.contract_source ?? null,
@@ -1019,6 +1021,27 @@ export default async function handler(
           ],
         });
       }
+    }
+
+    if (
+      currentContract &&
+      currentContract.contract_source !== "internal_comp" &&
+      billingProfile?.stripe_customer_id &&
+      currentContract.stripe_customer_id &&
+      billingProfile.stripe_customer_id !== currentContract.stripe_customer_id
+    ) {
+      pushFinding(findings, {
+        code: "stripe_customer_id_mismatch",
+        severity: "warning",
+        confidence: "high",
+        summary: "Billing profile and active contract point at different Stripe customers.",
+        details:
+          "Local billing tables disagree on the Stripe customer id for this user. Portal flows, diagnostics, and invoice history can target the wrong customer until the mapping is reconciled.",
+        recommendedActions: [
+          "Run the admin Stripe customer sync flow to reconcile local profile and contract mappings.",
+          "Confirm the intended Stripe customer in the active billing environment before editing local billing rows.",
+        ],
+      });
     }
 
     if (

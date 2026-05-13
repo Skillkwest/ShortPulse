@@ -34,6 +34,14 @@ type BillingProfileSnapshot = {
   subscription_status: string | null;
 };
 
+type BillingContractSnapshot = {
+  id: string;
+  stripe_customer_id: string | null;
+  plan_id: string | null;
+  status: string | null;
+  contract_source: "stripe" | "internal_comp" | null;
+};
+
 const normalizeEmail = (value: string | null | undefined): string | null => {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 ? normalized : null;
@@ -50,27 +58,70 @@ const isStripeCustomerMissingError = (message: unknown): boolean => {
   return normalized.includes("no such customer") || normalized.includes("does not exist");
 };
 
-const upsertStripeCustomerMapping = async ({
+const isStripeCustomerModeMismatchError = (message: unknown): boolean => {
+  if (typeof message !== "string") return false;
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("test mode") &&
+    normalized.includes("live mode") &&
+    (normalized.includes("no such customer") || normalized.includes("does not exist"))
+  );
+};
+
+const resolveBillingPlanId = ({
+  profile,
+  contract,
+}: {
+  profile: BillingProfileSnapshot | null;
+  contract: BillingContractSnapshot | null;
+}) => contract?.plan_id ?? profile?.plan_id ?? "free";
+
+const resolveBillingSubscriptionStatus = ({
+  profile,
+  contract,
+}: {
+  profile: BillingProfileSnapshot | null;
+  contract: BillingContractSnapshot | null;
+}) =>
+  contract?.status ??
+  profile?.subscription_status ??
+  (contract?.contract_source === "internal_comp" ? "active" : "inactive");
+
+const syncLocalStripeCustomerMapping = async ({
   userId,
   profile,
+  contract,
   stripeCustomerId,
 }: {
   userId: string;
   profile: BillingProfileSnapshot | null;
+  contract: BillingContractSnapshot | null;
   stripeCustomerId: string;
 }) => {
   const supabaseAdmin = getSupabaseAdmin();
+  const nextPlanId = resolveBillingPlanId({ profile, contract });
+  const nextSubscriptionStatus = resolveBillingSubscriptionStatus({ profile, contract });
   const { error: upsertError } = await supabaseAdmin.from("billing_profiles").upsert(
     {
       user_id: userId,
-      plan_id: profile?.plan_id ?? "free",
-      subscription_status: profile?.subscription_status ?? "inactive",
+      plan_id: nextPlanId,
+      subscription_status: nextSubscriptionStatus,
       stripe_customer_id: stripeCustomerId,
     },
     { onConflict: "user_id" }
   );
   if (upsertError) {
     throw new Error(upsertError.message || "Failed to persist Stripe customer mapping.");
+  }
+
+  if (contract && contract.stripe_customer_id !== stripeCustomerId) {
+    const { error: contractUpdateError } = await supabaseAdmin
+      .from("billing_subscription_contracts")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", contract.id);
+    if (contractUpdateError) {
+      throw new Error(contractUpdateError.message || "Failed to sync Stripe customer on contract.");
+    }
   }
 };
 
@@ -84,19 +135,35 @@ export const syncStripeCustomerForUser = async ({
   displayName,
 }: EnsureStripeCustomerParams): Promise<StripeCustomerSyncResult> => {
   const supabaseAdmin = getSupabaseAdmin();
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("billing_profiles")
-    .select("stripe_customer_id, plan_id, subscription_status")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [profileResult, contractResult] = await Promise.all([
+    supabaseAdmin
+      .from("billing_profiles")
+      .select("stripe_customer_id, plan_id, subscription_status")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("billing_subscription_contracts")
+      .select("id, stripe_customer_id, plan_id, status, contract_source")
+      .eq("user_id", userId)
+      .is("ended_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-  if (profileError) {
-    throw new Error(profileError.message || "Failed to load billing profile.");
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message || "Failed to load billing profile.");
+  }
+  if (contractResult.error) {
+    throw new Error(contractResult.error.message || "Failed to load billing contract.");
   }
 
   const normalizedEmail = normalizeEmail(email);
   const normalizedDisplayName = normalizeDisplayName(displayName);
-  const profileSnapshot = (profile as BillingProfileSnapshot | null) ?? null;
+  const profileSnapshot = (profileResult.data as BillingProfileSnapshot | null) ?? null;
+  const contractSnapshot = (contractResult.data as BillingContractSnapshot | null) ?? null;
+  const existingStripeCustomerId =
+    profileSnapshot?.stripe_customer_id ?? contractSnapshot?.stripe_customer_id ?? null;
 
   const createCustomer = async (): Promise<StripeCustomerSyncResult> => {
     const customer = await stripePostForm<StripeCustomerResponse>("/customers", {
@@ -104,9 +171,10 @@ export const syncStripeCustomerForUser = async ({
       name: normalizedDisplayName ?? undefined,
       "metadata[user_id]": userId,
     });
-    await upsertStripeCustomerMapping({
+    await syncLocalStripeCustomerMapping({
       userId,
       profile: profileSnapshot,
+      contract: contractSnapshot,
       stripeCustomerId: customer.id,
     });
     return {
@@ -118,16 +186,21 @@ export const syncStripeCustomerForUser = async ({
     };
   };
 
-  if (!profileSnapshot?.stripe_customer_id) {
+  if (!existingStripeCustomerId) {
     return await createCustomer();
   }
 
   let existingCustomer: StripeCustomerResponse;
   try {
     existingCustomer = await stripeGet<StripeCustomerResponse>(
-      `/customers/${profileSnapshot.stripe_customer_id}`
+      `/customers/${existingStripeCustomerId}`
     );
   } catch (error) {
+    if (error instanceof Error && isStripeCustomerModeMismatchError(error.message)) {
+      throw new Error(
+        "Stripe customer mode mismatch detected. Verify the active Stripe environment before repairing this user."
+      );
+    }
     if (error instanceof Error && isStripeCustomerMissingError(error.message)) {
       return await createCustomer();
     }
@@ -154,6 +227,12 @@ export const syncStripeCustomerForUser = async ({
   }
 
   if (Object.keys(updatePayload).length === 0) {
+    await syncLocalStripeCustomerMapping({
+      userId,
+      profile: profileSnapshot,
+      contract: contractSnapshot,
+      stripeCustomerId: existingCustomer.id,
+    });
     return {
       stripeCustomerId: existingCustomer.id,
       email: existingEmail,
@@ -167,6 +246,13 @@ export const syncStripeCustomerForUser = async ({
     `/customers/${existingCustomer.id}`,
     updatePayload
   );
+
+  await syncLocalStripeCustomerMapping({
+    userId,
+    profile: profileSnapshot,
+    contract: contractSnapshot,
+    stripeCustomerId: updatedCustomer.id,
+  });
 
   return {
     stripeCustomerId: updatedCustomer.id,

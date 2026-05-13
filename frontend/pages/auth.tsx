@@ -236,13 +236,6 @@ export default function AuthPage() {
               </button>
             </div>
 
-            {mode === "signup" ? (
-              <div className="auth-plan-note" aria-live="polite">
-                <span className="auth-plan-pill">Free</span>
-                <span>Every new account starts on the Free plan.</span>
-              </div>
-            ) : null}
-
             <div className="auth-field-stack">
               <label className="auth-label" htmlFor="email">
                 Email
@@ -309,7 +302,7 @@ export default function AuthPage() {
 
             <button className="auth-submit primary-btn" type="submit" disabled={isSubmitDisabled}>
               <SignIn size={18} weight="bold" />
-              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create free account"}
+              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
             </button>
 
             <div className="auth-divider" />

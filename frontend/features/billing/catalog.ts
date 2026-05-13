@@ -136,10 +136,10 @@ export type BillingPlanView = {
 const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
   free: {
     className: "plan-free",
-    displayNameOverride: "Free",
+    displayNameOverride: "Default access",
     seatsLabel: "1 workspace seat",
-    description: "Free access for exploration.",
-    cardFooterDescription: "Best for trying ShortPulse before upgrading to a paid plan.",
+    description: "Baseline workspace access outside a paid subscription.",
+    cardFooterDescription: "Included default access when no paid subscription is active.",
     concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
     concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
     cardFeatures: [
@@ -148,7 +148,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video Studio", included: false },
       { label: "Sound Studio", included: false },
       { label: "Lowest cost per credit", included: false },
-      { label: "Free BONUS credits", included: false },
+      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 0,
@@ -175,7 +175,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video Studio", included: false },
       { label: "Sound Studio", included: false },
       { label: "Lowest cost per credit", included: false },
-      { label: "Free BONUS credits", included: false },
+      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 1_500,
@@ -202,7 +202,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: false },
-      { label: "Free BONUS credits", included: false },
+      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 4_900,
@@ -230,7 +230,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Free BONUS credits", included: false },
+      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 12_900,
@@ -257,9 +257,9 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Free BONUS credits", included: true },
+      { label: "Bonus credits", included: true },
     ],
-    bonusCreditsLabel: "+ 500 BONUS credits every month for FREE",
+    bonusCreditsLabel: "+ 500 bonus credits every month included",
     displayPricing: {
       monthlyDisplayPriceCents: 29_900,
       annualDisplayPriceCents: 22_900,

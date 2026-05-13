@@ -63,6 +63,18 @@ const billingPlansFixture = [
     monthly_credits_cents: 20000,
     storage_limit_bytes: 26843545600,
     is_active: true,
+    offers: {
+      year: {
+        id: "media_year",
+        billing_interval: "year",
+        recurring_price_cents: 19000,
+        monthly_credits_cents: 20000,
+        storage_limit_bytes: 26843545600,
+        stripe_price_id: "price_media_year",
+        acquisition_enabled: true,
+        is_active: true,
+      },
+    },
   },
   {
     id: "studio",
@@ -71,6 +83,18 @@ const billingPlansFixture = [
     monthly_credits_cents: 3000,
     storage_limit_bytes: 107374182400,
     is_active: true,
+    offers: {
+      year: {
+        id: "studio_year",
+        billing_interval: "year",
+        recurring_price_cents: 39000,
+        monthly_credits_cents: 3000,
+        storage_limit_bytes: 107374182400,
+        stripe_price_id: "price_studio_year",
+        acquisition_enabled: true,
+        is_active: true,
+      },
+    },
   },
   {
     id: "business",
@@ -79,6 +103,18 @@ const billingPlansFixture = [
     monthly_credits_cents: 60000,
     storage_limit_bytes: 536870912000,
     is_active: true,
+    offers: {
+      year: {
+        id: "business_year",
+        billing_interval: "year",
+        recurring_price_cents: 49000,
+        monthly_credits_cents: 60000,
+        storage_limit_bytes: 536870912000,
+        stripe_price_id: "price_business_year",
+        acquisition_enabled: true,
+        is_active: true,
+      },
+    },
   },
 ];
 
@@ -306,12 +342,14 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(await screen.findByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Cancel paid subscription" })
+    ).toBeInTheDocument();
     expect(
       await screen.findByText("$10.00 / month · Ideal for creators testing cadence.")
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "Recent subscription payments" })
+      screen.getByRole("heading", { name: "Recent subscription payments" })
     ).toBeInTheDocument();
     expect(await screen.findByText("Monthly subscription renewal")).toBeInTheDocument();
     expect((await screen.findAllByText("$19.00")).length).toBeGreaterThan(0);
@@ -366,8 +404,10 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel to Free" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Downgrade to Free" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Cancel paid subscription" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Default access" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Starter" })).toBeInTheDocument();
   });
 
@@ -394,7 +434,7 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect(screen.getAllByText("Free")[0]).toBeInTheDocument();
+    expect(await screen.findByText("No active paid plan")).toBeInTheDocument();
     expect(screen.queryByText("Next renewal")).not.toBeInTheDocument();
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
     expect(screen.getByText("Monthly credits")).toBeInTheDocument();
@@ -404,8 +444,11 @@ describe("Profile subscription actions", () => {
   it("opens and closes the cancel subscription modal", async () => {
     render(<ProfilePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
-    expect(screen.getByRole("heading", { name: "Manage your downgrade?" })).toBeInTheDocument();
+    await screen.findByText("Monthly subscription renewal");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel paid subscription" }));
+    expect(
+      await screen.findByRole("heading", { name: "Manage your downgrade?" })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -419,15 +462,20 @@ describe("Profile subscription actions", () => {
   it("routes cancel confirmation through the billing portal handler", async () => {
     render(<ProfilePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue to Stripe" }));
+    await screen.findByText("Monthly subscription renewal");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel paid subscription" }));
+    expect(
+      await screen.findByRole("heading", { name: "Manage your downgrade?" })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Continue to Stripe|End paid access/ }));
 
     await waitFor(() => {
-      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetPlanId: "free", billingInterval: "month" }),
-      });
+      expect(fetchWithAuthMock).toHaveBeenCalled();
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetPlanId: "free", billingInterval: "month" }),
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
   });
@@ -461,6 +509,43 @@ describe("Profile subscription actions", () => {
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+  });
+
+  it("disables annual paid-plan actions when the target plan has no live annual offer", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [
+              billingPlansFixture[0],
+              billingPlansFixture[1],
+              {
+                ...billingPlansFixture[2],
+                offers: undefined,
+              },
+            ],
+            packages: [],
+            storageAddons: [],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      return {
+        ok: false,
+        json: async () => ({ error: "Portal unavailable" }),
+      };
+    });
+
+    render(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Annual" }));
+    expect(await screen.findByRole("button", { name: "Annual unavailable" })).toBeDisabled();
   });
 
   it("shows self-serve plan actions for internal comp contracts", async () => {
@@ -514,7 +599,7 @@ describe("Profile subscription actions", () => {
       container.querySelector(".subscription-plan-card.is-current.plan-business")
     ).not.toBeNull();
     expect(screen.getByText(/2026/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch to Free" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "End paid access" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();

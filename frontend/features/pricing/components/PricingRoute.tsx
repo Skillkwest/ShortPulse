@@ -46,9 +46,7 @@ const resolvePlanActionLabel = (params: {
   displayName: string;
 }) => {
   if (!params.isAuthenticated) {
-    return params.monthlyPriceCents === 0
-      ? "Create free account"
-      : `Sign up for ${params.displayName}`;
+    return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
   }
   if (params.monthlyPriceCents === 0) {
     return "Continue to dashboard";
@@ -60,17 +58,10 @@ const resolveMaxAnnualSavingsPercent = (plans: readonly BillingPlanRecord[]): nu
   Math.max(
     0,
     ...plans.map((plan) => {
-      const planView = buildPlanView({ planId: plan.id, plans: plans as BillingPlanRecord[] });
-      const displayPricing = planView.displayPricing;
-      if (displayPricing?.annualComparePriceCents && displayPricing.annualDisplayPriceCents > 0) {
-        return Math.round(
-          ((displayPricing.annualComparePriceCents - displayPricing.annualDisplayPriceCents) /
-            displayPricing.annualComparePriceCents) *
-            100
-        );
-      }
       const pricing = resolvePlanPricingForInterval(plan, "year");
-      return pricing.savingsAmountCents > 0 ? Math.round(pricing.savingsPercent) : 0;
+      return pricing.hasLiveOffer && pricing.savingsAmountCents > 0
+        ? Math.round(pricing.savingsPercent)
+        : 0;
     })
   );
 
@@ -256,12 +247,18 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
               {sortedPlans.map((plan) => {
                 const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
                 const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
+                const intervalUnavailable =
+                  selectedBillingInterval === "year" &&
+                  plan.id !== "free" &&
+                  !planPricing.hasLiveOffer;
                 const isSelected = selectedPlanId === plan.id;
-                const actionLabel = resolvePlanActionLabel({
-                  isAuthenticated,
-                  monthlyPriceCents: planPricing.monthlyEquivalentCents,
-                  displayName: planView.displayName,
-                });
+                const actionLabel = intervalUnavailable
+                  ? "Annual unavailable"
+                  : resolvePlanActionLabel({
+                      isAuthenticated,
+                      monthlyPriceCents: planPricing.monthlyEquivalentCents,
+                      displayName: planView.displayName,
+                    });
                 const isLoading = planActionLoadingId === plan.id;
 
                 return (
@@ -279,7 +276,7 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
                         onClick={() => {
                           void handlePlanAction(plan.id);
                         }}
-                        disabled={isLoading}
+                        disabled={isLoading || intervalUnavailable}
                       >
                         {isLoading ? "Starting…" : actionLabel}
                       </button>

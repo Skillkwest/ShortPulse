@@ -357,6 +357,177 @@ describe("GET /api/admin/billing-diagnostics", () => {
     );
   });
 
+  it("flags local Stripe customer id drift between the billing profile and active contract", async () => {
+    const billingProfileQuery = {
+      eq: vi.fn().mockReturnValue({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            plan_id: "studio",
+            subscription_status: "active",
+            stripe_customer_id: "cus_profile",
+            stripe_subscription_id: null,
+            current_period_end: "2026-05-01T00:00:00.000Z",
+          },
+          error: null,
+        }),
+      }),
+    };
+    const contractQuery = {
+      eq: vi.fn().mockReturnValue({
+        is: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "contract-mismatch",
+                  plan_id: "studio",
+                  offer_id: "studio__current",
+                  stripe_customer_id: "cus_contract",
+                  stripe_price_id: "price_studio",
+                  stripe_subscription_id: null,
+                  contract_source: "stripe",
+                  recurring_price_cents: 3000,
+                  monthly_credits_cents: 6000,
+                  storage_limit_bytes: 107374182400,
+                  status: "active",
+                  current_period_end: "2026-05-01T00:00:00.000Z",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const linkedOfferQuery = {
+      eq: vi.fn().mockReturnValue({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            id: "studio__current",
+            plan_id: "studio",
+            offer_name: "Studio",
+            stripe_price_id: "price_studio",
+            recurring_price_cents: 3000,
+            monthly_credits_cents: 6000,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+          },
+          error: null,
+        }),
+      }),
+    };
+    const publicOfferQuery = {
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: "studio__current",
+                    plan_id: "studio",
+                    offer_name: "Studio",
+                    stripe_price_id: "price_studio",
+                    recurring_price_cents: 3000,
+                    monthly_credits_cents: 6000,
+                    storage_limit_bytes: 107374182400,
+                    acquisition_enabled: true,
+                    is_active: true,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const billingOfferSelectMock = vi
+      .fn()
+      .mockReturnValueOnce(linkedOfferQuery)
+      .mockReturnValueOnce(publicOfferQuery);
+
+    getSupabaseAdminMock.mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi.fn().mockResolvedValue({
+            data: { user: { id: "user-1", email: "user@example.com" } },
+            error: null,
+          }),
+        },
+      },
+      from: vi.fn((table: string) => {
+        if (table === "billing_profiles") {
+          return { select: vi.fn().mockReturnValue(billingProfileQuery) };
+        }
+        if (table === "billing_subscription_contracts") {
+          return { select: vi.fn().mockReturnValue(contractQuery) };
+        }
+        if (table === "billing_plan_offers") {
+          return { select: billingOfferSelectMock };
+        }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockReturnValue({
+                  order: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === "ai_credit_reservations" || table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+    stripeGetMock.mockResolvedValue({
+      id: "cus_profile",
+      email: "user@example.com",
+      deleted: false,
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentContract: expect.objectContaining({
+          stripeCustomerId: "cus_contract",
+        }),
+        findings: expect.arrayContaining([
+          expect.objectContaining({
+            code: "stripe_customer_id_mismatch",
+            severity: "warning",
+          }),
+        ]),
+      })
+    );
+  });
+
   it("returns mode-mismatch finding when Stripe returns test/live customer mismatch", async () => {
     type MockOfferQuery = {
       eq: ReturnType<typeof vi.fn>;

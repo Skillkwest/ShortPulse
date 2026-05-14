@@ -17,6 +17,7 @@ Use this path when setting up a new agent for a new recurring task:
 
 ## Agent Contracts
 
+- `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
 - `docs/agents/change-impact-auditor.md`: change-impact audit helper contract.
 - `docs/agents/gear-ball/README.md`: worktree, branch, environment, Vercel, and database coordination contract and memory entrypoint.
   - `docs/agents/gear-ball/github-operations.md`: Gear Ball's local GitHub push, PR, review, and merge coordination summary.
@@ -24,6 +25,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
 - `docs/agents/ophestivus.md`: admin board steward contract.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
+- `docs/agents/ledger/README.md`: Ledger commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/system-catalog-agent/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.

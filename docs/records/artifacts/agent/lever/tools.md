@@ -10,6 +10,7 @@ Purpose: record helper commands, scripts, tests, and future tooling needs for Le
 - Model retire dry-run: `npm -C frontend run model:retire -- --model-id <old> --replacement-model-id <new>`
 - Docs links check: `node scripts/check_docs_links.js`
 - Run report template: `docs/records/artifacts/agent/lever/reports/run-report-template.md`
+- Residue scan pattern: `rg -n "<model-id>|<model-label>|<route-slug>|<pricing-key>" frontend scripts docs README.md --glob '!frontend/.next/**' --glob '!frontend/tsconfig.tsbuildinfo'`
 
 ## Expected Validation Families
 
@@ -24,3 +25,4 @@ Use these when the touched code makes them relevant:
 ## Tooling Needs
 
 - Add a dedicated retirement regression matrix if repeated retirements keep touching the same visible-surface checks.
+- If repeated hard removals keep relying on ad hoc residue scans, add a dedicated removal-audit checklist or scripted helper.

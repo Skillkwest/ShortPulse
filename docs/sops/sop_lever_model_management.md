@@ -7,6 +7,7 @@ Purpose: define how Lever handles recurring ShortPulse model maintenance work wi
 - Model onboarding
 - Model API contract reverification
 - Model retirement and app-surface demotion
+- Model hard removal and post-removal residue audit
 - Lever memory, training, and artifact upkeep
 
 ## Simple Trigger Language
@@ -45,6 +46,7 @@ Lever owns the remaining repo workflow unless the user explicitly narrows scope.
      - add model
      - reverify model contract
      - retire/deprecate model
+     - fully remove model
      - audit app-visible residue after a lifecycle change
 
 2. Route to the correct canonical SOP.
@@ -54,6 +56,8 @@ Lever owns the remaining repo workflow unless the user explicitly narrows scope.
      - use `docs/sops/sop_model_api_contract_reverification.md`
    - Retire model:
      - use `docs/sops/sop_model_retirement.md`
+   - Remove model:
+     - use `docs/sops/sop_model_retirement.md`, but execute the hard-removal branch when compatibility is no longer needed
 
 3. Always keep the inventory boundary intact.
    - Model inventory remains code-owned.
@@ -70,13 +74,23 @@ Lever owns the remaining repo workflow unless the user explicitly narrows scope.
      - picker/registry tests and route inventory coverage
    - Keep compatibility-only runtime or route references only when the compatibility window still matters.
 
-5. Record the run.
+5. When fully removing a model, extend the audit to active repo residue.
+   - Remove active catalog/runtime/pricing/provider/route/test/doc support for the model.
+   - Confirm visible app surfaces no longer expose the model anywhere.
+   - Run a residue scan across active code/docs/tests.
+   - Treat these as acceptable residual references unless the user explicitly asks for total erasure:
+     - change logs
+     - historical planning snapshots
+     - Lever memory, training history, run logs, and dated reports
+   - Treat any remaining active code, route, pricing, or visible app reference as a miss and fix it before closeout.
+
+6. Record the run.
    - For every substantive add/reverify/retire/remove run:
      - append a row to `docs/records/artifacts/agent/lever/run-log.md`
      - create or update a dated report under `docs/records/artifacts/agent/lever/reports/` when the run is materially important, novel, or operationally instructive
    - Use `docs/records/artifacts/agent/lever/reports/run-report-template.md` as the default report skeleton.
 
-6. Close the run with durable maintenance.
+7. Close the run with durable maintenance.
    - Add a training-history entry only when the run teaches a reusable lesson.
    - Promote concise durable lessons into `docs/agents/lever/memory.md`.
    - Keep larger notes, KPI baselines, and future reports under `docs/records/artifacts/agent/lever/`.
@@ -86,6 +100,7 @@ Lever owns the remaining repo workflow unless the user explicitly narrows scope.
 - Requested model change implemented or explicitly declined with reason.
 - Runtime authority and route inventory remain aligned.
 - Visible app surfaces match the intended lifecycle state.
+- Full removals leave only intentional historical references after residue audit.
 - Relevant docs/indexes updated.
 - Targeted validation run or gap explicitly reported.
 - Retained run record written.

@@ -19,5 +19,6 @@ The authoritative Lever SOP lives at:
 ## Current Notes
 
 - Treat picker-visible model retirement as a two-part task: lifecycle change first, visible-app residue audit second.
+- Treat full model removal as a three-part task: lifecycle-safe transition, visible-app residue audit, then active repo residue scan that leaves only intentional historical records.
 - Prefer updating existing model-platform SOPs over creating narrow one-off Lever SOPs unless a repeatable gap appears.
 - Treat short commands like `add <model>` and `remove <model>` as full workflow triggers, not as user requests for only one file edit.

@@ -45,6 +45,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/README.md`
+- `docs/agents/d-bug/README.md`
 - `agent-teaching/README.md`
 - `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`
 - `agent-teaching/setup/new-codex-project-setup.md`
@@ -55,6 +56,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
+- `docs/agents/ledger/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
@@ -124,11 +126,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
-- `docs/api/api-fal-seedance-1-5-pro.md` (legacy/disabled)
-- `docs/api/api-fal-seedance-1-5-pro-i2v.md` (legacy/disabled)
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
-- `docs/api/api-kie-seedance-1-5-pro.md`
 - `docs/api/api-kie-seedance-2.md`
 - `docs/api/api-kie-seedance-2-fast.md`
 - `docs/api/api-fal-flux-dev.md`

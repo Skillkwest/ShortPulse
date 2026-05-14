@@ -3,6 +3,15 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Working-development continuity seeding:
+  - added `scripts/ops/supabase_seed_single_user_staging_to_dev.mjs` to seed one staging user's owned relational rows into the dedicated working-development Supabase project,
+  - added optional `--storage-scope continuity` and `--skip-db` modes so project/character continuity media can be hydrated without rerunning the full relational seed,
+  - and hardened the seed against legacy staging contamination by skipping `character_quick_swap_items` rows whose linked `character_media_assets.asset_kind` is not `quickswap`.
+- Working-development first-run hardening:
+  - restored the missing `auth.users.on_auth_user_created_billing_setup` attachment on the dedicated dev Supabase project using the canonical billing bootstrap SQL,
+  - backfilled the already-created dev user so billing/credit baseline rows match the repaired signup contract,
+  - documented that hosted dev bootstrap needs auth-side trigger parity in addition to `public` schema parity and ACL sync,
+  - and improved AI Studio zero-project recovery by exposing `Open projects` from the gated error shell and wiring dashboard `ProjectsModal` with its create-project callback.
 - Working-development bootstrap hardening:
   - added `scripts/ops/supabase_public_acl_sync.sh` to sync hosted `public` grants/revokes after schema-only Supabase bootstrap,
   - documented the grant-sync requirement for development bootstrap and SQL operator workflows,

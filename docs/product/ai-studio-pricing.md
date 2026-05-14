@@ -76,7 +76,6 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
   - Fal lanes: `$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` audio+voice
   - Kie lane (`kie-ai/kling-3.0`): bill on Kie `mode` rather than raw `resolution`; observed `std` audio-off = `14` Kie credits/s (`$0.07/s`), observed `pro` audio-off = `18` Kie credits/s (`$0.09/s`), and current runtime keeps a `1.5x` sound-on premium for those mode baselines until richer Kie evidence is captured.
 - `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.40` per video from current Kie pricing evidence.
-- `seedance-1.5-per-second`: Kie-log-backed rate table for `kie-ai/seedance-1.5-pro`: `720p` `$0.0175/s` audio-off and `$0.035/s` audio-on; `1080p` `$0.0375/s` audio-off and `$0.075/s` audio-on; `480p` remains a conservative interim baseline pending direct Kie evidence.
 - `openai-text-token`: OpenAI standard short-context token rates for `gpt-5.4` (`$2.50`/M input, `$0.25`/M cached input, `$15.00`/M output), `gpt-5.4-mini` (`$0.75`/M input, `$0.075`/M cached input, `$4.50`/M output), and `gpt-5.4-nano` (`$0.20`/M input, `$0.02`/M cached input, `$1.25`/M output), then shared credit conversion plus any per-model markup and row-specific round-nearest override.
 
 ## Tests

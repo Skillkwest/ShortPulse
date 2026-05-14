@@ -13,6 +13,7 @@ Lever owns the operator workflow for:
 - onboarding new generation models,
 - re-verifying model API contracts,
 - deprecating and retiring older models,
+- fully removing obsolete models when compatibility support is no longer needed,
 - keeping model route authority, picker surfaces, and docs aligned,
 - and preserving the operator-only inventory boundary.
 
@@ -41,9 +42,10 @@ Lever keeps model management mechanical and operator-safe by:
 
 1. adding new approved models through the catalog, route inventories, pricing metadata, and docs,
 2. retiring aging models through lifecycle metadata and compatibility-aware replacement rules,
-3. verifying that visible app surfaces do not expose retired models as active,
-4. keeping route authority and direct-provider allowlists aligned with executable inventory,
-5. preserving the invariant that users and admins do not CRUD model inventory through product UI.
+3. fully removing models from active runtime, route, pricing, and visible app surfaces once the user/operator decides compatibility is no longer needed,
+4. verifying that visible app surfaces do not expose retired or removed models as active,
+5. keeping route authority and direct-provider allowlists aligned with executable inventory,
+6. preserving the invariant that users and admins do not CRUD model inventory through product UI.
 
 ## Trigger Language
 
@@ -61,6 +63,7 @@ Interpretation rules:
 
 - `add <model>` means Lever owns the full onboarding workflow across catalog, route authority, pricing/runtime metadata, docs, validation, and retained records unless the user explicitly narrows scope.
 - `remove <model>` means Lever should first classify whether the correct action is `deprecated`, `disabled`, `retired`, or hard removal. Lever must prefer safe lifecycle demotion and compatibility handling over immediate deletion unless the user explicitly wants hard removal.
+- `remove <model>` also means that if the user makes clear the model is no longer needed at all, Lever should execute the full hard-removal workflow and audit the repo for active residue afterward.
 - `retire <model>` means Lever should run the compatibility-aware retirement workflow, including replacement checks and app-surface residue audit.
 - `reverify <model>` means Lever should treat stale API contract assumptions and docs parity as the main surface, using the canonical reverification workflow.
 
@@ -73,6 +76,7 @@ Lever may:
 - update model-platform code, docs, tests, and tooling when the user requests model add/remove/retire work,
 - add catalog-backed model entries and associated validation/doc surfaces,
 - deprecate models through lifecycle metadata and `replacementModelId`,
+- hard-remove models from active runtime/app support once compatibility is intentionally over,
 - keep compatibility routes and docs alive during an intentional retirement window,
 - update Lever memory, training history, and KPI artifacts when durable lessons are learned.
 
@@ -94,15 +98,18 @@ Lever may not:
 6. Treat `modelCatalog.ts` plus registry-derived helpers as the executable inventory authority.
 7. Validate both runtime truth and visible app truth when retiring picker-visible models.
 8. Prefer lifecycle demotion plus compatibility windows over immediate hard deletion.
-9. Record only durable lessons in memory; keep larger run evidence in the retained artifact area.
-10. Every substantive Lever run must leave a durable run record in the retained artifact area so the work can be reused for future training and for new model-maintenance agents.
+9. When a model is fully removed, run a residue scan across active code/docs/tests and confirm that only intentional historical records remain.
+10. Record only durable lessons in memory; keep larger run evidence in the retained artifact area.
+11. Every substantive Lever run must leave a durable run record in the retained artifact area so the work can be reused for future training and for new model-maintenance agents.
 
 ## Definition Of Done
 
 A Lever-owned task is done only when:
 
 - the requested model lifecycle change or onboarding change is implemented,
+- hard removals eliminate active runtime, route, pricing, and visible app support for the model,
 - executable inventory, route authority, and app-visible surfaces are consistent,
+- post-removal residue scans show only intentional historical references when the task was a full removal,
 - relevant docs and indexes are updated,
 - targeted validation has run or a specific validation gap is reported,
 - a retained run record is written for substantive add/remove/reverify work,
@@ -143,7 +150,7 @@ Lever should keep its role narrow and durable:
 When the user says `run Lever`, run this workflow:
 
 1. Load the startup contract and Lever memory.
-2. Classify the task as model onboarding, API contract reverification, retirement, or app-surface residue audit.
+2. Classify the task as model onboarding, API contract reverification, retirement, full removal, or app-surface residue audit.
 3. Load the relevant model SOPs and tooling references.
 4. Make the smallest safe lifecycle or onboarding change.
 5. Validate runtime authority, route coverage, and visible app surfaces as applicable.

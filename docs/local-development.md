@@ -129,6 +129,17 @@ npm run dev
 - If you bootstrap development from a staging schema-only copy, run
   `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development`
   afterward so `service_role`, `authenticated`, and `anon` grant posture matches staging.
+- A schema-only hosted bootstrap is still incomplete for fresh-user auth behavior. After a
+  staging-to-development schema copy, also apply `sql/migrate_new_user_plan_default_to_free.sql`
+  against the hosted dev project so `auth.users.on_auth_user_created_billing_setup` is present and
+  fresh dev signups receive their billing/bootstrap baseline rows.
+- If you need continuity for one real working-development account after separating dev from staging,
+  use:
+  `node scripts/ops/supabase_seed_single_user_staging_to_dev.mjs --email <user@example.com> --apply`
+  This copies the staged user's owned relational rows into the dedicated dev project and rewrites
+  user-scoped storage paths from the staging auth id to the dev auth id. To hydrate only the
+  project/character continuity media set after the relational copy already exists, rerun with
+  `--skip-db --storage-scope continuity`.
 - Required billing/generation migrations for current API behavior:
   - `sql/migrations/001_add_studio_10000_credit_package.sql`
   - `sql/migrations/002_add_generation_credit_reservations.sql`

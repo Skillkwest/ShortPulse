@@ -92,3 +92,44 @@ Capability decision:
 Next training focus:
 
 - Run another mixed-lane full SOP using the new helpers and confirm the Git-serialization rule eliminates the only material process slip from this run.
+
+## 2026-05-14: Three-Branch Promotion Run
+
+Task: commit the current Nuclo parity-hardening lane on `working-development`, then promote the same result to `staging-preview` and `production`.
+
+Actions taken:
+
+- Validated the six-file Nuclo lane with `npm -C frontend run docs:check`, `node scripts/check_vercel_env_contract.mjs --environment development`, and `bash scripts/ops/supabase_public_schema_parity.sh --help`.
+- Committed the lane on `working-development` as `788016344`.
+- Promoted the same commit to `staging-preview` and `production` by updating the local allowed-branch contract before each branch switch and push, then restored the local workspace to `working-development`.
+- Recorded the retained self-audit and documented that role-branch promotion runs should carry the closeout lane across the same branches when the user wants them aligned.
+
+Training result:
+
+- The branch-promotion flow is stable when the allowed-branch guard is updated before each switch/push.
+- The current helper/tooling set was sufficient; no new script was needed.
+- The durable lesson from this run is about scope discipline: the post-run audit lane is part of the promoted result, not an afterthought on only one branch.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- Validation was correctly scoped and passed on the first attempt.
+- The feature commit promoted cleanly across all three role branches.
+- The local workspace and allowed-branch contract were restored cleanly at the end.
+
+What slipped:
+
+- No material execution slip surfaced in this run.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: yes, in Gear Ball memory and retained memory
+
+Next training focus:
+
+- Use the same three-branch promotion discipline on a larger mixed-lane run and confirm the retained closeout lane remains lightweight enough to keep branch alignment practical.

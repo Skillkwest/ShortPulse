@@ -11,7 +11,6 @@ import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
 const SCRIPT_FILE = fileURLToPath(import.meta.url);
 const FRONTEND_ROOT = path.resolve(path.dirname(SCRIPT_FILE), "..");
 const REPO_ROOT = path.resolve(FRONTEND_ROOT, "..");
-const SUPABASE_ROOT = path.join(REPO_ROOT, "supabase");
 
 const LOADED_ENV_FILES = loadLocalEnv({
   argv: process.argv.slice(2),

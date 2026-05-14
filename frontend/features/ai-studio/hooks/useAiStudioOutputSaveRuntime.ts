@@ -1,5 +1,6 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 
+import { reportAppError } from "../../../lib/appErrorReporter";
 import { GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR } from "../logic/mediaLibraryPersistence";
 import { MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE } from "../../../lib/mediaStorageQuota";
 import type { Provider } from "../logic/stateParsers";
@@ -71,6 +72,22 @@ const isSafeUserFacingLibrarySaveMessage = (message: string): boolean => {
 const resolveLibrarySaveUiErrorMessage = (message: string): string =>
   isSafeUserFacingLibrarySaveMessage(message) ? message : GENERIC_LIBRARY_SAVE_UI_ERROR;
 
+const resolvePersistIntent = (options?: PersistOutputSaveOptions): "manual" | "auto" =>
+  options?.intent === "auto" ? "auto" : "manual";
+
+const shouldSurfaceLibrarySaveUiError = ({
+  message,
+  intent,
+}: {
+  message: string;
+  intent: "manual" | "auto";
+}): boolean => intent === "manual" || isSafeUserFacingLibrarySaveMessage(message);
+
+type InFlightSaveEntry = {
+  intent: "manual" | "auto";
+  promise: Promise<PersistOutputSaveResult>;
+};
+
 export const useAiStudioOutputSaveRuntime = ({
   projectId = null,
   findOutputById,
@@ -82,8 +99,9 @@ export const useAiStudioOutputSaveRuntime = ({
   markOutputSaved,
   markOutputSaveFailed,
 }: UseAiStudioOutputSaveRuntimeArgs) => {
-  const saveInFlightRef = useRef<Map<string, Promise<PersistOutputSaveResult>>>(new Map());
+  const saveInFlightRef = useRef<Map<string, InFlightSaveEntry>>(new Map());
   const lastLibrarySaveUiErrorRef = useRef<string | null>(null);
+  const lastLibrarySaveTelemetrySignatureByKeyRef = useRef<Map<string, string>>(new Map());
   const { resolveShortCircuitSave } = useAiStudioOutputSaveShortCircuitRuntime({
     projectId,
     updateOutputById,
@@ -98,6 +116,7 @@ export const useAiStudioOutputSaveRuntime = ({
       options?: PersistOutputSaveOptions
     ): Promise<PersistOutputSaveResult> => {
       const output = findOutputById(outputId);
+      const persistIntent = resolvePersistIntent(options);
       if (!output) {
         return {
           ok: false,
@@ -110,10 +129,46 @@ export const useAiStudioOutputSaveRuntime = ({
       const saveKey = resolvePersistOutputSaveKey(outputId, options);
       const inFlight = saveInFlightRef.current.get(saveKey);
       if (inFlight) {
-        return await inFlight;
+        const inFlightResult = await inFlight.promise;
+        if (inFlight.intent === persistIntent || persistIntent === "auto" || inFlightResult.ok) {
+          return inFlightResult;
+        }
       }
       const task = (async (): Promise<PersistOutputSaveResult> => {
+        const reportLibrarySaveFailure = (
+          failureMessage: string,
+          uiErrorMessage: string | null
+        ) => {
+          const signature = [saveKey, persistIntent, failureMessage, uiErrorMessage ?? ""].join(
+            "|"
+          );
+          if (lastLibrarySaveTelemetrySignatureByKeyRef.current.get(saveKey) === signature) return;
+          lastLibrarySaveTelemetrySignatureByKeyRef.current.set(saveKey, signature);
+          void reportAppError({
+            source: "client.ai_studio.media_library_save_failure",
+            scope: "generation",
+            severity: persistIntent === "manual" ? "high" : "medium",
+            message: failureMessage,
+            metadata: {
+              output_id: output.id,
+              project_id: projectId,
+              persist_intent: persistIntent,
+              save_key: saveKey,
+              image_index:
+                typeof options?.imageIndex === "number" && Number.isFinite(options.imageIndex)
+                  ? Math.max(0, Math.floor(options.imageIndex))
+                  : null,
+              media_source: output.mediaSource ?? null,
+              provider: output.provider ?? null,
+              mode: output.mode,
+              has_generation_id: Boolean(output.generationId),
+              task_id: output.taskId ?? null,
+              ui_error_message: uiErrorMessage,
+            },
+          });
+        };
         const clearResolvedLibrarySaveUiError = () => {
+          lastLibrarySaveTelemetrySignatureByKeyRef.current.delete(saveKey);
           const priorMessage = lastLibrarySaveUiErrorRef.current;
           if (!priorMessage) return;
           setUiError((current) => (current === priorMessage ? null : current));
@@ -140,8 +195,17 @@ export const useAiStudioOutputSaveRuntime = ({
           const urls = await resolvePersistableOutputUrlsForSave(output, options);
           if (!urls.length) {
             markOutputSaveFailed(outputId, "No media available to save.");
-            lastLibrarySaveUiErrorRef.current = "No media available to save.";
-            setUiError("No media available to save.");
+            const uiErrorMessage = shouldSurfaceLibrarySaveUiError({
+              message: "No media available to save.",
+              intent: persistIntent,
+            })
+              ? "No media available to save."
+              : null;
+            if (uiErrorMessage) {
+              lastLibrarySaveUiErrorRef.current = uiErrorMessage;
+              setUiError(uiErrorMessage);
+            }
+            reportLibrarySaveFailure("No media available to save.", uiErrorMessage);
             return {
               ok: false,
               mediaFileIds: [],
@@ -163,8 +227,17 @@ export const useAiStudioOutputSaveRuntime = ({
             : null;
           if (generatedOutput && !generationId) {
             markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
-            lastLibrarySaveUiErrorRef.current = GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR;
-            setUiError(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+            const uiErrorMessage = shouldSurfaceLibrarySaveUiError({
+              message: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+              intent: persistIntent,
+            })
+              ? GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR
+              : null;
+            if (uiErrorMessage) {
+              lastLibrarySaveUiErrorRef.current = uiErrorMessage;
+              setUiError(uiErrorMessage);
+            }
+            reportLibrarySaveFailure(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR, uiErrorMessage);
             return {
               ok: false,
               mediaFileIds: [],
@@ -204,8 +277,17 @@ export const useAiStudioOutputSaveRuntime = ({
           const failureMessage = resolveLibrarySaveFailureMessage(errors);
           markOutputSaveFailed(outputId, failureMessage);
           const uiErrorMessage = resolveLibrarySaveUiErrorMessage(failureMessage);
-          lastLibrarySaveUiErrorRef.current = uiErrorMessage;
-          setUiError(uiErrorMessage);
+          const surfacedUiErrorMessage = shouldSurfaceLibrarySaveUiError({
+            message: failureMessage,
+            intent: persistIntent,
+          })
+            ? uiErrorMessage
+            : null;
+          if (surfacedUiErrorMessage) {
+            lastLibrarySaveUiErrorRef.current = surfacedUiErrorMessage;
+            setUiError(surfacedUiErrorMessage);
+          }
+          reportLibrarySaveFailure(failureMessage, surfacedUiErrorMessage);
           return {
             ok: false,
             mediaFileIds,
@@ -217,7 +299,10 @@ export const useAiStudioOutputSaveRuntime = ({
           saveInFlightRef.current.delete(saveKey);
         }
       })();
-      saveInFlightRef.current.set(saveKey, task);
+      saveInFlightRef.current.set(saveKey, {
+        intent: persistIntent,
+        promise: task,
+      });
       return await task;
     },
     [
@@ -226,6 +311,7 @@ export const useAiStudioOutputSaveRuntime = ({
       markOutputSaveFailed,
       markOutputSaved,
       persistMediaUrls,
+      projectId,
       resolveShortCircuitSave,
       setUiError,
       updateOutputById,

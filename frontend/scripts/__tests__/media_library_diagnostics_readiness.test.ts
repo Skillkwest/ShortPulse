@@ -35,6 +35,7 @@ describe("media_library_diagnostics_readiness", () => {
   it("resolves the first present env value", () => {
     expect(
       resolveFirstEnvValue(["ONE", "TWO"], {
+        NODE_ENV: "test",
         ONE: "",
         TWO: "value-2",
       })
@@ -47,6 +48,7 @@ describe("media_library_diagnostics_readiness", () => {
   it("builds a ready live-probe model when env inputs exist", () => {
     const model = buildReadinessModel({
       env: {
+        NODE_ENV: "test",
         SHORTPULSE_STAGING_BASE_URL: "https://staging.example.com",
         SHORTPULSE_MEDIA_LIBRARY_BEARER_TOKEN: "token-123",
       },
@@ -65,6 +67,7 @@ describe("media_library_diagnostics_readiness", () => {
     const markdown = renderMarkdown(
       buildReadinessModel({
         env: {
+          NODE_ENV: "test",
           SHORTPULSE_STAGING_BASE_URL: "https://staging.example.com",
           SHORTPULSE_MEDIA_LIBRARY_BEARER_TOKEN: "token-123",
         },

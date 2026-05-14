@@ -7,6 +7,7 @@ import App from "../../pages/_app";
 const routerState = vi.hoisted(() => ({
   pathname: "/ai-studio",
 }));
+const replaceMock = vi.hoisted(() => vi.fn());
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
@@ -15,6 +16,8 @@ const mediaComplianceGatePropsSpy = vi.hoisted(() => vi.fn());
 vi.mock("next/router", () => ({
   useRouter: () => ({
     pathname: routerState.pathname,
+    asPath: routerState.pathname,
+    replace: replaceMock,
     events: {
       on: vi.fn(),
       off: vi.fn(),
@@ -70,17 +73,19 @@ const baseComplianceState = {
   acceptedAt: "2026-04-25T18:00:00.000Z",
   acceptAgreement: vi.fn(),
   agreement: {
+    key: "media_usage_compliance",
     version: "2026-04-25",
     title: "Media agreement",
-    summary: "Please accept.",
-    bullets: [],
-    acknowledgmentLabel: "I agree",
-    continueLabel: "Continue",
+    intro: "Please accept.",
+    rules: [],
+    checkboxLabel: "I agree",
+    confirmLabel: "Continue",
   },
   error: null,
   initialized: true,
   loading: false,
   refreshStatus: vi.fn(),
+  status: "accepted",
 };
 
 const renderApp = () => {
@@ -134,6 +139,7 @@ describe("App AI Studio entry behavior", () => {
       ...baseComplianceState,
       initialized: false,
       loading: true,
+      status: "loading",
     });
 
     renderApp();
@@ -149,6 +155,7 @@ describe("App AI Studio entry behavior", () => {
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
       accepted: false,
+      status: "needs_consent",
     });
 
     renderApp();
@@ -174,5 +181,23 @@ describe("App AI Studio entry behavior", () => {
 
     expect(screen.getByText("Checking your session…")).toBeInTheDocument();
     expect(screen.queryByText("AI Studio Access Check")).not.toBeInTheDocument();
+  });
+
+  it("does not render the consent form when auth recovery is required", () => {
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+      initialized: true,
+      status: "auth_recovery_required",
+      error: "Your session expired. Sign in again to continue.",
+    });
+
+    renderApp();
+
+    expect(
+      screen.getByText("Refreshing your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
+    expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fai-studio");
   });
 });

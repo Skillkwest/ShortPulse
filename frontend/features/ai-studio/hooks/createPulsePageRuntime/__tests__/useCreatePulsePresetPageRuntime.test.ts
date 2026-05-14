@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_PULSE_CUSTOM_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
+  createCreatePulseCustomSavedPreset,
   resolveCreatePulseBuiltInPresetDefinitions,
+  resolveCreatePulsePresetById,
 } from "../../../components/create/createPulsePresets";
 import { useCreatePulsePresetPageRuntime } from "../useCreatePulsePresetPageRuntime";
 
@@ -103,15 +105,14 @@ describe("useCreatePulsePresetPageRuntime", () => {
   });
 
   it("surfaces a pending Pulse snapshot for startup UI before session ownership commits", () => {
-    const customPreset = {
+    const customPreset = createCreatePulseCustomSavedPreset({
       presetId: "pulse_custom_video",
       label: "Custom Video Pulse",
       description: "Guided custom video prompt.",
       systemInstructions: "Guide the user through a custom video prompt workflow.",
-      pulseKind: "custom_gpt" as const,
       createdAt: "2026-05-01T00:00:00.000Z",
-      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
-    };
+    });
+    const resolvedCustomPreset = resolveCreatePulsePresetById("pulse_custom_video", [customPreset]);
     const { result } = renderHook(() =>
       useCreatePulsePresetPageRuntime(
         createParams({
@@ -123,7 +124,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     );
 
     act(() => {
-      result.current.setPendingCreatePulsePresetSnapshot(customPreset);
+      result.current.setPendingCreatePulsePresetSnapshot(resolvedCustomPreset);
     });
 
     expect(result.current.hasActivePulseSession).toBe(false);

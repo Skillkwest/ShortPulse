@@ -10,22 +10,36 @@ vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
-vi.mock("../../lib/server/api/mediaComplianceAcceptance", () => ({
-  getMediaComplianceAcceptanceStatusForUser: (...args: unknown[]) =>
-    getMediaComplianceAcceptanceStatusForUserMock(...args),
-  saveMediaComplianceAcceptanceForUser: (...args: unknown[]) =>
-    saveMediaComplianceAcceptanceForUserMock(...args),
-}));
+vi.mock("../../lib/server/api/mediaComplianceAcceptance", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../lib/server/api/mediaComplianceAcceptance")>();
+  return {
+    ...actual,
+    getMediaComplianceAcceptanceStatusForUser: (...args: unknown[]) =>
+      getMediaComplianceAcceptanceStatusForUserMock(...args),
+    saveMediaComplianceAcceptanceForUser: (...args: unknown[]) =>
+      saveMediaComplianceAcceptanceForUserMock(...args),
+  };
+});
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 
-const createMockResponse = () => ({
-  setHeader: vi.fn(),
-  status: vi.fn().mockReturnThis(),
-  json: vi.fn().mockReturnThis(),
-});
+const createMockResponse = () => {
+  const response = {
+    statusCode: 200,
+    setHeader: vi.fn(),
+    status: vi.fn(),
+    json: vi.fn(),
+  };
+  response.status.mockImplementation((code: number) => {
+    response.statusCode = code;
+    return response;
+  });
+  response.json.mockReturnValue(response);
+  return response;
+};
 
 describe("/api/account/media-compliance", () => {
   beforeEach(() => {
@@ -95,6 +109,49 @@ describe("/api/account/media-compliance", () => {
 
     expect(logApiRouteExceptionMock).toHaveBeenCalledOnce();
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "lookup failed" });
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to process the media agreement request.",
+      code: "MEDIA_COMPLIANCE_REQUEST_FAILED",
+    });
+  });
+
+  it("returns 503 when the compliance service is unavailable", async () => {
+    const unavailableError = Object.assign(
+      new Error("Media agreement service is temporarily unavailable."),
+      {
+        code: "MEDIA_COMPLIANCE_UNAVAILABLE",
+      }
+    );
+    getMediaComplianceAcceptanceStatusForUserMock.mockRejectedValue(unavailableError);
+
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement service is temporarily unavailable.",
+      code: "MEDIA_COMPLIANCE_UNAVAILABLE",
+    });
+  });
+
+  it("logs auth verification outages before returning the auth helper response", async () => {
+    requireApiUserMock.mockImplementation(async (_req: unknown, res: { statusCode: number }) => {
+      res.statusCode = 503;
+      return null;
+    });
+
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "account/media-compliance",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+      })
+    );
   });
 });

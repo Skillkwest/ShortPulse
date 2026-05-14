@@ -5,7 +5,7 @@
 import { createHash } from "crypto";
 import type { NextApiRequest } from "next";
 import type { AuthenticatedApiUser } from "./auth";
-import { getOptionalApiUser } from "./auth";
+import { getOptionalApiUserResult } from "./auth";
 import { isTelemetrySource } from "./errorTelemetryPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
@@ -788,7 +788,11 @@ export const logApiRouteException = async ({
   user = null,
 }: ApiExceptionOptions): Promise<void> => {
   try {
-    const resolvedUser = user ?? (req ? await getOptionalApiUser(req) : null);
+    const resolvedUserResult =
+      !user && req
+        ? await getOptionalApiUserResult(req)
+        : { user: null, authVerificationUnavailable: false };
+    const resolvedUser = user ?? resolvedUserResult.user;
     const exception = normalizeApiExceptionForLog(error);
     const requestId = requestHeaderValue(getRequestHeader(req, "x-shortpulse-request-id"));
 
@@ -806,6 +810,8 @@ export const logApiRouteException = async ({
       metadata: {
         method: req?.method ?? null,
         route_label: routeLabel,
+        request_auth_verification_unavailable:
+          resolvedUserResult.authVerificationUnavailable || undefined,
         ...metadata,
         ...exception.metadata,
       },
@@ -833,11 +839,13 @@ export const logGenerationFailure = async ({
   try {
     let resolvedUserId = toTrimmedString(userId, 120);
     let resolvedUserEmail = toTrimmedString(userEmail, 320);
+    let authVerificationUnavailable = false;
 
     if (!resolvedUserId && !resolvedUserEmail && req) {
-      const resolvedUser = await getOptionalApiUser(req);
-      resolvedUserId = toTrimmedString(resolvedUser?.id, 120);
-      resolvedUserEmail = toTrimmedString(resolvedUser?.email, 320);
+      const resolvedUserResult = await getOptionalApiUserResult(req);
+      resolvedUserId = toTrimmedString(resolvedUserResult.user?.id, 120);
+      resolvedUserEmail = toTrimmedString(resolvedUserResult.user?.email, 320);
+      authVerificationUnavailable = resolvedUserResult.authVerificationUnavailable;
     }
 
     const normalizedStatusCode = sanitizeStatusCode(statusCode);
@@ -861,6 +869,7 @@ export const logGenerationFailure = async ({
       metadata: {
         method: req?.method ?? null,
         route_label: routeLabel,
+        request_auth_verification_unavailable: authVerificationUnavailable || undefined,
         ...metadata,
       },
     });

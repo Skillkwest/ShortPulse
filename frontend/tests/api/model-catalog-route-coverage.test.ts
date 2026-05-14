@@ -21,13 +21,13 @@ const PROVIDER_MODEL_IDS_PATH = path.join(
 );
 const OPENAI_IMAGE_MODEL_ID = "gpt-image-2";
 const OPENAI_IMAGE_ROUTE_FILES = ["image-generate.ts", "image-edit.ts"] as const;
-const ALLOWED_DIRECT_ROUTE_KINDS = new Set([
+const ALLOWED_DIRECT_ROUTE_KINDS: ReadonlySet<string> = new Set([
   "create",
   "edit",
   "audio-generate",
   "metadata-preview",
 ] as const);
-const ALLOWED_DIRECT_ROUTE_AUTHORITIES = new Set([
+const ALLOWED_DIRECT_ROUTE_AUTHORITIES: ReadonlySet<string> = new Set([
   "server-constant",
   "catalog-default-role-allowlist",
   "catalog-default-role-server-default",

@@ -37,7 +37,6 @@ describe("AiStudioPageShell", () => {
         projectTitle={null}
         projectsModalOpen={false}
         referenceGridPreconnectOrigin={null}
-        refreshProject={vi.fn()}
         retryProjectBootstrap={vi.fn()}
         shouldGateProjectBootstrap
         onCloseProjectsModal={vi.fn()}
@@ -65,7 +64,6 @@ describe("AiStudioPageShell", () => {
         projectTitle={null}
         projectsModalOpen
         referenceGridPreconnectOrigin={null}
-        refreshProject={vi.fn()}
         retryProjectBootstrap={vi.fn()}
         shouldGateProjectBootstrap
         onCloseProjectsModal={vi.fn()}

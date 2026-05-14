@@ -89,6 +89,12 @@ const E2E_COMMANDS = [
   "npm -C frontend run test:e2e:media-library-runtime -- --help",
 ];
 
+const AbortControllerGlobal = globalThis.AbortController;
+const fetchGlobal = globalThis.fetch;
+const setTimeoutGlobal = globalThis.setTimeout;
+const clearTimeoutGlobal = globalThis.clearTimeout;
+const URLGlobal = globalThis.URL;
+
 const normalizePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -201,11 +207,11 @@ const summarizeStatuses = (statuses) => {
 };
 
 const fetchJson = async ({ baseUrl, routePath, token, method = "POST", body, timeoutMs }) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortControllerGlobal();
+  const timeout = setTimeoutGlobal(() => controller.abort(), timeoutMs);
   const started = performance.now();
   try {
-    const response = await fetch(new URL(routePath, baseUrl), {
+    const response = await fetchGlobal(new URLGlobal(routePath, baseUrl), {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -224,7 +230,7 @@ const fetchJson = async ({ baseUrl, routePath, token, method = "POST", body, tim
       payload,
     };
   } finally {
-    clearTimeout(timeout);
+    clearTimeoutGlobal(timeout);
   }
 };
 

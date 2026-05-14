@@ -90,7 +90,7 @@ describe("useAiStudioAudioGeneration", () => {
       })
     );
 
-    let accepted: boolean | void;
+    let accepted: boolean | void = false;
     await act(async () => {
       accepted = await result.current.handleMusicGenerate({
         text: "  cinematic synth pulse  ",
@@ -245,7 +245,7 @@ describe("useAiStudioAudioGeneration", () => {
       })
     );
 
-    let accepted: boolean | void;
+    let accepted: boolean | void = false;
     await act(async () => {
       accepted = await result.current.handleMusicGenerate({
         text: "too long",

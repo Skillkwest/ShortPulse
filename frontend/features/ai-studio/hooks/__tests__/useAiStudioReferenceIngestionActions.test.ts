@@ -7,13 +7,11 @@ const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const prepareLibraryMediaIngestionPayloadMock = vi.hoisted(() => vi.fn(async (payload) => payload));
 
 vi.mock("../../logic/mediaLibraryPersistence", () => ({
-  associateMediaFilesWithProject: (...args: unknown[]) =>
-    associateMediaFilesWithProjectMock(...args),
+  associateMediaFilesWithProject: associateMediaFilesWithProjectMock,
 }));
 
 vi.mock("../../reference-ingestion/prepareLibraryMediaIngestionPayload", () => ({
-  prepareLibraryMediaIngestionPayload: (...args: unknown[]) =>
-    prepareLibraryMediaIngestionPayloadMock(...args),
+  prepareLibraryMediaIngestionPayload: prepareLibraryMediaIngestionPayloadMock,
 }));
 
 const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({

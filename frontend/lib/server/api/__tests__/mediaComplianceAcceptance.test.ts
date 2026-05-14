@@ -20,7 +20,9 @@ describe("mediaComplianceAcceptance", () => {
       data: { accepted_at: "2026-04-25T10:00:00.000Z" },
       error: null,
     });
-    const eqVersion = vi.fn().mockReturnValue({ maybeSingle });
+    const limit = vi.fn().mockReturnValue({ maybeSingle });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eqVersion = vi.fn().mockReturnValue({ order });
     const eqKey = vi.fn().mockReturnValue({ eq: eqVersion });
     const eqUser = vi.fn().mockReturnValue({ eq: eqKey });
     const select = vi.fn().mockReturnValue({ eq: eqUser });
@@ -32,6 +34,8 @@ describe("mediaComplianceAcceptance", () => {
     expect(from).toHaveBeenCalledWith("user_media_compliance_acceptances");
     expect(select).toHaveBeenCalledWith("accepted_at");
     expect(eqUser).toHaveBeenCalledWith("user_id", "user-123");
+    expect(order).toHaveBeenCalledWith("accepted_at", { ascending: false });
+    expect(limit).toHaveBeenCalledWith(1);
     expect(status).toEqual({
       accepted: true,
       acceptedAt: "2026-04-25T10:00:00.000Z",
@@ -43,7 +47,9 @@ describe("mediaComplianceAcceptance", () => {
       data: null,
       error: null,
     });
-    const eqVersion = vi.fn().mockReturnValue({ maybeSingle });
+    const limit = vi.fn().mockReturnValue({ maybeSingle });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eqVersion = vi.fn().mockReturnValue({ order });
     const eqKey = vi.fn().mockReturnValue({ eq: eqVersion });
     const eqUser = vi.fn().mockReturnValue({ eq: eqKey });
     const select = vi.fn().mockReturnValue({ eq: eqUser });
@@ -56,14 +62,14 @@ describe("mediaComplianceAcceptance", () => {
     });
   });
 
-  it("upserts the current version acceptance with request metadata", async () => {
+  it("inserts the current version acceptance with request metadata", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: { accepted_at: "2026-04-25T12:00:00.000Z" },
       error: null,
     });
     const select = vi.fn().mockReturnValue({ maybeSingle });
-    const upsert = vi.fn().mockReturnValue({ select });
-    const from = vi.fn().mockReturnValue({ upsert });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
     getSupabaseAdminMock.mockReturnValue({ from });
 
     const status = await saveMediaComplianceAcceptanceForUser({
@@ -76,9 +82,8 @@ describe("mediaComplianceAcceptance", () => {
       userId: "user-123",
     });
 
-    expect(upsert).toHaveBeenCalledTimes(1);
-    const [payload, options] = upsert.mock.calls[0] ?? [];
-    expect(options).toEqual({ onConflict: "user_id,agreement_key,agreement_version" });
+    expect(insert).toHaveBeenCalledTimes(1);
+    const [payload] = insert.mock.calls[0] ?? [];
     expect(payload).toMatchObject({
       user_id: "user-123",
       agreement_key: "media_usage_compliance",
@@ -89,6 +94,45 @@ describe("mediaComplianceAcceptance", () => {
     expect(status).toEqual({
       accepted: true,
       acceptedAt: "2026-04-25T12:00:00.000Z",
+    });
+  });
+
+  it("falls back to the existing acceptance row when the insert hits a duplicate", async () => {
+    const duplicateError = {
+      code: "23505",
+      message: "duplicate key value violates unique constraint",
+    };
+    const duplicateMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: duplicateError,
+    });
+    const insertSelect = vi.fn().mockReturnValue({ maybeSingle: duplicateMaybeSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+
+    const readMaybeSingle = vi.fn().mockResolvedValue({
+      data: { accepted_at: "2026-04-25T12:34:56.000Z" },
+      error: null,
+    });
+    const readLimit = vi.fn().mockReturnValue({ maybeSingle: readMaybeSingle });
+    const readOrder = vi.fn().mockReturnValue({ limit: readLimit });
+    const readEqVersion = vi.fn().mockReturnValue({ order: readOrder });
+    const readEqKey = vi.fn().mockReturnValue({ eq: readEqVersion });
+    const readEqUser = vi.fn().mockReturnValue({ eq: readEqKey });
+    const readSelect = vi.fn().mockReturnValue({ eq: readEqUser });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ insert })
+      .mockReturnValueOnce({ select: readSelect });
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    const status = await saveMediaComplianceAcceptanceForUser({
+      req: { headers: {} } as never,
+      userId: "user-123",
+    });
+
+    expect(status).toEqual({
+      accepted: true,
+      acceptedAt: "2026-04-25T12:34:56.000Z",
     });
   });
 });

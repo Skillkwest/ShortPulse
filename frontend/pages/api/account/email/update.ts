@@ -1,13 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { buildAuthCallbackPath } from "../../../../lib/authRedirects";
 import {
   isValidEmailAddress,
   normalizeEmailInput,
-  resolveAuthDisplayName,
   updateSupabaseAuthUser,
 } from "../../../../lib/server/api/accountIdentity";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
-import { syncStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
+import { getCanonicalAppBaseUrl } from "../../../../lib/server/api/stripe";
 
 type EmailUpdateBody = {
   email?: unknown;
@@ -16,6 +16,36 @@ type EmailUpdateBody = {
 type EmailUpdateResponse = {
   email: string;
   confirmationRequired: true;
+};
+
+const asOptionalString = (value: string | string[] | undefined): string | null => {
+  if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null;
+  return typeof value === "string" ? value : null;
+};
+
+const readForwardedValue = (value: string | string[] | undefined): string | null => {
+  const rawValue = asOptionalString(value);
+  if (!rawValue) return null;
+  const firstValue = rawValue.split(",")[0]?.trim();
+  return firstValue && firstValue.length > 0 ? firstValue : null;
+};
+
+const resolveRequestOrigin = (req: NextApiRequest): string | null => {
+  if (process.env.APP_BASE_URL?.trim()) {
+    try {
+      return getCanonicalAppBaseUrl();
+    } catch {
+      return null;
+    }
+  }
+
+  const host =
+    readForwardedValue(req.headers["x-forwarded-host"]) ?? asOptionalString(req.headers.host);
+  if (!host) return null;
+  const forwardedProto = readForwardedValue(req.headers["x-forwarded-proto"]);
+  const protocol = forwardedProto ? forwardedProto.toLowerCase() : "http";
+  if (protocol !== "http" && protocol !== "https") return null;
+  return `${protocol}://${host}`;
 };
 
 export default async function handler(
@@ -36,15 +66,16 @@ export default async function handler(
   }
 
   try {
+    const requestOrigin = resolveRequestOrigin(req);
     await updateSupabaseAuthUser({
       req,
       payload: { email },
-    });
-
-    await syncStripeCustomerForUser({
-      userId: user.id,
-      email,
-      displayName: resolveAuthDisplayName(user),
+      emailRedirectTo: requestOrigin
+        ? `${requestOrigin}${buildAuthCallbackPath({
+            flow: "email-change",
+            nextPath: "/profile?section=account",
+          })}`
+        : undefined,
     });
 
     return res.status(200).json({ email, confirmationRequired: true });

@@ -26,8 +26,10 @@ const buildSnapshot = (): AdminPricingWorkspaceDraftSnapshot => ({
   sourceActivePolicyVersion: 7,
   modelPolicyDirty: true,
   modelPolicyDraft: {
+    schemaVersion: 3,
     global: {
       creditUsdScale: 30,
+      defaultRoundingMode: "ceil",
       defaultRoundingIncrement: 1,
     },
     perModel: {

@@ -323,7 +323,10 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
           select-character
         </button>
         {standardCreateProps ? (
-          <StandardCreatePropertiesPanel {...standardCreateProps} expertCreateUiEligible={true} />
+          <StandardCreatePropertiesPanel
+            {...(standardCreateProps as React.ComponentProps<typeof StandardCreatePropertiesPanel>)}
+            expertCreateUiEligible={true}
+          />
         ) : null}
         <button type="button" onClick={() => standardCreateProps?.onGenerate()}>
           generate

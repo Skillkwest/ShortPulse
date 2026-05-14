@@ -113,7 +113,7 @@ describe("Create generate guardrail messaging", () => {
               presetLabel: "Multi Sequence Video Prompt",
               stepLabel: "Upload Image",
             },
-          } as PromptStepProps
+          } as unknown as PromptStepProps
         }
         onGeneratePulseArtifact={vi.fn()}
         costCredits={15}

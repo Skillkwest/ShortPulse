@@ -675,7 +675,7 @@ describe("ExpertEditPanelView", () => {
       <ExpertEditPanelView
         {...baseProps}
         characterModeEnabled
-        characterOptions={[{ id: "char-1", name: "Taylor" }]}
+        characterOptions={[{ id: "char-1", name: "Taylor", profileImageUrl: null }]}
         selectedCharacterId="char-1"
         refreshCharacterOptions={refreshCharacterOptions}
       />

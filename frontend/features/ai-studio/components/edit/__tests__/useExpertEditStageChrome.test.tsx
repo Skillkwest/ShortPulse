@@ -2,12 +2,13 @@ import React from "react";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { RailTool } from "../expertEditPanelViewContract";
 import { useExpertEditStageChrome } from "../useExpertEditStageChrome";
 
 describe("useExpertEditStageChrome", () => {
   it("does not silently switch the active rail tool back to move when closing the modal", () => {
     const { result } = renderHook(() => {
-      const [selectedRailTool, setSelectedRailTool] = React.useState<"move" | "markup">("markup");
+      const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("markup");
       const [isMarkupExpandSelected, setIsMarkupExpandSelected] = React.useState(true);
       const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(false);
       const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);

@@ -15,7 +15,6 @@ import { useAiStudioState } from "./useAiStudioState";
 import { useCredits } from "./useCredits";
 import { useExpertEditPresetPanelPreference } from "./useExpertEditPresetPanelPreference";
 import { useMediaAutosavePreference } from "./useMediaAutosavePreference";
-import { useAiStudioMediaAutosaveOrchestrator } from "./useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
@@ -326,12 +325,6 @@ export const useAiStudioPageBaseRuntime = () => {
     reorderCuratedReference,
     setActiveOutputId,
   });
-  useAiStudioMediaAutosaveOrchestrator({
-    outputs,
-    mediaAutosaveEnabled,
-    mediaAutosaveSyncState,
-    saveReferenceToLibrary,
-  });
   const {
     inFlightOutputIds,
     resolvePanelOutputPreviewUrl,
@@ -503,6 +496,7 @@ export const useAiStudioPageBaseRuntime = () => {
     klingWorkflowMode,
     loadCreateCharacterLookOptions,
     localSessionTitleOverride,
+    mediaAutosaveEnabled,
     mediaAutosaveError,
     mediaAutosaveSyncState,
     mode,

@@ -11,11 +11,13 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
   getMediaComplianceAcceptanceStatusForUser,
+  isMediaComplianceUnavailableError,
   saveMediaComplianceAcceptanceForUser,
 } from "../../../lib/server/api/mediaComplianceAcceptance";
 
 type MediaComplianceErrorResponse = {
   error: string;
+  code?: string;
 };
 
 const buildStatusResponse = ({
@@ -41,6 +43,18 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) {
+    if (res.statusCode === 503) {
+      await logApiRouteException({
+        req,
+        error: Object.assign(new Error("Authentication verification is temporarily unavailable."), {
+          code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+        routeLabel: "account/media-compliance",
+        metadata: {
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        },
+      });
+    }
     return;
   }
 
@@ -62,9 +76,15 @@ export default async function handler(
       routeLabel: "account/media-compliance",
       user,
     });
+    if (isMediaComplianceUnavailableError(error)) {
+      return res.status(503).json({
+        error: "Media agreement service is temporarily unavailable.",
+        code: "MEDIA_COMPLIANCE_UNAVAILABLE",
+      });
+    }
     return res.status(500).json({
-      error:
-        error instanceof Error ? error.message : "Unable to process the media agreement request.",
+      error: "Unable to process the media agreement request.",
+      code: "MEDIA_COMPLIANCE_REQUEST_FAILED",
     });
   }
 }

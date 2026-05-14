@@ -124,6 +124,7 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload =>
         pulseWorkflowSession: null,
       },
       pulsePresetId: null,
+      pulseSessionInstanceId: null,
       pulse: {
         messages: [],
         input: "",

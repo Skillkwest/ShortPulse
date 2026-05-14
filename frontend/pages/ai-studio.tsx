@@ -30,6 +30,7 @@ import {
 } from "../features/ai-studio/hooks/useAiStudioPageBaseRuntime";
 import { useAiStudioPageContentRuntime } from "../features/ai-studio/hooks/useAiStudioPageContentRuntime";
 import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/useAiStudioPageGenerationRuntime";
+import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
 import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
@@ -1094,6 +1095,7 @@ const AiStudioPageRuntimeBody = ({
     klingElements,
     klingMultiPrompts,
     klingWorkflowMode,
+    mediaAutosaveEnabled,
     mediaAutosaveError,
     mediaAutosaveSyncState,
     mode,
@@ -1125,6 +1127,7 @@ const AiStudioPageRuntimeBody = ({
     refreshCharacterOptions,
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
+    saveReferenceToLibrary,
     clearPendingCharacterUploadRequest,
     resolveCharacterAvatarUrlById,
     resolveCharacterDropReference,
@@ -1286,6 +1289,13 @@ const AiStudioPageRuntimeBody = ({
     setIsCreateCharacterModeEnabled,
     setExpertEditSessionState,
     setUiNotice,
+  });
+  useAiStudioMediaAutosaveOrchestrator({
+    enabled: !projectRouteRequested || (projectStatus === "ready" && projectBootstrapApplied),
+    outputs,
+    mediaAutosaveEnabled,
+    mediaAutosaveSyncState,
+    saveReferenceToLibrary,
   });
   const triggerFilePicker = useCallback(() => {
     referenceGridFileInputRef.current?.click();

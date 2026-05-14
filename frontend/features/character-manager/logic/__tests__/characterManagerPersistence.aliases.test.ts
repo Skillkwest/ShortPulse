@@ -167,10 +167,12 @@ describe("characterManagerPersistence canonical character sheet persistence", ()
         onConflict: "character_sheet_id,slot_key",
       }
     );
-    expect(createCharacterMediaAssetMock.mock.calls[0]?.[0]?.metadata).not.toHaveProperty(
-      "reference_pack_id"
-    );
-    expect(upsert.mock.calls[0]?.[0]).not.toHaveProperty("reference_pack_id");
+    const firstCreateCharacterMediaCall = createCharacterMediaAssetMock.mock.calls.at(0) as
+      | [Record<string, unknown>]
+      | undefined;
+    const firstUpsertCall = upsert.mock.calls.at(0) as [Record<string, unknown>] | undefined;
+    expect(firstCreateCharacterMediaCall?.[0]?.metadata).not.toHaveProperty("reference_pack_id");
+    expect(firstUpsertCall?.[0]).not.toHaveProperty("reference_pack_id");
     expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
       bucket: "media_library",
       storagePath: "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png",

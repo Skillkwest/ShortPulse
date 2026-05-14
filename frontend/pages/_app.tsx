@@ -4,7 +4,7 @@
  */
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { MediaComplianceGate } from "../features/compliance/components/MediaComplianceGate";
@@ -47,6 +47,10 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isProtected = PROTECTED_ROUTES.some((route) => router.pathname.startsWith(route));
   const isAiStudioRoute = isAiStudioRoutePath(router.pathname);
+  const authRedirectPath = useMemo(
+    () => `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`,
+    [router.asPath]
+  );
   const { loading, session, user } = useProtectedRoute(isProtected);
   const mediaCompliance = useMediaComplianceGate({
     enabled: isProtected && Boolean(session),
@@ -56,6 +60,12 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     return installGlobalAppErrorHandlers();
   }, []);
+
+  useEffect(() => {
+    if (!isProtected) return;
+    if (mediaCompliance.status !== "auth_recovery_required") return;
+    void router.replace(authRedirectPath);
+  }, [authRedirectPath, isProtected, mediaCompliance.status, router]);
 
   useEffect(() => {
     installMediaPerfDebugHandle();
@@ -199,7 +209,7 @@ export default function App({ Component, pageProps }: AppProps) {
     );
   }
 
-  if (isProtected && !mediaCompliance.initialized) {
+  if (isProtected && mediaCompliance.status === "loading") {
     if (isAiStudioRoute) {
       return (
         <AiStudioProjectEntryState
@@ -220,7 +230,45 @@ export default function App({ Component, pageProps }: AppProps) {
     );
   }
 
-  if (isProtected && !mediaCompliance.accepted) {
+  if (isProtected && mediaCompliance.status === "auth_recovery_required") {
+    if (isAiStudioRoute) {
+      return (
+        <AiStudioProjectEntryState
+          variant="loading"
+          phase="resolving-project"
+          message="Refreshing your session before project restore continues."
+          activeStepIndex={0}
+          stepsAriaLabel="Project loading progress"
+        />
+      );
+    }
+    return (
+      <main className="page page-wide">
+        <div className="panel">
+          <p className="subdued">Refreshing your session…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (isProtected && mediaCompliance.status === "service_unavailable") {
+    return (
+      <AppErrorBoundary>
+        <MediaComplianceGate
+          mode="unavailable"
+          agreement={mediaCompliance.agreement}
+          error={mediaCompliance.error}
+          loading={mediaCompliance.loading}
+          primaryActionLabel="Retry"
+          showSecondaryAction={false}
+          onAccept={mediaCompliance.acceptAgreement}
+          onRetry={mediaCompliance.refreshStatus}
+        />
+      </AppErrorBoundary>
+    );
+  }
+
+  if (isProtected && mediaCompliance.status === "needs_consent") {
     return (
       <AppErrorBoundary>
         <MediaComplianceGate

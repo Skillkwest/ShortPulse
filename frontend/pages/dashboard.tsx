@@ -42,9 +42,8 @@ import { loadBillingCatalogSnapshot } from "../lib/server/api/billingCatalog";
 import { readActiveDashboardOffers, type DashboardOffer } from "../lib/server/api/dashboardOffers";
 import { getSupabaseAdmin } from "../lib/server/api/supabaseAdmin";
 import {
-  ensureSupabaseClient,
   ensureSupabaseQueryClient,
-  primeSupabaseSession,
+  signOutSupabaseSession,
   useSupabaseSessionState,
 } from "../lib/supabaseClient";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
@@ -496,9 +495,7 @@ export default function DashboardPage({
 
   const handleSignOut = async () => {
     try {
-      const supabase = ensureSupabaseClient();
-      await supabase.auth.signOut();
-      primeSupabaseSession(null);
+      await signOutSupabaseSession();
       setShowLogoutConfirm(false);
       setProfileMenuOpen(false);
       router.replace("/");

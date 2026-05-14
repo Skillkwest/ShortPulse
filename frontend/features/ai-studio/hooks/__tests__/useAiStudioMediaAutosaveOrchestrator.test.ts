@@ -35,6 +35,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
         outputs: [createOutput()],
         mediaAutosaveEnabled: false,
         mediaAutosaveSyncState: "ready",
@@ -49,6 +50,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const { rerender } = renderHook(
       ({ outputs }: { outputs: StudioOutput[] }) =>
         useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
           outputs,
           mediaAutosaveEnabled: true,
           mediaAutosaveSyncState: "ready",
@@ -62,7 +64,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     );
 
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
-    expect(saveReferenceToLibrary).toHaveBeenCalledWith("out-1");
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("out-1", { intent: "auto" });
 
     rerender({
       outputs: [createOutput({ id: "out-1" })],
@@ -74,6 +76,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
         outputs: [
           createOutput({
             id: "library-1",
@@ -103,10 +106,38 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
 
+  it("autosaves restored generated outputs when they still need media-id backfill", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
+        outputs: [
+          createOutput({
+            id: "generated-restored-1",
+            mediaSource: "generated",
+            savedMediaIds: undefined,
+            saveState: "failed",
+            previewStoragePath: "user-1/media/generated-restored-1.png",
+            fullStoragePath: "user-1/media/generated-restored-1.png",
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("generated-restored-1", {
+      intent: "auto",
+    });
+  });
+
   it("allows a preview-only library ref to attempt one autosave repair", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
         outputs: [
           createOutput({
             id: "library-repair-1",
@@ -123,13 +154,14 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     );
 
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
-    expect(saveReferenceToLibrary).toHaveBeenCalledWith("library-repair-1");
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("library-repair-1", { intent: "auto" });
   });
 
   it("does not autosave outputs that are already saving", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
         outputs: [
           createOutput({
             id: "saving-1",
@@ -149,6 +181,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
         outputs: [
           createOutput({
             id: "generated-missing-id-1",
@@ -174,6 +207,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const { rerender } = renderHook(
       ({ outputs }: { outputs: StudioOutput[] }) =>
         useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
           outputs,
           mediaAutosaveEnabled: true,
           mediaAutosaveSyncState: "ready",
@@ -206,6 +240,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     const { rerender } = renderHook(
       ({ mediaAutosaveSyncState }: { mediaAutosaveSyncState: "loading" | "ready" }) =>
         useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
           outputs: [createOutput({ id: "pref-race-1" })],
           mediaAutosaveEnabled: true,
           mediaAutosaveSyncState,
@@ -225,6 +260,34 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     });
 
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
-    expect(saveReferenceToLibrary).toHaveBeenCalledWith("pref-race-1");
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("pref-race-1", { intent: "auto" });
+  });
+
+  it("waits for the runtime gate before autosaving", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          enabled,
+          outputs: [createOutput({ id: "bootstrap-gate-1" })],
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          enabled: false,
+        },
+      }
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+
+    rerender({
+      enabled: true,
+    });
+
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("bootstrap-gate-1", { intent: "auto" });
   });
 });

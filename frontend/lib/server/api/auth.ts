@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { mergeVerifiedUserWithProxyContext, readProxyAuthenticatedUser } from "./authProxyContext";
 import {
+  isAuthVerificationUnavailableError,
   parseBearerToken,
   verifyBearerRequestUser,
   type AuthenticatedApiUser,
@@ -12,6 +13,10 @@ import {
 
 export type { AuthenticatedApiUser } from "./authTokenVerifier";
 export type AdminAccessVia = "role" | "allowlist" | "none";
+export type OptionalApiUserResult = {
+  user: AuthenticatedApiUser | null;
+  authVerificationUnavailable: boolean;
+};
 
 const resolveVerifiedApiUser = async (
   req: NextApiRequest
@@ -29,10 +34,32 @@ const resolveVerifiedApiUser = async (
 export const getOptionalApiUser = async (
   req: NextApiRequest
 ): Promise<AuthenticatedApiUser | null> => {
-  const verifiedUser = await resolveVerifiedApiUser(req);
-  if (verifiedUser) return verifiedUser;
+  const result = await getOptionalApiUserResult(req);
+  return result.user;
+};
 
-  return null;
+/**
+ * Attempts to resolve an authenticated user without writing an HTTP response,
+ * preserving whether verification was unavailable.
+ */
+export const getOptionalApiUserResult = async (
+  req: NextApiRequest
+): Promise<OptionalApiUserResult> => {
+  try {
+    const verifiedUser = await resolveVerifiedApiUser(req);
+    return {
+      user: verifiedUser,
+      authVerificationUnavailable: false,
+    };
+  } catch (error) {
+    if (isAuthVerificationUnavailableError(error)) {
+      return {
+        user: null,
+        authVerificationUnavailable: true,
+      };
+    }
+    throw error;
+  }
 };
 
 /**
@@ -48,7 +75,19 @@ export const requireApiUser = async (
     return null;
   }
 
-  const user = await resolveVerifiedApiUser(req);
+  let user: AuthenticatedApiUser | null = null;
+  try {
+    user = await resolveVerifiedApiUser(req);
+  } catch (error) {
+    if (isAuthVerificationUnavailableError(error)) {
+      res.status(503).json({
+        error: "Authentication verification is temporarily unavailable.",
+        code: "AUTH_VERIFICATION_UNAVAILABLE",
+      });
+      return null;
+    }
+    throw error;
+  }
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });
     return null;

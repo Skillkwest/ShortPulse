@@ -3,6 +3,7 @@ import { parseBearerToken, type AuthenticatedApiUser } from "./authTokenVerifier
 
 type SupabaseAuthUserUpdateParams = {
   req: NextApiRequest;
+  emailRedirectTo?: string;
   payload: Record<string, unknown>;
 };
 
@@ -32,6 +33,7 @@ export const isValidEmailAddress = (value: string): boolean => {
 
 export const updateSupabaseAuthUser = async ({
   req,
+  emailRedirectTo,
   payload,
 }: SupabaseAuthUserUpdateParams): Promise<Record<string, unknown>> => {
   const token = parseBearerToken(req.headers.authorization);
@@ -41,7 +43,12 @@ export const updateSupabaseAuthUser = async ({
     throw new Error("Supabase auth is not configured.");
   }
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+  const requestUrl = new URL(`${supabaseUrl}/auth/v1/user`);
+  if (typeof emailRedirectTo === "string" && emailRedirectTo.trim().length > 0) {
+    requestUrl.searchParams.set("redirect_to", emailRedirectTo.trim());
+  }
+
+  const response = await fetch(requestUrl.toString(), {
     method: "PUT",
     headers: {
       apikey: supabaseAnonKey,

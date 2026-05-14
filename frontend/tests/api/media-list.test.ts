@@ -362,28 +362,29 @@ const createSupabaseAdminMock = (
           select: vi.fn(() => {
             let scopedUserId: string | null = null;
             let scopedGenerationIds: string[] = [];
-            const builder = {
-              eq: vi.fn((column: string, value: string) => {
-                if (column === "user_id") {
-                  scopedUserId = value;
-                }
-                return builder;
-              }),
-              in: vi.fn(async (column: string, values: string[]) => {
-                if (column === "generation_id") {
-                  scopedGenerationIds = values;
-                }
-                return {
-                  data: generationProjectionRows.filter(
-                    (row) =>
-                      (!scopedUserId || row.user_id === scopedUserId) &&
-                      (!scopedGenerationIds.length ||
-                        scopedGenerationIds.includes(row.generation_id))
-                  ),
-                  error: null,
-                };
-              }),
-            };
+            const builder: {
+              eq: ReturnType<typeof vi.fn>;
+              in: ReturnType<typeof vi.fn>;
+            } = {} as never;
+            builder.eq = vi.fn((column: string, value: string) => {
+              if (column === "user_id") {
+                scopedUserId = value;
+              }
+              return builder;
+            });
+            builder.in = vi.fn(async (column: string, values: string[]) => {
+              if (column === "generation_id") {
+                scopedGenerationIds = values;
+              }
+              return {
+                data: generationProjectionRows.filter(
+                  (row) =>
+                    (!scopedUserId || row.user_id === scopedUserId) &&
+                    (!scopedGenerationIds.length || scopedGenerationIds.includes(row.generation_id))
+                ),
+                error: null,
+              };
+            });
             return builder;
           }),
         };

@@ -7,6 +7,10 @@ const upsertGrowthAttributionIdentityMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   getOptionalApiUser: (...args: unknown[]) => getOptionalApiUserMock(...args),
+  getOptionalApiUserResult: async (...args: unknown[]) => ({
+    user: await getOptionalApiUserMock(...args),
+    authVerificationUnavailable: false,
+  }),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({

@@ -5,6 +5,7 @@ import {
   patchAiStudioSessionSnapshotWorkspace,
   type AiStudioSessionSnapshot,
 } from "../../logic/sessionSnapshot";
+import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import {
   normalizeProjectRestoreSnapshotForCreateCharacterMode,
   shouldRestoreCreateCharacterModeFromProjectSnapshot,
@@ -29,21 +30,19 @@ const createProjectSnapshot = (
 
 const createHydrationPayload = (
   snapshot: AiStudioSessionSnapshot
-): {
+): AiStudioSessionHydrationPayload => ({
   workspace: {
-    selectedCharacterId: string | null;
-    selectedCharacterLookId: string | null;
-  };
-  outputs: never;
-  agent: never;
-  agentRuntimes: never;
-  canvas: null;
-  expertEdit: null;
-} => ({
-  workspace: {
+    ...createEmptyAiStudioSessionSnapshot().workspace,
+    ...snapshot.workspace,
+    prompt: snapshot.workspace.prompt ?? snapshot.workspace.standardPrompt ?? "",
+    standardPrompt: snapshot.workspace.standardPrompt ?? "",
+    pulsePrompt: snapshot.workspace.pulsePrompt ?? "",
+    expertCreateMode: snapshot.workspace.expertCreateMode ?? "standard",
+    activePulsePresetId: snapshot.workspace.activePulsePresetId ?? null,
+    pulseSessionInstanceId: snapshot.workspace.pulseSessionInstanceId ?? null,
     selectedCharacterId: snapshot.workspace.selectedCharacterId ?? null,
     selectedCharacterLookId: snapshot.workspace.selectedCharacterLookId ?? null,
-  },
+  } as AiStudioSessionHydrationPayload["workspace"],
   outputs: null as never,
   agent: null as never,
   agentRuntimes: null as never,

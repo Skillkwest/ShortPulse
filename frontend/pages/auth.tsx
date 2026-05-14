@@ -10,6 +10,11 @@ import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-reac
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
+  buildAuthCallbackUrl,
+  resolveNextPath,
+  resolveNextPathFromAsPath,
+} from "../lib/authRedirects";
+import {
   ensureSupabaseClient,
   isSupabaseAbortError,
   primeSupabaseSession,
@@ -34,28 +39,6 @@ function resolveModeFromAsPath(asPath: string): Mode {
   const queryString = asPath.includes("?") ? asPath.slice(asPath.indexOf("?") + 1) : "";
   if (!queryString) return "signin";
   return resolveMode(new URLSearchParams(queryString).get("mode") ?? undefined);
-}
-
-/**
- * Parse and sanitize the post-auth redirect target from the router query.
- */
-function resolveNextPath(nextQueryValue: string | string[] | undefined): string {
-  const rawValue = Array.isArray(nextQueryValue) ? nextQueryValue[0] : nextQueryValue;
-  if (!rawValue) return "/dashboard";
-  const candidate = rawValue.trim();
-  if (!candidate.startsWith("/") || candidate.startsWith("//")) return "/dashboard";
-  if (candidate.startsWith("/auth")) return "/dashboard";
-  return candidate;
-}
-
-/**
- * Parse `next` from the current asPath string while router query is hydrating.
- */
-function resolveNextPathFromAsPath(asPath: string): string {
-  const queryString = asPath.includes("?") ? asPath.slice(asPath.indexOf("?") + 1) : "";
-  if (!queryString) return "/dashboard";
-  const fallbackNext = new URLSearchParams(queryString).get("next") ?? undefined;
-  return resolveNextPath(fallbackNext);
 }
 
 export default function AuthPage() {
@@ -119,6 +102,14 @@ export default function AuthPage() {
             data: {
               plan: DEFAULT_PLAN,
             },
+            emailRedirectTo:
+              typeof window === "undefined"
+                ? undefined
+                : buildAuthCallbackUrl({
+                    origin: window.location.origin,
+                    flow: "signup",
+                    nextPath,
+                  }),
           },
         });
         if (signUpError) throw signUpError;
@@ -162,7 +153,13 @@ export default function AuthPage() {
     try {
       const supabase = ensureSupabaseClient();
       const redirectTo =
-        typeof window === "undefined" ? undefined : `${window.location.origin}/auth`;
+        typeof window === "undefined"
+          ? undefined
+          : buildAuthCallbackUrl({
+              origin: window.location.origin,
+              flow: "recovery",
+              nextPath,
+            });
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo,
       });

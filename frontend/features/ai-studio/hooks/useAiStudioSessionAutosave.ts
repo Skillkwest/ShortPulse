@@ -91,9 +91,8 @@ export const useAiStudioSessionAutosave = ({
 }: UseAiStudioSessionAutosaveArgs): void => {
   const pendingRef = useRef<PendingSnapshotState | null>(null);
   const inFlightRef = useRef<SnapshotPersistIdentity | null>(null);
-  const lastSavedHashRef = useRef<string | null>(null);
-  const lastSavedTitleRef = useRef<string | null>(null);
-  const lastSizeErrorHashRef = useRef<string | null>(null);
+  const lastSavedRef = useRef<SnapshotPersistIdentity | null>(null);
+  const lastSizeErrorRef = useRef<Pick<SnapshotPersistIdentity, "sessionId" | "hash"> | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
@@ -134,8 +133,11 @@ export const useAiStudioSessionAutosave = ({
               title: pending.title,
             })
           );
-          lastSavedHashRef.current = pending.hash;
-          lastSavedTitleRef.current = pending.title;
+          lastSavedRef.current = {
+            sessionId: pending.sessionId,
+            hash: pending.hash,
+            title: pending.title,
+          };
         } catch (error) {
           pendingRef.current = pending;
           reportPersistError(
@@ -198,8 +200,14 @@ export const useAiStudioSessionAutosave = ({
     }
 
     if (serializedSnapshot.bytes > maxSnapshotBytes) {
-      if (lastSizeErrorHashRef.current !== serializedSnapshot.hash) {
-        lastSizeErrorHashRef.current = serializedSnapshot.hash;
+      if (
+        lastSizeErrorRef.current?.sessionId !== sessionId ||
+        lastSizeErrorRef.current?.hash !== serializedSnapshot.hash
+      ) {
+        lastSizeErrorRef.current = {
+          sessionId,
+          hash: serializedSnapshot.hash,
+        };
         reportPersistError(new Error("Session snapshot exceeds maximum size."), {
           reason: "snapshot_too_large",
           sessionId,
@@ -211,8 +219,9 @@ export const useAiStudioSessionAutosave = ({
     }
 
     if (
-      lastSavedHashRef.current === serializedSnapshot.hash &&
-      lastSavedTitleRef.current === serializedSnapshot.title
+      lastSavedRef.current?.sessionId === sessionId &&
+      lastSavedRef.current?.hash === serializedSnapshot.hash &&
+      lastSavedRef.current?.title === serializedSnapshot.title
     ) {
       return;
     }

@@ -3,7 +3,7 @@
  * Records allowlisted funnel events and anonymous attribution context.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getOptionalApiUser } from "../../../lib/server/api/auth";
+import { getOptionalApiUserResult } from "../../../lib/server/api/auth";
 import { writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import {
   growthTelemetryFamilyForSource,
@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Unsupported growth telemetry source." });
     }
 
-    const user = await getOptionalApiUser(req);
+    const { user, authVerificationUnavailable } = await getOptionalApiUserResult(req);
     const occurredAt = normalizeText(payload.occurredAt, 80) ?? new Date().toISOString();
     const attribution = sanitizeGrowthAttributionSnapshot(payload.attribution);
 
@@ -70,6 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         utm_campaign: attribution.utmCampaign,
         landing_path: attribution.landingPath,
         referrer_host: attribution.referrerHost,
+        request_auth_verification_unavailable: authVerificationUnavailable || undefined,
         ...((payload.metadata ?? {}) as Record<string, unknown>),
         user_agent: req.headers["user-agent"] ?? null,
         host: req.headers.host ?? null,

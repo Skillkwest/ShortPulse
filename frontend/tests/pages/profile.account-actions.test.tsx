@@ -5,7 +5,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
-import { ensureSupabaseClient, primeSupabaseSession } from "../../lib/supabaseClient";
+import {
+  ensureSupabaseClient,
+  refreshSupabaseSession,
+  signOutSupabaseSession,
+} from "../../lib/supabaseClient";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
@@ -41,6 +45,7 @@ vi.mock("next/router", () => ({
     query: { section: "account" },
     isReady: true,
     pathname: "/profile",
+    asPath: "/profile?section=account",
     replace: routerReplaceMock,
   }),
 }));
@@ -71,10 +76,12 @@ vi.mock("../../lib/supabaseClient", async () => {
 });
 
 const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
-const primeSupabaseSessionMock = vi.mocked(primeSupabaseSession);
+const refreshSupabaseSessionModuleMock = vi.mocked(refreshSupabaseSession);
+const signOutSupabaseSessionMock = vi.mocked(signOutSupabaseSession);
 
 describe("Profile account actions", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/profile?section=account");
     routerReplaceMock.mockReset();
     refreshSessionMock.mockReset();
     resetPasswordForEmailMock.mockReset();
@@ -96,6 +103,10 @@ describe("Profile account actions", () => {
       ok: true,
       json: async () => ({}),
     });
+    refreshSupabaseSessionModuleMock.mockResolvedValue({
+      user: { id: "user-1" },
+    } as never);
+    signOutSupabaseSessionMock.mockResolvedValue(undefined);
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
         refreshSession: refreshSessionMock,
@@ -141,7 +152,7 @@ describe("Profile account actions", () => {
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Profile updated.");
-    expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+    expect(refreshSupabaseSessionModuleMock).toHaveBeenCalledTimes(1);
   });
 
   it("updates the email through Supabase auth", async () => {
@@ -162,6 +173,7 @@ describe("Profile account actions", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Email update requested. Check your inbox to confirm."
     );
+    expect(refreshSupabaseSessionModuleMock).toHaveBeenCalled();
   });
 
   it("sends a password reset link to the workspace email", async () => {
@@ -174,7 +186,8 @@ describe("Profile account actions", () => {
 
     await waitFor(() => {
       expect(resetPasswordForEmailMock).toHaveBeenCalledWith("reset@example.com", {
-        redirectTo: "http://localhost:3000/auth",
+        redirectTo:
+          "http://localhost:3000/auth/callback?flow=recovery&next=%2Fprofile%3Fsection%3Daccount",
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Password reset link sent.");
@@ -199,8 +212,7 @@ describe("Profile account actions", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Log out" }));
 
     await waitFor(() => {
-      expect(signOutMock).toHaveBeenCalledTimes(1);
-      expect(primeSupabaseSessionMock).toHaveBeenCalledWith(null);
+      expect(signOutSupabaseSessionMock).toHaveBeenCalledTimes(1);
       expect(routerReplaceMock).toHaveBeenCalledWith("/auth");
     });
   });

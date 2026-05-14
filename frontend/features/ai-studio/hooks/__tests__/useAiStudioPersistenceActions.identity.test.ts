@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 
@@ -6,6 +6,7 @@ const resolveGenerationIdForRequestIdMock = vi.hoisted(() => vi.fn());
 const associateGenerationWithProjectMock = vi.hoisted(() => vi.fn());
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const associatePromptWithProjectMock = vi.hoisted(() => vi.fn());
+const reportAppErrorMock = vi.hoisted(() => vi.fn());
 const saveMediaUrlToLibraryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPersistence", async () => {
@@ -19,6 +20,10 @@ vi.mock("../../logic/mediaLibraryPersistence", async () => {
     saveMediaUrlToLibrary: saveMediaUrlToLibraryMock,
   };
 });
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: reportAppErrorMock,
+}));
 
 import { useAiStudioPersistenceActions } from "../useAiStudioPersistenceActions";
 
@@ -395,6 +400,17 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
         saveError: "Signed URL expired.",
       })
     );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.media_library_save_failure",
+        message: "Signed URL expired.",
+        metadata: expect.objectContaining({
+          output_id: "out-1",
+          persist_intent: "manual",
+          ui_error_message: "Unable to save media to the library right now. Please try again.",
+        }),
+      })
+    );
   });
 
   it("clears the prior generic library banner after a later save succeeds", async () => {
@@ -459,6 +475,155 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
         saveState: "saved",
         saveError: null,
         savedMediaIds: ["media-restored"],
+      })
+    );
+  });
+
+  it("keeps generic background autosave failures out of the page banner while still reporting telemetry", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(new Error("Signed URL expired."));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1", { intent: "auto" });
+    });
+
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Signed URL expired.",
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.media_library_save_failure",
+        message: "Signed URL expired.",
+        metadata: expect.objectContaining({
+          output_id: "out-1",
+          persist_intent: "auto",
+          ui_error_message: null,
+        }),
+      })
+    );
+  });
+
+  it("reruns a manual save after an in-flight autosave fails so manual UX is preserved", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    let rejectAutoSave: ((reason?: unknown) => void) | null = null;
+    saveMediaUrlToLibraryMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectAutoSave = reject;
+          })
+      )
+      .mockRejectedValueOnce(new Error("Manual save failed."));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let autoPromise!: Promise<Awaited<ReturnType<typeof result.current.persistOutputSave>>>;
+    let manualPromise!: Promise<Awaited<ReturnType<typeof result.current.persistOutputSave>>>;
+    act(() => {
+      autoPromise = result.current.persistOutputSave("out-1", { intent: "auto" });
+      manualPromise = result.current.persistOutputSave("out-1");
+    });
+
+    await waitFor(() => expect(rejectAutoSave).not.toBeNull());
+
+    await act(async () => {
+      rejectAutoSave?.(new Error("Auto save failed."));
+      await autoPromise;
+    });
+
+    let manualResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      manualResult = await manualPromise;
+    });
+
+    await waitFor(() => expect(saveMediaUrlToLibraryMock).toHaveBeenCalledTimes(2));
+    expect(saveMediaUrlToLibraryMock).toHaveBeenCalledTimes(2);
+    expect(manualResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Manual save failed.",
+      })
+    );
+    expect(setUiError).toHaveBeenCalledWith(
+      "Unable to save media to the library right now. Please try again."
+    );
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Manual save failed.",
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.media_library_save_failure",
+        message: "Manual save failed.",
+        metadata: expect.objectContaining({
+          output_id: "out-1",
+          persist_intent: "manual",
+          ui_error_message: "Unable to save media to the library right now. Please try again.",
+        }),
       })
     );
   });

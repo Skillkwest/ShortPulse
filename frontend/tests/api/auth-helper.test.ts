@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getOptionalApiUser,
+  getOptionalApiUserResult,
   requireAdminUser,
   requireApiUser,
   resolveAdminAccessVia,
@@ -132,6 +133,7 @@ describe("auth helper token-first behavior", () => {
   it("does not fallback to proxy headers when bearer verification fails", async () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "true";
     const fetchMock = vi.fn(async () => ({
+      status: 401,
       ok: false,
       json: async () => ({}),
     }));
@@ -152,5 +154,50 @@ describe("auth helper token-first behavior", () => {
     expect(user).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("returns 503 when bearer verification is temporarily unavailable", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer maybe-valid-token",
+      },
+    };
+    const res = createMockResponse();
+
+    const user = await requireApiUser(req as never, res as never);
+
+    expect(user).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication verification is temporarily unavailable.",
+      code: "AUTH_VERIFICATION_UNAVAILABLE",
+    });
+  });
+
+  it("preserves auth verification outage context for optional-auth callers", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/telemetry/growth",
+      headers: {
+        authorization: "Bearer maybe-valid-token",
+      },
+    };
+
+    const result = await getOptionalApiUserResult(req as never);
+
+    expect(result).toEqual({
+      user: null,
+      authVerificationUnavailable: true,
+    });
   });
 });

@@ -16,10 +16,14 @@ import type { StudioOutput } from "../types";
 import type { MediaAutosaveSyncState } from "./useMediaAutosavePreference";
 
 type UseAiStudioMediaAutosaveOrchestratorArgs = {
+  enabled: boolean;
   outputs: StudioOutput[];
   mediaAutosaveEnabled: boolean;
   mediaAutosaveSyncState: MediaAutosaveSyncState;
-  saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
+  saveReferenceToLibrary: (
+    outputId: string,
+    options?: { intent?: "manual" | "auto" }
+  ) => Promise<PersistOutputSaveResult>;
 };
 
 const hasRenderableMedia = (output: StudioOutput): boolean =>
@@ -47,6 +51,7 @@ const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean)
  * Applies autosave policy to output snapshots and triggers bounded autosave retries for eligible unsaved media.
  */
 export const useAiStudioMediaAutosaveOrchestrator = ({
+  enabled,
   outputs,
   mediaAutosaveEnabled,
   mediaAutosaveSyncState,
@@ -68,7 +73,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
       }
     }
 
-    if (mediaAutosaveSyncState !== "ready" || !mediaAutosaveEnabled) return;
+    if (!enabled || mediaAutosaveSyncState !== "ready" || !mediaAutosaveEnabled) return;
 
     outputs.forEach((output) => {
       if (inFlightOutputIdsRef.current.has(output.id)) return;
@@ -79,7 +84,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
       if (!decision.allowed) return;
       inFlightOutputIdsRef.current.add(output.id);
       attemptCountByOutputIdRef.current.set(output.id, attemptCount + 1);
-      void saveReferenceToLibrary(output.id)
+      void saveReferenceToLibrary(output.id, { intent: "auto" })
         .then((result) => {
           if (result.ok) {
             attemptCountByOutputIdRef.current.delete(output.id);
@@ -92,5 +97,5 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
           inFlightOutputIdsRef.current.delete(output.id);
         });
     });
-  }, [mediaAutosaveEnabled, mediaAutosaveSyncState, outputs, saveReferenceToLibrary]);
+  }, [enabled, mediaAutosaveEnabled, mediaAutosaveSyncState, outputs, saveReferenceToLibrary]);
 };

@@ -177,7 +177,9 @@ const createSupabaseAdmin = (options?: {
     });
     return { error: null };
   });
-  const mediaUpdateEqUserMock = vi.fn(async () => ({ error: null }));
+  const mediaUpdateEqUserMock = vi.fn(
+    async (): Promise<{ error: { message: string } | null }> => ({ error: null })
+  );
   const mediaUpdateEqIdMock = vi.fn(() => ({
     eq: mediaUpdateEqUserMock,
   }));

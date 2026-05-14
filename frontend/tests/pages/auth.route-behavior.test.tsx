@@ -49,6 +49,7 @@ describe("Auth route behavior", () => {
     routerState.query = {};
     routerState.isReady = true;
     routerState.asPath = "/auth";
+    window.history.replaceState({}, "", "/auth");
 
     readSupabaseSessionMock.mockResolvedValue(null);
     signInWithPasswordMock.mockResolvedValue({ error: null, data: { session: null } });
@@ -155,6 +156,7 @@ describe("Auth route behavior", () => {
         data: {
           plan: "free",
         },
+        emailRedirectTo: expect.stringMatching(/\/auth\/callback\?flow=signup&next=%2Fdashboard$/),
       },
     });
 
@@ -181,7 +183,7 @@ describe("Auth route behavior", () => {
     });
   });
 
-  it("validates empty email before requesting a reset link and sends the reset with /auth redirect", async () => {
+  it("validates empty email before requesting a reset link and sends the reset with callback redirect", async () => {
     render(<AuthPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
@@ -199,7 +201,7 @@ describe("Auth route behavior", () => {
     expect(resetPasswordForEmailMock.mock.calls[0]?.[0]).toBe("reset@example.com");
     expect(resetPasswordForEmailMock.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
-        redirectTo: expect.stringMatching(/\/auth$/),
+        redirectTo: expect.stringMatching(/\/auth\/callback\?flow=recovery&next=%2Fdashboard$/),
       })
     );
 

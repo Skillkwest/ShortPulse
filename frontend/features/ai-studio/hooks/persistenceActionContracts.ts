@@ -17,4 +17,5 @@ export type PersistOutputSaveResult = {
 
 export type PersistOutputSaveOptions = {
   imageIndex?: number | null;
+  intent?: "manual" | "auto";
 };

@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import type { Dispatch, SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioOutput } from "../../types";
@@ -33,14 +34,20 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   ...overrides,
 });
 
+const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStateAction<T>> =>
+  fn as Dispatch<SetStateAction<T>>;
+
 const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydrationPayload => ({
   workspace: {
     mode: "image",
     selectedTool: "create",
+    prompt: "",
     standardPrompt: "",
     pulsePrompt: "",
     model: null,
     aspect: "1:1",
+    selectedCharacterId: null,
+    selectedCharacterLookId: null,
     expertCreateMode: "standard",
     activePulsePresetId: null,
     pulseSessionInstanceId: null,
@@ -95,6 +102,7 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
       pulseWorkflowSession: null,
     },
     pulsePresetId: null,
+    pulseSessionInstanceId: null,
     pulse: {
       messages: [],
       input: "",
@@ -139,11 +147,11 @@ describe("useAiStudioSessionSnapshotController", () => {
         ])
       );
 
-    const setOutputsState = vi.fn((updater: (rows: StudioOutput[]) => StudioOutput[]) => {
-      activeRows = updater(activeRows);
+    const setOutputsState = asDispatch<StudioOutput[]>((value) => {
+      activeRows = typeof value === "function" ? value(activeRows) : value;
     });
-    const setArchivedOutputs = vi.fn((updater: (rows: StudioOutput[]) => StudioOutput[]) => {
-      archivedRows = updater(archivedRows);
+    const setArchivedOutputs = asDispatch<StudioOutput[]>((value) => {
+      archivedRows = typeof value === "function" ? value(archivedRows) : value;
     });
     const setOutputCollectionsForCreateMode = vi.fn(
       (

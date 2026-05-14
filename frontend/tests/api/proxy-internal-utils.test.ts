@@ -64,4 +64,31 @@ describe("API proxy protections", () => {
     expect(response.headers.get("x-middleware-request-x-shortpulse-authenticated")).toBe("1");
     expect(response.headers.get("x-middleware-request-x-shortpulse-user-id")).toBe("user-123");
   });
+
+  it("returns 503 when auth verification is unavailable for a protected API request", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    const fetchMock = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const request = new NextRequest("http://localhost:3000/api/media/sign-batch", {
+        headers: {
+          authorization: "Bearer maybe-valid-token",
+        },
+      });
+      const response = await proxy(request);
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({
+        error: "Authentication verification is temporarily unavailable.",
+        code: "AUTH_VERIFICATION_UNAVAILABLE",
+      });
+    } finally {
+      consoleErrorMock.mockRestore();
+    }
+  });
 });

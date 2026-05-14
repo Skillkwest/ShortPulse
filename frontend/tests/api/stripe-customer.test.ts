@@ -18,7 +18,7 @@ const createSupabaseAdminMock = (params?: {
   profile?: Record<string, unknown> | null;
   contract?: Record<string, unknown> | null;
   onUpsertProfile?: ReturnType<typeof vi.fn>;
-  onUpdateContract?: ReturnType<typeof vi.fn>;
+  onUpdateContract?: (payload: unknown, column: string, value: string) => void;
 }) => ({
   from: (table: string) => {
     if (table === "billing_profiles") {

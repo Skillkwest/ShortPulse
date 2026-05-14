@@ -6,6 +6,30 @@ For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_resp
 For AI Studio Fal polling, client status timeouts are intentionally higher than server status-route budgets.
 If regressions reappear, check `app_error_logs` for `source='client.api_network'` with abort-like messages on `/api/fal/*-status` endpoints.
 
+## Stuck on `Confirm media rights`
+Symptoms:
+- A protected route such as `/ai-studio`, `/creator-studio`, `/profile`, or `/media-library` does not continue past the media-rights gate.
+- The user sees `Unauthorized`, `Media agreement service is temporarily unavailable.`, or repeated retries with no progress.
+
+Interpretation:
+- `Unauthorized` on this surface is usually an auth recovery problem, not a true consent-content problem.
+- `Media agreement service is temporarily unavailable.` indicates consent status could not be read or written because the backend verification/persistence surface is degraded.
+
+Checklist:
+- If the gate shows an auth-style failure, sign in again and confirm the route no longer re-enters the gate with the same stale session.
+- Confirm `sql/migrations/104_add_user_media_compliance_acceptances.sql` is applied in the active environment.
+- Confirm `SUPABASE_SERVICE_ROLE_KEY` is present for the active runtime.
+- Confirm Supabase auth verification is healthy for protected API routes.
+- Check `app_error_logs` for `/api/account/media-compliance` failures and distinguish:
+  - `401` / auth recovery required
+  - `503` / auth verification or media-compliance service unavailable
+  - `500` / unexpected route failure
+
+Mitigation:
+- For auth recovery failures, re-authenticate and retry the protected route.
+- For `503` failures, restore auth verification or consent persistence dependencies first; do not treat this as a user-consent-content issue.
+- If migration `104` or service-role env is missing, restore them before expecting the gate to clear.
+
 ## AI Studio reference upload returns `413`
 Symptoms:
 - AI Studio shows `Reference upload failed` and the detail mentions `413`, `file too large`, or `Reference image is too large`.

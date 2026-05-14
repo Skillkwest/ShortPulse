@@ -26,6 +26,18 @@ const unauthorized = () =>
     headers: { "Content-Type": "application/json" },
   });
 
+const authVerificationUnavailable = () =>
+  new NextResponse(
+    JSON.stringify({
+      error: "Authentication verification is temporarily unavailable.",
+      code: "AUTH_VERIFICATION_UNAVAILABLE",
+    }),
+    {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+
 const notFound = () =>
   new NextResponse(JSON.stringify({ error: "Not found" }), {
     status: 404,
@@ -35,35 +47,35 @@ const notFound = () =>
 const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-
-  try {
-    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      method: "GET",
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      id?: string;
-      email?: string;
-      user_metadata?: Record<string, unknown>;
-      app_metadata?: Record<string, unknown>;
-    };
-    if (!data?.id) return null;
-    return {
-      id: data.id,
-      email: data.email,
-      user_metadata: data.user_metadata,
-      app_metadata: data.app_metadata,
-    };
-  } catch (error) {
-    console.error("[proxy] Supabase auth lookup failed", error);
-    return null;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Authentication verification is unavailable.");
   }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "GET",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) {
+    throw new Error(`Authentication verification failed with ${response.status}.`);
+  }
+  const data = (await response.json()) as {
+    id?: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+    app_metadata?: Record<string, unknown>;
+  };
+  if (!data?.id) return null;
+  return {
+    id: data.id,
+    email: data.email,
+    user_metadata: data.user_metadata,
+    app_metadata: data.app_metadata,
+  };
 };
 
 export async function proxy(request: NextRequest) {
@@ -87,7 +99,13 @@ export async function proxy(request: NextRequest) {
     return unauthorized();
   }
 
-  const user = await getSupabaseUser(token);
+  let user: SupabaseUser = null;
+  try {
+    user = await getSupabaseUser(token);
+  } catch (error) {
+    console.error("[proxy] Supabase auth lookup failed", error);
+    return authVerificationUnavailable();
+  }
   if (!user) {
     return unauthorized();
   }

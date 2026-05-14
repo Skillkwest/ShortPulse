@@ -14,7 +14,7 @@ const {
   mockResolveMediaSigningStoragePaths: vi.fn((_row?: unknown) => [] as string[]),
   mockResolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
     storagePaths: mockResolveMediaSigningStoragePaths(row),
-    directUrl: null,
+    directUrl: null as string | null,
   })),
 }));
 
@@ -37,7 +37,7 @@ describe("mediaPreviewRuntimeShared", () => {
     mockResolveMediaPreviewCandidates.mockImplementation(
       (row: { storage_path?: string | null }) => ({
         storagePaths: mockResolveMediaSigningStoragePaths(row),
-        directUrl: null,
+        directUrl: null as string | null,
       })
     );
   });

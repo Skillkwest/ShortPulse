@@ -59,12 +59,21 @@ describe("App AI Studio protected gates", () => {
       user: { id: "user-1" },
     });
     useMediaComplianceGateMock.mockReturnValue({
-      agreement: { title: "Agreement", intro: "", bullets: [] },
+      agreement: {
+        key: "media_usage_compliance",
+        version: "2026-04-25",
+        title: "Agreement",
+        intro: "",
+        rules: [],
+        checkboxLabel: "I agree",
+        confirmLabel: "Continue",
+      },
       accepted: true,
       acceptedAt: null,
       initialized: true,
       loading: false,
       error: null,
+      status: "accepted",
       acceptAgreement: vi.fn(),
       refreshStatus: vi.fn(),
     });
@@ -90,12 +99,21 @@ describe("App AI Studio protected gates", () => {
 
   it("uses the polished entry screen while AI Studio media compliance is loading", () => {
     useMediaComplianceGateMock.mockReturnValue({
-      agreement: { title: "Agreement", intro: "", bullets: [] },
+      agreement: {
+        key: "media_usage_compliance",
+        version: "2026-04-25",
+        title: "Agreement",
+        intro: "",
+        rules: [],
+        checkboxLabel: "I agree",
+        confirmLabel: "Continue",
+      },
       accepted: false,
       acceptedAt: null,
       initialized: false,
       loading: true,
       error: null,
+      status: "loading",
       acceptAgreement: vi.fn(),
       refreshStatus: vi.fn(),
     });
@@ -121,12 +139,21 @@ describe("App AI Studio protected gates", () => {
       },
     });
     useMediaComplianceGateMock.mockReturnValue({
-      agreement: { title: "Agreement", intro: "", bullets: [] },
+      agreement: {
+        key: "media_usage_compliance",
+        version: "2026-04-25",
+        title: "Agreement",
+        intro: "",
+        rules: [],
+        checkboxLabel: "I agree",
+        confirmLabel: "Continue",
+      },
       accepted: false,
       acceptedAt: null,
       initialized: false,
       loading: true,
       error: null,
+      status: "loading",
       acceptAgreement: vi.fn(),
       refreshStatus: vi.fn(),
     });
@@ -135,5 +162,32 @@ describe("App AI Studio protected gates", () => {
 
     expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
     expect(screen.queryByText("Loading project")).not.toBeInTheDocument();
+  });
+
+  it("uses the unavailable compliance blocker when the consent service is down", () => {
+    useMediaComplianceGateMock.mockReturnValue({
+      agreement: {
+        key: "media_usage_compliance",
+        version: "2026-04-25",
+        title: "Agreement",
+        intro: "",
+        rules: [],
+        checkboxLabel: "I agree",
+        confirmLabel: "Continue",
+      },
+      accepted: false,
+      acceptedAt: null,
+      initialized: true,
+      loading: false,
+      error: "Media agreement service is temporarily unavailable.",
+      status: "service_unavailable",
+      acceptAgreement: vi.fn(),
+      refreshStatus: vi.fn(),
+    });
+
+    renderApp();
+
+    expect(screen.getByText("Media agreement unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
   });
 });

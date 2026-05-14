@@ -14,10 +14,15 @@ export type ShortPulseFetchInit = RequestInit & {
 };
 
 export const AUTH_SESSION_TIMEOUT_CODE = "AUTH_SESSION_TIMEOUT" as const;
+export const AUTH_REQUIRED_CODE = "AUTH_REQUIRED" as const;
 
 export type AuthSessionTimeoutError = Error & {
   code: typeof AUTH_SESSION_TIMEOUT_CODE;
   timeoutMs: number;
+};
+
+export type AuthRequiredError = Error & {
+  code: typeof AUTH_REQUIRED_CODE;
 };
 
 const asHeaders = (headers?: HeadersInit): Headers => {
@@ -41,9 +46,20 @@ const createAuthSessionTimeoutError = (timeoutMs: number): AuthSessionTimeoutErr
   return error;
 };
 
+const createAuthRequiredError = (): AuthRequiredError => {
+  const error = new Error("You must be signed in to call this endpoint.") as AuthRequiredError;
+  error.code = AUTH_REQUIRED_CODE;
+  return error;
+};
+
 export const isAuthSessionTimeoutError = (error: unknown): error is AuthSessionTimeoutError => {
   if (!error || typeof error !== "object") return false;
   return (error as { code?: unknown }).code === AUTH_SESSION_TIMEOUT_CODE;
+};
+
+export const isAuthRequiredError = (error: unknown): error is AuthRequiredError => {
+  if (!error || typeof error !== "object") return false;
+  return (error as { code?: unknown }).code === AUTH_REQUIRED_CODE;
 };
 
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
@@ -129,7 +145,7 @@ export const fetchWithAuth = async (
     token = await readAccessToken({ timeoutMs, forceRefresh: true });
   }
   if (!token) {
-    throw new Error("You must be signed in to call this endpoint.");
+    throw createAuthRequiredError();
   }
 
   const endpoint = normalizeEndpoint(input);

@@ -3,8 +3,10 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  AUTH_REQUIRED_CODE,
   AUTH_SESSION_TIMEOUT_CODE,
   fetchWithAuth,
+  isAuthRequiredError,
   isAuthSessionTimeoutError,
 } from "../authenticatedFetch";
 import { readSupabaseAccessToken } from "../supabaseClient";
@@ -94,6 +96,23 @@ describe("fetchWithAuth auth-session timeout", () => {
       const [, init] = fetchSpy.mock.calls[0] ?? [];
       const headers = new Headers((init as RequestInit | undefined)?.headers);
       expect(headers.get("Authorization")).toBe("Bearer token-fresh");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("rejects with an auth-required classification when no session token is available", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    try {
+      await expect(fetchWithAuth("/api/test-auth-required")).rejects.toSatisfy((error: unknown) => {
+        expect(isAuthRequiredError(error)).toBe(true);
+        expect((error as { code?: string }).code).toBe(AUTH_REQUIRED_CODE);
+        return true;
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();
     }

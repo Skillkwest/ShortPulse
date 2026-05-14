@@ -101,6 +101,7 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
           pulsePresetId: null,
+          pulseSessionInstanceId: null,
           pulse: {
             messages: [],
             input: "",
@@ -194,6 +195,7 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
           pulsePresetId: null,
+          pulseSessionInstanceId: null,
           pulse: {
             messages: [],
             input: "",
@@ -242,6 +244,7 @@ describe("useAiStudioPageSessionPersistence", () => {
           agentRuntimes: {
             standard: createAgentRuntime(),
             pulsePresetId: "story_builder",
+            pulseSessionInstanceId: null,
             pulse: createAgentRuntime({
               messages: [
                 {
@@ -282,6 +285,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       agentRuntimes: {
         standard: createAgentRuntime(),
         pulsePresetId: "story_builder",
+        pulseSessionInstanceId: null,
         pulse: createAgentRuntime({
           messages: [
             {
@@ -333,6 +337,7 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
           pulsePresetId: null,
+          pulseSessionInstanceId: null,
           pulse: {
             messages: [],
             input: "",
@@ -433,6 +438,7 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
           pulsePresetId: null,
+          pulseSessionInstanceId: null,
           pulse: {
             messages: [],
             input: "",
@@ -511,6 +517,7 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
           pulsePresetId: null,
+          pulseSessionInstanceId: null,
           pulse: {
             messages: [],
             input: "",

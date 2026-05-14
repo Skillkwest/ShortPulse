@@ -361,4 +361,49 @@ describe("useAiStudioSessionAutosave", () => {
       expect.objectContaining({ title: "Project Beta" })
     );
   });
+
+  it("does not skip a save for a different session when the snapshot content is identical", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const sharedSnapshot = createSnapshotV2();
+    const { rerender } = renderHook(
+      ({ sessionId }: { sessionId: string }) =>
+        useAiStudioSessionAutosave({
+          sessionId,
+          snapshot: sharedSnapshot,
+          enabled: true,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          sessionId: "project-1",
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    rerender({
+      sessionId: "project-2",
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(persistSnapshot).toHaveBeenNthCalledWith(
+      1,
+      "project-1",
+      sharedSnapshot,
+      expect.objectContaining({ keepalive: false })
+    );
+    expect(persistSnapshot).toHaveBeenNthCalledWith(
+      2,
+      "project-2",
+      sharedSnapshot,
+      expect.objectContaining({ keepalive: false })
+    );
+  });
 });

@@ -146,6 +146,22 @@ const refreshSessionFromClient = async (): Promise<Session | null> => {
   }
 };
 
+const refreshSessionFromClientPreservingSnapshot = async (): Promise<Session | null> => {
+  const previousSnapshot = currentSessionSnapshot;
+  try {
+    const supabase = ensureSupabaseClient();
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) throw error;
+    const session = data.session ?? null;
+    setSessionSnapshot(session, true);
+    return session;
+  } catch (error) {
+    currentSessionSnapshot = previousSnapshot;
+    emitSessionSnapshot();
+    throw error;
+  }
+};
+
 /**
  * Reads the current browser session through one shared in-flight request.
  * Prefer this over calling `supabase.auth.getSession()` at leaf consumers.
@@ -177,6 +193,24 @@ export const readSupabaseSession = async (options?: {
  */
 export const primeSupabaseSession = (session: Session | null) => {
   setSessionSnapshot(session ?? null, true);
+};
+
+export const refreshSupabaseSession = async (options?: {
+  preserveSnapshotOnError?: boolean;
+}): Promise<Session | null> => {
+  if (options?.preserveSnapshotOnError === true) {
+    return await refreshSessionFromClientPreservingSnapshot();
+  }
+  return await readSupabaseSession({ forceRefresh: true });
+};
+
+/**
+ * Signs the current user out and clears the shared session cache.
+ */
+export const signOutSupabaseSession = async (): Promise<void> => {
+  const supabase = ensureSupabaseClient();
+  await supabase.auth.signOut();
+  primeSupabaseSession(null);
 };
 
 /**

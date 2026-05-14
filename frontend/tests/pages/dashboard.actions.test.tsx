@@ -12,7 +12,7 @@ const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
-const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const signOutSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const routerPushMock = vi.hoisted(() => vi.fn());
@@ -59,7 +59,7 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
-  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
+  signOutSupabaseSession: (...args: unknown[]) => signOutSupabaseSessionMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -131,6 +131,8 @@ describe("Dashboard actions", () => {
     routerPushMock.mockReset();
     signOutMock.mockReset();
     signOutMock.mockResolvedValue({ error: null });
+    signOutSupabaseSessionMock.mockReset();
+    signOutSupabaseSessionMock.mockResolvedValue(undefined);
 
     useRouterMock.mockReturnValue({ replace: routerReplaceMock, push: routerPushMock });
     useCreditsMock.mockReturnValue({
@@ -258,8 +260,7 @@ describe("Dashboard actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 
     await waitFor(() => {
-      expect(signOutMock).toHaveBeenCalledTimes(1);
-      expect(primeSupabaseSessionMock).toHaveBeenCalledWith(null);
+      expect(signOutSupabaseSessionMock).toHaveBeenCalledTimes(1);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
     });
   });

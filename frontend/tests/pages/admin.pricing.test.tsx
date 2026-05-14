@@ -361,7 +361,7 @@ describe("Admin pricing page", () => {
   });
 
   it("saves model policy drafts and preserves the refreshed preview", async () => {
-    const persistedState = {
+    const persistedState: AdminPricingStateResponse = {
       ...buildPricingState(),
       modelPolicy: {
         ...buildPricingState().modelPolicy,

@@ -19,11 +19,13 @@ const ownedMediaSelectBuilder = {
 };
 ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
 ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
-const mediaOwnershipSelectMock = vi.fn(() => ownedMediaSelectBuilder);
+const mediaOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
+  (_columns: string) => ownedMediaSelectBuilder
+);
 const associationUpsertMock = vi.fn();
 const mediaAssociationUpsertMock = vi.fn();
-const projectGenerationItemsSelectMock = vi.fn();
-const generationProjectionSelectMock = vi.fn();
+const projectGenerationItemsSelectMock = vi.fn<(columns: string) => unknown>();
+const generationProjectionSelectMock = vi.fn<(columns: string) => unknown>();
 const generationPublicationsSelectMock = vi.fn();
 
 const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown }) => {
@@ -672,13 +674,13 @@ describe("associateGenerationWithProjectForUser", () => {
         columns ===
         "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       ) {
-        return mediaPrimaryBuilder;
+        return mediaPrimaryBuilder as typeof ownedMediaSelectBuilder;
       }
       if (
         columns ===
         "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       ) {
-        return mediaFallbackBuilder;
+        return mediaFallbackBuilder as typeof ownedMediaSelectBuilder;
       }
       throw new Error(`Unexpected media_files fields: ${columns}`);
     });

@@ -20,7 +20,7 @@ const listFalRouteFiles = (): string[] =>
 
 const listGeneratedFalRouteFiles = (): string[] =>
   listExpectedFalRouteFiles().filter(
-    (routeFile) => routeFile.endsWith("-submit.ts") || routeFile.endsWith("-status.ts")
+    (routeFile: string) => routeFile.endsWith("-submit.ts") || routeFile.endsWith("-status.ts")
   );
 
 describe("fal route inventory regression", () => {

@@ -7,6 +7,7 @@ import { ProfilePreferenceToggleCard } from "./ProfilePreferenceToggleCard";
 type ProfileAccountSectionProps = {
   displayNameInput: string;
   workspaceEmail: string;
+  pendingWorkspaceEmail: string;
   mediaAutosaveEnabled: boolean;
   mediaAutosaveDisabled: boolean;
   mediaAutosaveSaving: boolean;
@@ -25,6 +26,7 @@ type ProfileAccountSectionProps = {
 export function ProfileAccountSection({
   displayNameInput,
   workspaceEmail,
+  pendingWorkspaceEmail,
   mediaAutosaveEnabled,
   mediaAutosaveDisabled,
   mediaAutosaveSaving,
@@ -83,6 +85,11 @@ export function ProfileAccountSection({
             placeholder="you@example.com"
           />
         </div>
+        {pendingWorkspaceEmail ? (
+          <p className="subdued tiny">
+            Pending confirmation: <strong>{pendingWorkspaceEmail}</strong>
+          </p>
+        ) : null}
         <div className="profile-actions">
           <button type="button" className="primary-btn profile-button" onClick={onEmailUpdate}>
             Update email

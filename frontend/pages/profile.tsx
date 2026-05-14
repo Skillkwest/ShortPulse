@@ -41,9 +41,14 @@ import {
   type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
+import { buildAuthCallbackUrl } from "../lib/authRedirects";
 import { useProtectedRoute } from "../lib/authGuard";
 import { trackBillingPricingViewed, trackBillingUpgradeClicked } from "../lib/growthTelemetry";
-import { ensureSupabaseClient, primeSupabaseSession } from "../lib/supabaseClient";
+import {
+  ensureSupabaseClient,
+  refreshSupabaseSession,
+  signOutSupabaseSession,
+} from "../lib/supabaseClient";
 
 const sections: readonly ProfileSectionItem[] = [
   { key: "account", label: "Account", icon: UserCircle },
@@ -147,6 +152,7 @@ export default function ProfilePage() {
   const [allTransactions, setAllTransactions] = useState<SubscriptionTransaction[]>([]);
   const [allTransactionsLoading, setAllTransactionsLoading] = useState(false);
   const [allTransactionsError, setAllTransactionsError] = useState<string | null>(null);
+  const pendingWorkspaceEmail = typeof user?.new_email === "string" ? user.new_email.trim() : "";
 
   const [portalLoading, setPortalLoading] = useState(false);
   const [planChangeLoadingPlanId, setPlanChangeLoadingPlanId] = useState<string | null>(null);
@@ -637,9 +643,7 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     try {
-      const supabase = ensureSupabaseClient();
-      await supabase.auth.signOut();
-      primeSupabaseSession(null);
+      await signOutSupabaseSession();
       await router.replace("/auth");
     } finally {
       setShowLogoutConfirm(false);
@@ -659,13 +663,7 @@ export default function ProfilePage() {
         throw new Error(data?.error || "Profile update failed.");
       }
 
-      const supabase = ensureSupabaseClient();
-      void supabase.auth
-        .refreshSession()
-        .then((refreshResult) => {
-          primeSupabaseSession(refreshResult.data.session ?? null);
-        })
-        .catch(() => {});
+      void refreshSupabaseSession({ preserveSnapshotOnError: true }).catch(() => null);
       setDisplayNameInput(nextName);
       setNotice({ tone: "success", message: "Profile updated." });
     } catch (error) {
@@ -693,6 +691,7 @@ export default function ProfilePage() {
       if (!response.ok) {
         throw new Error(data?.error || "Email update failed.");
       }
+      void refreshSupabaseSession({ preserveSnapshotOnError: true }).catch(() => null);
       setNotice({
         tone: "success",
         message: "Email update requested. Check your inbox to confirm.",
@@ -715,7 +714,11 @@ export default function ProfilePage() {
     try {
       const supabase = ensureSupabaseClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: buildAuthCallbackUrl({
+          origin: window.location.origin,
+          flow: "recovery",
+          nextPath: `${window.location.pathname}${window.location.search}`,
+        }),
       });
       if (error) throw error;
       setNotice({ tone: "success", message: "Password reset link sent." });
@@ -934,6 +937,7 @@ export default function ProfilePage() {
             <ProfileAccountSection
               displayNameInput={displayNameInput}
               workspaceEmail={workspaceEmail}
+              pendingWorkspaceEmail={pendingWorkspaceEmail}
               mediaAutosaveEnabled={mediaAutosaveEnabled}
               mediaAutosaveDisabled={mediaAutosaveDisabled}
               mediaAutosaveSaving={mediaAutosaveSaving}

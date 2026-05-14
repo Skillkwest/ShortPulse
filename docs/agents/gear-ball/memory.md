@@ -28,6 +28,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-14: When the user explicitly wants the same result on `working-development`, `staging-preview`, and `production`, Gear Ball should treat the retained post-run audit lane as part of the promotion. Record the audit, then promote that closeout commit across the same three branches so the role branches stay aligned.
 - 2026-05-14: When agent READMEs point at `CURRENT-HANDOFF.md`, treat those handoff files as part of the durable contract surface. Do not leave the references committed without the corresponding handoff files.
 - 2026-05-14: When a handoff spans multiple agent spaces, commit the canonical active pointer, the retained artifact pointer, and any cross-agent intake packet together. Do not publish only one side of the handoff chain.
+- 2026-05-14: For psql Vault helper scripts, do not rely on `\if :{?var}` after a zero-row `\gset` query to decide whether a secret exists. Emit an explicit boolean existence flag and a stable text ID in the query output so update-vs-create branching is deterministic.
 
 ## Open Follow-Ups
 

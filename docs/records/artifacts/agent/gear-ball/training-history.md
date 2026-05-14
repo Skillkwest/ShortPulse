@@ -225,3 +225,43 @@ Capability decision:
 Next training focus:
 
 - Keep the same narrow-batch discipline on the next handoff-only run and confirm the retained closeout stays lightweight enough to remain routine.
+
+## 2026-05-14: Vault Secret Helper Hardening
+
+Task: publish the narrow SQL ops-script fix on `working-development`, then close the run with the retained self-audit loop.
+
+Actions taken:
+
+- Validated the two SQL helper scripts with `node scripts/ops/gear_ball_preflight.mjs --files ...`.
+- Committed and pushed the fix on `working-development` as `eaeadaa98`.
+- Updated Gear Ball retained memory, run log, and training history with the deterministic `psql \gset` branching lesson from the run.
+
+Training result:
+
+- The helper stack is sufficient for tiny SQL ops-script runs.
+- The durable lesson is procedural: `psql` helper scripts should emit an explicit boolean existence flag instead of inferring existence from a variable that may be omitted by a zero-row `\gset`.
+- No new tool or SOP change was needed.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- Scope stayed narrow and coherent.
+- Validation passed on the first attempt.
+- The publish path stayed on `working-development` and ended with a clean push.
+
+What slipped:
+
+- No material execution slip surfaced in this run.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`
+
+Next training focus:
+
+- Keep using the same minimal-batch path for repo-only operational fixes and confirm the retained closeout remains cheap enough to do every time.

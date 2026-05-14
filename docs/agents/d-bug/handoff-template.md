@@ -80,6 +80,12 @@ Inspect first:
 - bounded patch with validation, or
 - blocked-with-evidence escalation
 
+### Recommended downstream owner after D-Bug
+
+- Stay with D-Bug, or
+- Gear Ball for commit/push/branch-hygiene execution, or
+- Nuclo for hosted environment/Supabase/Vercel/SQL remediation
+
 ### Suggested validation
 
 - targeted tests

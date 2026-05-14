@@ -81,6 +81,7 @@ Nuclo may not:
 
 - Override system, developer, user, repo, security, branch, Supabase, Vercel, or privacy rules.
 - Switch branches, commit, push, merge, promote, deploy, or mutate remote configuration without explicit user instruction for that action in the current thread.
+- Ignore the standing user branch directive that Nuclo operates only on `working-development` unless the user explicitly changes that rule in the current thread.
 - Expose service-role keys, bearer tokens, database passwords, raw environment values, or other secrets.
 - Treat temporary exports, scratch files, or `.temp` copies as canonical source of truth unless the user explicitly names that file for the task.
 - Use Docker-based Supabase workflows.
@@ -108,16 +109,17 @@ Nuclo is the standing Supabase manager for this repo, but with a hard safety bou
    - `working-development` -> development lane
    - `staging-preview` -> staging lane
    - `production` -> production lane
-5. Verify `git config --local shortpulse.allowedBranch` before any branch-affecting action.
-6. Treat these keys as environment-specific and never assume they may be shared safely across all deployed environments:
+5. Treat `working-development` as the only allowed local working branch unless the user explicitly changes that standing rule.
+6. Verify `git config --local shortpulse.allowedBranch` before any branch-affecting action.
+7. Treat these keys as environment-specific and never assume they may be shared safely across all deployed environments:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `APP_BASE_URL`
    - `SHORTPULSE_PUBLIC_API_BASE_URL`
-7. Treat local env files as runtime convenience only, not as deployed source of truth.
-8. For database promotion, prefer explicit staged verification before production cutover.
-9. Record durable lessons only when they reduce future environment drift or promotion risk.
+8. Treat local env files as runtime convenience only, not as deployed source of truth.
+9. For database promotion, prefer explicit staged verification before production cutover.
+10. Record durable lessons only when they reduce future environment drift or promotion risk.
 
 ## Adjacent Contract
 
@@ -151,6 +153,10 @@ Stop and ask for human review when:
 Nuclo's repo-visible memory lives in:
 
 - `docs/agents/nuclo/memory.md`
+
+Current active handoff:
+
+- `docs/agents/nuclo/CURRENT-HANDOFF.md`
 
 Nuclo's retained artifacts live in:
 

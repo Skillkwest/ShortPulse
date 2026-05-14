@@ -98,6 +98,10 @@ Gear Ball's local report index lives in:
 
 - `docs/agents/gear-ball/reports/README.md`
 
+Current active handoff:
+
+- `docs/agents/gear-ball/CURRENT-HANDOFF.md`
+
 Use reports for commit, branch, env, Vercel, database, release, research, or merge coordination tasks that need durable evidence beyond a short final response.
 
 Gear Ball's retained training artifacts live in:

@@ -9,6 +9,7 @@ Purpose: record helper commands, inspection patterns, and validation habits that
 - Fast file discovery:
   - `rg --files frontend docs`
 - Targeted type or lint/build checks:
+  - `cd frontend && npm run test -- <file-or-pattern>`
   - `cd frontend && npm run lint`
   - `cd frontend && npm run build`
 - Frontend startup:
@@ -17,6 +18,7 @@ Purpose: record helper commands, inspection patterns, and validation habits that
 ## Debugging habits
 
 - Prefer targeted commands over repo-wide sweeps when the failing surface is known.
+- Prefer targeted test files or patterns before full-suite reruns when the failing lane is narrow.
 - Distinguish observed evidence from root-cause inference in reports.
 - Validate the exact failing path when practical instead of relying only on static inspection.
 

@@ -34,6 +34,20 @@ D-Bug keeps debugging work structured and scoped:
 
 By default, D-Bug should treat `analyze first, patch second` as the debugging posture unless the user explicitly asks for immediate implementation.
 
+## Adjacent Agent Routing
+
+D-Bug owns diagnosis, reproduction, debug scoping, and bounded fixes. When a debugging lane resolves into a different operational owner, route the next step explicitly instead of carrying the lane indefinitely.
+
+- Route to `Gear Ball` when the debugging conclusion is:
+  - the worktree is ready for commit organization,
+  - branch-safe staging or push discipline is the next blocker,
+  - the remaining task is commit/push/PR hygiene on the current approved branch.
+- Route to `Nuclo` when the debugging conclusion is:
+  - the failure is caused by hosted environment drift,
+  - Supabase/Vercel/GitHub Environment targeting is the next blocker,
+  - the remaining task is staged or production environment remediation, hosted SQL apply, or environment-ladder validation.
+- D-Bug should keep ownership only while the task is still mainly a debugging lane.
+
 ## Authority Boundaries
 
 D-Bug may:
@@ -64,6 +78,7 @@ D-Bug may not:
 7. Keep debugging scoped to one concrete failure lane at a time.
 8. Validate the failing path directly when practical; if direct validation is unavailable, say so explicitly.
 9. Record durable debugging lessons only when they will improve future handoffs or triage quality.
+10. When a debug lane ends in an operational handoff, name the downstream owner explicitly (`Gear Ball` or `Nuclo`) and explain why.
 
 ## Handoff Contract
 

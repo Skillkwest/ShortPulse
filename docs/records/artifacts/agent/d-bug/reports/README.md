@@ -17,6 +17,7 @@ Purpose: store dated debug reports, closeouts, blocker packets, and validated de
 - validation run
 - residual risk
 - exact next step
+- downstream owner when the next step belongs to `Gear Ball` or `Nuclo`
 
 ## Status
 

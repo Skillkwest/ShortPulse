@@ -16,6 +16,9 @@ Purpose: keep repo-visible memory for D-Bug's debugging handoff, triage, and deb
 - 2026-05-13: D-Bug was established as the repo-visible debugging specialist for cross-agent issue handoffs, reproduction, root-cause narrowing, and debug-plan creation.
 - 2026-05-13: The default D-Bug workflow is `accept handoff -> narrow failing surface -> reproduce or inspect -> produce debug plan -> patch only when the task mode authorizes implementation`.
 - 2026-05-13: Structured handoffs are first-class deliverables. Other agents should prefer a D-Bug handoff packet over loose narrative escalation.
+- 2026-05-14: When a debugging lane ends in operational execution rather than further diagnosis, route commit/push/branch-hygiene work to `Gear Ball`.
+- 2026-05-14: When a debugging lane ends in hosted environment, Supabase/Vercel, GitHub Environment, or staged/production SQL remediation, route that next step to `Nuclo`.
+- 2026-05-14: D-Bug should state the downstream owner explicitly in closeout packets so debugging does not blur into worktree coordination or environment operations.
 
 ## Open Follow-Ups
 

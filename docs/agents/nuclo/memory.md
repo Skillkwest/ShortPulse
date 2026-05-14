@@ -9,6 +9,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - Role: environment and version manager for the ShortPulse branch ladder, Vercel topology, and Supabase project wiring.
 - Default posture: map first, mutate second.
 - Branch ladder rule: `working-development` -> `staging-preview` -> `production`.
+- Standing user branch rule: work only on `working-development` unless the user explicitly changes that rule in the current thread.
 - Branch safety rule: keep `git config --local shortpulse.allowedBranch` aligned before branch-affecting work.
 - Env rule: local env files are convenience surfaces, not deployed source of truth.
 - Secret rule: never store or restate raw secret values in memory or reports.
@@ -92,6 +93,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - 2026-05-14: Staging was still behind working-development on migration `123`: `public.generation_projection` was missing `companion_art_status`, `companion_art_storage_path`, `companion_art_attempt_count`, and index `ix_generation_projection_companion_art_pending`. Applying `sql/migrations/123_add_audio_companion_art_projection_fields.sql` to staging closed that drift.
 - 2026-05-14: `scripts/ops/supabase_public_schema_parity.sh` now checks columns and indexes in addition to tables, routines, and policies. This was required because the earlier name-only parity pass falsely reported dev/staging parity even while staging was missing migration `123` column/index objects.
 - 2026-05-14: `scripts/check_vercel_env_contract.mjs` no longer carries the default preview branch into development-only audits. `node scripts/check_vercel_env_contract.mjs --environment development` now passes cleanly instead of false-failing with `--git-branch can only be used when auditing preview`.
+- 2026-05-14: The standing user branch directive is now explicit in Nuclo contract and memory: operate only on `working-development`, and never switch to another branch unless the user explicitly changes that rule in the current thread.
 
 ## Open Follow-Ups
 

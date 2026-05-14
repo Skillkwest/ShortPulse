@@ -30,6 +30,12 @@ Every substantive D-Bug run should produce retained evidence:
 - retain a handoff in `handoffs/` when intake structure matters for future reuse
 - create a dated report in `reports/` when the run produces a real debug plan, bounded fix, or blocker packet
 
+When a D-Bug lane ends in an operational handoff:
+
+- route commit/push/branch-hygiene execution to `Gear Ball`
+- route hosted environment, Supabase/Vercel, GitHub Environment, or staged/production SQL remediation to `Nuclo`
+- record the downstream owner explicitly in the retained handoff or report
+
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/d-bug/README.md`

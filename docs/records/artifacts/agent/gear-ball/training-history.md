@@ -185,3 +185,43 @@ Capability decision:
 Next training focus:
 
 - On the next large handoff lane, see whether the app stabilization batch can be split one step further without losing validation clarity.
+
+## 2026-05-14: Nuclo Hosted SQL Remediation Handoff Packet
+
+Task: publish the new Nuclo and D-Bug handoff packet on `working-development`, then close the run with the retained self-audit loop.
+
+Actions taken:
+
+- Validated the six-file docs/handoff packet with `node scripts/ops/gear_ball_preflight.mjs --files ...` and `npm -C frontend run docs:check`.
+- Committed and pushed the packet on `working-development` as `4ba003d99`.
+- Updated Gear Ball retained memory, run log, and training history to capture the cross-agent handoff-chain lesson from the run.
+
+Training result:
+
+- The narrow handoff-publish path is stable and does not need new tooling.
+- The durable lesson is about chain completeness: when a handoff spans canonical agent docs, retained artifact pointers, and a workspace intake file, all three need to move together.
+- The current helper stack is sufficient for small docs-only SOP runs.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- Scope stayed narrow and coherent.
+- Validation passed on the first attempt.
+- The publish path stayed on `working-development` and ended with a clean push.
+
+What slipped:
+
+- No material execution slip surfaced in this run.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`
+
+Next training focus:
+
+- Keep the same narrow-batch discipline on the next handoff-only run and confirm the retained closeout stays lightweight enough to remain routine.

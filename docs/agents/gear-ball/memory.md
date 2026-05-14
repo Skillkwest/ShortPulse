@@ -27,6 +27,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-13: Gear Ball should never parallelize Git commands that compete for the index. Serialize `git add`, `git status`, `git commit`, and other index-locking operations to avoid self-inflicted `index.lock` failures.
 - 2026-05-14: When the user explicitly wants the same result on `working-development`, `staging-preview`, and `production`, Gear Ball should treat the retained post-run audit lane as part of the promotion. Record the audit, then promote that closeout commit across the same three branches so the role branches stay aligned.
 - 2026-05-14: When agent READMEs point at `CURRENT-HANDOFF.md`, treat those handoff files as part of the durable contract surface. Do not leave the references committed without the corresponding handoff files.
+- 2026-05-14: When a handoff spans multiple agent spaces, commit the canonical active pointer, the retained artifact pointer, and any cross-agent intake packet together. Do not publish only one side of the handoff chain.
 
 ## Open Follow-Ups
 

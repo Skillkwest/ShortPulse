@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Purpose: compare public-schema object presence between two hosted Supabase databases.
-# Responsibilities: report table, routine, and policy parity by name so Nuclo can
-# quickly detect whether a target production project is missing staged schema objects.
+# Responsibilities: report table, column, routine, policy, and index parity by name so I can
+# quickly detect whether a target hosted project is missing staged schema objects.
 
 set -euo pipefail
 
@@ -21,6 +21,8 @@ Env fallbacks:
 
 Notes:
   - Compares object presence only, not full DDL text.
+  - Columns are compared by table, column, and data type.
+  - Indexes are compared by table and index name.
   - Exit code 0 means parity by name. Exit code 1 means drift was found.
 EOF
 }
@@ -143,13 +145,31 @@ where schemaname = '${SCHEMA_NAME}'
 order by 1;
 SQL
 )
+COLUMN_QUERY=$(cat <<SQL
+select format('%s:%s:%s', table_name, column_name, data_type)
+from information_schema.columns
+where table_schema = '${SCHEMA_NAME}'
+order by 1;
+SQL
+)
+INDEX_QUERY=$(cat <<SQL
+select format('%s:%s', tablename, indexname)
+from pg_indexes
+where schemaname = '${SCHEMA_NAME}'
+order by 1;
+SQL
+)
 
 run_list_query "$SOURCE_URL" "$TABLE_QUERY" "$TMP_DIR/source_tables.txt"
 run_list_query "$TARGET_URL" "$TABLE_QUERY" "$TMP_DIR/target_tables.txt"
+run_list_query "$SOURCE_URL" "$COLUMN_QUERY" "$TMP_DIR/source_columns.txt"
+run_list_query "$TARGET_URL" "$COLUMN_QUERY" "$TMP_DIR/target_columns.txt"
 run_list_query "$SOURCE_URL" "$ROUTINE_QUERY" "$TMP_DIR/source_routines.txt"
 run_list_query "$TARGET_URL" "$ROUTINE_QUERY" "$TMP_DIR/target_routines.txt"
 run_list_query "$SOURCE_URL" "$POLICY_QUERY" "$TMP_DIR/source_policies.txt"
 run_list_query "$TARGET_URL" "$POLICY_QUERY" "$TMP_DIR/target_policies.txt"
+run_list_query "$SOURCE_URL" "$INDEX_QUERY" "$TMP_DIR/source_indexes.txt"
+run_list_query "$TARGET_URL" "$INDEX_QUERY" "$TMP_DIR/target_indexes.txt"
 
 compare_lane() {
   local type_label="$1"
@@ -193,8 +213,10 @@ echo "[nuclo-schema-parity] schema=$SCHEMA_NAME source=$SOURCE_LABEL target=$TAR
 overall_status=0
 
 compare_lane "tables" "$TMP_DIR/source_tables.txt" "$TMP_DIR/target_tables.txt" || overall_status=1
+compare_lane "columns" "$TMP_DIR/source_columns.txt" "$TMP_DIR/target_columns.txt" || overall_status=1
 compare_lane "routines" "$TMP_DIR/source_routines.txt" "$TMP_DIR/target_routines.txt" || overall_status=1
 compare_lane "policies" "$TMP_DIR/source_policies.txt" "$TMP_DIR/target_policies.txt" || overall_status=1
+compare_lane "indexes" "$TMP_DIR/source_indexes.txt" "$TMP_DIR/target_indexes.txt" || overall_status=1
 
 if [[ "$overall_status" -eq 0 ]]; then
   echo "[nuclo-schema-parity] PASS"

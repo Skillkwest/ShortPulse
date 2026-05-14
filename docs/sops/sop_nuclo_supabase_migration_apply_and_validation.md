@@ -75,6 +75,14 @@ Use broader parity scripts when needed:
 bash scripts/ops/supabase_public_schema_parity.sh --source-label staging --target-label production
 ```
 
+The public-schema parity helper now checks:
+
+- tables by name
+- columns by table + column + data type
+- routines by signature
+- policies by table + policy name
+- indexes by table + index name
+
 ### 4. Production Apply
 
 Only after the staging result is understood:

@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Staging/working-development Supabase parity hardening:
+  - applied `sql/migrations/123_add_audio_companion_art_projection_fields.sql` to the staging Supabase project so `generation_projection` now matches working-development on the companion-art columns and pending index,
+  - expanded `scripts/ops/supabase_public_schema_parity.sh` to compare columns and indexes in addition to tables, routines, and policies,
+  - and fixed `scripts/check_vercel_env_contract.mjs` so development-only Vercel env audits no longer false-fail by carrying a preview branch default into non-preview checks.
 - Working-development continuity seeding:
   - added `scripts/ops/supabase_seed_single_user_staging_to_dev.mjs` to seed one staging user's owned relational rows into the dedicated working-development Supabase project,
   - added optional `--storage-scope continuity` and `--skip-db` modes so project/character continuity media can be hydrated without rerunning the full relational seed,

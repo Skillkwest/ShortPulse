@@ -10,7 +10,8 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
 - `bash scripts/ops/github_env_audit.sh`
   - Lists GitHub Environment secret names and ruleset-aware release-branch protection state.
 - `bash scripts/ops/supabase_public_schema_parity.sh`
-  - Compares table, routine, and policy presence by schema name.
+  - Compares table, column, routine, policy, and index presence by schema name.
+  - Columns are checked by table + column + data type; indexes are checked by table + index name.
 - `bash scripts/ops/supabase_public_acl_sync.sh`
   - Copies live `public` grant/revoke posture from one hosted Supabase database to another.
   - Useful after schema-only bootstrap when object parity passes but service-role or client grants are missing.

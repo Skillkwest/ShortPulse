@@ -68,6 +68,7 @@ const parseArgs = (argv) => {
       "",
     environments: [],
     gitBranch: process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview",
+    gitBranchExplicit: false,
     help: false,
   };
 
@@ -95,6 +96,7 @@ const parseArgs = (argv) => {
     }
     if (arg === "--git-branch") {
       parsed.gitBranch = readArgValue(argv, index, "--git-branch");
+      parsed.gitBranchExplicit = true;
       index += 1;
       continue;
     }
@@ -113,7 +115,11 @@ const parseArgs = (argv) => {
     parsed.environments = [...DEFAULT_VERCEL_AUDIT_ENVIRONMENTS];
   }
 
-  if (parsed.gitBranch && !parsed.environments.includes("preview")) {
+  if (!parsed.environments.includes("preview")) {
+    parsed.gitBranch = "";
+  }
+
+  if (parsed.gitBranchExplicit && !parsed.environments.includes("preview")) {
     throw new Error("--git-branch can only be used when auditing preview.");
   }
 

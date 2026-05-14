@@ -26,13 +26,19 @@ Purpose: <one sentence describing the operational run>.
 
 ## Batch Manifest
 
-| Commit | Batch | Files/Scope | Risk Notes | Validation Evidence |
-| --- | --- | --- | --- | --- |
-| `<hash or pending>` | `<subject>` | `<paths/groups>` | `<risk>` | `<checks>` |
+| Commit              | Batch       | Files/Scope      | Risk Notes | Validation Evidence |
+| ------------------- | ----------- | ---------------- | ---------- | ------------------- |
+| `<hash or pending>` | `<subject>` | `<paths/groups>` | `<risk>`   | `<checks>`          |
 
 ## Validation Results
 
 - `<command>`: <pass/fail and exact summary>
+
+## Self Audit
+
+- Score out of 10:
+- What went well:
+- What slipped:
 
 ## Failure Signals Found
 
@@ -53,9 +59,20 @@ Purpose: <one sentence describing the operational run>.
 ## Unverified Or Deferred
 
 - <human review, CI, deploy, env, database, or merge gaps>
+
+## Capability Improvement Decision
+
+- New tool/helper needed?: <yes/no and why>
+- SOP/doc update needed?: <yes/no and why>
+- Training history updated?: <yes/no>
 ```
 
 ## Reports
+
+Helper commands:
+
+- Preflight a candidate batch: `npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <tests...>`
+- Generate a batch manifest from the staged index: `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
 
 - `docs/agents/gear-ball/reports/2026-05-01-agentic-github-operations-research.md`: source-backed synthesis for Gear Ball's GitHub PR, review, merge, and agent-governance workflow.
 - `docs/agents/gear-ball/reports/2026-05-01-worktree-batch-commit-and-push.md`: evidence and lessons from Gear Ball's first full worktree batch, validation, commit, and push run.

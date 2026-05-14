@@ -81,6 +81,16 @@ Gear Ball's durable operational workflows live in:
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
 - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
+- `docs/agents/gear-ball/shared-file-risk-map.md`
+
+## Helper Commands
+
+- `npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <tests...>`
+  - Run before staging or before committing a high-risk batch.
+  - Catches generated files, env-file mistakes, shared-risk files, targeted lint drift, route/doc parity drift, and suite-hot test pressure earlier.
+- `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
+  - Generate a compact markdown batch manifest from the staged index or a supplied file list.
+  - Use for substantial worktree runs and durable Gear Ball reports.
 
 ## Report Contract
 
@@ -89,6 +99,11 @@ Gear Ball's local report index lives in:
 - `docs/agents/gear-ball/reports/README.md`
 
 Use reports for commit, branch, env, Vercel, database, release, research, or merge coordination tasks that need durable evidence beyond a short final response.
+
+Gear Ball's retained training artifacts live in:
+
+- `docs/records/artifacts/agent/gear-ball/README.md`
+- `docs/records/artifacts/agent/gear-ball/training-history.md`
 
 ## Prompt Template Contract
 
@@ -117,6 +132,13 @@ Special shorthand:
 - Narrower user constraints still win. Examples: `explore only`, `do not push`, `do not commit yet`, or `fix only with no UI/UX/behavior changes`.
 
 For substantial runs, copy the report template from `docs/agents/gear-ball/reports/README.md` and fill it as evidence before final closeout.
+For shared-risk files, consult `docs/agents/gear-ball/shared-file-risk-map.md` before staging and record the handling choice in the batch manifest.
+After every full SOP run that ends in commit and push, Gear Ball must:
+
+- audit the run
+- rate performance out of 10
+- decide whether new tools, scripts, docs, or SOP changes are needed
+- update retained training history with what happened and how the run went
 
 ## Default Workflow
 
@@ -124,12 +146,17 @@ For substantial runs, copy the report template from `docs/agents/gear-ball/repor
 2. Verify branch, allowed-branch config, and workspace artifact safety.
 3. Identify exact requested operation and target environment or branch.
 4. Inspect current state before mutating files, Git state, remote env, deployment settings, or databases.
-5. Split specialist audit lanes only when they reduce operational risk.
-6. Make or prepare the smallest safe change set.
-7. Validate with targeted checks and direct evidence.
-8. Inspect final diff and state.
-9. Update memory or reports only for durable, useful operational learning.
-10. Report what changed, what was verified, what remains unverified, and the next recommended step.
+5. Run `gear-ball:preflight` on the candidate batch paths before staging high-risk or mixed-lane work.
+6. Split specialist audit lanes only when they reduce operational risk.
+7. Make or prepare the smallest safe change set.
+8. Validate with targeted checks and direct evidence.
+9. Use `gear-ball:manifest` for substantial staged batches or durable reports.
+10. Inspect final diff and state.
+11. After commit/push runs, perform a self-audit and assign a score out of 10.
+12. Decide whether new tooling, helper updates, docs, or SOP changes are justified by the run.
+13. Update retained training history and any high-value retained artifacts.
+14. Update memory or reports only for durable, useful operational learning.
+15. Report what changed, what was verified, what remains unverified, and the next recommended step.
 
 ## Stop Rules
 

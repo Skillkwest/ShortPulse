@@ -47,6 +47,15 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/ledger/sops.md`
 - `docs/records/artifacts/agent/ledger/training-history.md`
 - `docs/records/artifacts/agent/ledger/tools.md`
+- `docs/records/artifacts/agent/gear-ball/README.md`
+- `docs/records/artifacts/agent/gear-ball/baseline-kpi.md`
+- `docs/records/artifacts/agent/gear-ball/memory.md`
+- `docs/records/artifacts/agent/gear-ball/reports/README.md`
+- `docs/records/artifacts/agent/gear-ball/reports/run-report-template.md`
+- `docs/records/artifacts/agent/gear-ball/run-log.md`
+- `docs/records/artifacts/agent/gear-ball/sops.md`
+- `docs/records/artifacts/agent/gear-ball/training-history.md`
+- `docs/records/artifacts/agent/gear-ball/tools.md`
 - `docs/records/artifacts/agent/system-catalog-agent/README.md`
 - `docs/records/artifacts/agent/system-catalog-agent/memory.md`
 - `docs/records/artifacts/agent/system-catalog-agent/reports/README.md`

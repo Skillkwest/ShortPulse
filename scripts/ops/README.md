@@ -33,6 +33,12 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
   - Seeds one staging user's relational rows into the dedicated working-development Supabase project.
   - Use `--storage-scope continuity --skip-db` to hydrate only the project/character continuity media set after relational rows are already present.
   - Skips known-invalid legacy `character_quick_swap_items` rows whose linked `character_media_assets.asset_kind` is not `quickswap`.
+- `node scripts/ops/gear_ball_preflight.mjs --files <paths...> --tests <tests...>`
+  - Runs Gear Ball's batch preflight on candidate files before staging or committing.
+  - Checks for generated/secret files, flags shared-risk files, runs targeted prettier/eslint, runs `docs:check` when route/model/docs parity is in play, and can re-run suite-hot files.
+- `node scripts/ops/gear_ball_manifest.mjs --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
+  - Builds a markdown batch manifest from the staged file list or a supplied file list.
+  - Useful for durable run reports and for keeping large mixed worktrees reviewable.
 
 ## Recommended Order
 

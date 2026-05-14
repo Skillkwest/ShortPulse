@@ -1,0 +1,321 @@
+#!/usr/bin/env node
+
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, "..", "..");
+const frontendRoot = path.join(repoRoot, "frontend");
+
+const GENERATED_PATH_PATTERNS = [
+  /^frontend\/\.next\//,
+  /^frontend\/coverage\//,
+  /^frontend\/playwright-report\//,
+  /^frontend\/test-results\//,
+  /^frontend\/node_modules\//,
+  /^node_modules\//,
+  /^dist\//,
+  /^build\//,
+];
+
+const SECRET_PATH_PATTERNS = [
+  /^\.env$/,
+  /^\.env\./,
+  /^frontend\/\.env$/,
+  /^frontend\/\.env\./,
+];
+
+const SECRET_PATH_EXCEPTIONS = new Set(["frontend/.env.example"]);
+
+const SHARED_RISK_RULES = [
+  {
+    pattern: "frontend/pages/ai-studio.tsx",
+    note: "Shared page shell. Adapt manually and validate with AI Studio targeted tests.",
+  },
+  {
+    pattern: "frontend/styles/admin.module.css",
+    note: "Shared admin surface. Stage by hunk or pair with a dominant admin batch.",
+  },
+  {
+    pattern: "README.md",
+    note: "Shared repo index. Prefer final docs reconciliation batch.",
+  },
+  {
+    pattern: "docs/routes.md",
+    note: "Shared route index. Keep with route/docs parity validation.",
+  },
+  {
+    pattern: "docs/README.md",
+    note: "Shared docs index. Prefer final docs reconciliation batch.",
+  },
+  {
+    pattern: "frontend/tests/pages/admin.agent-instructions.test.tsx",
+    note: "Suite-hot page test. Re-run in isolation before the final full suite when touched.",
+  },
+  {
+    pattern: "frontend/tests/api/error-logging-coverage.test.ts",
+    note: "Suite-hot guardrail test. Re-run in isolation before the final full suite when touched.",
+  },
+];
+
+const SUITE_HOT_RULES = [
+  {
+    when: [
+      "frontend/tests/pages/admin.agent-instructions.test.tsx",
+      "frontend/pages/admin/agent-instructions.tsx",
+      "frontend/features/admin/components/AdminAgentInstructionsSection.tsx",
+      "frontend/pages/api/admin/agent-instructions/style-extract-prompt.ts",
+    ],
+    tests: ["tests/pages/admin.agent-instructions.test.tsx"],
+  },
+  {
+    when: [
+      "frontend/tests/api/error-logging-coverage.test.ts",
+      "frontend/pages/api/media/copy-from-url.ts",
+      "frontend/lib/server/api/appErrorLogs.ts",
+    ],
+    tests: ["tests/api/error-logging-coverage.test.ts"],
+  },
+  {
+    when: [
+      "frontend/tests/api/generation-billing.reservations.test.ts",
+      "frontend/lib/model-runtime/providerModelIds.ts",
+      "frontend/lib/server/providerIntegration/kieModelContracts.ts",
+      "frontend/pages/api/kie/upload-url.ts",
+    ],
+    tests: ["tests/api/generation-billing.reservations.test.ts"],
+  },
+];
+
+function printHelp() {
+  console.log(`Usage:
+  node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--tests <tests...>] [--include-suite-hot] [--dry-run]
+  node scripts/ops/gear_ball_preflight.mjs --staged [--tests <tests...>] [--include-suite-hot] [--dry-run]
+
+Options:
+  --files              Repo-relative file paths to preflight.
+  --staged             Use the current staged file list.
+  --tests              Additional vitest paths to run.
+  --include-suite-hot  Add suite-hot targeted tests when touched paths match known risk rules.
+  --dry-run            Print planned checks without executing them.
+  --help               Show this message.
+`);
+}
+
+function fail(message) {
+  console.error(`gear-ball preflight: ${message}`);
+  process.exit(1);
+}
+
+function normalizePath(value) {
+  return value
+    .replaceAll(path.sep, "/")
+    .replace(/^\.\/+/, "")
+    .trim();
+}
+
+function collectFlagValues(args, flag) {
+  const values = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== flag) continue;
+    for (let cursor = index + 1; cursor < args.length; cursor += 1) {
+      const candidate = args[cursor];
+      if (!candidate || candidate.startsWith("--")) break;
+      values.push(candidate);
+    }
+  }
+  return values;
+}
+
+function hasFlag(args, flag) {
+  return args.includes(flag);
+}
+
+function run(command, commandArgs, options = {}) {
+  const result = spawnSync(command, commandArgs, {
+    cwd: options.cwd ?? repoRoot,
+    encoding: "utf8",
+    stdio: options.stdio ?? "pipe",
+  });
+
+  if (result.status !== 0) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    process.exit(result.status ?? 1);
+  }
+
+  return result;
+}
+
+function getStagedFiles() {
+  const result = run("git", ["diff", "--cached", "--name-only"], {
+    stdio: "pipe",
+  });
+  return result.stdout.split(/\r?\n/).map(normalizePath).filter(Boolean);
+}
+
+function isGeneratedPath(file) {
+  return GENERATED_PATH_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function isSecretPath(file) {
+  if (SECRET_PATH_EXCEPTIONS.has(file)) return false;
+  return SECRET_PATH_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function deriveSuiteHotTests(files) {
+  const touched = new Set(files);
+  const derived = new Set();
+  for (const rule of SUITE_HOT_RULES) {
+    if (rule.when.some((candidate) => touched.has(candidate))) {
+      for (const testPath of rule.tests) derived.add(testPath);
+    }
+  }
+  return [...derived];
+}
+
+function getSharedRiskWarnings(files) {
+  const warnings = [];
+  for (const rule of SHARED_RISK_RULES) {
+    if (files.includes(rule.pattern)) {
+      warnings.push(`${rule.pattern}: ${rule.note}`);
+    }
+  }
+  return warnings;
+}
+
+function needsDocsCheck(files) {
+  return files.some(
+    (file) =>
+      file === "README.md" ||
+      file.startsWith("docs/") ||
+      file.startsWith("sql/") ||
+      file.startsWith("frontend/pages/") ||
+      file.startsWith("frontend/pages/api/") ||
+      file.startsWith("frontend/lib/model-runtime/") ||
+      file.startsWith("scripts/"),
+  );
+}
+
+function formatCommand(command, args, cwd) {
+  const rendered = [command, ...args].join(" ");
+  return cwd ? `(cd ${cwd} && ${rendered})` : rendered;
+}
+
+const args = process.argv.slice(2);
+
+if (hasFlag(args, "--help")) {
+  printHelp();
+  process.exit(0);
+}
+
+const dryRun = hasFlag(args, "--dry-run");
+const includeSuiteHot = hasFlag(args, "--include-suite-hot");
+const filesArg = collectFlagValues(args, "--files").map(normalizePath);
+const testsArg = collectFlagValues(args, "--tests").map(normalizePath);
+const staged = hasFlag(args, "--staged") || filesArg.length === 0;
+
+const files = [
+  ...new Set((staged ? getStagedFiles() : filesArg).filter(Boolean)),
+];
+if (files.length === 0) fail("no files to preflight");
+
+const generatedFiles = files.filter(isGeneratedPath);
+if (generatedFiles.length > 0) {
+  fail(
+    `generated/build artifacts are not allowed in a batch:\n- ${generatedFiles.join("\n- ")}`,
+  );
+}
+
+const secretFiles = files.filter(isSecretPath);
+if (secretFiles.length > 0) {
+  fail(
+    `secret-bearing env files are not allowed in a batch:\n- ${secretFiles.join("\n- ")}`,
+  );
+}
+
+const sharedRiskWarnings = getSharedRiskWarnings(files);
+const frontendLintFiles = files
+  .filter((file) => /^frontend\/.+\.(?:[jt]sx?)$/.test(file))
+  .map((file) => path.relative(frontendRoot, path.join(repoRoot, file)));
+const prettierFiles = files.filter((file) =>
+  /\.(?:[jt]sx?|json|md|css|mjs)$/.test(file),
+);
+const targetedTests = [
+  ...new Set([
+    ...testsArg,
+    ...(includeSuiteHot ? deriveSuiteHotTests(files) : []),
+  ]),
+];
+
+const checks = [];
+if (prettierFiles.length > 0) {
+  checks.push({
+    label: "prettier",
+    command: "npx",
+    args: ["prettier", "--check", ...prettierFiles],
+    cwd: repoRoot,
+  });
+}
+if (frontendLintFiles.length > 0) {
+  checks.push({
+    label: "eslint",
+    command: "npx",
+    args: [
+      "eslint",
+      "--config",
+      "eslint.config.mjs",
+      "--max-warnings",
+      "0",
+      ...frontendLintFiles,
+    ],
+    cwd: frontendRoot,
+  });
+}
+if (needsDocsCheck(files)) {
+  checks.push({
+    label: "docs:check",
+    command: "npm",
+    args: ["-C", "frontend", "run", "docs:check"],
+    cwd: repoRoot,
+  });
+}
+if (targetedTests.length > 0) {
+  checks.push({
+    label: "vitest",
+    command: "npm",
+    args: ["-C", "frontend", "run", "test", "--", ...targetedTests],
+    cwd: repoRoot,
+  });
+}
+
+console.log("gear-ball preflight");
+console.log(`files: ${files.length}`);
+if (sharedRiskWarnings.length > 0) {
+  console.log("shared-risk warnings:");
+  for (const warning of sharedRiskWarnings) {
+    console.log(`- ${warning}`);
+  }
+}
+if (checks.length === 0) {
+  console.log("checks: none");
+  process.exit(0);
+}
+
+console.log("planned checks:");
+for (const check of checks) {
+  console.log(
+    `- ${check.label}: ${formatCommand(check.command, check.args, check.cwd === repoRoot ? null : "frontend")}`,
+  );
+}
+
+if (dryRun) process.exit(0);
+
+for (const check of checks) {
+  console.log(`running ${check.label}...`);
+  run(check.command, check.args, { cwd: check.cwd, stdio: "inherit" });
+}
+
+console.log("gear-ball preflight passed");

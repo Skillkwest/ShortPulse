@@ -13,6 +13,7 @@ This SOP covers:
 - Per-batch review and validation.
 - Staging and committing approved batches.
 - Commit evidence recording.
+- Post-run self-audit and retained training updates for full commit/push runs.
 
 This SOP does not cover:
 
@@ -31,6 +32,7 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 - `docs/release-checklist.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gear-ball/memory.md`
+- `docs/agents/gear-ball/shared-file-risk-map.md`
 - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - Current Git state and direct diff evidence.
 
@@ -52,14 +54,14 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 
 Treat the user's prompt sequence as an authorization ladder. Do not move to a later rung until the user explicitly asks for that operation in the current thread.
 
-| User prompt intent | Gear Ball may do | Gear Ball must not do yet |
-| --- | --- | --- |
-| Analyze worktree | Inspect branch, status, diffs, staged state, and risk areas. | Edit, stage, commit, push, or open a PR. |
-| Organize/group changes | Produce logical batches, test plan, risk map, and mixed-file warnings; run requested or safe validation. | Stage, commit, or push. |
-| Double-check tests | Run targeted or full validation and report exact failures. | Change product behavior or commit. |
+| User prompt intent            | Gear Ball may do                                                                                                                                 | Gear Ball must not do yet                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Analyze worktree              | Inspect branch, status, diffs, staged state, and risk areas.                                                                                     | Edit, stage, commit, push, or open a PR.                                               |
+| Organize/group changes        | Produce logical batches, test plan, risk map, and mixed-file warnings; run requested or safe validation.                                         | Stage, commit, or push.                                                                |
+| Double-check tests            | Run targeted or full validation and report exact failures.                                                                                       | Change product behavior or commit.                                                     |
 | Fix failures with constraints | Default to test-only or otherwise non-behavioral fixes. Only make UI/UX/behavior changes when the user explicitly authorizes that broader scope. | Broaden scope by adjacency or alter user-visible behavior without explicit permission. |
-| Commit changes | Stage reviewed batch paths, verify staged diff, and commit logical batches. | Push or open a PR. |
-| Push changes | Push only the current approved branch after push-readiness checks. | Open a PR, merge, deploy, or promote branches unless asked. |
+| Commit changes                | Stage reviewed batch paths, verify staged diff, and commit logical batches.                                                                      | Push or open a PR.                                                                     |
+| Push changes                  | Push only the current approved branch after push-readiness checks.                                                                               | Open a PR, merge, deploy, or promote branches unless asked.                            |
 
 If a prompt is ambiguous, use the safest lower rung and ask before mutating Git state or product behavior.
 
@@ -223,6 +225,14 @@ If the batch touches high-risk areas, run or schedule the relevant specialist ch
 - Routes/UI behavior: route docs and relevant SOPs.
 - Adaptive media/reference grid: adaptive change gate.
 
+Before staging a high-risk, mixed-lane, or shared-file batch, run the reusable preflight helper on the candidate file list:
+
+```bash
+npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <targeted-tests...> --include-suite-hot
+```
+
+Use `docs/agents/gear-ball/shared-file-risk-map.md` to decide when a file must be adapted manually, deferred to a reconciliation batch, or re-run as a suite-hot test before the full suite.
+
 ### 5. Validate Before Commit
 
 Run the smallest validation that proves the batch, then escalate based on risk:
@@ -281,6 +291,14 @@ Confirm:
 - No secrets/env values are staged.
 - The unstaged worktree still contains only intentionally deferred changes.
 - Test status is green for the validation level required by the batch plan.
+
+For substantial batches, generate a compact manifest from the staged index before or immediately after commit:
+
+```bash
+npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"
+```
+
+Append it to a durable report when the run is large enough to warrant repo-visible evidence.
 
 ### 8. Commit
 
@@ -341,7 +359,30 @@ After the final requested commit batch:
 
 Do not proceed to push-readiness if post-series validation is failing, incomplete, or inconsistent with the commit report.
 
-### 11. Repeat Or Stop
+### 11. Post-Push Self Audit And Training Update
+
+After a full SOP run that ends in commit and push:
+
+1. Audit the run, not just the code.
+2. Rate Gear Ball's performance out of 10.
+3. Answer:
+   - what evidence proves this run was complete
+   - what repeated friction showed up
+   - what was assumed but not verified
+   - what smallest improvement would make the next run cleaner
+   - whether current helper tooling is enough
+   - whether an existing helper needs enhancement
+   - whether a new helper is justified
+4. If a small, low-risk, clearly useful helper or doc change is warranted, implement it in the same run.
+5. Update retained training artifacts:
+   - append `docs/records/artifacts/agent/gear-ball/run-log.md`
+   - update `docs/records/artifacts/agent/gear-ball/training-history.md`
+   - create or update a retained report when the run is substantial or produced a new durable lesson
+6. Update repo-visible memory only when the lesson is durable and broadly useful.
+
+This step is mandatory for full commit/push runs, because Gear Ball is expected to grow capability over time rather than merely complete isolated runs.
+
+### 12. Repeat Or Stop
 
 Repeat batch planning, inspection, validation, staging, and commit steps until:
 
@@ -364,6 +405,8 @@ For substantial multi-batch worktree operations, also create or update a Gear Ba
 - Prompt cadence followed.
 - Batch manifest with file groups, risks, validation, and commit hashes.
 - Failure signals found during validation.
+- Self-audit and score out of 10.
+- Tooling or SOP decisions made after the run.
 - Fix constraints and what was deliberately not changed.
 - Post-commit and post-push state, when applicable.
 - Unverified assumptions and human-review requirements.

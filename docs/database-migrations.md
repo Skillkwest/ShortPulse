@@ -53,6 +53,11 @@ Current guardrail policy:
 - `npm run db:migrate` is intentionally blocked for hosted promotion.
 - Reason: canonical migration authority is `sql/migrations/`, while default Supabase CLI push posture targets `supabase/migrations/`.
 - For hosted staging/production promotion, use environment-pinned SQL apply paths (for example, `psql "$SUPABASE_DB_URL" -f sql/migrations/<NNN_file>.sql`) and the existing environment-gated GitHub workflows.
+- Preferred hosted runner path for arbitrary canonical migrations: dispatch [`apply-hosted-sql-migration.yml`](../.github/workflows/apply-hosted-sql-migration.yml) with:
+  - `target_environment=staging|production`
+  - `sql_file=sql/migrations/<NNN_file>.sql` or `sql/migrations/rollback/<NNN_file>_rollback.sql`
+  - `confirm_token=apply-hosted-sql`
+- The hosted apply workflow verifies `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning` after the migration so schema drift is caught immediately.
 - For production-targeted one-off Supabase CLI commands, require explicit target pinning with `--project-ref <production-ref>`.
 - Do not run `npm run db:reset` in normal agent workflows; this command defaults to local Docker-backed reset behavior.
 

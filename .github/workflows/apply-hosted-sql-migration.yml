@@ -1,0 +1,115 @@
+name: Apply Hosted SQL Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "GitHub Environment containing SUPABASE_DB_URL"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      sql_file:
+        description: "Repo-relative SQL file path under sql/migrations/"
+        required: true
+        type: string
+      confirm_token:
+        description: "Type apply-hosted-sql to confirm"
+        required: true
+        type: string
+
+concurrency:
+  group: apply-hosted-sql-migration-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  apply_hosted_sql_migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ github.event.inputs.target_environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+        working-directory: frontend
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply selected hosted SQL migration
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SQL_FILE: ${{ github.event.inputs.sql_file }}
+          CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          if [ "$CONFIRM_TOKEN" != "apply-hosted-sql" ]; then
+            echo "::error::Confirmation token mismatch."
+            exit 1
+          fi
+
+          case "$SQL_FILE" in
+            sql/migrations/*.sql|sql/migrations/rollback/*.sql)
+              ;;
+            *)
+              echo "::error::SQL file must live under sql/migrations/ or sql/migrations/rollback/."
+              exit 1
+              ;;
+          esac
+
+          if [ ! -f "$SQL_FILE" ]; then
+            echo "::error::Missing SQL file: $SQL_FILE"
+            exit 1
+          fi
+
+          echo "Applying $SQL_FILE"
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/hosted_sql_apply.log
+
+      - name: Verify hosted SQL lint after apply
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          cd frontend
+          npx supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning | tee /tmp/hosted_sql_lint.log
+
+      - name: Write step summary
+        if: always()
+        run: |
+          {
+            echo "### Hosted SQL Migration"
+            echo "- Environment: ${{ github.event.inputs.target_environment }}"
+            echo "- SQL file: \`${{ github.event.inputs.sql_file }}\`"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload apply log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-sql-apply-${{ github.run_id }}
+          path: |
+            /tmp/hosted_sql_apply.log
+            /tmp/hosted_sql_lint.log
+          if-no-files-found: ignore

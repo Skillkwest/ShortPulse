@@ -38,45 +38,45 @@ begin
     return query
     with click_stats as (
         select
-            coalesce(nullif(trim(coalesce(metadata->>'model_id', '')), ''), 'unknown') as model_key,
+            coalesce(nullif(trim(coalesce(events.metadata->>'model_id', '')), ''), 'unknown') as model_key,
             count(*)::bigint as generate_clicks_count,
             count(*) filter (
-                where occurred_at >= now() - interval '24 hours'
+                where events.occurred_at >= now() - interval '24 hours'
             )::bigint as generate_clicks_last_24h_count,
             count(*) filter (
-                where occurred_at >= now() - interval '7 days'
+                where events.occurred_at >= now() - interval '7 days'
             )::bigint as generate_clicks_last_7d_count,
-            count(distinct user_id)::bigint as unique_click_users_count,
-            max(occurred_at) as last_generate_click_time
-        from public.app_error_events
-        where source = 'telemetry.ai_studio.generate_clicked'
+            count(distinct events.user_id)::bigint as unique_click_users_count,
+            max(events.occurred_at) as last_generate_click_time
+        from public.app_error_events as events
+        where events.source = 'telemetry.ai_studio.generate_clicked'
         group by 1
     ),
     generation_stats as (
         select
-            coalesce(nullif(trim(coalesce(model_id, '')), ''), 'unknown') as model_key,
+            coalesce(nullif(trim(coalesce(generations.model_id, '')), ''), 'unknown') as model_key,
             count(*)::bigint as generations_started_count,
             count(*) filter (
-                where created_at >= now() - interval '24 hours'
+                where generations.created_at >= now() - interval '24 hours'
             )::bigint as generations_last_24h_count,
             count(*) filter (
-                where created_at >= now() - interval '7 days'
+                where generations.created_at >= now() - interval '7 days'
             )::bigint as generations_last_7d_count,
             count(*) filter (
-                where status = 'success'
+                where generations.status = 'success'
             )::bigint as successful_generations_count,
             count(*) filter (
-                where status in ('fail', 'failed')
+                where generations.status in ('fail', 'failed')
             )::bigint as failed_generations_count,
             count(*) filter (
-                where status = 'pending'
+                where generations.status = 'pending'
             )::bigint as pending_generations_count,
             count(*) filter (
-                where status = 'running'
+                where generations.status = 'running'
             )::bigint as running_generations_count,
-            count(distinct user_id)::bigint as unique_generation_users_count,
-            max(created_at) as last_generation_time
-        from public.ai_generations
+            count(distinct generations.user_id)::bigint as unique_generation_users_count,
+            max(generations.created_at) as last_generation_time
+        from public.ai_generations as generations
         group by 1
     )
     select

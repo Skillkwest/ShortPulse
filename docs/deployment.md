@@ -154,6 +154,7 @@ Verification:
 - `gh secret list --env production` includes `SUPABASE_DB_URL`.
 - `gh secret list --env staging` includes `SUPABASE_DB_URL` and remains staging-scoped.
 - `Media Storage Deploy Gate` runs cleanly for `target_environment=production`.
+- Hosted canonical SQL updates can be applied through [`apply-hosted-sql-migration.yml`](../.github/workflows/apply-hosted-sql-migration.yml) without exposing the DB URL in local shell context.
 
 ### Staging env parity check (recommended)
 

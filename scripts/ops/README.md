@@ -29,6 +29,10 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
   - Upserts `public.ai_generations`, `public.generation_attempts`, `public.ai_generation_outputs`, `public.generation_projection`, `public.media_files`, `public.generation_publications`, `public.project_media_items`, and `public.media_events`.
 - `bash scripts/ops/secret_rotation_validate.sh`
   - Runs the standard post-rotation validation sequence for development/preview/production env contract, preview+production route parity, homepage reachability, and protected production internal routes.
+- `node scripts/ops/supabase_seed_single_user_staging_to_dev.mjs --email <user@example.com> --apply`
+  - Seeds one staging user's relational rows into the dedicated working-development Supabase project.
+  - Use `--storage-scope continuity --skip-db` to hydrate only the project/character continuity media set after relational rows are already present.
+  - Skips known-invalid legacy `character_quick_swap_items` rows whose linked `character_media_assets.asset_kind` is not `quickswap`.
 
 ## Recommended Order
 

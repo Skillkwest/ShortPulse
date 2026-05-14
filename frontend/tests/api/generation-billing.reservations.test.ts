@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
 import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import {
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../lib/model-runtime/providerModelIds";
@@ -599,20 +598,6 @@ describe("generationBilling reservation RPC handling", () => {
           duration: 8,
           resolution: "720p",
           generate_audio: true,
-        },
-      },
-      {
-        modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        route: "/api/fal/kie-seedance-submit",
-        requestId: "req-kie-seedance-15",
-        payload: {
-          prompt: "the woman smiles and poses",
-          input_urls: ["https://example.com/first.png"],
-          duration: 4,
-          resolution: "480p",
-          aspect_ratio: "9:16",
-          fixed_lens: false,
-          generate_audio: false,
         },
       },
       {

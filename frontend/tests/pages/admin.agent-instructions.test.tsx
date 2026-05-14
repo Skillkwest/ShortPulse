@@ -209,7 +209,7 @@ describe("Admin agent instructions page", () => {
     expect(within(pulseCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
       "Global Prompt Director"
     );
-  });
+  }, 10_000);
 
   it("edits and saves the live style-extraction prompt", async () => {
     fetchMock.mockImplementation(

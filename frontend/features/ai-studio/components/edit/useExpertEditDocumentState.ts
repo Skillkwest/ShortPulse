@@ -74,9 +74,10 @@ export function useExpertEditDocumentState({
     layerCount: layers.length,
   });
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
-  const selectedLayerImageUrl = isExpertEditImageUrl(selectedLayer?.imageUrl)
-    ? selectedLayer.imageUrl.trim()
-    : null;
+  const selectedLayerImageUrl =
+    isExpertEditImageUrl(selectedLayer?.imageUrl) && typeof selectedLayer?.imageUrl === "string"
+      ? selectedLayer.imageUrl.trim()
+      : null;
 
   const {
     beginLayerRename,

@@ -211,6 +211,7 @@ export const resolveVideoPosterRepairsForOutputs = async (
     const signedFullUrl = fullStoragePath ? (signedByPath.get(fullStoragePath) ?? null) : null;
     const previewStoragePath =
       asCanonicalStoragePath(output.previewStoragePath) ?? fullStoragePath ?? null;
+    if (!previewStoragePath) continue;
     repairs.set(output.id, {
       outputId: output.id,
       previewPosterUrl,

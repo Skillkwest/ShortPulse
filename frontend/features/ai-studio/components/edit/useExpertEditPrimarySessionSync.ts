@@ -38,9 +38,10 @@ export function useExpertEditPrimarySessionSync({
   setLayers,
   onPrimaryImageChange,
 }: UseExpertEditPrimarySessionSyncArgs) {
-  const normalizedReferenceImageUrl = isExpertEditImageUrl(referenceImageUrl)
-    ? referenceImageUrl.trim()
-    : null;
+  const normalizedReferenceImageUrl =
+    isExpertEditImageUrl(referenceImageUrl) && typeof referenceImageUrl === "string"
+      ? referenceImageUrl.trim()
+      : null;
   const hasAppliedInitialPrimarySyncRef = React.useRef(false);
 
   React.useEffect(() => {

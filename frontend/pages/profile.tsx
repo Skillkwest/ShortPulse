@@ -457,7 +457,7 @@ export default function ProfilePage() {
 
     const requestKey = billingSyncRequest.key;
     let cancelled = false;
-    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+    let timeoutId: number | null = null;
 
     const runSyncAttempt = async (attempt: number) => {
       const refreshTasks: Promise<unknown>[] = [];

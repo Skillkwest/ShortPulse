@@ -121,6 +121,7 @@ export function PulseCreatePropertiesPanel({
   onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
+  const isGuidedWorkflowPulse = activePulsePresetKind === "guided_workflow";
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
       return null;
@@ -140,7 +141,7 @@ export function PulseCreatePropertiesPanel({
       return {
         phase: "starting_pulse",
         title: PULSE_LOADING_TITLE,
-        message: null,
+        message: "",
         presetLabel,
         stepLabel,
       };

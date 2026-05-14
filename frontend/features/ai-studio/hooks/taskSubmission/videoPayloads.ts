@@ -7,7 +7,7 @@ import {
   resolveKieKlingElementToken,
 } from "../../logic/klingElements";
 import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
-import type { SubmissionModelConfig } from "./types";
+import type { SubmissionModelConfig, VideoSubmissionArgs } from "./types";
 
 type KlingMultiPromptPayload = { prompt: string; duration: number };
 type KlingElementPayload =

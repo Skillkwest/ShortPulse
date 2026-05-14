@@ -124,11 +124,12 @@ export const useAiStudioEditExpertPanelProps = ({
   onSessionStateChange,
 }: UseAiStudioEditExpertPanelPropsParams): AiStudioEditExpertPanelContract =>
   useMemo(() => {
-    const normalizedReferenceImageUrl = isExpertEditImageUrl(referenceImageUrl)
-      ? referenceImageUrl.trim()
-      : null;
+    const normalizedReferenceImageUrl =
+      isExpertEditImageUrl(referenceImageUrl) && typeof referenceImageUrl === "string"
+        ? referenceImageUrl.trim()
+        : null;
     const normalizedExtraImageUrls = (extraImageUrls ?? [null, null, null]).map((url) =>
-      isExpertEditImageUrl(url) ? url.trim() : null
+      isExpertEditImageUrl(url) && typeof url === "string" ? url.trim() : null
     ) as [string | null, string | null, string | null];
 
     return {

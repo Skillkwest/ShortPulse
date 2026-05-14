@@ -380,11 +380,15 @@ export const resolveInitialLayerSessionState = ({
   layerState: ExpertEditLayerSessionState | null | undefined;
 }) => {
   const hasReferenceImageAuthority = isExpertEditImageUrl(referenceImageUrl);
+  const normalizedReferenceImageUrl =
+    hasReferenceImageAuthority && typeof referenceImageUrl === "string"
+      ? referenceImageUrl.trim()
+      : null;
   const fallbackLayers: ExpertEditLayer[] = [
     {
       id: "layer-1",
       name: formatLayerName(1),
-      imageUrl: hasReferenceImageAuthority ? referenceImageUrl.trim() : null,
+      imageUrl: normalizedReferenceImageUrl,
       opacity: LAYER_OPACITY_DEFAULT,
       isAutoNamed: true,
       ownsImageUrl: false,
@@ -401,15 +405,21 @@ export const resolveInitialLayerSessionState = ({
   }
   const hydratedLayers: ExpertEditLayer[] = layerState.layers
     .filter((layer): layer is ExpertEditLayerSessionLayer => Boolean(layer?.id))
-    .map((layer, index) => ({
-      id: layer.id,
-      name: layer.name?.trim() ? layer.name : formatLayerName(index + 1),
-      imageUrl: isExpertEditImageUrl(layer.imageUrl) ? layer.imageUrl.trim() : null,
-      opacity: clampLayerOpacity(layer.opacity),
-      isAutoNamed: layer.isAutoNamed !== false,
-      ownsImageUrl: layer.ownsImageUrl === true,
-      transform: coerceLayerTransformFromSessionState(layer.transform),
-    }));
+    .map((layer, index) => {
+      const normalizedLayerImageUrl =
+        isExpertEditImageUrl(layer.imageUrl) && typeof layer.imageUrl === "string"
+          ? layer.imageUrl.trim()
+          : null;
+      return {
+        id: layer.id,
+        name: layer.name?.trim() ? layer.name : formatLayerName(index + 1),
+        imageUrl: normalizedLayerImageUrl,
+        opacity: clampLayerOpacity(layer.opacity),
+        isAutoNamed: layer.isAutoNamed !== false,
+        ownsImageUrl: layer.ownsImageUrl === true,
+        transform: coerceLayerTransformFromSessionState(layer.transform),
+      };
+    });
   if (!hydratedLayers.length) {
     return {
       layers: fallbackLayers,

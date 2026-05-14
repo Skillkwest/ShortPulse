@@ -24,17 +24,21 @@ select nullif(trim(:'reconciler_cron_secret'), '') as reconciler_cron_secret_val
   \quit 1
 \endif
 
-with existing_secret as (
-  select ds.id
-  from vault.decrypted_secrets ds
-  where ds.name = 'shortpulse_reconciler_cron_secret'
-  order by ds.created_at desc
-  limit 1
-)
-select id as existing_secret_id
-from existing_secret \gset
+select
+  coalesce((
+    select ds.id::text
+    from vault.decrypted_secrets ds
+    where ds.name = 'shortpulse_reconciler_cron_secret'
+    order by ds.created_at desc
+    limit 1
+  ), '') as existing_secret_id,
+  exists(
+    select 1
+    from vault.decrypted_secrets ds
+    where ds.name = 'shortpulse_reconciler_cron_secret'
+  ) as has_existing_secret \gset
 
-\if :{?existing_secret_id}
+\if :has_existing_secret
 select vault.update_secret(
   :'existing_secret_id',
   :'reconciler_cron_secret_value',

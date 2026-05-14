@@ -14,4 +14,5 @@ Purpose: retain inbound debugging packets when another agent or the user wants t
 
 ## Status
 
-- No retained handoffs yet.
+- Active retained handoff:
+  - `2026-05-14-nuclo-hosted-sql-lint-remediation.md`

@@ -22,6 +22,7 @@ These artifacts support training, traceability, and operational planning. They d
 
 ## Canonical Entry Points
 
+- Active handoff: `docs/agents/nuclo/CURRENT-HANDOFF.md`
 - Agent contract: `docs/agents/nuclo/README.md`
 - Repo-visible memory: `docs/agents/nuclo/memory.md`
 - Deployment runbook: `docs/deployment.md`

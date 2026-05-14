@@ -133,3 +133,55 @@ Capability decision:
 Next training focus:
 
 - Use the same three-branch promotion discipline on a larger mixed-lane run and confirm the retained closeout lane remains lightweight enough to keep branch alignment practical.
+
+## 2026-05-14: D-Bug Handoff Stabilization Run
+
+Task: accept a D-Bug handoff for the current `working-development` stabilization lane, verify the branch baseline, commit the lane in logical batches, and push the result.
+
+Actions taken:
+
+- Read the new `CURRENT-HANDOFF.md` files for Gear Ball and Nuclo and used them to separate local worktree execution from hosted SQL remediation ownership.
+- Re-ran the branch baseline before staging:
+  - `npm -C frontend run docs:check`
+  - `./node_modules/.bin/tsc --noEmit --pretty false`
+  - `./node_modules/.bin/eslint . --quiet`
+  - `npm run test:adaptive-v2-gate`
+  - `npm run deadcode:check`
+  - `npm run build`
+  - `npm audit --omit=dev --audit-level=moderate`
+  - `npm run test`
+- Committed three logical batches on `working-development`:
+  - `a753b6eb6` `docs(agents): add explicit debug handoff ownership`
+  - `dfe526061` `fix(app): harden auth recovery and ai-studio persistence`
+  - `60447426e` `fix(ops): add hosted sql lint remediation path`
+- Pushed `working-development` after the full baseline stayed green.
+
+Training result:
+
+- The handoff flow worked: D-Bug narrowed and packetized the lane, Gear Ball executed the commit/push work without mixing in Nuclo’s hosted remediation responsibilities.
+- The current helper/tooling stack was enough; no new script was required.
+- The most useful lesson from this run is contract hygiene: if agent READMEs now point to `CURRENT-HANDOFF.md`, those files must be committed as part of the agent/docs batch.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- The full branch baseline stayed green on the first rerun.
+- The lane was split into durable docs/agent, app, and ops commits instead of one giant blob.
+- The hosted SQL remediation path was kept in the repo while the actual environment mutation stayed with Nuclo.
+
+What slipped:
+
+- The main app batch was still broad. It was coherent enough to ship, but it was larger than ideal for future rollback.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`
+
+Next training focus:
+
+- On the next large handoff lane, see whether the app stabilization batch can be split one step further without losing validation clarity.

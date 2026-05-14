@@ -24,7 +24,10 @@ import {
   normalizePricingIntent,
   normalizePricingPlanId,
 } from "../paths";
-import { trackBillingPricingViewed } from "../../../lib/growthTelemetry";
+import {
+  trackBillingPricingViewed,
+  trackBillingUpgradeClicked,
+} from "../../../lib/growthTelemetry";
 import { useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
@@ -111,6 +114,14 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
 
   const handlePlanAction = async (planId: string) => {
     setNotice(null);
+
+    trackBillingUpgradeClicked({
+      upgrade_surface: "pricing_page",
+      pricing_intent: intent,
+      plan_id: planId,
+      billing_interval: selectedBillingInterval,
+      is_authenticated: isAuthenticated,
+    });
 
     if (!isAuthenticated) {
       await router.push(

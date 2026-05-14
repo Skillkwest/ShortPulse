@@ -27,7 +27,6 @@ export type ImageSubmissionAdapterKey = (typeof imageSubmissionAdapterKeys)[numb
 
 export const videoSubmissionAdapterKeys = [
   "kie-veo-31-fast-i2v",
-  "kie-seedance-1-5-pro",
   "kie-seedance-2",
   "kie-kling-3",
 ] as const;

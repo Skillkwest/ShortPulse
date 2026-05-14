@@ -10,7 +10,6 @@ import {
 } from "../kieModelContracts";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -25,7 +24,6 @@ describe("kieModelContracts", () => {
   it("tracks supported Kie model ids", () => {
     expect(isSupportedKieModelId(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_KLING_30_MODEL_ID)).toBe(true);
-    expect(isSupportedKieModelId(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId("kie-ai/unknown")).toBe(false);
@@ -217,67 +215,6 @@ describe("kieModelContracts", () => {
         payload: { duration: 10, image_url: "https://example.com/ref.png" },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
-  });
-
-  it("normalizes Seedance payload for text and image lanes", () => {
-    expect(
-      normalizeKieSubmitPayloadForModel({
-        modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        payload: {
-          prompt: "A cinematic city flyover at dusk",
-          aspect_ratio: "16:9",
-          duration: 8,
-          resolution: "1080p",
-          generate_audio: true,
-        },
-      })
-    ).toEqual({
-      model: "bytedance/seedance-1.5-pro",
-      input: {
-        prompt: "A cinematic city flyover at dusk",
-        aspect_ratio: "16:9",
-        resolution: "1080p",
-        duration: "8",
-        generate_audio: true,
-      },
-    });
-
-    expect(
-      normalizeKieSubmitPayloadForModel({
-        modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        payload: {
-          prompt: "Animate these frames",
-          input_urls: ["https://example.com/first.png", "https://example.com/last.png"],
-          aspect: "9:16",
-          duration_seconds: 12,
-          fixed_lens: true,
-        },
-      })
-    ).toEqual({
-      model: "bytedance/seedance-1.5-pro",
-      input: {
-        prompt: "Animate these frames",
-        input_urls: ["https://example.com/first.png", "https://example.com/last.png"],
-        aspect_ratio: "9:16",
-        resolution: "720p",
-        duration: "12",
-        fixed_lens: true,
-      },
-    });
-
-    expect(() =>
-      normalizeKieSubmitPayloadForModel({
-        modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        payload: {
-          prompt: "bad",
-          input_urls: [
-            "https://example.com/1.png",
-            "https://example.com/2.png",
-            "https://example.com/3.png",
-          ],
-        },
-      })
-    ).toThrow("Kie Seedance 1.5 Pro submit accepts at most two input URLs.");
   });
 
   it("normalizes Seedance 2 payload for text, frame, and multimodal lanes", () => {

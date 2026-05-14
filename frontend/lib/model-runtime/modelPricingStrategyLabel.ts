@@ -33,7 +33,6 @@ export const getAdminPricingStrategyLabel = (
     case "veo-3-per-second":
       return modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ? "Per video (flat)" : "Per output second";
     case "kling-3-per-second":
-    case "seedance-1.5-per-second":
     case "seedance-2-per-second":
     case "seedance-2-fast-per-second":
       return "Per output second";

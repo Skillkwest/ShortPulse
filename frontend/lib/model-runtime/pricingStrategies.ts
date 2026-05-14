@@ -16,7 +16,6 @@ import { convertUsdToCredits } from "./pricingCredits";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "./providerModelIds";
@@ -729,30 +728,6 @@ const resolveSeedanceResolutionKey = (
 };
 
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
-  if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    const duration = resolveSeedance15Duration(params.durationSeconds ?? undefined);
-    const res = resolveDefaultResolution(params, "720p").toLowerCase();
-    const resolutionKey = res.includes("1080") ? "1080p" : res.includes("480") ? "480p" : "720p";
-    const hasAudio = resolveDefaultAudio(params, false);
-    const kieCreditsPerSecond = (() => {
-      if (resolutionKey === "1080p") return hasAudio ? 15 : 7.5;
-      if (resolutionKey === "720p") return hasAudio ? 7 : 3.5;
-      // 480p has no direct evidence yet; keep a conservative half-step relative to 720p.
-      return hasAudio ? 4 : 2;
-    })();
-    const usdRaw = kieCreditsToUsd(kieCreditsPerSecond * duration);
-    const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
-    return toCostBreakdown({
-      modelId: params.modelId,
-      usdRaw,
-      megapixels: 0,
-      width: resolution.width,
-      height: resolution.height,
-      policy: params.pricingPolicy,
-      variantId: resolveModelPricingVariantId(params),
-    });
-  }
-
   const duration = resolveSeedance2Duration(params.durationSeconds ?? undefined);
   const videoInput = resolveSeedanceVideoInput(params);
   const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
@@ -807,7 +782,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "seedream-5-lite-per-image": computeSeedream5LitePerImageCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
-  "seedance-1.5-per-second": computeSeedancePerSecondCost,
   "seedance-2-per-second": computeSeedancePerSecondCost,
   "seedance-2-fast-per-second": computeSeedancePerSecondCost,
 };

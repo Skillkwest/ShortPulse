@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/kie/upload-url";
 
@@ -21,6 +22,26 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+
+const createMockRequest = ({
+  body,
+  headers = {},
+}: {
+  body: Buffer | string;
+  headers?: Record<string, string>;
+}) => {
+  const req = new EventEmitter() as EventEmitter & {
+    method: string;
+    headers: Record<string, string>;
+  };
+  req.method = "POST";
+  req.headers = headers;
+  setTimeout(() => {
+    req.emit("data", typeof body === "string" ? Buffer.from(body) : body);
+    req.emit("end");
+  }, 0);
+  return req;
+};
 
 describe("POST /api/kie/upload-url", () => {
   beforeEach(() => {
@@ -49,13 +70,15 @@ describe("POST /api/kie/upload-url", () => {
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
-    const req = {
-      method: "POST",
-      body: {
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
         fileUrl: "https://example.com/public-image.jpg",
         uploadPath: "shortpulse/kie-video/images",
-      },
-    };
+      }),
+    });
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -103,14 +126,16 @@ describe("POST /api/kie/upload-url", () => {
       } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
-    const req = {
-      method: "POST",
-      body: {
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
         fileUrl:
           "https://project.supabase.co/storage/v1/object/sign/media_library/user/ref.png?token=abc",
         uploadPath: "shortpulse/kie-video/images",
-      },
-    };
+      }),
+    });
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -141,13 +166,15 @@ describe("POST /api/kie/upload-url", () => {
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
-    const req = {
-      method: "POST",
-      body: {
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
         fileUrl: "https://cdn.example.com/fallback-image.jpg",
         uploadPath: "shortpulse/kie-video/images",
-      },
-    };
+      }),
+    });
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -165,13 +192,15 @@ describe("POST /api/kie/upload-url", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const req = {
-      method: "POST",
-      body: {
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
         fileUrl: "http://127.0.0.1:54321/private.png",
         uploadPath: "shortpulse/kie-video/images",
-      },
-    };
+      }),
+    });
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -181,6 +210,52 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid upload request",
       details: "fileUrl cannot target a local or private-network host.",
+    });
+  });
+
+  it("accepts direct binary uploads for local media staged from the client", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/local-image.png",
+          fileName: "local-image.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "image/png",
+        "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        "x-shortpulse-upload-filename": "local-image.png",
+      },
+      body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    const firstCall = fetchMock.mock.calls[0]?.[1] as { body?: FormData; headers?: HeadersInit };
+    expect(firstCall.headers).toEqual(
+      expect.objectContaining({
+        Authorization: "Bearer kie-test-key",
+      })
+    );
+    expect(firstCall.body).toBeInstanceOf(FormData);
+    expect((firstCall.body as FormData).get("uploadPath")).toBe("shortpulse/kie-video/images");
+    expect((firstCall.body as FormData).get("fileName")).toBe("local-image.png");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/local-image.png",
+      fileName: "local-image.png",
+      mimeType: "image/png",
     });
   });
 });

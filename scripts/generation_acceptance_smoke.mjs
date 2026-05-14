@@ -318,23 +318,6 @@ const CASES = {
       ...(projectId ? { shortpulse_context: { project_id: projectId } } : {}),
     }),
   },
-  "kie-seedance-15-text-video": {
-    provider: "kie",
-    modelId: "kie-ai/seedance-1.5-pro",
-    submitPath: "/api/fal/kie-seedance-submit",
-    statusPath: "/api/fal/kie-seedance-status",
-    timeoutMs: 900_000,
-    pollEveryMs: 10_000,
-    payload: ({ prompt, projectId }) => ({
-      prompt,
-      input_urls: [],
-      aspect_ratio: "16:9",
-      duration: "4",
-      resolution: "720p",
-      generate_audio: false,
-      ...(projectId ? { shortpulse_context: { project_id: projectId } } : {}),
-    }),
-  },
   "kie-seedance-2-text-video": {
     provider: "kie",
     modelId: "kie-ai/seedance-2",

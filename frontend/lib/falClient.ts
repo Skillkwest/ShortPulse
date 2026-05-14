@@ -87,101 +87,6 @@ export type FalStatusResponse = {
   videoUrl?: string;
 };
 
-export type FalKlingTextSubmitRequest = {
-  prompt: string;
-  duration?: "5" | "10" | 5 | 10;
-  aspect_ratio?: "16:9" | "9:16" | "1:1";
-  negative_prompt?: string;
-  cfg_scale?: number;
-  generate_audio?: boolean;
-};
-
-export type FalKlingV3TextSubmitRequest = {
-  prompt: string;
-  duration?: number;
-  aspect_ratio?: "16:9" | "9:16" | "1:1";
-  multi_prompt?: { prompt: string; duration?: number }[] | null;
-  shot_type?: "customize" | "intelligent";
-  negative_prompt?: string;
-  cfg_scale?: number;
-  generate_audio?: boolean;
-  voice_ids?: string[];
-};
-
-export type FalKlingV3ImageToVideoSubmitRequest = {
-  prompt: string;
-  start_image_url: string;
-  end_image_url?: string;
-  duration?: number;
-  aspect_ratio?: "16:9" | "9:16" | "1:1";
-  resolution?: "720p" | "1080p";
-  negative_prompt?: string;
-  cfg_scale?: number;
-  generate_audio?: boolean;
-  voice_ids?: string[];
-  multi_prompt?: Array<{ prompt: string; duration: number }>;
-  shot_type?: "customize" | "intelligent";
-  elements?: Array<{
-    video_url?: string;
-    frontal_image_url?: string;
-    reference_image_urls?: string[];
-  }>;
-};
-
-export type FalKlingStatusResponse = {
-  status?: string;
-  state?: string;
-  error?: string;
-  data?: {
-    video?: { url?: string; content_type?: string };
-  };
-  video?: { url?: string; content_type?: string };
-  request_id?: string;
-};
-
-export type FalVeoSubmitRequest = {
-  prompt: string;
-  aspect_ratio?: "16:9" | "9:16";
-  duration?: "4s" | "6s" | "8s" | string;
-  negative_prompt?: string;
-  resolution?: "720p" | "1080p" | "4k";
-  generate_audio?: boolean;
-  seed?: number;
-  auto_fix?: boolean;
-  enable_safety_checker?: boolean;
-  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
-};
-
-export type FalVeoImageToVideoSubmitRequest = {
-  prompt: string;
-  image_url?: string;
-  image_urls?: string[];
-  aspect_ratio?: "16:9" | "9:16" | "auto";
-  duration?: "4s" | "6s" | "8s";
-  negative_prompt?: string;
-  resolution?: "720p" | "1080p" | "4k";
-  generate_audio?: boolean;
-  seed?: number;
-  auto_fix?: boolean;
-  enable_safety_checker?: boolean;
-  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
-};
-
-export type FalVeoFirstLastSubmitRequest = {
-  prompt: string;
-  first_frame_url: string;
-  last_frame_url: string;
-  aspect_ratio?: "auto" | "16:9" | "9:16";
-  duration?: "4s" | "6s" | "8s";
-  negative_prompt?: string;
-  resolution?: "720p" | "1080p" | "4k";
-  generate_audio?: boolean;
-  seed?: number;
-  auto_fix?: boolean;
-  enable_safety_checker?: boolean;
-  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
-};
-
 export type FalSeedreamSubmitRequest = {
   prompt: string;
   image_size?: string | { width: number; height: number };
@@ -202,30 +107,6 @@ export type FalSeedreamEditSubmitRequest = {
   seed?: number;
   sync_mode?: boolean;
   enable_safety_checker?: boolean;
-};
-
-export type FalSeedanceSubmitRequest = {
-  prompt: string;
-  duration?: string | number;
-  aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
-  resolution?: "480p" | "720p" | "1080p";
-  negative_prompt?: string;
-  cfg_scale?: number;
-  enable_safety_checker?: boolean;
-  generate_audio?: boolean;
-};
-
-export type FalSeedanceI2VSubmitRequest = {
-  prompt: string;
-  image_url: string;
-  end_image_url?: string;
-  aspect_ratio?: "auto" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "9:21" | string;
-  resolution?: "480p" | "720p" | "1080p";
-  duration?: "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | string;
-  camera_fixed?: boolean;
-  seed?: number;
-  enable_safety_checker?: boolean;
-  generate_audio?: boolean;
 };
 
 export type FalNanoBananaEditSubmitRequest = {

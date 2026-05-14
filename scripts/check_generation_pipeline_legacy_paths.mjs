@@ -24,7 +24,6 @@ const scanTargets = [
   "docs/operator-map.md",
   "docs/api/api-internal-routes.md",
   "docs/api/api-kie-kling-3-0.md",
-  "docs/api/api-kie-seedance-1-5-pro.md",
   "docs/api/api-kie-seedance-2.md",
   "docs/api/api-kie-seedance-2-fast.md",
   "docs/api/api-kie-veo-3-1-fast-image-to-video.md",

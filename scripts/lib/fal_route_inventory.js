@@ -45,15 +45,6 @@ const FAL_ROUTE_INVENTORY = [
     validator: "generic",
   },
   {
-    fileBase: "kie-seedance",
-    modelId: "kie-ai/seedance-1.5-pro",
-    provider: "kie",
-    routeLabel: "Kie Seedance 1.5 Pro",
-    submitTimeoutMs: 20000,
-    statusTimeoutMs: 60000,
-    validator: "generic",
-  },
-  {
     fileBase: "kie-seedance-2",
     modelId: "kie-ai/seedance-2",
     provider: "kie",

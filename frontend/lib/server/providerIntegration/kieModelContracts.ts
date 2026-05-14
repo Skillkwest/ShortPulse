@@ -7,7 +7,6 @@ import type { SubmitPayload } from "../falIntegration/contracts";
 import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -714,103 +713,6 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
   };
 };
 
-const normalizeKieSeedancePayload = (payload: Record<string, unknown>): Record<string, unknown> => {
-  const inputPayload = asRecord(payload.input);
-  const source = Object.keys(inputPayload).length ? inputPayload : payload;
-  const contract = readRequiredKieCatalogContract({
-    modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
-    modelLabel: "Kie Seedance 1.5 Pro",
-  });
-  const normalized = normalizeCommonKieVideoFields({
-    payload: source,
-    modelLabel: "Kie Seedance 1.5 Pro",
-    allowedAspects: contract.allowedAspects,
-    defaultAspect: contract.defaultAspect,
-    allowedDurations: contract.allowedDurations,
-  });
-  const prompt = asNonEmptyString(source.prompt);
-  if (!prompt) {
-    throw new Error("Kie Seedance 1.5 Pro submit requires a prompt.");
-  }
-  if (!contract.allowedResolutions?.length) {
-    throw new Error("Kie Seedance 1.5 Pro model catalog contract is missing allowed resolutions.");
-  }
-  const inputUrls = (() => {
-    const explicit = readStringUrlList({
-      payload: source,
-      directFields: ["input_url", "inputUrl"],
-      listFields: ["input_urls", "inputUrls"],
-    });
-    return explicit.length ? explicit : readImageUrlList(source);
-  })();
-  if (inputUrls.length > 2) {
-    throw new Error("Kie Seedance 1.5 Pro submit accepts at most two input URLs.");
-  }
-  const resolution =
-    normalizeOptionalResolution({
-      payload: source,
-      allowedValues: contract.allowedResolutions,
-      modelLabel: "Kie Seedance 1.5 Pro",
-    }) ??
-    contract.defaultResolution ??
-    "720p";
-  const durationValue =
-    asPositiveInteger(source.duration) ??
-    asPositiveInteger(source.duration_seconds) ??
-    contract.allowedDurations[0];
-  if (!durationValue || !contract.allowedDurations.includes(durationValue)) {
-    throw new Error(
-      `Kie Seedance 1.5 Pro submit uses unsupported duration: ${durationValue}. Allowed: ${contract.allowedDurations.join(", ")}`
-    );
-  }
-  const generateAudio =
-    source.generate_audio === undefined
-      ? null
-      : normalizeOptionalBooleanField({
-          payload: source,
-          field: "generate_audio",
-          modelLabel: "Kie Seedance 1.5 Pro",
-        });
-  const fixedLens =
-    source.fixed_lens === undefined
-      ? null
-      : normalizeOptionalBooleanField({
-          payload: source,
-          field: "fixed_lens",
-          modelLabel: "Kie Seedance 1.5 Pro",
-        });
-  const nsfwChecker =
-    source.nsfw_checker === undefined
-      ? null
-      : normalizeOptionalBooleanField({
-          payload: source,
-          field: "nsfw_checker",
-          modelLabel: "Kie Seedance 1.5 Pro",
-        });
-  const callbackValue = normalizeOptionalStringField({
-    payload,
-    fields: ["callBackUrl", "callbackUrl", "callback_url"],
-  });
-  const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
-  if (callbackValue && !callbackUrl) {
-    throw new Error("Kie Seedance 1.5 Pro submit field callBackUrl must be a valid http(s) URL.");
-  }
-  return {
-    model: "bytedance/seedance-1.5-pro",
-    ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
-    input: {
-      prompt,
-      ...(inputUrls.length ? { input_urls: inputUrls } : {}),
-      aspect_ratio: normalized.aspect_ratio,
-      resolution,
-      duration: String(durationValue),
-      ...(generateAudio !== null ? { generate_audio: generateAudio } : {}),
-      ...(fixedLens !== null ? { fixed_lens: fixedLens } : {}),
-      ...(nsfwChecker !== null ? { nsfw_checker: nsfwChecker } : {}),
-    },
-  };
-};
-
 const normalizeKieSeedance2Payload = ({
   payload,
   modelId,
@@ -983,9 +885,6 @@ export const normalizeKieSubmitPayloadForModel = ({
   }
   if (modelId === KIE_KLING_30_MODEL_ID) {
     return normalizeKieKlingPayload(source);
-  }
-  if (modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    return normalizeKieSeedancePayload(source);
   }
   if (modelId === KIE_SEEDANCE_2_MODEL_ID) {
     return normalizeKieSeedance2Payload({

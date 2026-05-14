@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -10,6 +11,12 @@ const KIE_FILE_STREAM_UPLOAD_ENDPOINT =
   process.env.SHORTPULSE_KIE_FILE_STREAM_UPLOAD_URL?.trim() ||
   "https://kieai.redpandaai.co/api/file-stream-upload";
 const SOURCE_FETCH_TIMEOUT_MS = 30_000;
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 type SuccessResponse = {
   url: string;
@@ -204,6 +211,58 @@ const uploadFileStreamToKie = async ({
   }
 };
 
+const uploadFileBufferToKie = async ({
+  apiKey,
+  fileBuffer,
+  uploadPath,
+  fileName,
+  mimeType,
+}: {
+  apiKey: string;
+  fileBuffer: Buffer;
+  uploadPath: string;
+  fileName: string | null;
+  mimeType: string | null;
+}) => {
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([fileBuffer], {
+      type: mimeType ?? "application/octet-stream",
+    }),
+    fileName ?? "upload"
+  );
+  formData.append("uploadPath", uploadPath);
+  if (fileName) {
+    formData.append("fileName", fileName);
+  }
+
+  const upstream = await fetch(KIE_FILE_STREAM_UPLOAD_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  const payload = await upstream.json().catch(() => ({}));
+  const parsed = readUploadPayload(payload);
+  return { upstream, parsed };
+};
+
+const readRawRequestBody = async (req: NextApiRequest): Promise<Buffer> =>
+  await new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+
+const isJsonRequest = (req: NextApiRequest): boolean =>
+  req.headers["content-type"]?.toLowerCase().includes("application/json") ?? false;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>
@@ -215,36 +274,51 @@ export default async function handler(
   const user = await requireApiUser(req, res);
   if (!user) return;
 
-  const payload =
-    typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
-  const fileUrl = asNonEmptyString(payload.fileUrl);
-  const uploadPath = asNonEmptyString(payload.uploadPath);
-  const fileName = asNonEmptyString(payload.fileName);
-
-  if (!fileUrl || !uploadPath) {
-    return res.status(400).json({
-      error: "Invalid upload request",
-      details: "fileUrl and uploadPath are required.",
-    });
-  }
-
   try {
     const apiKey = readProviderApiKey("kie");
-    const sourceUrl = parseSafeHttpUrl(fileUrl);
-
-    const result = prefersStreamUpload(sourceUrl)
-      ? await uploadFileStreamToKie({
-          apiKey,
-          sourceUrl,
-          uploadPath,
-          fileName,
-        })
-      : await uploadFileUrlToKie({
-          apiKey,
-          fileUrl,
-          uploadPath,
-          fileName,
-        });
+    const bodyBuffer = await readRawRequestBody(req);
+    const result = isJsonRequest(req)
+      ? await (async () => {
+          const payload = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>;
+          const fileUrl = asNonEmptyString(payload.fileUrl);
+          const uploadPath = asNonEmptyString(payload.uploadPath);
+          const fileName = asNonEmptyString(payload.fileName);
+          if (!fileUrl || !uploadPath) {
+            throw new KieUploadRequestError("fileUrl and uploadPath are required.");
+          }
+          const sourceUrl = parseSafeHttpUrl(fileUrl);
+          return prefersStreamUpload(sourceUrl)
+            ? await uploadFileStreamToKie({
+                apiKey,
+                sourceUrl,
+                uploadPath,
+                fileName,
+              })
+            : await uploadFileUrlToKie({
+                apiKey,
+                fileUrl,
+                uploadPath,
+                fileName,
+              });
+        })()
+      : await (async () => {
+          const uploadPath = asNonEmptyString(req.headers["x-shortpulse-upload-path"]);
+          const fileName = asNonEmptyString(req.headers["x-shortpulse-upload-filename"]);
+          const mimeType = asNonEmptyString(req.headers["content-type"]);
+          if (!uploadPath) {
+            throw new KieUploadRequestError("uploadPath is required for binary uploads.");
+          }
+          if (!bodyBuffer.length) {
+            throw new KieUploadRequestError("Binary upload body is empty.");
+          }
+          return await uploadFileBufferToKie({
+            apiKey,
+            fileBuffer: bodyBuffer,
+            uploadPath,
+            fileName,
+            mimeType,
+          });
+        })();
 
     if (!result.upstream.ok) {
       return res.status(result.upstream.status).json({
@@ -271,6 +345,12 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid upload request",
         details: error.message,
+      });
+    }
+    if (error instanceof SyntaxError && isJsonRequest(req)) {
+      return res.status(400).json({
+        error: "Invalid upload request",
+        details: "Request body must be valid JSON.",
       });
     }
     await logApiRouteException({

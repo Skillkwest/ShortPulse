@@ -1195,7 +1195,6 @@ function run() {
         '"gpt-image-2": {',
         '"kie-ai/veo-3.1-fast-i2v": {',
         '"kie-ai/kling-3.0": {',
-        '"kie-ai/seedance-1.5-pro": {',
         '"kie-ai/seedance-2": {',
         '"kie-ai/seedance-2-fast": {',
         '"reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"]',

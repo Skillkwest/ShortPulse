@@ -121,12 +121,6 @@ const getProviderPricingDocLines = (
             "Provider cost basis used here: 1080p video costs $0.20/sec without audio or $0.40/sec with audio.",
             "4K video costs $0.40/sec without audio or $0.60/sec with audio.",
           ];
-    case "seedance-1.5-per-second":
-      return [
-        "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
-        "Seedance 1.5 Pro 1080p: 7.5 credits/sec without audio, 15 credits/sec with audio.",
-        "720p: 3.5 credits/sec without audio, 7 credits/sec with audio. 480p: 2 credits/sec without audio, 4 credits/sec with audio.",
-      ];
     case "seedance-2-per-second":
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
@@ -235,7 +229,6 @@ const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boo
     "seedream-per-image",
     "seedream-5-lite-per-image",
     "veo-3-per-second",
-    "seedance-1.5-per-second",
     "seedance-2-per-second",
     "seedance-2-fast-per-second",
   ].includes(model.pricingStrategy);

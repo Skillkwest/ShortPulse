@@ -28,6 +28,7 @@ vi.mock("../generationProjection", () => ({
 
 const createAdminClient = ({
   storageRows,
+  firstSelectError = null,
 }: {
   storageRows: Array<{
     id: string;
@@ -36,24 +37,39 @@ const createAdminClient = ({
     poster_variant_path?: string | null;
     preview_variant_path?: string | null;
   }>;
+  firstSelectError?: { message: string } | null;
 }) => ({
-  from: vi.fn((table: string) => {
+  __selectCallCount: 0,
+  from: vi.fn(function (this: { __selectCallCount: number }, table: string) {
     if (table !== "media_files") {
       throw new Error(`Unexpected table: ${table}`);
     }
     const builder = {
       eq: vi.fn(),
       in: vi.fn(),
-      limit: vi.fn(async () => ({
-        data: storageRows,
-        error: null,
-      })),
+      limit: vi.fn(async () => {
+        this.__selectCallCount += 1;
+        if (this.__selectCallCount === 1 && firstSelectError) {
+          return {
+            data: null,
+            error: firstSelectError,
+          };
+        }
+        return {
+          data: storageRows,
+          error: null,
+        };
+      }),
     };
     builder.eq.mockReturnValue(builder);
     builder.in.mockReturnValue(builder);
     return {
       select: vi.fn((fields: string) => {
-        if (fields !== "id, storage_path, file_type, poster_variant_path, preview_variant_path") {
+        if (
+          fields !==
+            "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path" &&
+          fields !== "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+        ) {
           throw new Error(`Unexpected fields: ${fields}`);
         }
         return builder;
@@ -220,7 +236,7 @@ describe("generationOutputConvergence", () => {
     });
   });
 
-  it("uses video poster variants for preview storage while preserving the video as full storage", async () => {
+  it("uses video preview-loop variants for preview storage while preserving the video as full storage", async () => {
     const adminClient = createAdminClient({
       storageRows: [
         {
@@ -253,7 +269,7 @@ describe("generationOutputConvergence", () => {
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationOutputId: "output-video-1",
-        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
         fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
         publicationState: "published",
       })
@@ -261,11 +277,54 @@ describe("generationOutputConvergence", () => {
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-video-1",
-        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
         fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
       })
     );
-    expect(result.previewStoragePath).toBe("user-1/variants/videos/media-video-1/poster_720.jpg");
+    expect(result.previewStoragePath).toBe(
+      "user-1/variants/videos/media-video-1/preview_loop_360p.mp4"
+    );
     expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-1.mp4");
+  });
+
+  it("falls back when preview_storage_path is unavailable in the media_files schema", async () => {
+    const adminClient = createAdminClient({
+      firstSelectError: {
+        message:
+          "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
+      },
+      storageRows: [
+        {
+          id: "media-video-fallback-1",
+          storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
+          preview_variant_path:
+            "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-video-fallback-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/video-fallback-1.mp4",
+        mediaFileId: "media-video-fallback-1",
+      },
+    ]);
+
+    const result = await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-video-fallback-1",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-video-fallback-1",
+      resultUrl: "https://cdn.shortpulse.test/video-fallback-1.mp4",
+    });
+
+    expect(result.previewStoragePath).toBe(
+      "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4"
+    );
+    expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-fallback-1.mp4");
   });
 });

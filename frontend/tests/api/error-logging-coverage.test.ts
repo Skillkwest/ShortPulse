@@ -25,6 +25,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   // into deterministic 4xx-safe field errors rather than route-fault telemetry.
   "media/copy-from-url.ts:190",
   "media/copy-from-url.ts:191",
+  "media/copy-from-url.ts:194",
   "media/copy-from-url.ts:1090",
   "media/copy-from-url.ts:1115",
   "media/copy-from-url.ts:1277",
@@ -36,6 +37,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
 const LOG_CALL_PATTERNS = [
   "logApiRouteException(",
   "logGenerationFailure(",
+  "logVideoVariantHydrationFailure(",
   "writeAppErrorLog(",
   "respondAndLogError(",
 ];

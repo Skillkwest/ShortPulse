@@ -3,7 +3,6 @@
  */
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -57,21 +56,18 @@ export const resolveVideoGenerationLaneFromInputs = ({
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
   modelId === KIE_KLING_30_MODEL_ID ||
-  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
   (isSeedance2UiEnabled() &&
     (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === KIE_KLING_30_MODEL_ID ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
   (isSeedance2UiEnabled() &&
     (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
 const isFirstLastCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
   modelId === KIE_KLING_30_MODEL_ID ||
-  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
   (isSeedance2UiEnabled() &&
     (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
@@ -91,33 +87,15 @@ export const resolveAutoVideoModelForLane = ({
   }
 
   if (lane === "text") {
-    if (
-      !isSeedance2UiEnabled() &&
-      (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
-    ) {
-      return KIE_SEEDANCE_15_PRO_MODEL_ID;
-    }
     if (isTextCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (lane === "single-image") {
-    if (
-      !isSeedance2UiEnabled() &&
-      (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
-    ) {
-      return KIE_SEEDANCE_15_PRO_MODEL_ID;
-    }
     if (isSingleImageCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
-  if (
-    !isSeedance2UiEnabled() &&
-    (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
-  ) {
-    return KIE_SEEDANCE_15_PRO_MODEL_ID;
-  }
   if (isFirstLastCompatibleVideoModel(currentModel)) return currentModel;
   return KIE_VEO_31_FAST_I2V_MODEL_ID;
 };

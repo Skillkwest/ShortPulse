@@ -625,6 +625,7 @@ export default function DashboardPage({
           isOpen={isProjectsModalOpen}
           onClose={() => setIsProjectsModalOpen(false)}
           onSelectProject={openProject}
+          onCreateProject={openProject}
         />
       ) : null}
     </>

@@ -40,6 +40,7 @@ const FALLBACK_KLING_WORKFLOW_MODE = "single" as const;
 const FALLBACK_SEEDANCE2_INPUT_MODE = "text" as const;
 const FALLBACK_KLING_SHOT_TYPE = "customize" as const;
 const FALLBACK_PROMPT_ORIGIN = "manual" as const;
+const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 
 const TOOL_IDS = new Set<ToolId>([
   "create",
@@ -93,6 +94,38 @@ const sanitizeHydratedAttachmentImageFallbackUrls = (value: unknown): string[] |
     .map((candidate) => sanitizeHydratedMediaUrl(candidate))
     .filter((candidate): candidate is string => Boolean(candidate));
   return normalized.length > 0 ? Array.from(new Set(normalized)) : undefined;
+};
+
+const normalizeHydratedVideoStorageAuthority = ({
+  mode,
+  previewStoragePath,
+  previewPosterStoragePath,
+  fullStoragePath,
+}: {
+  mode: StudioMode;
+  previewStoragePath: string | null;
+  previewPosterStoragePath: string | null;
+  fullStoragePath: string | null;
+}) => {
+  if (mode !== "video") {
+    return {
+      previewStoragePath,
+      previewPosterStoragePath,
+      fullStoragePath,
+    };
+  }
+  const inferredPosterStoragePath =
+    previewPosterStoragePath ??
+    (previewStoragePath && previewStoragePath !== fullStoragePath ? previewStoragePath : null);
+  const normalizedPreviewStoragePath =
+    previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)
+      ? previewStoragePath
+      : (fullStoragePath ?? previewStoragePath);
+  return {
+    previewStoragePath: normalizedPreviewStoragePath,
+    previewPosterStoragePath: inferredPosterStoragePath,
+    fullStoragePath,
+  };
 };
 
 const asStringArray = (value: unknown): string[] => {
@@ -353,11 +386,18 @@ const normalizeRestoredOutputLifecycle = (output: StudioOutput): StudioOutput =>
   };
 };
 
-const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
-  normalizeRestoredOutputLifecycle({
+const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => {
+  const mode = asMode(output.mode);
+  const normalizedStorageAuthority = normalizeHydratedVideoStorageAuthority({
+    mode,
+    previewStoragePath: output.previewStoragePath ?? null,
+    previewPosterStoragePath: output.previewPosterStoragePath ?? null,
+    fullStoragePath: output.fullStoragePath ?? null,
+  });
+  return normalizeRestoredOutputLifecycle({
     id: output.id,
     prompt: output.prompt,
-    mode: asMode(output.mode),
+    mode,
     aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
     model: output.model,
     modelId: output.modelId,
@@ -383,12 +423,12 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
     resultUrls: output.resultUrls,
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl ?? null,
-    previewPosterStoragePath: output.previewPosterStoragePath ?? null,
+    previewPosterStoragePath: normalizedStorageAuthority.previewPosterStoragePath,
     companionArtUrl: output.companionArtUrl ?? null,
     companionArtStoragePath: output.companionArtStoragePath ?? null,
     companionArtStatus: output.companionArtStatus ?? null,
-    previewStoragePath: output.previewStoragePath ?? null,
-    fullStoragePath: output.fullStoragePath ?? null,
+    previewStoragePath: normalizedStorageAuthority.previewStoragePath,
+    fullStoragePath: normalizedStorageAuthority.fullStoragePath,
     previewTier: output.previewTier,
     mediaSource: output.mediaSource,
     previewText: output.previewText,
@@ -400,6 +440,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,
   });
+};
 
 const dedupeOutputs = (rows: StudioOutput[]): StudioOutput[] => {
   const byId = new Map<string, StudioOutput>();

@@ -237,12 +237,8 @@ const makeVideoArgs = (
   videoReferenceMode: "standard",
   videoReferenceImageUrl: "https://cdn.test/ref-1.png",
   motionReferenceVideoUrl: null,
-  videoAutoFix: false,
   videoCameraFixed: false,
-  klingNegativePrompt: "blur, distort, and low quality",
   klingCfgScale: 0.5,
-  klingShotType: "customize",
-  klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
   klingElements: [],
 });

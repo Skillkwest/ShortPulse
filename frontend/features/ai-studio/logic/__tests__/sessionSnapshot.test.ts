@@ -381,6 +381,58 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.active[0]?.previewUrl).toBeUndefined();
   });
 
+  it("normalizes legacy poster-backed video preview storage in snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "poster-backed-video-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "",
+      model: "fal-ai/video",
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          mode: "video",
+          previewUrl: "https://signed.test/poster.jpg",
+          previewStoragePath: "user-1/variants/videos/out-legacy/poster_720.jpg",
+          fullStoragePath: "user-1/videos/out-legacy.mp4",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    });
+
+    expect(snapshot.outputs.active[0]?.previewStoragePath).toBe("user-1/videos/out-legacy.mp4");
+    expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBe(
+      "user-1/variants/videos/out-legacy/poster_720.jpg"
+    );
+  });
+
   it("prefers durable storage authority over temporary signed media urls in output snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

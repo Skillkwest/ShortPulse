@@ -100,7 +100,7 @@ describe("MusicPropertiesPanel", () => {
       "Write lyrics, hooks, section ideas, ad-libs, or line-by-line structure here."
     );
     expect(
-      screen.getByText("Prompt and lyrics share one 800-character generation budget.")
+      screen.getByText("Prompt and lyrics share one 2,000-character generation budget.")
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("separator", {
@@ -286,13 +286,13 @@ describe("MusicPropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
-      target: { value: "p".repeat(780) },
+      target: { value: "p".repeat(1980) },
     });
     fireEvent.change(screen.getByRole("textbox", { name: "Song lyrics" }), {
       target: { value: "l".repeat(20) },
     });
 
-    expect(screen.getByText("810 / 800")).toBeInTheDocument();
+    expect(screen.getByText("2,010 / 2,000")).toBeInTheDocument();
     expect(screen.getByText("Shorten the prompt or lyrics by 10 characters.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
@@ -325,6 +325,6 @@ describe("MusicPropertiesPanel", () => {
       target: { value: "Minimal synth bed" },
     });
 
-    expect(screen.getByText("17 / 800")).toBeInTheDocument();
+    expect(screen.getByText("17 / 2,000")).toBeInTheDocument();
   });
 });

@@ -19,10 +19,10 @@ type AiStudioPageShellProps = {
   projectTitle: string | null;
   projectsModalOpen: boolean;
   referenceGridPreconnectOrigin: string | null;
-  refreshProject: () => void | Promise<void>;
   retryProjectBootstrap: () => void;
   shouldGateProjectBootstrap: boolean;
   onCloseProjectsModal: () => void;
+  onOpenProjectsModal: () => void;
   onSelectProjectFromModal: (projectId: string) => void;
   onCreateProjectFromModal?: (projectId: string) => Promise<void> | void;
 };
@@ -40,10 +40,10 @@ export const AiStudioPageShell = ({
   projectTitle,
   projectsModalOpen,
   referenceGridPreconnectOrigin,
-  refreshProject,
   retryProjectBootstrap,
   shouldGateProjectBootstrap,
   onCloseProjectsModal,
+  onOpenProjectsModal,
   onSelectProjectFromModal,
   onCreateProjectFromModal,
 }: AiStudioPageShellProps) => {
@@ -68,9 +68,11 @@ export const AiStudioPageShell = ({
                 : (projectBootstrapError ?? "Failed to load project workspace.")
             }
             primaryActionLabel={
-              projectStatus === "error" ? "Retry project load" : "Retry workspace load"
+              projectStatus === "error" ? "Open projects" : "Retry workspace load"
             }
-            onPrimaryAction={projectStatus === "error" ? refreshProject : retryProjectBootstrap}
+            onPrimaryAction={
+              projectStatus === "error" ? onOpenProjectsModal : retryProjectBootstrap
+            }
             secondaryActionLabel="Back to dashboard"
             onSecondaryAction={() => {
               window.location.assign("/dashboard");
@@ -83,6 +85,13 @@ export const AiStudioPageShell = ({
             projectTitle={projectTitle}
           />
         )}
+        <ProjectsModal
+          isOpen={projectsModalOpen}
+          currentProjectId={projectId}
+          onClose={onCloseProjectsModal}
+          onSelectProject={onSelectProjectFromModal}
+          onCreateProject={onCreateProjectFromModal}
+        />
       </AiStudioModalActivityProvider>
     );
   }

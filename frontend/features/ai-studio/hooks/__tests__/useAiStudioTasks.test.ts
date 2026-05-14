@@ -47,7 +47,8 @@ vi.mock("../../../../lib/falClient", () => {
         return falClientMocks.fetchKieVeoImageToVideoStatus(requestId);
       case "kie-ai/kling-3.0":
         return falClientMocks.fetchKieKlingImageToVideoStatus(requestId);
-      case "kie-ai/seedance-1.5-pro":
+      case "kie-ai/seedance-2":
+      case "kie-ai/seedance-2-fast":
         return falClientMocks.fetchKieSeedanceVideoStatus(requestId);
       default:
         return Promise.reject(new Error(`Unhandled mocked model id ${modelId}`));
@@ -1390,17 +1391,17 @@ describe("useAiStudioTasks", () => {
     expect(output.previewUrl).toBe("https://cdn.test/kie-kling-result.mp4");
   });
 
-  it("marks Kie Seedance outputs successful from resultUrls payloads", async () => {
+  it("marks Kie Seedance 2 outputs successful from resultUrls payloads", async () => {
     fetchKieSeedanceVideoStatusMock.mockImplementationOnce(async () =>
       asKieSeedanceStatusResponse({
         status: "completed",
         data: {
-          resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+          resultUrls: ["https://cdn.test/kie-seedance-2-result.mp4"],
         },
         shortpulseLifecycle: {
           taskState: "success",
           isTerminal: true,
-          resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+          resultUrls: ["https://cdn.test/kie-seedance-2-result.mp4"],
         },
       })
     );
@@ -1423,24 +1424,24 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("kie-seedance-task-1", "out-1", 0, "kie-seedance");
+      result.current.startPollingTask("kie-seedance-2-task-1", "out-1", 0, "kie-seedance-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(fetchKieSeedanceVideoStatusMock).toHaveBeenCalledWith("kie-seedance-task-1");
+    expect(fetchKieSeedanceVideoStatusMock).toHaveBeenCalledWith("kie-seedance-2-task-1");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        taskId: "kie-seedance-task-1",
-        provider: "kie-seedance",
-        resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+        taskId: "kie-seedance-2-task-1",
+        provider: "kie-seedance-2",
+        resultUrls: ["https://cdn.test/kie-seedance-2-result.mp4"],
       })
     );
     expect(output.taskState).toBe("success");
-    expect(output.previewUrl).toBe("https://cdn.test/kie-seedance-result.mp4");
+    expect(output.previewUrl).toBe("https://cdn.test/kie-seedance-2-result.mp4");
   });
 
   it("treats done states as terminal and keeps polling for canonical server settlement", async () => {

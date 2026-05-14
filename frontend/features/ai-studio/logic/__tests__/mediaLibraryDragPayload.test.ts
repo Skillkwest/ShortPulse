@@ -159,7 +159,7 @@ describe("mediaLibraryDragPayload", () => {
         previewPosterUrl: "https://cdn.test/poster.jpg",
         previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
         fullUrl: "https://cdn.test/video.mp4",
-        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/generations/videos/media-video-1.mp4",
         fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
       },
     });
@@ -177,6 +177,7 @@ describe("mediaLibraryDragPayload", () => {
         previewUrl: "https://cdn.test/poster.jpg",
         previewPosterUrl: "https://cdn.test/poster.jpg",
         previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/generations/videos/media-video-1.mp4",
         fullUrl: "https://cdn.test/video.mp4",
       }),
     });

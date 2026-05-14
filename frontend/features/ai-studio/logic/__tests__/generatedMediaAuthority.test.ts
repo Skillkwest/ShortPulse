@@ -316,9 +316,216 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: "user-1/variants/videos/media-request-durable-1/poster_720.jpg",
+      previewStoragePath: "user-1/generations/videos/gen-request-durable-1/full.mp4",
       fullStoragePath: "user-1/generations/videos/gen-request-durable-1/full.mp4",
       resultUrls: ["https://signed.test/request-durable-full.mp4"],
+    });
+  });
+
+  it("promotes canonical output media authority during reconcile when publication is missing", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/media-request-canonical-1/preview_loop_360p.mp4",
+          "https://signed.test/request-canonical-preview.mp4",
+        ],
+        [
+          "user-1/generations/videos/gen-request-canonical-1/full.mp4",
+          "https://signed.test/request-canonical-full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-request-canonical-1/poster_720.jpg",
+          "https://signed.test/request-canonical-poster.jpg",
+        ],
+      ])
+    );
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-canonical-1",
+      },
+      error: null,
+    });
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/request-canonical-preview.mp4",
+        result_urls: ["https://fal.test/request-canonical-full.mp4"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-request-canonical-1",
+          media_file_id: "media-request-canonical-1",
+          output_index: 0,
+          created_at: "2026-05-13T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-request-canonical-1",
+          storage_path: "user-1/generations/videos/gen-request-canonical-1/full.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/media-request-canonical-1/poster_720.jpg",
+          preview_variant_path:
+            "user-1/variants/videos/media-request-canonical-1/preview_loop_360p.mp4",
+          filename: "request-canonical.mp4",
+        },
+      ],
+      error: null,
+    });
+
+    const generationProjectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => projectionIdentityBuilder)
+      .mockImplementationOnce(() => projectionDeliveryBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        requestId: "req-visible-canonical-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-request-canonical-1",
+      previewUrl: "https://signed.test/request-canonical-full.mp4",
+      previewPosterUrl: "https://signed.test/request-canonical-poster.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-request-canonical-1/poster_720.jpg",
+      companionArtUrl: null,
+      companionArtStoragePath: null,
+      companionArtStatus: null,
+      previewStoragePath: "user-1/variants/videos/media-request-canonical-1/preview_loop_360p.mp4",
+      fullStoragePath: "user-1/generations/videos/gen-request-canonical-1/full.mp4",
+      resultUrls: ["https://signed.test/request-canonical-full.mp4"],
+    });
+  });
+
+  it("uses published preview-loop storage authority separately from poster authority", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/media-published-video-1/preview_loop_360p.mp4",
+          "https://signed.test/published-video-preview.mp4",
+        ],
+        [
+          "user-1/generations/videos/gen-published-video-1/full.mp4",
+          "https://signed.test/published-video-full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-published-video-1/poster_720.jpg",
+          "https://signed.test/published-video-poster.jpg",
+        ],
+      ])
+    );
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/published-video-preview.mp4",
+        result_urls: ["https://fal.test/published-video-full.mp4"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          owned_media_file_id: "media-published-video-1",
+          preview_url: "https://fal.test/published-video-preview.mp4",
+          full_url: "https://fal.test/published-video-full.mp4",
+          preview_storage_path: "user-1/generations/videos/gen-published-video-1/full.mp4",
+          full_storage_path: "user-1/generations/videos/gen-published-video-1/full.mp4",
+          created_at: "2026-05-13T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: {
+        id: "media-published-video-1",
+        storage_path: "user-1/generations/videos/gen-published-video-1/full.mp4",
+        file_type: "video/mp4",
+        poster_variant_path: "user-1/variants/videos/media-published-video-1/poster_720.jpg",
+        preview_variant_path:
+          "user-1/variants/videos/media-published-video-1/preview_loop_360p.mp4",
+        filename: "published-video.mp4",
+      },
+      error: null,
+    });
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-published-video-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-published-video-1",
+      previewUrl: "https://signed.test/published-video-full.mp4",
+      previewPosterUrl: "https://signed.test/published-video-poster.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-published-video-1/poster_720.jpg",
+      companionArtUrl: null,
+      companionArtStoragePath: null,
+      companionArtStatus: null,
+      previewStoragePath: "user-1/variants/videos/media-published-video-1/preview_loop_360p.mp4",
+      fullStoragePath: "user-1/generations/videos/gen-published-video-1/full.mp4",
+      resultUrls: ["https://signed.test/published-video-full.mp4"],
     });
   });
 
@@ -475,7 +682,7 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+      previewStoragePath: "user-1/generations/videos/gen-video-1.mp4",
       fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
       resultUrls: ["https://fal.test/video-full.mp4"],
     });
@@ -812,7 +1019,8 @@ describe("generatedMediaAuthority", () => {
         resultUrls: ["https://fal.test/video-full.mp4"],
         previewUrl: "https://fal.test/video-preview.mp4",
         previewPosterUrl: "https://signed.test/gen-video-poster-1/poster_720.jpg",
-        previewStoragePath: "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
+        previewStoragePath: "user-1/generations/videos/gen-video-poster-1.mp4",
         fullStoragePath: "user-1/generations/videos/gen-video-poster-1.mp4",
       }),
     ]);
@@ -926,6 +1134,105 @@ describe("generatedMediaAuthority", () => {
           "user-1/variants/videos/media-video-remote-only-1/preview_loop_360p.mp4",
         fullStoragePath: "user-1/generations/videos/gen-video-remote-only-1/full.mp4",
         resultUrls: ["https://signed.test/media-video-remote-only-1/full.mp4"],
+      }),
+    ]);
+  });
+
+  it("keeps remote-only published videos on full storage when only a poster variant exists", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/videos/gen-video-poster-only-1/full.mp4",
+          "https://signed.test/media-video-poster-only-1/full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-video-poster-only-1/poster_720.jpg",
+          "https://signed.test/media-video-poster-only-1/poster_720.jpg",
+        ],
+      ])
+    );
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-poster-only-1",
+          request_id: "req-video-poster-only-1",
+          source_ref: "source-video-poster-only-1",
+          provider: "fal",
+          model_id: "fal-ai/veo3.1",
+          display_prompt: "A remote-only generated video with poster-only canonical media",
+          preview_url: "https://fal.test/video-poster-only-preview.mp4",
+          result_urls: ["https://fal.test/video-poster-only-full.mp4"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-poster-only-1",
+          owned_media_file_id: "media-video-poster-only-1",
+          created_at: "2026-04-18T16:11:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-video-poster-only-1",
+          storage_path: "user-1/generations/videos/gen-video-poster-only-1/full.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/media-video-poster-only-1/poster_720.jpg",
+          preview_variant_path: null,
+          filename: "video-poster-only.mp4",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-video-poster-only-1",
+        mode: "video",
+        previewUrl: "https://signed.test/media-video-poster-only-1/full.mp4",
+        previewPosterUrl: "https://signed.test/media-video-poster-only-1/poster_720.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/media-video-poster-only-1/poster_720.jpg",
+        previewStoragePath: "user-1/generations/videos/gen-video-poster-only-1/full.mp4",
+        fullStoragePath: "user-1/generations/videos/gen-video-poster-only-1/full.mp4",
+        resultUrls: ["https://signed.test/media-video-poster-only-1/full.mp4"],
       }),
     ]);
   });
@@ -1204,7 +1511,8 @@ describe("generatedMediaAuthority", () => {
         id: "generated:gen-video-canonical-1",
         mode: "video",
         previewPosterUrl: "https://signed.test/gen-video-canonical-1/poster_720.jpg",
-        previewStoragePath: "user-1/variants/videos/gen-video-canonical-1/poster_720.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/gen-video-canonical-1/poster_720.jpg",
+        previewStoragePath: "user-1/generations/videos/gen-video-canonical-1.mp4",
         fullStoragePath: "user-1/generations/videos/gen-video-canonical-1.mp4",
       }),
     ]);

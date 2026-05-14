@@ -13,7 +13,10 @@ import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { readPersistedGenerationOutputs } from "../api/generationOutputs";
 import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
 import { associateMediaFilesWithProjectForUser } from "../projectGenerationAssociationsService";
-import { upsertVideoPosterVariantFromBuffer } from "../videoPosterVariant";
+import {
+  upsertVideoPosterVariantFromBuffer,
+  upsertVideoPreviewVariantFromBuffer,
+} from "../videoPosterVariant";
 import { asString } from "./falAdapter";
 import { extractImageDimensionsFromBuffer } from "../imageDimensions";
 import {
@@ -355,6 +358,20 @@ export const persistRecoveryMediaFilesForGeneration = async ({
             // best-effort cleanup only
           }
           if (fileType === "video") {
+            await upsertVideoPreviewVariantFromBuffer({
+              supabaseAdmin,
+              userId: generation.user_id,
+              mediaFileId: existingRowId,
+              videoBuffer: buffer,
+              videoMimeType: contentType,
+              filename,
+              metadata: {
+                generated_by: "recovery_media_persistence_duplicate",
+                generation_id: generation.id,
+                generation_output_index: index,
+                index,
+              },
+            }).catch(() => null);
             await upsertVideoPosterVariantFromBuffer({
               supabaseAdmin,
               userId: generation.user_id,
@@ -403,6 +420,20 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         });
       }
       if (fileType === "video") {
+        await upsertVideoPreviewVariantFromBuffer({
+          supabaseAdmin,
+          userId: generation.user_id,
+          mediaFileId,
+          videoBuffer: buffer,
+          videoMimeType: contentType,
+          filename,
+          metadata: {
+            generated_by: "recovery_media_persistence",
+            generation_id: generation.id,
+            generation_output_index: index,
+            index,
+          },
+        }).catch(() => null);
         await upsertVideoPosterVariantFromBuffer({
           supabaseAdmin,
           userId: generation.user_id,

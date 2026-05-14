@@ -41,18 +41,15 @@ export type DispatchSubmissionByRouteParams = {
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
-  videoAutoFix: boolean;
   videoCameraFixed: boolean;
+  rawImageInputs?: string[];
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];
   seedance2ReferenceAudioUrls?: string[];
   seedance2ReturnLastFrame?: boolean;
   seedance2WebSearch?: boolean;
-  klingNegativePrompt: string;
   klingCfgScale: number;
-  klingShotType: "customize" | "intelligent";
-  klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
@@ -94,18 +91,15 @@ const submissionRouteAdapters: Record<
     videoReferenceMode,
     videoReferenceImageUrl,
     motionReferenceVideoUrl,
-    videoAutoFix,
     videoCameraFixed,
+    rawImageInputs,
     seedance2InputMode,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
     seedance2ReturnLastFrame,
     seedance2WebSearch,
-    klingNegativePrompt,
     klingCfgScale,
-    klingShotType,
-    klingVoiceIds,
     klingMultiPrompts,
     klingElements,
   }) => {
@@ -130,18 +124,15 @@ const submissionRouteAdapters: Record<
       videoReferenceMode,
       videoReferenceImageUrl,
       motionReferenceVideoUrl,
-      videoAutoFix,
       videoCameraFixed,
+      rawImageInputs,
       seedance2InputMode,
       seedance2ReferenceImageUrls,
       seedance2ReferenceVideoUrls,
       seedance2ReferenceAudioUrls,
       seedance2ReturnLastFrame,
       seedance2WebSearch,
-      klingNegativePrompt,
       klingCfgScale,
-      klingShotType,
-      klingVoiceIds,
       klingMultiPrompts,
       klingElements,
     });
@@ -265,18 +256,15 @@ export const dispatchSubmissionByRoute = async ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
-  videoAutoFix,
   videoCameraFixed,
+  rawImageInputs,
   seedance2InputMode,
   seedance2ReferenceImageUrls,
   seedance2ReferenceVideoUrls,
   seedance2ReferenceAudioUrls,
   seedance2ReturnLastFrame,
   seedance2WebSearch,
-  klingNegativePrompt,
   klingCfgScale,
-  klingShotType,
-  klingVoiceIds,
   klingMultiPrompts,
   klingElements,
   notifyGenerationFailure,
@@ -316,18 +304,15 @@ export const dispatchSubmissionByRoute = async ({
     videoReferenceMode,
     videoReferenceImageUrl,
     motionReferenceVideoUrl,
-    videoAutoFix,
     videoCameraFixed,
+    rawImageInputs,
     seedance2InputMode,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
     seedance2ReturnLastFrame,
     seedance2WebSearch,
-    klingNegativePrompt,
     klingCfgScale,
-    klingShotType,
-    klingVoiceIds,
     klingMultiPrompts,
     klingElements,
     notifyGenerationFailure,

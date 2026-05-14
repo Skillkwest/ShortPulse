@@ -276,7 +276,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
           previewUrl: "https://example.com/poster.jpg",
           previewPosterUrl: "https://example.com/poster.jpg",
           fullUrl: "https://example.com/video.mp4",
-          previewStoragePath: "user/variants/videos/media-video-1/poster_720.jpg",
+          previewStoragePath: "user/generations/videos/media-video-1.mp4",
           previewPosterStoragePath: "user/variants/videos/media-video-1/poster_720.jpg",
           fullStoragePath: "user/generations/videos/media-video-1.mp4",
         },
@@ -293,7 +293,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
       "user/variants/videos/media-video-1/poster_720.jpg"
     );
     expect(output?.resultUrls).toEqual(["https://example.com/video.mp4"]);
-    expect(output?.previewStoragePath).toBe("user/variants/videos/media-video-1/poster_720.jpg");
+    expect(output?.previewStoragePath).toBe("user/generations/videos/media-video-1.mp4");
     expect(output?.fullStoragePath).toBe("user/generations/videos/media-video-1.mp4");
   });
 

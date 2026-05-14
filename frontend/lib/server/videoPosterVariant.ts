@@ -1,6 +1,6 @@
 /**
- * Server-side video poster variant helpers.
- * Extracts a first-frame poster from generated/uploaded videos and records it as a durable media variant.
+ * Server-side video preview helpers.
+ * Extracts durable poster and preview-loop variants from generated/uploaded videos.
  */
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
@@ -96,6 +96,57 @@ export const extractVideoPosterBuffer = async ({
 };
 
 /**
+ * Extracts a short MP4 preview loop from the first decodable seconds of a video buffer.
+ */
+export const extractVideoPreviewVariantBuffer = async ({
+  videoBuffer,
+  videoMimeType,
+  filename,
+}: {
+  videoBuffer: Buffer;
+  videoMimeType?: string | null;
+  filename?: string | null;
+}): Promise<Buffer | null> => {
+  if (!ffmpegStatic) return null;
+  const tempDir = await createTempDir();
+  const inputPath = path.join(
+    tempDir,
+    `source.${resolveVideoExtension({ filename, mimeType: videoMimeType })}`
+  );
+  const outputPath = path.join(tempDir, "preview_loop_360p.mp4");
+
+  try {
+    await fs.writeFile(inputPath, videoBuffer);
+    await execFileAsync(ffmpegStatic, [
+      "-y",
+      "-i",
+      inputPath,
+      "-an",
+      "-t",
+      "3",
+      "-vf",
+      "scale=360:-2:force_original_aspect_ratio=decrease",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "30",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      outputPath,
+    ]);
+    return await fs.readFile(outputPath);
+  } catch {
+    return null;
+  } finally {
+    await removeTempDir(tempDir);
+  }
+};
+
+/**
  * Creates or replaces a media-library poster_720 variant from a video buffer.
  */
 export const upsertVideoPosterVariantFromBuffer = async ({
@@ -163,6 +214,82 @@ export const upsertVideoPosterVariantFromBuffer = async ({
     .from("media_files")
     .update({
       poster_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) return null;
+
+  return storagePath;
+};
+
+/**
+ * Creates or replaces a media-library preview_loop_360p variant from a video buffer.
+ */
+export const upsertVideoPreviewVariantFromBuffer = async ({
+  supabaseAdmin,
+  userId,
+  mediaFileId,
+  videoBuffer,
+  videoMimeType,
+  filename,
+  metadata = {},
+}: {
+  supabaseAdmin: SupabaseAdminClient;
+  userId: string;
+  mediaFileId: string;
+  videoBuffer: Buffer;
+  videoMimeType?: string | null;
+  filename?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<string | null> => {
+  const previewBuffer = await extractVideoPreviewVariantBuffer({
+    videoBuffer,
+    videoMimeType,
+    filename,
+  });
+  if (!previewBuffer) return null;
+
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/variants/videos/${mediaFileId}/preview_loop_360p.mp4`,
+    userId,
+    label: "Generated video preview storage path",
+  });
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, previewBuffer, {
+      upsert: true,
+      contentType: "video/mp4",
+    });
+  if (uploadError) return null;
+
+  const { error: variantError } = await supabaseAdmin.from("media_asset_variants").upsert(
+    {
+      media_file_id: mediaFileId,
+      user_id: userId,
+      variant_kind: "preview_loop_360p",
+      storage_path: storagePath,
+      mime_type: "video/mp4",
+      width: null,
+      height: null,
+      duration_seconds: null,
+      byte_size: previewBuffer.byteLength,
+      status: "ready",
+      metadata: {
+        generated_by: "server_video_preview_variant",
+        ...metadata,
+      },
+    },
+    {
+      onConflict: "media_file_id,variant_kind",
+    }
+  );
+  if (variantError) return null;
+
+  const { error: updateError } = await supabaseAdmin
+    .from("media_files")
+    .update({
+      preview_variant_path: storagePath,
     })
     .eq("id", mediaFileId)
     .eq("user_id", userId);

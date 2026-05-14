@@ -224,6 +224,13 @@ const shouldUseServerCopyFallback = ({
   return input.source === "ai_studio" && Boolean(input.generationId);
 };
 
+const shouldPreferServerCopyForAiStudioVideo = (input: SaveMediaUrlInput): boolean =>
+  input.mode === "video" &&
+  input.source === "ai_studio" &&
+  Boolean(input.generationId) &&
+  URL_PROTOCOL_PATTERN.test(input.url) &&
+  !input.previewStoragePathHint;
+
 const logProjectAssociationWarning = ({
   projectId,
   entityType,
@@ -1198,6 +1205,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         // best-effort canonical output linkage only
       }
       let durablePosterStoragePath = existingRow.posterVariantPath;
+      let durablePreviewStoragePath = existingRow.previewVariantPath;
       const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
       if (existingRow.id && existingRow.fileType === "video" && !existingRow.posterVariantPath) {
         try {
@@ -1237,7 +1245,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       });
       if (existingRow.id && previewVariantPath) {
         try {
-          await upsertVideoPreviewVariantReference({
+          durablePreviewStoragePath = await upsertVideoPreviewVariantReference({
             supabase,
             userId,
             mediaFileId: existingRow.id,
@@ -1257,7 +1265,8 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
       }
       const delivery = {
-        previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+        previewStoragePath:
+          durablePreviewStoragePath ?? input.previewStoragePathHint ?? existingRow.storagePath,
         previewPosterStoragePath: durablePosterStoragePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
         previewUrl: input.previewUrlHint ?? null,
@@ -1272,6 +1281,9 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         delivery,
       } satisfies SaveMediaUrlResult;
     }
+  }
+  if (shouldPreferServerCopyForAiStudioVideo(input)) {
+    return await saveMediaUrlToLibraryViaServerCopy(input);
   }
   let blob: Blob;
   let contentType: string | null;
@@ -1391,6 +1403,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           // best-effort canonical output linkage only
         }
         let durablePosterStoragePath = existingRow.posterVariantPath;
+        let durablePreviewStoragePath = existingRow.previewVariantPath;
         const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
         if (existingRow.id && fileType === "video" && !existingRow.posterVariantPath) {
           try {
@@ -1427,7 +1440,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         });
         if (existingRow.id && previewVariantPath) {
           try {
-            await upsertVideoPreviewVariantReference({
+            durablePreviewStoragePath = await upsertVideoPreviewVariantReference({
               supabase,
               userId,
               mediaFileId: existingRow.id,
@@ -1447,7 +1460,8 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           }
         }
         const delivery = {
-          previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+          previewStoragePath:
+            durablePreviewStoragePath ?? input.previewStoragePathHint ?? existingRow.storagePath,
           previewPosterStoragePath: durablePosterStoragePath,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
           previewUrl: input.previewUrlHint ?? null,
@@ -1466,16 +1480,8 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     throw error;
   }
 
-  const delivery = {
-    previewStoragePath: input.previewStoragePathHint ?? storagePath,
-    previewPosterStoragePath: null as string | null,
-    fullStoragePath: input.fullStoragePathHint ?? storagePath,
-    previewUrl: input.previewUrlHint ?? null,
-    previewPosterUrl: input.posterUrlHint ?? null,
-    fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
-  };
-
   const mediaFileId = data?.id ?? null;
+  let durablePreviewStoragePath: string | null = null;
   const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
     fileType,
     previewStoragePath: input.previewStoragePathHint,
@@ -1483,7 +1489,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   });
   if (mediaFileId && previewVariantPath) {
     try {
-      await upsertVideoPreviewVariantReference({
+      durablePreviewStoragePath = await upsertVideoPreviewVariantReference({
         supabase,
         userId,
         mediaFileId,
@@ -1502,6 +1508,16 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       });
     }
   }
+
+  const delivery = {
+    previewStoragePath: durablePreviewStoragePath ?? input.previewStoragePathHint ?? storagePath,
+    previewPosterStoragePath: null as string | null,
+    fullStoragePath: input.fullStoragePathHint ?? storagePath,
+    previewUrl: input.previewUrlHint ?? null,
+    previewPosterUrl: input.posterUrlHint ?? null,
+    fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
+  };
+
   const projectId = normalizeProjectId(input.projectId);
   if (mediaFileId && projectId) {
     try {

@@ -20,6 +20,10 @@ import {
   detectImageMimeType,
   detectVideoMimeType,
 } from "./uploadSignature";
+import {
+  upsertVideoPosterVariantFromBuffer,
+  upsertVideoPreviewVariantFromBuffer,
+} from "./videoPosterVariant";
 
 const MEDIA_BUCKET = "media_library";
 const PRIVATE_MEDIA_SOURCE = "private_upload";
@@ -939,6 +943,58 @@ const insertUploadedMediaRow = async ({
   return insertedRow as InsertedMediaRow;
 };
 
+const hydrateUploadedVideoVariants = async ({
+  userId,
+  parsedUpload,
+  row,
+}: {
+  userId: string;
+  parsedUpload: ParsedUpload;
+  row: InsertedMediaRow;
+}): Promise<InsertedMediaRow> => {
+  if (row.file_type !== "video") return row;
+
+  const nextRow: InsertedMediaRow = { ...row };
+  const supabaseAdmin = getSupabaseAdmin();
+  const previewVariantPath =
+    row.preview_variant_path ??
+    (await upsertVideoPreviewVariantFromBuffer({
+      supabaseAdmin,
+      userId,
+      mediaFileId: row.id,
+      videoBuffer: parsedUpload.buffer,
+      videoMimeType: parsedUpload.declaredMimeType,
+      filename: parsedUpload.filename,
+      metadata: {
+        generated_by: "media_upload_service",
+        upload_source: row.source,
+      },
+    }).catch(() => null));
+  if (previewVariantPath) {
+    nextRow.preview_variant_path = previewVariantPath;
+  }
+
+  const posterVariantPath =
+    row.poster_variant_path ??
+    (await upsertVideoPosterVariantFromBuffer({
+      supabaseAdmin,
+      userId,
+      mediaFileId: row.id,
+      videoBuffer: parsedUpload.buffer,
+      videoMimeType: parsedUpload.declaredMimeType,
+      filename: parsedUpload.filename,
+      metadata: {
+        generated_by: "media_upload_service",
+        upload_source: row.source,
+      },
+    }).catch(() => null));
+  if (posterVariantPath) {
+    nextRow.poster_variant_path = posterVariantPath;
+  }
+
+  return nextRow;
+};
+
 const resolveUploadedMediaPreviewUrl = async ({
   row,
   uploaded,
@@ -1007,21 +1063,26 @@ export const uploadMediaForUser = async ({
       fileType: uploaded.fileType,
       metadata,
     });
-    const { previewStoragePath, signedUrl } = await resolveUploadedMediaPreviewUrl({
+    const hydratedRow = await hydrateUploadedVideoVariants({
+      userId,
+      parsedUpload,
       row: normalizedRow,
+    });
+    const { previewStoragePath, signedUrl } = await resolveUploadedMediaPreviewUrl({
+      row: hydratedRow,
       uploaded,
       userId,
     });
 
     return {
-      id: normalizedRow.id,
-      filename: normalizedRow.filename,
-      storage_path: normalizedRow.storage_path,
+      id: hydratedRow.id,
+      filename: hydratedRow.filename,
+      storage_path: hydratedRow.storage_path,
       preview_storage_path: previewStoragePath,
-      file_type: normalizedRow.file_type,
-      file_size: normalizedRow.file_size,
-      source: normalizedRow.source,
-      created_at: normalizedRow.created_at,
+      file_type: hydratedRow.file_type,
+      file_size: hydratedRow.file_size,
+      source: hydratedRow.source,
+      created_at: hydratedRow.created_at,
       signedUrl,
     };
   } catch (error) {

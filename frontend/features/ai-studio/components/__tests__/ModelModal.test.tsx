@@ -110,8 +110,8 @@ describe("ModelModal", () => {
         mediaType: "keyframes",
       },
       {
-        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-        label: "Seedance 1.5 Pro",
+        value: "fal-ai/kling-video/v3/pro/image-to-video",
+        label: "Kling 3.0 (Fal)",
         mediaType: "image-to-video",
       },
     ];
@@ -137,8 +137,8 @@ describe("ModelModal", () => {
   it("hides disabled non-Kie Fal video chips even when passed explicitly", () => {
     const options: ModelOption[] = [
       {
-        value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-        label: "Seedance 1.5 Pro",
+        value: "fal-ai/kling-video/v3/pro/text-to-video",
+        label: "Kling 3.0 (Fal)",
         mediaType: "video",
       },
       {
@@ -159,7 +159,7 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)"]);
-    expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kling 3.0 (Fal)" })).not.toBeInTheDocument();
   });
 
   it("uses a constant video title and keeps Kling manually selectable in text-video context", () => {

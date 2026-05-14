@@ -85,19 +85,20 @@ describe("video contract parity", () => {
     );
   });
 
-  it("keeps Kie Seedance 1.5 canonical ingress aligned with route contract and provider normalizer", () => {
-    const normalized = assertNormalizedVideoPayload("kie-ai/seedance-1.5-pro", {
+  it("keeps Kie Seedance 2 canonical ingress aligned with route contract and provider normalizer", () => {
+    const normalized = assertNormalizedVideoPayload("kie-ai/seedance-2", {
       prompt: "animate the portrait into a short fashion clip",
-      input_urls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
+      first_frame_url: "https://cdn.shortpulse.test/first.png",
+      last_frame_url: "https://cdn.shortpulse.test/last.png",
       aspect_ratio: "9:16",
-      duration: 12,
+      duration: 10,
       resolution: "1080p",
       generate_audio: false,
-      fixed_lens: true,
+      return_last_frame: true,
       callback_url: "https://api.shortpulse.test/callback",
     });
 
-    const contractResult = evaluateFalPayloadContractForModel("kie-ai/seedance-1.5-pro", {
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/seedance-2", {
       enforceAllowedTopLevelFields: true,
       projectAllowedTopLevelFields: true,
     })(normalized.payload);
@@ -105,23 +106,21 @@ describe("video contract parity", () => {
     if (!contractResult.valid) throw new Error(contractResult.error);
 
     const providerPayload = normalizeKieSubmitPayloadForModel({
-      modelId: "kie-ai/seedance-1.5-pro",
+      modelId: "kie-ai/seedance-2",
       payload: contractResult.projectedPayload,
     });
     expect(providerPayload).toEqual({
-      model: "bytedance/seedance-1.5-pro",
+      model: "bytedance/seedance-2",
       callBackUrl: "https://api.shortpulse.test/callback",
       input: {
         prompt: "animate the portrait into a short fashion clip",
-        input_urls: [
-          "https://cdn.shortpulse.test/first.png",
-          "https://cdn.shortpulse.test/last.png",
-        ],
+        first_frame_url: "https://cdn.shortpulse.test/first.png",
+        last_frame_url: "https://cdn.shortpulse.test/last.png",
         aspect_ratio: "9:16",
         resolution: "1080p",
-        duration: "12",
+        duration: "10",
         generate_audio: false,
-        fixed_lens: true,
+        return_last_frame: true,
       },
     });
   });

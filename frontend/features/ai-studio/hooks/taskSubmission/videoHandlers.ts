@@ -6,7 +6,6 @@ import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -21,7 +20,7 @@ import {
   resolveKieKlingElementToken,
   type AiStudioKlingElement,
 } from "../../logic/klingElements";
-import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
+import { needsImageUpload, prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import {
   buildKieKlingElementsPayload,
   resolveKieKlingAspect,
@@ -32,8 +31,6 @@ import {
   resolveSeedanceI2VAspect,
   resolveSeedance2Duration,
   resolveSeedance2Resolution,
-  resolveSeedanceI2VDuration,
-  resolveSeedanceI2VResolution,
   resolveVeoResolution,
   resolveVeoTextAspect,
 } from "./videoPayloads";
@@ -59,6 +56,30 @@ const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   } catch {
     return false;
   }
+};
+
+const resolveKieUploadPath = (mediaKind: "image" | "video" | "audio"): string =>
+  mediaKind === "image"
+    ? "shortpulse/kie-video/images"
+    : mediaKind === "video"
+      ? "shortpulse/kie-video/videos"
+      : "shortpulse/kie-video/audio";
+
+const resolveKieUploadMimeType = (
+  mediaKind: "image" | "video" | "audio",
+  mimeType?: string
+): string =>
+  mimeType?.trim() ||
+  (mediaKind === "image" ? "image/png" : mediaKind === "video" ? "video/mp4" : "audio/mpeg");
+
+const resolveKieUploadFilename = (
+  mediaKind: "image" | "video" | "audio",
+  mimeType?: string
+): string => {
+  const extension =
+    mimeType?.split("/")[1]?.trim() ||
+    (mediaKind === "image" ? "png" : mediaKind === "video" ? "mp4" : "mp3");
+  return `kie-${mediaKind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 };
 
 const uploadUrlToKieTemporaryFile = async ({
@@ -128,6 +149,103 @@ const uploadUrlToKieTemporaryFile = async ({
   }
 };
 
+const uploadBlobToKieTemporaryFile = async ({
+  blob,
+  mediaKind,
+  cacheKey,
+  cache,
+}: {
+  blob: Blob;
+  mediaKind: "image" | "video" | "audio";
+  cacheKey: string;
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(KIE_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": resolveKieUploadMimeType(mediaKind, blob.type),
+        "x-shortpulse-upload-path": resolveKieUploadPath(mediaKind),
+        "x-shortpulse-upload-filename": resolveKieUploadFilename(mediaKind, blob.type),
+      },
+      body: blob,
+      shortpulseLogScope: "generation",
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      details?: string;
+      url?: string;
+    };
+    if (!response.ok) {
+      const error =
+        typeof payload.error === "string" && payload.error.trim().length
+          ? payload.error
+          : "Kie temporary upload failed";
+      const details =
+        typeof payload.details === "string" && payload.details.trim().length
+          ? payload.details
+          : null;
+      throw new Error(details ? `${error}: ${details}` : error);
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Kie temporary upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
+};
+
+const uploadSourceUrlToKieTemporaryFile = async ({
+  sourceUrl,
+  mediaKind,
+  cache,
+}: {
+  sourceUrl: string;
+  mediaKind: "image" | "video" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedUrl = sourceUrl.trim();
+  if (!normalizedUrl) return "";
+  const cacheKey = `source:${mediaKind}:${normalizedUrl}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const sourceResponse = await fetch(normalizedUrl);
+    if (!sourceResponse.ok) {
+      throw new Error(`Unable to read local ${mediaKind} input (${sourceResponse.status}).`);
+    }
+    const blob = await sourceResponse.blob();
+    return await uploadBlobToKieTemporaryFile({
+      blob,
+      mediaKind,
+      cacheKey,
+      cache,
+    });
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
+};
+
 const uploadUrlsToKieTemporaryFiles = async ({
   urls,
   mediaKind,
@@ -149,28 +267,6 @@ const uploadUrlsToKieTemporaryFiles = async ({
     )
   ).filter(Boolean);
 
-const prepareKlingElementForSubmission = async (
-  element: AiStudioKlingElement
-): Promise<AiStudioKlingElement> => {
-  const frontalImageUrl = element.frontalImageUrl.trim();
-  const referenceUrls = element.referenceImageUrls
-    .split(/[,\n]+/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-  const [preparedFrontalImageUrl, preparedReferenceUrls, preparedVideoUrl] = await Promise.all([
-    prepareImageUrlForSubmission(frontalImageUrl || null),
-    Promise.all(referenceUrls.map((url) => prepareImageUrlForSubmission(url))),
-    prepareVideoUrlForSubmission(element.videoUrl || null),
-  ]);
-
-  return {
-    ...element,
-    frontalImageUrl: preparedFrontalImageUrl ?? "",
-    referenceImageUrls: preparedReferenceUrls.filter(Boolean).join(", "),
-    videoUrl: preparedVideoUrl ?? "",
-  };
-};
-
 const prepareKieHostedKlingElementForSubmission = async ({
   element,
   cache,
@@ -178,35 +274,92 @@ const prepareKieHostedKlingElementForSubmission = async ({
   element: AiStudioKlingElement;
   cache: Map<string, Promise<string>>;
 }): Promise<AiStudioKlingElement> => {
-  const prepared = await prepareKlingElementForSubmission(element);
-  const preparedImageUrls = getAiStudioKlingElementReferenceUrls(prepared);
+  const rawImageUrls = getAiStudioKlingElementReferenceUrls(element)
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   const [klingHostedImageUrls, klingHostedVideoUrl] = await Promise.all([
     Promise.all(
-      preparedImageUrls.map(
-        async (url) =>
-          await uploadUrlToKieTemporaryFile({
-            url,
+      rawImageUrls.map(async (url) => {
+        if (needsImageUpload(url)) {
+          return await uploadSourceUrlToKieTemporaryFile({
+            sourceUrl: url,
             mediaKind: "image",
             cache,
-          })
-      )
+          });
+        }
+        const preparedUrl = await prepareImageUrlForSubmission(url);
+        return preparedUrl
+          ? await uploadUrlToKieTemporaryFile({
+              url: preparedUrl,
+              mediaKind: "image",
+              cache,
+            })
+          : "";
+      })
     ),
-    prepared.videoUrl.trim()
-      ? uploadUrlToKieTemporaryFile({
-          url: prepared.videoUrl,
-          mediaKind: "video",
-          cache,
-        })
+    element.videoUrl.trim()
+      ? needsVideoUpload(element.videoUrl)
+        ? uploadSourceUrlToKieTemporaryFile({
+            sourceUrl: element.videoUrl,
+            mediaKind: "video",
+            cache,
+          })
+        : prepareVideoUrlForSubmission(element.videoUrl).then((preparedUrl) =>
+            preparedUrl
+              ? uploadUrlToKieTemporaryFile({
+                  url: preparedUrl,
+                  mediaKind: "video",
+                  cache,
+                })
+              : ""
+          )
       : Promise.resolve(""),
   ]);
 
   return {
-    ...prepared,
+    ...element,
     frontalImageUrl: klingHostedImageUrls[0] ?? "",
     referenceImageUrls: klingHostedImageUrls.slice(1).join(", "),
     videoUrl: klingHostedVideoUrl,
   };
+};
+
+const prepareKieInputUrl = async ({
+  rawUrl,
+  preparedUrl,
+  mediaKind,
+  cache,
+}: {
+  rawUrl?: string | null;
+  preparedUrl?: string | null;
+  mediaKind: "image" | "video" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedRawUrl = rawUrl?.trim() ?? "";
+  const normalizedPreparedUrl = preparedUrl?.trim() ?? "";
+  if (
+    normalizedRawUrl &&
+    (mediaKind === "image"
+      ? needsImageUpload(normalizedRawUrl)
+      : mediaKind === "video"
+        ? needsVideoUpload(normalizedRawUrl)
+        : false)
+  ) {
+    return await uploadSourceUrlToKieTemporaryFile({
+      sourceUrl: normalizedRawUrl,
+      mediaKind,
+      cache,
+    });
+  }
+
+  const sourceUrl = normalizedPreparedUrl || normalizedRawUrl;
+  if (!sourceUrl) return "";
+  return await uploadUrlToKieTemporaryFile({
+    url: sourceUrl,
+    mediaKind,
+    cache,
+  });
 };
 
 const rewritePromptWithKieElementTokens = (
@@ -400,12 +553,7 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration(requestId, pollingProvider, patch, response);
 };
 
-type VideoPollingProvider =
-  | "kie-veo"
-  | "kie-kling"
-  | "kie-seedance"
-  | "kie-seedance-2"
-  | "kie-seedance-2-fast";
+type VideoPollingProvider = "kie-veo" | "kie-kling" | "kie-seedance-2" | "kie-seedance-2-fast";
 
 type VideoHandlerContext = {
   id: string;
@@ -416,6 +564,7 @@ type VideoHandlerContext = {
   requestedResolution?: string;
   requestedAudio: boolean;
   preparedImageInputs: string[];
+  rawImageInputs: string[];
   modelConfig: VideoSubmissionArgs["modelConfig"];
   notifyGenerationFailure: VideoSubmissionArgs["notifyGenerationFailure"];
   updateOutputById: VideoSubmissionArgs["updateOutputById"];
@@ -463,6 +612,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      rawImageInputs,
       modelConfig,
       shortpulseSubmitPayload,
     }) => {
@@ -474,7 +624,17 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           : preparedImageInputs.slice(0, 1);
       const kieUploadCache = new Map<string, Promise<string>>();
       const keyframeImageUrls = await uploadUrlsToKieTemporaryFiles({
-        urls: keyframeImageUrlsRaw,
+        urls: await Promise.all(
+          keyframeImageUrlsRaw.map(
+            async (preparedUrl, index) =>
+              await prepareKieInputUrl({
+                rawUrl: rawImageInputs[index],
+                preparedUrl,
+                mediaKind: "image",
+                cache: kieUploadCache,
+              })
+          )
+        ),
         mediaKind: "image",
         cache: kieUploadCache,
       });
@@ -500,48 +660,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
     },
   },
   {
-    key: "kie-seedance-1-5-pro",
-    matches: (modelId) => modelId === KIE_SEEDANCE_15_PRO_MODEL_ID,
-    submit: async ({
-      finalModel,
-      cleanedPrompt,
-      aspect,
-      requestedDurationSeconds,
-      requestedResolution,
-      requestedAudio,
-      preparedImageInputs,
-      modelConfig,
-      videoCameraFixed,
-      shortpulseSubmitPayload,
-    }) => {
-      const inputUrlsRaw =
-        preparedImageInputs.length >= 2
-          ? preparedImageInputs.slice(0, 2)
-          : preparedImageInputs.slice(0, 1);
-      const kieUploadCache = new Map<string, Promise<string>>();
-      const inputUrls = await uploadUrlsToKieTemporaryFiles({
-        urls: inputUrlsRaw,
-        mediaKind: "image",
-        cache: kieUploadCache,
-      });
-      const response = await submitQueuedGenerationByModelId(finalModel, {
-        prompt: cleanedPrompt,
-        input_urls: inputUrls,
-        aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
-        duration: resolveSeedanceI2VDuration(requestedDurationSeconds),
-        resolution: resolveSeedanceI2VResolution(requestedResolution),
-        fixed_lens: videoCameraFixed,
-        generate_audio: requestedAudio,
-        ...shortpulseSubmitPayload,
-      });
-      return {
-        handled: true,
-        response,
-        pollingProvider: "kie-seedance",
-      };
-    },
-  },
-  {
     key: "kie-seedance-2",
     matches: (modelId) =>
       modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -554,6 +672,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      rawImageInputs,
       modelConfig,
       notifyGenerationFailure,
       seedance2InputMode = "text",
@@ -639,15 +758,17 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         referenceAudioUrls,
       ] = await Promise.all([
         effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
-          ? uploadUrlToKieTemporaryFile({
-              url: preparedImageInputs[0] ?? "",
+          ? prepareKieInputUrl({
+              rawUrl: rawImageInputs[0],
+              preparedUrl: preparedImageInputs[0] ?? "",
               mediaKind: "image",
               cache: kieUploadCache,
             })
           : Promise.resolve(""),
         effectiveInputMode === "first-last"
-          ? uploadUrlToKieTemporaryFile({
-              url: preparedImageInputs[1] ?? "",
+          ? prepareKieInputUrl({
+              rawUrl: rawImageInputs[1],
+              preparedUrl: preparedImageInputs[1] ?? "",
               mediaKind: "image",
               cache: kieUploadCache,
             })
@@ -891,6 +1012,7 @@ export const handleVideoModelSubmission = async ({
   requestedResolution,
   requestedAudio,
   preparedImageInputs,
+  rawImageInputs = preparedImageInputs,
   modelConfig,
   notifyGenerationFailure,
   updateOutputById,
@@ -949,6 +1071,7 @@ export const handleVideoModelSubmission = async ({
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
+    rawImageInputs,
     modelConfig,
     notifyGenerationFailure,
     updateOutputById,

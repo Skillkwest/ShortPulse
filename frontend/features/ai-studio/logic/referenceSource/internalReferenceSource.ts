@@ -387,6 +387,25 @@ const resolvePayloadFullStoragePath = (
   asCanonicalStoragePath(payload.fullStoragePath) ??
   asCanonicalStoragePath(payload.previewStoragePath);
 
+const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+
+const resolvePrimaryReferenceStoragePath = ({
+  mediaKind,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  mediaKind: InternalReferenceDragPayload["mediaKind"] | StudioOutput["mode"] | null | undefined;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (mediaKind !== "video") return previewStoragePath;
+  if (previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)) {
+    return previewStoragePath;
+  }
+  if (fullStoragePath) return fullStoragePath;
+  return previewStoragePath;
+};
+
 const resolveSharedSourceKind = (
   output: StudioOutput | null,
   mediaId: string | null
@@ -486,6 +505,16 @@ export const resolveInternalReferenceSource = async ({
     (resolvedOutput ? asCanonicalStoragePath(resolvedOutput.fullStoragePath) : null) ??
     resolvePayloadFullStoragePath(payload) ??
     previewStoragePath;
+  const effectiveMediaKind =
+    resolvedOutput?.mode ??
+    (payload.mediaKind === "image" || payload.mediaKind === "video" || payload.mediaKind === "audio"
+      ? payload.mediaKind
+      : null);
+  previewStoragePath = resolvePrimaryReferenceStoragePath({
+    mediaKind: effectiveMediaKind,
+    previewStoragePath,
+    fullStoragePath,
+  });
   let resolutionReason: ReferenceSourceResolutionReason = persistedResult?.delivery
     ? "persisted_delivery"
     : previewStoragePath || fullStoragePath
@@ -564,7 +593,11 @@ export const resolveInternalReferenceSource = async ({
       if (previewStoragePath || fullStoragePath) {
         debugEntry.loadBlobStrategy = "storage_download";
         debugEntry.loadBlobOutcome = "pending";
-        const storagePath = previewStoragePath ?? fullStoragePath;
+        const storagePath = resolvePrimaryReferenceStoragePath({
+          mediaKind: effectiveMediaKind,
+          previewStoragePath,
+          fullStoragePath,
+        });
         if (!storagePath) {
           throw new Error("Internal reference source is missing storage path.");
         }

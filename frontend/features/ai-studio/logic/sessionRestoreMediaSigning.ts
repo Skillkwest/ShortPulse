@@ -41,6 +41,23 @@ const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigning
   fullStoragePath: toCanonicalStoragePath(output.fullStoragePath),
 });
 
+const resolveSessionVideoPrimaryStoragePath = ({
+  mode,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  mode: StudioOutput["mode"];
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (mode !== "video") return previewStoragePath;
+  if (previewStoragePath && /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i.test(previewStoragePath)) {
+    return previewStoragePath;
+  }
+  if (fullStoragePath) return fullStoragePath;
+  return previewStoragePath;
+};
+
 const isFingerprintEqual = (
   left: SessionOutputSigningFingerprint | null | undefined,
   right: SessionOutputSigningFingerprint
@@ -139,8 +156,18 @@ export const applySessionRestoreSignedUrls = (
       return output;
     }
 
-    const previewStoragePath = currentFingerprint.previewStoragePath;
-    const previewPosterStoragePath = currentFingerprint.previewPosterStoragePath;
+    const previewPosterStoragePath =
+      currentFingerprint.previewPosterStoragePath ??
+      (output.mode === "video" &&
+      currentFingerprint.previewStoragePath &&
+      currentFingerprint.previewStoragePath !== currentFingerprint.fullStoragePath
+        ? currentFingerprint.previewStoragePath
+        : null);
+    const previewStoragePath = resolveSessionVideoPrimaryStoragePath({
+      mode: output.mode,
+      previewStoragePath: currentFingerprint.previewStoragePath,
+      fullStoragePath: currentFingerprint.fullStoragePath,
+    });
     const companionArtStoragePath = currentFingerprint.companionArtStoragePath;
     const fullStoragePath = currentFingerprint.fullStoragePath;
     const signedPreviewUrl =

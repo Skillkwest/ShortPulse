@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -122,13 +121,6 @@ describe("resolveAutoVideoModelForLane", () => {
   });
 
   it("keeps Seedance 2.x selected across compatible lanes by default", () => {
-    expect(
-      resolveAutoVideoModelForLane({
-        currentModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        lane: "text",
-      })
-    ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
-
     for (const modelId of [KIE_SEEDANCE_2_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID]) {
       expect(
         resolveAutoVideoModelForLane({

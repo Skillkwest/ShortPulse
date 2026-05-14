@@ -232,6 +232,7 @@ describe("saveMediaUrlToLibrary", () => {
           storage_path: "user-1/generations/videos/existing.mp4",
           file_type: "video",
           poster_variant_path: null,
+          preview_variant_path: "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4",
         },
         error: null,
       })
@@ -241,6 +242,8 @@ describe("saveMediaUrlToLibrary", () => {
           storage_path: "user-1/generations/videos/legacy.mp4",
           file_type: "video",
           poster_variant_path: null,
+          preview_variant_path:
+            "user-1/variants/videos/legacy-media-existing-video/preview_loop_360p.mp4",
         },
         error: null,
       });
@@ -325,6 +328,9 @@ describe("saveMediaUrlToLibrary", () => {
     });
 
     expect(result.mediaFileId).toBe("media-existing-video");
+    expect(result.delivery.previewStoragePath).toBe(
+      "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4"
+    );
     expect(insert).not.toHaveBeenCalled();
     expect(upload).toHaveBeenCalledWith(
       "user-1/variants/videos/media-existing-video/poster_720.jpg",
@@ -1013,7 +1019,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
 
     const result = await saveMediaUrlToLibrary({
-      url: "https://cdn.shortpulse.test/output.mp4",
+      url: "blob:generated-video-duplicate",
       mode: "video",
       source: "ai_studio",
       generationId: "gen-video-duplicate-1",
@@ -1324,6 +1330,86 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
+  it("prefers server copy for remote ai_studio video saves that do not provide a preview hint", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    const browserFetch = vi.fn();
+    vi.stubGlobal("fetch", browserFetch);
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: "media-generated-video-proactive",
+        storagePath: "user-1/generations/videos/generated-video-proactive.mp4",
+        fileType: "video",
+        fileSize: 456,
+        delivery: {
+          previewStoragePath:
+            "user-1/variants/videos/media-generated-video-proactive/preview_loop_360p.mp4",
+          fullStoragePath: "user-1/generations/videos/generated-video-proactive.mp4",
+          previewUrl: "https://cdn.shortpulse.test/generated-video-proactive-preview.mp4",
+          fullUrl: "https://cdn.shortpulse.test/generated-video-proactive-full.mp4",
+        },
+      }),
+    });
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-proactive-1",
+      index: 0,
+    });
+
+    expect(browserFetch).not.toHaveBeenCalled();
+    expect(result.mediaFileId).toBe("media-generated-video-proactive");
+    expect(result.delivery.previewStoragePath).toBe(
+      "user-1/variants/videos/media-generated-video-proactive/preview_loop_360p.mp4"
+    );
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+  });
+
   it("supports generated video server-copy fallback when browser fetch is blocked", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: null,
@@ -1618,7 +1704,7 @@ describe("saveMediaUrlToLibrary", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (url.includes("output.mp4")) {
+        if (url === "blob:generated-video-poster-hint") {
           return Promise.resolve(
             new Response(new Blob(["video"], { type: "video/mp4" }), {
               status: 200,
@@ -1639,7 +1725,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
 
     const result = await saveMediaUrlToLibrary({
-      url: "https://cdn.shortpulse.test/output.mp4",
+      url: "blob:generated-video-poster-hint",
       mode: "video",
       source: "ai_studio",
       generationId: "gen-video-1",
@@ -1749,7 +1835,7 @@ describe("saveMediaUrlToLibrary", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (url.includes("output.mp4")) {
+        if (url === "blob:generated-video-preview-hint") {
           return Promise.resolve(
             new Response(new Blob(["video"], { type: "video/mp4" }), {
               status: 200,
@@ -1762,7 +1848,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
 
     await saveMediaUrlToLibrary({
-      url: "https://cdn.shortpulse.test/output.mp4",
+      url: "blob:generated-video-preview-hint",
       mode: "video",
       source: "ai_studio",
       generationId: "gen-video-preview-1",
@@ -1863,7 +1949,7 @@ describe("saveMediaUrlToLibrary", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
-        if (url === "https://cdn.shortpulse.test/output.mp4") {
+        if (url === "blob:generated-video-preview-failed") {
           return new Response(Buffer.from("video-buffer"), {
             status: 200,
             headers: { "content-type": "video/mp4" },
@@ -1874,7 +1960,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
 
     const result = await saveMediaUrlToLibrary({
-      url: "https://cdn.shortpulse.test/output.mp4",
+      url: "blob:generated-video-preview-failed",
       mode: "video",
       source: "ai_studio",
       generationId: "gen-video-preview-failed-1",
@@ -1975,7 +2061,7 @@ describe("saveMediaUrlToLibrary", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
-        if (url === "https://cdn.shortpulse.test/output.mp4") {
+        if (url === "blob:generated-video-poster-blob") {
           return new Response(Buffer.from("video-buffer"), {
             status: 200,
             headers: { "content-type": "video/mp4" },
@@ -1986,7 +2072,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
 
     const result = await saveMediaUrlToLibrary({
-      url: "https://cdn.shortpulse.test/output.mp4",
+      url: "blob:generated-video-poster-blob",
       mode: "video",
       source: "ai_studio",
       generationId: "gen-video-blob-poster-1",

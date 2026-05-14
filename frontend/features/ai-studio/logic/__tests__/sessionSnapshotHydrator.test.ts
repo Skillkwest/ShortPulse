@@ -190,6 +190,39 @@ describe("sessionSnapshotHydrator", () => {
     );
   });
 
+  it("normalizes legacy poster-backed video storage when hydrating snapshots", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-video-legacy",
+              prompt: "video legacy",
+              mode: "video",
+              aspect: "9:16",
+              model: "fal:video",
+              status: "ready",
+              timestamp: "t1",
+              previewUrl: "https://signed.test/poster.jpg",
+              previewStoragePath: "user-1/variants/videos/out-video-legacy/poster_720.jpg",
+              fullStoragePath: "user-1/videos/out-video-legacy.mp4",
+            },
+          ],
+          activeOutputId: "out-video-legacy",
+          curatedReferenceIds: ["out-video-legacy"],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]?.previewStoragePath).toBe(
+      "user-1/videos/out-video-legacy.mp4"
+    );
+    expect(payload.outputs.active[0]?.previewPosterStoragePath).toBe(
+      "user-1/variants/videos/out-video-legacy/poster_720.jpg"
+    );
+  });
+
   it("hydrates pulse runtime workspace fields", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

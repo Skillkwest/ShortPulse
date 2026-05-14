@@ -4,7 +4,6 @@ import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -452,44 +451,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
-  });
-
-  it("uses active Seedance 1.5 settings when computing the generate-button estimate", () => {
-    const costParamsForModel = (
-      targetModelId: string,
-      overrides?: Omit<PricingParams, "modelId">
-    ): PricingParams => ({
-      modelId: targetModelId,
-      aspect: "9:16",
-      durationSeconds: 4,
-      resolution: "480p",
-      audio: false,
-      ...overrides,
-    });
-    const expectedCost = computeCostForModel(
-      KIE_SEEDANCE_15_PRO_MODEL_ID,
-      costParamsForModel(KIE_SEEDANCE_15_PRO_MODEL_ID, {
-        durationSeconds: 4,
-        resolution: "480p",
-        audio: false,
-      })
-    )?.credits;
-
-    const { result } = renderHook(() =>
-      useAiStudioViewModel({
-        ...baseInput,
-        model: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        videoReferenceMode: "standard",
-        referenceImageUrl: "https://example.com/first.png",
-        motionReferenceVideoUrl: null,
-        videoDurationSeconds: 4,
-        videoResolution: "480p",
-        videoGenerateAudio: false,
-        costParamsForModel,
-      })
-    );
-
-    expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
   it("uses active Seedance 2 settings when computing the generate-button estimate", () => {

@@ -9,18 +9,18 @@ describe("groupVisibleFailuresForAlertStack", () => {
         model: "ElevenLabs Music",
         modelId: "music_v1",
         prompt: "first",
-        errorMessage: "text must be 800 characters or fewer.",
-        errorMessageShort: "text must be 800 characters or fewer.",
-        errorDetail: "text must be 800 characters or fewer.",
+        errorMessage: "text must be 2000 characters or fewer.",
+        errorMessageShort: "text must be 2000 characters or fewer.",
+        errorDetail: "text must be 2000 characters or fewer.",
       },
       {
         id: "out-2",
         model: "ElevenLabs Music",
         modelId: "music_v1",
         prompt: "second",
-        errorMessage: "text must be 800 characters or fewer.",
-        errorMessageShort: "text must be 800 characters or fewer.",
-        errorDetail: "text must be 800 characters or fewer.",
+        errorMessage: "text must be 2000 characters or fewer.",
+        errorMessageShort: "text must be 2000 characters or fewer.",
+        errorDetail: "text must be 2000 characters or fewer.",
       },
     ]);
 
@@ -28,7 +28,7 @@ describe("groupVisibleFailuresForAlertStack", () => {
       {
         ids: ["out-1", "out-2"],
         modelLabel: "ElevenLabs Music",
-        failureMessage: "text must be 800 characters or fewer.",
+        failureMessage: "text must be 2000 characters or fewer.",
         count: 2,
       },
     ]);
@@ -41,9 +41,9 @@ describe("groupVisibleFailuresForAlertStack", () => {
         model: "ElevenLabs Music",
         modelId: "music_v1",
         prompt: "first",
-        errorMessage: "text must be 800 characters or fewer.",
-        errorMessageShort: "text must be 800 characters or fewer.",
-        errorDetail: "text must be 800 characters or fewer.",
+        errorMessage: "text must be 2000 characters or fewer.",
+        errorMessageShort: "text must be 2000 characters or fewer.",
+        errorDetail: "text must be 2000 characters or fewer.",
       },
       {
         id: "out-2",

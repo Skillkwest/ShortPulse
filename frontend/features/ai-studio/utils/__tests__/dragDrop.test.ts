@@ -438,6 +438,47 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-media-kind", "video");
   });
 
+  it("normalizes internal drag storage payloads for poster-backed video drags", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-video-storage-contract",
+      prompt: "Camera move",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-video-poster.jpg",
+      fullStoragePath: "user-1/generations/videos/ref-video-full.mp4",
+      previewStoragePath: "user-1/variants/videos/ref-video/poster_720.jpg",
+      resultUrls: ["https://example.com/ref-video-full.mp4"],
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-preview-storage-path",
+      "user-1/generations/videos/ref-video-full.mp4"
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-full-storage-path",
+      "user-1/generations/videos/ref-video-full.mp4"
+    );
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.mediaKind).toBe("video");
+    expect(payload?.previewStoragePath).toBe("user-1/generations/videos/ref-video-full.mp4");
+    expect(payload?.fullStoragePath).toBe("user-1/generations/videos/ref-video-full.mp4");
+  });
+
   it("writes playable audio reference URLs for audio drags", () => {
     const { event, setData } = makeDragEvent();
 

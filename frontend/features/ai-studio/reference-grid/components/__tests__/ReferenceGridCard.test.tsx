@@ -175,13 +175,13 @@ describe("ReferenceGridCard", () => {
           item: createOutput({
             errorMessage: "Invalid request",
             errorMessageShort: "Generation failed",
-            errorDetail: "text must be 800 characters or fewer.",
+            errorDetail: "text must be 2000 characters or fewer.",
           }),
         })}
       />
     );
 
-    expect(screen.getByText("text must be 800 characters or fewer.")).toBeInTheDocument();
+    expect(screen.getByText("text must be 2000 characters or fewer.")).toBeInTheDocument();
     expect(screen.queryByText("Generation failed", { selector: ".fail-subtitle" })).toBeNull();
   });
 

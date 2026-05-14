@@ -63,7 +63,7 @@ export const useMediaLibraryPanelItemInteractions = ({
       const transferUrl = isVideo ? hoverVideoUrl : signedUrl;
       const previewUrl = posterPreviewUrl ?? signedUrl;
       const previewStoragePath = isVideo
-        ? (file.poster_variant_path ?? file.preview_storage_path ?? file.storage_path)
+        ? (file.preview_storage_path ?? file.storage_path)
         : (file.preview_storage_path ?? file.storage_path);
       const dragDimensions = resolveMediaDragDimensions({
         fileType: file.file_type,

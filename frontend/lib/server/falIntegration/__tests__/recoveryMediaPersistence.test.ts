@@ -1,4 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const upsertVideoPosterVariantFromBufferMock = vi.fn();
+const upsertVideoPreviewVariantFromBufferMock = vi.fn();
+
+vi.mock("../../videoPosterVariant", () => ({
+  upsertVideoPosterVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPosterVariantFromBufferMock(...args),
+  upsertVideoPreviewVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPreviewVariantFromBufferMock(...args),
+}));
+
 import {
   persistRecoveryMediaFilesForGeneration,
   readExistingRecoveryMediaRows,
@@ -63,7 +74,9 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
 
       if (
         fields === "id, storage_path" ||
-        fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+        fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path" ||
+        fields ===
+          "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
       ) {
         const limit = vi.fn(async () => ({
           data: mediaStorageRows
@@ -247,6 +260,7 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
     generationOutputUpdatePayloads,
     generationPublicationUpsertPayloads,
     generationProjectionUpsertPayloads,
+    mediaStorageRows,
     mediaFilesTable,
     mediaEventsTable,
     aiGenerationOutputsTable,
@@ -256,6 +270,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
 describe("recoveryMediaPersistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
     process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS = "true";
     process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS = "cdn.shortpulse.test";
   });
@@ -587,6 +603,96 @@ describe("recoveryMediaPersistence", () => {
         }),
       }),
     ]);
+  });
+
+  it("persists a preview-loop variant for recovered videos before reconciliation", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              media_file_id: null,
+            },
+          ],
+          error: null,
+        },
+      ],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "media-video-1" }, error: null }],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+    upsertVideoPreviewVariantFromBufferMock.mockImplementationOnce(
+      async ({ mediaFileId }: { mediaFileId: string }) => {
+        const target = scenario.mediaStorageRows.find(
+          (row) =>
+            row &&
+            typeof row === "object" &&
+            !Array.isArray(row) &&
+            String((row as Record<string, unknown>).id ?? "") === mediaFileId
+        );
+        if (target) {
+          (target as Record<string, unknown>).file_type = "video";
+          (target as Record<string, unknown>).preview_variant_path =
+            `user-1/variants/videos/${mediaFileId}/preview_loop_360p.mp4`;
+        }
+        return `user-1/variants/videos/${mediaFileId}/preview_loop_360p.mp4`;
+      }
+    );
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Uint8Array.from([4, 5, 6, 7]), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const mediaFileIds = await persistRecoveryMediaFilesForGeneration({
+      generation: {
+        id: "gen-video-1",
+        user_id: "user-1",
+        request_id: "req-video-1",
+        model_id: "fal-ai/veo3.1",
+        provider: "fal",
+        prompt_text: "Animate stills",
+        metadata: {},
+      },
+      mediaUrls: ["https://cdn.shortpulse.test/frame-b.mp4"],
+    });
+
+    expect(mediaFileIds).toEqual(["media-video-1"]);
+    expect(upsertVideoPreviewVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        mediaFileId: "media-video-1",
+        videoMimeType: "video/mp4",
+        metadata: expect.objectContaining({
+          generated_by: "recovery_media_persistence",
+          generation_id: "gen-video-1",
+          generation_output_index: 0,
+          index: 0,
+        }),
+      })
+    );
+    expect(scenario.generationPublicationUpsertPayloads.at(-1)).toEqual(
+      expect.objectContaining({
+        generation_id: "gen-video-1",
+        owned_media_file_id: "media-video-1",
+        preview_storage_path: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
+        full_storage_path: expect.stringMatching(/^user-1\/generations\/videos\//),
+      })
+    );
+    expect(scenario.generationProjectionUpsertPayloads.at(-1)).toEqual(
+      expect.objectContaining({
+        generation_id: "gen-video-1",
+        preview_storage_path: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
+        full_storage_path: expect.stringMatching(/^user-1\/generations\/videos\//),
+      })
+    );
   });
 
   it("starts uncached media fetches concurrently and preserves output order", async () => {

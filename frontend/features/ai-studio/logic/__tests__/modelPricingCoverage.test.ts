@@ -13,7 +13,6 @@ import {
 const AUDIO_STRATEGIES = new Set([
   "kling-3-per-second",
   "veo-3-per-second",
-  "seedance-1.5-per-second",
   "seedance-2-per-second",
   "seedance-2-fast-per-second",
 ]);

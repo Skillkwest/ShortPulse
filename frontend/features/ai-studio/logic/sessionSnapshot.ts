@@ -265,6 +265,40 @@ export type BuildAiStudioSessionSnapshotInput = {
   expertEditSessionState?: ExpertEditSessionState | null;
 };
 
+const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+
+const normalizeVideoStorageAuthority = ({
+  mode,
+  previewStoragePath,
+  previewPosterStoragePath,
+  fullStoragePath,
+}: {
+  mode: StudioMode;
+  previewStoragePath: string | null;
+  previewPosterStoragePath: string | null;
+  fullStoragePath: string | null;
+}) => {
+  if (mode !== "video") {
+    return {
+      previewStoragePath,
+      previewPosterStoragePath,
+      fullStoragePath,
+    };
+  }
+  const inferredPosterStoragePath =
+    previewPosterStoragePath ??
+    (previewStoragePath && previewStoragePath !== fullStoragePath ? previewStoragePath : null);
+  const normalizedPreviewStoragePath =
+    previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)
+      ? previewStoragePath
+      : (fullStoragePath ?? previewStoragePath);
+  return {
+    previewStoragePath: normalizedPreviewStoragePath,
+    previewPosterStoragePath: inferredPosterStoragePath,
+    fullStoragePath,
+  };
+};
+
 const sanitizeMediaUrl = (value: string | null | undefined): string | undefined => {
   if (!value) return undefined;
   const normalized = value.trim();
@@ -397,10 +431,16 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
   });
 
 const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
-  const previewPosterStoragePath = sanitizeAttachmentIdentityValue(output.previewPosterStoragePath);
+  const normalizedStorageAuthority = normalizeVideoStorageAuthority({
+    mode: output.mode,
+    previewStoragePath: sanitizeAttachmentIdentityValue(output.previewStoragePath),
+    previewPosterStoragePath: sanitizeAttachmentIdentityValue(output.previewPosterStoragePath),
+    fullStoragePath: sanitizeAttachmentIdentityValue(output.fullStoragePath),
+  });
+  const previewPosterStoragePath = normalizedStorageAuthority.previewPosterStoragePath;
   const companionArtStoragePath = sanitizeAttachmentIdentityValue(output.companionArtStoragePath);
-  const previewStoragePath = sanitizeAttachmentIdentityValue(output.previewStoragePath);
-  const fullStoragePath = sanitizeAttachmentIdentityValue(output.fullStoragePath);
+  const previewStoragePath = normalizedStorageAuthority.previewStoragePath;
+  const fullStoragePath = normalizedStorageAuthority.fullStoragePath;
   const hasDurablePreviewAuthority = Boolean(previewStoragePath || fullStoragePath);
   const hasDurablePosterAuthority = Boolean(previewPosterStoragePath);
   const hasDurableCompanionArtAuthority = Boolean(companionArtStoragePath);

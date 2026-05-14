@@ -61,6 +61,15 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message.toLowerCase()
+      : "";
+  return message.includes("preview_storage_path") && message.includes("schema cache");
+};
+
 const readMetadataObject = (
   metadata: JsonObject,
   snakeCaseKey: string,
@@ -212,14 +221,26 @@ const readMediaDeliveryPathsById = async ({
     .filter((value): value is string => Boolean(value));
   if (!ids.length) return new Map();
 
-  const { data, error } = await getSupabaseAdmin()
-    .from("media_files")
-    .select(
-      "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
-    )
-    .in("id", ids)
-    .eq("user_id", userId)
-    .limit(ids.length);
+  const runSelect = async (
+    fields:
+      | "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
+      | "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+  ) =>
+    await getSupabaseAdmin()
+      .from("media_files")
+      .select(fields)
+      .in("id", ids)
+      .eq("user_id", userId)
+      .limit(ids.length);
+
+  let { data, error } = await runSelect(
+    "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
+  );
+  if (error && isPreviewStoragePathSchemaError(error)) {
+    ({ data, error } = await runSelect(
+      "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+    ));
+  }
   if (error || !Array.isArray(data)) return new Map();
 
   const map = new Map<string, MediaDeliveryPaths>();
@@ -230,13 +251,9 @@ const readMediaDeliveryPathsById = async ({
     if (!mediaFileId || !storagePath) continue;
     const fileType = asString(row.file_type)?.toLowerCase() ?? "";
     const isVideo = fileType.startsWith("video");
-    const posterStoragePath = asString(row.poster_variant_path);
     const previewVariantPath = asString(row.preview_variant_path);
     const previewStoragePath = isVideo
-      ? (posterStoragePath ??
-        previewVariantPath ??
-        asString(row.preview_storage_path) ??
-        storagePath)
+      ? (previewVariantPath ?? asString(row.preview_storage_path) ?? storagePath)
       : (asString(row.preview_storage_path) ?? storagePath);
     if (previewStoragePath) {
       map.set(mediaFileId, {

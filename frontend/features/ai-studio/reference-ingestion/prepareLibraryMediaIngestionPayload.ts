@@ -68,6 +68,32 @@ const resolveStoragePathsFromRow = (
   };
 };
 
+const resolveNormalizedPreviewStoragePath = ({
+  fileType,
+  previewStoragePath,
+  previewPosterStoragePath,
+  fullStoragePath,
+}: {
+  fileType: LibraryMediaPayload["fileType"];
+  previewStoragePath: string | null;
+  previewPosterStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (fileType !== "video") return previewStoragePath ?? fullStoragePath;
+  if (previewStoragePath && /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i.test(previewStoragePath)) {
+    return previewStoragePath;
+  }
+  if (
+    previewStoragePath &&
+    previewPosterStoragePath &&
+    previewStoragePath === previewPosterStoragePath &&
+    fullStoragePath
+  ) {
+    return fullStoragePath;
+  }
+  return previewStoragePath ?? fullStoragePath;
+};
+
 const signStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
   try {
@@ -169,8 +195,6 @@ export const prepareLibraryMediaIngestionPayload = async (
   const mediaIdFallbackPaths = needsMediaIdFallback
     ? await resolveStoragePathsFromMediaId(payload.id)
     : { previewStoragePath: null, previewPosterStoragePath: null, fullStoragePath: null };
-  const normalizedPreviewStoragePath =
-    initialPreviewStoragePath ?? mediaIdFallbackPaths.previewStoragePath;
   const normalizedPreviewPosterStoragePath =
     payload.fileType === "video"
       ? (initialPreviewPosterStoragePath ?? mediaIdFallbackPaths.previewPosterStoragePath)
@@ -178,8 +202,15 @@ export const prepareLibraryMediaIngestionPayload = async (
   const normalizedFullStoragePath =
     initialFullStoragePath ??
     mediaIdFallbackPaths.fullStoragePath ??
-    normalizedPreviewStoragePath ??
+    initialPreviewStoragePath ??
+    mediaIdFallbackPaths.previewStoragePath ??
     null;
+  const normalizedPreviewStoragePath = resolveNormalizedPreviewStoragePath({
+    fileType: payload.fileType,
+    previewStoragePath: initialPreviewStoragePath ?? mediaIdFallbackPaths.previewStoragePath,
+    previewPosterStoragePath: normalizedPreviewPosterStoragePath,
+    fullStoragePath: normalizedFullStoragePath,
+  });
 
   const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl] = await Promise.all([
     signStoragePath(normalizedPreviewStoragePath),

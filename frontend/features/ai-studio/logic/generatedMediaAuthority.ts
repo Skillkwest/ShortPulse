@@ -172,6 +172,21 @@ const resolveVideoDeliveryPosterStoragePath = ({
   return fullStoragePath ? previewStoragePath : null;
 };
 
+const resolveVideoDeliveryPrimaryStoragePath = ({
+  mode,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  mode: StudioOutput["mode"];
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (mode !== "video") return previewStoragePath;
+  if (previewStoragePath && isVideoUrl(previewStoragePath)) return previewStoragePath;
+  if (fullStoragePath) return fullStoragePath;
+  return previewStoragePath;
+};
+
 const signReferenceGridStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
   const signedByPath = await getSignedMediaUrlsBatch({
@@ -272,7 +287,7 @@ const toProjectionDelivery = (
   const resultUrls = asTrimmedStringArray(row.result_urls);
   const previewUrl = asTrimmedString(row.preview_url) ?? resultUrls[0] ?? null;
   const fullUrl = resultUrls[0] ?? previewUrl;
-  const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
+  const rawPreviewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
   const mode = inferGeneratedOutputMode({
     modelId: asTrimmedString(row.model_id),
@@ -281,7 +296,12 @@ const toProjectionDelivery = (
   });
   const previewPosterStoragePath = resolveVideoDeliveryPosterStoragePath({
     mode,
-    previewStoragePath,
+    previewStoragePath: rawPreviewStoragePath,
+    fullStoragePath,
+  });
+  const previewStoragePath = resolveVideoDeliveryPrimaryStoragePath({
+    mode,
+    previewStoragePath: rawPreviewStoragePath,
     fullStoragePath,
   });
   const previewPosterUrl =
@@ -389,7 +409,7 @@ const toHydratedGeneratedOutput = (
 
   const resultUrls = asTrimmedStringArray(row.result_urls);
   const previewUrl = asTrimmedString(row.preview_url) ?? resultUrls[0] ?? undefined;
-  const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
+  const rawPreviewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
   const taskState = normalizeProjectionTaskState(row.task_state);
   const queueState = normalizeProjectionQueueState(row.queue_state);
@@ -403,7 +423,12 @@ const toHydratedGeneratedOutput = (
     mode === "video" && previewUrl && !isVideoUrl(previewUrl) ? previewUrl : null;
   const previewPosterStoragePath = resolveVideoDeliveryPosterStoragePath({
     mode,
-    previewStoragePath,
+    previewStoragePath: rawPreviewStoragePath,
+    fullStoragePath,
+  });
+  const previewStoragePath = resolveVideoDeliveryPrimaryStoragePath({
+    mode,
+    previewStoragePath: rawPreviewStoragePath,
     fullStoragePath,
   });
   const companionArtStoragePath = asCanonicalStoragePath(
@@ -901,7 +926,7 @@ const applyPublishedGeneratedMediaAuthority = (
     const nextPreviewStoragePath =
       asCanonicalStoragePath(output.previewStoragePath) ??
       (mediaRow.fileType === "video"
-        ? (mediaPreviewVariantPath ?? mediaPosterStoragePath ?? mediaStoragePath)
+        ? (mediaPreviewVariantPath ?? mediaStoragePath)
         : mediaStoragePath);
     if (!nextPreviewStoragePath && !nextFullStoragePath && !nextPreviewPosterStoragePath) {
       return output;
@@ -1107,8 +1132,18 @@ const resolvePublishedGenerationDeliveryByGenerationId = async ({
           mediaRow?.fileType === "video"
             ? asCanonicalStoragePath(mediaRow.posterVariantPath)
             : null;
+        const mediaPreviewVariantPath =
+          mediaRow?.fileType === "video"
+            ? asCanonicalStoragePath(mediaRow.previewVariantPath)
+            : null;
         const resolvedPreviewStoragePath =
-          mediaPosterStoragePath ?? previewStoragePath ?? fullStoragePath;
+          mediaRow?.fileType === "video"
+            ? resolveVideoDeliveryPrimaryStoragePath({
+                mode: "video",
+                previewStoragePath: mediaPreviewVariantPath ?? previewStoragePath,
+                fullStoragePath,
+              })
+            : (previewStoragePath ?? fullStoragePath);
         return {
           previewUrl,
           previewPosterUrl: null,
@@ -1122,6 +1157,45 @@ const resolvePublishedGenerationDeliveryByGenerationId = async ({
         };
       }
     }
+
+    if (resolvedUserId) {
+      const canonicalMediaByGenerationId =
+        await resolveLatestPublishedGenerationMediaByGenerationIds({
+          supabase,
+          generationIds: [generationId],
+          userId: resolvedUserId,
+        });
+      const canonicalMediaRow = canonicalMediaByGenerationId.get(generationId);
+      if (canonicalMediaRow) {
+        const fullStoragePath = asCanonicalStoragePath(canonicalMediaRow.storagePath);
+        const previewPosterStoragePath =
+          canonicalMediaRow.fileType === "video"
+            ? asCanonicalStoragePath(canonicalMediaRow.posterVariantPath)
+            : null;
+        const previewStoragePath =
+          canonicalMediaRow.fileType === "video"
+            ? resolveVideoDeliveryPrimaryStoragePath({
+                mode: "video",
+                previewStoragePath: asCanonicalStoragePath(canonicalMediaRow.previewVariantPath),
+                fullStoragePath,
+              })
+            : fullStoragePath;
+        if (previewStoragePath || fullStoragePath || previewPosterStoragePath) {
+          return {
+            previewUrl: null,
+            previewPosterUrl: null,
+            previewPosterStoragePath,
+            fullUrl: null,
+            previewStoragePath,
+            fullStoragePath,
+            companionArtUrl: null,
+            companionArtStoragePath: null,
+            companionArtStatus: null,
+          };
+        }
+      }
+    }
+
     return null;
   } catch {
     return null;

@@ -324,7 +324,8 @@ describe("useAiStudioState output store bridge", () => {
       generationId: "gen-video-1",
       previewUrl: "https://cdn.test/video.mp4",
       previewPosterUrl: "https://cdn.test/poster_720.jpg",
-      previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+      previewStoragePath: "user-1/generations/videos/gen-video-1.mp4",
       fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
       resultUrls: ["https://cdn.test/video.mp4"],
     });
@@ -351,7 +352,8 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.outputs[0]).toEqual(
         expect.objectContaining({
           previewPosterUrl: "https://cdn.test/poster_720.jpg",
-          previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+          previewPosterStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+          previewStoragePath: "user-1/generations/videos/gen-video-1.mp4",
           fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
         })
       );
@@ -373,7 +375,7 @@ describe("useAiStudioState output store bridge", () => {
             outputId: "storage-video-1",
             previewPosterUrl: "https://cdn.test/storage-poster.jpg",
             previewPosterStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
-            previewStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+            previewStoragePath: "user-1/videos/storage-video-1.mp4",
             fullStoragePath: "user-1/videos/storage-video-1.mp4",
             previewUrl: "https://cdn.test/storage-video.mp4",
             resultUrls: ["https://cdn.test/storage-video.mp4"],
@@ -402,7 +404,7 @@ describe("useAiStudioState output store bridge", () => {
         expect.objectContaining({
           previewPosterUrl: "https://cdn.test/storage-poster.jpg",
           previewPosterStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
-          previewStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+          previewStoragePath: "user-1/videos/storage-video-1.mp4",
           fullStoragePath: "user-1/videos/storage-video-1.mp4",
         })
       );

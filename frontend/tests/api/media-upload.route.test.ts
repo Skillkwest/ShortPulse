@@ -33,9 +33,17 @@ const buildWebmTrackSignature = (trackType: number): Buffer =>
     trackType,
   ]);
 
+const buildMp4Signature = (): Buffer =>
+  Buffer.from([
+    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02, 0x00,
+    0x69, 0x73, 0x6f, 0x6d, 0x6d, 0x70, 0x34, 0x31,
+  ]);
+
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const upsertVideoPosterVariantFromBufferMock = vi.fn();
+const upsertVideoPreviewVariantFromBufferMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockParseError: Error | null = null;
@@ -73,6 +81,13 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/videoPosterVariant", () => ({
+  upsertVideoPosterVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPosterVariantFromBufferMock(...args),
+  upsertVideoPreviewVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPreviewVariantFromBufferMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -150,6 +165,8 @@ describe("POST /api/media/upload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     mockFields = { destinationTab: "private" };
     mockParseError = null;
@@ -249,6 +266,77 @@ describe("POST /api/media/upload", () => {
         filename: "audio-track.webm",
         file_type: "audio",
         storage_path: expect.stringMatching(/^user-1\/audio\//),
+      }),
+    });
+  });
+
+  it("hydrates a preview-loop variant for uploaded videos before signing the preview response", async () => {
+    mockFields = { destinationTab: "uploaded_videos" };
+    mockFile = {
+      filepath: "/tmp/mock-media-upload-video",
+      mimetype: "video/mp4",
+      size: 24,
+      originalFilename: "clip.mp4",
+    };
+    vi.spyOn(fs, "readFileSync").mockReturnValue(buildMp4Signature());
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-upload-video-1/preview_loop_360p.mp4"
+    );
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-upload-video-1/poster_720.jpg"
+    );
+    const { createSignedUrlMock, insertMock } = setupSupabaseUpload({
+      insertedRow: {
+        id: "media-upload-video-1",
+        filename: "clip.mp4",
+        storage_path: "user-1/videos/media-upload-video-1-clip.mp4",
+        file_type: "video",
+        file_size: 24,
+        source: "upload",
+      },
+      signedUrl: "https://signed.example/video-preview-loop",
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filename: "clip.mp4",
+        file_type: "video",
+        source: "upload",
+      })
+    );
+    expect(upsertVideoPreviewVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        mediaFileId: "media-upload-video-1",
+        filename: "clip.mp4",
+        metadata: expect.objectContaining({
+          generated_by: "media_upload_service",
+          upload_source: "upload",
+        }),
+      })
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/variants/videos/media-upload-video-1/preview_loop_360p.mp4",
+      3600
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      file: expect.objectContaining({
+        id: "media-upload-video-1",
+        file_type: "video",
+        storage_path: "user-1/videos/media-upload-video-1-clip.mp4",
+        preview_storage_path: "user-1/variants/videos/media-upload-video-1/preview_loop_360p.mp4",
+        signedUrl: "https://signed.example/video-preview-loop",
       }),
     });
   });

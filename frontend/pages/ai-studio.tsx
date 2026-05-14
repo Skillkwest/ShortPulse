@@ -186,7 +186,6 @@ const useAiStudioCreatePanelRuntime = ({
   handleStandardAgentCaptureResult,
 }: UseAiStudioCreatePanelRuntimeParams): CreatePanelProps => {
   const {
-    activeCreatePulsePresetId,
     aspect,
     characterOptions,
     createIsGenerating,
@@ -333,7 +332,6 @@ const useAiStudioCreatePanelRuntime = ({
   const expertCreatePolicy = workflowBeginnerPolicy.create;
   const {
     pulsePreferenceRuntime,
-    activeCreatePulsePresetSnapshot,
     displayCreatePulsePresetId,
     displayCreatePulsePresetSnapshot,
     hasActivePulseSession,
@@ -488,8 +486,6 @@ const useAiStudioCreatePanelRuntime = ({
       standard: standardRuntime.panelProps,
     };
   }, [
-    activeCreatePulsePresetSnapshot?.label,
-    activeCreatePulsePresetSnapshot?.pulseKind,
     agentAttachmentError,
     agentAttachments,
     agentBootstrapReady,
@@ -640,9 +636,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     sessionState: base.expertEditSessionState,
     onSessionStateChange: base.publishExpertEditSessionState,
   });
-  const handleVideoPromptSave = useCallback(() => {
-    base.savePromptReference(base.videoReferenceText ?? "");
-  }, [base]);
   const handleKlingVoiceIdChange = useCallback(
     (index: number, value: string) => {
       base.setKlingVoiceIds((prev) => {
@@ -653,6 +646,9 @@ const useAiStudioEditVideoPanelRuntimes = ({
     },
     [base]
   );
+  const handleVideoPromptSave = useCallback(() => {
+    base.savePromptReference(base.videoReferenceText ?? "");
+  }, [base]);
   const videoPanelProps = useAiStudioVideoPanelProps({
     aspect: base.aspect,
     model: base.model,
@@ -1127,7 +1123,6 @@ const AiStudioPageRuntimeBody = ({
     refreshBalance,
     refreshCharacterModeInjectionBundleForSubmission,
     refreshCharacterOptions,
-    refreshProject,
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
     clearPendingCharacterUploadRequest,
@@ -1187,7 +1182,7 @@ const AiStudioPageRuntimeBody = ({
   const beginnerModeLoading = false;
   const beginnerModeSyncState = "ready" as const;
   const showBeginnerModeToggle = false;
-  const setBeginnerMode = (_value: boolean) => {};
+  const setBeginnerMode = () => {};
   const {
     activeCreatePulsePresetSnapshot,
     setPendingCreatePulsePresetSnapshot,
@@ -1297,7 +1292,7 @@ const AiStudioPageRuntimeBody = ({
   }, [referenceGridFileInputRef]);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
-  const { effectiveUiNotice, handleBeginnerModeChange } = useAiStudioPageUiNotices({
+  const { effectiveUiNotice } = useAiStudioPageUiNotices({
     uiNotice,
     beginnerModeError,
     beginnerModeLoading,
@@ -1633,8 +1628,8 @@ const AiStudioPageRuntimeBody = ({
       pageContentProps={pageContentProps}
       projectsModalOpen={isProjectsModalOpen}
       projectId={projectId}
-      refreshProject={refreshProject}
       retryProjectBootstrap={retryProjectBootstrap}
+      onOpenProjectsModal={handleOpenProjectsModal}
       onCloseProjectsModal={handleCloseProjectsModal}
       onSelectProjectFromModal={handleSelectProjectFromModal}
       onCreateProjectFromModal={handleCreateProjectFromModal}

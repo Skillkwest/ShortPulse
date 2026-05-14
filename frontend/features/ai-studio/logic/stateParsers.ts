@@ -39,7 +39,6 @@ export type Provider =
   | "openai-image"
   | "kie-veo"
   | "kie-kling"
-  | "kie-seedance"
   | "kie-seedance-2"
   | "kie-seedance-2-fast";
 
@@ -63,7 +62,6 @@ const activePollingProviders = new Set<Provider>([
   "fal-seedream-v5-lite-edit",
   "kie-veo",
   "kie-kling",
-  "kie-seedance",
   "kie-seedance-2",
   "kie-seedance-2-fast",
 ]);
@@ -129,7 +127,6 @@ export const normalizeProviderForPolling = (
   if (normalized.startsWith("kie")) {
     if (normalized.includes("seedance-2-fast")) return "kie-seedance-2-fast";
     if (normalized.includes("seedance-2")) return "kie-seedance-2";
-    if (normalized.includes("seedance")) return "kie-seedance";
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";
   }
   return fallback;

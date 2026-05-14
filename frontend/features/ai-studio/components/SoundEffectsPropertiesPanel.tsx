@@ -1,6 +1,6 @@
 /**
  * Dedicated Sound Effects properties panel for AI Studio.
- * Mirrors the Voices workflow feel while keeping all panel logic local to Sound Effects.
+ * Mirrors the simplified single-surface music composer while keeping SFX request shaping isolated.
  */
 import React from "react";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
@@ -30,41 +30,43 @@ export type SoundEffectsPropertiesPanelProps = {
 const soundEffectPromptPlaceholder =
   "Describe the sound effect you want to generate with detail, texture, space, and motion.";
 const maxPromptCharacters = 450;
-const defaultTopPanePercent = 58;
-const minBottomPaneHeightPx = 264;
-const splitStepPercent = 6;
-
-const soundEffectFormatOptions = [
-  { value: "mp3_44100_128", label: "MP3 (44.1kHz)" },
-  { value: "pcm_48000", label: "WAV (48kHz)" },
-] as const satisfies readonly { value: SoundEffectFormat; label: string }[];
-
-const clamp = (value: number, minimum: number, maximum: number): number =>
-  Math.min(maximum, Math.max(minimum, value));
+const defaultSoundEffectsFormat: SoundEffectFormat = "mp3_44100_128";
 
 const formatCreditValue = (value: number): string => {
   const roundedValue = Number(value.toFixed(1));
   return roundedValue % 1 === 0 ? roundedValue.toFixed(0) : roundedValue.toFixed(1);
 };
 
+const StackIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m12 4.25 8.15 4.6L12 13.45 3.85 8.85 12 4.25Z" />
+    <path d="m3.85 14.35 8.15 4.6 8.15-4.6" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="8.25" />
+    <path d="M12 7.6v4.85l3.2 1.95" />
+  </svg>
+);
+
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
   balanceCredits = null,
+  isGenerating = false,
   onGenerate,
   pricingPolicy = null,
   pricingPolicyReady = true,
 }: SoundEffectsPropertiesPanelProps) {
-  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [prompt, setPrompt] = React.useState("");
   const [loopEnabled, setLoopEnabled] = React.useState(false);
-  const [selectedFormat, setSelectedFormat] = React.useState<SoundEffectFormat>("mp3_44100_128");
-  const [topPanePercent, setTopPanePercent] = React.useState(defaultTopPanePercent);
-  const hasInitializedDefaultSplitRef = React.useRef(false);
 
   const durationSeconds = null;
   const generateCost =
     resolveClientBilledCredits({
       modelId: hardcodedSoundEffectsModelId,
       params: {
+        durationSeconds,
         generationCount: 1,
       },
       pricingPolicy,
@@ -74,40 +76,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
   const isGenerateEnabled =
     Boolean(onGenerate) && pricingPolicyReady && prompt.trim().length > 0 && !isInsufficientCredits;
-  const isLibraryVisible = topPanePercent > 0;
-  const minTopPanePercent = 0;
-
-  const resolveMaxTopPanePercent = React.useCallback((): number => {
-    const rect = splitContainerRef.current?.getBoundingClientRect();
-    if (!rect || rect.height <= 0) return 68;
-    const minBottomPanePercent = (minBottomPaneHeightPx / rect.height) * 100;
-    return clamp(100 - minBottomPanePercent, 16, 84);
-  }, []);
-
-  const commitTopPanePercent = React.useCallback(
-    (nextValue: number) => {
-      setTopPanePercent(
-        Number(clamp(nextValue, minTopPanePercent, resolveMaxTopPanePercent()).toFixed(1))
-      );
-    },
-    [resolveMaxTopPanePercent]
-  );
-
-  React.useLayoutEffect(() => {
-    if (hasInitializedDefaultSplitRef.current) return;
-    hasInitializedDefaultSplitRef.current = true;
-    commitTopPanePercent(resolveMaxTopPanePercent());
-  }, [commitTopPanePercent, resolveMaxTopPanePercent]);
-
-  const handleLoopToggle = React.useCallback(() => {
-    setLoopEnabled((currentValue) => {
-      const nextValue = !currentValue;
-      if (nextValue && selectedFormat === "pcm_48000") {
-        setSelectedFormat("mp3_44100_128");
-      }
-      return nextValue;
-    });
-  }, [selectedFormat]);
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
@@ -116,146 +84,70 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       text,
       durationSeconds,
       loop: loopEnabled,
-      outputFormat: selectedFormat,
+      outputFormat: defaultSoundEffectsFormat,
       modelId: hardcodedSoundEffectsModelId,
       displayedBilledCredits: generateCost,
     });
-  }, [durationSeconds, generateCost, loopEnabled, onGenerate, prompt, selectedFormat]);
-
-  const updateTopPaneFromClientY = React.useCallback(
-    (clientY: number) => {
-      const rect = splitContainerRef.current?.getBoundingClientRect();
-      if (!rect || rect.height <= 0) return;
-      const rawPercent = ((clientY - rect.top) / rect.height) * 100;
-      commitTopPanePercent(rawPercent);
-    },
-    [commitTopPanePercent]
-  );
-
-  const handleDividerPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-
-      const handlePointerMove = (pointerEvent: PointerEvent) => {
-        updateTopPaneFromClientY(pointerEvent.clientY);
-      };
-
-      const handlePointerUp = () => {
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
-
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-    },
-    [updateTopPaneFromClientY]
-  );
-
-  const handleDividerKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Home") {
-        event.preventDefault();
-        commitTopPanePercent(0);
-        return;
-      }
-      if (event.key === "End") {
-        event.preventDefault();
-        commitTopPanePercent(resolveMaxTopPanePercent());
-        return;
-      }
-      if (event.key === "ArrowUp" || event.key === "PageUp") {
-        event.preventDefault();
-        commitTopPanePercent(topPanePercent - splitStepPercent);
-        return;
-      }
-      if (event.key === "ArrowDown" || event.key === "PageDown") {
-        event.preventDefault();
-        commitTopPanePercent(topPanePercent + splitStepPercent);
-      }
-    },
-    [commitTopPanePercent, resolveMaxTopPanePercent, topPanePercent]
-  );
-
-  const topSectionStyle = React.useMemo(
-    () => ({
-      flexBasis: `${topPanePercent}%`,
-    }),
-    [topPanePercent]
-  );
-
-  const bottomSectionStyle = React.useMemo(
-    () => ({
-      flexBasis: `${100 - topPanePercent}%`,
-    }),
-    [topPanePercent]
-  );
+  }, [durationSeconds, generateCost, loopEnabled, onGenerate, prompt]);
 
   return (
     <section className="sound-effects-properties-panel tool-properties">
       <div className="sound-effects-properties-shell">
-        <div className="sound-effects-properties-column sound-effects-properties-column--main">
-          <div ref={splitContainerRef} className="sound-effects-properties-main">
-            <section
-              className="sound-effects-properties-library"
-              style={topSectionStyle}
-              aria-label="Available sound effects"
-            >
-              {isLibraryVisible ? (
-                <>
-                  <div className="sound-effects-properties-library-header">
-                    <h2 className="panel-title sound-effects-properties-library-title">
-                      Sound Effects
-                    </h2>
-                  </div>
-                  <div className="sound-effects-properties-library-empty" aria-live="polite">
-                    <p className="sound-effects-properties-library-empty-title">
-                      No sound effects yet
-                    </p>
-                    <p className="sound-effects-properties-library-empty-copy">
-                      Generated sound effects will appear here.
-                    </p>
-                  </div>
-                </>
-              ) : null}
-            </section>
-
-            <div
-              className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
-              role="separator"
-              tabIndex={0}
-              aria-label="Resize available sound effects and prompt sections"
-              aria-orientation="horizontal"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(topPanePercent)}
-              onPointerDown={handleDividerPointerDown}
-              onKeyDown={handleDividerKeyDown}
-            >
-              <div
-                className="sound-effects-properties-divider reference-grid-horizontal-divider"
-                aria-hidden="true"
+        <div className="sound-effects-properties-main">
+          <div className="sound-effects-properties-compose-area">
+            <div className="sound-effects-properties-script-input-shell">
+              <textarea
+                className="sound-effects-properties-script-input"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value.slice(0, maxPromptCharacters))}
+                maxLength={maxPromptCharacters}
+                placeholder={soundEffectPromptPlaceholder}
+                aria-label="Sound effect prompt"
               />
             </div>
 
-            <div className="sound-effects-properties-compose-area" style={bottomSectionStyle}>
-              <div className="sound-effects-properties-script-input-shell">
-                <textarea
-                  className="sound-effects-properties-script-input"
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value.slice(0, maxPromptCharacters))}
-                  maxLength={maxPromptCharacters}
-                  placeholder={soundEffectPromptPlaceholder}
-                  aria-label="Sound effect prompt"
-                />
-              </div>
+            <div className="sound-effects-properties-script-actions">
+              <p className="sound-effects-properties-script-count" aria-live="polite">
+                {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
+              </p>
 
-              <div className="sound-effects-properties-script-divider" aria-hidden="true" />
+              <div className="sound-effects-properties-script-actions-right">
+                <div className="sound-effects-properties-footer-controls">
+                  <button
+                    type="button"
+                    className="sound-effects-properties-loop-switch"
+                    role="switch"
+                    aria-checked={loopEnabled}
+                    aria-label="Loop sound effect"
+                    onClick={() => setLoopEnabled((currentValue) => !currentValue)}
+                  >
+                    <span className="sound-effects-properties-loop-switch-label">Loop</span>
+                    <span
+                      className={`sound-effects-properties-loop-switch-control audio-toggle ${
+                        loopEnabled ? "is-active" : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      <span className="audio-toggle-track" />
+                      <span className="audio-toggle-dot" />
+                    </span>
+                  </button>
 
-              <div className="sound-effects-properties-script-actions">
-                <p className="sound-effects-properties-script-count" aria-live="polite">
-                  {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
-                </p>
+                  <span className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--static">
+                    <span className="sound-effects-properties-footer-pill-icon">
+                      <StackIcon />
+                    </span>
+                    <span className="sound-effects-properties-footer-pill-value">MP3</span>
+                  </span>
+
+                  <span className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--static">
+                    <span className="sound-effects-properties-footer-pill-icon">
+                      <ClockIcon />
+                    </span>
+                    <span className="sound-effects-properties-footer-pill-value">Auto</span>
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   className="sound-effects-properties-generate-btn"
@@ -265,7 +157,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   }}
                   aria-label="Generate"
                 >
-                  <span className="sound-effects-properties-generate-label">Generate</span>
+                  <span className="sound-effects-properties-generate-label">
+                    {isGenerating ? "Generating..." : "Generate"}
+                  </span>
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                     <span className="sound-effects-properties-generate-cost-icon">✦</span>
                     <span className="sound-effects-properties-generate-cost-value">
@@ -276,64 +170,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="sound-effects-properties-column sound-effects-properties-column--aside">
-          <aside className="sound-effects-properties-aside">
-            <section className="sound-effects-properties-rail-card">
-              <div className="sound-effects-properties-rail-heading-row">
-                <p className="sound-effects-properties-rail-kicker">Generation settings</p>
-              </div>
-
-              <div className="sound-effects-properties-control-stack">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={loopEnabled}
-                  aria-label="Loop sound effect"
-                  className={`sound-effects-properties-switch-row ${
-                    loopEnabled ? "is-active" : ""
-                  }`}
-                  onClick={handleLoopToggle}
-                >
-                  <span className="sound-effects-properties-switch-copy">
-                    <span className="sound-effects-properties-switch-label">Loop</span>
-                  </span>
-                  <span className="sound-effects-properties-switch-control" aria-hidden="true">
-                    <span className="sound-effects-properties-switch-thumb" />
-                  </span>
-                </button>
-              </div>
-            </section>
-
-            <section className="sound-effects-properties-rail-card">
-              <div className="sound-effects-properties-rail-heading-row">
-                <p className="sound-effects-properties-rail-kicker">Output</p>
-              </div>
-
-              <label className="sound-effects-properties-field">
-                <span className="sound-effects-properties-field-label">Format</span>
-                <span className="sound-effects-properties-select-shell">
-                  <select
-                    className="sound-effects-properties-select"
-                    value={selectedFormat}
-                    onChange={(event) => setSelectedFormat(event.target.value as SoundEffectFormat)}
-                    aria-label="Sound effect output format"
-                  >
-                    {soundEffectFormatOptions.map((option) => (
-                      <option
-                        key={option.value}
-                        value={option.value}
-                        disabled={loopEnabled && option.value === "pcm_48000"}
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </label>
-            </section>
-          </aside>
         </div>
       </div>
     </section>

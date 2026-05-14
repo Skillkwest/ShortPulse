@@ -10,6 +10,7 @@ const extractImageDimensionsFromBufferMock = vi.fn();
 const detectImageMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
 const upsertVideoPosterVariantFromBufferMock = vi.fn();
+const upsertVideoPreviewVariantFromBufferMock = vi.fn();
 
 vi.mock("node:dns/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:dns/promises")>();
@@ -53,6 +54,8 @@ vi.mock("../../lib/server/uploadSignature", () => ({
 vi.mock("../../lib/server/videoPosterVariant", () => ({
   upsertVideoPosterVariantFromBuffer: (...args: unknown[]) =>
     upsertVideoPosterVariantFromBufferMock(...args),
+  upsertVideoPreviewVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPreviewVariantFromBufferMock(...args),
 }));
 
 type MediaInsertRow = {
@@ -211,7 +214,9 @@ const createSupabaseAdmin = (options?: {
         select: vi.fn((fields: string) => {
           if (
             fields === "id, storage_path" ||
-            fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+            fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path" ||
+            fields ===
+              "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
           ) {
             return storageLookupBuilder;
           }
@@ -323,6 +328,7 @@ describe("POST /api/media/copy-from-url", () => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
     upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     resolveMediaPreviewTrustedHostsMock.mockReturnValue(["trusted.example.com", "cdn.example.com"]);
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34" }]);
@@ -689,6 +695,84 @@ describe("POST /api/media/copy-from-url", () => {
           previewPosterStoragePath:
             "user-1/variants/videos/media-video-buffer-poster-1/poster_720.jpg",
           previewPosterUrl: "https://signed.test/video-buffer-poster.jpg",
+        }),
+      })
+    );
+  });
+
+  it("generates a durable preview loop from the video buffer when no preview hint is provided", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-video-buffer-preview-1/preview_loop_360p.mp4"
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-buffer-preview-1",
+        storage_path: "user-1/generations/videos/media-video-buffer-preview-1.mp4",
+        file_type: "video",
+      },
+      signedUrls: {
+        "user-1/generations/videos/media-video-buffer-preview-1.mp4":
+          "https://signed.test/video-buffer-preview-full.mp4",
+        "user-1/variants/videos/media-video-buffer-preview-1/preview_loop_360p.mp4":
+          "https://signed.test/video-buffer-preview-loop.mp4",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Buffer.from("video-buffer"), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-video-buffer-preview-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(upsertVideoPreviewVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabaseAdmin: supabase.admin,
+        userId: "user-1",
+        mediaFileId: "media-video-buffer-preview-1",
+        videoBuffer: Buffer.from("video-buffer"),
+        videoMimeType: "video/mp4",
+        metadata: expect.objectContaining({
+          generated_by: "media-copy-from-url",
+          preview_source: "video_buffer",
+          source: "ai_studio",
+          generation_id: "gen-video-buffer-preview-1",
+          output_index: 0,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-video-buffer-preview-1",
+        fileType: "video",
+        delivery: expect.objectContaining({
+          previewStoragePath:
+            "user-1/variants/videos/media-video-buffer-preview-1/preview_loop_360p.mp4",
+          previewUrl: "https://signed.test/video-buffer-preview-loop.mp4",
+          fullStoragePath: "user-1/generations/videos/media-video-buffer-preview-1.mp4",
+          fullUrl: "https://signed.test/video-buffer-preview-full.mp4",
         }),
       })
     );

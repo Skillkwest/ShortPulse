@@ -259,9 +259,6 @@ const createSupabaseMock = ({
       })),
     })),
   }));
-  const workspaceWriteSelect = vi.fn(() => ({
-    maybeSingle: workspaceMaybeSingle,
-  }));
   const workspaceUpsert = vi.fn(() => ({
     select: vi.fn(() => ({
       maybeSingle: vi.fn(async () => ({
@@ -1175,7 +1172,7 @@ describe("projectWorkspaceStatesService", () => {
           generationId: "generation-1",
           mode: "video",
           previewPosterStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
-          previewStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
+          previewStoragePath: "user-1/generations/videos/restored-video.mp4",
           fullStoragePath: "user-1/generations/videos/restored-video.mp4",
           taskId: "task-1",
           taskState: "success",
@@ -1274,7 +1271,7 @@ describe("projectWorkspaceStatesService", () => {
           previewUrl: "https://cdn.example.com/generated-video.mp4",
           resultUrls: ["https://cdn.example.com/generated-video.mp4"],
           previewPosterStoragePath: "user-1/variants/videos/generated-video/poster_720.jpg",
-          previewStoragePath: "user-1/variants/videos/generated-video/poster_720.jpg",
+          previewStoragePath: "user-1/generations/videos/generated-video.mp4",
           fullStoragePath: "user-1/generations/videos/generated-video.mp4",
         },
       ],

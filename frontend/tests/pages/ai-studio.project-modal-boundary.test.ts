@@ -23,12 +23,14 @@ describe("AI Studio project modal boundary", () => {
     expect(source).toContain("effectiveProjectName,");
     expect(source).toContain("handleProjectNameCommit,");
     expect(source).toContain("handleOpenMediaLibraryPanelOnly,");
+    expect(source).toContain("handleOpenProjectsModal,");
     expect(source).toContain("handleCloseProjectsModal,");
     expect(source).toContain("handleCreateProjectFromModal,");
     expect(source).toContain("handleSelectProjectFromModal,");
     expect(source).toContain("projectName: effectiveProjectName,");
     expect(source).toContain("onProjectNameCommit: handleProjectNameCommit,");
     expect(source).toContain("onOpenMediaLibrary: handleOpenMediaLibraryPanelOnly,");
+    expect(source).toContain("onOpenProjectsModal={handleOpenProjectsModal}");
     expect(source).toContain("onCloseProjectsModal={handleCloseProjectsModal}");
     expect(source).toContain("onSelectProjectFromModal={handleSelectProjectFromModal}");
     expect(source).toContain("onCreateProjectFromModal={handleCreateProjectFromModal}");

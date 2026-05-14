@@ -42,8 +42,8 @@ const customMusicPromptPlaceholder =
   "Describe the song style, production direction, instrumentation, vocal feel, and emotional arc.";
 const lyricsPromptPlaceholder =
   "Write lyrics, hooks, section ideas, ad-libs, or line-by-line structure here.";
-const customLyricsBudgetNote = "Prompt and lyrics share one 800-character generation budget.";
-const maxPromptCharacters = 800;
+const customLyricsBudgetNote = "Prompt and lyrics share one 2,000-character generation budget.";
+const maxPromptCharacters = 2000;
 const minTopToggleHeightPx = 96;
 const minBottomComposerHeightPx = 420;
 const defaultMusicBpm = 112;

@@ -16,7 +16,6 @@ import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -25,6 +24,7 @@ import {
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
   onPromptTextChange?: (value: string) => void;
+  onSave?: () => void;
   onDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
   promptTextareaRef?: React.Ref<HTMLTextAreaElement>;
   promptPlaceholder?: string;
@@ -189,12 +189,6 @@ vi.mock("../ReferenceVideoSettingsStep", () => ({
 vi.mock("../ReferenceKlingAdvancedSteps", () => ({
   ReferenceKlingAdvancedSteps: ({ workflowLabel }: { workflowLabel?: string }) => (
     <div data-testid="reference-kling-advanced-steps">{workflowLabel ?? "Kling 3.0"}</div>
-  ),
-}));
-
-vi.mock("../ReferenceSeedanceAdvancedSteps", () => ({
-  ReferenceSeedanceAdvancedSteps: ({ title }: { title: string }) => (
-    <div data-testid="reference-seedance-advanced-steps">{title}</div>
   ),
 }));
 
@@ -567,20 +561,6 @@ describe("VideoPropertiesPanel", () => {
     ).toBeNull();
   });
 
-  it("renders the Seedance 1.5 advanced settings card when Seedance 1.5 is active", () => {
-    render(
-      <VideoPropertiesPanel
-        {...baseProps}
-        modelId={KIE_SEEDANCE_15_PRO_MODEL_ID}
-        modelLabel="Seedance 1.5 Pro (Kie)"
-      />
-    );
-
-    expect(screen.getByTestId("reference-seedance-advanced-steps")).toHaveTextContent(
-      "Seedance 1.5 Settings"
-    );
-  });
-
   it("does not render the redundant Seedance 2.x advanced settings card", () => {
     render(
       <VideoPropertiesPanel
@@ -894,14 +874,7 @@ describe("VideoPropertiesPanel", () => {
   });
 
   it("does not pass agent enhance behavior into the video prompt surface", () => {
-    render(
-      <VideoPropertiesPanel
-        {...baseProps}
-        agentIsSending
-        agentError="Agent leaked in"
-        onAgentEnhanceSend={vi.fn()}
-      />
-    );
+    render(<VideoPropertiesPanel {...baseProps} />);
 
     const promptProps = referencePromptStepMock.mock.calls[0]?.[0] as
       | { agentIsSending?: boolean; agentError?: string; onAgentEnhanceSend?: unknown }

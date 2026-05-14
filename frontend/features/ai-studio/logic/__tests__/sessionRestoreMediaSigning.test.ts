@@ -126,9 +126,10 @@ describe("sessionRestoreMediaSigning", () => {
     const result = applySessionRestoreSignedUrls(rows, signedByPath);
 
     expect(result.changed).toBe(true);
-    expect(result.outputs[0]?.previewUrl).toBe("https://signed/poster_720.jpg");
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/video-a.mp4");
     expect(result.outputs[0]?.previewPosterUrl).toBe("https://signed/poster_720.jpg");
     expect(result.outputs[0]?.resultUrls).toEqual(["https://signed/video-a.mp4"]);
+    expect(result.outputs[0]?.previewStoragePath).toBe("user-1/generations/videos/video-a.mp4");
     expect(result.outputs[0]?.fullStoragePath).toBe("user-1/generations/videos/video-a.mp4");
   });
 
@@ -176,8 +177,9 @@ describe("sessionRestoreMediaSigning", () => {
     const result = applySessionRestoreSignedUrls(rows, signedByPath);
 
     expect(result.changed).toBe(true);
-    expect(result.outputs[0]?.previewUrl).toBe("https://signed/poster-c.jpg");
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/video-c.mp4");
     expect(result.outputs[0]?.previewPosterUrl).toBe("https://signed/poster-c.jpg");
+    expect(result.outputs[0]?.previewStoragePath).toBe("user-1/generations/videos/video-c.mp4");
     expect(result.outputs[0]?.resultUrls).toEqual([
       "https://signed/video-c.mp4",
       "https://provider.test/video-c.mp4",

@@ -36,8 +36,6 @@ export type VideoSettingsCardPrefabProps = {
   showMultiShotToggle?: boolean;
   multiShotEnabled?: boolean;
   isMotionMode: boolean;
-  isSeedanceModel: boolean;
-  showSeedanceCameraFixedControl?: boolean;
   videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
@@ -237,9 +235,6 @@ export function VideoSettingsCardPrefab({
   showMultiShotToggle = false,
   multiShotEnabled = false,
   isMotionMode,
-  isSeedanceModel,
-  showSeedanceCameraFixedControl = true,
-  videoCameraFixed,
   isVeoModel,
   videoAutoFix,
   onAspectChange,
@@ -247,7 +242,6 @@ export function VideoSettingsCardPrefab({
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
-  onVideoCameraFixedChange,
   onVideoAutoFixChange,
   onToggleMultiShot,
 }: VideoSettingsCardPrefabProps) {
@@ -256,7 +250,6 @@ export function VideoSettingsCardPrefab({
   const shouldShowDurationControl = !isMotionMode;
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
-  const shouldShowSeedanceCameraFixed = showSeedanceCameraFixedControl;
   const resolutionDropdownOptions = React.useMemo(
     () => resolutionOptions.map((option) => ({ value: option.value, label: option.label })),
     [resolutionOptions]
@@ -446,22 +439,6 @@ export function VideoSettingsCardPrefab({
             active={multiShotEnabled}
             ariaLabel={multiShotEnabled ? "Disable multi-shot" : "Enable multi-shot"}
             onClick={() => onToggleMultiShot?.()}
-          />
-        </div>
-      ) : null}
-
-      {!isMotionMode && isSeedanceModel && shouldShowSeedanceCameraFixed ? (
-        <div className="video-settings-prefab__toggle-row">
-          <div className="video-settings-prefab__toggle-copy">
-            <span className="video-settings-prefab__toggle-label">Camera Fixed</span>
-            <span className="video-settings-prefab__toggle-helper">
-              Lock camera position (tripod shot)
-            </span>
-          </div>
-          <VideoSettingsPrefabToggle
-            active={videoCameraFixed}
-            ariaLabel={videoCameraFixed ? "Unlock camera" : "Lock camera"}
-            onClick={() => onVideoCameraFixedChange?.(!videoCameraFixed)}
           />
         </div>
       ) : null}

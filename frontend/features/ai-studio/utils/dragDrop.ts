@@ -5,7 +5,6 @@ import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
-  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -40,6 +39,7 @@ const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
   /^\/(?:_next\/image|storage\/|.*\.(?:aac|avif|bmp|flac|gif|heic|heif|jpe?g|m4a|mp3|oga|ogg|png|wav|webp|m4v|mov|mp4|ogv|webm)(?:$|[?#]))/i;
+const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -198,6 +198,23 @@ const resolveOutputPreviewKind = (output: StudioOutput): ReferenceDragPreviewKin
   if (output.mode === "video") return "video";
   if (output.mode === "audio") return "audio";
   return "text";
+};
+
+const resolveVideoPrimaryStoragePath = ({
+  mode,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  mode: StudioOutput["mode"];
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (mode !== "video") return previewStoragePath;
+  if (previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)) {
+    return previewStoragePath;
+  }
+  if (fullStoragePath) return fullStoragePath;
+  return previewStoragePath;
 };
 
 const resolveDragGhostDimensions = ({
@@ -951,6 +968,12 @@ export const prepareReferenceDrag = (
   if (previousDragSessionToken) {
     clearInternalReferenceDragSession(previousDragSessionToken);
   }
+  const normalizedPreviewStoragePath = resolveVideoPrimaryStoragePath({
+    mode: output.mode,
+    previewStoragePath: output.previewStoragePath?.trim() || null,
+    fullStoragePath: output.fullStoragePath?.trim() || null,
+  });
+  const normalizedFullStoragePath = output.fullStoragePath?.trim() || null;
   const dragSessionToken = registerInternalReferenceDragSession({
     version: INTERNAL_REFERENCE_DRAG_VERSION,
     origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -959,8 +982,8 @@ export const prepareReferenceDrag = (
     imageIndex,
     mediaId: referenceMediaId ?? null,
     mediaKind: resolveOutputPreviewKind(output),
-    previewStoragePath: output.previewStoragePath?.trim() || null,
-    fullStoragePath: output.fullStoragePath?.trim() || null,
+    previewStoragePath: normalizedPreviewStoragePath,
+    fullStoragePath: normalizedFullStoragePath,
     referenceUrl:
       composerImageArtifact?.referenceUrl ??
       (allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null),
@@ -1008,9 +1031,9 @@ export const prepareReferenceDrag = (
     transfer.setData(REFERENCE_TRANSFER_MEDIA_ID_TYPE, referenceMediaId);
   }
   const previewStoragePath =
-    composerImageArtifact?.previewStoragePath?.trim() || output.previewStoragePath?.trim() || "";
+    composerImageArtifact?.previewStoragePath?.trim() || normalizedPreviewStoragePath || "";
   const fullStoragePath =
-    composerImageArtifact?.fullStoragePath?.trim() || output.fullStoragePath?.trim() || "";
+    composerImageArtifact?.fullStoragePath?.trim() || normalizedFullStoragePath || "";
   if (previewStoragePath) {
     transfer.setData(REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE, previewStoragePath);
   }

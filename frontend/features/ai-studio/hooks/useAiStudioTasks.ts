@@ -521,6 +521,68 @@ export function useAiStudioTasks({
       if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
         return;
       }
+      const clearOutputLookupState = () => {
+        delete outputLookupMissesRef.current[outputId];
+        delete outputLookupMissingSinceRef.current[outputId];
+        delete outputLookupHardStopNotifiedRef.current[outputId];
+      };
+      const scheduleLookupRetry = (retryDelayMs: number) => {
+        pollTimersRef.current[outputId] = window.setTimeout(
+          () =>
+            pollTask(
+              taskId,
+              outputId,
+              attempt,
+              provider,
+              startedAt,
+              noMediaAttempt,
+              activePollSessionId,
+              options,
+              resolvedPollingTarget
+            ),
+          retryDelayMs
+        );
+      };
+      const handleMissingOutputLookup = () => {
+        if (!findOutputById || findOutputById(outputId)) {
+          clearOutputLookupState();
+          return false;
+        }
+        const lookupPolicy = evaluateOutputLookupMiss({
+          currentMisses: outputLookupMissesRef.current[outputId] ?? 0,
+          missingSinceMs: outputLookupMissingSinceRef.current[outputId],
+          nowMs: Date.now(),
+        });
+        outputLookupMissesRef.current[outputId] = lookupPolicy.lookupMisses;
+        outputLookupMissingSinceRef.current[outputId] = lookupPolicy.missingSinceMs;
+        if (lookupPolicy.shouldHardStop) {
+          handleOutputLookupHardStop({
+            outputId,
+            taskId,
+            provider,
+            lookupMisses: lookupPolicy.lookupMisses,
+            missingDurationMs: lookupPolicy.missingDurationMs,
+          });
+          return true;
+        }
+        if (lookupPolicy.shouldEmitRetryingBreadcrumb) {
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "generation_poll_output_lookup_retrying",
+            data: {
+              provider,
+              task_id: taskId,
+              output_id: outputId,
+              lookup_misses: lookupPolicy.lookupMisses,
+              missing_duration_ms: lookupPolicy.missingDurationMs,
+              hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
+            },
+          });
+        }
+        scheduleLookupRetry(lookupPolicy.retryDelayMs);
+        return true;
+      };
       if (!isDocumentVisible()) {
         const hiddenRetryDelayMs = resolveHiddenTabStatusRetryDelayMs(attempt);
         pollTimersRef.current[outputId] = window.setTimeout(
@@ -541,59 +603,9 @@ export function useAiStudioTasks({
         return;
       }
 
-      if (findOutputById && !findOutputById(outputId)) {
-        const lookupPolicy = evaluateOutputLookupMiss({
-          currentMisses: outputLookupMissesRef.current[outputId] ?? 0,
-          missingSinceMs: outputLookupMissingSinceRef.current[outputId],
-          nowMs: Date.now(),
-        });
-        outputLookupMissesRef.current[outputId] = lookupPolicy.lookupMisses;
-        outputLookupMissingSinceRef.current[outputId] = lookupPolicy.missingSinceMs;
-        if (lookupPolicy.shouldHardStop) {
-          handleOutputLookupHardStop({
-            outputId,
-            taskId,
-            provider,
-            lookupMisses: lookupPolicy.lookupMisses,
-            missingDurationMs: lookupPolicy.missingDurationMs,
-          });
-          return;
-        }
-        if (lookupPolicy.shouldEmitRetryingBreadcrumb) {
-          addBreadcrumb({
-            type: "ui",
-            level: "warn",
-            message: "generation_poll_output_lookup_retrying",
-            data: {
-              provider,
-              task_id: taskId,
-              output_id: outputId,
-              lookup_misses: lookupPolicy.lookupMisses,
-              missing_duration_ms: lookupPolicy.missingDurationMs,
-              hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
-            },
-          });
-        }
-        pollTimersRef.current[outputId] = window.setTimeout(
-          () =>
-            pollTask(
-              taskId,
-              outputId,
-              attempt,
-              provider,
-              startedAt,
-              noMediaAttempt,
-              activePollSessionId,
-              options,
-              resolvedPollingTarget
-            ),
-          lookupPolicy.retryDelayMs
-        );
+      if (handleMissingOutputLookup()) {
         return;
       }
-      delete outputLookupMissesRef.current[outputId];
-      delete outputLookupMissingSinceRef.current[outputId];
-      delete outputLookupHardStopNotifiedRef.current[outputId];
 
       if (attempt === 0 && noMediaAttempt === 0) {
         const existingTimeoutId = pollTimersRef.current[outputId];
@@ -725,59 +737,9 @@ export function useAiStudioTasks({
         );
         try {
           try {
-            if (findOutputById && !findOutputById(outputId)) {
-              const lookupPolicy = evaluateOutputLookupMiss({
-                currentMisses: outputLookupMissesRef.current[outputId] ?? 0,
-                missingSinceMs: outputLookupMissingSinceRef.current[outputId],
-                nowMs: Date.now(),
-              });
-              outputLookupMissesRef.current[outputId] = lookupPolicy.lookupMisses;
-              outputLookupMissingSinceRef.current[outputId] = lookupPolicy.missingSinceMs;
-              if (lookupPolicy.shouldHardStop) {
-                handleOutputLookupHardStop({
-                  outputId,
-                  taskId,
-                  provider,
-                  lookupMisses: lookupPolicy.lookupMisses,
-                  missingDurationMs: lookupPolicy.missingDurationMs,
-                });
-                return;
-              }
-              if (lookupPolicy.shouldEmitRetryingBreadcrumb) {
-                addBreadcrumb({
-                  type: "ui",
-                  level: "warn",
-                  message: "generation_poll_output_lookup_retrying",
-                  data: {
-                    provider,
-                    task_id: taskId,
-                    output_id: outputId,
-                    lookup_misses: lookupPolicy.lookupMisses,
-                    missing_duration_ms: lookupPolicy.missingDurationMs,
-                    hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
-                  },
-                });
-              }
-              pollTimersRef.current[outputId] = window.setTimeout(
-                () =>
-                  pollTask(
-                    taskId,
-                    outputId,
-                    attempt,
-                    provider,
-                    startedAt,
-                    noMediaAttempt,
-                    activePollSessionId,
-                    options,
-                    resolvedPollingTarget
-                  ),
-                lookupPolicy.retryDelayMs
-              );
+            if (handleMissingOutputLookup()) {
               return;
             }
-            delete outputLookupMissesRef.current[outputId];
-            delete outputLookupMissingSinceRef.current[outputId];
-            delete outputLookupHardStopNotifiedRef.current[outputId];
 
             const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
               outputId,

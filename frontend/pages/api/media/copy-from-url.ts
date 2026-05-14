@@ -25,7 +25,10 @@ import {
   detectImageMimeType,
   detectVideoMimeType,
 } from "../../../lib/server/uploadSignature";
-import { upsertVideoPosterVariantFromBuffer } from "../../../lib/server/videoPosterVariant";
+import {
+  upsertVideoPosterVariantFromBuffer,
+  upsertVideoPreviewVariantFromBuffer,
+} from "../../../lib/server/videoPosterVariant";
 
 type MediaLibraryFileType = "image" | "video" | "audio";
 
@@ -630,6 +633,51 @@ const persistVideoPreviewVariantReference = async ({
   return storagePath;
 };
 
+const hydrateVideoPreviewVariant = async ({
+  userId,
+  mediaFileId,
+  previewStoragePath,
+  videoBuffer,
+  videoMimeType,
+  filename,
+  source,
+  generationId,
+  outputIndex,
+}: {
+  userId: string;
+  mediaFileId: string;
+  previewStoragePath: string | null;
+  videoBuffer: Buffer;
+  videoMimeType: string | null;
+  filename: string;
+  source: string;
+  generationId: string | null | undefined;
+  outputIndex: number;
+}): Promise<string | null> => {
+  if (previewStoragePath) {
+    return await persistVideoPreviewVariantReference({
+      userId,
+      mediaFileId,
+      previewStoragePath,
+    });
+  }
+  return await upsertVideoPreviewVariantFromBuffer({
+    supabaseAdmin: getSupabaseAdmin(),
+    userId,
+    mediaFileId,
+    videoBuffer,
+    videoMimeType,
+    filename,
+    metadata: {
+      generated_by: "media-copy-from-url",
+      preview_source: "video_buffer",
+      source,
+      generation_id: generationId ?? null,
+      output_index: outputIndex,
+    },
+  });
+};
+
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
 
 const clampPrompt = (value?: string | null) => {
@@ -1105,9 +1153,10 @@ export default async function handler(
           previewStoragePath: previewStoragePathHint,
           fullStoragePath: fullStoragePathHint ?? existing.storagePath,
         });
-        if (previewVariantPath) {
+        let durablePreviewVariantPath = existing.previewVariantPath;
+        if (!durablePreviewVariantPath && previewVariantPath) {
           try {
-            await persistVideoPreviewVariantReference({
+            durablePreviewVariantPath = await persistVideoPreviewVariantReference({
               userId: user.id,
               mediaFileId: existing.id,
               previewStoragePath: previewVariantPath,
@@ -1146,7 +1195,7 @@ export default async function handler(
             metadata: existing.metadata,
             thumb_variant_path: existing.thumbVariantPath,
             poster_variant_path: durablePosterStoragePath,
-            preview_variant_path: existing.previewVariantPath,
+            preview_variant_path: durablePreviewVariantPath,
           },
           storagePath: existing.storagePath,
           previewStoragePathHint,
@@ -1292,12 +1341,19 @@ export default async function handler(
             previewStoragePath: previewStoragePathHint,
             fullStoragePath: fullStoragePathHint ?? existing.storagePath,
           });
-          if (previewVariantPath) {
+          let durablePreviewVariantPath = existing.previewVariantPath;
+          if (!durablePreviewVariantPath && existing.fileType === "video") {
             try {
-              await persistVideoPreviewVariantReference({
+              durablePreviewVariantPath = await hydrateVideoPreviewVariant({
                 userId: user.id,
                 mediaFileId: existing.id,
                 previewStoragePath: previewVariantPath,
+                videoBuffer: fetched.buffer,
+                videoMimeType: mimeType,
+                filename: friendlyName,
+                source,
+                generationId,
+                outputIndex: index,
               });
             } catch (error) {
               await logVideoVariantHydrationFailure({
@@ -1318,7 +1374,7 @@ export default async function handler(
               metadata: existing.metadata,
               thumb_variant_path: existing.thumbVariantPath,
               poster_variant_path: durablePosterStoragePath,
-              preview_variant_path: existing.previewVariantPath,
+              preview_variant_path: durablePreviewVariantPath,
             },
             storagePath: existing.storagePath,
             previewStoragePathHint,
@@ -1347,12 +1403,19 @@ export default async function handler(
       previewStoragePath: previewStoragePathHint,
       fullStoragePath: fullStoragePathHint ?? storagePath,
     });
-    if (insertedMediaFileId && previewVariantPath) {
+    let durablePreviewVariantPath = asOptionalString(data?.preview_variant_path);
+    if (insertedMediaFileId && fileType === "video" && !durablePreviewVariantPath) {
       try {
-        await persistVideoPreviewVariantReference({
+        durablePreviewVariantPath = await hydrateVideoPreviewVariant({
           userId: user.id,
           mediaFileId: insertedMediaFileId,
           previewStoragePath: previewVariantPath,
+          videoBuffer: fetched.buffer,
+          videoMimeType: mimeType,
+          filename: friendlyName,
+          source,
+          generationId,
+          outputIndex: index,
         });
       } catch (error) {
         await logVideoVariantHydrationFailure({
@@ -1423,7 +1486,7 @@ export default async function handler(
         metadata: asObjectMetadata(data?.metadata),
         thumb_variant_path: asOptionalString(data?.thumb_variant_path),
         poster_variant_path: durablePosterStoragePath,
-        preview_variant_path: asOptionalString(data?.preview_variant_path),
+        preview_variant_path: durablePreviewVariantPath,
       },
       storagePath,
       previewStoragePathHint,

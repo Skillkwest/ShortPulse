@@ -14,7 +14,6 @@ import {
 } from "../../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -115,7 +114,6 @@ const getModelConfig = (id: string) => {
   }
   if (
     id === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-    id === KIE_SEEDANCE_15_PRO_MODEL_ID ||
     id === KIE_SEEDANCE_2_MODEL_ID ||
     id === KIE_SEEDANCE_2_FAST_MODEL_ID
   ) {
@@ -263,7 +261,6 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
     expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
     expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
   });
@@ -281,7 +278,6 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
     expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
     expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
   });
@@ -323,7 +319,6 @@ describe("modelSelectionPolicy", () => {
 
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(values.has(KIE_KLING_30_MODEL_ID)).toBe(true);
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
   });
 
   it("ignores saved kie model ids for startup fallback selection", () => {

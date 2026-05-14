@@ -6,7 +6,6 @@ import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
@@ -28,8 +27,6 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitKieSeedance2FastVideo(payload);
       case "kie-ai/seedance-2":
         return falClientMocks.submitKieSeedance2Video(payload);
-      case "kie-ai/seedance-1.5-pro":
-        return falClientMocks.submitKieSeedanceVideo(payload);
       case "kie-ai/veo-3.1-fast-i2v":
         return falClientMocks.submitKieVeoImageToVideo(payload);
       default:
@@ -52,7 +49,6 @@ const {
   submitKieKlingImageToVideo,
   submitKieSeedance2FastVideo,
   submitKieSeedance2Video,
-  submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
 } = falClientMocks;
 
@@ -72,13 +68,9 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   videoReferenceMode: "motion",
   videoReferenceImageUrl: "https://example.com/character.png",
   motionReferenceVideoUrl: "https://example.com/motion.mp4",
-  videoAutoFix: false,
   videoCameraFixed: false,
-  klingNegativePrompt: "blur",
   klingCfgScale: 0.5,
   klingWorkflowMode: "single",
-  klingShotType: "customize",
-  klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
   klingElements: [],
   ...overrides,
@@ -496,97 +488,6 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       "Character media references are blocked for video models. Use non-character media assets."
     );
     expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
-  });
-});
-
-describe("handleVideoModelSubmission (Kie Seedance 1.5 Pro)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitKieSeedanceVideo).mockResolvedValue({ request_id: "kie-seedance-1" });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("submits prompt-only Seedance payloads when no frame images are present", async () => {
-    const args = makeArgs({
-      finalModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
-      modelConfig: getModelConfig(KIE_SEEDANCE_15_PRO_MODEL_ID),
-      preparedImageInputs: [],
-      requestedDurationSeconds: 5,
-      requestedResolution: "1080p",
-      aspect: "21:9",
-      videoReferenceMode: "standard",
-      videoCameraFixed: true,
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(submitKieSeedanceVideo).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      input_urls: [],
-      aspect_ratio: "21:9",
-      duration: "8",
-      resolution: "1080p",
-      fixed_lens: true,
-      generate_audio: true,
-    });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
-      "kie-seedance-1",
-      "kie-seedance",
-      undefined,
-      { request_id: "kie-seedance-1" }
-    );
-  });
-
-  it("submits one or two input URLs for Seedance image lanes", async () => {
-    vi.mocked(fetchWithAuth)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last.png",
-        }),
-      } as Response);
-
-    const args = makeArgs({
-      finalModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
-      modelConfig: getModelConfig(KIE_SEEDANCE_15_PRO_MODEL_ID),
-      preparedImageInputs: [
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
-      ],
-      requestedDurationSeconds: 12,
-      requestedResolution: "480p",
-      aspect: "9:16",
-      requestedAudio: false,
-      videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
-    expect(submitKieSeedanceVideo).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      input_urls: [
-        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
-        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last.png",
-      ],
-      aspect_ratio: "9:16",
-      duration: "12",
-      resolution: "480p",
-      fixed_lens: false,
-      generate_audio: false,
-    });
   });
 });
 

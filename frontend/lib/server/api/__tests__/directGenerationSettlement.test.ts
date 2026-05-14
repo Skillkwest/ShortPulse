@@ -285,7 +285,7 @@ describe("directGenerationSettlement", () => {
     );
   });
 
-  it("uses video poster variants for direct terminal preview storage", async () => {
+  it("uses video preview-loop variants for direct terminal preview storage", async () => {
     readRecoveryGenerationRowMock.mockResolvedValueOnce({
       id: "gen-video-1",
       user_id: "user-1",
@@ -336,15 +336,79 @@ describe("directGenerationSettlement", () => {
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationOutputId: "output-video-1",
-        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
         fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
       })
     );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-video-1",
-        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
         fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      })
+    );
+  });
+
+  it("falls back when preview_storage_path is unavailable in the media_files schema", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-video-fallback-1",
+      user_id: "user-1",
+      request_id: "req-video-fallback-1",
+      provider: "kie",
+      model_id: "kie-ai/seedance-2-fast",
+      prompt_text: "project video fallback",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {},
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValueOnce(["media-video-fallback-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-video-fallback-1",
+        resultUrl: "https://provider.example/project-video-fallback.mp4",
+        mediaFileId: "media-video-fallback-1",
+      },
+    ]);
+    mediaFilesLimitMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message:
+            "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "media-video-fallback-1",
+            storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
+            file_type: "video/mp4",
+            poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
+            preview_variant_path:
+              "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+          },
+        ],
+        error: null,
+      });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-video-fallback-1",
+      requestId: "req-video-fallback-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-video-fallback",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/project-video-fallback.mp4"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-video-fallback-1",
+      requestId: "req-video-fallback-1",
+    });
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationOutputId: "output-video-fallback-1",
+        previewStoragePath: "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/videos/media-video-fallback-1.mp4",
       })
     );
   });

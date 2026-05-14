@@ -213,4 +213,38 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.fullUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");
     expect(result.url).toBe("https://signed.example.com/full/by-storage-only.jpg");
   });
+
+  it("normalizes poster-backed video preview storage to the playable full storage path", async () => {
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/generations/videos/media-video-1.mp4") {
+        return "https://signed.example.com/videos/media-video-1.mp4";
+      }
+      if (storagePath === "user-1/variants/videos/media-video-1/poster_720.jpg") {
+        return "https://signed.example.com/videos/media-video-1-poster.jpg";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-video-1",
+      url: "https://expired.example.com/media-video-1.mp4",
+      fileType: "video",
+      previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      previewUrl: "https://expired.example.com/media-video-1-poster.jpg",
+      previewPosterUrl: "https://expired.example.com/media-video-1-poster.jpg",
+      fullUrl: "https://expired.example.com/media-video-1.mp4",
+    });
+
+    expect(result.previewStoragePath).toBe("user-1/generations/videos/media-video-1.mp4");
+    expect(result.previewPosterStoragePath).toBe(
+      "user-1/variants/videos/media-video-1/poster_720.jpg"
+    );
+    expect(result.previewUrl).toBe("https://signed.example.com/videos/media-video-1.mp4");
+    expect(result.previewPosterUrl).toBe(
+      "https://signed.example.com/videos/media-video-1-poster.jpg"
+    );
+    expect(result.fullUrl).toBe("https://signed.example.com/videos/media-video-1.mp4");
+  });
 });

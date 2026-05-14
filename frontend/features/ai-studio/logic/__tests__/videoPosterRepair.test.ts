@@ -82,7 +82,7 @@ describe("resolveVideoPosterRepairsForOutputs", () => {
     expect(repairs.get("out-1")).toMatchObject({
       previewPosterUrl: "https://signed.test/poster.jpg",
       previewPosterStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
-      previewStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+      previewStoragePath: "user-1/videos/out-1.mp4",
       fullStoragePath: "user-1/videos/out-1.mp4",
       previewUrl: "https://signed.test/out-1.mp4",
     });
@@ -117,7 +117,7 @@ describe("resolveVideoPosterRepairsForOutputs", () => {
     expect(repairs.get("out-2")).toMatchObject({
       previewPosterUrl: "https://signed.test/poster-2.jpg",
       previewPosterStoragePath: "user-1/variants/videos/media-2/poster_720.jpg",
-      previewStoragePath: "user-1/variants/videos/media-2/poster_720.jpg",
+      previewStoragePath: "user-1/videos/out-2.mp4",
       fullStoragePath: "user-1/videos/out-2.mp4",
       previewUrl: "https://signed.test/out-2.mp4",
       resultUrls: ["https://signed.test/out-2.mp4"],

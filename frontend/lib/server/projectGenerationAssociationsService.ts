@@ -115,6 +115,15 @@ const isLikelyImagePath = (value: string | null): boolean =>
 const isLikelyVideoPath = (value: string | null): boolean =>
   Boolean(value && /\.(?:m4v|mov|mp4|ogv|webm)(?:$|[?#])/i.test(value));
 
+const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message.toLowerCase()
+      : "";
+  return message.includes("preview_storage_path") && message.includes("schema cache");
+};
+
 const resolveVideoPosterStoragePath = ({
   previewStoragePath,
   fullStoragePath,
@@ -439,13 +448,25 @@ const readMediaFileRowsById = async ({
   if (!normalizedMediaFileIds.length) return new Map();
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("media_files")
-    .select(
-      "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-    )
-    .eq("user_id", userId)
-    .in("id", normalizedMediaFileIds);
+  const runSelect = async (
+    fields:
+      | "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      | "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+  ) =>
+    await supabaseAdmin
+      .from("media_files")
+      .select(fields)
+      .eq("user_id", userId)
+      .in("id", normalizedMediaFileIds);
+
+  let { data, error } = await runSelect(
+    "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+  );
+  if (error && isPreviewStoragePathSchemaError(error)) {
+    ({ data, error } = await runSelect(
+      "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+    ));
+  }
 
   if (error) {
     throw new Error(error.message || "Failed to load project generation media rows");
@@ -499,7 +520,6 @@ const resolveDeliveryFromMediaRows = ({
       fullStoragePath,
     });
   const previewStoragePath =
-    previewPosterStoragePath ??
     publicationPreviewStoragePath ??
     mediaPreviewStoragePath ??
     mediaPreviewVariantPath ??

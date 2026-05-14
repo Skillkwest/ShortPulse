@@ -44,7 +44,6 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-veo-i2v",
   "kie-veo",
   "kie-kling",
-  "kie-seedance",
   "kie-seedance-2",
   "kie-seedance-2-fast",
 ]);

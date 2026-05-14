@@ -216,6 +216,44 @@ describe("resolveInternalReferenceSource", () => {
     expect(resolved?.provenance.resolutionReason).toBe("output_storage_path");
   });
 
+  it("normalizes poster-backed video payload storage onto the playable full path", async () => {
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        outputId: "out-video-storage-fallback",
+        mediaId: "media-video-storage-fallback",
+        mediaKind: "video",
+        previewStoragePath: "user-1/variants/videos/out-video/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/out-video.mp4",
+        referenceRenderUrl: "https://cdn.example.com/out-video-poster.jpg",
+        referenceUrl: "https://cdn.example.com/out-video.mp4",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved).toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        mediaId: "media-video-storage-fallback",
+        previewStoragePath: "user-1/generations/videos/out-video.mp4",
+        fullStoragePath: "user-1/generations/videos/out-video.mp4",
+      })
+    );
+    expect(resolved?.provenance.resolutionReason).toBe("output_storage_path");
+  });
+
   it("preserves local upload authority through lazy blob fallback instead of preview-url ranking", async () => {
     const output = makeImageOutput({
       mediaSource: "upload",

@@ -12,14 +12,12 @@ import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { ReferencePromptStep } from "./ReferencePromptStep";
-import { ReferenceSeedanceAdvancedSteps } from "./ReferenceSeedanceAdvancedSteps";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -118,9 +116,6 @@ export type VideoPropertiesPanelProps = {
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   referenceImageWarning?: string | null;
-  agentIsSending?: boolean;
-  agentError?: string;
-  onAgentEnhanceSend?: () => void;
   onCreateCharacter?: () => void;
   onCreateElement?: () => void;
 };
@@ -171,6 +166,7 @@ export function VideoPropertiesPanel({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
+  onSave,
   onRegenerate,
   resolvePreviewUrlById,
   costCredits,
@@ -211,9 +207,6 @@ export function VideoPropertiesPanel({
     target: "primary",
   });
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const videoPromptAgentIsSending = false;
-  const videoPromptAgentError = undefined;
-  const videoPromptEnhanceSend = undefined;
   const {
     primaryInputRef,
     extraOneInputRef,
@@ -481,22 +474,17 @@ export function VideoPropertiesPanel({
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
-    isSeedanceModel,
     isVeoModel,
     referenceStepTitle,
     referenceStepSubtitle,
     promptOrder,
     referenceOrder,
-    referenceBadge,
     promptBadge,
     videoSettingsOrder,
     motionAudioOrder,
     klingAdvancedOrder,
-    klingAdvancedBadge,
     klingAssetsOrder,
-    klingAssetsBadge,
     klingGuidanceOrder,
-    klingGuidanceBadge,
     klingShotSummary,
     klingAssetsSummary,
     klingGuidanceSummary,
@@ -536,12 +524,11 @@ export function VideoPropertiesPanel({
 
   const isKieKlingWorkspace = isKling3Mode && modelId === KIE_KLING_30_MODEL_ID;
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
-  const isSeedance15ModelSelected = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
   const isSeedance2ModelSelected = modelId === KIE_SEEDANCE_2_MODEL_ID;
   const isSeedance2FastModelSelected = modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const isSeedance2FamilyModelSelected =
     isSeedance2UiEnabled() && (isSeedance2ModelSelected || isSeedance2FastModelSelected);
-  const isAnySeedanceModelSelected = isSeedance15ModelSelected || isSeedance2FamilyModelSelected;
+  const isAnySeedanceModelSelected = isSeedance2FamilyModelSelected;
   const isKlingPatternModelSelected = isKieKlingModelSelected || isSeedance2FamilyModelSelected;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
@@ -614,8 +601,6 @@ export function VideoPropertiesPanel({
   }, [referenceText, videoDurationValue]);
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
-  const shouldShowSeedanceAdvancedPanel =
-    isSeedance15ModelSelected && activeVideoMode === "standard" && !isMotionMode;
   const shouldShowKlingAdvancedSteps = isKlingPatternMode && !isSeedance2FamilyModelSelected;
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
@@ -1311,8 +1296,6 @@ export function VideoPropertiesPanel({
                         durationOptions={durationOptions}
                         resolutionOptions={resolutionOptions}
                         videoGenerateAudioValue={videoGenerateAudioValue}
-                        isSeedanceModel={isSeedanceModel}
-                        showSeedanceCameraFixedControl={!isAnySeedanceModelSelected}
                         videoCameraFixed={videoCameraFixed}
                         isVeoModel={isVeoModel}
                         videoAutoFix={videoAutoFix}
@@ -1507,16 +1490,6 @@ export function VideoPropertiesPanel({
                         </div>
                       </div>
                     ) : null}
-                    {shouldShowSeedanceAdvancedPanel ? (
-                      <div className="video-setup-seedance-slot">
-                        <ReferenceSeedanceAdvancedSteps
-                          title="Seedance 1.5 Settings"
-                          isSeedance15Model={isSeedance15ModelSelected}
-                          videoCameraFixed={videoCameraFixed}
-                          onVideoCameraFixedChange={onVideoCameraFixedChange}
-                        />
-                      </div>
-                    ) : null}
                     {!isKieKlingModelSelected && !isAnySeedanceModelSelected ? (
                       <p className="video-kling-tip">
                         Tip: Switch to the Kling 3.0 model to access multi-shot capability.
@@ -1552,12 +1525,11 @@ export function VideoPropertiesPanel({
                                   promptOrder={promptOrder}
                                   referenceText={primaryPromptValue}
                                   onPromptTextChange={handlePrimaryPromptChange}
+                                  onSave={onSave}
                                   collapsed={collapsedSteps.prompt}
                                   onToggleCollapse={() => toggleStep("prompt")}
                                   onDrop={handlePromptDropWithKlingTokenInsert}
-                                  agentIsSending={videoPromptAgentIsSending}
-                                  agentError={videoPromptAgentError}
-                                  onAgentEnhanceSend={videoPromptEnhanceSend}
+                                  agentIsSending={false}
                                   showEnhanceButton={false}
                                   hideHeader={true}
                                   autoResize

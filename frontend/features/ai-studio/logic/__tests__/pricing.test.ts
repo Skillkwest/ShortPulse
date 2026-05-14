@@ -158,44 +158,6 @@ describe("computeCostForModel (Kling 3.0)", () => {
   });
 });
 
-describe("computeCostForModel (Kie Seedance 1.5)", () => {
-  it("matches observed 4s 720p audio-off Kie pricing", () => {
-    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
-      durationSeconds: 4,
-      resolution: "720p",
-      audio: false,
-    });
-    expectDefaultMarkedUpCredits(cost, 0.07, 6);
-  });
-
-  it("matches observed 12s 1080p audio-off Kie pricing", () => {
-    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
-      durationSeconds: 12,
-      resolution: "1080p",
-      audio: false,
-    });
-    expectDefaultMarkedUpCredits(cost, 0.45, 6);
-  });
-
-  it("matches observed 12s 720p audio-on Kie pricing", () => {
-    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
-      durationSeconds: 12,
-      resolution: "720p",
-      audio: true,
-    });
-    expectDefaultMarkedUpCredits(cost, 0.42, 6);
-  });
-
-  it("matches observed 12s 1080p audio-on Kie pricing", () => {
-    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
-      durationSeconds: 12,
-      resolution: "1080p",
-      audio: true,
-    });
-    expectDefaultMarkedUpCredits(cost, 0.9, 6);
-  });
-});
-
 describe("computeCostForModel (Kie Seedance 2)", () => {
   it("prices 15s Seedance 2 generations at the full submitted duration", () => {
     const tenSecondCost = computeCostForModel(KIE_SEEDANCE_2_MODEL_ID, {

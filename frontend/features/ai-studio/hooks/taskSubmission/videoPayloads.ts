@@ -7,7 +7,7 @@ import {
   resolveKieKlingElementToken,
 } from "../../logic/klingElements";
 import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
-import type { SubmissionModelConfig, VideoSubmissionArgs } from "./types";
+import type { SubmissionModelConfig } from "./types";
 
 type KlingMultiPromptPayload = { prompt: string; duration: number };
 type KlingElementPayload =
@@ -39,7 +39,7 @@ const resolveAspectForModelConfig = (
 };
 
 export const resolveKlingShotType = (
-  shotType: VideoSubmissionArgs["klingShotType"]
+  shotType: "customize" | "intelligent" | undefined
 ): "customize" | "intelligent" | undefined =>
   shotType === "customize" || shotType === "intelligent" ? shotType : undefined;
 
@@ -161,12 +161,6 @@ export const resolveSeedanceTextResolution = (
   if (normalized.includes("720") || normalized.includes("high")) return "720p";
   return "1080p";
 };
-
-/**
- * Maps Seedance 1.5 duration to API-supported values.
- */
-export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): string =>
-  requestedDurationSeconds <= 4 ? "4" : requestedDurationSeconds <= 8 ? "8" : "12";
 
 /**
  * Maps Seedance 2.x duration to the documented 5s/10s/15s contract.

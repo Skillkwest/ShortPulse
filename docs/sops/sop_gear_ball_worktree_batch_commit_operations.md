@@ -46,6 +46,7 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
   git config --local --get shortpulse.allowedBranch
   ```
 - The current branch must match `shortpulse.allowedBranch` before commit activity.
+- Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
 - Do not push directly to `main`.
 - Do not expose secrets, env values, tokens, customer-private data, or temporary env copies.

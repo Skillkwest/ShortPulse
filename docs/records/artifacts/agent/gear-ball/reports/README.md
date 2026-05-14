@@ -25,3 +25,7 @@ Substantive commit/push reports should include:
 ## Template
 
 - `docs/records/artifacts/agent/gear-ball/reports/run-report-template.md`
+
+## Reports
+
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-13-self-audit-loop-first-full-run.md`: first end-to-end retained self-audit report after a full Gear Ball commit/push run.

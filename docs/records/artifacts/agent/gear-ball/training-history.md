@@ -50,3 +50,45 @@ Next training focus:
 
 - Use the retained run-report template on the next substantive full commit/push run.
 - Revisit the baseline KPI thresholds after 2-3 scored Gear Ball runs.
+
+## 2026-05-13: First Full SOP Run With Retained Self-Audit
+
+Task: execute the first full Gear Ball SOP run that includes helper-tool validation, commit/push, retained self-audit, score, and training-history updates.
+
+Actions taken:
+
+- Validated the Gear Ball tooling/docs batch with `gear-ball:preflight` and `npm -C frontend run docs:check`.
+- Committed and pushed the new helper tooling, retained artifacts, and SOP/contract updates on `working-development` as `9bc2861fe`.
+- Produced the first retained post-push report and updated the run log, memory, and training history in the same supervised run.
+- Hardened the SOP against a real slip found during execution: do not parallelize Git commands that compete for the index.
+
+Training result:
+
+- The new post-push loop works end to end and is now backed by retained evidence rather than only chat output.
+- The helper-tooling investment was justified; validation was faster and more deterministic than earlier SOP runs.
+- The remaining gap is operational discipline around Git serialization, not missing infrastructure.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- Scope stayed narrow and coherent.
+- Preflight and docs parity both passed before commit.
+- The push completed cleanly on the correct branch.
+- The run ended with retained evidence instead of stopping at chat confirmation.
+
+What slipped:
+
+- I created an avoidable `index.lock` collision by running `git status` and `git commit` in parallel.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `yes`
+- Change made: serialized Git-index operations are now an explicit Gear Ball rule
+
+Next training focus:
+
+- Run another mixed-lane full SOP using the new helpers and confirm the Git-serialization rule eliminates the only material process slip from this run.

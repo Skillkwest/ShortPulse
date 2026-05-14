@@ -24,6 +24,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-01: For future high-risk worktree runs, use the prompt sequence in `docs/agents/gear-ball/README.md` and the report template in `docs/agents/gear-ball/reports/README.md` so the authorization gates and evidence format are repeatable.
 - 2026-05-13: Gear Ball should run `npm -C frontend run gear-ball:preflight -- ...` before staging or committing high-risk batches, use `npm -C frontend run gear-ball:manifest -- ...` for substantial batch evidence, and consult `docs/agents/gear-ball/shared-file-risk-map.md` before touching shared page, CSS, route-index, or suite-hot files.
 - 2026-05-13: Every full SOP run that ends in commit and push should also end in a self-audit, a score out of 10, a tooling/SOP decision, and a retained training-history update under `docs/records/artifacts/agent/gear-ball/`.
+- 2026-05-13: Gear Ball should never parallelize Git commands that compete for the index. Serialize `git add`, `git status`, `git commit`, and other index-locking operations to avoid self-inflicted `index.lock` failures.
 
 ## Open Follow-Ups
 

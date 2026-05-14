@@ -11,32 +11,15 @@
   padding: 24px 16px 32px;
   color: var(--color-ash);
   overflow: hidden;
-  background:
-    radial-gradient(70% 90% at 50% 0%, rgba(37, 169, 191, 0.1), transparent 60%),
-    radial-gradient(42% 42% at 100% 100%, rgba(243, 109, 58, 0.1), transparent 72%),
-    linear-gradient(180deg, #11151c 0%, #0c1016 100%);
+  background: var(--color-bg);
 }
 
 .auth-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(201, 205, 214, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(201, 205, 214, 0.02) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(circle at center, black 38%, transparent 100%);
-  opacity: 0.6;
+  display: none;
 }
 
 .auth-glow {
-  position: absolute;
-  width: 320px;
-  height: 320px;
-  border-radius: 999px;
-  pointer-events: none;
-  filter: blur(54px);
-  opacity: 0.2;
+  display: none;
 }
 
 .auth-glow-left {

@@ -70,9 +70,11 @@ describe("POST /api/billing/stripe/checkout", () => {
               maybeSingle: async () => ({
                 data: {
                   id: "pkg_studio_10000",
+                  display_name: "Studio 10,000",
                   is_active: true,
                   stripe_price_id: "price_123",
                   credit_amount_cents: 10000,
+                  price_cents: 12900,
                 },
                 error: null,
               }),
@@ -99,6 +101,8 @@ describe("POST /api/billing/stripe/checkout", () => {
       expect.objectContaining({
         success_url: "https://app.shortpulse.test/profile?section=credits&checkout=success",
         cancel_url: "https://app.shortpulse.test/profile?section=credits&checkout=cancel",
+        "metadata[credit_package_display_name]": "Studio 10,000",
+        "metadata[credit_package_price_cents]": 12900,
       })
     );
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
@@ -128,9 +132,11 @@ describe("POST /api/billing/stripe/checkout", () => {
             maybeSingle: async () => ({
               data: {
                 id: "pkg_studio_10000",
+                display_name: "Studio 10,000",
                 is_active: true,
                 stripe_price_id: "price_123",
                 credit_amount_cents: 10000,
+                price_cents: 12900,
               },
               error: null,
             }),

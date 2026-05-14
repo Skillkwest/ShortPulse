@@ -9,6 +9,8 @@ import PricingPage from "../../pages/pricing";
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const trackBillingPricingViewedMock = vi.hoisted(() => vi.fn());
+const trackBillingUpgradeClickedMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -39,6 +41,11 @@ vi.mock("../../lib/supabaseClient", () => ({
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../lib/growthTelemetry", () => ({
+  trackBillingPricingViewed: (...args: unknown[]) => trackBillingPricingViewedMock(...args),
+  trackBillingUpgradeClicked: (...args: unknown[]) => trackBillingUpgradeClickedMock(...args),
 }));
 
 describe("Pricing route behavior", () => {
@@ -114,6 +121,15 @@ describe("Pricing route behavior", () => {
     });
     expect(routerPushMock).toHaveBeenCalledWith(
       "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+    );
+    expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        upgrade_surface: "pricing_page",
+        pricing_intent: "create-project",
+        plan_id: "studio",
+        billing_interval: "year",
+        is_authenticated: false,
+      })
     );
   });
 
@@ -319,6 +335,15 @@ describe("Pricing route behavior", () => {
       );
       expect(assignMock).toHaveBeenCalledWith("https://checkout.stripe.com/test-session");
     });
+    expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        upgrade_surface: "pricing_page",
+        pricing_intent: "create-project",
+        plan_id: "studio",
+        billing_interval: "year",
+        is_authenticated: true,
+      })
+    );
 
     Object.defineProperty(window, "location", {
       configurable: true,

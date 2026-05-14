@@ -728,10 +728,16 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
   const creditAmountRaw = metadata.credit_amount_cents;
   const packageId =
     typeof metadata.credit_package_id === "string" ? metadata.credit_package_id : null;
+  const packageDisplayName =
+    typeof metadata.credit_package_display_name === "string"
+      ? metadata.credit_package_display_name
+      : null;
+  const packagePriceCentsRaw = metadata.credit_package_price_cents;
   if (!userId || !creditAmountRaw) return;
 
   const creditAmount = Number(creditAmountRaw);
   if (!Number.isFinite(creditAmount) || creditAmount <= 0) return;
+  const packagePriceCents = Number(packagePriceCentsRaw);
 
   await applyCredit({
     userId,
@@ -743,6 +749,9 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
       checkout_session_id: session.id ?? null,
       stripe_customer_id: session.customer ?? null,
       credit_package_id: packageId,
+      credit_package_display_name: packageDisplayName,
+      credit_package_price_cents:
+        Number.isFinite(packagePriceCents) && packagePriceCents > 0 ? packagePriceCents : null,
     },
   });
 

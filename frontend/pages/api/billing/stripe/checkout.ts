@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data: pkg, error: pkgError } = await supabaseAdmin
       .from("billing_credit_packages")
-      .select("id, display_name, credit_amount_cents, stripe_price_id, is_active")
+      .select("id, display_name, credit_amount_cents, price_cents, stripe_price_id, is_active")
       .eq("id", packageId)
       .maybeSingle();
 
@@ -69,6 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "metadata[user_id]": user.id,
       "metadata[credit_package_id]": pkg.id,
       "metadata[credit_amount_cents]": pkg.credit_amount_cents,
+      "metadata[credit_package_display_name]": pkg.display_name,
+      "metadata[credit_package_price_cents]": pkg.price_cents,
     });
 
     void writeAppErrorLog({

@@ -195,6 +195,7 @@ describe("POST /api/billing/storage-addon/change", () => {
 
     expect(stripePostFormMock).toHaveBeenCalledWith("/subscriptions/sub_123", {
       proration_behavior: "create_prorations",
+      payment_behavior: "error_if_incomplete",
       "items[0][price]": "price_storage_100",
       "items[0][quantity]": 1,
     });
@@ -318,5 +319,130 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(stripeGetMock).not.toHaveBeenCalled();
     expect(stripePostFormMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("blocks duplicate add-on purchases when Stripe already has the item but local sync is stale", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_100gb",
+          display_name: "Extra 100 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 1500,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "sub_123",
+      items: {
+        data: [
+          { id: "si_base", quantity: 1, price: { id: "price_studio" } },
+          { id: "si_storage_100", quantity: 1, price: { id: "price_storage_100" } },
+        ],
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Extra 100 GB is already active on this workspace.",
+    });
+  });
+
+  it("fails closed when Stripe cannot complete the storage add-on charge immediately", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_100gb",
+          display_name: "Extra 100 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 1500,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "sub_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
+      },
+    });
+    stripePostFormMock.mockRejectedValueOnce(
+      new Error("This payment requires additional customer action.")
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "This payment requires additional customer action.",
+    });
   });
 });

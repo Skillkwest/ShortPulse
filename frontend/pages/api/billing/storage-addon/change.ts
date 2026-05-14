@@ -283,15 +283,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (action === "add") {
-      await stripePostForm(
-        `/subscriptions/${stripeSubscriptionId}`,
-        buildSubscriptionUpdatePayload([
+      const addonAlreadyLiveInStripe = liveItems.some(
+        (item) => item.price?.id && item.price.id === offer!.stripe_price_id
+      );
+      if (addonAlreadyLiveInStripe) {
+        return res
+          .status(409)
+          .json({ error: `${addon.display_name} is already active on this workspace.` });
+      }
+
+      await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {
+        ...buildSubscriptionUpdatePayload([
           {
             price: offer!.stripe_price_id!,
             quantity: 1,
           },
-        ])
-      );
+        ]),
+        payment_behavior: "error_if_incomplete",
+      });
 
       return res.status(200).json({
         ok: true,

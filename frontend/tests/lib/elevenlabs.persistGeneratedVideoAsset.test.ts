@@ -7,6 +7,9 @@ const upsertGenerationPublicationMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
 const associateMediaFilesWithProjectForUserMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const upsertVideoPosterVariantFromBufferMock = vi.fn();
+const signVideoPosterVariantMock = vi.fn();
+const upsertVideoPreviewVariantFromBufferMock = vi.fn();
 
 type MockQueryResult = {
   data?: unknown;
@@ -91,6 +94,14 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateMediaFilesWithProjectForUserMock(...args),
 }));
 
+vi.mock("../../lib/server/videoPosterVariant", () => ({
+  upsertVideoPosterVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPosterVariantFromBufferMock(...args),
+  signVideoPosterVariant: (...args: unknown[]) => signVideoPosterVariantMock(...args),
+  upsertVideoPreviewVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPreviewVariantFromBufferMock(...args),
+}));
+
 import { persistGeneratedVideoAsset } from "../../lib/server/elevenlabs";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -133,6 +144,9 @@ describe("persistGeneratedVideoAsset", () => {
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
     associateMediaFilesWithProjectForUserMock.mockResolvedValue(true);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
+    signVideoPosterVariantMock.mockResolvedValue(null);
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
   });
 
   it("keeps published signed-url authority when autosave is disabled", async () => {
@@ -315,5 +329,53 @@ describe("persistGeneratedVideoAsset", () => {
       projectId: "project-1",
       mediaFileIds: ["media-1"],
     });
+  });
+
+  it("publishes the generated preview-loop path when autosaved video preview generation succeeds", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-1/preview_loop_360p.mp4"
+    );
+
+    await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+    });
+
+    expect(upsertVideoPreviewVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabaseAdmin: supabaseAdminMock,
+        userId: "user-1",
+        mediaFileId: "media-1",
+        videoBuffer: Buffer.from("video"),
+        videoMimeType: "video/mp4",
+        metadata: expect.objectContaining({
+          generated_by: "elevenlabs_video_persistence",
+          generation_id: "generation-1",
+          source_mode: "voice-changer",
+        }),
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previewStoragePath: "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/video/generation-1/Cinematic_skyline_reveal.mp4",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previewStoragePath: "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/video/generation-1/Cinematic_skyline_reveal.mp4",
+      })
+    );
   });
 });

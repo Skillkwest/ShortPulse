@@ -441,24 +441,42 @@ export const listCreditPurchaseTransactions = async (
       const packageId =
         typeof metadata.credit_package_id === "string" ? metadata.credit_package_id : null;
       const packageRecord = packageId ? (packageMap.get(packageId) ?? null) : null;
+      const packageDisplayNameSnapshot =
+        typeof metadata.credit_package_display_name === "string"
+          ? metadata.credit_package_display_name
+          : null;
+      const packagePriceCentsSnapshot = Number(metadata.credit_package_price_cents);
       const checkoutSessionId =
         typeof metadata.checkout_session_id === "string" ? metadata.checkout_session_id : null;
       const checkoutSessionAmount = checkoutSessionId
         ? (checkoutAmountMap.get(checkoutSessionId) ?? null)
         : null;
+      const fallbackSnapshotAmountCents =
+        Number.isFinite(packagePriceCentsSnapshot) && packagePriceCentsSnapshot > 0
+          ? Math.max(0, packagePriceCentsSnapshot)
+          : 0;
+      const fallbackCatalogAmountCents =
+        packageRecord && Number.isFinite(packageRecord.price_cents)
+          ? Math.max(0, Number(packageRecord.price_cents ?? 0) || 0)
+          : 0;
       const amountPaidCents =
         checkoutSessionAmount?.amountPaidCents ??
-        (packageRecord && Number.isFinite(packageRecord.price_cents)
-          ? Math.max(0, Number(packageRecord.price_cents ?? 0) || 0)
-          : 0);
+        (fallbackSnapshotAmountCents > 0
+          ? fallbackSnapshotAmountCents
+          : fallbackCatalogAmountCents);
       if (amountPaidCents <= 0) {
         return null;
       }
 
-      const title =
-        packageRecord?.display_name && packageRecord.display_name.trim().length > 0
-          ? `Credit top-up · ${packageRecord.display_name}`
-          : "Credit top-up";
+      const resolvedPackageDisplayName =
+        packageDisplayNameSnapshot && packageDisplayNameSnapshot.trim().length > 0
+          ? packageDisplayNameSnapshot
+          : packageRecord?.display_name && packageRecord.display_name.trim().length > 0
+            ? packageRecord.display_name
+            : null;
+      const title = resolvedPackageDisplayName
+        ? `Credit top-up · ${resolvedPackageDisplayName}`
+        : "Credit top-up";
 
       return {
         id: row.id,

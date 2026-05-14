@@ -259,6 +259,9 @@ describe("POST /api/billing/stripe/webhook", () => {
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
+              credit_package_id: "pkg_starter",
+              credit_package_display_name: "Starter 500",
+              credit_package_price_cents: "700",
             },
           },
         },
@@ -307,6 +310,8 @@ describe("POST /api/billing/stripe/webhook", () => {
               user_id: "user_123",
               credit_amount_cents: "1500",
               credit_package_id: "pkg_starter",
+              credit_package_display_name: "Starter 500",
+              credit_package_price_cents: "700",
             },
           },
         },
@@ -323,6 +328,10 @@ describe("POST /api/billing/stripe/webhook", () => {
         changeCents: 1500,
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_test_1",
+        metadata: expect.objectContaining({
+          credit_package_display_name: "Starter 500",
+          credit_package_price_cents: 700,
+        }),
       })
     );
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
@@ -352,6 +361,9 @@ describe("POST /api/billing/stripe/webhook", () => {
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
+              credit_package_id: "pkg_starter",
+              credit_package_display_name: "Starter 500",
+              credit_package_price_cents: "700",
             },
           },
         },
@@ -378,6 +390,9 @@ describe("POST /api/billing/stripe/webhook", () => {
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
+              credit_package_id: "pkg_starter",
+              credit_package_display_name: "Starter 500",
+              credit_package_price_cents: "700",
             },
           },
         },
@@ -391,6 +406,10 @@ describe("POST /api/billing/stripe/webhook", () => {
         userId: "user_123",
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_async_1",
+        metadata: expect.objectContaining({
+          credit_package_display_name: "Starter 500",
+          credit_package_price_cents: 700,
+        }),
       })
     );
   });

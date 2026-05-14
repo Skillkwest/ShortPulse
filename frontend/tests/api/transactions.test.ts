@@ -255,4 +255,61 @@ describe("GET /api/billing/stripe/transactions", () => {
       ],
     });
   });
+
+  it("uses historical ledger snapshots when Stripe session lookup and current catalog differ", async () => {
+    billingStateQueue.push(
+      { data: { stripe_customer_id: "cus_789" }, error: null },
+      { data: { contract_source: "stripe", stripe_customer_id: "cus_789" }, error: null }
+    );
+    creditLedgerRows.push({
+      id: "ledger_3",
+      source_ref: "checkout_grant:cs_archived_1",
+      metadata: {
+        checkout_session_id: "cs_archived_1",
+        credit_package_id: "pkg_growth",
+        credit_package_display_name: "Growth 2,000",
+        credit_package_price_cents: 2600,
+      },
+      created_at: "2026-04-01T10:00:00.000Z",
+    });
+    creditPackageRows.push({
+      id: "pkg_growth",
+      display_name: "Growth 2,500",
+      price_cents: 3200,
+    });
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/invoices") {
+        return { data: [] };
+      }
+      if (path === "/checkout/sessions/cs_archived_1") {
+        throw new Error("not found");
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
+    });
+
+    const req = { method: "GET", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      transactions: [
+        {
+          id: "ledger_3",
+          invoiceNumber: null,
+          amountPaidCents: 2600,
+          currency: "usd",
+          status: "paid",
+          title: "Credit top-up · Growth 2,000",
+          createdAt: "2026-04-01T10:00:00.000Z",
+          paidAt: "2026-04-01T10:00:00.000Z",
+          receiptUrl: null,
+          kind: "credit_purchase",
+          kindLabel: "Credit top-up",
+          reference: "cs_archived_1",
+        },
+      ],
+    });
+  });
 });

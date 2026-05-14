@@ -19,7 +19,11 @@ import {
   remuxVideoWithAudioTrack,
   type TempFileHandle,
 } from "./mediaAudioExtraction";
-import { signVideoPosterVariant, upsertVideoPosterVariantFromBuffer } from "./videoPosterVariant";
+import {
+  signVideoPosterVariant,
+  upsertVideoPosterVariantFromBuffer,
+  upsertVideoPreviewVariantFromBuffer,
+} from "./videoPosterVariant";
 const MEDIA_BUCKET = "media_library";
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io";
 const AUDIO_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -1188,6 +1192,7 @@ export const persistGeneratedVideoAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  let previewStoragePath: string = storagePath;
   let previewPosterStoragePath: string | null = null;
   let previewPosterUrl: string | null = null;
   let outputRows = await persistGenerationOutputRecords({
@@ -1242,6 +1247,21 @@ export const persistGeneratedVideoAsset = async ({
         throw new Error(mediaInsert.error?.message || "Unable to record generated video media.");
       }
       mediaFileId = mediaInsert.data.id as string;
+      previewStoragePath =
+        (await upsertVideoPreviewVariantFromBuffer({
+          supabaseAdmin,
+          userId,
+          mediaFileId,
+          videoBuffer: outputBuffer,
+          videoMimeType: outputContentType,
+          filename,
+          metadata: {
+            generated_by: "elevenlabs_video_persistence",
+            generation_id: generationId,
+            source_mode: sourceMode,
+            provider_request_id: resolvedProviderRequestId,
+          },
+        }).catch(() => null)) ?? storagePath;
       previewPosterStoragePath = await upsertVideoPosterVariantFromBuffer({
         supabaseAdmin,
         userId,
@@ -1298,7 +1318,6 @@ export const persistGeneratedVideoAsset = async ({
     }
   }
   const outputRowId = outputRows[0]?.id ?? null;
-  const previewStoragePath = previewPosterStoragePath ?? storagePath;
 
   if (outputRowId) {
     await upsertGenerationPublication({

@@ -10,6 +10,7 @@ The agent has a durable contract, repo-visible memory, retained artifact area, o
 Real issues that merit engineering follow-up should also produce a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 User-facing checkpoint summaries live in `beeper/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
 Route/control/action coverage history lives in `beeper/action-coverage/` so Beeper can expand functional coverage over time.
+The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
 
 ## Artifact Layout
 

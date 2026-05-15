@@ -32,6 +32,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-14: Gear Ball preflight should block real env files but allow documented example env files such as `.env.example`, `.env.agent.local.example`, and `frontend/.env.example`. Blocking canonical examples creates noise without protecting a real gate.
 - 2026-05-15: In this repo, the standing branch contract is `working-development` unless the user explicitly changes it in the current thread. At the start of any full SOP run, verify both the current branch and `shortpulse.allowedBranch`, and if local state has drifted elsewhere, switch back before the first Git write.
 - 2026-05-15: The `index.lock` failure mode is still live if Git writes are launched in parallel. Treat Git serialization as an active execution rule, not only a documented preference.
+- 2026-05-15: After the batch commit series but before the first push, run one final leftover audit with `git status --short`. Any remaining path must be either folded into the run, explicitly deferred, or called out as pre-existing unrelated work. Do not assume the initial batch manifest caught every adjacent doc or training lane.
 
 ## Open Follow-Ups
 

@@ -285,6 +285,26 @@ Next training focus:
 - Use the next-run drill rule on the next real product checkpoint.
 - Confirm that the weakest category actually changes after the drill instead of staying static.
 
+## 2026-05-15: Run Queue Hardening
+
+Task: reduce planning churn and make it easier for Beeper to resume with the highest-value next workflow lane.
+
+Actions taken:
+
+- Added a ranked `beeper/next-run-queue.md` with the current highest-value real-user testing lanes.
+- Updated memory, SOP, retained memory, tools inventory, and artifact docs so the queue becomes part of the normal run-start workflow.
+- Added a durable rule that deeper workflow coverage should win over further process-only hardening unless process drift is blocking the run.
+
+Training result:
+
+- Beeper now has a single control surface for "what should I test next?"
+- Future runs should spend less time choosing and more time executing deeper user workflows.
+
+Next training focus:
+
+- Use the logout -> sign-back-in loop as the next high-value lane unless the user redirects scope.
+- See whether the next substantive score raises the `coverage expansion` category.
+
 ## 2026-05-15: Trigger Phrase Hardening
 
 Task: make the start signal for Beeper testing runs explicit and durable.

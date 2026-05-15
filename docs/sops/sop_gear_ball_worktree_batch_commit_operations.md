@@ -354,6 +354,7 @@ After the final requested commit batch:
    ```bash
    git status --short
    ```
+   Before push-readiness, classify every remaining path. Do not carry unexplained leftovers past this step. If a new adjacent lane is still dirty and belongs to the same user-approved run, commit it before the first push.
 4. Verify branch guard alignment:
    ```bash
    git branch --show-current

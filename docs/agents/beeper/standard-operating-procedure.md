@@ -43,6 +43,7 @@ This SOP governs:
 
 - `beeper/checklists/live-product-walkthrough.md`
 - `beeper/action-coverage/README.md`
+- `beeper/next-run-queue.md`
 - `beeper/checkpoint-summaries/README.md`
 - `beeper/reports/README.md`
 - `beeper/runs/README.md`
@@ -101,6 +102,7 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 - Use the packet for chronological notes and raw evidence.
 - Use the retained report for the durable audit summary.
 - Check `beeper/action-coverage/master-coverage-log.md` before picking the next lane so the run expands coverage on purpose.
+- Check `beeper/next-run-queue.md` before inventing a new lane from scratch.
 - Check `docs/records/artifacts/agent/beeper/trainer-directives-log.md` so the active trainer intent is explicit before the run starts.
 
 ### Step 3. Confirm environment and identity
@@ -252,6 +254,7 @@ Beeper is in training mode. That means:
 - every substantive supervised run should also update the performance ledger,
 - every score below `9/10` should produce one concrete process improvement,
 - every substantive supervised run should end with one next-run drill tied to the weakest category,
+- deeper workflow coverage should win over additional process hardening unless process drift is the real blocker,
 - and repeated friction should become a helper, checklist rule, or SOP update.
 
 ## Known Scenario Framework

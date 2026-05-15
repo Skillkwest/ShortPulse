@@ -357,3 +357,47 @@ Capability decision:
 Next training focus:
 
 - On the next full SOP run, verify that the branch is corrected to `working-development` before any staging and keep all Git-index operations strictly serialized.
+
+## 2026-05-15: Production Prelaunch Mixed-Worktree Run
+
+Task: execute a full Gear Ball SOP run directly on the temporary prelaunch `production` branch, commit all approved work, and push only `production`.
+
+Actions taken:
+
+- Validated the mixed production worktree with targeted product tests, `docs:check`, `gear-ball:preflight`, `npm -C frontend run build`, and the full frontend suite.
+- Published the production product lane in `d49aaa91e` with AI Studio project-route recovery, media preview/runtime telemetry, preview backfill scripts, and SQL execute-posture hardening.
+- Published the Beeper and D-Bug prelaunch audit record lane in `35c9a1dc9`.
+- Caught one adjacent Beeper scoring lane that was still dirty after the first two commits, validated it, and published it in `1a2fc669b` before push.
+- Added a retained SOP/memory rule requiring a final leftover audit after the commit series and before the first push.
+
+Training result:
+
+- The validation ladder was strong: no post-suite product fixes were needed.
+- The main process miss was manifest completeness, not code correctness. A side documentation lane remained dirty after the first commit series.
+- The right correction is procedural: final pre-push leftover classification, not new tooling.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- Full-suite pressure stayed green.
+- Batch boundaries were coherent once staged.
+- The production-only branch override was respected through the whole run.
+
+What slipped:
+
+- The first manifest did not capture one adjacent Beeper score-system lane.
+- I only discovered that lane during the post-commit `git status` audit.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `no`
+- SOP/doc update needed: `yes`
+- Change made: Gear Ball now requires a final leftover audit after the batch commit series and before the first push.
+
+Next training focus:
+
+- On the next large mixed run, treat the final `git status --short` classification as a hard gate, not a courtesy check.

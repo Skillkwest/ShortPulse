@@ -17,6 +17,8 @@ Use this path when setting up a new agent for a new recurring task:
 
 ## Agent Contracts
 
+- `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.
+- `docs/agents/ayal/README.md`: Ayal user-account management and customer-service steward contract and memory entrypoint.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
 - `docs/agents/change-impact-auditor.md`: change-impact audit helper contract.
 - `docs/agents/gear-ball/README.md`: worktree, branch, environment, Vercel, and database coordination contract and memory entrypoint.

@@ -6,6 +6,20 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 
 ## Current artifacts
 
+- `docs/records/artifacts/agent/beeper/README.md`
+- `docs/records/artifacts/agent/beeper/memory.md`
+- `docs/records/artifacts/agent/beeper/reports/README.md`
+- `docs/records/artifacts/agent/beeper/run-log.md`
+- `docs/records/artifacts/agent/beeper/sops.md`
+- `docs/records/artifacts/agent/beeper/training-history.md`
+- `docs/records/artifacts/agent/beeper/tools.md`
+- `docs/records/artifacts/agent/ayal/README.md`
+- `docs/records/artifacts/agent/ayal/memory.md`
+- `docs/records/artifacts/agent/ayal/reports/README.md`
+- `docs/records/artifacts/agent/ayal/run-log.md`
+- `docs/records/artifacts/agent/ayal/sops.md`
+- `docs/records/artifacts/agent/ayal/training-history.md`
+- `docs/records/artifacts/agent/ayal/tools.md`
 - `docs/records/artifacts/agent/d-bug/README.md`
 - `docs/records/artifacts/agent/d-bug/memory.md`
 - `docs/records/artifacts/agent/d-bug/handoffs/README.md`

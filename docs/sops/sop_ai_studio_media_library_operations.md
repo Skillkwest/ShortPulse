@@ -1,14 +1,17 @@
 # SOP: AI Studio Media Library Panel Operations
 
 ## Purpose
+
 Define the authoritative AI Studio Media Library panel UX contract (`toolId: media-library`) and document the current canonical runtime notes.
 
 ## Authority Model
+
 - This SOP uses `Target Contract + Current Runtime Notes`.
 - `Target Contract` is the intended user experience and is the product source of truth.
 - `Current Runtime Notes` record the live implementation details that still matter operationally.
 
 ## Scope
+
 - In scope:
   - AI Studio left-panel Media Library under `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`.
   - `all_items` (`All Media`) master-folder semantics.
@@ -20,6 +23,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - Billing product pricing decisions beyond the storage-quota contract referenced below.
 
 ## Canonical implementation map
+
 - Panel composition: `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 - Folder state lifecycle: `frontend/features/ai-studio/hooks/useMediaLibraryFoldersState.ts`
 - Folder drop controller: `frontend/features/ai-studio/hooks/useMediaLibraryFolderDropController.ts`
@@ -55,11 +59,13 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Target Contract
 
 ### 1) Tool surface and root folder
+
 1. User opens `Libraries -> Media Library`.
 2. `All Media` (`all_items`) is always visible, always first, and cannot be deleted or renamed.
 3. `All Media` is the master set for all saved media/prompt items owned by the user.
 
 ### 2) Folder model and navigation semantics
+
 1. `All Media` is the virtual aggregate root and is never stored as a `media_folders` row.
 2. Custom folders are true structural containers and may reference a real parent folder.
 3. Breadcrumbs represent actual ancestry from `All Media` to the active folder.
@@ -69,12 +75,14 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 7. The current folder never appears in its own child list, except transiently while the active folder is being inline-renamed inside its own scope.
 
 ### 3) Item placement semantics
+
 1. `All Media` remains the aggregate master view across all user-owned media/prompt items.
 2. Folder navigation should not rely on creation-order proxies once real ancestry is active.
 3. Current membership APIs remain compatibility behavior until the folder-contents cutover lands.
 4. Folder moves/assignments must not create duplicate underlying media/prompt rows.
 
 ### 4) `all_media` display contract
+
 1. `All Media` renders one root-level tab strip with four tabs:
    - `All Media` tab: aggregate root view showing saved media cards plus saved prompt cards in the same folder surface.
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
@@ -87,6 +95,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 6. In the aggregate `All Media` tab, video cards should remain poster-first and only attach/play hover previews on pointer hover; they should not begin live autoplay just from entering the mixed masonry viewport.
 
 ### 5) Drag/drop and ingest contract
+
 1. Users can drag images, videos, audio, and prompts from any folder into any folder (subject to membership semantics above).
 2. Users can drag images, videos, and prompts from any Media Library folder into:
    - Reference Grid,
@@ -97,11 +106,13 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 5. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
 
 ### 6) Right-click behaviors
+
 1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
 3. Double-clicking media (image/video/audio) in `All Media` opens a preview-only detail modal (no ingest side effects), and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
 
 ### 7) Bulk selection and action semantics
+
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
 2. Card click in the panel toggles selected state for both media and prompt cards and must not ingest that item into Reference Grid.
 3. Right-click and double-click preserve their dedicated gesture contracts: root `All Media` right-click sends media to Reference Grid, and root `All Media` double-click opens a preview-only modal for media.
@@ -117,6 +128,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 9. Character-scoped media and unsupported audio rows remain out of scope for v1 bulk actions.
 
 ### 8) Deletion behavior
+
 1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
 2. Once nested folders are active, delete behavior must follow explicit subtree policy instead of silent leaf-only assumptions.
 3. Removing an item from a custom folder removes only that folder membership.
@@ -124,6 +136,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 5. Root delete actions initiated from the item `X` button require explicit confirm/cancel before mutation.
 
 ### 9) Folder-canvas spaces
+
 1. Folder-canvas is a secondary domain and must not define the core folder-navigation mental model.
 2. If retained, each custom folder owns a unique canvas space within its active folder authority boundary.
 3. Each folder canvas has independent scene and camera state.
@@ -134,6 +147,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 6. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
 ### 10) `All Media` completeness policy
+
 1. `All Media` should include durable user-scoped media represented by `media_files` rows.
 2. Durable storage path classes targeted for backfill:
    - `<uid>/private/images/*` -> `source=private_upload`, `file_type=image`
@@ -148,6 +162,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Backfill insertion must be idempotent on `(user_id, storage_path)` and tag inserted rows for rollback targeting.
 
 ## Server Contract Invariants
+
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - Real folder ancestry is carried by `media_folders.parent_folder_id`; same-user parent ownership, sibling-scoped uniqueness, self-parent rejection, and cycle prevention are enforced in the database contract.
 - `/api/media/folders/move` reparents one user-owned custom folder under a new optional parent (`null` = `All Media` root) and must reject cross-user parents, sibling-name conflicts, self-parenting, and cyclic ancestry.
@@ -163,6 +178,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - over-limit accounts keep read/delete access but new canonical saves fail closed until usage drops or capacity increases
 
 ## Current Runtime Notes (as of 2026-05-06)
+
 1. `All Media` inline-tab layout:
    - Status: Aligned.
    - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, audio, and prompts in one mixed feed, while `Prompts` remains the prompt-only view.
@@ -192,53 +208,98 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Custom folders now default to the normal folder browse surface (folder-scoped media/prompt grids with standard remove controls). Folder-canvas remains a secondary domain with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior when explicitly retained.
    - Gap: Folder-canvas still exists as a separate persistence surface and has not yet been formally retired or repositioned behind an advanced-only entry point.
 10. Folder hierarchy foundation:
-   - Status: Aligned.
-   - Current: `media_folders` carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`), and the AI Studio panel now traverses real parent/child relationships instead of a creation-order proxy.
+
+- Status: Aligned.
+- Current: `media_folders` carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`), and the AI Studio panel now traverses real parent/child relationships instead of a creation-order proxy.
+
 11. Folder-strip hierarchy navigation:
-   - Status: Aligned.
-   - Current: The folder strip shows direct children of the current folder only. Breadcrumb segments follow the true ancestor chain from `All Media`, only ancestor segments remain clickable, the trailing current-folder segment is a location indicator, the back-caret navigates to the real parent folder, and new folders are created under the currently active folder.
+
+- Status: Aligned.
+- Current: The folder strip shows direct children of the current folder only. Breadcrumb segments follow the true ancestor chain from `All Media`, only ancestor segments remain clickable, the trailing current-folder segment is a location indicator, the back-caret navigates to the real parent folder, and new folders are created under the currently active folder.
+
 12. Folder reparent UI:
-   - Status: Aligned.
-   - Current: Custom folders expose a `Move to...` picker from the context menu. Destination options render as explicit ancestry paths, keep `All Media` at the top, and exclude self, descendants, and the current parent.
+
+- Status: Aligned.
+- Current: Custom folders expose a `Move to...` picker from the context menu. Destination options render as explicit ancestry paths, keep `All Media` at the top, and exclude self, descendants, and the current parent.
+
 13. `All Media` completeness backfill:
-   - Status: Operational prerequisite.
-   - Current: Backfill and diagnostics exist in SQL (`064` + drift check) and must be applied or run when older environments still need durable-row convergence.
+
+- Status: Operational prerequisite.
+- Current: Backfill and diagnostics exist in SQL (`064` + drift check) and must be applied or run when older environments still need durable-row convergence.
+
 14. `All Media` panel preview compaction activation:
-   - Status: Aligned.
-   - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
+
+- Status: Aligned.
+- Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
+
 15. Browser-blocked URL persistence fallback:
-   - Status: Aligned.
-   - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
-   - Current: generated AI Studio saves fail closed unless the output already has a durable `generationId`; server copy no longer downgrades generated media into weakly linked library rows.
+
+- Status: Aligned.
+- Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
+- Current: generated AI Studio saves fail closed unless the output already has a durable `generationId`; server copy no longer downgrades generated media into weakly linked library rows.
+
 16. Signed preview delivery for media-library card surfaces:
-   - Status: Aligned.
-   - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
+
+- Status: Aligned.
+- Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
+
 17. Derivative worker pipeline for image thumbs:
-   - Status: Operational.
-   - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success when the worker is enabled.
+
+- Status: Operational.
+- Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success when the worker is enabled.
+
 18. Character-scope containment in Media Library APIs:
-   - Status: Aligned.
-   - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
+
+- Status: Aligned.
+- Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
+
 19. Media Library panel expand affordance:
-   - Status: Aligned.
-   - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport. While expanded, that control flips to a collapse affordance that restores the prior shell width and the prior folder/reference split ratio.
+
+- Status: Aligned.
+- Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport. While expanded, that control flips to a collapse affordance that restores the prior shell width and the prior folder/reference split ratio.
+
 20. First-project default folder bootstrap:
-   - Status: Aligned.
-   - Current: Media Library folders are user-scoped, so project creation now seeds one empty root-level custom folder named `New Folder` only when the user has no existing custom folders yet. This gives first-run AI Studio projects an immediate folder-management affordance without duplicating folders on every later project.
+
+- Status: Aligned.
+- Current: Media Library folders are user-scoped, so project creation now seeds one empty root-level custom folder named `New Folder` only when the user has no existing custom folders yet. This gives first-run AI Studio projects an immediate folder-management affordance without duplicating folders on every later project.
+
 21. Mixed-feed video preview behavior:
-   - Status: Aligned.
-   - Current: `All Media` renders video cards as poster-backed mixed-feed items and only mounts hover video playback on pointer hover, while the mixed masonry feed reuses the shared virtualization path to keep browse performance bounded.
+
+- Status: Aligned.
+- Current: `All Media` renders video cards as poster-backed mixed-feed items and only mounts hover video playback on pointer hover, while the mixed masonry feed reuses the shared virtualization path to keep browse performance bounded.
+
 22. Legacy saved-video poster backfill:
-   - Status: Operator-supported.
-   - Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
-23. Saved-audio browse and upload support:
-   - Status: Aligned.
-   - Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the mixed `All Media` plus custom-folder feeds without falling through image-only render paths.
-24. Autosave toggle scope:
-   - Status: Aligned.
-   - Current: The AI Studio autosave preference governs automatic Media Library saving only. Turning it OFF does not disable private restore-durability uploads used to keep local Reference Grid media restorable across reload or project reopen.
+
+- Status: Operator-supported.
+- Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
+
+23. Legacy saved-video preview-loop backfill:
+
+- Status: Operator-supported.
+- Current: forward server-owned video saves now generate durable `preview_loop_360p` variants, and legacy video rows missing `preview_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-previews -- --dry-run` or `cd frontend && npm run media:backfill-video-previews -- --apply --confirm-project-id <supabase-project-id>`. The backfill script first resyncs any ready `preview_loop_360p` variant already present in `media_asset_variants`; rows whose original source object is gone and have no ready variant are classified as orphaned `missing_source` rows instead of being mutated.
+
+24. Orphaned saved-video audit:
+
+- Status: Operator-supported.
+- Current: when preview backfill leaves only missing-source rows, operators can classify whether those rows are still playable, poster-only, or fully orphaned with `cd frontend && npm run media:audit-orphaned-videos -- --limit <n>`. This is a read-only audit step for choosing a later cleanup or UX policy lane; it does not mutate library data.
+
+25. Orphaned saved-video cleanup:
+
+- Status: Operator-supported.
+- Current: when the orphaned-video audit shows `fully_orphaned` rows, operators can remove those broken `media_files` rows in controlled batches with `cd frontend && npm run media:cleanup-orphaned-videos -- --dry-run` or `cd frontend && npm run media:cleanup-orphaned-videos -- --apply --confirm-project-id <supabase-project-id>`. The cleanup script only targets rows classified as fully orphaned at execution time and uses best-effort storage removal for any stale paths still recorded on the row.
+
+26. Saved-audio browse and upload support:
+
+- Status: Aligned.
+- Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the mixed `All Media` plus custom-folder feeds without falling through image-only render paths.
+
+27. Autosave toggle scope:
+
+- Status: Aligned.
+- Current: The AI Studio autosave preference governs automatic Media Library saving only. Turning it OFF does not disable private restore-durability uploads used to keep local Reference Grid media restorable across reload or project reopen.
 
 ## Error and feedback behavior
+
 - Unresolved drop item: `Unable to resolve dropped reference.`
 - Membership mutation failures surface API error details when available.
 - Intent feedback copy remains deterministic:
@@ -248,6 +309,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - Duplicate/no-op variants.
 
 ## Validation and regression checklist
+
 1. Folder lifecycle:
    - Create, rename, delete custom folders.
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
@@ -282,6 +344,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Worker auth is cron-secret/bearer only and must fail closed when disabled.
 
 ## Related docs
+
 - `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`

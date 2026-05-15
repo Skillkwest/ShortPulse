@@ -5,7 +5,45 @@ import {
   resolveSignedSelectionUrl,
 } from "../mediaPreviewResolver";
 
+const { createMediaPerfTimerMock } = vi.hoisted(() => ({
+  createMediaPerfTimerMock: vi.fn(),
+}));
+
+vi.mock("../../../../lib/mediaPerfTelemetry", () => ({
+  createMediaPerfTimer: createMediaPerfTimerMock,
+}));
+
 describe("mediaPreviewResolver", () => {
+  it("logs resolve-previews completion telemetry", async () => {
+    const finishResolvePreviews = vi.fn();
+    createMediaPerfTimerMock.mockReturnValue(finishResolvePreviews);
+    const fetcher = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        urls: {
+          "media-1": "https://signed.example.com/1",
+          "media-2": null,
+        },
+      }),
+    }));
+
+    const resolved = await resolveSignedPreviewUrlsByMediaIds({
+      ids: ["media-1", "media-2"],
+      surface: "media-library-panel",
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    expect(Array.from(resolved.entries())).toEqual([["media-1", "https://signed.example.com/1"]]);
+    expect(createMediaPerfTimerMock).toHaveBeenCalledWith({
+      surface: "media-library-panel",
+      batch_size: 2,
+    });
+    expect(finishResolvePreviews).toHaveBeenCalledWith("media.resolve_previews.completed", {
+      resolved_count: 1,
+      failed_count: 1,
+    });
+  });
+
   it("collects stable unique media ids from rows", () => {
     const ids = collectUniqueMediaIds([
       { id: " media-1 " },
@@ -47,14 +85,21 @@ describe("mediaPreviewResolver", () => {
   });
 
   it("returns empty map when resolver request fails", async () => {
+    const finishResolvePreviews = vi.fn();
+    createMediaPerfTimerMock.mockReturnValue(finishResolvePreviews);
     const fetcher = vi.fn(async () => ({ ok: false }));
 
     const resolved = await resolveSignedPreviewUrlsByMediaIds({
       ids: ["media-1"],
+      surface: "media-library-panel",
       fetcher: fetcher as unknown as typeof fetch,
     });
 
     expect(resolved.size).toBe(0);
+    expect(finishResolvePreviews).toHaveBeenCalledWith("media.resolve_previews.failed", {
+      failed_count: 1,
+      error_kind: "http_error",
+    });
   });
 
   it("resolves selection URL with canonical path priority and fallback", async () => {

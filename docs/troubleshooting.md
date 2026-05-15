@@ -1,21 +1,26 @@
 # Troubleshooting
 
 ## Provider or webhook outages
+
 For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_response.md`.
 
 For AI Studio Fal polling, client status timeouts are intentionally higher than server status-route budgets.
 If regressions reappear, check `app_error_logs` for `source='client.api_network'` with abort-like messages on `/api/fal/*-status` endpoints.
 
 ## Stuck on `Confirm media rights`
+
 Symptoms:
+
 - A protected route such as `/ai-studio`, `/creator-studio`, `/profile`, or `/media-library` does not continue past the media-rights gate.
 - The user sees `Unauthorized`, `Media agreement service is temporarily unavailable.`, or repeated retries with no progress.
 
 Interpretation:
+
 - `Unauthorized` on this surface is usually an auth recovery problem, not a true consent-content problem.
 - `Media agreement service is temporarily unavailable.` indicates consent status could not be read or written because the backend verification/persistence surface is degraded.
 
 Checklist:
+
 - If the gate shows an auth-style failure, sign in again and confirm the route no longer re-enters the gate with the same stale session.
 - Confirm `sql/migrations/104_add_user_media_compliance_acceptances.sql` is applied in the active environment.
 - Confirm `SUPABASE_SERVICE_ROLE_KEY` is present for the active runtime.
@@ -26,48 +31,60 @@ Checklist:
   - `500` / unexpected route failure
 
 Mitigation:
+
 - For auth recovery failures, re-authenticate and retry the protected route.
 - For `503` failures, restore auth verification or consent persistence dependencies first; do not treat this as a user-consent-content issue.
 - If migration `104` or service-role env is missing, restore them before expecting the gate to clear.
 
 ## AI Studio reference upload returns `413`
+
 Symptoms:
+
 - AI Studio shows `Reference upload failed` and the detail mentions `413`, `file too large`, or `Reference image is too large`.
 - Nano Banana 2 / Nano Banana Pro rows fail before provider submit begins.
 
 Checklist:
+
 - AI Studio now auto-resizes local/blob/data reference images before upload when possible.
 - Treat this as a reference-image upload size limit, not a model/reference token error.
 - Confirm the reference image is under the 25 MB upload cap used by `POST /api/upload-image`.
 - If the image came from a browser capture, preview export, or Trello attachment, re-export it at a smaller size or compress it before retrying.
 
 Mitigation:
+
 - Re-upload a smaller reference image and retry the generation.
 - If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the `upload-image` route.
 
 ## Admin runtime/API error handoff workflow
+
 Use the `/admin` Errors panel `Copy triage` buttons as the default handoff format.
 
 Checklist:
+
 - Prefer triage packets over manually copying full JSON rows.
 - Include fresh events first (match `occurredAt` to current test run to avoid historical duplicates).
 - If triage packet fields are insufficient for root cause, then include the raw `metadata` block from Event Detail as a second step.
 
 ## Admin incident triage: billing diagnostics + AI Studio runtime failures
+
 Use this for the exact signatures you pasted from the admin `Errors` panel.
 
 ### `admin/billing-diagnostics` returns `500` with mode-mismatch customer error
+
 Symptoms:
+
 - `/admin` opens a user's billing diagnostics and request fails with `API 500` on:
   - `/api/admin/billing-diagnostics?userId=<uuid>`
 - Incident stack includes `No such customer... a similar object exists in test mode, but a live mode key was used`.
 
 Interpretation:
+
 - This is usually a Stripe key-mode mismatch between stored customer IDs and the active key.
 - For `contract_source = 'internal_comp'`, this is usually non-blocking for entitlement checks.
 - For Stripe-owned subscriptions, treat this as a reconciliation issue.
 
 Checklist:
+
 - Confirm these DB values for the affected user:
   - `billing_subscription_contracts.contract_source`
   - `billing_subscription_contracts.stripe_subscription_id`
@@ -78,61 +95,114 @@ Checklist:
 - If the account should be Stripe-paid, use `/api/admin/billing/customer-sync` and then rerun diagnostics in a Stripe-mode-matched environment.
 - Validate consistency with `scripts/verify_billing_contracts_against_stripe.ts` when a paid subscription is expected.
 
-### `client.route_change` shows `Failed to load script` / route change error
+### `/api/admin/pricing/state` or `/api/admin/stats/global` returns `500` with RPC permission denied
+
 Symptoms:
+
+- `/admin/pricing` shows `Pricing state is unavailable`.
+- `/admin/stats` returns `500` instead of degrading gracefully.
+- Event detail or API exception rows mention `permission denied for function ...` for admin stats or model-pricing RPCs.
+
+Interpretation:
+
+- This is usually hosted RPC ACL drift, not a missing-table problem.
+- If the underlying tables exist but service-role API routes cannot execute the expected `SECURITY DEFINER` RPCs, operator pages can fail hard even while other SQL reads still work.
+
+Checklist:
+
+- Run `sql/check_runtime_sql_security_audit.sql` in the target environment and require `failing_checks = 0`.
+- Compare the affected RPC execute posture against a known-good hosted environment.
+- Confirm the expected RPCs still have:
+  - `SECURITY DEFINER`
+  - owner `postgres`
+  - `service_role` execute granted
+  - no `public` / `authenticated` / `anon` execute when the function is meant to be service-role-only
+- For current admin pricing/stats incidents, inspect at minimum:
+  - `get_active_model_pricing_policy()`
+  - `apply_model_pricing_policy(jsonb, text, text, uuid, text, text)`
+  - `rollback_model_pricing_policy(text, uuid, text, text)`
+  - `get_admin_global_stats_summary()`
+  - `list_admin_model_usage_stats(integer)`
+  - `get_admin_global_stats_v1()`
+  - `get_admin_growth_stats_v1()`
+
+Mitigation:
+
+- Reapply the minimal hosted execute grants from the canonical migration source for the affected RPC family.
+- Re-probe the repaired RPCs directly before assuming the page is fixed.
+- After repair, confirm new `api.exception` and paired client `500` rows stop appearing for the affected endpoints.
+
+### `client.route_change` shows `Failed to load script` / route change error
+
+Symptoms:
+
 - Console shows `Route change failed: Failed to load script: /_next/static/...`.
 - UI may jump or fail on navigation.
 
 Checklist:
+
 - Confirm the active deployment includes the referenced chunk and the deployment alias is not stale.
 - Run `node scripts/verify_deployment_route_parity.mjs --base-url <target-url>` from docs.
 - Confirm no active caching policy is pinning an older build for that user.
 
 Mitigation:
+
 - Repoint affected traffic to a known-good deployment and rerun parity checks.
 - Hard-refresh the browser after deploy/failover.
 
 ### `/api/elevenlabs/voices` shows repeated 503
+
 Symptoms:
+
 - AI Studio shows voice library/network failure around `/api/elevenlabs/voices`.
 - Admin/client logs show `503` for this endpoint.
 
 Interpretation:
+
 - In the current API design, provider outages should usually produce a fallback `200` with a `source="fallback"` payload.
 - A `503` indicates environment/proxy/deployment instability rather than expected business behavior.
 
 Checklist:
+
 - Confirm proxy/auth and route health in the target environment.
 - Check `app_error_logs` for `scope='generation'` + `route_label='elevenlabs-voices'`.
 - Validate ElevenLabs key routing and rate/security policy in that environment.
 - Reproduce the call once in isolation to separate transient provider failure from app routing regression.
 
 ### `client.ai_studio.failure_stack` visible failure cards
+
 Symptoms:
+
 - UI message says `N generation failure card(s) visible in UI.` with repeated attempts in adjacent events.
 
 Interpretation:
+
 - Could be normal provider/transient failures when the user keeps retrying.
 - Prioritize validating paired provider/status/submit telemetry before treating as a core UI bug.
 
 Checklist:
+
 - Link failure cards to timeline events by `requestId` and generation IDs.
 - Check `/api/fal/*-status` responses and recent `media_perf` telemetry.
 - Correlate with provider-facing errors (credits, prompts, source signing, preflight).
 - If failures are user-impacting for all runs, escalate with route labels + request IDs and include a short reproducible sample.
 
 ## `next build` / `next lint` prompts to “configure ESLint”
+
 This happens when the repo has `eslint-config-next` installed but no ESLint config file exists.
 
 Fix: ensure `frontend/eslint.config.mjs` is present and valid (flat ESLint config in this repo).
 
 ## `next dev` lock error (`.next/dev/lock`)
+
 Symptoms:
+
 - `Unable to acquire lock .../.next/dev/lock`
 - Port conflict messages (`Port 3000 is in use ... using 3001`) followed by lock failure.
 - Turbopack reports `Next.js package not found` while another local server is still running.
 
 Checklist:
+
 - Ensure only one dev server is running.
 - Do not run `npm run dev` in multiple terminals for the same repo.
 - Verify active listener:
@@ -141,6 +211,7 @@ Checklist:
   ```
 
 Mitigation:
+
 - Stop duplicate Next dev processes, then start exactly one:
   ```bash
   cd frontend
@@ -148,15 +219,19 @@ Mitigation:
   ```
 
 ## Local dev worker cannot find `esbuild`
+
 Symptoms:
+
 - `npm run dev` exits after:
   - `Cannot find package 'esbuild' imported from .../frontend/scripts/run_generation_control_plane_worker.mjs`
 - The wrapper logs `generation-worker stopped unexpectedly`, then shuts down Next.
 
 Cause:
+
 - The local generation worker bundles its TypeScript loop with `esbuild`; `frontend` dependencies are missing, stale, or out of sync with `package-lock.json`.
 
 Checklist:
+
 - Confirm the dependency resolves:
   ```bash
   cd frontend
@@ -169,23 +244,30 @@ Checklist:
   ```
 
 ## Next image host not configured (`images.pexels.com`)
+
 Symptoms:
+
 - Runtime error:
   - `Invalid src prop (...) hostname "images.pexels.com" is not configured under images in your next.config.js`
 
 Checklist:
+
 - Confirm `frontend/next.config.js` `images.remotePatterns` includes `images.pexels.com`.
 - Restart `npm run dev` after any `next.config.js` updates.
 
 Mitigation:
+
 - Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
 
 ## Media Library card previews hit `/_next/image` `500` with Supabase signed URLs
+
 Symptoms:
+
 - Browser console shows repeated `GET /_next/image?... 500 (Internal Server Error)` for Supabase signed media URLs.
 - Media cards stall/flash while retries continue.
 
 Checklist:
+
 - Confirm media-library card images are rendered from signed URLs directly (not `/_next/image?...` wrappers).
 - Confirm transformed signing profile headers are present:
   - `/api/media/sign-batch` -> `x-shortpulse-media-sign-preview-profile`
@@ -194,16 +276,20 @@ Checklist:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid` when those surfaces should use adaptive preview routing.
 
 Mitigation:
+
 - Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
 - Hard-refresh/re-open the media surface to clear stale wrapped preview state from older sessions.
 
 ## Internal route returns `404` or `503` during hosted ops checks
+
 Symptoms:
+
 - Internal ops routes unexpectedly return `404` on staging/prod aliases (for example `/api/internal/generation-recovery/run` or `/api/internal/media-derivatives/run`).
 - Internal ops routes return `503` after a freeze/unfreeze or env flip because their enabling flag or cron secret is missing.
 - Vercel alias may also point to an older deployment that does not include the expected internal route inventory.
 
 Checklist:
+
 - Run deployment route parity gate:
   ```bash
   node scripts/verify_deployment_route_parity.mjs \
@@ -224,17 +310,21 @@ Checklist:
   - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET` (or `CRON_SECRET`)
 
 Mitigation:
+
 - Do not run drain/recovery/derivative operations against aliases that fail route parity.
 - Repoint alias or scheduler URLs to a deployment that passes the parity gate.
 - If route parity passes but the route still returns `404` or `503`, restore the intended hosted flags/secrets and retry the probe.
 - Re-run parity check and only proceed when it reports `PASS`.
 
 ## Media derivative worker backlog grows or image rows stay `pending`
+
 Symptoms:
+
 - New image rows in `media_files` remain `processing_status='pending'` for long periods.
 - `thumb_variant_path` remains null for recently ingested image rows.
 
 Checklist:
+
 - Confirm worker route and auth:
   - `POST /api/internal/media-derivatives/run`
   - `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=true`
@@ -250,6 +340,7 @@ Checklist:
   - `sql/check_runtime_sql_security_audit.sql`
 
 Mitigation:
+
 - Preferred guarded replay path:
   - `SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL=<full-run-url> SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret> SUPABASE_DB_URL=<db-url> ./scripts/media_derivative_backlog_replay.sh`
   - Optional protected-deployment auth:
@@ -262,7 +353,9 @@ Mitigation:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
 
 ## Media derivative row is terminal-failed with local-processing errors
+
 Symptoms:
+
 - Backlog query shows `processing_status='failed'`, `processing_attempts >= 5`, `processing_next_retry_at is null`.
 - `processing_last_error` starts with one of:
   - `unsupported_input`
@@ -271,6 +364,7 @@ Symptoms:
   - `variant_upsert_failed`
 
 Checklist:
+
 - Confirm queue health first:
   - `sql/check_media_derivative_processing_backlog.sql` should show `pending=0` and `processing=0`.
 - Confirm terminal count is bounded:
@@ -281,6 +375,7 @@ Checklist:
 - For `variant_upsert_failed`, verify DB relation health and grants.
 
 Mitigation:
+
 - Keep row terminal-failed (no retry churn) when failure is deterministic for that object.
 - If business-critical, repair the source object (re-upload/regenerate) and then re-queue the row with:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
@@ -289,11 +384,14 @@ Mitigation:
   - Critical: terminal failures > 20 or > 2% of image rows.
 
 ## Style prompt appears weak on some models (especially Nano Banana family edit lanes)
+
 Symptoms:
+
 - Style is selected, but outputs mostly follow reference structure with limited style transfer.
 - Different model families show noticeably different style adherence for the same prompt + references.
 
 Checklist:
+
 - Confirm style prompt is actually selected and non-empty in the active Create/Edit workflow.
 - Confirm style append path is active:
   - `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
@@ -310,6 +408,7 @@ Checklist:
 - Ensure prompt/reference constraints are not over-specifying geometry/identity in ways that suppress style transfer.
 
 Mitigation:
+
 - Rewrite style prompts with concrete visual directives (palette, lighting, texture, grade) instead of broad adjectives.
 - For edit-heavy/fidelity-heavy runs, add explicit scoping:
   - `Treat style as visual treatment only; preserve identity and composition.`
@@ -318,11 +417,14 @@ Mitigation:
 - If style adherence regresses on a model family that previously performed well under unchanged setup, capture payload/output evidence and open a runtime regression investigation.
 
 ## Styles Library shows `AbortError` or style extraction timeout/fallback
+
 Symptoms:
+
 - Styles Library shows timeout/interrupted extraction guidance and still creates a fallback style card.
 - Legacy runs previously surfaced raw `AbortError` strings in the red warning line.
 
 Checklist:
+
 - Confirm user-facing message is normalized and does not expose raw browser exception text.
 - Confirm extraction telemetry records failure class and timing metadata:
   - `failure_class`, `attempt_count`, `probe_ms`, `openai_ms`, `total_ms`, `model_used`.
@@ -334,6 +436,7 @@ Checklist:
   - `x-shortpulse-style-model-used`
 
 Mitigation:
+
 - Re-run with the same image and verify failure class:
   - `timeout`: increase timeout budget only if telemetry shows consistent near-cap completions.
   - `network_transient`: inspect browser/network instability and retry behavior.
@@ -341,13 +444,16 @@ Mitigation:
 - If failures cluster by one model, compare with an alternate vision model using the same input and prompt contract.
 
 ## Reference Grid -> Styles drop shows blocked-source guidance
+
 Known major unresolved incident: see `docs/known-issues.md` (P0 Reference Grid -> Styles drop reliability, deferred March 13, 2026).
 
 Symptoms:
+
 - Styles Library shows: `This image source blocks browser access. Download the image and drop the file directly.`
 - Internal Reference Grid image drag fails even when the card appears fresh.
 
 Checklist:
+
 - Confirm drag payload is internal (`text/reference-origin=ai-studio-reference-grid`) and includes `text/reference-output-id`.
 - Confirm style intake keeps same-origin `/_next/image` transfer URLs for internal drops (do not unwrap to upstream host before fetch).
 - Confirm fallback persistence route is available:
@@ -358,17 +464,21 @@ Checklist:
 - Confirm `media_files` drift is remediated (run `sql/check_media_all_media_completeness_drift.sql`; apply `sql/migrations/064_backfill_media_files_from_storage_objects.sql` when needed).
 
 Mitigation:
+
 - Re-open/re-add the reference to refresh stale signed URLs.
 - If browser fetch is blocked, rely on server copy fallback (`/api/media/copy-from-url`) instead of direct browser download.
 - If trusted-host validation rejects the URL, add the host through the media direct-preview allowlist policy or use a user-uploaded source file.
 
 ## Expert Edit `@img` prompt references fail or look incorrect
+
 Symptoms:
+
 - Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.
 - Prompt token highlight appears misaligned or text appears visually duplicated/dim.
 - Dragging a secondary image into the prompt does not insert token text.
 
 Checklist:
+
 - Confirm tokens are in supported range: only `@img1`, `@img2`, `@img3`.
 - Confirm referenced secondary slots are populated (for example, `@img2` requires slot 2 image present).
 - Confirm the expected lane behavior:
@@ -384,6 +494,7 @@ Checklist:
   - `frontend/styles/ai-studio-edit-expert.css`
 
 Mitigation:
+
 - Replace unsupported or incomplete tokens (`@img`, `@img4+`) with valid slot tokens.
 - Populate missing secondary slots for referenced tokens.
 - If token highlighting/caret alignment regresses, re-check prompt mirror invariants:
@@ -401,12 +512,15 @@ Mitigation:
   ```
 
 ## Expert Edit inpaint generate fails before task starts
+
 Symptoms:
+
 - Inpaint Generate shows `Mask selection is required for inpaint.` and no task starts.
 - Generate fails quickly after clicking with `Generation failed to start. Please retry.`
 - Provider errors include download/signing failures for base image or mask URLs.
 
 Checklist:
+
 - Confirm Inpaint rail is selected and a non-empty mask exists on the selected layer.
 - Confirm the inpaint submit path is active:
   - `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`
@@ -420,6 +534,7 @@ Checklist:
 - Verify status polling starts with a provider `request_id` after submit.
 
 Mitigation:
+
 - Redraw the mask and retry (maskless submits are blocked by design).
 - Re-select/re-upload the layer source image when URLs expired or become inaccessible.
 - Re-run with fresh references if provider returns `file_download_error` or `Failed to download the file`.
@@ -434,17 +549,21 @@ Mitigation:
   ```
 
 ## Signed Supabase image requests fail with `ERR_QUIC_PROTOCOL_ERROR`
+
 Symptoms:
+
 - Browser console shows:
   - `net::ERR_QUIC_PROTOCOL_ERROR 200 (OK)`
 - Media cards may remain blank despite successful sign telemetry.
 
 Checklist:
+
 - Verify sign telemetry is healthy first:
   - `window.__shortpulseMediaPerf?.signStats()` shows low/zero failure ratio.
 - Confirm issue is transport/browser-lane (request returns `200` but fails at QUIC).
 
 Mitigation (local debugging):
+
 - Launch Chrome with QUIC disabled:
   ```bash
   open -na "Google Chrome" --args --disable-quic --disable-features=UseDnsHttpsSvcbAlpn
@@ -452,19 +571,25 @@ Mitigation (local debugging):
 - Hard refresh and re-test.
 
 ## Supabase auth redirects not working
+
 Checklist:
+
 - `frontend/.env.local` contains `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - You’re signed in and the session is persisted (see `frontend/lib/supabaseClient.ts`).
 - Protected routes redirect to `/auth` when session is missing (see `frontend/lib/authGuard.ts`).
 
 ## Media Library operations fail (upload/list/delete)
+
 Checklist:
+
 - The `media_library` bucket is private and policies require user-scoped paths.
 - RLS is enabled for `media_files` and policies enforce `user_id = auth.uid()`.
 - You ran the bootstrap scripts in `sql/` (including `sql/create_media_library_tables.sql`) or `docs/supabase_full_schema.sql`.
 
 ## AI Studio All Media folder is missing expected legacy/private/generated assets
+
 Checklist:
+
 - Confirm listing route is healthy:
   - `POST /api/media/list` should return rows for `folderId=all_items` with `mediaKind=all`.
 - Run completeness diagnostics:
@@ -472,12 +597,15 @@ Checklist:
 - Verify durable missing classes are expected (`private_images`, `uploads_images`, `uploads_videos`, `generations_images`, `generations_videos`) and transient/character/variant paths are excluded.
 
 Mitigation:
+
 - Apply migration `sql/migrations/064_backfill_media_files_from_storage_objects.sql` in staging first.
 - Re-run `sql/check_media_all_media_completeness_drift.sql` and confirm missing counts converge.
 - If rollback is required, run `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql` (removes only migration-tagged rows).
 
 ## Private tab data looks wrong or empty
+
 Checklist:
+
 - Run `sql/migrations/003_add_private_media_source.sql`.
 - Run `sql/migrations/004_add_private_media_integrity_checks.sql`.
 - Validate row classification:
@@ -497,7 +625,9 @@ Checklist:
   ```
 
 ## Private tab cards show blank placeholders
+
 Checklist:
+
 - Run `sql/migrations/009_repair_legacy_media_storage_paths.sql`.
 - Validate remaining non-user-scoped paths:
   ```sql
@@ -526,18 +656,22 @@ Checklist:
   ```
 
 ## Media storage path scope drift
+
 Symptoms:
+
 - Media preview signing returns unexpected `null` URLs for rows that should be accessible.
 - Security audits identify `media_files.storage_path` values outside `<user_id>/...`.
 - Canonical run order/remediation loop: `docs/sops/sop_sql_migration_operations.md`.
 
 Checklist:
+
 - Ensure `sql/migrations/016_harden_media_storage_path_scope.sql` has been applied.
 - Ensure `sql/migrations/017_harden_media_storage_path_shape.sql` has been applied.
 - Run diagnostics by executing `sql/check_media_storage_scope_drift.sql`.
 - All `mismatch_count` values should be `0`.
 
 Mitigation:
+
 - Run `sql/migrations/009_repair_legacy_media_storage_paths.sql` (safe to re-run).
 - Re-run `sql/check_media_storage_scope_drift.sql`.
 - If mismatches remain, inspect unresolved rows directly:
@@ -558,7 +692,9 @@ Mitigation:
 - Record persistent mismatches in `docs/change_log.md` and escalate before release.
 
 ## Variant hints or derivative rows are missing
+
 Checklist:
+
 - Run `sql/migrations/005_add_media_processing_and_variants.sql`.
 - Run `sql/migrations/006_backfill_media_variant_hints.sql`.
 - Validate media processing status:
@@ -585,7 +721,9 @@ Checklist:
   ```
 
 ## Media library or reference grid feels slow
+
 Checklist:
+
 - Open DevTools Console and clear existing telemetry:
   ```js
   window.__shortpulseMediaPerf?.clear();
@@ -599,20 +737,32 @@ Checklist:
   ```js
   window.__shortpulseMediaPerf?.signStats();
   ```
+- Inspect resolver fallback rate by surface:
+  ```js
+  window.__shortpulseMediaPerf?.resolveStats();
+  ```
+- Inspect storage-download fallback rate by surface:
+  ```js
+  window.__shortpulseMediaPerf?.fallbackStats();
+  ```
 - Inspect render/long-task/memory telemetry for the reference grid:
   ```js
-  window.__shortpulseMediaPerf?.snapshot().filter((entry) =>
-    [
-      "media.grid.render.commit",
-      "media.grid.longtask.sample",
-      "media.grid.memory.sample",
-      "media.grid.archive.transition",
-    ].includes(entry.event)
-  );
+  window.__shortpulseMediaPerf
+    ?.snapshot()
+    .filter((entry) =>
+      [
+        "media.grid.render.commit",
+        "media.grid.longtask.sample",
+        "media.grid.memory.sample",
+        "media.grid.archive.transition",
+      ].includes(entry.event),
+    );
   ```
 - If `failed_ratio` is elevated or `p95_duration_ms` is high, verify:
   - `/api/media/list` returns `200` for authenticated users,
   - `/api/media/sign-batch` returns `200` with a `urls` map for authenticated users,
+  - `/api/media/resolve-previews` call rate and `failed_ratio` are not elevated for the active surface,
+  - storage-download fallback rate is not elevated for the active surface,
   - signed URL requests are only for visible/buffered cards,
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
@@ -647,10 +797,13 @@ Checklist:
   - high-density shell mode is enabled (`NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE` not set to `false`).
 
 ## Media Library modal flashes "Loading media library…" while scrolling
+
 Symptoms:
+
 - While loading the next page or stale-refreshing, cards disappear and the modal briefly shows a blocking loading message.
 
 Checklist:
+
 - Confirm modal stale-refresh path is non-blocking:
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx` should preserve rows during `stale_refresh`.
   - blocking copy should be gated by `showBlockingLoading` with zero active media rows.
@@ -662,16 +815,20 @@ Checklist:
   - `npm -C frontend run test -- MediaLibraryModal useMediaTabDataController`
 
 ## Character Manager alias drift (historical compatibility window)
+
 Symptoms:
+
 - Character Sheet slots appear assigned in one surface but missing in another.
 - Character rows load with stale active sheet pointers after mixed-version deployments.
 
 Checklist:
+
 - Ensure `sql/migrations/012_add_character_sheet_aliases_and_compat.sql` has been applied.
 - Run diagnostics by executing the SQL in `sql/check_character_sheet_alias_drift.sql`.
 - All `mismatch_count` values should be `0`.
 
 Mitigation:
+
 - Re-run migration `012_add_character_sheet_aliases_and_compat.sql` (safe to re-run).
 - Re-check drift report; if mismatches remain, inspect trigger health:
   - `trg_characters_sync_character_sheet_aliases`
@@ -680,16 +837,21 @@ Mitigation:
 - Record persistent mismatches in `docs/change_log.md` and escalate before applying `122_retire_character_sheet_alias_compat.sql`.
 
 Post-retirement note:
+
 - After migration `122_retire_character_sheet_alias_compat.sql`, this becomes a historical/readiness runbook rather than an active runtime compatibility path.
 
 ## Prompt or AI Generation saves fail
+
 Checklist:
+
 - `media_prompts`, `ai_generations`, and `media_events` tables exist.
 - RLS is enabled and policies enforce `user_id = auth.uid()` on those tables.
 - The client is using the anon key only (no service-role key in the browser).
 
 ## AI Studio autosave ON/OFF behavior looks wrong
+
 Checklist:
+
 - Ensure migration `sql/migrations/043_add_user_preferences_media_autosave_enabled.sql` is applied.
 - Verify current user preference:
   ```sql
@@ -699,7 +861,9 @@ Checklist:
   ```
 
 ## AI Studio unsaved local references are missing after refresh/switch
+
 Checklist:
+
 - Unsaved local references (blob/data previews) now auto-upload to private user-scoped storage for session durability.
 - This durability flow does **not** create `media_files` rows and does not auto-add items to Media Library tabs.
 - If a local reference is still missing after refresh:
@@ -708,7 +872,9 @@ Checklist:
   - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
 ## AI Studio legacy `sid` session persistence is retired
+
 Checklist:
+
 - `sid` remains runtime identity only and does not restore or save durable workspace state.
 - `/api/ai/sessions/*` is expected to return a retired response rather than `200`.
 - Do not troubleshoot `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` as active product flags; current runtime ignores that lane.
@@ -720,21 +886,27 @@ Checklist:
   - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 
 ## AI Studio canvas item cap reached
+
 Symptoms:
+
 - New drops or draft text commits stop adding items once the scene is dense.
 - UI warning appears about the canvas item cap.
 
 Checklist:
+
 - Current hard cap is `300` scene items per session snapshot.
 - Verify existing scene item count in the canvas state before further inserts.
 - Remove or consolidate items, then retry the insert.
 
 ## AI Studio session autosave skipped due oversized snapshot
+
 Symptoms:
+
 - UI warning indicates session autosave was skipped due snapshot size.
 - Local canvas/workspace state still appears live, but remote durability may lag.
 
 Checklist:
+
 - Reduce payload pressure:
   - remove unused canvas items,
   - avoid non-essential large text blocks in canvas/agent/workspace fields.
@@ -744,7 +916,9 @@ Checklist:
   - non-project routes: no resumable persistence; `sid` is runtime identity only
 
 ## AI Studio safety behavior differs from expected mode
+
 Checklist:
+
 - Verify runtime safety profile mode:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`).
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` means runtime prefers control-plane active profile; set `false` for env-only fallback.
@@ -763,20 +937,26 @@ Checklist:
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=production_normalized`
 
 ## Admin credit adjustments fail with missing ledger columns
+
 Symptoms:
+
 - Errors like `Could not find the 'created_by' column of 'ai_credit_ledger' in the schema cache`.
 - Errors like `column "source" of relation "ai_credit_ledger" does not exist`.
 
 Fix:
+
 - Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in the Supabase SQL editor.
 - Refresh Supabase table metadata (or reload the dashboard) and retry `/admin` credit adjustments.
 
 ## Admin Event Stream fails with `app_error_events` missing in schema cache
+
 Symptoms:
+
 - `/admin` Errors tab Event Stream shows messages like `Could not find the table 'public.app_error_events' in the schema cache`.
 - `/api/admin/error-events` returns empty degraded health state or errors in legacy environments.
 
 Fix:
+
 - Run `sql/migrations/015_add_app_error_events.sql` in the Supabase SQL editor.
 - Confirm relation availability:
   ```sql
@@ -786,32 +966,41 @@ Fix:
 - Refresh Supabase schema cache/dashboard metadata and retry `/admin`.
 
 ## AI Studio generation fails with `Unable to process generation credits. Please retry.`
+
 Symptoms:
+
 - Fal submit routes fail before provider submit with the generic billing error above.
 - Server logs may include SQL `42702` with `column reference "source_ref" is ambiguous`.
 
 Cause:
+
 - Environment is running an older `reserve_generation_credits`/reservation RPC definition (pre-fix for ambiguous output-column names).
 
 Fix:
+
 - Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
 - Then run `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
 - Refresh Supabase schema cache and retry generation.
 
 Notes:
+
 - The API now falls back to legacy direct-debit billing when reservation RPCs are stale/missing so generation can proceed.
 - Applying `013` + `014` is still the durable fix to restore full reservation/capture/release behavior.
 
 ## AI Studio generation fails with `Preparation timed out before generation started. Please retry.`
+
 Symptoms:
+
 - Output placeholder flips to failed before provider submit starts.
 - UI error banner shows `Preparation timed out before generation started. Please retry.`
 
 Cause:
+
 - Pre-submit media preparation exceeded the dynamic deadline budget before provider handoff.
 - Common stages: local reference fetch, `/api/upload-image` roundtrip, or signed URL refresh.
 
 Checklist:
+
 - Inspect `app_error_logs` for `source='generation_preflight_timeout'` and review metadata:
   - `preflight_work_units`
   - `preflight_timeout_ms`
@@ -825,49 +1014,63 @@ Checklist:
 - If `refresh_signed_url` is failing, reselect references to mint fresh signed URLs.
 
 Mitigation:
+
 - Retry with fewer local blob/data references in one submit.
 - Re-add stale references and rerun.
 - If repeated on healthy network/session, capture the stage breadcrumb packet and escalate to generation runtime incident triage.
 
 ## Fal validation fails with `file_download_error` / `Failed to download the file`
+
 Symptoms:
+
 - Provider response includes validation detail on `image_urls` or motion video URL download failure.
 - Local logs can include follow-on parser failures like `Fal Seedream result returned non-JSON response` with `405 Method Not Allowed`.
 
 Cause:
+
 - Most often, a Supabase signed reference URL expired between selection time and provider fetch time.
 - It can also happen when the signed URL points to a moved/deleted object or a non-user-scoped legacy path.
 
 Current behavior:
+
 - AI Studio now applies a pre-submit signed URL freshness gate for image references and video reference URLs (including motion-control and Kling element video references).
 - URLs nearing expiry are force-refreshed before submit; if refresh fails, submission stops early with a user-facing reselect message.
 
 Checklist:
+
 - Re-select failed image/video references and retry generation.
 - Verify storage paths are user-scoped and valid (primary + variant paths) via `sql/check_media_storage_scope_drift.sql`.
 - Confirm the target object still exists in `storage.objects` under `media_library`.
 - If failures persist, capture request IDs plus provider `detail[]` payload and escalate via provider incident SOP.
 
 ## SQL role update fails with `column "app_metadata" does not exist`
+
 Symptom:
+
 - Query against `auth.users.app_metadata` fails with `ERROR: 42703`.
 
 Cause:
+
 - Supabase stores auth metadata in `raw_app_meta_data` and `raw_user_meta_data` columns.
 
 Fix:
+
 - Update `raw_app_meta_data` instead of `app_metadata` for admin roles.
 - `raw_user_meta_data` is user-editable and is not used for admin authorization.
 - Sign out and sign back in so fresh JWT claims include the new role before checking `/admin`.
 
 ## Billing migration fails with `ENABLE ROW SECURITY ... not supported for views`
+
 Symptom:
+
 - `ERROR: 42809: ALTER action ENABLE ROW SECURITY cannot be performed on relation "ai_credit_balance"`.
 
 Cause:
+
 - In some legacy deployments, `ai_credit_balance` is a view, not a table.
 
 Fix:
+
 - Re-run the latest `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` from this repo. The current script detects view vs table and skips incompatible RLS/trigger steps automatically.
 - Validate relation type:
   ```sql
@@ -878,15 +1081,19 @@ Fix:
   ```
 
 ## Signup fails with `Database error saving new user`
+
 Symptom:
+
 - Supabase Auth returns `Database error saving new user` during sign up.
 
 Checklist:
+
 - Run the latest `sql/migrate_new_user_plan_default_to_free.sql` to replace `handle_new_user_billing_setup()` with the hardened, fail-open version.
 - Ensure billing bootstrap tables exist (`billing_profiles`, `billing_plans`, `ai_credit_ledger`).
 - Ensure `app_error_logs` and `app_error_events` tables exist to capture trigger failures in the Admin Errors page.
 
 Diagnostics:
+
 ```sql
 select id, source, message, last_seen_at, occurrences_count, metadata
 from app_error_logs
@@ -896,11 +1103,15 @@ limit 20;
 ```
 
 ## AI Studio auto-save fails (CORS or fetch errors)
+
 Checklist:
+
 - The provider URL allows browser fetches (some providers block cross-origin downloads).
 - If blocked, consider a Supabase Edge Function proxy (requires an ADR) or store metadata only.
 
 ## “It works in dev but not in build”
+
 Checklist:
+
 - Run `npm -C frontend run build` and fix type errors first.
 - Watch for accidental Node-only usage in the client (e.g., `fs`, server-only env vars).

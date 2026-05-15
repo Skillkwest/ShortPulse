@@ -9,17 +9,23 @@ const {
   mockGetSignedMediaUrl,
   mockResolveMediaSigningStoragePaths,
   mockResolveMediaPreviewCandidates,
+  mockCreateMediaPerfTimer,
 } = vi.hoisted(() => ({
   mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
-  mockResolveMediaSigningStoragePaths: vi.fn((_row?: unknown) => [] as string[]),
+  mockResolveMediaSigningStoragePaths: vi.fn(() => [] as string[]),
   mockResolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
     storagePaths: mockResolveMediaSigningStoragePaths(row),
     directUrl: null as string | null,
   })),
+  mockCreateMediaPerfTimer: vi.fn(),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: mockGetSignedMediaUrl,
+}));
+
+vi.mock("../../../../lib/mediaPerfTelemetry", () => ({
+  createMediaPerfTimer: mockCreateMediaPerfTimer,
 }));
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
@@ -40,6 +46,8 @@ describe("mediaPreviewRuntimeShared", () => {
         directUrl: null as string | null,
       })
     );
+    mockCreateMediaPerfTimer.mockReset();
+    mockCreateMediaPerfTimer.mockReturnValue(vi.fn());
   });
 
   it("signs storage paths through shared media bucket contract", async () => {
@@ -142,8 +150,69 @@ describe("mediaPreviewRuntimeShared", () => {
     expect(Array.from(unresolved.values())).toEqual([]);
   });
 
+  it("prefers local cached signing on media-library browse surfaces before resolve-previews", async () => {
+    mockResolveMediaPreviewCandidates.mockImplementation(
+      (row: { id?: string; storage_path?: string | null }) => ({
+        storagePaths: row.storage_path ? [row.storage_path] : [],
+        directUrl: null,
+      })
+    );
+    mockGetSignedMediaUrl.mockImplementation(async (...args: unknown[]) => {
+      const [{ storagePath }] = args as [{ storagePath: string }];
+      return storagePath === "user-1/images/media-1.png"
+        ? "https://signed.example.com/media-1.png"
+        : null;
+    });
+    const fetcher = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        urls: {
+          "media-2": "https://signed.example.com/media-2.png",
+        },
+      }),
+    }));
+    const applySignedUrlsToTab = vi.fn();
+
+    const unresolved = await resolveAndApplySignedPreviewUrlsByRows({
+      tab: "uploaded_images",
+      rows: [
+        { id: "media-1", storage_path: "user-1/images/media-1.png" },
+        { id: "media-2", storage_path: "user-1/images/media-2.png" },
+      ],
+      applySignedUrlsToTab,
+      currentUserId: "user-1",
+      surface: "media-library-panel",
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/media/resolve-previews",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          ids: ["media-2"],
+          expiresInSeconds: 3600,
+          surface: "media-library-panel",
+        }),
+      })
+    );
+    expect(applySignedUrlsToTab).toHaveBeenNthCalledWith(
+      1,
+      "uploaded_images",
+      new Map([["media-1", "https://signed.example.com/media-1.png"]])
+    );
+    expect(applySignedUrlsToTab).toHaveBeenNthCalledWith(
+      2,
+      "uploaded_images",
+      new Map([["media-2", "https://signed.example.com/media-2.png"]])
+    );
+    expect(Array.from(unresolved.values())).toEqual([]);
+  });
+
   it("hydrates preview via storage-download fallback using candidate ordering", async () => {
     mockResolveMediaSigningStoragePaths.mockReturnValue(["path/first.png", "path/second.png"]);
+    const finishFallback = vi.fn();
+    mockCreateMediaPerfTimer.mockReturnValue(finishFallback);
     const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:second");
     const downloadFromStoragePath = vi
       .fn<(storagePath: string) => Promise<Blob | null>>()
@@ -156,6 +225,7 @@ describe("mediaPreviewRuntimeShared", () => {
       const result = await hydrateMediaPreviewViaStorageDownload({
         row,
         currentUserId: "user-1",
+        surface: "media-library-panel",
         downloadFromStoragePath,
         applyObjectUrlForRow,
       });
@@ -165,6 +235,14 @@ describe("mediaPreviewRuntimeShared", () => {
       expect(downloadFromStoragePath).toHaveBeenNthCalledWith(2, "path/second.png");
       expect(applyObjectUrlForRow).toHaveBeenCalledWith(row, "blob:second");
       expect(objectUrlSpy).toHaveBeenCalledTimes(1);
+      expect(mockCreateMediaPerfTimer).toHaveBeenCalledWith({
+        surface: "media-library-panel",
+        candidate_count: 2,
+      });
+      expect(finishFallback).toHaveBeenCalledWith("media.storage_download_fallback.completed", {
+        succeeded_count: 1,
+        failed_count: 0,
+      });
     } finally {
       objectUrlSpy.mockRestore();
     }
@@ -172,6 +250,8 @@ describe("mediaPreviewRuntimeShared", () => {
 
   it("returns null when no storage-download candidate resolves", async () => {
     mockResolveMediaSigningStoragePaths.mockReturnValue(["path/first.png"]);
+    const finishFallback = vi.fn();
+    mockCreateMediaPerfTimer.mockReturnValue(finishFallback);
     const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:unused");
     const downloadFromStoragePath = vi.fn(async () => null);
     const applyObjectUrlForRow = vi.fn();
@@ -180,6 +260,7 @@ describe("mediaPreviewRuntimeShared", () => {
       const result = await hydrateMediaPreviewViaStorageDownload({
         row: { id: "media-2", storage_path: "path/first.png", file_type: "image/png" },
         currentUserId: "user-1",
+        surface: "media-library-route",
         downloadFromStoragePath,
         applyObjectUrlForRow,
       });
@@ -187,6 +268,10 @@ describe("mediaPreviewRuntimeShared", () => {
       expect(result).toBeNull();
       expect(applyObjectUrlForRow).not.toHaveBeenCalled();
       expect(objectUrlSpy).not.toHaveBeenCalled();
+      expect(finishFallback).toHaveBeenCalledWith("media.storage_download_fallback.failed", {
+        succeeded_count: 0,
+        failed_count: 1,
+      });
     } finally {
       objectUrlSpy.mockRestore();
     }

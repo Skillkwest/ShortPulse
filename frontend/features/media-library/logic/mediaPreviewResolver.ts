@@ -3,6 +3,7 @@
  * Encapsulates resolve-previews API request/response handling for reuse across surfaces.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveMediaPreviewCandidates } from "../../../lib/mediaPreviewPath";
 
@@ -57,6 +58,10 @@ export const resolveSignedPreviewUrlsByMediaIds = async ({
   fetcher = fetchWithAuth,
 }: ResolvePreviewUrlsByMediaIdsArgs): Promise<Map<string, string>> => {
   if (!ids.length) return new Map();
+  const finishResolvePreviews = createMediaPerfTimer({
+    surface: surface ?? "unknown",
+    batch_size: ids.length,
+  });
   try {
     const response = await fetcher("/api/media/resolve-previews", {
       method: "POST",
@@ -70,7 +75,13 @@ export const resolveSignedPreviewUrlsByMediaIds = async ({
       }),
       shortpulseLogScope: "app",
     }).catch(() => null);
-    if (!response?.ok) return new Map();
+    if (!response?.ok) {
+      finishResolvePreviews("media.resolve_previews.failed", {
+        failed_count: ids.length,
+        error_kind: response ? "http_error" : "network_error",
+      });
+      return new Map();
+    }
     const payload = (await response.json().catch(() => null)) as ResolvePreviewUrlsPayload;
     const urls = payload?.urls ?? {};
     const resolvedById = new Map<string, string>();
@@ -79,8 +90,16 @@ export const resolveSignedPreviewUrlsByMediaIds = async ({
       if (!url) continue;
       resolvedById.set(mediaId, url);
     }
+    finishResolvePreviews("media.resolve_previews.completed", {
+      resolved_count: resolvedById.size,
+      failed_count: Math.max(0, ids.length - resolvedById.size),
+    });
     return resolvedById;
   } catch {
+    finishResolvePreviews("media.resolve_previews.failed", {
+      failed_count: ids.length,
+      error_kind: "unexpected_error",
+    });
     return new Map();
   }
 };

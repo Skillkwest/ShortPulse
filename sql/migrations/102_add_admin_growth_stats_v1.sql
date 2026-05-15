@@ -787,3 +787,8 @@ begin
     );
 end;
 $$;
+
+revoke all on function public.get_admin_growth_stats_v1() from public;
+revoke all on function public.get_admin_growth_stats_v1() from anon;
+revoke all on function public.get_admin_growth_stats_v1() from authenticated;
+grant execute on function public.get_admin_growth_stats_v1() to service_role;

@@ -338,6 +338,7 @@ export const useMediaSurfacePreviewRuntime = <
         return await hydrateMediaPreviewViaStorageDownload({
           row,
           currentUserId: currentUserIdRef.current,
+          surface,
           downloadFromStoragePath: async (storagePath) => {
             const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
             if (error || !data) return null;
@@ -351,7 +352,7 @@ export const useMediaSurfacePreviewRuntime = <
         downloadFallbackInFlightRef.current[row.id] = false;
       }
     },
-    [setObjectUrlForMediaRow]
+    [setObjectUrlForMediaRow, surface]
   );
 
   const resolveSignedUrlsByMediaIds = useCallback(

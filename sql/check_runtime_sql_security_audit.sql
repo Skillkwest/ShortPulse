@@ -37,9 +37,16 @@ with expected_functions as (
             ('public.mark_media_derivative_failed(uuid,uuid,text,integer,boolean)'),
             ('public.list_admin_user_health_active_targets(integer,integer)'),
             ('public.prune_admin_user_health_history(integer)'),
+            ('public.get_admin_global_stats_summary()'),
+            ('public.list_admin_model_usage_stats(integer)'),
+            ('public.get_admin_global_stats_v1()'),
+            ('public.get_admin_growth_stats_v1()'),
             ('public.get_active_agent_safety_policy()'),
             ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
-            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
+            ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)'),
+            ('public.get_active_model_pricing_policy()'),
+            ('public.apply_model_pricing_policy(jsonb,text,text,uuid,text,text)'),
+            ('public.rollback_model_pricing_policy(text,uuid,text,text)')
     ) as f(signature)
 ),
 resolved as (

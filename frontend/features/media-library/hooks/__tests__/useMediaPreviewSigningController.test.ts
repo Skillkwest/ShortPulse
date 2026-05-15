@@ -210,6 +210,50 @@ describe("useMediaPreviewSigningController", () => {
     expect(resolveMediaPreviewCandidatesMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not re-sign rows that already carry a seeded signedUrl", async () => {
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    renderHook(() => {
+      const rows = [makeRow({ signedUrl: "https://signed.test/seeded-first.png" })];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 2, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+      });
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled());
+    expect(resolveSignedUrlsByMediaIds).not.toHaveBeenCalled();
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
   it("does not run proactive hydrate fallback during routine signing passes", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));

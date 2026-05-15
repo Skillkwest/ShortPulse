@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearMediaPerfEvents,
+  getMediaPerfFallbackStats,
+  getMediaPerfResolveStats,
   getMediaPerfSnapshot,
   logMediaPerf,
   setMediaPerfSamplingPolicy,
@@ -51,5 +53,67 @@ describe("mediaPerfTelemetry sampling policy", () => {
 
     expect(getMediaPerfSnapshot()).toHaveLength(1);
     expect(getMediaPerfSnapshot()[0]?.event).toBe("media.panel.first_media_paint");
+  });
+
+  it("aggregates resolve-previews completion stats by surface", () => {
+    logMediaPerf("media.resolve_previews.completed", {
+      surface: "media-library-panel",
+      batch_size: 2,
+      resolved_count: 1,
+      failed_count: 1,
+      duration_ms: 12,
+    });
+    logMediaPerf("media.resolve_previews.completed", {
+      surface: "media-library-panel",
+      batch_size: 3,
+      resolved_count: 3,
+      failed_count: 0,
+      duration_ms: 18,
+    });
+
+    expect(getMediaPerfResolveStats()).toEqual([
+      {
+        surface: "media-library-panel",
+        samples: 2,
+        avg_duration_ms: 15,
+        p50_duration_ms: 12,
+        p95_duration_ms: 12,
+        total_batch_size: 5,
+        total_resolved: 4,
+        total_failed: 1,
+        failed_ratio: 0.2,
+      },
+    ]);
+  });
+
+  it("aggregates storage-download fallback stats by surface", () => {
+    logMediaPerf("media.storage_download_fallback.completed", {
+      surface: "media-library-route",
+      candidate_count: 2,
+      succeeded_count: 1,
+      failed_count: 0,
+      duration_ms: 14,
+    });
+    logMediaPerf("media.storage_download_fallback.failed", {
+      surface: "media-library-route",
+      candidate_count: 3,
+      succeeded_count: 0,
+      failed_count: 1,
+      duration_ms: 20,
+    });
+
+    expect(getMediaPerfFallbackStats()).toEqual([
+      {
+        surface: "media-library-route",
+        samples: 2,
+        avg_duration_ms: 17,
+        p50_duration_ms: 14,
+        p95_duration_ms: 14,
+        total_candidates: 5,
+        total_succeeded: 1,
+        total_failed: 1,
+        failed_ratio: 0.5,
+      },
+    ]);
   });
 });

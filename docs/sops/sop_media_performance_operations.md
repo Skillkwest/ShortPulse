@@ -1,9 +1,11 @@
 # SOP: Media Performance Operations
 
 ## Purpose
+
 Operate and troubleshoot Media Library and AI Studio Reference Grid performance under large media volumes while preserving UX requirements (including inline video autoplay in Reference Grid).
 
 ## Scope
+
 - In scope:
   - Media Library route (`/media-library`), AI Studio Media Library panel, and AI Studio Media Library modal.
   - Reference Grid autoplay performance controls.
@@ -14,6 +16,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - Schema/backfill design decisions (see ADRs and planning specs).
 
 ## Key Components
+
 - Client signing/cache:
   - `frontend/lib/mediaSignedUrlCache.ts`
 - Batch signing API:
@@ -46,6 +49,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `docs/planning/evidence/reference-grid-modularization/`
 
 ## Prerequisites
+
 - User can authenticate in-app (bearer token required for `/api/media/sign-batch`).
 - Supabase storage bucket is private and user-scoped path rules are active.
 - Variant/backfill migrations are applied where required:
@@ -56,6 +60,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 ## Operational Workflow
 
 ### 1) Validate Baseline Path
+
 1. Open Media Library route and AI Studio modal.
 2. Confirm media cards render quickly with placeholders first, then preview hydration.
 3. Confirm pagination/search remains responsive with large tabs.
@@ -66,6 +71,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
    - `Refreshing media…` can appear while cards remain mounted.
 
 ### 2) Validate Batch Signing Contract
+
 1. Open browser network tab while loading media grids.
 2. Confirm `POST /api/media/sign-batch` is called during lazy-sign passes.
 3. Confirm response status is `200` and payload contains:
@@ -74,18 +80,21 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 5. Confirm failed entries degrade to placeholder (not a blocking error state).
 
 ### 2b) Validate Next Optimizer Bypass Contract
+
 1. Load media-heavy `All Media` on route/modal/panel.
 2. Confirm image card `src` values stay as Supabase signed URLs and are not rewritten to `/_next/image?...`.
 3. Confirm `/api/media/resolve-previews` responses include `x-shortpulse-media-resolve-preview-profile`.
 4. Confirm detail modal/download remain full-quality (no quality regression).
 
 ### 3) Validate Reference Grid Autoplay Budget
+
 1. Open AI Studio with multiple visible video cards.
 2. Confirm autoplay is viewport-gated and bounded.
 3. Confirm on constrained conditions (`saveData`, low memory, very slow network) autoplay budget reduces.
 4. Confirm offscreen cards pause/detach according to configured delay.
 
 ### 3b) Validate Curated Split Behavior
+
 1. Confirm top `Canvas` section renders above `Quick Slot Inventory` and remains interactive.
 2. Drag/keyboard resize the top divider and validate pills:
    - left pill `Canvas ↓` expands the canvas section
@@ -99,11 +108,13 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 9. Drag the lower horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify quick-slot/all-refs resizing.
 
 ### 4) Validate Usage Accuracy
+
 1. Confirm Media Library storage usage uses RPC-backed total:
    - `get_media_library_usage_bytes()`
 2. Confirm usage updates after upload/delete operations.
 
 ## Telemetry Procedure (Local)
+
 Use DevTools Console:
 
 ```js
@@ -115,13 +126,21 @@ Reproduce a media-heavy flow, then inspect:
 ```js
 window.__shortpulseMediaPerf?.durationStats();
 window.__shortpulseMediaPerf?.signStats();
+window.__shortpulseMediaPerf?.resolveStats();
+window.__shortpulseMediaPerf?.fallbackStats();
 ```
 
 Key indicators:
+
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
+- `resolve-previews` `failed_ratio` and `total_batch_size` grouped by `surface`
+- storage-download fallback `failed_ratio` and `total_candidates` grouped by `surface`
 - `total_primary_durable` / `total_resolved_durable` versus `total_primary_original` / `total_resolved_original`
 - `source_class` and `error_kind` dimensions on `media.sign.batch.completed` / `media.sign.batch.failed`
+- `resolved_count` / `failed_count` dimensions on `media.resolve_previews.completed` / `media.resolve_previews.failed`
+- `candidate_count` / `succeeded_count` / `failed_count` dimensions on
+  `media.storage_download_fallback.completed` / `media.storage_download_fallback.failed`
 - `preview_delivery_mode` and `optimizer_bypassed` are debugging-only dimensions during media-rendering hardening; do not use them as pass/fail or rollout-gate evidence until the telemetry truth spec unblocks them
 - first-card/first-media-paint timing trends
 - open-to-first-media timers:
@@ -139,6 +158,7 @@ Key indicators:
   - `nonGridRerendersPerOutputStatusTick`
 
 ## Tuning Knobs
+
 - Media Library sign budget constants:
   - `MEDIA_ROUTE_SIGN_BUDGET_*` in `frontend/pages/media-library.tsx`
 - Modal sign budget constants:
@@ -204,6 +224,7 @@ Key indicators:
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 
 ## Current panel baseline
+
 - AI Studio Media Library panel is considered healthy when:
   - `surface: "media-library-panel"` stays on durable previews only (`total_resolved_original = 0`),
   - `failed_ratio = 0`,
@@ -214,17 +235,24 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
   - materially higher sign-batch latency/churn than the current baseline.
 
 ## Adaptive Media Runbook
+
 Use this runbook together with `docs/sops/sop_adaptive_media_change_control.md` for PR gating and regression-control requirements.
 
 1. Canonical parity defaults:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=false`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`
+
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=false`
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`
+
 2. Tuned policy rollout:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true`
+
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true`
+
 3. Emergency rollback:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
+
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
 
 Monitor these events during rollout:
+
 - `media.adaptive.policy.applied`
 - `media.adaptive.resolve.mismatch`
 - `media.adaptive.local_transcode.applied`
@@ -233,6 +261,7 @@ Monitor these events during rollout:
 - `media.adaptive.error`
 
 ## Stable Performance Defaults
+
 - Reference Grid:
   - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE=true`
   - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET=true`
@@ -257,6 +286,7 @@ Monitor these events during rollout:
   - `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=false`
 
 ## Security Guardrails
+
 - `/api/media/sign-batch` must enforce:
   - authenticated user (`requireApiUser`)
   - fixed bucket: `media_library`
@@ -265,6 +295,7 @@ Monitor these events during rollout:
 - Never expose service-role keys in client-side code.
 
 ## Failure Modes And Actions
+
 - Symptom: high sign failure ratio.
   - Check path scope validity and `preview_*` variant hints.
   - Validate API response shape and auth headers.
@@ -321,6 +352,7 @@ Monitor these events during rollout:
   - If responses are healthy but failures persist, clear stale page state and re-open the media surface to flush previously wrapped URLs.
 
 ## Release Checklist
+
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`
 3. When adaptive paths are touched: `npm -C frontend run test:adaptive-media-runtime`
@@ -342,19 +374,23 @@ Monitor these events during rollout:
    - Optional port override:
      - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
 10. Manual verification:
-   - Media Library route (images/videos/private/AI tabs)
-   - AI Studio modal search + paging + selection
-   - Reference Grid autoplay behavior on desktop and small-screen widths
-   - Canvas + split interactions (top canvas divider + quick-slot/all-refs divider)
+
+- Media Library route (images/videos/private/AI tabs)
+- AI Studio modal search + paging + selection
+- Reference Grid autoplay behavior on desktop and small-screen widths
+- Canvas + split interactions (top canvas divider + quick-slot/all-refs divider)
+
 11. CI perf gate (internal branches with audit creds):
-   - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
-   - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
-   - Runs `npm run test:perf:ai-studio` against production build/start.
-   - On pull requests, runs only when AI Studio perf-impacting files changed.
-   - Gate mode defaults to `warn` and can be switched to `enforce` with repo variable `AI_STUDIO_PERF_GATE_MODE`.
-   - If secrets are missing, the same job records a skip summary and exits cleanly.
+
+- `.github/workflows/ci.yml` job `ai_studio_perf_gate`
+- Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
+- Runs `npm run test:perf:ai-studio` against production build/start.
+- On pull requests, runs only when AI Studio perf-impacting files changed.
+- Gate mode defaults to `warn` and can be switched to `enforce` with repo variable `AI_STUDIO_PERF_GATE_MODE`.
+- If secrets are missing, the same job records a skip summary and exits cleanly.
 
 ## CI Secret And Variable Setup
+
 - GitHub UI:
   - Repository `Settings -> Secrets and variables -> Actions -> New repository secret`
   - Add:
@@ -375,6 +411,7 @@ Monitor these events during rollout:
   - `gh variable set REFERENCE_GRID_SIZE_BUDGET_MODE --body "warn"`
 
 ## Reference Grid Perf Harness
+
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
 - Runtime API (development, or production when `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`):
@@ -398,6 +435,7 @@ Monitor these events during rollout:
     - `image_decode_inflight_p95_at_count`
 
 ## Studio Shell Perf Harness
+
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
 - Scenarios: 20 / 50 / 60 / 100 / 300 seeded references while exercising toolbar/panel/drop interactions.
@@ -410,6 +448,7 @@ Monitor these events during rollout:
   - non-grid rerenders per output-status tick (toolbar/properties): `<= 1`
 
 ## Related Docs
+
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`

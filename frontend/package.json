@@ -50,6 +50,9 @@
     "test:e2e:elements-panel-layout": "NODE_PATH=./node_modules node ./tests/e2e/elements-panel-layout.audit.js",
     "test:e2e:project-persistence": "NODE_PATH=./node_modules node ./tests/e2e/project-persistence.audit.js",
     "media:backfill-video-posters": "node ./scripts/backfill_video_posters.mjs",
+    "media:backfill-video-previews": "node ./scripts/backfill_video_previews.mjs",
+    "media:audit-orphaned-videos": "node ./scripts/audit_orphaned_media_videos.mjs",
+    "media:cleanup-orphaned-videos": "node ./scripts/cleanup_orphaned_media_videos.mjs",
     "media:phase0": "node ./scripts/media_library_phase0_bundle.mjs",
     "media:phase0:probe": "node ./scripts/media_library_phase0_bundle.mjs --run-probe",
     "media:readiness": "node ./scripts/media_library_diagnostics_readiness.mjs",
@@ -207,7 +210,8 @@
       "tests/e2e/pulse-custom-contract.audit.js",
       "tests/e2e/project-persistence.audit.js",
       "vitest.setup.ts",
-      "scripts/backfill_video_posters.mjs"
+      "scripts/backfill_video_posters.mjs",
+      "scripts/backfill_video_previews.mjs"
     ]
   }
 }

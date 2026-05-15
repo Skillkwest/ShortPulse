@@ -32,6 +32,7 @@ import { useAiStudioPageContentRuntime } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/useAiStudioPageGenerationRuntime";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
+import { useAiStudioProjectRouteRecovery } from "../features/ai-studio/hooks/useAiStudioProjectRouteRecovery";
 import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
@@ -855,9 +856,11 @@ const useAiStudioShellRuntime = ({
     localSessionTitleOverride,
     modelModalContext,
     project,
+    projectErrorKind,
     projectId,
     projectRouteRequested,
     projectStatus,
+    requestedProjectId,
     router,
     sessionId,
     setIsProjectsModalOpen,
@@ -918,6 +921,24 @@ const useAiStudioShellRuntime = ({
     setShowCreateTools(false);
     setSelectedToolWithEditIntentReset("media-library");
   }, [setSelectedToolWithEditIntentReset, setShowCreateTools]);
+  const handleClearStaleProjectRoute = useCallback(async () => {
+    const nextQuery = { ...router.query };
+    delete nextQuery.projectId;
+    return await router.replace({
+      pathname: "/ai-studio",
+      query: nextQuery,
+    });
+  }, [router]);
+
+  useAiStudioProjectRouteRecovery({
+    requestedProjectId,
+    projectRouteRequested,
+    projectStatus,
+    projectErrorKind,
+    onClearStaleProjectRoute: handleClearStaleProjectRoute,
+    onOpenProjectsModal: handleOpenProjectsModal,
+  });
+
   const shouldGateProjectBootstrap =
     projectRouteRequested &&
     (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));

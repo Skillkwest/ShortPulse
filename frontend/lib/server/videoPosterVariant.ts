@@ -14,6 +14,8 @@ import type { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 const execFileAsync = promisify(execFile);
 const MEDIA_BUCKET = "media_library";
+export const VIDEO_PREVIEW_SCALE_FILTER =
+  "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
 const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
@@ -125,7 +127,7 @@ export const extractVideoPreviewVariantBuffer = async ({
       "-t",
       "3",
       "-vf",
-      "scale=360:-2:force_original_aspect_ratio=decrease",
+      VIDEO_PREVIEW_SCALE_FILTER,
       "-c:v",
       "libx264",
       "-preset",

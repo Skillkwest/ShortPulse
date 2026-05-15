@@ -96,11 +96,13 @@ export const useAiStudioPageBaseRuntime = () => {
     sessionId,
   });
   const {
+    requestedProjectId,
     verifiedProjectId,
     projectRouteRequested,
     project,
     status: projectStatus,
     error: projectError,
+    errorKind: projectErrorKind,
     refreshProject,
     updateProjectTitle,
   } = useAiStudioProjectIdentity();
@@ -519,9 +521,11 @@ export const useAiStudioPageBaseRuntime = () => {
     publishExpertEditSessionState,
     project,
     projectError,
+    projectErrorKind,
     projectId,
     projectRouteRequested,
     projectStatus,
+    requestedProjectId,
     pulsePrompt,
     pulseSessionInstanceId,
     pulseWorkflowSession,

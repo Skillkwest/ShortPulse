@@ -22,6 +22,10 @@ export type MediaPerfEventName =
   | "media.move.bulk.failed"
   | "media.sign.batch.completed"
   | "media.sign.batch.failed"
+  | "media.resolve_previews.completed"
+  | "media.resolve_previews.failed"
+  | "media.storage_download_fallback.completed"
+  | "media.storage_download_fallback.failed"
   | "media.grid.scroll.sample"
   | "media.grid.autoplay.started"
   | "media.grid.autoplay.stopped"
@@ -52,6 +56,8 @@ type MediaPerfDebugHandle = {
   clear: () => void;
   durationStats: () => MediaPerfDurationStat[];
   signStats: () => MediaPerfSignStat[];
+  resolveStats: () => MediaPerfResolveStat[];
+  fallbackStats: () => MediaPerfFallbackStat[];
   getSamplingPolicy: () => MediaPerfSamplingPolicy;
 };
 
@@ -80,6 +86,30 @@ export type MediaPerfSignStat = {
   total_primary_original: number;
   total_resolved_durable: number;
   total_resolved_original: number;
+};
+
+export type MediaPerfResolveStat = {
+  surface: string;
+  samples: number;
+  avg_duration_ms: number;
+  p50_duration_ms: number;
+  p95_duration_ms: number;
+  total_batch_size: number;
+  total_resolved: number;
+  total_failed: number;
+  failed_ratio: number;
+};
+
+export type MediaPerfFallbackStat = {
+  surface: string;
+  samples: number;
+  avg_duration_ms: number;
+  p50_duration_ms: number;
+  p95_duration_ms: number;
+  total_candidates: number;
+  total_succeeded: number;
+  total_failed: number;
+  failed_ratio: number;
 };
 
 const MAX_MEDIA_PERF_EVENTS = 500;
@@ -405,6 +435,121 @@ export const getMediaPerfSignStats = (): MediaPerfSignStat[] => {
 };
 
 /**
+ * Aggregates resolve-previews telemetry by surface for fallback-rate auditing.
+ */
+export const getMediaPerfResolveStats = (): MediaPerfResolveStat[] => {
+  type ResolveAccumulator = {
+    durations: number[];
+    totalBatchSize: number;
+    totalResolved: number;
+    totalFailed: number;
+  };
+  const buckets = new Map<string, ResolveAccumulator>();
+
+  for (const event of eventBuffer) {
+    if (event.event !== "media.resolve_previews.completed") continue;
+    const surface = String(event.data.surface ?? "unknown");
+    const bucket = buckets.get(surface) ?? {
+      durations: [],
+      totalBatchSize: 0,
+      totalResolved: 0,
+      totalFailed: 0,
+    };
+
+    const durationMs = toFiniteNumber(event.data.duration_ms);
+    const batchSize = toFiniteNumber(event.data.batch_size) ?? 0;
+    const resolvedCount = toFiniteNumber(event.data.resolved_count) ?? 0;
+    const failedCount = toFiniteNumber(event.data.failed_count) ?? 0;
+    if (durationMs != null) bucket.durations.push(durationMs);
+    bucket.totalBatchSize += batchSize;
+    bucket.totalResolved += resolvedCount;
+    bucket.totalFailed += failedCount;
+    buckets.set(surface, bucket);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([surface, bucket]) => {
+      const sortedDurations = [...bucket.durations].sort((a, b) => a - b);
+      const totalDuration = sortedDurations.reduce((sum, value) => sum + value, 0);
+      const samples = sortedDurations.length;
+      const denominator = bucket.totalResolved + bucket.totalFailed;
+      const failedRatio = denominator > 0 ? bucket.totalFailed / denominator : 0;
+      return {
+        surface,
+        samples,
+        avg_duration_ms: samples > 0 ? Math.round(totalDuration / samples) : 0,
+        p50_duration_ms: Math.round(percentile(sortedDurations, 0.5)),
+        p95_duration_ms: Math.round(percentile(sortedDurations, 0.95)),
+        total_batch_size: Math.round(bucket.totalBatchSize),
+        total_resolved: Math.round(bucket.totalResolved),
+        total_failed: Math.round(bucket.totalFailed),
+        failed_ratio: Number(failedRatio.toFixed(4)),
+      };
+    })
+    .sort((a, b) => b.p95_duration_ms - a.p95_duration_ms);
+};
+
+/**
+ * Aggregates storage-download fallback telemetry by surface for exception-lane auditing.
+ */
+export const getMediaPerfFallbackStats = (): MediaPerfFallbackStat[] => {
+  type FallbackAccumulator = {
+    durations: number[];
+    totalCandidates: number;
+    totalSucceeded: number;
+    totalFailed: number;
+  };
+  const buckets = new Map<string, FallbackAccumulator>();
+
+  for (const event of eventBuffer) {
+    if (
+      event.event !== "media.storage_download_fallback.completed" &&
+      event.event !== "media.storage_download_fallback.failed"
+    ) {
+      continue;
+    }
+    const surface = String(event.data.surface ?? "unknown");
+    const bucket = buckets.get(surface) ?? {
+      durations: [],
+      totalCandidates: 0,
+      totalSucceeded: 0,
+      totalFailed: 0,
+    };
+
+    const durationMs = toFiniteNumber(event.data.duration_ms);
+    const candidateCount = toFiniteNumber(event.data.candidate_count) ?? 0;
+    const succeededCount = toFiniteNumber(event.data.succeeded_count) ?? 0;
+    const failedCount = toFiniteNumber(event.data.failed_count) ?? 0;
+    if (durationMs != null) bucket.durations.push(durationMs);
+    bucket.totalCandidates += candidateCount;
+    bucket.totalSucceeded += succeededCount;
+    bucket.totalFailed += failedCount;
+    buckets.set(surface, bucket);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([surface, bucket]) => {
+      const sortedDurations = [...bucket.durations].sort((a, b) => a - b);
+      const totalDuration = sortedDurations.reduce((sum, value) => sum + value, 0);
+      const samples = sortedDurations.length;
+      const denominator = bucket.totalSucceeded + bucket.totalFailed;
+      const failedRatio = denominator > 0 ? bucket.totalFailed / denominator : 0;
+      return {
+        surface,
+        samples,
+        avg_duration_ms: samples > 0 ? Math.round(totalDuration / samples) : 0,
+        p50_duration_ms: Math.round(percentile(sortedDurations, 0.5)),
+        p95_duration_ms: Math.round(percentile(sortedDurations, 0.95)),
+        total_candidates: Math.round(bucket.totalCandidates),
+        total_succeeded: Math.round(bucket.totalSucceeded),
+        total_failed: Math.round(bucket.totalFailed),
+        failed_ratio: Number(failedRatio.toFixed(4)),
+      };
+    })
+    .sort((a, b) => b.p95_duration_ms - a.p95_duration_ms);
+};
+
+/**
  * Installs a small debug handle on `window` for manual baseline collection in dev tools.
  */
 export const installMediaPerfDebugHandle = (): void => {
@@ -415,6 +560,8 @@ export const installMediaPerfDebugHandle = (): void => {
     clear: clearMediaPerfEvents,
     durationStats: getMediaPerfDurationStats,
     signStats: getMediaPerfSignStats,
+    resolveStats: getMediaPerfResolveStats,
+    fallbackStats: getMediaPerfFallbackStats,
     getSamplingPolicy: getMediaPerfSamplingPolicy,
   };
 };

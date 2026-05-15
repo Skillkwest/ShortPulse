@@ -6,6 +6,7 @@ Purpose: keep a retained inventory of the helper commands and tooling that impro
 
 - `npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <tests...>`
   - Batch preflight for generated-file/env-file guardrails, shared-risk warnings, targeted lint, docs parity, and suite-hot reruns.
+  - Allows documented example env files while still blocking real env files and secret-bearing local configs.
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
   - Compact manifest generator for staged batches or supplied file lists.
 

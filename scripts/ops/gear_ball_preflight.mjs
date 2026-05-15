@@ -27,7 +27,10 @@ const SECRET_PATH_PATTERNS = [
   /^frontend\/\.env\./,
 ];
 
-const SECRET_PATH_EXCEPTIONS = new Set(["frontend/.env.example"]);
+const SECRET_PATH_EXCEPTION_PATTERNS = [
+  /^\.env(?:\.[^/]+)*\.example$/,
+  /^frontend\/\.env(?:\.[^/]+)*\.example$/,
+];
 
 const SHARED_RISK_RULES = [
   {
@@ -161,7 +164,8 @@ function isGeneratedPath(file) {
 }
 
 function isSecretPath(file) {
-  if (SECRET_PATH_EXCEPTIONS.has(file)) return false;
+  if (SECRET_PATH_EXCEPTION_PATTERNS.some((pattern) => pattern.test(file)))
+    return false;
   return SECRET_PATH_PATTERNS.some((pattern) => pattern.test(file));
 }
 

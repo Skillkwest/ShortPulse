@@ -265,3 +265,44 @@ Capability decision:
 Next training focus:
 
 - Keep using the same minimal-batch path for repo-only operational fixes and confirm the retained closeout remains cheap enough to do every time.
+
+## 2026-05-14: Public-Origin Authority Hardening
+
+Task: publish the auth/public-origin authority lane on `working-development`, then close the run with the retained self-audit loop.
+
+Actions taken:
+
+- Validated the lane with targeted auth/env tests, `npm -C frontend run build`, `npm -C frontend run docs:check`, and a final full `npm -C frontend run test`.
+- Committed and pushed the feature batch on `working-development` as `6f1ab4ae1`.
+- Fixed the retained helper friction from the run by allowing canonical example env files through `gear-ball:preflight`, then updated retained memory, run log, tools, and training history.
+
+Training result:
+
+- The feature lane shipped cleanly, but two suite-hot guardrails (`error-logging-coverage` and `runtime-sql-security-audit-script`) still needed stale test updates before the full suite could go green.
+- The most useful tooling improvement was small and justified: preflight now distinguishes example env files from real env files.
+- The current SOP and helper set are otherwise sufficient for this class of route/env/doc lane.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- The lane stayed coherent across runtime helpers, auth routes, env validators, docs, and tests.
+- Focused validation caught the real issues before publish.
+- The final build, docs check, and full suite all passed before commit readiness.
+
+What slipped:
+
+- The helper initially blocked `.env.agent.local.example`, which created unnecessary friction.
+- Two suite-hot guardrail tests were stale and were only surfaced by the full-suite rerun.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `yes`
+- Change made: `gear-ball:preflight` now allows documented example env files while still blocking real env files
+
+Next training focus:
+
+- Add more explicit suite-hot coverage guidance for guardrail tests that tend to drift when runtime audit scripts or route-level logging policy changes.

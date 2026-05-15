@@ -66,7 +66,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **AI Studio session RPC hardening**: Keep session persistence RPCs (`upsert_ai_studio_session_snapshot`, `get_ai_studio_session_snapshot`, `list_ai_studio_sessions`, `prune_ai_studio_sessions_expired`) service-role-only with explicit `SECURITY DEFINER` search-path hardening and deterministic bounded prune semantics.
 - **Agent safety control-plane RPC hardening**: Keep control-plane RPCs (`get_active_agent_safety_policy`, `activate_agent_safety_policy`, `rollback_agent_safety_policy`) service-role-only with `SECURITY DEFINER` posture; only admin APIs may invoke these via server-side service-role clients.
 - **Model pricing control-plane RPC hardening**: Keep control-plane RPCs (`get_active_model_pricing_policy`, `apply_model_pricing_policy`, `rollback_model_pricing_policy`) service-role-only with `SECURITY DEFINER` posture; only trusted server/admin APIs may invoke these via server-side service-role clients.
-- **Runtime SQL RPC hardening audit**: Run `sql/check_runtime_sql_security_audit.sql` after migration/security updates and before release signoff; require `failing_checks = 0`.
+- **Runtime SQL RPC hardening audit**: Run `sql/check_runtime_sql_security_audit.sql` after migration/security updates and before release signoff; require `failing_checks = 0`. The audit now also includes canary schema/table/sequence grant checks for `anon`, `authenticated`, and `service_role`, so privilege-collapse incidents on `public` must fail the audit even when function execute posture remains green.
 
 ## Validation
 

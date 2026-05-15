@@ -23,9 +23,14 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `FAL_KEY` (required for Fal API routes)
-3. Set optional production/ops values when needed:
+3. Set additional values when needed:
    - `APP_BASE_URL`
-   - `SHORTPULSE_PUBLIC_API_BASE_URL` (optional canonical external origin for server routes that need a public base URL)
+     - Canonical public origin for auth emails, Stripe redirects, and other server-generated URLs.
+     - For local-only development you can leave it unset and the app will use the current local host, or set it explicitly to `http://localhost:3000`.
+     - Never promote a local `http://localhost:3000` value into preview or production.
+   - `SHORTPULSE_PUBLIC_API_BASE_URL`
+     - Optional compatibility mirror for routes that still read the legacy public-API base.
+     - When set, it must match `APP_BASE_URL` exactly.
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SHORTPULSE_ADMIN_EMAILS`
    - `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes
@@ -63,6 +68,7 @@ For local script automation, you can optionally create a root-level `.env.agent.
 `.env.agent.local` is for local probe/audit tooling only. Keep dedicated development/staging/production operator database targets, staging helper URLs, localhost script base URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
 
 Examples that belong in `.env.agent.local`, not `frontend/.env.local`:
+
 - `SHORTPULSE_DEVELOPMENT_DB_URL`
 - `SHORTPULSE_DEVELOPMENT_SUPABASE_URL`
 - `SHORTPULSE_DEVELOPMENT_SUPABASE_ANON_KEY`
@@ -75,7 +81,13 @@ Examples that belong in `.env.agent.local`, not `frontend/.env.local`:
 - `SHORTPULSE_PRODUCTION_SUPABASE_SERVICE_ROLE_KEY`
 - `SHORTPULSE_STAGING_BASE_URL`
 - `SHORTPULSE_STAGING_BEARER_TOKEN`
+- `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+- `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
+- `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+- `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
 - Vercel operator/protection-bypass tokens
+
+If you are validating hosted worker routes with `node scripts/verify_internal_route_runtime.mjs`, prefer an explicit env file that contains the live hosted secrets for that target. Use `--env-file <path>` to layer a pulled Vercel env file or a temporary Vault-derived probe file ahead of `.env.agent.local` when the hosted secrets differ from your local defaults.
 
 ## Local Runtime Contract
 

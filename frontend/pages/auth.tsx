@@ -10,7 +10,7 @@ import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-reac
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
-  buildAuthCallbackUrl,
+  fetchCanonicalAuthCallbackUrl,
   resolveNextPath,
   resolveNextPathFromAsPath,
 } from "../lib/authRedirects";
@@ -91,6 +91,15 @@ export default function AuthPage() {
     try {
       const supabase = ensureSupabaseClient();
       if (mode === "signup") {
+        const emailRedirectTo = await fetchCanonicalAuthCallbackUrl({
+          flow: "signup",
+          nextPath,
+        });
+        if (!emailRedirectTo) {
+          throw new Error(
+            "Unable to resolve the public confirmation link destination. Please try again in a moment."
+          );
+        }
         trackSignupSubmitted({
           auth_surface: "auth_page",
           signup_method: "email_password",
@@ -102,14 +111,7 @@ export default function AuthPage() {
             data: {
               plan: DEFAULT_PLAN,
             },
-            emailRedirectTo:
-              typeof window === "undefined"
-                ? undefined
-                : buildAuthCallbackUrl({
-                    origin: window.location.origin,
-                    flow: "signup",
-                    nextPath,
-                  }),
+            emailRedirectTo,
           },
         });
         if (signUpError) throw signUpError;
@@ -153,13 +155,15 @@ export default function AuthPage() {
     try {
       const supabase = ensureSupabaseClient();
       const redirectTo =
-        typeof window === "undefined"
-          ? undefined
-          : buildAuthCallbackUrl({
-              origin: window.location.origin,
-              flow: "recovery",
-              nextPath,
-            });
+        (await fetchCanonicalAuthCallbackUrl({
+          flow: "recovery",
+          nextPath,
+        })) ?? null;
+      if (!redirectTo) {
+        throw new Error(
+          "Unable to resolve the public password reset link destination. Please try again in a moment."
+        );
+      }
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo,
       });

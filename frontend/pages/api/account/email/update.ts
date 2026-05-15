@@ -5,9 +5,9 @@ import {
   normalizeEmailInput,
   updateSupabaseAuthUser,
 } from "../../../../lib/server/api/accountIdentity";
+import { resolvePublicAppOrigin } from "../../../../lib/server/api/appOrigin";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
-import { getCanonicalAppBaseUrl } from "../../../../lib/server/api/stripe";
 
 type EmailUpdateBody = {
   email?: unknown;
@@ -16,36 +16,6 @@ type EmailUpdateBody = {
 type EmailUpdateResponse = {
   email: string;
   confirmationRequired: true;
-};
-
-const asOptionalString = (value: string | string[] | undefined): string | null => {
-  if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null;
-  return typeof value === "string" ? value : null;
-};
-
-const readForwardedValue = (value: string | string[] | undefined): string | null => {
-  const rawValue = asOptionalString(value);
-  if (!rawValue) return null;
-  const firstValue = rawValue.split(",")[0]?.trim();
-  return firstValue && firstValue.length > 0 ? firstValue : null;
-};
-
-const resolveRequestOrigin = (req: NextApiRequest): string | null => {
-  if (process.env.APP_BASE_URL?.trim()) {
-    try {
-      return getCanonicalAppBaseUrl();
-    } catch {
-      return null;
-    }
-  }
-
-  const host =
-    readForwardedValue(req.headers["x-forwarded-host"]) ?? asOptionalString(req.headers.host);
-  if (!host) return null;
-  const forwardedProto = readForwardedValue(req.headers["x-forwarded-proto"]);
-  const protocol = forwardedProto ? forwardedProto.toLowerCase() : "http";
-  if (protocol !== "http" && protocol !== "https") return null;
-  return `${protocol}://${host}`;
 };
 
 export default async function handler(
@@ -66,16 +36,17 @@ export default async function handler(
   }
 
   try {
-    const requestOrigin = resolveRequestOrigin(req);
+    const requestOrigin = resolvePublicAppOrigin(req);
+    if (!requestOrigin) {
+      throw new Error("Unable to resolve app origin.");
+    }
     await updateSupabaseAuthUser({
       req,
       payload: { email },
-      emailRedirectTo: requestOrigin
-        ? `${requestOrigin}${buildAuthCallbackPath({
-            flow: "email-change",
-            nextPath: "/profile?section=account",
-          })}`
-        : undefined,
+      emailRedirectTo: `${requestOrigin}${buildAuthCallbackPath({
+        flow: "email-change",
+        nextPath: "/profile?section=account",
+      })}`,
     });
 
     return res.status(200).json({ email, confirmationRequired: true });

@@ -14,7 +14,20 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
 
 export const VERCEL_ENVIRONMENTS = ["development", "preview", "production"];
-export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = ["development", "preview", "production"];
+export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = [
+  "development",
+  "preview",
+  "production",
+];
+export const SHORTPULSE_PRODUCTION_APP_ORIGIN = "https://www.shortpulse.ai";
+
+const LOOPBACK_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "::1",
+  "[::1]",
+  "0.0.0.0",
+]);
 
 export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
   development: [
@@ -29,7 +42,6 @@ export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
     "SUPABASE_SERVICE_ROLE_KEY",
     "FAL_KEY",
     "APP_BASE_URL",
-    "SHORTPULSE_PUBLIC_API_BASE_URL",
     "SHORTPULSE_ADMIN_EMAILS",
   ],
   production: [
@@ -38,7 +50,6 @@ export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
     "SUPABASE_SERVICE_ROLE_KEY",
     "FAL_KEY",
     "APP_BASE_URL",
-    "SHORTPULSE_PUBLIC_API_BASE_URL",
     "SHORTPULSE_ADMIN_EMAILS",
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
@@ -55,7 +66,6 @@ export const FILE_PROFILE_REQUIRED_KEYS = Object.freeze({
     "APP_BASE_URL",
   ],
   phase04: [
-    "SHORTPULSE_PUBLIC_API_BASE_URL",
     "SHORTPULSE_FAL_RECONCILER_ENABLED",
     "SHORTPULSE_FAL_RECONCILER_CRON_SECRET",
   ],
@@ -110,7 +120,10 @@ export const MIRRORED_FLAG_PAIRS = Object.freeze([
     "SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS",
     "NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS",
   ],
-  ["SHORTPULSE_MEDIA_UPLOAD_API_ENABLED", "NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED"],
+  [
+    "SHORTPULSE_MEDIA_UPLOAD_API_ENABLED",
+    "NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED",
+  ],
   ["SHORTPULSE_MEDIA_LIST_API_ENABLED", "NEXT_PUBLIC_MEDIA_LIST_API_ENABLED"],
   [
     "SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED",
@@ -125,7 +138,11 @@ export const SENSITIVE_PRESENCE_ONLY_KEYS = new Set([
   "STRIPE_WEBHOOK_SECRET",
 ]);
 
-const FRONTEND_ENV_EXAMPLE_PATH = path.join(REPO_ROOT, "frontend", ".env.example");
+const FRONTEND_ENV_EXAMPLE_PATH = path.join(
+  REPO_ROOT,
+  "frontend",
+  ".env.example",
+);
 const AGENT_ENV_EXAMPLE_PATH = path.join(REPO_ROOT, ".env.agent.local.example");
 
 const stripWrappingQuotes = (value) => {
@@ -143,7 +160,9 @@ const parseLine = (line) => {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith("#")) return null;
 
-  const normalized = trimmed.startsWith("export ") ? trimmed.slice("export ".length) : trimmed;
+  const normalized = trimmed.startsWith("export ")
+    ? trimmed.slice("export ".length)
+    : trimmed;
   const eqIndex = normalized.indexOf("=");
   if (eqIndex <= 0) return null;
 
@@ -176,16 +195,21 @@ export const parseEnvFileToMap = (filePath) => {
   return map;
 };
 
-const readTemplateKeys = (filePath) => new Set(parseEnvFileToMap(filePath).keys());
+const readTemplateKeys = (filePath) =>
+  new Set(parseEnvFileToMap(filePath).keys());
 
 const FRONTEND_ENV_EXAMPLE_KEYS = readTemplateKeys(FRONTEND_ENV_EXAMPLE_PATH);
 const AGENT_ENV_EXAMPLE_KEYS = readTemplateKeys(AGENT_ENV_EXAMPLE_PATH);
 
-export const KNOWN_FRONTEND_ENV_EXAMPLE_KEYS = new Set(FRONTEND_ENV_EXAMPLE_KEYS);
+export const KNOWN_FRONTEND_ENV_EXAMPLE_KEYS = new Set(
+  FRONTEND_ENV_EXAMPLE_KEYS,
+);
 export const KNOWN_AGENT_ENV_EXAMPLE_KEYS = new Set(AGENT_ENV_EXAMPLE_KEYS);
 
 export const KNOWN_VERCEL_KEYS = new Set(
-  [...FRONTEND_ENV_EXAMPLE_KEYS].filter((key) => !LOCAL_OR_TOOLING_ONLY_KEYS.has(key))
+  [...FRONTEND_ENV_EXAMPLE_KEYS].filter(
+    (key) => !LOCAL_OR_TOOLING_ONLY_KEYS.has(key),
+  ),
 );
 
 /**
@@ -224,4 +248,87 @@ export const isKnownVercelKey = (key) => KNOWN_VERCEL_KEYS.has(key);
  * @param {string} key
  * @returns {boolean}
  */
-export const isLocalOrToolingOnlyKey = (key) => LOCAL_OR_TOOLING_ONLY_KEYS.has(key);
+export const isLocalOrToolingOnlyKey = (key) =>
+  LOCAL_OR_TOOLING_ONLY_KEYS.has(key);
+
+const isLoopbackHostname = (hostname) =>
+  LOOPBACK_HOSTNAMES.has(String(hostname).toLowerCase());
+
+export const validatePublicOriginPair = ({
+  appBaseUrl,
+  publicApiBaseUrl,
+  environment,
+}) => {
+  if (!appBaseUrl || !publicApiBaseUrl) {
+    return [];
+  }
+
+  let normalizedAppBaseUrl;
+  let normalizedPublicApiBaseUrl;
+  try {
+    normalizedAppBaseUrl = new URL(appBaseUrl).origin;
+  } catch {
+    return [];
+  }
+  try {
+    normalizedPublicApiBaseUrl = new URL(publicApiBaseUrl).origin;
+  } catch {
+    return [];
+  }
+
+  if (normalizedAppBaseUrl === normalizedPublicApiBaseUrl) {
+    return [];
+  }
+
+  const scope = environment ? ` for ${environment}` : "";
+  return [
+    `APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL must match${scope} when both are configured.`,
+  ];
+};
+
+export const validateDeployedPublicOrigin = ({ environment, key, value }) => {
+  if (
+    (key !== "APP_BASE_URL" && key !== "SHORTPULSE_PUBLIC_API_BASE_URL") ||
+    !value
+  ) {
+    return [];
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(value);
+  } catch {
+    return [`${key} must be a valid URL for ${environment}.`];
+  }
+
+  const errors = [];
+  if (
+    (environment === "preview" || environment === "production") &&
+    parsedUrl.protocol !== "https:"
+  ) {
+    errors.push(`${key} must be an https URL for ${environment}.`);
+  }
+  if (
+    (environment === "preview" || environment === "production") &&
+    isLoopbackHostname(parsedUrl.hostname)
+  ) {
+    errors.push(`${key} must not use a loopback host for ${environment}.`);
+  }
+  if (
+    environment === "production" &&
+    parsedUrl.origin !== SHORTPULSE_PRODUCTION_APP_ORIGIN
+  ) {
+    errors.push(
+      `${key} must resolve to ${SHORTPULSE_PRODUCTION_APP_ORIGIN} for production.`,
+    );
+  }
+  if (
+    environment === "preview" &&
+    parsedUrl.origin === SHORTPULSE_PRODUCTION_APP_ORIGIN
+  ) {
+    errors.push(
+      `${key} must not resolve to ${SHORTPULSE_PRODUCTION_APP_ORIGIN} for preview.`,
+    );
+  }
+  return errors;
+};

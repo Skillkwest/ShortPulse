@@ -54,11 +54,13 @@ describe("check_runtime_sql_security_audit.sql", () => {
     expect(sql).toContain("'execute_authenticated'::text as check_name");
     expect(sql).toContain("'execute_anon'::text as check_name");
     expect(sql).toContain("aclexplode(coalesce(p.proacl, acldefault('f', p.proowner)))");
+    expect(sql).toContain("schema_checks(signature, check_name, check_pass, detail) as (");
+    expect(sql).toContain("table_checks(signature, check_name, check_pass, detail) as (");
+    expect(sql).toContain("sequence_checks(signature, check_name, check_pass, detail) as (");
+    expect(sql).toContain("into temp table runtime_sql_security_audit_checks");
     expect(sql).toContain("count(*)::integer as total_checks");
-    expect(sql).toContain("checks(check_pass) as (");
-    expect(sql).toContain("count(*) filter (where checks.check_pass)::integer as passing_checks");
-    expect(sql).toContain(
-      "count(*) filter (where not checks.check_pass)::integer as failing_checks"
-    );
+    expect(sql).toContain("count(*) filter (where check_pass)::integer as passing_checks");
+    expect(sql).toContain("count(*) filter (where not check_pass)::integer as failing_checks");
+    expect(sql).toContain("drop table runtime_sql_security_audit_checks;");
   });
 });

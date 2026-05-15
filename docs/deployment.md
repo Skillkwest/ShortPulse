@@ -22,6 +22,7 @@ Use these names as the only canonical GitHub Environment identifiers in active r
 - `production`
 
 Notes:
+
 - Vercel scope labels such as `Production` and `Preview` are platform labels, not GitHub Environment names.
 - Active docs should not introduce alternate GitHub Environment names such as `Production – short-pulse` or `Production – shortpulse`.
 - Current active deploy posture in this repo:
@@ -48,12 +49,25 @@ Notes:
 5. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 7. If production storage payloads are being migrated from staging, complete `docs/sops/sop_nuclo_supabase_storage_migration.md` before any production Vercel rewiring.
+8. Confirm auth callback origin readiness:
+   - `APP_BASE_URL` is the canonical public-origin authority for the target environment
+   - If `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it exactly matches `APP_BASE_URL`
+   - Preview `APP_BASE_URL=https://<preview-host>` in Vercel `Preview`
+   - `APP_BASE_URL=https://www.shortpulse.ai` in Vercel `Production`
+   - `SHORTPULSE_PUBLIC_API_BASE_URL=https://www.shortpulse.ai` in Vercel `Production` only when mirroring `APP_BASE_URL`
+   - Supabase redirect allowlist includes the preview callback URL for preview verification
+   - Supabase redirect allowlist includes `https://www.shortpulse.ai/auth/callback`
+   - `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the preview host in `Preview`
+   - `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...`
+   - one live signup/reset/email-change email is verified against the preview link host after preview env changes
+   - one live signup/reset/email-change email is verified against the production link host before release signoff
 
 ## Environment variables
 
 Vercel project settings are the canonical source of truth for deployed environments.
 
 Rules:
+
 - Use Vercel envs for deployed `development`, `preview`, and `production` behavior.
 - Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
 - Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
@@ -71,8 +85,9 @@ as applicable):
 - Admin / security:
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SHORTPULSE_ADMIN_EMAILS`
-- Billing:
+- Billing and auth public origins:
   - `APP_BASE_URL`
+  - `SHORTPULSE_PUBLIC_API_BASE_URL` only when it matches `APP_BASE_URL`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
@@ -112,7 +127,7 @@ as applicable):
   - AI Studio legacy `sid` session-persistence env flags are retired and should not be configured. `sid` remains runtime identity only, and durable restore authority now belongs to project workspace persistence.
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
-  - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback) for Fal `fal_webhook` submit registration
+  - `SHORTPULSE_PUBLIC_API_BASE_URL` only when mirroring `APP_BASE_URL` for compatibility with legacy Fal/public API origin reads
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
   - `CRON_SECRET` (optional manual invocation bearer secret; keep aligned with reconciler secret when used)
@@ -134,6 +149,7 @@ as applicable):
 ### Production Supabase credential wiring (required)
 
 Set the following values in Vercel `Production` (only):
+
 - `NEXT_PUBLIC_SUPABASE_URL=https://<production-project-ref>.supabase.co`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-client-key>`
 - `SUPABASE_SERVICE_ROLE_KEY=<production-server-key>`
@@ -143,14 +159,17 @@ Keep Vercel `Development` mapped to the dedicated `working-development`
 Supabase project values.
 
 GitHub Environment naming rule:
+
 - use only `production` and `staging` for GitHub Environment secrets and workflow inputs
 - do not create or document alternate production-environment labels in active governance surfaces
 
 Set GitHub Environment secret `SUPABASE_DB_URL` for:
+
 - `production` -> `postgresql://postgres:<password>@db.<production-project-ref>.supabase.co:5432/postgres?sslmode=require`
 - `staging` -> staging database URL (unchanged)
 
 Verification:
+
 - `gh secret list --env production` includes `SUPABASE_DB_URL`.
 - `gh secret list --env staging` includes `SUPABASE_DB_URL` and remains staging-scoped.
 - `Media Storage Deploy Gate` runs cleanly for `target_environment=production`.
@@ -168,6 +187,7 @@ node scripts/check_vercel_env_file.mjs \
 ```
 
 Notes:
+
 - `core` profile validates baseline deploy keys.
 - Use a profile aligned to the current live runtime contract rather than old queue/shadow rollout windows.
 
@@ -180,8 +200,11 @@ node scripts/check_vercel_env_contract.mjs
 ```
 
 Current default behavior:
+
 - audits `development`, `preview`, and `production` by default so branch-to-environment drift is caught across the full 3-project ladder.
 - still allows narrower targeted audits when a task only needs one environment.
+- hard-fails when `APP_BASE_URL` or `SHORTPULSE_PUBLIC_API_BASE_URL` is loopback, non-HTTPS, or not `https://www.shortpulse.ai` in `production`.
+- hard-fails when `APP_BASE_URL` and `SHORTPULSE_PUBLIC_API_BASE_URL` differ in deployed envs.
 
 Optional production-inclusive audit:
 
@@ -196,6 +219,7 @@ node scripts/check_vercel_env_contract.mjs --environment preview --git-branch <b
 ```
 
 Behavior:
+
 - Hard-fails when required deploy keys are missing in the audited environment(s).
 - Hard-fails when local/tooling-only keys are stored in Vercel project envs.
 - Hard-fails when environment-specific deploy keys are shared across `development`, `preview`, and `production`.
@@ -210,6 +234,7 @@ Behavior:
 Before any scheduler URL updates, manual drain/recovery operations, or post-deploy production checks, verify that the target alias/URL resolves to a deployment containing the required internal routes.
 
 Default required routes:
+
 - `/api/internal/admin-user-health-fleet/run`
 - `/api/internal/generation-recovery/run`
 - `/api/internal/media-derivatives/run`
@@ -238,11 +263,49 @@ node scripts/verify_deployment_route_parity.mjs \
 ```
 
 Behavior:
+
 - Hard-fails (non-zero exit) if any required route is missing from deployment build output.
 - Prints resolved deployment URL and deployment creation timestamp to prevent alias/deployment drift mistakes.
 - Supports env fallbacks:
   - base URL: `SHORTPULSE_STAGING_BASE_URL`, then `APP_BASE_URL`
   - token: `SHORTPULSE_VERCEL_API_TOKEN`, then `VERCEL_API_TOKEN`
+
+### Protected internal route runtime gate (required for scheduler/worker signoff)
+
+Before scheduler URL updates, secret rotation closeout, or production worker signoff, verify that the protected internal routes both:
+
+- fail closed with `401` when unauthenticated
+- succeed with `200` when called with the configured cron secrets
+
+Command example:
+
+```bash
+node scripts/verify_internal_route_runtime.mjs \
+  --base-url https://<staging-or-prod-alias>
+```
+
+Optional narrower probe:
+
+```bash
+node scripts/verify_internal_route_runtime.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --route generation_recovery \
+  --route media_derivatives
+```
+
+Secret env requirements:
+
+- `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+- `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
+- `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+- `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
+- optional `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`
+
+Behavior:
+
+- Hard-fails if a route returns anything other than `401` unauthenticated.
+- Hard-fails if a route returns anything other than `200` with operator auth.
+- Catches enabled-flag drift, cron-secret drift, deployment-staleness drift, and route-level runtime failures that build-output parity alone cannot see.
 
 ## Vercel setup
 
@@ -281,6 +344,7 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
    - Preferred repeatable path: use `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=configure_generation_recovery_cron_secret` to sync `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` into Vault before applying the scheduler SQL.
    - If the target deployment is Vercel-protected, also use `operation=configure_bypass_secret` to sync `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN` into Vault.
    - Use idempotent SQL to create-or-update (safe on reruns):
+
    ```sql
    do $$
    declare
@@ -336,6 +400,7 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
    end
    $$;
    ```
+
 4. Run `sql/configure_generation_recovery_scheduler_supabase.sql` in the target Supabase project.
 5. Verify scheduler state:
    ```sql
@@ -360,6 +425,7 @@ Route-parity gate is mandatory before setting or updating `shortpulse_recovery_r
    - `sql/check_pg_net_failure_taxonomy.sql`
 
 Notes:
+
 - Vercel cron is not required for this route.
 - `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
@@ -416,11 +482,13 @@ Route-parity gate is mandatory before setting or updating `shortpulse_media_deri
    - `sql/check_media_derivative_processing_backlog.sql` shows no growing `pending` queue after scheduler replay/steady-state observation.
 
 Notes:
+
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with the other internal operators.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
 - Treat `404` from the hosted derivative route as deployment-target drift or `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=false`, not as “scheduler missing.” The recurring incident pattern was: cron healthy, `pg_net` enqueue healthy, hosted worker disabled, backlog silently accumulated.
 - Keep `shortpulse_media_derivatives_run_url` pointed at a deployment class that is intentionally maintained for derivative operations. Do not rely on a stale preview alias without re-running the route-parity and auth checks above.
+
 ## Admin fleet scheduler (Supabase Cron)
 
 Use Supabase Cron for the admin fleet-health scan route.
@@ -457,6 +525,7 @@ Prior baseline: daily cadence (`0 4 * * *`) retained as rollback target.
    - `sql/check_pg_net_failure_taxonomy.sql`
 
 Notes:
+
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with generation-recovery operations.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
@@ -480,6 +549,7 @@ node scripts/run_generation_drain_cycle.mjs \
 ```
 
 Then verify:
+
 - `sql/check_generation_queue_blockers.sql`
 - `sql/check_generation_settlement_integrity.sql`
 
@@ -500,6 +570,7 @@ Use `/api/admin/generation-recovery/replay` only for residual outlier IDs after 
 4. Deploy app code after migration success is confirmed.
 
 Guardrail:
+
 - Do not use implicit local `supabase db push` for hosted promotion.
 - Use environment-pinned SQL apply execution for staging/production.
 - Do not use Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands) for hosted operations.

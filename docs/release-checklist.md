@@ -23,6 +23,8 @@ Use this checklist before promoting code toward `production` (and before any dep
 ## Manual product smoke
 
 - Auth: sign in/out works; protected routes redirect to `/auth` when unauthenticated
+- Auth preview callbacks: `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the expected preview host after preview env changes, and fresh preview signup/reset/email-change emails use that same host
+- Auth email callbacks: `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...` in production, and fresh signup/reset/email-change emails all use the `https://www.shortpulse.ai` host
 - Media Library: upload/list/download/delete/rename; storage paths are user-scoped
 - AI Studio: core workflow renders; drag/drop surfaces behave as expected (per current UI)
 - Dashboard + Profile: core layout, settings/billing sections, and logout flow behave as expected
@@ -41,9 +43,14 @@ Use this checklist before promoting code toward `production` (and before any dep
 - `node scripts/check_vercel_env_contract.mjs`
 - Verify command output reports `PASS` for `preview` before deploy, alias cutover, or scheduler URL updates.
 - When production cutover work begins, switch to `node scripts/check_vercel_env_contract.mjs --environment preview --environment production` and require `PASS` for both.
+- Require the env contract check to fail if `APP_BASE_URL` or `SHORTPULSE_PUBLIC_API_BASE_URL` is loopback, non-HTTPS, or not `https://www.shortpulse.ai` in `production`.
+- Require the env contract check to fail if `APP_BASE_URL` and `SHORTPULSE_PUBLIC_API_BASE_URL` differ in deployed envs.
 - `node scripts/verify_deployment_route_parity.mjs --base-url https://<target-alias-or-url>`
 - Verify command output reports `PASS` and includes resolved deployment URL + creation timestamp.
 - Run against each target environment URL (`staging` and `production`) before updating cron/scheduler endpoints or running drain/recovery operations.
+- `node scripts/verify_internal_route_runtime.mjs --base-url https://<target-alias-or-url>`
+- Verify command output reports `PASS` for both unauthenticated `401` posture and authenticated `200` operator runtime on each internal worker route.
+- Run against each target environment URL (`staging` and `production`) before scheduler/worker signoff or secret-rotation closeout.
 
 ## Documentation (when behavior changes)
 

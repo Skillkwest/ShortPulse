@@ -29,7 +29,18 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
   - Watermark-based delta sync for the current media-generation drift tables.
   - Upserts `public.ai_generations`, `public.generation_attempts`, `public.ai_generation_outputs`, `public.generation_projection`, `public.media_files`, `public.generation_publications`, `public.project_media_items`, and `public.media_events`.
 - `bash scripts/ops/secret_rotation_validate.sh`
-  - Runs the standard post-rotation validation sequence for development/preview/production env contract, preview+production route parity, homepage reachability, and protected production internal routes.
+  - Runs the standard post-rotation validation sequence for development/preview/production env contract, preview+production route parity, homepage reachability, and authenticated preview+production internal worker-route runtime probes.
+- `node scripts/verify_internal_route_runtime.mjs --base-url <url>`
+  - Probes the protected internal worker routes twice per target deployment:
+    - unauthenticated request must fail closed with `401`
+    - authenticated operator request using the configured cron secrets must succeed with `200`
+  - Uses local env fallbacks for:
+    - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+    - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
+    - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
+    - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
+    - optional `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`
+  - If the hosted target uses different secrets than your local defaults, pass one or more `--env-file <path>` arguments so the probe loads the target-specific Vercel or Vault-derived secret set first.
 - `node scripts/ops/supabase_seed_single_user_staging_to_dev.mjs --email <user@example.com> --apply`
   - Seeds one staging user's relational rows into the dedicated working-development Supabase project.
   - Use `--storage-scope continuity --skip-db` to hydrate only the project/character continuity media set after relational rows are already present.
@@ -69,7 +80,7 @@ This is the fastest way to confirm the production runtime still passes:
 - Vercel env contract audit for development + preview + production
 - preview + production deployment route parity
 - homepage `200`
-- protected internal routes returning `401`
+- protected internal routes failing closed unauthenticated and succeeding with operator auth
 
 ## Local Helper Env
 

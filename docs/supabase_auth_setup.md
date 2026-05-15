@@ -1,6 +1,6 @@
 # Supabase Auth & Client Setup
 
-Use this guide to configure Supabase safely for local development.
+Use this guide to configure Supabase safely for local development and hosted auth flows.
 
 ## Required environment variables
 
@@ -20,8 +20,28 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 Set the canonical app origin used by server-generated auth emails:
 
 ```bash
-APP_BASE_URL=https://app.shortpulse.example
+APP_BASE_URL=http://localhost:3000
 ```
+
+Client-initiated signup and password-reset flows now resolve their absolute callback URL through the server-owned `/api/auth/callback-url` route before calling Supabase, so `APP_BASE_URL` should always reflect the real public origin users should open from email for the environment you are configuring.
+
+Hosted environment examples:
+
+```bash
+# Preview
+APP_BASE_URL=https://<your-preview-host>
+
+# Production
+APP_BASE_URL=https://www.shortpulse.ai
+```
+
+Optional compatibility mirror:
+
+```bash
+SHORTPULSE_PUBLIC_API_BASE_URL=<same value as APP_BASE_URL>
+```
+
+When `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it must match `APP_BASE_URL`.
 
 Optional admin allowlist for `/admin` APIs:
 
@@ -39,7 +59,7 @@ Optional role-based admin access (without email allowlist):
 
 - Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
 - Server-side admin operations should use a service-role client (`frontend/lib/server/api/supabaseAdmin.ts`).
-- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, and email-change confirmation flows, and `APP_BASE_URL` should match the public origin users open from those emails.
+- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, and email-change confirmation flows. Local development should allow `http://localhost:3000/auth/callback`, preview should allow the preview host callback URL, and production should allow `https://www.shortpulse.ai/auth/callback`.
 
 ## Security requirements
 

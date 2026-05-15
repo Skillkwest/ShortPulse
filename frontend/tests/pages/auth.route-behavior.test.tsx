@@ -20,6 +20,7 @@ const getSessionMock = vi.hoisted(() => vi.fn());
 const signInWithPasswordMock = vi.hoisted(() => vi.fn());
 const signUpMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());
+const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -55,6 +56,21 @@ describe("Auth route behavior", () => {
     signInWithPasswordMock.mockResolvedValue({ error: null, data: { session: null } });
     signUpMock.mockResolvedValue({ error: null, data: { session: null } });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const rawUrl = typeof input === "string" ? input : input.toString();
+      const parsed = new URL(rawUrl, "https://shortpulse.test");
+      const flow = parsed.searchParams.get("flow") ?? "signup";
+      const next = parsed.searchParams.get("next") ?? "/dashboard";
+      return {
+        ok: true,
+        json: async () => ({
+          url: `https://www.shortpulse.ai/auth/callback?flow=${flow}&next=${encodeURIComponent(
+            next
+          )}`,
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
@@ -156,7 +172,7 @@ describe("Auth route behavior", () => {
         data: {
           plan: "free",
         },
-        emailRedirectTo: expect.stringMatching(/\/auth\/callback\?flow=signup&next=%2Fdashboard$/),
+        emailRedirectTo: "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fdashboard",
       },
     });
 
@@ -201,7 +217,7 @@ describe("Auth route behavior", () => {
     expect(resetPasswordForEmailMock.mock.calls[0]?.[0]).toBe("reset@example.com");
     expect(resetPasswordForEmailMock.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
-        redirectTo: expect.stringMatching(/\/auth\/callback\?flow=recovery&next=%2Fdashboard$/),
+        redirectTo: "https://www.shortpulse.ai/auth/callback?flow=recovery&next=%2Fdashboard",
       })
     );
 

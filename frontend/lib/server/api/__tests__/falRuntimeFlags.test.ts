@@ -120,10 +120,18 @@ describe("readFalRuntimeFlags admission config", () => {
   });
 
   it("uses the public API base URL when configured", () => {
-    process.env.APP_BASE_URL = "http://localhost:3000";
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://shortpulse-preview.test";
 
     const flags = readFalRuntimeFlags();
     expect(flags.publicApiBaseUrl).toBe("https://shortpulse-preview.test");
+  });
+
+  it("rejects mismatched public origin env values", () => {
+    process.env.APP_BASE_URL = "https://www.shortpulse.ai";
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test";
+
+    expect(() => readFalRuntimeFlags()).toThrow(
+      "APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL must match when both are configured."
+    );
   });
 });

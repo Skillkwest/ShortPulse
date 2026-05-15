@@ -16,6 +16,8 @@ import {
   isKnownVercelKey,
   isLocalOrToolingOnlyKey,
   parseEnvFileToMap,
+  validatePublicOriginPair,
+  validateDeployedPublicOrigin,
 } from "./lib/vercel_env_contract.mjs";
 
 const PROFILE_CORE = "core";
@@ -121,23 +123,29 @@ const main = () => {
   const errors = [];
   const appBaseUrl = envMap.get("APP_BASE_URL") ?? "";
   const publicApiBase = envMap.get("SHORTPULSE_PUBLIC_API_BASE_URL") ?? "";
-  if (appBaseUrl && publicApiBase && appBaseUrl !== publicApiBase) {
-    warnings.push(
-      "APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL differ. Ensure this is intentional for webhook callback registration."
-    );
-  }
   if (!publicApiBase && appBaseUrl) {
     warnings.push(
-      "SHORTPULSE_PUBLIC_API_BASE_URL is empty; runtime will fall back to APP_BASE_URL."
+      "SHORTPULSE_PUBLIC_API_BASE_URL is empty; deployed runtime will use APP_BASE_URL as the single public-origin authority.",
     );
+  }
+  for (const error of validatePublicOriginPair({
+    appBaseUrl,
+    publicApiBaseUrl: publicApiBase,
+    environment: args.environment || undefined,
+  })) {
+    errors.push(error);
   }
   for (const key of envMap.keys()) {
     if (isLocalOrToolingOnlyKey(key)) {
-      warnings.push(`${key} is local/tooling-only and should not be treated as a deploy requirement.`);
+      warnings.push(
+        `${key} is local/tooling-only and should not be treated as a deploy requirement.`,
+      );
       continue;
     }
     if (!isKnownVercelKey(key)) {
-      warnings.push(`${key} is not declared in frontend/.env.example and should be reviewed for contract drift.`);
+      warnings.push(
+        `${key} is not declared in frontend/.env.example and should be reviewed for contract drift.`,
+      );
     }
   }
   for (const [serverKey, clientKey] of MIRRORED_FLAG_PAIRS) {
@@ -150,16 +158,21 @@ const main = () => {
       clientValue !== "" &&
       serverValue !== clientValue
     ) {
-      errors.push(`${serverKey} and ${clientKey} differ. Keep mirrored client/server rollout flags aligned.`);
+      errors.push(
+        `${serverKey} and ${clientKey} differ. Keep mirrored client/server rollout flags aligned.`,
+      );
     }
   }
   if (args.environment === "preview" || args.environment === "production") {
     for (const key of PREVIEW_PRODUCTION_MUST_DIFFER_KEYS) {
       if (!envMap.has(key) || (envMap.get(key) ?? "") === "") continue;
       if (key === "APP_BASE_URL" || key === "SHORTPULSE_PUBLIC_API_BASE_URL") {
-        const value = envMap.get(key) ?? "";
-        if (!/^https:\/\//i.test(value)) {
-          errors.push(`${key} must be an https URL for ${args.environment} exports.`);
+        for (const error of validateDeployedPublicOrigin({
+          environment: args.environment,
+          key,
+          value: envMap.get(key) ?? "",
+        })) {
+          errors.push(error);
         }
       }
     }
@@ -180,7 +193,7 @@ const main = () => {
   }
 
   console.log(
-    `[vercel-env-check] ok profiles=${args.profiles.join(",")} environment=${args.environment || "n/a"} file=${filePath}`
+    `[vercel-env-check] ok profiles=${args.profiles.join(",")} environment=${args.environment || "n/a"} file=${filePath}`,
   );
   if (warnings.length > 0) {
     for (const warning of warnings) {

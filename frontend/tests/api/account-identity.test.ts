@@ -39,6 +39,8 @@ const createMockResponse = () => ({
 describe("account identity routes", () => {
   afterEach(() => {
     delete process.env.APP_BASE_URL;
+    delete process.env.SHORTPULSE_PUBLIC_API_BASE_URL;
+    vi.unstubAllEnvs();
   });
 
   beforeEach(() => {
@@ -117,7 +119,7 @@ describe("account identity routes", () => {
     });
   });
 
-  it("prefers APP_BASE_URL for email-change confirmation redirects when configured", async () => {
+  it("prefers the request origin outside production when it differs from APP_BASE_URL", async () => {
     process.env.APP_BASE_URL = "https://canonical.shortpulse.test/base/path";
     const req = {
       method: "POST",
@@ -125,7 +127,7 @@ describe("account identity routes", () => {
       headers: {
         authorization: "Bearer token",
         host: "internal.shortpulse.test",
-        "x-forwarded-host": "edge.shortpulse.test",
+        "x-forwarded-host": "preview.shortpulse.test",
         "x-forwarded-proto": "https",
       },
     };
@@ -137,7 +139,99 @@ describe("account identity routes", () => {
       req,
       payload: { email: "alice@example.com" },
       emailRedirectTo:
-        "https://canonical.shortpulse.test/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
+        "https://preview.shortpulse.test/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
+    });
+  });
+
+  it("uses SHORTPULSE_PUBLIC_API_BASE_URL when preview cannot resolve an external request host", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test/base/path";
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com" },
+      headers: {
+        authorization: "Bearer token",
+        host: "localhost:3000",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: { email: "alice@example.com" },
+      emailRedirectTo:
+        "https://preview.shortpulse.test/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
+    });
+  });
+
+  it("ignores a loopback APP_BASE_URL when the request arrives on a real external host", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    process.env.APP_BASE_URL = "http://localhost:3000";
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com" },
+      headers: {
+        authorization: "Bearer token",
+        host: "internal.shortpulse.test",
+        "x-forwarded-host": "www.shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: { email: "alice@example.com" },
+      emailRedirectTo:
+        "https://www.shortpulse.ai/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
+    });
+  });
+
+  it("fails the email change request in production when no approved public auth origin can be resolved", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    process.env.APP_BASE_URL = "https://preview.shortpulse.test";
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com" },
+      headers: {
+        authorization: "Bearer token",
+        host: "preview.shortpulse.test",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to resolve app origin." });
+  });
+
+  it("fails the email change request when APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL disagree", async () => {
+    process.env.APP_BASE_URL = "https://canonical.shortpulse.test";
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test";
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com" },
+      headers: {
+        authorization: "Bearer token",
+        host: "preview.shortpulse.test",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL must match when both are configured.",
     });
   });
 

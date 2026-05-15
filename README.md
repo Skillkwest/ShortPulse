@@ -26,7 +26,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Media Library server-authoritative URL copy fallback: `/api/media/copy-from-url` performs authenticated trusted-host remote fetch + storage persistence when browser-side media fetch is blocked (CORS/security/network families).
 - Media preview signing: `/api/media/sign-batch` signs user-scoped authoritative preview paths in a single authenticated request with surface-aware preview-profile headers (route/modal/panel). Transform-backed delivery is compatibility-only and disabled by default unless both `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED=true` and `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED=true`.
 - AI Studio Media Library folder APIs: legacy user-scoped routes under `/api/media/folders/list|create|rename|delete|membership-batch` still back non-project surfaces, while project routes now use `/api/projects/:projectId/media/folders/list|create|rename|move|delete|membership-batch` for project-scoped folder CRUD and membership assign/unassign/move operations. `/api/media/list` and `/api/media/prompts/list` now accept optional `projectId` on folder-scoped requests so project folders resolve through project membership tables while `all_items` remains the global root inventory. Folder-canvas persistence now follows the same split: non-project surfaces still use `/api/ai/media-folder-canvas/[folderId]` + `/api/ai/media-folder-canvas/save`, while project routes use `GET|PUT /api/projects/:projectId/media/folders/:folderId/canvas`.
-- Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, authenticated account-identity update routes under `/api/account/*`, confirmed-email Stripe reconciliation via `/api/account/email/confirm`, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).
+- Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, public `/api/auth/callback-url` resolution for canonical signup/password-reset email callbacks, authenticated account-identity update routes under `/api/account/*`, confirmed-email Stripe reconciliation via `/api/account/email/confirm`, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).
 - Admin billing controls: `/api/admin/billing/contracts/update` grants or revokes non-public payment-exempt recurring access, `/api/admin/billing/portal` opens Stripe billing for the selected user from the admin console, `/api/admin/billing/customer-sync` repairs Stripe customer identity drift for a selected account, and `/api/internal/billing-contract-renewals/run` renews monthly credits for `internal_comp` contracts on a cron-secret protected internal path.
 - Internal comp renewal scheduling is externalized: configure Supabase Cron to call `/api/internal/billing-contract-renewals/run` hourly via `sql/configure_internal_billing_renewal_scheduler_supabase.sql`; keep `SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED=true` and align `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET` with the Vault secret used by the scheduler.
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error`, growth/attribution events can be ingested at `/api/telemetry/growth`, viewed as grouped incidents via `/api/admin/errors`, inspected as raw occurrences via `/api/admin/error-events`, and summarized for operator usage + growth analytics via `/api/admin/stats/global`; the admin stats route now returns one workspace payload for product, marketing, and sales lenses, and admins can update one (`/api/admin/errors-status`) or many (`/api/admin/errors-status-bulk`) incident statuses and smoke-test visibility via `/api/admin/errors-test`.
@@ -50,8 +50,10 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
    - `FAL_KEY`
    - `OPENAI_API_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - `APP_BASE_URL`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
+   - optional mirror: `SHORTPULSE_PUBLIC_API_BASE_URL` only when it matches `APP_BASE_URL`
    - optional provider key for Kie routes: `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`)
 2. Install and run the frontend:
    ```bash
@@ -60,6 +62,12 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
    npm run dev
    ```
    This starts the Next.js app, server API routes under `frontend/pages/api/*`, and the local generation control-plane worker that drains provider-accepted jobs into the canonical output/projection tables.
+
+Auth/public-origin contract:
+
+- `APP_BASE_URL` is the canonical server-side public origin for auth emails, Stripe redirects, and other server-generated URLs.
+- `SHORTPULSE_PUBLIC_API_BASE_URL` is optional compatibility wiring only; when set, it must match `APP_BASE_URL`.
+- Production must resolve to `https://www.shortpulse.ai`.
 
 ## Optional Supabase bootstrap
 

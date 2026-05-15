@@ -20,6 +20,7 @@ const refreshSessionMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());
 const signOutMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -103,6 +104,21 @@ describe("Profile account actions", () => {
       ok: true,
       json: async () => ({}),
     });
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const rawUrl = typeof input === "string" ? input : input.toString();
+      const parsed = new URL(rawUrl, "https://shortpulse.test");
+      const flow = parsed.searchParams.get("flow") ?? "recovery";
+      const next = parsed.searchParams.get("next") ?? "/profile?section=account";
+      return {
+        ok: true,
+        json: async () => ({
+          url: `https://www.shortpulse.ai/auth/callback?flow=${flow}&next=${encodeURIComponent(
+            next
+          )}`,
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
     refreshSupabaseSessionModuleMock.mockResolvedValue({
       user: { id: "user-1" },
     } as never);
@@ -187,7 +203,7 @@ describe("Profile account actions", () => {
     await waitFor(() => {
       expect(resetPasswordForEmailMock).toHaveBeenCalledWith("reset@example.com", {
         redirectTo:
-          "http://localhost:3000/auth/callback?flow=recovery&next=%2Fprofile%3Fsection%3Daccount",
+          "https://www.shortpulse.ai/auth/callback?flow=recovery&next=%2Fprofile%3Fsection%3Daccount",
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Password reset link sent.");

@@ -3,6 +3,7 @@
  * Keeps dependencies light while we bootstrap payment pipelines.
  */
 import crypto from "crypto";
+import { getConfiguredPublicAppOrigin } from "./appOrigin";
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
@@ -28,16 +29,7 @@ export const getStripeSecretKey = (): string => {
 };
 
 export const getCanonicalAppBaseUrl = (): string => {
-  const configured = process.env.APP_BASE_URL?.trim();
-  if (!configured) {
-    if (process.env.NODE_ENV !== "production") {
-      return "http://localhost:3000";
-    }
-    throw new Error("APP_BASE_URL is not configured.");
-  }
-
-  const url = new URL(configured);
-  return url.origin;
+  return getConfiguredPublicAppOrigin();
 };
 
 /**

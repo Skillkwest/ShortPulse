@@ -41,7 +41,7 @@ import {
   type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
-import { buildAuthCallbackUrl } from "../lib/authRedirects";
+import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
 import { useProtectedRoute } from "../lib/authGuard";
 import { trackBillingPricingViewed, trackBillingUpgradeClicked } from "../lib/growthTelemetry";
 import {
@@ -713,12 +713,18 @@ export default function ProfilePage() {
 
     try {
       const supabase = ensureSupabaseClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: buildAuthCallbackUrl({
-          origin: window.location.origin,
+      const redirectTo =
+        (await fetchCanonicalAuthCallbackUrl({
           flow: "recovery",
           nextPath: `${window.location.pathname}${window.location.search}`,
-        }),
+        })) ?? null;
+      if (!redirectTo) {
+        throw new Error(
+          "Unable to resolve the public password reset link destination. Please try again in a moment."
+        );
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
       });
       if (error) throw error;
       setNotice({ tone: "success", message: "Password reset link sent." });

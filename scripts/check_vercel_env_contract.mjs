@@ -22,6 +22,8 @@ import {
   VERCEL_ENVIRONMENTS,
   getRequiredVercelKeysForEnvironment,
   parseEnvFileToMap,
+  validatePublicOriginPair,
+  validateDeployedPublicOrigin,
 } from "./lib/vercel_env_contract.mjs";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
@@ -45,7 +47,8 @@ Options:
                            Available: ${VERCEL_ENVIRONMENTS.join(", ")}
   --git-branch <name>      Optional branch-specific preview audit target.
                            Default when preview is included: ${
-                             process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview"
+                             process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() ||
+                             "staging-preview"
                            }
   --env-file <path>        Optional env file path (repeatable). Parsed by shared loader.
   --help                   Show this message.
@@ -67,7 +70,8 @@ const parseArgs = (argv) => {
       process.env.VERCEL_API_TOKEN?.trim() ??
       "",
     environments: [],
-    gitBranch: process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview",
+    gitBranch:
+      process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview",
     gitBranchExplicit: false,
     help: false,
   };
@@ -84,7 +88,11 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--environment") {
-      const environment = readArgValue(argv, index, "--environment").toLowerCase();
+      const environment = readArgValue(
+        argv,
+        index,
+        "--environment",
+      ).toLowerCase();
       if (!VERCEL_ENVIRONMENTS.includes(environment)) {
         throw new Error(`Unknown environment: ${environment}`);
       }
@@ -109,7 +117,7 @@ const parseArgs = (argv) => {
   }
 
   parsed.environments = parsed.environments.filter(
-    (environment, index, array) => array.indexOf(environment) === index
+    (environment, index, array) => array.indexOf(environment) === index,
   );
   if (parsed.environments.length === 0) {
     parsed.environments = [...DEFAULT_VERCEL_AUDIT_ENVIRONMENTS];
@@ -144,19 +152,20 @@ const parseJsonStdout = (stdout, label) => {
 };
 
 const summarizeExecFailure = (error) => {
-  if (typeof error?.stderr === "string" && error.stderr.trim()) return error.stderr.trim();
-  if (typeof error?.stdout === "string" && error.stdout.trim()) return error.stdout.trim();
+  if (typeof error?.stderr === "string" && error.stderr.trim())
+    return error.stderr.trim();
+  if (typeof error?.stdout === "string" && error.stdout.trim())
+    return error.stdout.trim();
   return "Vercel CLI command failed.";
 };
 
 const runVercel = async (args, token, label) => {
   const finalArgs = token ? [...args, "--token", token] : args;
   try {
-    const { stdout } = await execFileAsync(
-      "vercel",
-      finalArgs,
-      { cwd: process.cwd(), maxBuffer: 20 * 1024 * 1024 }
-    );
+    const { stdout } = await execFileAsync("vercel", finalArgs, {
+      cwd: process.cwd(),
+      maxBuffer: 20 * 1024 * 1024,
+    });
     return stdout;
   } catch (error) {
     throw new Error(`${label}: ${summarizeExecFailure(error)}`);
@@ -164,7 +173,9 @@ const runVercel = async (args, token, label) => {
 };
 
 const pullEnvironmentMap = async ({ environment, token, gitBranch }) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "shortpulse-vercel-env-"));
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "shortpulse-vercel-env-"),
+  );
   const tempPath = path.join(tempDir, `${environment}.env`);
   const args = ["env", "pull", tempPath, "--environment", environment, "--yes"];
   if (gitBranch) {
@@ -204,7 +215,7 @@ const main = async () => {
   const rawListJson = await runVercel(
     ["env", "ls", "--format", "json"],
     args.token,
-    "vercel env ls"
+    "vercel env ls",
   );
   const envRows = parseJsonStdout(rawListJson, "vercel env ls").envs ?? [];
   const errors = [];
@@ -212,11 +223,14 @@ const main = async () => {
 
   const keysByTarget = new Map();
   for (const environment of args.environments) {
-    keysByTarget.set(environment, await pullEnvironmentMap({
+    keysByTarget.set(
       environment,
-      token: args.token,
-      gitBranch: environment === "preview" ? args.gitBranch : "",
-    }));
+      await pullEnvironmentMap({
+        environment,
+        token: args.token,
+        gitBranch: environment === "preview" ? args.gitBranch : "",
+      }),
+    );
   }
 
   for (const row of envRows) {
@@ -224,15 +238,20 @@ const main = async () => {
     if (!key) continue;
 
     const targets = normalizeTargets(row.target);
-    const isScoped = row.configurationId !== null && row.configurationId !== undefined;
+    const isScoped =
+      row.configurationId !== null && row.configurationId !== undefined;
 
     if (LOCAL_OR_TOOLING_ONLY_KEYS.has(key)) {
-      errors.push(`${key} is local/tooling-only and should not be stored in Vercel project envs.`);
+      errors.push(
+        `${key} is local/tooling-only and should not be stored in Vercel project envs.`,
+      );
       continue;
     }
 
     if (!KNOWN_VERCEL_KEYS.has(key)) {
-      warnings.push(`${key} is not declared in frontend/.env.example and should be reviewed for contract drift.`);
+      warnings.push(
+        `${key} is not declared in frontend/.env.example and should be reviewed for contract drift.`,
+      );
     }
 
     if (TARGET_SCOPED_VERCEL_KEYS.includes(key) && !isScoped) {
@@ -243,7 +262,7 @@ const main = async () => {
         targets[2] === "production";
       if (sharedAllTargets) {
         errors.push(
-          `${key} is assigned to development, preview, and production together. This key must use environment-specific Vercel records.`
+          `${key} is assigned to development, preview, and production together. This key must use environment-specific Vercel records.`,
         );
       }
     }
@@ -274,14 +293,22 @@ const main = async () => {
       if (!leftMap.has(key) || !rightMap.has(key)) continue;
       if (sameValue(leftMap.get(key), rightMap.get(key))) {
         errors.push(
-          `${key} has the same resolved value in ${leftEnvironment} and ${rightEnvironment}. Expected environment-specific values.`
+          `${key} has the same resolved value in ${leftEnvironment} and ${rightEnvironment}. Expected environment-specific values.`,
         );
       }
     }
   };
 
-  requireDistinctValues("development", "preview", DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS);
-  requireDistinctValues("preview", "production", PREVIEW_PRODUCTION_MUST_DIFFER_KEYS);
+  requireDistinctValues(
+    "development",
+    "preview",
+    DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS,
+  );
+  requireDistinctValues(
+    "preview",
+    "production",
+    PREVIEW_PRODUCTION_MUST_DIFFER_KEYS,
+  );
 
   for (const environment of args.environments) {
     const envMap = keysByTarget.get(environment) ?? new Map();
@@ -291,9 +318,26 @@ const main = async () => {
       if (!serverValue || !clientValue) continue;
       if (serverValue !== clientValue) {
         errors.push(
-          `${environment}: mirrored flags ${serverKey} and ${clientKey} differ.`
+          `${environment}: mirrored flags ${serverKey} and ${clientKey} differ.`,
         );
       }
+    }
+    for (const key of ["APP_BASE_URL", "SHORTPULSE_PUBLIC_API_BASE_URL"]) {
+      const value = envMap.get(key) ?? "";
+      for (const error of validateDeployedPublicOrigin({
+        environment,
+        key,
+        value,
+      })) {
+        errors.push(`${environment}: ${error}`);
+      }
+    }
+    for (const error of validatePublicOriginPair({
+      appBaseUrl: envMap.get("APP_BASE_URL") ?? "",
+      publicApiBaseUrl: envMap.get("SHORTPULSE_PUBLIC_API_BASE_URL") ?? "",
+      environment,
+    })) {
+      errors.push(`${environment}: ${error}`);
     }
   }
 
@@ -302,7 +346,7 @@ const main = async () => {
 
   if (uniqueErrors.length > 0) {
     console.error(
-      `[vercel-env-contract] FAIL environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`
+      `[vercel-env-contract] FAIL environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`,
     );
     for (const error of uniqueErrors) {
       console.error(`- ${error}`);
@@ -316,7 +360,7 @@ const main = async () => {
   }
 
   console.log(
-    `[vercel-env-contract] PASS environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`
+    `[vercel-env-contract] PASS environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`,
   );
   if (uniqueWarnings.length > 0) {
     for (const warning of uniqueWarnings) {

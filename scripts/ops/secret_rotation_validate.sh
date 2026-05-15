@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Purpose: run the standard post-rotation validation sequence for ShortPulse runtime secrets.
 # Responsibilities: verify env contract, route parity, homepage reachability, and protected
-# internal-route posture after staging/production secret replacement.
+# internal-route runtime posture after staging/production secret replacement.
 
 set -euo pipefail
 
@@ -17,13 +17,13 @@ Options:
   --skip-env-contract         Skip node scripts/check_vercel_env_contract.mjs --environment development --environment preview --environment production
   --skip-preview-parity       Skip preview deployment route parity
   --skip-production-parity    Skip production deployment route parity
-  --skip-runtime-probes       Skip production curl homepage/internal route probes
+  --skip-runtime-probes       Skip preview/production internal runtime probes
   --help                      Show this message.
 
 Notes:
   - Route parity uses authenticated vercel CLI state by default and still accepts token env overrides.
   - Preview parity defaults to SHORTPULSE_STAGING_BASE_URL; pass --skip-preview-parity only when preview validation is intentionally out of scope.
-  - Production internal route probes are expected to return 401 when the routes are present and protected.
+  - Internal runtime probes verify both fail-closed 401 without auth and 200 with the configured cron secrets.
 EOF
 }
 
@@ -121,45 +121,13 @@ if [[ "$RUN_RUNTIME_PROBES" -eq 1 ]]; then
   fi
   echo "  homepage=$homepage_code"
 
-  generation_recovery_code="$(
-    curl -s -o /dev/null -w '%{http_code}' \
-      -X POST "$PRODUCTION_URL/api/internal/generation-recovery/run"
-  )"
-  if [[ "$generation_recovery_code" != "401" ]]; then
-    echo "[secret-rotation-validate] expected generation recovery 401, got $generation_recovery_code" >&2
-    exit 1
+  if [[ "$RUN_PREVIEW_PARITY" -eq 1 ]]; then
+    echo "[secret-rotation-validate] preview protected-route runtime"
+    node scripts/verify_internal_route_runtime.mjs --base-url "$PREVIEW_URL"
   fi
-  echo "  generation_recovery=$generation_recovery_code"
 
-  media_derivatives_code="$(
-    curl -s -o /dev/null -w '%{http_code}' \
-      -X POST "$PRODUCTION_URL/api/internal/media-derivatives/run"
-  )"
-  if [[ "$media_derivatives_code" != "401" ]]; then
-    echo "[secret-rotation-validate] expected media derivatives 401, got $media_derivatives_code" >&2
-    exit 1
-  fi
-  echo "  media_derivatives=$media_derivatives_code"
-
-  user_health_code="$(
-    curl -s -o /dev/null -w '%{http_code}' \
-      -X POST "$PRODUCTION_URL/api/internal/admin-user-health-fleet/run"
-  )"
-  if [[ "$user_health_code" != "401" ]]; then
-    echo "[secret-rotation-validate] expected admin user health fleet 401, got $user_health_code" >&2
-    exit 1
-  fi
-  echo "  admin_user_health_fleet=$user_health_code"
-
-  billing_renewals_code="$(
-    curl -s -o /dev/null -w '%{http_code}' \
-      -X POST "$PRODUCTION_URL/api/internal/billing-contract-renewals/run"
-  )"
-  if [[ "$billing_renewals_code" != "401" ]]; then
-    echo "[secret-rotation-validate] expected billing renewals 401, got $billing_renewals_code" >&2
-    exit 1
-  fi
-  echo "  billing_renewals=$billing_renewals_code"
+  echo "[secret-rotation-validate] production protected-route runtime"
+  node scripts/verify_internal_route_runtime.mjs --base-url "$PRODUCTION_URL"
 fi
 
 echo "[secret-rotation-validate] PASS"

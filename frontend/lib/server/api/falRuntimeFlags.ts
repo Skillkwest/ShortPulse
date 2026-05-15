@@ -9,6 +9,7 @@ import {
   parseGenerationAdmissionTierLimits,
 } from "./generationAdmission/generationAdmissionPolicy";
 import type { GenerationAdmissionConfig } from "./generationAdmission/types";
+import { readConfiguredPublicAppOrigin } from "./appOrigin";
 
 export type FalRuntimeFlags = {
   modelAllowlist: Set<string>;
@@ -50,18 +51,6 @@ const parseInteger = (value: string | undefined, fallback: number, min: number):
   return Math.max(min, parsed);
 };
 
-const normalizeBaseUrl = (value: string | undefined): string | null => {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    const parsed = new URL(trimmed);
-    if (!parsed.protocol.startsWith("http")) return null;
-    return parsed.toString().replace(/\/+$/, "");
-  } catch {
-    return null;
-  }
-};
-
 const parseAllowlist = (value: string | undefined): Set<string> => {
   if (!value) return new Set<string>();
   return new Set(
@@ -96,9 +85,7 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     0
   ),
   reconcilerLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS, 120, 1),
-  publicApiBaseUrl: normalizeBaseUrl(
-    process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
-  ),
+  publicApiBaseUrl: readConfiguredPublicAppOrigin(),
   admission: {
     mode: parseGenerationAdmissionMode(process.env.SHORTPULSE_FAL_ADMISSION_MODE),
     globalMax: parseGenerationAdmissionGlobalMax(process.env.SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX),

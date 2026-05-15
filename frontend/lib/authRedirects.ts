@@ -92,3 +92,63 @@ export const buildAuthCallbackUrl = (options: {
   flow: AuthCallbackFlow;
   nextPath?: string;
 }): string => `${options.origin}${buildAuthCallbackPath(options)}`;
+
+type AuthCallbackUrlResponse = {
+  url?: unknown;
+};
+
+const isProductionClientEnvironment = (): boolean => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname.trim().toLowerCase();
+    if (hostname === "shortpulse.ai" || hostname === "www.shortpulse.ai") {
+      return true;
+    }
+  }
+  const publicVercelEnvironment = process.env.NEXT_PUBLIC_VERCEL_ENV?.trim().toLowerCase();
+  if (publicVercelEnvironment) {
+    return publicVercelEnvironment === "production";
+  }
+  return false;
+};
+
+export const resolveBrowserAuthCallbackUrl = (options: {
+  flow: AuthCallbackFlow;
+  nextPath?: string;
+}): string | null => {
+  if (typeof window === "undefined") return null;
+  return buildAuthCallbackUrl({
+    origin: window.location.origin,
+    flow: options.flow,
+    nextPath: options.nextPath,
+  });
+};
+
+export const fetchCanonicalAuthCallbackUrl = async (options: {
+  flow: AuthCallbackFlow;
+  nextPath?: string;
+}): Promise<string | null> => {
+  const fallbackUrl = resolveBrowserAuthCallbackUrl(options);
+  const allowBrowserFallback = !isProductionClientEnvironment();
+  if (typeof window === "undefined") return fallbackUrl;
+
+  try {
+    const params = new URLSearchParams();
+    params.set("flow", options.flow);
+    params.set("next", resolveNextPath(options.nextPath));
+    const response = await fetch(`/api/auth/callback-url?${params.toString()}`, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const payload = (await response.json().catch(() => null)) as AuthCallbackUrlResponse | null;
+    if (response.ok && typeof payload?.url === "string" && payload.url.trim()) {
+      return payload.url.trim();
+    }
+  } catch {
+    return allowBrowserFallback ? fallbackUrl : null;
+  }
+
+  return allowBrowserFallback ? fallbackUrl : null;
+};

@@ -25,6 +25,8 @@ APP_BASE_URL=http://localhost:3000
 
 Client-initiated signup and password-reset flows now resolve their absolute callback URL through the server-owned `/api/auth/callback-url` route before calling Supabase, so `APP_BASE_URL` should always reflect the real public origin users should open from email for the environment you are configuring.
 
+ShortPulse keeps SMTP credentials out of the Next.js app runtime. When you enable custom SMTP for auth email, configure the SMTP host, user, password, and sender identity in Supabase Auth, not in `frontend/.env.local` or Vercel project envs. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md) for the current rollout procedure and the interim Google Workspace posture.
+
 Hosted environment examples:
 
 ```bash
@@ -59,7 +61,8 @@ Optional role-based admin access (without email allowlist):
 
 - Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
 - Server-side admin operations should use a service-role client (`frontend/lib/server/api/supabaseAdmin.ts`).
-- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, and email-change confirmation flows. Local development should allow `http://localhost:3000/auth/callback`, preview should allow the preview host callback URL, and production should allow `https://www.shortpulse.ai/auth/callback`.
+- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, and email-change confirmation flows. Local development should allow `http://localhost:3000/auth/callback`, any non-production dry run should use one exact allowlisted external host, and production should allow `https://www.shortpulse.ai/auth/callback`.
+- If you use custom SMTP for production, raise Supabase Auth email rate limits above the default post-setup baseline before launch. The repo’s current launch planning assumes a higher limit than the Supabase default. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md).
 
 ## Security requirements
 

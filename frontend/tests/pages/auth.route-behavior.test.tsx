@@ -182,6 +182,26 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
   });
 
+  it("shows a clear cooldown message when Supabase throttles signup confirmation emails", async () => {
+    signUpMock.mockResolvedValue({
+      error: new Error("email rate limit exceeded"),
+      data: { session: null },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(
+      await screen.findByText(
+        "Too many confirmation emails were requested. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("primes shared session state after sign in succeeds", async () => {
     signInWithPasswordMock.mockResolvedValue({
       error: null,
@@ -222,5 +242,22 @@ describe("Auth route behavior", () => {
     );
 
     expect(screen.getByText("Password reset link sent. Check your inbox.")).toBeInTheDocument();
+  });
+
+  it("shows a clear cooldown message when Supabase throttles reset emails", async () => {
+    resetPasswordForEmailMock.mockResolvedValue({
+      error: new Error("email rate limit exceeded"),
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "reset@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
+
+    expect(
+      await screen.findByText(
+        "Too many reset emails were requested. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
+      )
+    ).toBeInTheDocument();
   });
 });

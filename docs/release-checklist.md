@@ -23,8 +23,10 @@ Use this checklist before promoting code toward `production` (and before any dep
 ## Manual product smoke
 
 - Auth: sign in/out works; protected routes redirect to `/auth` when unauthenticated
-- Auth preview callbacks: `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the expected preview host after preview env changes, and fresh preview signup/reset/email-change emails use that same host
+- Auth non-production dry run: if one is used, `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the one exact allowlisted dry-run host, and fresh signup/reset/email-change emails use that same host
 - Auth email callbacks: `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...` in production, and fresh signup/reset/email-change emails all use the `https://www.shortpulse.ai` host
+- Auth SMTP: Supabase custom SMTP is enabled, the sender identity is correct for the active environment, and the project-wide auth-email rate limit is raised above the default custom-SMTP baseline before public launch
+- Auth SMTP provider compatibility: if Google Workspace is the active provider, preview and production smoke tests both pass under the procedure in [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md)
 - Media Library: upload/list/download/delete/rename; storage paths are user-scoped
 - AI Studio: core workflow renders; drag/drop surfaces behave as expected (per current UI)
 - Dashboard + Profile: core layout, settings/billing sections, and logout flow behave as expected

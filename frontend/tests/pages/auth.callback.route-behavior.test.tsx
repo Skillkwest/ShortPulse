@@ -92,12 +92,18 @@ describe("Auth callback route behavior", () => {
       "/auth/callback?flow=signup&next=%2Fprofile%3Fsection%3Daccount#type=signup&access_token=test-token",
       { flow: "signup", next: "/profile?section=account" }
     );
-    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "test-token",
+    });
 
     render(<AuthCallbackPage />);
 
     await waitFor(() => {
-      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-1" } });
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({
+        user: { id: "user-1" },
+        access_token: "test-token",
+      });
       expect(replaceMock).toHaveBeenCalledWith("/profile?section=account");
     });
   });
@@ -133,7 +139,10 @@ describe("Auth callback route behavior", () => {
       "/auth/callback?flow=recovery&next=%2Fmedia-library#type=recovery&access_token=test-token",
       { flow: "recovery", next: "/media-library" }
     );
-    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "test-token",
+    });
 
     render(<AuthCallbackPage />);
 
@@ -157,7 +166,10 @@ describe("Auth callback route behavior", () => {
       "/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount#type=email_change&access_token=test-token",
       { flow: "email-change", next: "/profile?section=account" }
     );
-    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "test-token",
+    });
 
     render(<AuthCallbackPage />);
 
@@ -200,6 +212,27 @@ describe("Auth callback route behavior", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed when a recovery callback only has a stale existing session", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery&access_token=callback-token",
+      { flow: "recovery", next: "/dashboard" }
+    );
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "stale-session-token",
+    });
+
+    render(<AuthCallbackPage />);
+
+    expect(
+      await screen.findByText(
+        "This password reset link is invalid or has expired. Request a new one."
+      )
+    ).toBeInTheDocument();
+    expect(updateUserMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it("does not complete a signup callback from an existing initial session without callback artifacts", async () => {
     setCallbackRoute("/auth/callback?flow=signup&next=%2Fdashboard", {
       flow: "signup",
@@ -215,5 +248,41 @@ describe("Auth callback route behavior", () => {
       )
     ).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("allows retrying email sync after Supabase confirms the email but downstream sync fails", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount#type=email_change&access_token=callback-token",
+      { flow: "email-change", next: "/profile?section=account" }
+    );
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "callback-token",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Temporary Stripe sync failure" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ email: "user@example.com" }),
+      });
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByText("Temporary Stripe sync failure")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry account sync" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+      expect(replaceMock).toHaveBeenCalledWith("/profile?section=account");
+    });
   });
 });

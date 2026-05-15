@@ -59,6 +59,8 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` (optional admin generation spike threshold; default `20`)
    - `SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M` (optional admin threshold for `provider_running_timeout` fails over 15 minutes; default `2`)
 
+Do not add auth SMTP credentials to `frontend/.env.local`. ShortPulse expects SMTP host/user/password to live in Supabase Auth configuration, not in the local app runtime. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md).
+
 Never commit `.env.local`.
 
 `frontend/.env.local` is local app runtime only. Do not treat it as the deployed source of truth once the repo is linked to Vercel.

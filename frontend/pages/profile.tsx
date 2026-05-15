@@ -42,6 +42,10 @@ import {
 } from "../features/profile/profilePageModel";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
+import {
+  resolveEmailChangeErrorMessage,
+  resolvePasswordResetErrorMessage,
+} from "../lib/authErrorMessages";
 import { useProtectedRoute } from "../lib/authGuard";
 import { trackBillingPricingViewed, trackBillingUpgradeClicked } from "../lib/growthTelemetry";
 import {
@@ -699,7 +703,7 @@ export default function ProfilePage() {
     } catch (error) {
       setNotice({
         tone: "error",
-        message: error instanceof Error ? error.message : "Email update failed.",
+        message: resolveEmailChangeErrorMessage(error, "Email update failed."),
       });
     }
   };
@@ -731,7 +735,7 @@ export default function ProfilePage() {
     } catch (error) {
       setNotice({
         tone: "error",
-        message: error instanceof Error ? error.message : "Password reset failed.",
+        message: resolvePasswordResetErrorMessage(error, "Password reset failed."),
       });
     }
   };

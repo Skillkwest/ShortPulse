@@ -55,12 +55,16 @@ Notes:
    - Preview `APP_BASE_URL=https://<preview-host>` in Vercel `Preview`
    - `APP_BASE_URL=https://www.shortpulse.ai` in Vercel `Production`
    - `SHORTPULSE_PUBLIC_API_BASE_URL=https://www.shortpulse.ai` in Vercel `Production` only when mirroring `APP_BASE_URL`
-   - Supabase redirect allowlist includes the preview callback URL for preview verification
+   - if a non-production dry run is used, Supabase redirect allowlist includes that one exact dry-run callback URL
    - Supabase redirect allowlist includes `https://www.shortpulse.ai/auth/callback`
-   - `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the preview host in `Preview`
+   - if a non-production dry run is used, `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to that exact dry-run host
    - `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...`
-   - one live signup/reset/email-change email is verified against the preview link host after preview env changes
+   - Supabase custom SMTP is configured for the target environment
+   - the active SMTP sender identity uses the intended ShortPulse domain
+   - Supabase auth-email rate limits are raised above the default custom-SMTP baseline for the launch window
+   - if a non-production dry run is used, one live signup/reset/email-change email is verified against that exact dry-run link host
    - one live signup/reset/email-change email is verified against the production link host before release signoff
+   - if the active provider is Google Workspace, the rollout follows [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md) and fails closed if relay compatibility is not proven
 
 ## Environment variables
 

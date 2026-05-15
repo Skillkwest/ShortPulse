@@ -15,6 +15,10 @@ import {
   resolveNextPathFromAsPath,
 } from "../lib/authRedirects";
 import {
+  resolvePasswordResetErrorMessage,
+  resolveSignupEmailErrorMessage,
+} from "../lib/authErrorMessages";
+import {
   ensureSupabaseClient,
   isSupabaseAbortError,
   primeSupabaseSession,
@@ -114,7 +118,11 @@ export default function AuthPage() {
             emailRedirectTo,
           },
         });
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          throw new Error(
+            resolveSignupEmailErrorMessage(signUpError, "Unable to create your account.")
+          );
+        }
         trackSignupCompleted({
           auth_surface: "auth_page",
           signup_method: "email_password",
@@ -170,7 +178,7 @@ export default function AuthPage() {
       if (resetError) throw resetError;
       setInfo("Password reset link sent. Check your inbox.");
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to send password reset link."));
+      setError(resolvePasswordResetErrorMessage(err, "Unable to send password reset link."));
     } finally {
       setResettingPassword(false);
     }

@@ -52,6 +52,17 @@ const hasAuthCallbackArtifacts = (asPath: string, hash: string): boolean => {
   return callbackKeys.some((key) => queryParams.has(key) || hashParams.has(key));
 };
 
+const readCallbackAccessToken = (asPath: string, hash: string): string | null => {
+  const beforeHash = asPath.split("#", 1)[0] ?? asPath;
+  const queryString = beforeHash.includes("?") ? beforeHash.slice(beforeHash.indexOf("?") + 1) : "";
+  const queryParams = new URLSearchParams(queryString);
+  const hashParams = readHashParams(hash);
+  const candidate = queryParams.get("access_token") ?? hashParams.get("access_token") ?? null;
+  if (!candidate) return null;
+  const normalized = candidate.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
 const isCallbackCompletionEvent = (event: string): event is CompletionAuthEvent =>
   event === "SIGNED_IN" || event === "USER_UPDATED";
 
@@ -98,19 +109,23 @@ export default function AuthCallbackPage() {
       ),
     [router.asPath]
   );
-  const [status, setStatus] = useState<CallbackStatus>(
-    callbackFlow === "recovery" && recoveryFlowHint ? "recovery" : "loading"
+  const callbackAccessToken = useMemo(
+    () =>
+      readCallbackAccessToken(
+        router.asPath || "",
+        typeof window === "undefined" ? "" : window.location.hash
+      ),
+    [router.asPath]
   );
+  const [status, setStatus] = useState<CallbackStatus>("loading");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [retryingEmailSync, setRetryingEmailSync] = useState(false);
+  const [emailSyncRetryAvailable, setEmailSyncRetryAvailable] = useState(false);
   const [error, setError] = useState<string | null>(callbackError);
-  const [info, setInfo] = useState<string | null>(
-    callbackFlow === "recovery" && recoveryFlowHint
-      ? "Enter a new password to finish resetting your account."
-      : null
-  );
+  const [info, setInfo] = useState<string | null>(null);
   const completionStartedRef = useRef(false);
   const completionEventSeenRef = useRef(false);
   const recoveryEventSeenRef = useRef(false);
@@ -126,24 +141,30 @@ export default function AuthCallbackPage() {
     setStatus("error");
     setError(callbackError);
     setInfo(null);
+    setEmailSyncRetryAvailable(false);
   }, [callbackError]);
-
-  useEffect(() => {
-    if (callbackError) return;
-    if (callbackFlow !== "recovery" || !recoveryFlowHint) return;
-    setStatus("recovery");
-    setError(null);
-    setInfo("Enter a new password to finish resetting your account.");
-  }, [callbackError, callbackFlow, recoveryFlowHint]);
 
   useEffect(() => {
     let cancelled = false;
 
+    const runConfirmedEmailSync = async () => {
+      await refreshSupabaseSession({ preserveSnapshotOnError: true });
+      const response = await fetchWithAuth("/api/account/email/confirm", {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to finish syncing your confirmed email.");
+      }
+    };
+
     const handleResolvedSession = async (session: Session | null) => {
       if (cancelled || !session) return;
       primeSupabaseSession(session);
+      setEmailSyncRetryAvailable(false);
 
-      if (callbackFlow === "recovery") {
+      const isRecoverySession = callbackFlow === "recovery" || recoveryEventSeenRef.current;
+      if (isRecoverySession) {
         setStatus("recovery");
         setError(null);
         setInfo("Enter a new password to finish resetting your account.");
@@ -162,14 +183,7 @@ export default function AuthCallbackPage() {
 
       try {
         if (callbackFlow === "email-change") {
-          await refreshSupabaseSession({ preserveSnapshotOnError: true });
-          const response = await fetchWithAuth("/api/account/email/confirm", {
-            method: "POST",
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(data?.error || "Unable to finish syncing your confirmed email.");
-          }
+          await runConfirmedEmailSync();
         }
         if (!cancelled) {
           await replace(nextPath);
@@ -178,9 +192,27 @@ export default function AuthCallbackPage() {
         if (cancelled) return;
         completionStartedRef.current = false;
         setStatus("error");
-        setInfo(null);
+        setInfo(
+          callbackFlow === "email-change"
+            ? "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
+            : null
+        );
+        setEmailSyncRetryAvailable(callbackFlow === "email-change");
         setError(getErrorMessage(authError, "Unable to complete this authentication callback."));
       }
+    };
+
+    const isTrustedInitialSession = (session: Session | null): boolean => {
+      if (!session || !callbackAccessToken) {
+        return false;
+      }
+      if (session.access_token !== callbackAccessToken) {
+        return false;
+      }
+      if (callbackFlow === "recovery" || recoveryEventSeenRef.current) {
+        return recoveryFlowHint;
+      }
+      return callbackArtifactsPresent;
     };
 
     const supabase = ensureSupabaseClient();
@@ -192,9 +224,14 @@ export default function AuthCallbackPage() {
       if (event === "PASSWORD_RECOVERY") {
         if (cancelled) return;
         recoveryEventSeenRef.current = true;
-        setStatus("recovery");
+        setStatus("loading");
         setError(null);
-        setInfo("Enter a new password to finish resetting your account.");
+        setInfo("Finalizing your recovery link...");
+        if (session) {
+          setTimeout(() => {
+            void handleResolvedSession(session);
+          }, 0);
+        }
         return;
       }
       if (event === "SIGNED_OUT" || !session) return;
@@ -208,33 +245,26 @@ export default function AuthCallbackPage() {
     void readSupabaseSession()
       .then((session) => {
         if (cancelled || callbackError) return;
-        if (session) {
-          const canUseSessionForFlow =
-            callbackFlow === "recovery"
-              ? recoveryFlowHint || recoveryEventSeenRef.current
-              : callbackArtifactsPresent || completionEventSeenRef.current;
-          if (canUseSessionForFlow) {
-            void handleResolvedSession(session);
-            return;
-          }
+        if (session && isTrustedInitialSession(session)) {
+          void handleResolvedSession(session);
+          return;
         }
         window.setTimeout(() => {
           if (cancelled || callbackError) return;
           if (callbackFlow === "recovery") {
             if (recoveryEventSeenRef.current) {
-              setStatus("recovery");
-              setError(null);
-              setInfo("Enter a new password to finish resetting your account.");
               return;
             }
             setStatus("error");
             setInfo(null);
+            setEmailSyncRetryAvailable(false);
             setError(resolveCallbackErrorMessage(callbackFlow));
             return;
           }
           if (completionEventSeenRef.current) return;
           setStatus("error");
           setInfo(null);
+          setEmailSyncRetryAvailable(false);
           setError(resolveCallbackErrorMessage(callbackFlow));
         }, CALLBACK_SESSION_SETTLE_MS);
       })
@@ -242,6 +272,7 @@ export default function AuthCallbackPage() {
         if (cancelled || isSupabaseAbortError(sessionError)) return;
         setStatus("error");
         setInfo(null);
+        setEmailSyncRetryAvailable(false);
         setError(getErrorMessage(sessionError, "Unable to complete this authentication callback."));
       });
 
@@ -249,7 +280,42 @@ export default function AuthCallbackPage() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [callbackArtifactsPresent, callbackError, callbackFlow, nextPath, recoveryFlowHint, replace]);
+  }, [
+    callbackAccessToken,
+    callbackArtifactsPresent,
+    callbackError,
+    callbackFlow,
+    nextPath,
+    recoveryFlowHint,
+    replace,
+  ]);
+
+  const onRetryEmailSync = async () => {
+    setRetryingEmailSync(true);
+    setError(null);
+    setInfo("Retrying account sync...");
+    try {
+      await refreshSupabaseSession({ preserveSnapshotOnError: true });
+      const response = await fetchWithAuth("/api/account/email/confirm", {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to finish syncing your confirmed email.");
+      }
+      setEmailSyncRetryAvailable(false);
+      setInfo("Email confirmed. Redirecting...");
+      await replace(nextPath);
+    } catch (retryError) {
+      setEmailSyncRetryAvailable(true);
+      setInfo(
+        "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
+      );
+      setError(getErrorMessage(retryError, "Unable to complete this authentication callback."));
+    } finally {
+      setRetryingEmailSync(false);
+    }
+  };
 
   const onUpdatePassword = async (event: FormEvent) => {
     event.preventDefault();
@@ -397,9 +463,26 @@ export default function AuthCallbackPage() {
                 <SignIn size={18} weight="bold" />
                 {loading ? "Please wait..." : "Update password"}
               </button>
+            ) : status === "error" && emailSyncRetryAvailable ? (
+              <button
+                className="auth-submit primary-btn"
+                type="button"
+                onClick={() => {
+                  void onRetryEmailSync();
+                }}
+                disabled={retryingEmailSync}
+              >
+                <SignIn size={18} weight="bold" />
+                {retryingEmailSync ? "Retrying..." : "Retry account sync"}
+              </button>
             ) : status === "error" ? (
               <Link className="auth-submit primary-btn" href={signInHref}>
                 <SignIn size={18} weight="bold" />
+                Return to sign in
+              </Link>
+            ) : null}
+            {status === "error" && emailSyncRetryAvailable ? (
+              <Link className="auth-switch" href={signInHref}>
                 Return to sign in
               </Link>
             ) : null}

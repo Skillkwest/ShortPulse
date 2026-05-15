@@ -192,6 +192,24 @@ describe("Profile account actions", () => {
     expect(refreshSupabaseSessionModuleMock).toHaveBeenCalled();
   });
 
+  it("shows a clear cooldown message when Supabase throttles email confirmation requests", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "email rate limit exceeded" }),
+    });
+
+    render(<ProfilePage />);
+
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Update email" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Too many email confirmation requests were made. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
+    );
+  });
+
   it("sends a password reset link to the workspace email", async () => {
     render(<ProfilePage />);
 
@@ -207,6 +225,23 @@ describe("Profile account actions", () => {
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Password reset link sent.");
+  });
+
+  it("shows a clear cooldown message when Supabase throttles reset emails", async () => {
+    resetPasswordForEmailMock.mockResolvedValue({
+      error: new Error("email rate limit exceeded"),
+    });
+
+    render(<ProfilePage />);
+
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "reset@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Too many reset emails were requested. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
+    );
   });
 
   it("shows an inline validation error when no email is available for reset", async () => {

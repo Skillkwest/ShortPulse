@@ -45,6 +45,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/README.md`
+- `docs/agents/beeper/README.md`
 - `docs/agents/d-bug/README.md`
 - `agent-teaching/README.md`
 - `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`
@@ -53,6 +54,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `agent-teaching/operations/create-baseline-kpi.md`
 - `agent-teaching/foundations/agent-maintenance-field-guide.md`
 - `docs/agents/change-impact-auditor.md`
+- `docs/agents/ayal/README.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
@@ -86,6 +88,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0073-create-pulse-built-in-control-plane.md`
 - `docs/adr/0074-pulse-custom-vs-guided-workflow-terminology.md`
 - `docs/adr/0076-model-inventory-operator-only-and-server-allowlisted.md`
+- `docs/adr/0077-paid-starter-tier-with-hidden-free-default.md`
+- `docs/adr/0078-public-origin-authority-contract.md`
+- `docs/adr/0079-supabase-auth-email-transport-google-workspace-interim.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`
@@ -149,6 +154,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 
 - `docs/sops/README.md`
 - `docs/sops/sop_character_manager_operations.md`
+- `docs/sops/sop_supabase_auth_email_operations.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`

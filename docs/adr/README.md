@@ -91,3 +91,6 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0074-pulse-custom-vs-guided-workflow-terminology.md`
 - `docs/adr/0075-character-sheet-alias-compatibility-retirement.md`
 - `docs/adr/0076-model-inventory-operator-only-and-server-allowlisted.md`
+- `docs/adr/0077-paid-starter-tier-with-hidden-free-default.md`
+- `docs/adr/0078-public-origin-authority-contract.md`
+- `docs/adr/0079-supabase-auth-email-transport-google-workspace-interim.md`

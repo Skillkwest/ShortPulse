@@ -1,8 +1,16 @@
 # D-Bug SOP Index
 
-Purpose: index the canonical SOPs and reference docs D-Bug should load for recurring debugging work.
+Purpose: point retained-artifact readers to the canonical D-Bug SOPs and the supporting references they should load for recurring debugging work.
 
-## Core startup
+## Canonical D-Bug SOPs
+
+- `docs/agents/d-bug/standard-operating-procedure.md`
+- `docs/agents/d-bug/scorecard-operations.md`
+
+The files above are the authority surface for standing D-Bug procedure.
+This retained index exists only to make those procedures easy to find from the artifact area.
+
+## Core startup references
 
 - `AGENTS.md`
 - `skills/skill-session-startup-contract/SKILL.md`
@@ -16,7 +24,7 @@ Purpose: index the canonical SOPs and reference docs D-Bug should load for recur
 - `docs/known-issues.md`
 - `docs/testing-guide.md`
 
-## Use by lane
+## Lane references
 
 - Route and UI failures:
   - `README.md`
@@ -32,7 +40,3 @@ Purpose: index the canonical SOPs and reference docs D-Bug should load for recur
 - Provider and hosted incident triage:
   - `docs/sops/sop_provider_incident_response.md`
   - `docs/sops/sop_generation_recovery_diagnostics.md`
-
-## Emerging SOP needs
-
-- Add a D-Bug-specific debug-plan SOP after a few real handoff cycles expose stable patterns.

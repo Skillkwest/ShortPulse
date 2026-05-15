@@ -1,0 +1,96 @@
+{
+  "ok": true,
+  "flow": "ai-studio-left-libraries",
+  "libraries": {
+    "Media": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates MEDIA PROJECT: Project name All Media All Media Images Videos Audio Prompts Add files 680 SAVED Loaded 36 media items. Load more media All Media REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid.",
+      "searchVisible": false
+    },
+    "Characters": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Characters Select a character to edit their character profile. Create New Character NC SELECTED New Character NC CHARACTER New Character REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid.",
+      "searchVisible": false
+    },
+    "Elements": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Elements Library Select an element to edit its details. Delete + Create ELEMENT New Element NE ELEMENT New Element Element Profile Select an element from the library or create a new one to edit its details here. All Media Images Videos Audio Prompts Add files 680 SAVED Loaded 36 media items. Load more media All Media",
+      "searchVisible": false
+    },
+    "Presets": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates PRESETS LIBRARY All Pulse Catalog Prompt Presets Create Pulse Catalog Video Prompt Magic Guided single-shot video workflow from one reference image. Multi Sequence Video Prompt Guided multi-shot storyboard workflow from one reference image. DFY Story Builder Guided story-circle workflow for scene plans and final image prompts. Contract Pulse 154010 CUSTOM Reply in exactly one sentence that begins with \"CUSTOM-PULSE-MARKER:\" and stay concise. + Create New Pulse Add a saved-instructions Pulse that will be available from the Create Pulse rail and Pulse Catalog. Edit Edit Mode Presets Selfie Make the figure hold the camera in a selfie-style perspective. Keep the framing tight and realistic so it feels like the camera is in the figure's hand, with the subject looking directly into the lens. Side Profile Compose the subject in a clean side-profile pose, emphasizing the silhouette from forehead to chin with the face turned 90 degrees from camera. Over Shoulder Frame the shot from over the subject's shoulder so the near shoulder anchors the foreground while the face and scene remain readable in the midground. From Behind Position the camera behind the subject so we primarily see the back of the head and body, with subtle head turn only if needed for context. Low Angle Use a low-angle camera position looking upward at the subject to create stronger presence and scale while keeping anatomy and proportions",
+      "searchVisible": false
+    },
+    "Styles": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates STYLES LIBRARY Browse all loaded styles. Drag an image from your computer, Reference Grid, or Quick Slot to create a style. None Photorealistic Cinematic Cell phone snapshot Anime + ADD STYLE REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid.",
+      "searchVisible": false
+    },
+    "Templates": {
+      "visible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates AI STUDIO Templates COMING SOON Preset model and setting bundles for common generation tasks. Templates allow you to select pre-set models and selections for specific generative tasks.",
+      "searchVisible": false
+    }
+  },
+  "addFiles": {
+    "triggered": true,
+    "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid."
+  },
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/user_preferences?select=expert_edit_preset_panel_ids%2Cexpert_edit_custom_presets%2Cexpert_edit_preset_panel_labels&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/user_preferences?select=media_autosave_enabled&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/characters?select=id%2Cname%2Cdescription%2Cstatus%2Cupdated_at%2Cmetadata&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&status=neq.archived&order=updated_at.desc",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/account/media-compliance",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/pricing/model-policy",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/character_quick_swap_items?select=id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&character_id=eq.fada7439-5321-4e1b-84d2-b07afe708774&status=eq.archived",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

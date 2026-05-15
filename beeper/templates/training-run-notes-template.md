@@ -9,6 +9,8 @@ Purpose: chronological scratch log for one supervised Beeper run.
 - Environment:
 - Base URL:
 - Runtime project ref:
+- Trainer directives consulted:
+- Tools used:
 
 ## Chronological Log
 
@@ -19,6 +21,12 @@ Purpose: chronological scratch log for one supervised Beeper run.
 5. Issue noticed:
 6. Code/doc surface inspected:
 7. Handoff note drafted:
+
+## Prompt And Direction Log
+
+- Standing trainer directions active for this run:
+- New trainer directions received during this run:
+- Prompt phrase that started the run:
 
 ## Raw Findings
 
@@ -31,3 +39,5 @@ Purpose: chronological scratch log for one supervised Beeper run.
 - Retained report path:
 - Screenshots / packet paths:
 - Training-history update needed:
+- Coverage-log update needed:
+- Scorecard result:

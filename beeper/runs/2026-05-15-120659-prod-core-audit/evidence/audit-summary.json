@@ -1,0 +1,181 @@
+{
+  "ok": false,
+  "baseUrl": "https://www.shortpulse.ai",
+  "runtimeProjectRef": "ftgrqgjrchpimronuhop",
+  "auditEmail": "aiagentayla@gmail.com",
+  "routes": [
+    {
+      "routePath": "/dashboard",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard",
+      "heading": "Welcome back, aiagentayla@gmail.com",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library",
+      "mediaComplianceAccepted": false,
+      "screenshot": "route-01.png"
+    },
+    {
+      "routePath": "/ai-studio",
+      "url": "https://www.shortpulse.ai/ai-studio?sid=c04ed19c-fc0c-450f-b6a7-0ea3908742ee",
+      "title": "ShortPulse · AI Studio",
+      "heading": "AI Studio",
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K QUICK SLOT INVENTORY Drag & drop references here from the Reference Grid. REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid.",
+      "mediaComplianceAccepted": false,
+      "screenshot": "route-02.png"
+    },
+    {
+      "routePath": "/media-library",
+      "url": "https://www.shortpulse.ai/media-library",
+      "title": "ShortPulse · Media Library",
+      "heading": "Media Library",
+      "body": "Skip to main content Media Library Upload, organize, and manage your workspace media in one place. MEDIA STORAGE 37.6 MB / 500.0 GB Capacity 500.0 GB CURRENT PLAN Business Drag and drop media here ADD FILES Browse your computer Add Files Storage used 37.6 MBof 500.0 GB Need more storage? Dashboard Uploaded Images Uploaded Videos Saved Prompts AI Studio Generations Private 60 files UPLOADED IMAGES Your uploaded images Select all Move selected Delete selected Load more",
+      "mediaComplianceAccepted": false,
+      "screenshot": "route-03.png"
+    },
+    {
+      "routePath": "/character",
+      "url": "https://www.shortpulse.ai/character",
+      "title": "Character Manager | ShortPulse",
+      "heading": "Character Manager",
+      "body": "Skip to main content Character Manager Start with a simple uploader to define your character and add reference images. PLAN Business A Dashboard Manage Characters Character Profile QuickSwap Deck The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly. Click to upload Character Sheet Name: Looks: 1 Description: Tip: Character description will be used as part of consistency generation. 0/150 Character References: Drop reference or click to upload (Required) Portrait Drop reference or click to upload (Optional) Close-up Drop reference or click to upload (Optional) Full-body Drag or upload references into each slot. These images are ",
+      "mediaComplianceAccepted": false,
+      "screenshot": "route-04.png"
+    },
+    {
+      "routePath": "/profile",
+      "url": "https://www.shortpulse.ai/profile",
+      "title": "ShortPulse · Settings",
+      "heading": "Account settings",
+      "body": "AI SETTINGS WORKSPACE Account settings Manage identity, email, and security controls for your workspace. Back to dashboard Account Subscription Credits Media storage Transactions Log out IDENTITY Profile This name appears in your dashboard. Display name Save changes WORKSPACE EMAIL Email Changes are confirmed by email. Email address Update email SECURITY Password reset Send a password reset link to your email. Send reset link AI Studio autosave Control whether eligible AI Studio media is automatically saved to your Media Library. Autosave is ON. New eligible AI Studio media will save automatically to your Media Library.",
+      "mediaComplianceAccepted": false,
+      "screenshot": "route-05.png"
+    }
+  ],
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://www.shortpulse.ai/_next/data/5wRBMYJeZVz2x-vNP8S4L/dashboard.json",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_plans?select=id%2Cdisplay_name%2Cmonthly_price_cents%2Cmonthly_credits_cents%2Cstorage_limit_bytes%2Cis_active&is_active=eq.true",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_profiles?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_subscription_contracts?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&ended_at=is.null",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/announcements/active",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/character_reference_images?select=character_sheet_id%2Cslot_key%2Cstorage_path&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&character_sheet_id=in.%28e0a70543-3cc4-4c17-ac91-7d63b09b316d%2C107e9e8e-d202-4f91-b30f-ad97863539f1%29",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/pricing/model-policy",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/media/list",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/media/list",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/storage/v1/object/sign/media_library/1609d304-f075-4918-a9ce-437548734a75/variants/images/4bd51927-1a92-4ee4-add6-711103921cdf/thumb_480?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80ZjUxYzViOS02YTZhLTQzZjItODAzMy1kMWMwZTM1N2NlNWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtZWRpYV9saWJyYXJ5LzE2MDlkMzA0LWYwNzUtNDkxOC1hOWNlLTQzNzU0ODczNGE3NS92YXJpYW50cy9pbWFnZXMvNGJkNTE5MjctMWE5Mi00ZWU0LWFkZDYtNzExMTAzOTIxY2RmL3RodW1iXzQ4MCIsImlhdCI6MTc3ODg3MjA0NCwiZXhwIjoxNzc4ODc1NjQ0fQ.A1VxoLXGDrY9VjrBPaWk_6juDNGg0o0W-RVzRck5wL4",
+        "method": "GET",
+        "resourceType": "image",
+        "errorText": "net::ERR_BLOCKED_BY_ORB"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/storage/v1/object/sign/media_library/1609d304-f075-4918-a9ce-437548734a75/uploads/images/05511527-dea9-44f9-bb7f-5b6b294667a1-0.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80ZjUxYzViOS02YTZhLTQzZjItODAzMy1kMWMwZTM1N2NlNWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtZWRpYV9saWJyYXJ5LzE2MDlkMzA0LWYwNzUtNDkxOC1hOWNlLTQzNzU0ODczNGE3NS91cGxvYWRzL2ltYWdlcy8wNTUxMTUyNy1kZWE5LTQ0ZjktYmI3Zi01YjZiMjk0NjY3YTEtMC5wbmciLCJpYXQiOjE3Nzg4NzIwNDUsImV4cCI6MTc3ODg3NTY0NX0.Nr0DH0mqsuf2Dhk8S71brLGPSjb_XHZYgIFux6AGc6k",
+        "method": "GET",
+        "resourceType": "image",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/character_reference_images?select=id%2Cslot_key%2Ccharacter_media_id%2Cstorage_path%2Cvalidation_status%2Cvalidation_notes%2Cupdated_at&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&character_sheet_id=eq.e0a70543-3cc4-4c17-ac91-7d63b09b316d",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/character_quick_swap_items?select=id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&character_id=eq.fada7439-5321-4e1b-84d2-b07afe708774&status=eq.archived",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/billing/catalog",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

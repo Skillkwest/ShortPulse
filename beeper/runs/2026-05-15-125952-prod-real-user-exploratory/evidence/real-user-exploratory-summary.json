@@ -1,0 +1,101 @@
+{
+  "ok": true,
+  "baseUrl": "https://www.shortpulse.ai",
+  "events": [
+    {
+      "step": "dashboard-opened",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling. New Project Open the AI Studio Open Projects Open the project library"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-01-dashboard.png",
+      "note": "dashboard after sign-in",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "entered-ai-studio-from-dashboard",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library Name project Project name Cancel Create"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-02-ai-studio-entry.png",
+      "note": "ai studio entered from dashboard CTA",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "prompt-interaction",
+      "promptTyped": false,
+      "url": "https://www.shortpulse.ai/dashboard"
+    },
+    {
+      "step": "media-library-from-ai-studio",
+      "mediaLibraryOpened": false,
+      "modalSummary": {
+        "hasDialog": true,
+        "text": "Name projectProject nameCancelCreate",
+        "imageThumbs": 0,
+        "videoThumbs": 0,
+        "placeholders": 0
+      },
+      "url": "https://www.shortpulse.ai/dashboard"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-03-media-library-from-studio.png",
+      "note": "media library opened from ai studio",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    }
+  ],
+  "requestFailures": [
+    {
+      "url": "https://www.shortpulse.ai/_next/data/5wRBMYJeZVz2x-vNP8S4L/dashboard.json",
+      "method": "HEAD",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+      "method": "POST",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://www.shortpulse.ai/api/announcements/active",
+      "method": "GET",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_plans?select=id%2Cdisplay_name%2Cmonthly_price_cents%2Cmonthly_credits_cents%2Cstorage_limit_bytes%2Cis_active&is_active=eq.true",
+      "method": "GET",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_subscription_contracts?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&ended_at=is.null",
+      "method": "GET",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_profiles?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+      "method": "GET",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://www.shortpulse.ai/api/credits/snapshot",
+      "method": "GET",
+      "resourceType": "fetch",
+      "errorText": "net::ERR_ABORTED"
+    }
+  ],
+  "httpFailures": []
+}

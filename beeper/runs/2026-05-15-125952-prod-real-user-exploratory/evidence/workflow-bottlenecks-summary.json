@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "events": [
+    {
+      "step": "project-modal-blank-state",
+      "dialog": "Name project Project name Cancel Create",
+      "createDisabled": false
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-10-project-modal-blank.png",
+      "note": "blank project modal",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "project-modal-typed-state",
+      "value": "Beeper UX Audit Draft",
+      "createDisabled": false,
+      "dialog": "Name project Project name Cancel Create"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-11-project-modal-typed.png",
+      "note": "typed project modal",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "projects-modal-zero-state",
+      "text": "Projects Open a saved AI Studio project and restore its project-backed workspace. New Project 0 saved × No saved projects yet Create a project from here to start building a saved workspace. New Project",
+      "hasNewProjectButton": true
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-12-projects-modal-zero-state.png",
+      "note": "projects modal zero state",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "projects-modal-new-project-click",
+      "dialog": ""
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-13-projects-modal-new-project.png",
+      "note": "projects modal to project create",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "settings-subscription",
+      "clicked": true,
+      "url": "https://www.shortpulse.ai/profile?section=subscription",
+      "title": "ShortPulse · Settings",
+      "body": "AI SETTINGS WORKSPACE Subscription plans Choose the plan that fits your content creation needs. Change or cancel anytime. Back to dashboard Account Subscription Credits Media storage Transactions Log out How subscriptions work CURRENT PLAN Your subscription Business Managed internally · Highest throughput for heavy AI workloads. NEXT RENEWAL June 15, 2026 Plan term refreshes automatically MONTHLY CREDITS 12,000 Credits added each renewal cycle STORAGE INCLUDED 500.0 GB Included with your base plan ALL PLANS Available plans Compare the public offers available if you change plans now, including "
+    },
+    {
+      "step": "settings-credits",
+      "clicked": true,
+      "url": "https://www.shortpulse.ai/profile?section=credits",
+      "title": "ShortPulse · Settings",
+      "body": "AI SETTINGS WORKSPACE Credits & billing Manage credit balance, purchases, payment details, and billing history. Back to dashboard Account Subscription Credits Media storage Transactions Log out How credits work AVAILABLE BALANCE Your credits 24,045 Spendable credits ready for AI generations right now. NEXT RENEWAL Jun 15, 2026 Plan credits refresh automatically INCOMING CREDITS +12,000 Credits added on renewal LAST SYNCED 8:32 AM May 15, 2026 Subscription managed internally outside Stripe CREDITS & TOP-UPS Buy credits One-time purchases. Taxes may apply. Receipts are available in Stripe. Refre"
+    },
+    {
+      "step": "settings-media-storage",
+      "clicked": true,
+      "url": "https://www.shortpulse.ai/profile?section=storage",
+      "title": "ShortPulse · Settings",
+      "body": "AI SETTINGS WORKSPACE Media storage Track media capacity and manage recurring storage add-ons for your workspace. Back to dashboard Account Subscription Credits Media storage Transactions Log out How media storage works WORKSPACE CAPACITY Your media storage 500.0 GB Using 37.6 MB / 500.0 GB across uploads, references, and saved AI Studio media. PLAN CAPACITY 500.0 GB Included with your base plan CURRENT USAGE 37.6 MB of 500.0 GB available ACTIVE ADD-ONS None No active add-ons This storage entitlement is managed internally. Move billing into Stripe before changing recurring storage add-ons. STO"
+    },
+    {
+      "step": "settings-transactions",
+      "clicked": true,
+      "url": "https://www.shortpulse.ai/profile?section=transactions",
+      "title": "ShortPulse · Settings",
+      "body": "AI SETTINGS WORKSPACE Transaction history Review recent billing payments across subscriptions, storage, and credit top-ups. Back to dashboard Account Subscription Credits Media storage Transactions Log out How transaction history works BILLING OVERVIEW Recent transactions Billing email: aiagentayla@gmail.com. This account is managed internally, so Stripe-backed billing history may be limited. Recent transactions No recent billing transactions yet. ShortPulse · Settings"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-14-settings-tabs.png",
+      "note": "settings tabs final state",
+      "url": "https://www.shortpulse.ai/profile?section=transactions",
+      "title": "ShortPulse · Settings"
+    }
+  ]
+}

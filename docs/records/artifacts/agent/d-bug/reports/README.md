@@ -8,6 +8,7 @@ Purpose: store dated debug reports, closeouts, blocker packets, and validated de
 
 ## Expected contents
 
+- current status: `open`, `blocked`, `handed_off`, or `done`
 - source handoff path when applicable
 - failing surface
 - evidence gathered
@@ -15,6 +16,18 @@ Purpose: store dated debug reports, closeouts, blocker packets, and validated de
 - root-cause analysis or narrowed hypotheses
 - changes made if any
 - validation run
+- explicit stop condition
+- next checkpoint action when status is `open`
+- checkpoint review entries with:
+  - what was done
+  - how it was done
+  - what went right
+  - what went wrong
+  - score breakdown
+  - weighted overall score
+  - score band
+  - critical failure override status
+  - improvement action
 - residual risk
 - exact next step
 - downstream owner when the next step belongs to `Gear Ball` or `Nuclo`

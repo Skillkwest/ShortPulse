@@ -10,9 +10,12 @@ Purpose: retain Beeper's helper inventory and future tooling needs.
 - `node beeper/scripts/ensure-audit-user.mjs --environment production --apply`
 - `node beeper/scripts/live-product-walkthrough.mjs`
 - `node beeper/scripts/start-training-run.mjs --slug <name>`
+- `docs/agents/d-bug/handoff-template.md` for durable debug intake when Beeper finds a real issue
+- `beeper/action-coverage/master-coverage-log.md` for route/control/action coverage planning between runs
 - retained testing memory and run logging
 
 ## Future Tooling Needs
 
-- route coverage tracker for supervised walkthroughs
 - richer route-specific interaction macros for AI Studio and dashboard flows
+- optional helper to scaffold D-Bug handoffs directly from a Beeper issue packet
+- optional helper to scaffold and update the action-coverage log from run metadata

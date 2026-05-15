@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://www.shortpulse.ai",
+      "localStorage": [
+        {
+          "name": "sb-ftgrqgjrchpimronuhop-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMDg1Nzc3LTMxZjUtNDQ1Yy05ZWQ3LTk2YjQ3M2ZkNTU0NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2Z0Z3JxZ2pyY2hwaW1yb251aG9wLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIxNjA5ZDMwNC1mMDc1LTQ5MTgtYTljZS00Mzc1NDg3MzRhNzUiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4ODYzNjIyLCJpYXQiOjE3Nzg4NjAwMjIsImVtYWlsIjoiYWlhZ2VudGF5bGFAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6ImFpYWdlbnRheWxhQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJlbnZpcm9ubWVudCI6InByb2R1Y3Rpb24iLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInBsYW4iOiJmcmVlIiwicm9sZSI6ImF1ZGl0X3Rlc3RlciIsInNvdXJjZSI6ImJlZXBlciIsInN1YiI6IjE2MDlkMzA0LWYwNzUtNDkxOC1hOWNlLTQzNzU0ODczNGE3NSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc4ODYwMDIyfV0sInNlc3Npb25faWQiOiIyM2QyMWNmMC1jOTNiLTQzODItOWZmOC1mYzQ1YjJmMDY2Y2EiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.qVNaJPYRQdeIpfe7A6k-5vIPix9VSvLy2-IorFYDLTW0-0Q0wGlpiSxnMGLISroFHNyj3pbNfE-qh3YEaUbriQ\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1778863622,\"refresh_token\":\"iwrt2her7szf\",\"user\":{\"id\":\"1609d304-f075-4918-a9ce-437548734a75\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"aiagentayla@gmail.com\",\"email_confirmed_at\":\"2026-05-15T15:12:37.013599Z\",\"phone\":\"\",\"confirmed_at\":\"2026-05-15T15:12:37.013599Z\",\"last_sign_in_at\":\"2026-05-15T15:47:02.221975165Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"email\":\"aiagentayla@gmail.com\",\"email_verified\":true,\"environment\":\"production\",\"phone_verified\":false,\"plan\":\"free\",\"role\":\"audit_tester\",\"source\":\"beeper\",\"sub\":\"1609d304-f075-4918-a9ce-437548734a75\"},\"identities\":[{\"identity_id\":\"49cff34b-a212-4214-85f9-bd0efa2f9443\",\"id\":\"1609d304-f075-4918-a9ce-437548734a75\",\"user_id\":\"1609d304-f075-4918-a9ce-437548734a75\",\"identity_data\":{\"email\":\"aiagentayla@gmail.com\",\"email_verified\":false,\"phone_verified\":false,\"plan\":\"free\",\"sub\":\"1609d304-f075-4918-a9ce-437548734a75\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-09T21:48:33.237211Z\",\"created_at\":\"2026-02-09T21:48:33.237267Z\",\"updated_at\":\"2026-02-09T21:48:33.237267Z\",\"email\":\"aiagentayla@gmail.com\"}],\"created_at\":\"2026-02-09T21:48:33.220704Z\",\"updated_at\":\"2026-05-15T15:47:02.226342Z\",\"is_anonymous\":false},\"weak_password\":null}"
+        }
+      ]
+    }
+  ]
+}

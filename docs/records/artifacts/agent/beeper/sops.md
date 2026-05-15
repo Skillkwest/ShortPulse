@@ -4,6 +4,8 @@ Purpose: track Beeper workflow references and emerging SOP needs.
 
 ## Current References
 
+- `docs/agents/beeper/standard-operating-procedure.md`
+- `docs/agents/d-bug/handoff-template.md`
 - `docs/routes.md`
 - `docs/testing-guide.md`
 - `docs/local-development.md`
@@ -11,7 +13,5 @@ Purpose: track Beeper workflow references and emerging SOP needs.
 
 ## Emerging SOP Needs
 
-- route-by-route live testing checklist for protected user surfaces
-- consistent severity rubric for UX friction vs hard blockers
-- repeatable retest packet format after fixes
-- explicit supervised-run logging SOP
+- route-specific AI Studio interaction macros
+- richer positive-note capture standard so strong UX patterns are preserved, not just bugs

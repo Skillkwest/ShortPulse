@@ -1,0 +1,77 @@
+{
+  "ok": false,
+  "flow": "ai-studio-non-generate-lane",
+  "projectId": "50745fe4-a174-4e7e-974a-abb406589081",
+  "checks": {
+    "initial": {
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K QUICK SLOT INVENTORY Drag & drop references here from the Reference Grid. REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid."
+    },
+    "projectsOverlay": {
+      "currentProjectVisible": true,
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K QUICK SLOT INVENTORY Drag & drop references here from the Reference Grid. REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid. Projects Open a saved AI Studio project and restore its project-backed workspace. New Project 1 saved × Beeper Prod Project 2026-05-15T20-31-55-788Z CURRENT"
+    },
+    "quickSlotTab": {
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K REFERENCE GRID Add files Media Library Upload or generate to see your references here. New text prompts, images, and videos will appear in this grid.",
+      "dragHintVisible": false
+    },
+    "referenceGridTab": {
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K Right-rail panels are hidden. Use the canvas toggle or the header shortcuts to show Quick Slot Inventory, Reference Grid, or Styles.",
+      "emptyRefVisible": false
+    },
+    "canvasTab": {
+      "body": "AI Studio CREDITS 24,045 Canvas Quick Slot Inventory Reference Grid Dashboard Projects Create Edit Video Sound LIBRARIES Media Characters Elements Presets Styles SHORTCUTS Templates Standard Pulse Clear What do you want to make? Chat Mode Styles Generate ✦ 2 Character Seedream 4.5 9:16 Vertical 2K CANVAS",
+      "promptQuestionVisible": true
+    }
+  },
+  "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /media library/i }).first()\u001b[22m\n",
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/user_preferences?select=media_autosave_enabled&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/characters?select=id%2Cname%2Cdescription%2Cstatus%2Cupdated_at%2Cmetadata&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&status=neq.archived&order=updated_at.desc",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/account/media-compliance",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/pricing/model-policy",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/user_preferences?select=expert_edit_preset_panel_ids%2Cexpert_edit_custom_presets%2Cexpert_edit_preset_panel_labels&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

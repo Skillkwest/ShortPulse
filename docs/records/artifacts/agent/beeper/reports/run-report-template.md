@@ -9,6 +9,8 @@ Purpose: <one sentence describing the testing or audit run>.
 - Base URL:
 - Runtime project ref:
 - Audit user:
+- Trainer directives consulted:
+- Tools used:
 
 ## Scope
 
@@ -52,6 +54,7 @@ Purpose: <one sentence describing the testing or audit run>.
 ## Self Audit
 
 - Score out of 10:
+- Score breakdown:
 - What felt strong:
 - What slipped:
 - What assumptions were made:

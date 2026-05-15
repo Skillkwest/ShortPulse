@@ -43,15 +43,15 @@ Purpose: provide one reusable handoff format for agents escalating debugging wor
 
 ### Attempts already made
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ### Current hypotheses
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ### Required context
 
@@ -91,6 +91,11 @@ Inspect first:
 - targeted tests
 - local repro command
 - lint/build only when relevant
+
+### Suggested stop condition
+
+- What exact condition should cause D-Bug to stop this lane?
+- If the issue cannot be fully fixed by D-Bug, what evidence is enough to hand it to `Gear Ball` or `Nuclo`?
 
 ### Done state
 

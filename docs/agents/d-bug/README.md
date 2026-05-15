@@ -20,6 +20,9 @@ D-Bug is an accountable debugger, not an override authority. D-Bug must still fo
   - relevant SOPs under `docs/sops/`
   - relevant ADRs under `docs/adr/`
 - Repo-visible debugging memory, handoff templates, and retained run artifacts under this folder and D-Bug's artifact area.
+- Canonical D-Bug procedures:
+  - `docs/agents/d-bug/standard-operating-procedure.md`
+  - `docs/agents/d-bug/scorecard-operations.md`
 
 ## Primary Job
 
@@ -96,6 +99,32 @@ If another agent is escalating work, the preferred flow is:
 2. Save it in the retained handoff area when durable intake evidence is useful.
 3. Route D-Bug to that packet plus the specific failing surface.
 
+## Periodic Intake Loop
+
+When D-Bug is operating in recurring or automated mode, use this loop:
+
+1. Check `docs/records/artifacts/agent/d-bug/handoffs/` for new or still-open debugging packets.
+2. If a new handoff exists, analyze the packet first and define the smallest credible failing surface.
+3. Audit the repo around that surface before proposing changes.
+4. Continue auditing until the current evidence, likely cause, and owned write surface are clear.
+5. Write or update a dated report in `docs/records/artifacts/agent/d-bug/reports/`.
+6. Create a concrete debug plan.
+7. Ask whether anything else is needed for the plan, then re-audit the repo and rewrite the plan against current evidence.
+8. Define explicit stop conditions before widening the lane.
+9. Continue working only until one stop condition is met.
+10. At each checkpoint, record:
+
+- what was done
+- how it was done
+- current performance rating
+- the weakest score categories
+- the next improvement action
+
+11. Write the checkpoint review into the active report and append the durable improvement lesson to D-Bug training history when it would improve future runs.
+12. At each checkpoint, audit the work, record next steps, and either continue the lane or hand it off explicitly to the next owner.
+
+The recurring loop should prefer one active debugging lane at a time unless the handoffs are clearly independent and low-risk.
+
 ## Definition Of Done
 
 A D-Bug task is done only when one of these is true:
@@ -112,6 +141,12 @@ Every completed lane should end with:
 - residual risk,
 - and the exact next step.
 
+Every active report should also state:
+
+- current status: `open`, `blocked`, `handed_off`, or `done`
+- explicit stop condition
+- next checkpoint action if the lane remains `open`
+
 ## Stop Rules
 
 Stop and ask for human review when:
@@ -122,6 +157,14 @@ Stop and ask for human review when:
 - the likely fix crosses security, billing, deployment, branch, or database boundaries without explicit approval,
 - two reasonable debugging attempts fail without narrowing the search space,
 - the work is no longer a debugging lane and has become open-ended architecture exploration.
+
+For recurring or automated D-Bug work, the lane should stop when any one of these is true:
+
+- a bounded fix is validated,
+- the debug plan is complete and the remaining step belongs to `Gear Ball` or `Nuclo`,
+- the lane is blocked on missing credentials, missing environment access, or missing human approval,
+- the next step would cross an approval boundary D-Bug does not own,
+- or continued auditing is no longer shrinking the problem.
 
 ## Memory Contract
 

@@ -1,0 +1,69 @@
+{
+  "ok": false,
+  "flow": "ai-studio-working-lane",
+  "projectTitle": "Beeper Prod Project 2026-05-15T20-31-55-788Z",
+  "projectId": "50745fe4-a174-4e7e-974a-abb406589081",
+  "prompt": "A cinematic portrait of a red fox wearing headphones in a neon studio",
+  "modeChecks": {
+    "editVisible": true,
+    "createReturned": true,
+    "stylesToggled": true
+  },
+  "generation": {
+    "beforeImgCount": 0,
+    "afterImgCount": 0,
+    "detected": false
+  },
+  "notes": [],
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('textarea[placeholder=\"Write your prompt...\"]').first()\u001b[22m\n",
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://www.shortpulse.ai/_next/data/5wRBMYJeZVz2x-vNP8S4L/dashboard.json",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_plans?select=id%2Cdisplay_name%2Cmonthly_price_cents%2Cmonthly_credits_cents%2Cstorage_limit_bytes%2Cis_active&is_active=eq.true",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_subscription_contracts?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&ended_at=is.null",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/announcements/active",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_profiles?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "events": [
+    {
+      "step": "dashboard",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library"
+    },
+    {
+      "step": "open-ai-studio-cta",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "dialogText": "Name project Project name Cancel Create"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-05-dashboard-ai-studio-cta-modal.png",
+      "note": "open ai studio cta result",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "cancel-project-modal",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library"
+    },
+    {
+      "step": "open-projects-cta",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library Projects Open a saved AI Studio project and restore its project-backed workspace. New Project 0 saved × No saved projects yet Create a project from here to start building a saved"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-06-open-projects.png",
+      "note": "open projects cta result",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    },
+    {
+      "step": "open-project-library-cta",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard",
+      "body": "Skip to main content MEDIA STORAGE 37.6 MB / 500.0 GB AI CREDITS 24,045 credits PLAN Business A Welcome back, aiagentayla@gmail.com TESTING Announcements Yooo! I wired this up to make announcements. We can publish announcements to all users very easy. New Project Open the AI Studio Open Projects Open the project library Projects Open a saved AI Studio project and restore its project-backed workspace. New Project 0 saved × No saved projects yet Create a project from here to start building a saved"
+    },
+    {
+      "type": "screenshot",
+      "name": "real-user-07-open-project-library.png",
+      "note": "open project library cta result",
+      "url": "https://www.shortpulse.ai/dashboard",
+      "title": "ShortPulse · Dashboard"
+    }
+  ]
+}

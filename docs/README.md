@@ -34,6 +34,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `agent-teaching/operations/agent-management.md`: how to retire training-only runtime context and move the agent into automation and maintenance.
 - `agent-teaching/foundations/agent-maintenance-field-guide.md`: generic drift and long-term maintenance reference.
 - `docs/agents/README.md`: index of agent contracts, memory entrypoints, and training helpers.
+- `docs/agents/beeper/standard-operating-procedure.md`: Beeper standing SOP for live product testing and issue handoff.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract.
 
 ## Core Engineering
@@ -46,7 +47,10 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/README.md`
 - `docs/agents/beeper/README.md`
+- `docs/agents/beeper/standard-operating-procedure.md`
 - `docs/agents/d-bug/README.md`
+- `docs/agents/d-bug/standard-operating-procedure.md`
+- `docs/agents/d-bug/scorecard-operations.md`
 - `agent-teaching/README.md`
 - `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`
 - `agent-teaching/setup/new-codex-project-setup.md`

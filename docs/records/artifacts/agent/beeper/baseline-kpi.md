@@ -14,6 +14,7 @@ Purpose: define the baseline quality targets Beeper should improve against over 
 - Substantive runs with tools-used logging and trainer-directive traceability: target `100%`
 - Substantive runs scored on the Beeper scorecard: target `100%`
 - Substantive runs appended to the performance ledger: target `100%`
+- Substantive runs with a confidence tag, gate check, and next-run drill: target `100%`
 
 ## Current Known Weak Spots
 
@@ -21,6 +22,7 @@ Purpose: define the baseline quality targets Beeper should improve against over 
 - Route-specific interaction macros are still thin for AI Studio and dashboard project flows.
 - Severity language and handoff formatting need live-run practice to become consistent.
 - Meta-process logging is starting to grow faster than end-user workflow coverage.
+- The score system must keep rewarding deeper workflow validation more than paperwork volume.
 
 ## Improvement Rule
 

@@ -4,11 +4,28 @@ Purpose: define a stable scoring system for Beeper's supervised testing performa
 
 This score is meant to be earned over time through better real-user coverage, cleaner evidence, stronger handoffs, and fewer repeated process mistakes.
 
+## Audit Of The Old System
+
+The earlier version was useful, but not yet a full training tool.
+
+Main weaknesses:
+
+- it measured quality, but did not strongly force behavior change
+- it had no hard caps against score inflation from good paperwork over shallow app work
+- it did not clearly separate training value from documentation volume
+- it did not require a next-run drill tied to the weakest category
+- it did not explicitly punish repeated mistakes enough
+
+This version fixes that by adding score caps, training gates, and a mandatory remediation loop.
+
 ## Scoring Method
 
 Score each category from `0.0` to the category maximum.
 
 Total possible: `10.0`
+
+This is a weighted behavior score, not a documentation score.
+High paperwork quality cannot compensate for weak real-user testing depth.
 
 ## Categories
 
@@ -54,6 +71,42 @@ Total possible: `10.0`
 - `0.25`: minor process drift.
 - `0.0`: material process miss.
 
+## Hard Training Gates
+
+These gates stop Beeper from earning an inflated score when the app work itself was shallow.
+
+### Gate 1. No deep workflow, no elite score
+
+If the run does not validate at least one meaningful end-to-end user action such as create, edit, save, reopen, logout, or retest, the total score is capped at `8.4`.
+
+### Gate 2. Weak evidence cap
+
+If the evidence is clipped, ambiguous, missing, or too noisy to trust, the total score is capped at `7.9`.
+
+### Gate 3. Repeated-mistake cap
+
+If the run repeats a known avoidable mistake without a good reason, the total score is capped at `7.4`.
+
+Examples:
+
+- judging dense UI from a clipped viewport after the wide-browser rule already exists
+- repeating a covered shallow lane without a stated reason
+- producing a handoff without enough repro or evidence after that gap was already trained
+
+### Gate 4. Paperwork cannot carry product depth
+
+Training/logging discipline plus operational discipline cannot together outweigh weak product work.
+
+If `real-user fidelity + coverage expansion + evidence quality` totals below `3.5`, the final run score cannot exceed `7.9`.
+
+## Confidence Tag
+
+Each score should also carry a confidence tag:
+
+- `high`: evidence is strong and the score reflects the real work well
+- `medium`: one part of the score is somewhat judgmental or incomplete
+- `low`: the run was too partial or noisy for a stable score
+
 ## Interpretation
 
 - `9.0 - 10.0`: strong supervised run, high reuse value
@@ -79,6 +132,13 @@ The operating score should be judged from:
 - the current average of recent runs,
 - and whether the weakest category is actually improving.
 
+The most important question is not "what is the number?"
+It is:
+
+- are deeper workflows getting validated,
+- are repeated mistakes decreasing,
+- and is the weakest category moving upward over time?
+
 ## Promotion Thresholds
 
 - `9.0+` average across the latest `5` substantive runs: Beeper is operating strongly
@@ -92,8 +152,41 @@ Each substantive run should append a row to `docs/records/artifacts/agent/beeper
 - the run name,
 - the total score,
 - the score breakdown,
+- the confidence tag,
+- any hard gate that was triggered,
 - the weakest category,
 - and the smallest improvement that would raise the next run
+
+## Training Loop
+
+For each substantive run:
+
+1. Score the run.
+2. Name the weakest category.
+3. Write one specific next-run drill that would raise that category.
+4. If a hard gate fired, treat that as the main training failure, not just the raw score.
+5. On the next run, prefer the drill over convenience unless the user redirects the task.
+
+## Next-Run Drill Rules
+
+A valid drill must be:
+
+- mechanical, not vague
+- small enough to execute in the next substantive run
+- tied to one weakest category
+- observable in the resulting evidence
+
+Good drills:
+
+- validate one full logout -> sign-back-in loop
+- start AI Studio runs in a wide viewport before first capture
+- open an existing project from the projects overlay and confirm persistence after reload
+
+Bad drills:
+
+- "be better"
+- "test more"
+- "improve quality"
 
 ## Current Meta Assessment - 2026-05-15
 
@@ -113,3 +206,10 @@ When a substantive run scores below `9.0`, Beeper should record:
 - the weakest category,
 - the smallest mechanical improvement that would raise it,
 - and whether the fix belongs in a helper, checklist, SOP, or training note.
+
+When the same weakest category appears in `3` consecutive substantive runs, Beeper should escalate from note-taking to a concrete system fix:
+
+- helper script
+- checklist change
+- SOP change
+- or narrower lane selection on the next run

@@ -55,10 +55,14 @@ Purpose: <one sentence describing the testing or audit run>.
 
 - Score out of 10:
 - Score breakdown:
+- Confidence tag:
+- Hard gate triggered:
 - What felt strong:
 - What slipped:
 - What assumptions were made:
+- Weakest category:
 - Smallest improvement for the next run:
+- Next-run drill:
 
 ## Training Record
 

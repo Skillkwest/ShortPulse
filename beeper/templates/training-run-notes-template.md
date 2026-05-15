@@ -41,3 +41,7 @@ Purpose: chronological scratch log for one supervised Beeper run.
 - Training-history update needed:
 - Coverage-log update needed:
 - Scorecard result:
+- Confidence tag:
+- Hard gate triggered:
+- Weakest category:
+- Next-run drill:

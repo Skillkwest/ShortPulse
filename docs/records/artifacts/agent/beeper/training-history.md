@@ -262,6 +262,29 @@ Next training focus:
 - Use the ledger on the next substantive product run.
 - Raise the weakest category, which is currently coverage expansion.
 
+## 2026-05-15: Score System Audit Hardening
+
+Task: audit whether Beeper's score system is a real training tool or just a reporting layer.
+
+Actions taken:
+
+- Identified the main flaw: the score recorded quality but did not strongly force better behavior.
+- Added hard score caps for shallow workflow validation, weak evidence, and repeated known mistakes.
+- Added a confidence tag so uncertain scores are marked instead of overstated.
+- Added a mandatory next-run drill tied to the weakest category.
+- Updated the ledger, report template, notes template, KPI, SOP, and run log so the training loop is durable.
+
+Training result:
+
+- The score system now acts more like coaching and less like bookkeeping.
+- High documentation quality can no longer hide shallow app testing.
+- Repeated misses now have a clearer escalation path from note -> drill -> system fix.
+
+Next training focus:
+
+- Use the next-run drill rule on the next real product checkpoint.
+- Confirm that the weakest category actually changes after the drill instead of staying static.
+
 ## 2026-05-15: Trigger Phrase Hardening
 
 Task: make the start signal for Beeper testing runs explicit and durable.

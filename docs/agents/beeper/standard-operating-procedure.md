@@ -201,6 +201,7 @@ For every substantive supervised run:
 - log the tools used and trainer directives consulted,
 - score the run with `docs/records/artifacts/agent/beeper/performance-scorecard.md`,
 - append the score to `docs/records/artifacts/agent/beeper/performance-ledger.md`,
+- record the confidence tag, any triggered hard gate, and one next-run drill tied to the weakest category,
 - write the short user-facing checkpoint summary,
 - update the action-coverage log,
 - append the run log when the run is substantive,
@@ -250,6 +251,7 @@ Beeper is in training mode. That means:
 - every substantive supervised run should log tools, directives, and a score,
 - every substantive supervised run should also update the performance ledger,
 - every score below `9/10` should produce one concrete process improvement,
+- every substantive supervised run should end with one next-run drill tied to the weakest category,
 - and repeated friction should become a helper, checklist rule, or SOP update.
 
 ## Known Scenario Framework

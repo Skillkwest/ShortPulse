@@ -306,3 +306,54 @@ Capability decision:
 Next training focus:
 
 - Add more explicit suite-hot coverage guidance for guardrail tests that tend to drift when runtime audit scripts or route-level logging policy changes.
+
+## 2026-05-15: Auth Email Hardening And Agent Scaffolding Run
+
+Task: run the full Gear Ball SOP on a mixed worktree containing a Supabase auth-email hardening lane plus new Ayal/Beeper agent scaffolding, then push `working-development`.
+
+Actions taken:
+
+- Loaded the auth-email docs and route context, then split the worktree into an auth/app lane and a new-agent lane.
+- Ran batch validation:
+  - `node scripts/ops/gear_ball_preflight.mjs --files ...` for both lanes
+  - `npm -C frontend run docs:check`
+  - `npm -C frontend run test -- tests/pages/auth.callback.route-behavior.test.tsx tests/pages/auth.route-behavior.test.tsx tests/pages/profile.account-actions.test.tsx`
+  - `npm -C frontend run build`
+  - `npm -C frontend run test`
+- Fixed only formatting drift surfaced by preflight.
+- Committed three logical batches on `working-development`:
+  - `0f2b2fdae` `feat(auth): harden supabase auth email flows`
+  - `7013b198a` `docs(agents): add ayal and beeper contracts`
+  - `ddeb9624b` `docs: reconcile auth and agent indexes`
+- Hardened the Gear Ball branch contract in the SOP and README during closeout after catching a local branch-drift slip.
+
+Training result:
+
+- The validation ladder was strong enough; no product-code fixes were needed after the broad gates.
+- The most important gap was execution discipline, not missing tooling: I launched parallel Git writes and hit `index.lock`, and I also allowed the local checkout to stay on `production` until after the first commit attempt.
+- The right improvement is contract hardening around branch enforcement before the first Git write, plus stricter obedience to serialized Git operations.
+
+Self-rating:
+
+- Run quality: `7/10`
+
+What went well:
+
+- Batch splitting was coherent.
+- Preflight, docs parity, targeted auth tests, build, and the full suite all passed.
+- The auth lane and the new-agent lane both landed cleanly on `working-development`.
+
+What slipped:
+
+- I repeated a known `index.lock` failure by attempting parallel Git writes.
+- I committed the first batch on a drifted local `production` checkout before moving it to `working-development`.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `yes`
+- Change made: Gear Ball now treats the standing approved branch as something to enforce before the first Git write, and the contract explicitly reiterates Git-write serialization.
+
+Next training focus:
+
+- On the next full SOP run, verify that the branch is corrected to `working-development` before any staging and keep all Git-index operations strictly serialized.

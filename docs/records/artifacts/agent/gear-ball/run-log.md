@@ -11,3 +11,4 @@ Purpose: keep a concise append-only ledger of substantive Gear Ball runs.
 - 2026-05-14: Full SOP run committed the Nuclo hosted SQL remediation handoff packet on `working-development` (`4ba003d99`) and then recorded the retained self-audit/training closeout.
 - 2026-05-14: Full SOP run published the Vault secret helper hardening fix on `working-development` (`eaeadaa98`) and then recorded the retained self-audit/training closeout.
 - 2026-05-14: Full SOP run committed the public-origin authority hardening lane on `working-development` (`6f1ab4ae1`) and then hardened Gear Ball preflight to allow canonical example env files during the retained closeout.
+- 2026-05-15: Full SOP run committed the Supabase auth-email hardening lane (`0f2b2fdae`), new Ayal/Beeper agent scaffolding (`7013b198a`), and the docs reconciliation commit (`ddeb9624b`) on `working-development`, then corrected a local branch-drift slip in the retained closeout.

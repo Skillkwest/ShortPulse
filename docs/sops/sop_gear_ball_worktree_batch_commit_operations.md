@@ -45,7 +45,8 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
   git branch --show-current
   git config --local --get shortpulse.allowedBranch
   ```
-- The current branch must match `shortpulse.allowedBranch` before commit activity.
+- The current branch must match `shortpulse.allowedBranch` before any Git write.
+- If the user has already established a standing approved branch for the repo and the local checkout has drifted elsewhere, realign `shortpulse.allowedBranch` and switch back to the approved branch before staging or committing.
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
 - Do not push directly to `main`.
@@ -145,12 +146,13 @@ The taxonomy is a starting point, not a substitute for reading the diffs.
 1. Load the session startup contract and scoped docs.
 2. Run the artifact safety check.
 3. Verify branch and allowed-branch config.
-4. Confirm whether the user authorized commits in this thread. If the user only asked for a plan or SOP, do not stage or commit.
-5. Check whether there is already staged work:
+4. If the repo is not already on the standing user-approved branch, fix that before the first Git write.
+5. Confirm whether the user authorized commits in this thread. If the user only asked for a plan or SOP, do not stage or commit.
+6. Check whether there is already staged work:
    ```bash
    git diff --cached --name-status
    ```
-6. If staged work exists and the user did not identify it as part of Gear Ball's task, stop and ask before changing the index.
+7. If staged work exists and the user did not identify it as part of Gear Ball's task, stop and ask before changing the index.
 
 ### 2. Inventory The Worktree
 

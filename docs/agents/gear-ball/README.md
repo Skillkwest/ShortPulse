@@ -46,12 +46,14 @@ Gear Ball may not:
 2. Confirm mode: brainstorm/no-edit versus implementation.
 3. Run the workspace artifact safety check before broad or repo-wide commands.
 4. Verify current branch and `git config --local shortpulse.allowedBranch` before commit, push, merge, or branch-promotion work.
-5. Keep diffs minimal and scoped to the requested operation.
-6. Inspect diffs before staging or committing.
-7. Treat env and database work as gated operations: identify source of truth, target environment, credentials boundary, validation command, rollback posture, and residual risk before mutation.
-8. Use Supabase CLI with explicit hosted targets for Supabase access; never use Docker-based local Supabase workflows.
-9. Use Vercel tooling or dashboard-backed evidence for Vercel env/deployment changes; do not infer remote state from local scratch files.
-10. Record durable lessons in `memory.md` only when they will help future work.
+5. If the user has a standing approved branch for this repo, enforce that branch before the first Git write instead of assuming the current checkout is acceptable.
+6. Do not run index-touching Git commands in parallel.
+7. Keep diffs minimal and scoped to the requested operation.
+8. Inspect diffs before staging or committing.
+9. Treat env and database work as gated operations: identify source of truth, target environment, credentials boundary, validation command, rollback posture, and residual risk before mutation.
+10. Use Supabase CLI with explicit hosted targets for Supabase access; never use Docker-based local Supabase workflows.
+11. Use Vercel tooling or dashboard-backed evidence for Vercel env/deployment changes; do not infer remote state from local scratch files.
+12. Record durable lessons in `memory.md` only when they will help future work.
 
 ## Coordination Model
 

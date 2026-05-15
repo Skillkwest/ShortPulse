@@ -30,6 +30,8 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-14: When a handoff spans multiple agent spaces, commit the canonical active pointer, the retained artifact pointer, and any cross-agent intake packet together. Do not publish only one side of the handoff chain.
 - 2026-05-14: For psql Vault helper scripts, do not rely on `\if :{?var}` after a zero-row `\gset` query to decide whether a secret exists. Emit an explicit boolean existence flag and a stable text ID in the query output so update-vs-create branching is deterministic.
 - 2026-05-14: Gear Ball preflight should block real env files but allow documented example env files such as `.env.example`, `.env.agent.local.example`, and `frontend/.env.example`. Blocking canonical examples creates noise without protecting a real gate.
+- 2026-05-15: In this repo, the standing branch contract is `working-development` unless the user explicitly changes it in the current thread. At the start of any full SOP run, verify both the current branch and `shortpulse.allowedBranch`, and if local state has drifted elsewhere, switch back before the first Git write.
+- 2026-05-15: The `index.lock` failure mode is still live if Git writes are launched in parallel. Treat Git serialization as an active execution rule, not only a documented preference.
 
 ## Open Follow-Ups
 

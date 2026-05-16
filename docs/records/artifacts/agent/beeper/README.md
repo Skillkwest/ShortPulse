@@ -13,6 +13,7 @@ Route/control/action coverage history lives in `beeper/action-coverage/` so Beep
 The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
 Major-route success targets live in `beeper/route-success-map.md` so coverage depth is judged against real user outcomes.
 Open retest debt lives in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until Beeper revalidates them.
+Child tester-mode artifacts live under `docs/records/artifacts/agent/beeper-modes/` so persona-specific memory stays separate from the parent Beeper lane.
 
 ## Artifact Layout
 
@@ -42,3 +43,4 @@ These artifacts support training, traceability, and workflow continuity. They do
 - Testing guide: `docs/testing-guide.md`
 - Local development guide: `docs/local-development.md`
 - Beeper workspace run packets: `beeper/runs/`
+- Child mode workspaces: `beeper/personas/`

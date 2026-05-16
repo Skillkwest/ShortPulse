@@ -19,6 +19,9 @@ Use this path when setting up a new agent for a new recurring task:
 
 - `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.
   - `docs/agents/beeper/standard-operating-procedure.md`: standing SOP for Beeper live testing, issue capture, handoff packets, and supervised training records.
+- `docs/agents/beeper-modes/README.md`: Beeper child testing personas and dispatch model.
+  - `docs/agents/beeper-modes/dumb-average-user/README.md`: naive-user testing mode for first-click, confusion, abandonment, and wording-trust lanes.
+  - `docs/agents/beeper-modes/experienced-alpha-tester/README.md`: deep workflow testing mode for continuity, persistence, and reentry-heavy lanes.
 - `docs/agents/ayal/README.md`: Ayal user-account management and customer-service steward contract and memory entrypoint.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.

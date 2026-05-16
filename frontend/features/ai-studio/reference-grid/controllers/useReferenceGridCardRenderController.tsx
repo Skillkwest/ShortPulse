@@ -67,6 +67,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
+  isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
 };
@@ -116,6 +117,7 @@ export const useReferenceGridCardRenderController = ({
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
+  isMediaStorageFull = false,
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
@@ -288,6 +290,7 @@ export const useReferenceGridCardRenderController = ({
           onClearGenerationOutput={isGenerationLoading ? onClearGenerationOutput : undefined}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
           showCuratedRemoveAction={options.isCuratedSurface}
+          isMediaStorageFull={isMediaStorageFull}
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
           hideReferenceActions={options.isCuratedSurface}
@@ -319,6 +322,7 @@ export const useReferenceGridCardRenderController = ({
       onRemoveCuratedReference,
       onRerollOutput,
       onRetryStatus,
+      isMediaStorageFull,
       onSaveToLibrary,
       onSelectOutput,
       loadingCardIdSet,

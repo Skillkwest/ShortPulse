@@ -4,6 +4,7 @@
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import {
   downloadBlobToFile,
   downloadUrlToFile,
@@ -21,6 +22,7 @@ type UseAiStudioReferenceAssetActionsParams = {
   findOutputById: (id: string) => StudioOutput | null;
   saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
   setUiError: Dispatch<SetStateAction<string | null>>;
+  isMediaStorageFull?: boolean;
 };
 
 /**
@@ -31,6 +33,7 @@ export const useAiStudioReferenceAssetActions = ({
   findOutputById,
   saveReferenceToLibrary,
   setUiError,
+  isMediaStorageFull = false,
 }: UseAiStudioReferenceAssetActionsParams) => {
   const handleDownloadReference = useCallback(
     async (outputId: string) => {
@@ -101,6 +104,10 @@ export const useAiStudioReferenceAssetActions = ({
   const handleSaveReference = useCallback(
     (outputId: string) => {
       if (!outputId) return;
+      if (isMediaStorageFull) {
+        setUiError(MEDIA_STORAGE_FULL_USER_MESSAGE);
+        return;
+      }
       void saveReferenceToLibrary(outputId).catch((error) => {
         const message =
           error instanceof Error && error.message.trim().length
@@ -109,7 +116,7 @@ export const useAiStudioReferenceAssetActions = ({
         setUiError(message);
       });
     },
-    [saveReferenceToLibrary, setUiError]
+    [isMediaStorageFull, saveReferenceToLibrary, setUiError]
   );
 
   return {

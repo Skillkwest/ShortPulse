@@ -62,6 +62,9 @@ export const areReferenceGridPropsEqual = (
   if (previous.topNotice !== next.topNotice) {
     return false;
   }
+  if (previous.isMediaStorageFull !== next.isMediaStorageFull) {
+    return false;
+  }
   if (!areStringArraysEqual(previous.curatedReferenceIds, next.curatedReferenceIds)) {
     return false;
   }

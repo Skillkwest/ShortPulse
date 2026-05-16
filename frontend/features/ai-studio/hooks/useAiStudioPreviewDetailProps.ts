@@ -23,6 +23,7 @@ type UseAiStudioPreviewDetailPropsParams = {
   deleteOutput: (id: string) => void;
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
+  isMediaStorageFull?: boolean;
   savePromptToLibrary: (customPrompt?: string) => void;
   handleOpenMediaLibrary: () => void;
 };
@@ -46,6 +47,7 @@ export const useAiStudioPreviewDetailProps = ({
   deleteOutput,
   handleSaveReference,
   handleDownloadReference,
+  isMediaStorageFull = false,
   savePromptToLibrary,
   handleOpenMediaLibrary,
 }: UseAiStudioPreviewDetailPropsParams): AiStudioPreviewDetailContracts =>
@@ -74,6 +76,7 @@ export const useAiStudioPreviewDetailProps = ({
       onDeleteOutput: deleteOutput,
       onDetailDownload: handleDownloadReference,
       onDetailSaveReference: handleSaveReference,
+      isMediaStorageFull,
       onDetailSavePrompt: savePromptToLibrary,
       onOpenMediaLibrary: handleOpenMediaLibrary,
     };
@@ -87,6 +90,7 @@ export const useAiStudioPreviewDetailProps = ({
     handleOpenMediaLibrary,
     handleRegenerateWithDebit,
     handleSaveReference,
+    isMediaStorageFull,
     referenceGridReadyOutputIds,
     referenceImageUrl,
     savePromptToLibrary,

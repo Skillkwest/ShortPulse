@@ -89,4 +89,15 @@ describe("areReferenceGridPropsEqual", () => {
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(false);
   });
+
+  it("detects media storage full state changes", () => {
+    const base = createProps({
+      isMediaStorageFull: false,
+    });
+    const next = createProps({
+      isMediaStorageFull: true,
+    });
+
+    expect(areReferenceGridPropsEqual(base, next)).toBe(false);
+  });
 });

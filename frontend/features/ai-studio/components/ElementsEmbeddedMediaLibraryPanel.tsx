@@ -123,6 +123,8 @@ export function ElementsEmbeddedMediaLibraryPanel({
   const refreshFolders = React.useCallback(async () => undefined, []);
 
   const {
+    isStorageQuotaBlocked,
+    storageQuotaMessage,
     pendingLibraryDelete,
     setPendingLibraryDelete,
     deleteConfirmSubmitting,
@@ -830,8 +832,9 @@ export function ElementsEmbeddedMediaLibraryPanel({
   };
 
   const handleOpenRootUploadPicker = React.useCallback(() => {
+    if (isStorageQuotaBlocked) return;
     fileInputRef.current?.click();
-  }, []);
+  }, [isStorageQuotaBlocked]);
 
   const handleRootUploadSelection = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -860,6 +863,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         ref={fileInputRef}
         type="file"
         multiple
+        disabled={isStorageQuotaBlocked}
         className="media-library-panel-file-input"
         onChange={(event) => {
           void handleRootUploadSelection(event);
@@ -872,6 +876,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
             error={folderError}
             membershipPendingMessage={membershipPendingMessage}
             membershipMessage={membershipMessage}
+            storageQuotaMessage={storageQuotaMessage}
           />
           <MediaLibraryPanelRootContent
             rootTab={rootTab}
@@ -882,6 +887,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
             onExpandMediaLibraryPanel={() => undefined}
             onCollapseMediaLibraryPanel={() => undefined}
             onOpenRootUploadPicker={handleOpenRootUploadPicker}
+            disableUploads={isStorageQuotaBlocked}
             bulkActions={bulkActions}
             selectedVisibleMediaCount={selectedVisibleMediaRows.length}
             itemType={itemType}

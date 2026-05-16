@@ -42,6 +42,8 @@ type GenerateSoundEffectSuccessResponse = {
     waveformPeaks: null;
     modelId: string;
     characterCost: number | null;
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 
@@ -222,6 +224,8 @@ export default async function handler(
         waveformPeaks: null,
         modelId,
         characterCost: generated.characterCost,
+        saveState: persisted.saveState,
+        saveError: persisted.saveError,
       },
     });
   } catch (error) {

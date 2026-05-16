@@ -26,6 +26,7 @@ describe("mapHookContractsToPageContentProps", () => {
       previewDetailProps: {
         studioPreviewProps: studioPreviewProps as never,
         detailModalOutput: null,
+        isMediaStorageFull: true,
         onDetailClose,
         onUpdateOutputPrompt,
         onDeleteOutput,
@@ -42,6 +43,7 @@ describe("mapHookContractsToPageContentProps", () => {
     expect(result.referenceGridProps).toBe(referenceGridProps);
     expect(result.studioPreviewProps).toBe(studioPreviewProps);
     expect(result.detailModalOutput).toBeNull();
+    expect(result.isMediaStorageFull).toBe(true);
     expect(result.onDetailClose).toBe(onDetailClose);
     expect(result.onUpdateOutputPrompt).toBe(onUpdateOutputPrompt);
     expect(result.onDeleteOutput).toBe(onDeleteOutput);

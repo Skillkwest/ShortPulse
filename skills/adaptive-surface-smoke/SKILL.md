@@ -17,7 +17,7 @@ npm test -- --run \
   features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx \
   features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx \
   features/ai-studio/components/__tests__/DetailModal.test.tsx \
-  features/media-library/components/__tests__/MediaFileModal.test.tsx \
+  features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts \
   features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx
 ```
 

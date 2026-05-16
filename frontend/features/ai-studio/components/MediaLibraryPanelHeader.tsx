@@ -13,6 +13,7 @@ type MediaLibraryPanelHeaderProps = {
   projectNameInputWidthCh: number;
   rootUploadInputRef: React.Ref<HTMLInputElement>;
   onRootUploadSelection: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  disableUploads?: boolean;
 };
 
 /**
@@ -27,6 +28,7 @@ export const MediaLibraryPanelHeader = React.memo(function MediaLibraryPanelHead
   projectNameInputWidthCh,
   rootUploadInputRef,
   onRootUploadSelection,
+  disableUploads = false,
 }: MediaLibraryPanelHeaderProps) {
   return (
     <>
@@ -66,6 +68,7 @@ export const MediaLibraryPanelHeader = React.memo(function MediaLibraryPanelHead
         type="file"
         accept="image/*,video/*,audio/*"
         multiple
+        disabled={disableUploads}
         className="media-library-panel-file-input"
         onChange={(event) => {
           void onRootUploadSelection(event);

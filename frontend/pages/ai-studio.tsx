@@ -33,6 +33,7 @@ import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/us
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
 import { useAiStudioProjectRouteRecovery } from "../features/ai-studio/hooks/useAiStudioProjectRouteRecovery";
+import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
@@ -52,6 +53,7 @@ import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/stan
 import type { StudioMode, ToolId } from "../features/ai-studio/types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../features/ai-studio/logic/chatModeDefaults";
 import { PERF_FLAG_PAGE_OUTPUT_DECOUPLE } from "../features/ai-studio/logic/perfProfileFlags";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../lib/mediaStorageQuota";
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
 type CreateRuntimeRootSharedProps = {
@@ -766,19 +768,25 @@ const useAiStudioReferenceExperienceRuntime = ({
     updateOutputPrompt,
     videoReferenceText,
   } = base;
+  const { quotaSummary } = useMediaStorageQuotaSummary({
+    enabled: true,
+  });
+  const isMediaStorageFull = quotaSummary?.isOverLimit === true;
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     projectId,
     findOutputById,
     saveReferenceToLibrary,
     setUiError,
+    isMediaStorageFull,
   });
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
-    topNotice: null,
+    topNotice: isMediaStorageFull ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
     curatedReferenceIds,
     removedFromAllRefsIds,
+    isMediaStorageFull,
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
     handleSelectOutput,
@@ -827,6 +835,7 @@ const useAiStudioReferenceExperienceRuntime = ({
     deleteOutput,
     handleSaveReference,
     handleDownloadReference,
+    isMediaStorageFull,
     savePromptToLibrary,
     handleOpenMediaLibrary,
   });

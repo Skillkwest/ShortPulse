@@ -53,7 +53,7 @@ type UseAiStudioOutputSaveRuntimeArgs = {
   markOutputSaveFailed: (
     outputId: string,
     message: string,
-    options?: { showPill?: boolean }
+    options?: { showPill?: boolean; state?: StudioOutputSaveState }
   ) => void;
 };
 

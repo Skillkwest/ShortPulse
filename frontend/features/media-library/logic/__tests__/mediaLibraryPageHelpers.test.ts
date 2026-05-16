@@ -5,7 +5,6 @@ import {
   isMissingRelationError,
   mergePageRows,
   normalizeMediaSearchTerm,
-  resolveRouteSignBudget,
   withMediaSearchFilter,
   withMediaTabFilter,
 } from "../mediaLibraryPageHelpers";
@@ -117,13 +116,5 @@ describe("mediaLibraryPageHelpers", () => {
     expect(isMissingRelationError({ code: "42P01" })).toBe(true);
     expect(isMissingRelationError({ code: "42883" })).toBe(false);
     expect(isMissingRelationError("oops")).toBe(false);
-  });
-
-  it("uses desktop sign budget when window/navigator are unavailable", () => {
-    expect(resolveRouteSignBudget()).toEqual({
-      initialSignLimit: 8,
-      prefetchWindow: 18,
-      signBatchSize: 4,
-    });
   });
 });

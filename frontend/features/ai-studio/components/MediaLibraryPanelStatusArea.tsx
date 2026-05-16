@@ -4,11 +4,16 @@
  */
 import React from "react";
 import { CheckCircle } from "phosphor-react";
+import {
+  MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
+  MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL,
+} from "../../../lib/mediaStorageQuota";
 
 type MediaLibraryPanelStatusAreaProps = {
   error: string | null;
   membershipPendingMessage: string | null;
   membershipMessage: string | null;
+  storageQuotaMessage?: string | null;
 };
 
 /**
@@ -18,9 +23,18 @@ export const MediaLibraryPanelStatusArea = React.memo(function MediaLibraryPanel
   error,
   membershipPendingMessage,
   membershipMessage,
+  storageQuotaMessage = null,
 }: MediaLibraryPanelStatusAreaProps) {
   return (
     <>
+      {storageQuotaMessage ? (
+        <div className="media-library-panel-membership-toast is-warning" role="alert">
+          <span>{storageQuotaMessage}</span>
+          <a href={MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF}>
+            {MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL}
+          </a>
+        </div>
+      ) : null}
       {error ? <p className="tiny subdued">{error}</p> : null}
       {membershipPendingMessage ? (
         <div

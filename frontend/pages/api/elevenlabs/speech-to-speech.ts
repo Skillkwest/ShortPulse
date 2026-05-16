@@ -48,6 +48,8 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
   remuxedVideo?: {
     provider: "elevenlabs";
@@ -63,6 +65,8 @@ type GenerateAudioSuccessResponse = {
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
     modelId: string;
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 
@@ -419,6 +423,8 @@ export default async function handler(
         modelId,
         voiceId,
         voiceName,
+        saveState: persisted.saveState,
+        saveError: persisted.saveError,
       },
       ...(persistedRemuxedVideo && remuxedVideo
         ? {
@@ -436,6 +442,8 @@ export default async function handler(
               fullStoragePath: persistedRemuxedVideo.fullStoragePath,
               mimeType: remuxedVideo.contentType,
               modelId,
+              saveState: persistedRemuxedVideo.saveState,
+              saveError: persistedRemuxedVideo.saveError,
             },
           }
         : {}),

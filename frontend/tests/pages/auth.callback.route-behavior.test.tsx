@@ -109,6 +109,10 @@ describe("Auth callback route behavior", () => {
   });
 
   it("renders the recovery form when Supabase emits PASSWORD_RECOVERY", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery&access_token=test-token",
+      { flow: "recovery", next: "/dashboard" }
+    );
     let callback: ((event: string, session: unknown) => void) | null = null;
     onAuthStateChangeMock.mockImplementation(
       (handler: (event: string, session: unknown) => void) => {
@@ -124,6 +128,8 @@ describe("Auth callback route behavior", () => {
     );
 
     render(<AuthCallbackPage />);
+
+    await waitFor(() => expect(callback).not.toBeNull());
 
     act(() => {
       callback?.("PASSWORD_RECOVERY", { user: { id: "user-1" } });

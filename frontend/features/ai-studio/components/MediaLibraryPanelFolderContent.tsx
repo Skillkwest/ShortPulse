@@ -12,6 +12,7 @@ type MediaLibraryPanelFolderContentProps = {
   isActiveFolderDropHover: boolean;
   activeFolderDropZoneProps: React.HTMLAttributes<HTMLElement> | null;
   onOpenRootUploadPicker: () => void;
+  disableUploads?: boolean;
   showCustomFolderEmptyState: boolean;
   showActiveFolderUnifiedGrid: boolean;
   promptLoading: boolean;
@@ -42,6 +43,7 @@ export const MediaLibraryPanelFolderContent = React.memo(function MediaLibraryPa
   isActiveFolderDropHover,
   activeFolderDropZoneProps,
   onOpenRootUploadPicker,
+  disableUploads = false,
   showCustomFolderEmptyState,
   showActiveFolderUnifiedGrid,
   promptLoading,
@@ -67,6 +69,7 @@ export const MediaLibraryPanelFolderContent = React.memo(function MediaLibraryPa
           type="button"
           className="media-library-panel-root-upload-button"
           onClick={onOpenRootUploadPicker}
+          disabled={disableUploads}
         >
           <UploadSimple size={14} weight="bold" aria-hidden />
           <span>Add files</span>

@@ -21,6 +21,7 @@ const deleteMediaPromptByIdMock = vi.fn();
 const logMediaEventMock = vi.fn();
 const isAdaptiveSurfaceEnabledMock = vi.fn();
 const useMediaPreviewSigningControllerMock = vi.fn();
+const useMediaStorageQuotaSummaryMock = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -36,6 +37,7 @@ vi.mock("../../../../lib/adaptive-media", () => ({
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: () => ({
+    rpc: vi.fn(async () => ({ data: null, error: null })),
     storage: {
       from: () => ({
         download: (...args: unknown[]) => storageDownloadMock(...args),
@@ -43,6 +45,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
     },
   }),
   readSupabaseUserId: async () => "user-1",
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    loading: false,
+  }),
 }));
 
 vi.mock("../../../../lib/useVisibleErrorTelemetry", () => ({
@@ -62,6 +69,10 @@ vi.mock("../../../media-library/hooks/useMediaAdaptivePressure", () => ({
 vi.mock("../../../media-library/hooks/useMediaPreviewSigningController", () => ({
   useMediaPreviewSigningController: (...args: unknown[]) =>
     useMediaPreviewSigningControllerMock(...args),
+}));
+
+vi.mock("../../../billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => ({
@@ -405,6 +416,11 @@ describe("MediaLibraryPanel", () => {
     deleteMediaPromptByIdMock.mockResolvedValue(undefined);
     logMediaEventMock.mockResolvedValue(undefined);
     useMediaPreviewSigningControllerMock.mockReset();
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: null,
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
+    });
     uploadMediaFileMock.mockResolvedValue({
       id: "uploaded-1",
       filename: "upload.png",
@@ -3106,5 +3122,31 @@ describe("MediaLibraryPanel", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("shows a storage-full banner and disables uploads when quota is already over limit", async () => {
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 10,
+        baseLimitBytes: 5,
+        addonLimitBytes: 0,
+        totalLimitBytes: 5,
+        remainingBytes: 0,
+        isOverLimit: true,
+      },
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Your media storage is full\./i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: "Manage storage" })).toHaveAttribute(
+      "href",
+      "/profile?section=storage"
+    );
+    expect(screen.getByRole("button", { name: "Add files" })).toBeDisabled();
   });
 });

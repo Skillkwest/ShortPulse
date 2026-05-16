@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../../lib/mediaStorageQuota";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import type { StudioOutput } from "../../types";
 import { useAiStudioReferenceAssetActions } from "../useAiStudioReferenceAssetActions";
@@ -732,5 +733,26 @@ describe("useAiStudioReferenceAssetActions", () => {
     await waitFor(() => {
       expect(setUiError).toHaveBeenCalledWith("save exploded");
     });
+  });
+
+  it("blocks save attempts immediately when media storage is already full", () => {
+    const saveReferenceToLibrary = vi.fn();
+    const setUiError = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          isMediaStorageFull: true,
+          saveReferenceToLibrary,
+          setUiError: asDispatch<string | null>(setUiError),
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleSaveReference("out-1");
+    });
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(MEDIA_STORAGE_FULL_USER_MESSAGE);
   });
 });

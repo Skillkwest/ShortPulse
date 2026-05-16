@@ -43,7 +43,6 @@ const MEDIA_RENDERING_TARGET_BUDGETS = [
   { file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx", maxLines: 700 },
   { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1500 },
   { file: "frontend/features/ai-studio/logic/referenceGridMedia.ts", maxLines: 420 },
-  { file: "frontend/features/media-library/components/MediaAssetGallery.tsx", maxLines: 320 },
   {
     file: "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
     maxLines: 400,

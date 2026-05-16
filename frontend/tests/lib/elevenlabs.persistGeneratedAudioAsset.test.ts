@@ -306,6 +306,45 @@ describe("persistGeneratedAudioAsset", () => {
     });
   });
 
+  it("marks storage-blocked audio autosave results with blocked_storage", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    mediaFilesInsertMock.mockImplementation(() =>
+      resolveInsertSingle({
+        error: {
+          message:
+            "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)",
+        },
+      })
+    );
+
+    const result = await persistGeneratedAudioAsset({
+      userId: "user-1",
+      promptText: "Rainy city ambience",
+      provider: "elevenlabs",
+      modelId: "music_v1",
+      projectId: "project-1",
+      sourceMode: "music",
+      outputBuffer: Buffer.from("audio"),
+      outputContentType: "audio/mpeg",
+      outputFormat: "mp3_44100_128",
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saveState: "blocked_storage",
+        savedMediaIds: [],
+      })
+    );
+    expect(result).toMatchObject({
+      saveState: "blocked_storage",
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+    });
+  });
+
   it("associates autosaved audio media with the active project", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

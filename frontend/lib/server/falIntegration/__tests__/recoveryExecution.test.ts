@@ -872,7 +872,7 @@ describe("executeGenerationRecovery", () => {
         providerRequestId: "req-1",
         status: "ready",
         taskState: "success",
-        saveState: "idle",
+        saveState: "saved",
         publicationState: "published",
         resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
         savedMediaIds: ["media-1", "media-2"],

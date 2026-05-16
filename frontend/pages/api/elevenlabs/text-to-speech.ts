@@ -43,6 +43,8 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 
@@ -195,6 +197,8 @@ export default async function handler(
         modelId,
         voiceId,
         voiceName,
+        saveState: persisted.saveState,
+        saveError: persisted.saveError,
       },
     });
   } catch (error) {

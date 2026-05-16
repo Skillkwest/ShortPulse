@@ -1,4 +1,5 @@
 import React from "react";
+import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
 import {
   deleteMediaFileWithStorage,
   deleteMediaPromptById,
@@ -12,6 +13,7 @@ import {
 } from "../logic/mediaLibraryPanelApi";
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 
 const ROOT_FOLDER_LABEL = "All Media";
 
@@ -51,6 +53,8 @@ type UseMediaLibraryPanelMutationControllerParams = {
 };
 
 type UseMediaLibraryPanelMutationControllerResult = {
+  isStorageQuotaBlocked: boolean;
+  storageQuotaMessage: string | null;
   pendingLibraryDelete: PendingLibraryDeleteState | null;
   setPendingLibraryDelete: React.Dispatch<React.SetStateAction<PendingLibraryDeleteState | null>>;
   deleteConfirmSubmitting: boolean;
@@ -95,6 +99,11 @@ export const useMediaLibraryPanelMutationController = ({
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     React.useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = React.useState(false);
+  const { quotaSummary } = useMediaStorageQuotaSummary({
+    enabled: true,
+  });
+  const isStorageQuotaBlocked = quotaSummary?.isOverLimit === true;
+  const storageQuotaMessage = isStorageQuotaBlocked ? MEDIA_STORAGE_FULL_USER_MESSAGE : null;
 
   const refreshFolderState = React.useCallback(async () => {
     await refreshFolders().catch(() => undefined);
@@ -311,6 +320,10 @@ export const useMediaLibraryPanelMutationController = ({
       setFolderError(null);
       setMembershipMessage(null);
 
+      if (isStorageQuotaBlocked) {
+        throw new Error(MEDIA_STORAGE_FULL_USER_MESSAGE);
+      }
+
       const uploadCandidates = droppedFiles
         .map((file) => ({
           file,
@@ -398,6 +411,7 @@ export const useMediaLibraryPanelMutationController = ({
     [
       activeFolderId,
       folders,
+      isStorageQuotaBlocked,
       projectId,
       refreshActiveRows,
       refreshFolderState,
@@ -543,6 +557,8 @@ export const useMediaLibraryPanelMutationController = ({
   ]);
 
   return {
+    isStorageQuotaBlocked,
+    storageQuotaMessage,
     pendingLibraryDelete,
     setPendingLibraryDelete,
     deleteConfirmSubmitting,

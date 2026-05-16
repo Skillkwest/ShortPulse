@@ -26,6 +26,7 @@ export type ReferenceGridProps = {
   topNotice?: string | null;
   curatedReferenceIds?: string[];
   removedFromAllRefsIds?: string[];
+  isMediaStorageFull?: boolean;
   showHeader?: boolean;
   onOutputMediaLoaded?: (id: string) => void;
   linkedPromptReferenceIds?: string[];

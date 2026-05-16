@@ -14,6 +14,7 @@ import {
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
+import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
 type JsonObject = Record<string, unknown>;
@@ -159,6 +160,17 @@ const stringifyDetail = (value: unknown, fallback: string): string => {
 
 const buildUnsettledBillingError = (note: string): string =>
   `Generation billing settlement did not complete: ${note}`;
+
+const resolveAutosaveProjectionSaveState = ({
+  savedMediaIds,
+  autosaveDecisionReason,
+}: {
+  savedMediaIds: string[];
+  autosaveDecisionReason: string;
+}): "saved" | "idle" | "blocked_storage" => {
+  if (savedMediaIds.length > 0) return "saved";
+  return resolveMediaStorageQuotaUserMessage(autosaveDecisionReason) ? "blocked_storage" : "idle";
+};
 
 const mergeSettlementMetadata = ({
   metadata,
@@ -468,6 +480,11 @@ export const settleDirectGenerationSuccess = async ({
     persistedOutputRows.length > 0 && persistedOutputRows[0]?.mediaFileId
       ? (deliveryPathsByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
       : null;
+  const normalizedSavedMediaIds = hasCanonicalStorageAuthority ? mediaFileIds : [];
+  const projectionSaveState = resolveAutosaveProjectionSaveState({
+    savedMediaIds: normalizedSavedMediaIds,
+    autosaveDecisionReason,
+  });
 
   await upsertGenerationProjection({
     generationId: generation.id,
@@ -489,12 +506,12 @@ export const settleDirectGenerationSuccess = async ({
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
-    saveState: "idle",
+    saveState: projectionSaveState,
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
     publicationState,
     resultUrls: normalizedResultUrls,
-    savedMediaIds: hasCanonicalStorageAuthority ? mediaFileIds : [],
+    savedMediaIds: normalizedSavedMediaIds,
     generationReplay: readMetadataObject(
       generationMetadata,
       "generation_replay",

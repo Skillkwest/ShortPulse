@@ -92,6 +92,18 @@ describe("useAiStudioPreviewDetailProps", () => {
     expect(savePromptToLibrary).toHaveBeenCalledWith("Saved prompt");
   });
 
+  it("preserves media storage full state for the detail modal", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPreviewDetailProps(
+        createParams({
+          isMediaStorageFull: true,
+        })
+      )
+    );
+
+    expect(result.current.isMediaStorageFull).toBe(true);
+  });
+
   it("withholds the active output preview until the reference grid marks it ready", () => {
     const { result, rerender } = renderHook(
       ({ readyIds }: { readyIds: ReadonlySet<string> }) =>

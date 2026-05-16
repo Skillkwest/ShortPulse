@@ -99,6 +99,7 @@ export type ReferenceGridCardProps = {
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   showCuratedRemoveAction?: boolean;
+  isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   hideReferenceActions?: boolean;
@@ -178,6 +179,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onClearGenerationOutput,
   onRemoveCuratedReference,
   showCuratedRemoveAction = false,
+  isMediaStorageFull = false,
   onSaveToLibrary,
   onDownload,
   hideReferenceActions = false,
@@ -188,9 +190,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
-  const saveDisabled = item.saveState === "saving" || item.saveState === "blocked_storage";
-  const saveLabel =
-    item.saveState === "failed"
+  const saveDisabled =
+    isMediaStorageFull || item.saveState === "saving" || item.saveState === "blocked_storage";
+  const saveLabel = isMediaStorageFull
+    ? "Storage full"
+    : item.saveState === "failed"
       ? "Retry save"
       : item.saveState === "blocked_storage"
         ? "Storage full"

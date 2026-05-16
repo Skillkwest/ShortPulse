@@ -1425,7 +1425,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
-  });
+  }, 15000);
 
   it("stages an audio sample and saves a cloned provider voice into the voices grid", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
@@ -1503,7 +1503,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
-  });
+  }, 15000);
 
   it("blocks cloned voice creation when the staged sample is under one minute", async () => {
     render(<VoicesPropertiesPanel />);

@@ -616,6 +616,37 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("projects blocked_storage when direct settlement hits storage quota", async () => {
+    persistRecoveryMediaFilesForGenerationMock.mockRejectedValueOnce(
+      new Error(
+        "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)"
+      )
+    );
+    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-storage-block",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saveState: "blocked_storage",
+        savedMediaIds: [],
+      })
+    );
+  });
+
   it("keeps direct terminal success transient when autosave is disabled", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: false },

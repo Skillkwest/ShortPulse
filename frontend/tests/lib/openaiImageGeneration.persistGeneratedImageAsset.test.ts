@@ -301,6 +301,44 @@ describe("persistGeneratedImageAsset", () => {
     });
   });
 
+  it("marks storage-blocked autosave results with blocked_storage", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    mediaFilesInsertMock.mockImplementation(() =>
+      resolveInsertSingle({
+        error: {
+          message:
+            "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)",
+        },
+      })
+    );
+
+    const result = await persistGeneratedImageAsset({
+      userId: "user-1",
+      promptText: "Cinematic portrait",
+      modelId: "gpt-image-2",
+      projectId: "project-1",
+      requestedSize: "1024x1024",
+      requestedQuality: "medium",
+      outputBuffer: Buffer.from("image"),
+      outputContentType: "image/png",
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saveState: "blocked_storage",
+        savedMediaIds: [],
+      })
+    );
+    expect(result).toMatchObject({
+      saveState: "blocked_storage",
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+    });
+  });
+
   it("persists saved media semantics and project association when autosave succeeds", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

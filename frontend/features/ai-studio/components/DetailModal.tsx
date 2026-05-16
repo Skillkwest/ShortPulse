@@ -15,6 +15,7 @@ import { downloadUrlToFile } from "../logic/referenceDownload";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -28,6 +29,7 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSaveReference?: (id: string) => void;
+  isMediaStorageFull?: boolean;
   onSavePrompt?: (promptText: string) => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
@@ -52,6 +54,7 @@ export function DetailModal({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
@@ -67,6 +70,7 @@ export function DetailModal({
       onDeleteOutput={onDeleteOutput}
       onDownloadReference={onDownloadReference}
       onSaveReference={onSaveReference}
+      isMediaStorageFull={isMediaStorageFull}
       onSavePrompt={onSavePrompt}
       refreshCharacterOptions={refreshCharacterOptions}
       resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
@@ -86,6 +90,7 @@ function DetailModalContent({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
@@ -390,11 +395,13 @@ function DetailModalContent({
   );
   const isMediaSaved = mediaSaveState === "saved";
   const isMediaSaveDisabled =
+    isMediaStorageFull ||
     mediaSaveState === "saving" ||
     mediaSaveState === "saved" ||
     mediaSaveState === "blocked_storage";
-  const mediaSaveLabel =
-    mediaSaveState === "saving"
+  const mediaSaveLabel = isMediaStorageFull
+    ? "Storage Full"
+    : mediaSaveState === "saving"
       ? "Saving..."
       : mediaSaveState === "saved"
         ? "Saved"
@@ -986,6 +993,9 @@ function DetailModalContent({
                   >
                     {mediaSaveLabel}
                   </button>
+                ) : null}
+                {isMediaStorageFull && isMediaSaveButtonVisible ? (
+                  <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
                 ) : null}
                 {displayPreviewUrl && canDownloadReferenceMedia && (
                   <button

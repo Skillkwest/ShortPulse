@@ -16,6 +16,7 @@ type MediaLibraryPanelRootContentProps = {
   onCollapseMediaLibraryPanel?: () => void;
   showExpandCollapseButton?: boolean;
   onOpenRootUploadPicker: () => void;
+  disableUploads?: boolean;
   bulkActions: React.ReactNode;
   selectedVisibleMediaCount: number;
   itemType: RootMediaLibraryTab;
@@ -49,6 +50,7 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
   onCollapseMediaLibraryPanel,
   showExpandCollapseButton = true,
   onOpenRootUploadPicker,
+  disableUploads = false,
   bulkActions,
   selectedVisibleMediaCount,
   itemType,
@@ -138,6 +140,7 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
               type="button"
               className="media-library-panel-root-upload-button"
               onClick={onOpenRootUploadPicker}
+              disabled={disableUploads}
             >
               <UploadSimple size={14} weight="bold" aria-hidden />
               <span>Add files</span>

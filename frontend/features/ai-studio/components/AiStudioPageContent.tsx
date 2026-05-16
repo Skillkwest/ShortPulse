@@ -547,6 +547,7 @@ export type AiStudioPageContentProps = {
   referenceGridProps: AiStudioReferenceGridContract;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
+  isMediaStorageFull?: boolean;
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
@@ -616,6 +617,7 @@ export function AiStudioPageContent({
   referenceGridProps,
   studioPreviewProps,
   detailModalOutput,
+  isMediaStorageFull = false,
   onDetailClose,
   onUpdateOutputPrompt,
   onDeleteOutput,
@@ -1742,6 +1744,7 @@ export function AiStudioPageContent({
       />
       <DetailModal
         output={detailModalOutput}
+        isMediaStorageFull={isMediaStorageFull}
         context={detailModalContext}
         onClose={onDetailClose}
         onUpdatePrompt={onUpdateOutputPrompt}

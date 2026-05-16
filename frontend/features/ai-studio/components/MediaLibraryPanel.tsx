@@ -218,6 +218,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     panelBodyRef,
   });
   const {
+    isStorageQuotaBlocked,
+    storageQuotaMessage,
     pendingLibraryDelete,
     setPendingLibraryDelete,
     deleteConfirmSubmitting,
@@ -983,8 +985,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [foldersSplit, onCollapseMediaLibraryPanel]);
 
   const handleOpenRootUploadPicker = useCallback(() => {
+    if (isStorageQuotaBlocked) return;
     rootUploadInputRef.current?.click();
-  }, []);
+  }, [isStorageQuotaBlocked]);
 
   const handleRootUploadSelection = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1187,6 +1190,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         projectNameInputWidthCh={projectNameInputWidthCh}
         rootUploadInputRef={rootUploadInputRef}
         onRootUploadSelection={handleRootUploadSelection}
+        disableUploads={isStorageQuotaBlocked}
       />
 
       <div ref={splitContainerRef} className="media-library-panel-split">
@@ -1238,6 +1242,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               error={error}
               membershipPendingMessage={membershipPendingMessage}
               membershipMessage={membershipMessage}
+              storageQuotaMessage={storageQuotaMessage}
             />
             {!showFolderCanvas ? (
               isRootFolderSelected ? (
@@ -1249,6 +1254,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
                   onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
                   onOpenRootUploadPicker={handleOpenRootUploadPicker}
+                  disableUploads={isStorageQuotaBlocked}
                   bulkActions={bulkActions}
                   selectedVisibleMediaCount={selectedVisibleMediaRows.length}
                   itemType={itemType}
@@ -1279,6 +1285,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 isActiveFolderDropHover={isActiveFolderDropHover}
                 activeFolderDropZoneProps={activeFolderDropZoneProps}
                 onOpenRootUploadPicker={handleOpenRootUploadPicker}
+                disableUploads={isStorageQuotaBlocked}
                 showCustomFolderEmptyState={showCustomFolderEmptyState}
                 showActiveFolderUnifiedGrid={showActiveFolderUnifiedGrid}
                 promptLoading={promptLoading}

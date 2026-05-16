@@ -333,6 +333,22 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Storage Full" })).toBeDisabled();
   });
 
+  it("disables save proactively when the page knows storage is already full", () => {
+    render(
+      <DetailModal
+        output={baseOutput}
+        isMediaStorageFull
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Storage Full" })).toBeDisabled();
+    expect(screen.getByText(/Your media storage is full\./i)).toBeInTheDocument();
+  });
+
   it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
     const { baseElement } = render(
       <DetailModal

@@ -46,6 +46,7 @@ import { readProviderContentPolicyMessage } from "../providerIntegration/statusP
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
+import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { applyRecoveryTransition } from "./recoveryTransitionService";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
@@ -132,6 +133,17 @@ const isTerminalMediaPersistenceError = (error: unknown): boolean => {
     normalized.includes("media_files insert failed") &&
     normalized.includes("media_files_user_id_fkey")
   );
+};
+
+const resolveAutosaveProjectionSaveState = ({
+  savedMediaIds,
+  autosaveDecisionReason,
+}: {
+  savedMediaIds: string[];
+  autosaveDecisionReason: string;
+}): "saved" | "idle" | "blocked_storage" => {
+  if (savedMediaIds.length > 0) return "saved";
+  return resolveMediaStorageQuotaUserMessage(autosaveDecisionReason) ? "blocked_storage" : "idle";
 };
 
 const logRecoveryAutosaveDecisionEvent = async ({
@@ -252,6 +264,7 @@ const logRecoveryMediaVisibleEvent = async ({
 const syncRecoveredGenerationProjection = async ({
   actor,
   autosaveDecision,
+  autosaveDecisionReason,
   generation,
   mediaFileIds,
   nowIso,
@@ -260,6 +273,7 @@ const syncRecoveredGenerationProjection = async ({
 }: {
   actor: RecoveryActor;
   autosaveDecision: "autosave_skipped" | "auto_persisted";
+  autosaveDecisionReason: string;
   generation: {
     id: string;
     user_id: string;
@@ -314,6 +328,10 @@ const syncRecoveredGenerationProjection = async ({
       false);
   const publicationState =
     hasCanonicalOwnedMedia && !abandonment.abandoned ? "published" : "suppressed";
+  const projectionSaveState = resolveAutosaveProjectionSaveState({
+    savedMediaIds: normalizedSavedMediaIds,
+    autosaveDecisionReason,
+  });
 
   if (hasCanonicalOwnedMedia) {
     await Promise.all(
@@ -358,7 +376,7 @@ const syncRecoveredGenerationProjection = async ({
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
-    saveState: "idle",
+    saveState: projectionSaveState,
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
     publicationState,
@@ -564,6 +582,7 @@ export const executeGenerationRecovery = async ({
       await syncRecoveredGenerationProjection({
         actor,
         autosaveDecision: "auto_persisted",
+        autosaveDecisionReason: "existing_recovery_media_rows",
         generation,
         mediaFileIds: existingRows.map((row) => row.id),
         nowIso: generation.completed_at ?? nowIso,
@@ -636,6 +655,7 @@ export const executeGenerationRecovery = async ({
     await syncRecoveredGenerationProjection({
       actor,
       autosaveDecision: "auto_persisted",
+      autosaveDecisionReason: "existing_recovery_media_rows",
       generation,
       mediaFileIds: existingRows.map((row) => row.id),
       nowIso,
@@ -1051,6 +1071,7 @@ export const executeGenerationRecovery = async ({
     await syncRecoveredGenerationProjection({
       actor,
       autosaveDecision: "autosave_skipped",
+      autosaveDecisionReason: autosavePolicyDecision.reason,
       generation,
       mediaFileIds: [],
       nowIso,
@@ -1207,6 +1228,7 @@ export const executeGenerationRecovery = async ({
   await syncRecoveredGenerationProjection({
     actor,
     autosaveDecision: "auto_persisted",
+    autosaveDecisionReason: autosavePolicyDecision.reason,
     generation,
     mediaFileIds,
     nowIso,

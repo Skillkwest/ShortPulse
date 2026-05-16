@@ -151,4 +151,16 @@ describe("useAiStudioReferenceGridProps", () => {
       "4 max concurrent generations. Wait for one to finish before starting another."
     );
   });
+
+  it("passes through media storage full state", () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          isMediaStorageFull: true,
+        })
+      )
+    );
+
+    expect(result.current.isMediaStorageFull).toBe(true);
+  });
 });

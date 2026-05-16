@@ -68,6 +68,7 @@ function ReferenceGridComponent({
   topNotice = null,
   curatedReferenceIds = [],
   removedFromAllRefsIds = [],
+  isMediaStorageFull = false,
   showHeader = true,
   onOutputMediaLoaded,
   linkedPromptReferenceIds = [],
@@ -480,6 +481,7 @@ function ReferenceGridComponent({
     onDeleteOutput,
     onClearGenerationOutput,
     onRemoveCuratedReference,
+    isMediaStorageFull,
     onSaveToLibrary,
     onDownload,
   });

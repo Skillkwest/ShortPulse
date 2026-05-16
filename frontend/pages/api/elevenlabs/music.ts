@@ -45,6 +45,8 @@ type GenerateMusicSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: null;
     modelId: string;
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 
@@ -326,6 +328,8 @@ export default async function handler(
         durationMs: responseDurationMs,
         waveformPeaks: null,
         modelId,
+        saveState: persisted.saveState,
+        saveError: persisted.saveError,
       },
     });
   } catch (error) {

@@ -43,6 +43,7 @@ type StudioPreviewContractProps = ComponentProps<typeof StudioPreview>;
 export type AiStudioPreviewDetailContracts = {
   studioPreviewProps: StudioPreviewContractProps;
   detailModalOutput: StudioOutput | null;
+  isMediaStorageFull: boolean;
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;

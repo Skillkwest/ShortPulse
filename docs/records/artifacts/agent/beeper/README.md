@@ -11,6 +11,8 @@ Real issues that merit engineering follow-up should also produce a D-Bug handoff
 User-facing checkpoint summaries live in `beeper/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
 Route/control/action coverage history lives in `beeper/action-coverage/` so Beeper can expand functional coverage over time.
 The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
+Major-route success targets live in `beeper/route-success-map.md` so coverage depth is judged against real user outcomes.
+Open retest debt lives in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until Beeper revalidates them.
 
 ## Artifact Layout
 
@@ -18,6 +20,8 @@ The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can res
 - `baseline-kpi.md`: frozen quality targets Beeper should improve against over time.
 - `performance-scorecard.md`: durable scoring rubric for rating each substantive run out of 10.
 - `performance-ledger.md`: append-only ledger showing how Beeper earns a stronger score over time.
+- `campaign-scorecard.md`: campaign-level Coverage Score and Impact Score across multiple runs.
+- `retest-debt.md`: open bug retests and validation debt that should be revisited after fixes.
 - `run-log.md`: append-only ledger of substantive Beeper runs.
 - `sops.md`: Beeper workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.

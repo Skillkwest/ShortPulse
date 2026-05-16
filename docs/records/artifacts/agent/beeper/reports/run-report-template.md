@@ -9,6 +9,7 @@ Purpose: <one sentence describing the testing or audit run>.
 - Base URL:
 - Runtime project ref:
 - Audit user:
+- Interaction fidelity:
 - Trainer directives consulted:
 - Tools used:
 
@@ -16,7 +17,14 @@ Purpose: <one sentence describing the testing or audit run>.
 
 - Routes covered:
 - Primary user journey:
+- Why this fidelity label is honest:
 - What was intentionally skipped:
+- Route success target:
+- Retest-debt item touched:
+- Route bundle completeness:
+  - validated user action:
+  - confusion / edge / failure probe:
+  - coverage expansion:
 
 ## Action Log
 
@@ -29,14 +37,17 @@ Purpose: <one sentence describing the testing or audit run>.
 ### Blockers
 
 - `<issue, exact repro, probable impact>`
+- ROI tag:
 
 ### Functional Issues
 
 - `<issue, exact repro, probable impact>`
+- ROI tag:
 
 ### UI / UX Notes
 
 - `<friction, visual/interaction note, why it matters>`
+- ROI tag:
 
 ## Code Follow-Up
 
@@ -63,6 +74,7 @@ Purpose: <one sentence describing the testing or audit run>.
 - Weakest category:
 - Smallest improvement for the next run:
 - Next-run drill:
+- Real ROI gained:
 
 ## Training Record
 
@@ -70,3 +82,4 @@ Purpose: <one sentence describing the testing or audit run>.
 - Existing helper update needed?: <yes/no and why>
 - SOP / checklist update needed?: <yes/no and why>
 - Memory / training-history update needed?: <yes/no and why>
+- Retest-debt update needed?: <yes/no and why>

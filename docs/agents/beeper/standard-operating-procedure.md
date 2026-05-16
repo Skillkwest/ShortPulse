@@ -36,6 +36,8 @@ This SOP governs:
 - `docs/records/artifacts/agent/beeper/baseline-kpi.md`
 - `docs/records/artifacts/agent/beeper/performance-scorecard.md`
 - `docs/records/artifacts/agent/beeper/performance-ledger.md`
+- `docs/records/artifacts/agent/beeper/campaign-scorecard.md`
+- `docs/records/artifacts/agent/beeper/retest-debt.md`
 - `docs/records/artifacts/agent/beeper/trainer-directives-log.md`
 - `docs/records/artifacts/agent/beeper/training-history.md`
 
@@ -43,6 +45,7 @@ This SOP governs:
 
 - `beeper/checklists/live-product-walkthrough.md`
 - `beeper/action-coverage/README.md`
+- `beeper/route-success-map.md`
 - `beeper/next-run-queue.md`
 - `beeper/checkpoint-summaries/README.md`
 - `beeper/reports/README.md`
@@ -102,8 +105,11 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 - Use the packet for chronological notes and raw evidence.
 - Use the retained report for the durable audit summary.
 - Check `beeper/action-coverage/master-coverage-log.md` before picking the next lane so the run expands coverage on purpose.
+- Check `beeper/route-success-map.md` so the run is aiming at a real route-level success target instead of vague activity.
 - Check `beeper/next-run-queue.md` before inventing a new lane from scratch.
+- Check `docs/records/artifacts/agent/beeper/retest-debt.md` before choosing a new lane so open fix validations are not skipped.
 - Check `docs/records/artifacts/agent/beeper/trainer-directives-log.md` so the active trainer intent is explicit before the run starts.
+- Bias lane selection toward the lowest-coverage meaningful route unless a retest or blocker has higher ROI.
 
 ### Step 3. Confirm environment and identity
 
@@ -119,6 +125,19 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 - Follow the product's natural decision tree before forcing hidden states. If the user would likely click `New Project`, `Open the AI Studio`, or `Add files`, Beeper should prefer that path over route-jumping when the extra step adds meaningful UX evidence.
 - Do not waste tokens on broad extraction when a targeted click, visible state check, or screenshot answers the question.
 - Before logging a layout judgment on a dense desktop surface, make sure the capture is wide enough to show the primary controls fully; if not, widen the viewport or take additional captures first.
+- Prefer a route bundle over a tiny isolated action when the adjacent next steps remain in the same surface and add real evidence.
+- Default substantive run target:
+  - one validated user action
+  - one confusion, edge, or failure probe
+  - one clear coverage expansion
+- Prefer uncovering trust-breaking user moments over collecting extra tidy but low-impact artifacts.
+- Before the run moves far, classify its intended interaction fidelity:
+  - `real-user path`
+  - `mixed`
+  - `targeted probe`
+- Use `real-user path` only when the entry and navigation are mostly natural for a normal user.
+- Use `mixed` when Beeper route-targets or reopens a known saved surface for efficiency, but the in-surface actions remain realistic.
+- Use `targeted probe` when the run is mainly validating one control, one edge state, one direct deep link, or one repro path a normal user would not naturally take end to end.
 
 ### Step 5. Exercise the flow
 
@@ -140,6 +159,18 @@ Every notable observation should fall into one of these buckets:
 - `ui/ux note`: confusing, rough, slow, noisy, visually weak, or awkward but not broken
 - `positive note`: something notably clear, fast, polished, or confidence-building
 
+Optional ROI tags may be added when the finding needs prioritization help:
+
+- `trust-break`
+- `workflow-friction`
+- `technical-defect`
+
+When prioritizing findings inside a run:
+
+- trust-breaking user moments outrank tidy technical oddities
+- believable workflow confusion outranks minor implementation trivia
+- full workflow evidence outranks artifact neatness
+
 ### Step 7. Inspect code around real issues
 
 When Beeper finds a real issue:
@@ -154,9 +185,11 @@ When Beeper finds a real issue:
 The retained report should include:
 
 - exact surface and environment,
+- interaction-fidelity label and why it earned that label,
 - repro steps,
 - expected vs actual behavior,
 - severity classification,
+- optional ROI tag when it helps rank the issue,
 - likely user impact,
 - probable code/doc surfaces,
 - and the first places another agent should inspect.
@@ -177,6 +210,7 @@ At each meaningful checkpoint in a longer testing run:
 
 - create a detailed checkpoint report in `beeper/reports/`,
 - record what Beeper actually tried,
+- state whether the checkpoint was `real-user path`, `mixed`, or `targeted probe`,
 - separate what worked from what failed,
 - and preserve workflow friction while it is still fresh.
 
@@ -186,6 +220,8 @@ At each meaningful checkpoint in any user-facing training run:
 - make it easy to scan in under a minute,
 - explicitly list what was tried, what worked, what failed, and what got handed off,
 - and link the fuller Beeper report, retained report, run packet, and D-Bug handoff when they exist.
+
+Do not create a trainer-facing checkpoint summary for process-only hardening or artifact-maintenance work unless the user explicitly wants process review.
 
 At each meaningful checkpoint in any expanding product audit:
 
@@ -208,6 +244,13 @@ For every substantive supervised run:
 - update the action-coverage log,
 - append the run log when the run is substantive,
 - and update training history when the run taught a durable lesson.
+- If a run was `mixed` or a `targeted probe`, say that plainly in the report instead of implying it was a full natural-user journey.
+
+After every `3-5` substantive runs, or after a meaningful breadth jump:
+
+- review `campaign-scorecard.md`,
+- update the current Coverage Score and Impact Score,
+- and use those campaign scores to decide whether the next emphasis should be breadth, impact, or retest depth.
 
 ## Severity Framework
 
@@ -255,6 +298,7 @@ Beeper is in training mode. That means:
 - every score below `9/10` should produce one concrete process improvement,
 - every substantive supervised run should end with one next-run drill tied to the weakest category,
 - deeper workflow coverage should win over additional process hardening unless process drift is the real blocker,
+- high-ROI route bundles should win over fragmented micro-checkpoints when the next adjacent action stays in the same surface,
 - and repeated friction should become a helper, checklist rule, or SOP update.
 
 ## Known Scenario Framework

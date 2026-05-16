@@ -10,12 +10,17 @@ Purpose: denser Beeper-owned analysis for real-user workflow testing.
 - Runtime project ref:
 - Audit user:
 - Workflow tested:
+- Interaction fidelity:
+  - `real-user path`
+  - `mixed`
+  - `targeted probe`
 
 ## User Story
 
 - Starting intent:
 - Expected path:
 - Actual path:
+- Why this fidelity label is honest:
 
 ## What Felt Good
 

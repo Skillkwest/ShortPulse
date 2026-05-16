@@ -5,6 +5,7 @@ Purpose: give the human trainer a very fast way to scan what Beeper did at each 
 ## Rules
 
 - Keep one summary per meaningful checkpoint.
+- Keep summaries for product-testing checkpoints, not for process-only hardening work.
 - Keep the writing short, literal, and easy to scan.
 - Always include:
   - what Beeper tried
@@ -23,4 +24,8 @@ Purpose: give the human trainer a very fast way to scan what Beeper did at each 
 - `beeper/checkpoint-summaries/2026-05-15-prod-project-create-lane-summary.md`
 - `beeper/checkpoint-summaries/2026-05-15-prod-ai-studio-working-lane-summary.md`
 - `beeper/checkpoint-summaries/2026-05-15-prod-ai-studio-non-generate-lane-summary.md`
-- `beeper/checkpoint-summaries/2026-05-15-handoff-hardening-summary.md`
+- `beeper/checkpoint-summaries/2026-05-15-prod-ai-studio-deeper-non-generate-lane-summary.md`
+- `beeper/checkpoint-summaries/2026-05-15-prod-logout-signin-lane-summary.md`
+- `beeper/checkpoint-summaries/2026-05-15-prod-open-existing-project-lane-summary.md`
+- `beeper/checkpoint-summaries/2026-05-15-prod-profile-safe-edit-save-lane-summary.md`
+- `beeper/checkpoint-summaries/2026-05-15-prod-media-library-search-lane-summary.md`

@@ -1,0 +1,79 @@
+{
+  "gateVisible": false,
+  "url": "https://www.shortpulse.ai/character",
+  "title": "Character Manager | ShortPulse",
+  "headings": [
+    "Character Manager",
+    "QuickSwap Deck",
+    "Character Sheet"
+  ],
+  "bodyText": "Skip to main content\nCharacter Manager\n\nStart with a simple uploader to define your character and add reference images.\n\nPLAN\n\nBusiness\n\nBQ\nDashboard\nManage Characters\nCharacter Profile\n\nQuickSwap Deck\n\nThe quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.\n\nClick to upload\nCharacter Sheet\nName:\n\nLooks:\n\n1\nDescription:\n\nTip: Character description will be used as part of consistency generation.\n\n0/150\n\nCharacter References:\n\nDrop reference or click to upload\n(Required)\nPortrait\nDrop reference or click to upload\n(Optional)\nClose-up\nDrop reference or click to upload\n(Optional)\nFull-body\n\nDrag or upload references into each slot. These images are used to train your character generations.",
+  "buttons": [
+    {
+      "i": 0,
+      "text": "Manage Characters",
+      "aria": "",
+      "disabled": false
+    },
+    {
+      "i": 1,
+      "text": "Character Profile",
+      "aria": "",
+      "disabled": false
+    },
+    {
+      "i": 2,
+      "text": "",
+      "aria": "Collapse QuickSwap Deck",
+      "disabled": false
+    },
+    {
+      "i": 3,
+      "text": "Click to upload",
+      "aria": "Upload quick swap reference image",
+      "disabled": false
+    },
+    {
+      "i": 4,
+      "text": "1",
+      "aria": "",
+      "disabled": false
+    },
+    {
+      "i": 5,
+      "text": "",
+      "aria": "Add character look",
+      "disabled": false
+    }
+  ],
+  "inputs": [
+    {
+      "i": 0,
+      "tag": "INPUT",
+      "type": "text",
+      "placeholder": "Enter character name",
+      "value": "New Character"
+    },
+    {
+      "i": 1,
+      "tag": "TEXTAREA",
+      "type": "",
+      "placeholder": "A sleek midnight-blue sports car with a low profile, sculpted bodywork, glowing headlights, and polished alloy rims.",
+      "value": ""
+    },
+    {
+      "i": 2,
+      "tag": "INPUT",
+      "type": "file",
+      "placeholder": "",
+      "value": ""
+    },
+    {
+      "i": 3,
+      "tag": "INPUT",
+      "type": "file",
+      "placeholder": "",
+      "value": ""
+    }
+  ]
+}

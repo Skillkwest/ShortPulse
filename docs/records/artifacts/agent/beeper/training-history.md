@@ -218,6 +218,112 @@ Training result:
 Next training focus:
 
 - Keep the coverage log honest about depth so "opened" is not confused with "fully validated."
+
+## 2026-05-15: Production Profile Safe Edit Save Lane
+
+Task: validate one safe production profile/account write path so Beeper expands beyond read-only settings inspection.
+
+Actions taken:
+
+- Opened the production account settings route through the signed-in settings shell.
+- Identified `Display name` as the safest editable field on the dedicated audit account.
+- Changed the live value from `aiagentayla@gmail.com` to `Beeper QA`, clicked `Save changes`, and captured the success state.
+- Reloaded the page and confirmed the saved value persisted.
+- Updated the retained report, Beeper report, checkpoint summary, coverage log, run log, and performance ledger.
+
+Training result:
+
+- Beeper now has a validated production account-settings edit/save/reload workflow instead of only clicked-level settings coverage.
+- This was a strong real-user confidence path with low debugging yield, which reinforces that healthy passes still need to teach something specific about persistence and trust.
+
+Next training focus:
+
+- Move into Media Library browse/select/search so normal-user coverage grows beyond the already-known stale preview-path bug.
+- Keep prioritizing stateful workflows that either persist cleanly or expose a specific bottleneck.
+
+## 2026-05-15: Production Media Library Search Lane
+
+Task: expand Media Library normal-user coverage beyond route load and the previously logged stale-preview issue.
+
+Actions taken:
+
+- Reopened production Media Library in a wide viewport and re-signed in once the session had expired.
+- Browsed the default grid, searched uploaded images, selected one result, and confirmed selection controls and `Deselect all` behavior.
+- Switched through videos, prompts, and AI Studio generations to verify honest empty-state behavior.
+- Forced a no-match search query on `Uploaded Images` and captured the misleading `No images uploaded yet.` empty-state copy.
+- Wrote the Beeper run packet, retained report, full report, trainer summary, coverage update, performance ledger update, and D-Bug handoff.
+
+Training result:
+
+- Beeper now has deeper Media Library browse/search/select coverage instead of only route-open coverage.
+- The route issue that surfaced is a better real-user trust bug than a raw runtime failure: a search miss is misrepresented as a missing library.
+- The weakest scoring category shifted back toward coverage expansion, which is correct because Media Library is no longer the shallowest surface.
+
+Next training focus:
+
+- Move to the character route so overall product breadth increases.
+- Keep preferring low-coverage routes until the coverage map is more balanced.
+
+## 2026-05-15: ROI Training Audit And Artifact Pruning
+
+Task: audit Beeper's docs, scores, memory, and retained artifact habits for whether they are increasing real tester impact or only increasing documentation volume.
+
+Actions taken:
+
+- Audited the recent automated runs, the coverage log, the performance ledger, the scorecard, the SOP, and Beeper memory.
+- Wrote a durable ROI synthesis that distinguishes high-value tester behavior from low-value process noise.
+- Tightened the contract, memory, SOP, KPI, scorecard, run template, and notes template around route-bundle runs, coverage-first lane choice, and ROI-aware scoring.
+- Pruned the process-only `handoff-hardening` checkpoint summary from the trainer scan lane.
+- Updated the trainer directives log and retained run log so the new behavior is durable.
+
+Training result:
+
+- Beeper now has a sharper rule set: real product checkpoints stay prominent, while process maintenance should be batched and demoted.
+- The score system now punishes low-ROI neatness more directly.
+- Trainer-facing artifacts should become easier to scan because low-signal process summaries are no longer treated like product checkpoints.
+
+Next training focus:
+
+- Validate the character route with a fuller route bundle instead of another narrow adjacent check.
+- Keep using the new ROI rule to decide whether a proposed artifact is helping training or only adding noise.
+
+## 2026-05-15: Trainer Priority Correction
+
+Task: make the user's sharpest training correction durable so Beeper chooses better lanes and judges its work more harshly.
+
+Actions taken:
+
+- Added the trainer directive to prioritize low-coverage routes first.
+- Updated memory and SOP so full workflows outrank elegant paperwork.
+- Updated the scorecard so trust-breaking user moments weigh more heavily than minor technical oddities.
+- Tightened the next-run queue rule so comfortable repeat routes lose priority unless they have higher ROI.
+
+Training result:
+
+- Beeper now has a harder operating bias toward breadth, workflow completion, and trust-breaking UX discovery.
+
+Next training focus:
+
+- Apply this directly on the next `character` route bundle instead of drifting back toward already-partial surfaces.
+
+## 2026-05-15: Scoring Model Split
+
+Task: align Beeper's formal scoring with its harsher self-rating by separating checkpoint quality from overall campaign effectiveness.
+
+Actions taken:
+
+- Kept the existing run-level scorecard intact for substantive checkpoint quality.
+- Added a separate campaign scorecard for Coverage Score and Impact Score.
+- Updated the ledger, KPI, memory, SOP, and trainer directives so Beeper now has both per-run and campaign-level scoring.
+
+Training result:
+
+- Beeper can now rate a run highly without pretending whole-app progress is equally mature.
+- The formal system now matches the real distinction between good checkpoint work and uneven route breadth.
+
+Next training focus:
+
+- Use the campaign scores to justify pushing the `character` route before returning to already-partial comfortable surfaces.
 - If the manual log becomes too slow, add a small helper to scaffold coverage entries from checkpoint notes.
 
 ## 2026-05-15: Scoring And Directive Logging Hardening
@@ -304,6 +410,77 @@ Next training focus:
 
 - Use the logout -> sign-back-in loop as the next high-value lane unless the user redirects scope.
 - See whether the next substantive score raises the `coverage expansion` category.
+
+## 2026-05-15: Logout Sign-In Validation Run
+
+Task: validate the full production logout -> sign-back-in loop like a real user would.
+
+Actions taken:
+
+- Chose the top-ranked lane from `beeper/next-run-queue.md`.
+- Opened the signed-in dashboard, used the visible `Profile menu`, and triggered logout.
+- Initially misread the first `Log out` click as a failed logout, then verified the expected confirmation dialog and corrected the run.
+- Confirmed that the second `Log out` click cleared auth token keys and landed on the public home page.
+- Used the visible `Log in` entry point, returned to `/auth?next=%2Fdashboard`, and signed back into the dashboard.
+- Verified separately that the signed-out public home page still reports the title `ShortPulse · Dashboard`, then prepared a low-severity D-Bug handoff for that metadata mismatch.
+
+Training result:
+
+- Beeper now has a validated real-user logout/re-entry workflow instead of only sign-in-only coverage.
+- The weakest score category improved from coverage depth toward code/handoff usefulness.
+- The run also reinforced a real training lesson: do not call a visible CTA broken until the full dialog flow is exhausted.
+
+Next training focus:
+
+- Use the new top queue lane: open an existing saved project from the dashboard projects overlay and confirm persistence after reload.
+- Keep looking for deeper validated workflows, not just new routes.
+
+## 2026-05-15: Existing Project Reopen Validation Run
+
+Task: validate the dashboard projects overlay by reopening an existing saved project and checking persistence after reload.
+
+Actions taken:
+
+- Chose the top-ranked lane from `beeper/next-run-queue.md`.
+- Opened the signed-in dashboard and used the visible `Open Projects` path.
+- Confirmed that the saved Beeper production project was visible in the overlay and selected it.
+- Landed in AI Studio with a stable `projectId`, reopened the in-studio projects overlay, and reloaded the route.
+- Confirmed that the same `projectId` survived reload and that no new production defect surfaced in the flow.
+- Read the shared `ProjectsModal` and dashboard mount wiring so the checkpoint still carried technical learning value.
+
+Training result:
+
+- The dashboard existing-project reopen path is now validated, not just partially exercised.
+- Coverage depth keeps improving through real user workflows rather than more process hardening.
+- The main remaining limiter is technical learning value on healthy passes, not shallow route coverage.
+
+Next training focus:
+
+- Stay inside the reopened AI Studio project and validate one deeper non-generate workflow.
+- Keep looking for stateful actions that can either reveal bugs or teach sharper code ownership when the flow succeeds.
+
+## 2026-05-15: AI Studio Deeper Non-Generate Run
+
+Task: push AI Studio beyond panel-open checks by validating one real library action while the generate bug remains open.
+
+Actions taken:
+
+- Reopened the saved Beeper production project in AI Studio through the normal dashboard -> projects overlay path.
+- Opened the in-studio Media library and used the first visible audio playback control.
+- Confirmed that the audio action completed and that the Media library path is usable beyond simple panel visibility.
+- Searched the shared media-library and audio-player surfaces plus existing audio exclusivity audits to keep the checkpoint technically useful.
+- Noted one ambient signed-video `ERR_BLOCKED_BY_ORB` signal without escalating it because no user-visible failure was confirmed.
+
+Training result:
+
+- AI Studio now has one deeper validated non-generate library action.
+- The current limiter remains code/handoff usefulness on successful passes, not shallow route coverage.
+- Beeper should prefer next actions with a clearer persistent state change so healthy checkpoints still teach more.
+
+Next training focus:
+
+- Move to the profile/account safe edit-save lane or another stateful action with a stronger visible end state.
+- If a future visual-media lane turns the ambient ORB signal into a visible break, escalate it then.
 
 ## 2026-05-15: Trigger Phrase Hardening
 
@@ -393,3 +570,103 @@ Next training focus:
 
 - Start wide on dense studio surfaces by default.
 - Keep exploring successful non-generate AI Studio actions while the generate bug is open.
+
+## 2026-05-15: Reporting Process Hardening
+
+Task: tighten Beeper's reporting process so route-level success criteria and unresolved retests stay visible instead of living only in judgment calls.
+
+Actions taken:
+
+- Added `beeper/route-success-map.md` to define one believable normal-user success target per major route.
+- Added `docs/records/artifacts/agent/beeper/retest-debt.md` to track open issue validations after handoff and fix work.
+- Updated Beeper's contract, memory, SOP, KPI, workspace docs, retained artifact README, and run-report template so route success targets, retest debt, and optional ROI tags are part of the standing workflow.
+- Logged the hardening pass in the retained run log so the process change is traceable without creating a trainer-facing process-only checkpoint summary.
+
+Training result:
+
+- Beeper now has a clearer definition of what counts as meaningful route validation.
+- Open bugs now have a dedicated place to wait for retest instead of disappearing into handoff-only history.
+- Future reports should rank issues and next lanes more consistently because the route target and retest context are visible at run start.
+
+Next training focus:
+
+- Use the route success map and retest-debt ledger during the next real production run instead of treating them as passive docs.
+- Prefer clearing one low-coverage route or one meaningful retest-debt item each substantive run.
+
+## 2026-05-15: Production Character Route Bundle
+
+Task: move Character off the untouched list and validate one real edit path like a normal production user.
+
+Actions taken:
+
+- Opened production `/character` through the real auth path and kept the route in a wide desktop viewport.
+- Confirmed the live shell loads with Character Profile and QuickSwap visible.
+- Renamed the visible character in-session and added a second look tab.
+- Reopened the route in a fresh browser session and captured a prolonged `Loading character profile...` skeleton state instead of a settled editor.
+- Narrowed the likely code surfaces to Character bootstrap/restore/loading state and handed the issue to D-Bug.
+
+Training result:
+
+- Character is no longer a blank route on the coverage map.
+- Beeper now knows the likely live contract split:
+  - existing-character edit path is somewhat functional in-session
+  - fresh-session resume path is less trustworthy
+- The main miss was not route access; it was clean settle-state proof on reopen.
+
+Next training focus:
+
+- Retest Character after the bootstrap issue is debugged, or
+- move back to AI Studio for the next deeper stateful workflow now that Character is no longer untouched.
+
+## 2026-05-15: Production AI Studio Stateful Non-Generate Lane
+
+Task: close AI Studio's route-level success gap with one believable persisted editing workflow instead of another shell-only pass.
+
+Actions taken:
+
+- Reopened the saved production AI Studio project in a wide desktop viewport.
+- Replaced the main prompt text with a new realistic prompt value.
+- Reloaded the page and confirmed the prompt still matched.
+- Reopened the same project in a fresh signed-in browser context and confirmed the prompt still matched there too.
+- Updated the coverage map, route success map, run log, performance ledger, and next-run queue to reflect AI Studio's first validated success path.
+
+Training result:
+
+- AI Studio now has one credible normal-user success path, so Beeper no longer has to treat the route as only a shell-level partial.
+- The earlier wide-viewport correction held: this checkpoint relied on full-width evidence instead of cramped judgments.
+- The remaining AI Studio risk is now cleaner:
+  - generate remains an open defect lane
+  - top layout tab trust remains an open defect lane
+  - prompt persistence is a confirmed strength
+
+Next training focus:
+
+- Leave AI Studio and close another lower-coverage route.
+- Prefer Character reuse/create-save or a deeper Dashboard control path before returning to comfortable AI Studio coverage.
+
+## 2026-05-15: Real-User Interaction Audit
+
+Task: audit Beeper's own production reports to determine whether the claimed "real user" interactions were truly user-like.
+
+Actions taken:
+
+- Reviewed the fuller Beeper production reports and checkpoint summaries side by side.
+- Classified the strongest runs as true real-user paths:
+  - dashboard entry
+  - project create
+  - open existing project
+  - logout/sign-in
+  - profile safe edit/save
+- Classified several other runs as `mixed` or `targeted probe` rather than pure real-user behavior.
+- Hardened Beeper's contract, memory, SOP, and report templates so future runs must label interaction fidelity honestly.
+
+Training result:
+
+- Beeper's main drift was not fake evidence; it was over-broad real-user framing.
+- Mixed-mode route probes are still useful, but they should no longer be reported as pure normal-user journeys.
+- Future trainer review should be easier because realism labeling is now explicit.
+
+Next training focus:
+
+- Use the new fidelity labels on the next live checkpoint.
+- Push toward more true end-to-end user paths and fewer isolated control probes unless the lane is explicitly debug-oriented.

@@ -28,6 +28,13 @@ Purpose: chronological scratch log for one supervised Beeper run.
 - New trainer directions received during this run:
 - Prompt phrase that started the run:
 
+## ROI Notes
+
+- Validated user action:
+- Confusion / edge / failure probe:
+- Coverage expansion:
+- Why this run mattered:
+
 ## Raw Findings
 
 - Blockers:

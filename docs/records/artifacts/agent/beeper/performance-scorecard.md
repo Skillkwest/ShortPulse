@@ -2,6 +2,8 @@
 
 Purpose: define a stable scoring system for Beeper's supervised testing performance so each substantive run can be rated consistently out of 10.
 
+This file governs the `Run Score`, not the whole testing campaign. Campaign-level effectiveness is tracked separately in `campaign-scorecard.md`.
+
 This score is meant to be earned over time through better real-user coverage, cleaner evidence, stronger handoffs, and fewer repeated process mistakes.
 
 ## Audit Of The Old System
@@ -16,7 +18,7 @@ Main weaknesses:
 - it did not require a next-run drill tied to the weakest category
 - it did not explicitly punish repeated mistakes enough
 
-This version fixes that by adding score caps, training gates, and a mandatory remediation loop.
+This version fixes that by adding score caps, training gates, a mandatory remediation loop, and a clearer ROI bias toward route-bundle workflow evidence over artifact volume.
 
 ## Scoring Method
 
@@ -41,6 +43,8 @@ High paperwork quality cannot compensate for weak real-user testing depth.
 - `0.75`: touched something new but shallowly.
 - `0.0`: mostly repeated already-covered work without new evidence.
 
+Coverage score should be lowered when a run is over-fragmented into tiny adjacent checks that could have been one coherent route bundle.
+
 ### 3. Evidence quality (`2.0`)
 
 - `2.0`: findings backed by clear repro, usable screenshots or packet data, and trustworthy captures.
@@ -52,6 +56,8 @@ High paperwork quality cannot compensate for weak real-user testing depth.
 - `1.5`: correctly separated blockers, functional issues, UI/UX notes, and positives, with good severity judgment.
 - `0.75`: mostly correct classification with some ambiguity.
 - `0.0`: poor classification or unreliable severity calls.
+
+Trust-breaking user moments should be weighted more heavily than minor technical oddities when judging triage quality.
 
 ### 5. Code/handoff usefulness (`1.5`)
 
@@ -98,6 +104,16 @@ Examples:
 Training/logging discipline plus operational discipline cannot together outweigh weak product work.
 
 If `real-user fidelity + coverage expansion + evidence quality` totals below `3.5`, the final run score cannot exceed `7.9`.
+
+### Gate 5. No ROI movement cap
+
+If a run does not do at least one of the following, the total score is capped at `8.6`:
+
+- validates one meaningful user workflow,
+- finds one believable new product issue or trust-breaking UX problem,
+- or materially expands low-coverage route breadth.
+
+This prevents neat artifact production from reading as a strong run when product uncertainty barely moved.
 
 ## Confidence Tag
 
@@ -188,17 +204,6 @@ Bad drills:
 - "test more"
 - "improve quality"
 
-## Current Meta Assessment - 2026-05-15
-
-- Current Beeper operating score: `8.2 / 10`
-- Reason:
-  - strong production issue yield
-  - useful handoffs and evidence
-  - real-user behavior improved the findings
-  - too much meta-process logging relative to app coverage depth
-  - some routes still only have shallow coverage
-  - one viewport mistake required correction before the evidence was safe to trust
-
 ## Improvement Rule
 
 When a substantive run scores below `9.0`, Beeper should record:
@@ -213,3 +218,31 @@ When the same weakest category appears in `3` consecutive substantive runs, Beep
 - checklist change
 - SOP change
 - or narrower lane selection on the next run
+
+## ROI Rule
+
+The score system exists to improve tester impact, not to reward artifact neatness.
+
+High-ROI runs usually:
+
+- remove meaningful user uncertainty,
+- validate one believable workflow end to end,
+- or isolate a trust-breaking product issue with direct evidence.
+
+Low-ROI runs usually:
+
+- over-focus on process-only maintenance,
+- split one coherent route into too many tiny checkpoints,
+- or produce clean paperwork without moving product understanding very far.
+
+## Relationship To Campaign Scoring
+
+Use this run score to judge checkpoint quality.
+
+Do not use it alone to judge Beeper's whole effectiveness as a tester.
+
+Campaign-level judgment should also consult:
+
+- `docs/records/artifacts/agent/beeper/campaign-scorecard.md`
+- `beeper/action-coverage/master-coverage-log.md`
+- outstanding D-Bug handoffs and retest debt

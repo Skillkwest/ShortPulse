@@ -1,0 +1,101 @@
+{
+  "environment": "production",
+  "baseUrl": "https://www.shortpulse.ai",
+  "runtimeProjectRef": "ftgrqgjrchpimronuhop",
+  "auditEmail": "aiagentayla@gmail.com",
+  "toolsUsed": [
+    "playwright via beeperAuditRuntime",
+    "production hosted browser flow"
+  ],
+  "trainerDirectivesConsulted": [
+    "real-user behavior",
+    "wide browser rule",
+    "checkpoint reporting",
+    "coverage expansion"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "surface": "account settings",
+      "action": "open profile account settings",
+      "result": "https://www.shortpulse.ai/profile?section=account",
+      "evidence": "profile-save-01-account-settings.png"
+    },
+    {
+      "step": 2,
+      "surface": "identity form",
+      "action": "edit display name",
+      "result": "aiagentayla@gmail.com -> Beeper QA",
+      "evidence": "profile-save-02-name-edited.png"
+    },
+    {
+      "step": 3,
+      "surface": "identity form",
+      "action": "save display name change",
+      "result": "field now shows Beeper QA",
+      "evidence": "profile-save-03-after-save.png"
+    },
+    {
+      "step": 4,
+      "surface": "identity form reload",
+      "action": "reload settings page",
+      "result": "display name after reload: Beeper QA",
+      "evidence": "profile-save-04-after-reload.png"
+    }
+  ],
+  "originalName": "aiagentayla@gmail.com",
+  "updatedName": "Beeper QA",
+  "afterSaveName": "Beeper QA",
+  "afterReloadName": "Beeper QA",
+  "bodyAfterSaveExcerpt": "BE\n\nSETTINGS WORKSPACE\n\nAccount settings\n\nManage identity, email, and security controls for your workspace.\n\nBack to dashboard\nAccount\nSubscription\nCredits\nMedia storage\nTransactions\nLog out\n\nProfile updated.\n\nIDENTITY\n\nProfile\n\nThis name appears in your dashboard.\n\nDisplay name\nSave changes\n\nWORKSPACE EMAIL\n\nEmail\n\nChanges are confirmed by email.\n\nEmail address\nUpdate email\n\nSECURITY\n\nPassword reset\n\nSend a password reset link to your email.\n\nSend reset link\nAI Studio autosave\n\nControl whether eligible AI Studio media is automatically saved to your Media Library.\n\nAutosave is ON. New eligible AI Studio media will save automatically to your Media Library.\n\nShortPulse · Settings",
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://www.shortpulse.ai/_next/data/DoOH3NhYSSvx_yq4dVYtk/dashboard.json",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_subscription_contracts?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&ended_at=is.null",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_plans?select=id%2Cdisplay_name%2Cmonthly_price_cents%2Cmonthly_credits_cents%2Cstorage_limit_bytes%2Cis_active&is_active=eq.true",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/announcements/active",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_profiles?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

@@ -63,6 +63,22 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Document the trainer's directions and prompt patterns.
 - Audit and score performance on a Beeper-owned scoring system.
 
+### 2026-05-15 - Throughput and full-app intent
+
+- Track what has already been tested so Beeper can eventually exercise every meaningful part of the app like a normal user would.
+- Increase useful work per run when safe: prefer fuller route bundles over tiny isolated checks.
+
+### 2026-05-15 - Sharpest training correction
+
+- Push low-coverage routes first.
+- Reward full workflows over elegant paperwork.
+- Judge Beeper hardest on whether it uncovers trust-breaking user moments, not just technical defects.
+
+### 2026-05-15 - Scoring model split
+
+- Keep the per-run score for checkpoint quality.
+- Also track campaign-level coverage and impact so Beeper's self-rating matches overall tester effectiveness.
+
 ## Usage Rule
 
 Before a substantive run, Beeper should consult this file for standing trainer intent.

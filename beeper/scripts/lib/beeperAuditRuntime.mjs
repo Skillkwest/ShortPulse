@@ -29,7 +29,6 @@ const SUPPORTED_ENVIRONMENTS = new Set([
 const DEFAULT_AUDIT_ROUTES = [
   "/dashboard",
   "/ai-studio",
-  "/media-library",
   "/character",
   "/profile",
 ];

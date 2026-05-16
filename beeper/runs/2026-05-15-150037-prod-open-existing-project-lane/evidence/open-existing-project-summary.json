@@ -1,0 +1,113 @@
+{
+  "environment": "production",
+  "baseUrl": "https://www.shortpulse.ai",
+  "runtimeProjectRef": "ftgrqgjrchpimronuhop",
+  "auditEmail": "aiagentayla@gmail.com",
+  "toolsUsed": [
+    "playwright via beeperAuditRuntime",
+    "production hosted browser flow"
+  ],
+  "trainerDirectivesConsulted": [
+    "real-user behavior",
+    "wide browser rule",
+    "checkpoint reporting",
+    "coverage expansion"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "surface": "dashboard",
+      "action": "open signed-in dashboard",
+      "result": "https://www.shortpulse.ai/dashboard",
+      "evidence": "open-existing-01-dashboard.png"
+    },
+    {
+      "step": 2,
+      "surface": "projects overlay",
+      "action": "open dashboard projects overlay",
+      "result": "found existing project Beeper Prod Project 2026-05-15T20-31-55-788Z",
+      "evidence": "open-existing-02-projects-overlay.png"
+    },
+    {
+      "step": 3,
+      "surface": "ai studio",
+      "action": "open existing project from dashboard overlay",
+      "result": "https://www.shortpulse.ai/ai-studio?projectId=50745fe4-a174-4e7e-974a-abb406589081&sid=f66a26b7-c050-4be7-9b28-16c959345700",
+      "evidence": "open-existing-03-ai-studio-landing.png"
+    },
+    {
+      "step": 4,
+      "surface": "ai studio projects",
+      "action": "reopen in-studio projects overlay",
+      "result": "overlay reopened for Beeper Prod Project 2026-05-15T20-31-55-788Z",
+      "evidence": "open-existing-04-in-studio-projects.png"
+    },
+    {
+      "step": 5,
+      "surface": "ai studio reload",
+      "action": "reload existing project route",
+      "result": "https://www.shortpulse.ai/ai-studio?projectId=50745fe4-a174-4e7e-974a-abb406589081&sid=f66a26b7-c050-4be7-9b28-16c959345700",
+      "evidence": "open-existing-05-after-reload.png"
+    }
+  ],
+  "projectName": "Beeper Prod Project 2026-05-15T20-31-55-788Z",
+  "openedUrl": "https://www.shortpulse.ai/ai-studio?projectId=50745fe4-a174-4e7e-974a-abb406589081&sid=f66a26b7-c050-4be7-9b28-16c959345700",
+  "reloadedUrl": "https://www.shortpulse.ai/ai-studio?projectId=50745fe4-a174-4e7e-974a-abb406589081&sid=f66a26b7-c050-4be7-9b28-16c959345700",
+  "persistedProjectId": "50745fe4-a174-4e7e-974a-abb406589081",
+  "signals": {
+    "severeConsole": [],
+    "severePageErrors": [],
+    "httpFailures": [],
+    "requestFailures": [
+      {
+        "url": "https://www.shortpulse.ai/_next/data/DoOH3NhYSSvx_yq4dVYtk/dashboard.json",
+        "method": "HEAD",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/credits/snapshot",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_subscription_contracts?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75&ended_at=is.null",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/announcements/active",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_profiles?select=plan_id&user_id=eq.1609d304-f075-4918-a9ce-437548734a75",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/rpc/get_media_storage_quota_summary",
+        "method": "POST",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://ftgrqgjrchpimronuhop.supabase.co/rest/v1/billing_plans?select=id%2Cdisplay_name%2Cmonthly_price_cents%2Cmonthly_credits_cents%2Cstorage_limit_bytes%2Cis_active&is_active=eq.true",
+        "method": "GET",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081/workspace",
+        "method": "PUT",
+        "resourceType": "fetch",
+        "errorText": "net::ERR_ABORTED"
+      }
+    ],
+    "ok": false
+  }
+}

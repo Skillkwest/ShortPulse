@@ -1,0 +1,279 @@
+{
+  "projectId": "50745fe4-a174-4e7e-974a-abb406589081",
+  "originalPrompt": "A cinematic portrait of a red fox wearing headphones in a neon studio",
+  "nextPrompt": "Beeper QA persistent prompt 733020",
+  "reloadedPrompt": "Beeper QA persistent prompt 733020",
+  "persisted": true,
+  "workspaceSignals": [
+    {
+      "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081/workspace",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081/workspace",
+      "status": 200,
+      "method": "PUT"
+    },
+    {
+      "url": "https://www.shortpulse.ai/api/projects/50745fe4-a174-4e7e-974a-abb406589081/workspace",
+      "status": 200,
+      "method": "GET"
+    }
+  ],
+  "topButtons": [
+    {
+      "i": 0,
+      "text": "Canvas",
+      "aria": "",
+      "pressed": "false",
+      "selected": null
+    },
+    {
+      "i": 1,
+      "text": "Quick Slot Inventory",
+      "aria": "",
+      "pressed": "true",
+      "selected": null
+    },
+    {
+      "i": 2,
+      "text": "Reference Grid",
+      "aria": "",
+      "pressed": "true",
+      "selected": null
+    },
+    {
+      "i": 3,
+      "text": "Projects",
+      "aria": "Projects",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 4,
+      "text": "Create",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 5,
+      "text": "Edit",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 6,
+      "text": "Video",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 7,
+      "text": "Sound",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 11,
+      "text": "Media",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 12,
+      "text": "Characters",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 13,
+      "text": "Elements",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 14,
+      "text": "Presets",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 15,
+      "text": "Styles",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 16,
+      "text": "Templates",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 17,
+      "text": "My Generations",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 18,
+      "text": "Community",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 19,
+      "text": "Standard",
+      "aria": "",
+      "pressed": null,
+      "selected": "true"
+    },
+    {
+      "i": 20,
+      "text": "Pulse",
+      "aria": "",
+      "pressed": null,
+      "selected": "false"
+    },
+    {
+      "i": 21,
+      "text": "Clear",
+      "aria": "Clear chat",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 22,
+      "text": "",
+      "aria": "Open prompt tools",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 23,
+      "text": "",
+      "aria": "Enable chat mode",
+      "pressed": "false",
+      "selected": null
+    },
+    {
+      "i": 24,
+      "text": "Styles",
+      "aria": "Styles",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 25,
+      "text": "Generate\n✦\n2",
+      "aria": "Generate with current prompt",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 26,
+      "text": "",
+      "aria": "Enable character mode",
+      "pressed": "false",
+      "selected": null
+    },
+    {
+      "i": 27,
+      "text": "Seedream 4.5",
+      "aria": "Open model picker",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 28,
+      "text": "9:16\nVertical",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 29,
+      "text": "2K",
+      "aria": "Image resolution",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 30,
+      "text": "Generate✦2 credits",
+      "aria": "Generate",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 31,
+      "text": "",
+      "aria": "Resize creative properties and reference grid columns",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 32,
+      "text": "Inventory ↓",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 33,
+      "text": "All Refs ↑",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 34,
+      "text": "Add files",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 35,
+      "text": "Media Library",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 36,
+      "text": "Add files",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 37,
+      "text": "Media library",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    },
+    {
+      "i": 38,
+      "text": "Regenerate",
+      "aria": "",
+      "pressed": null,
+      "selected": null
+    }
+  ],
+  "url": "https://www.shortpulse.ai/ai-studio?projectId=50745fe4-a174-4e7e-974a-abb406589081&sid=87b6c4bd-ad9a-47d6-9cb8-82632a25b3d2"
+}

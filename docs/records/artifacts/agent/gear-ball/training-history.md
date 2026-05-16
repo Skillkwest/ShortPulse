@@ -401,3 +401,49 @@ Capability decision:
 Next training focus:
 
 - On the next large mixed run, treat the final `git status --short` classification as a hard gate, not a courtesy check.
+
+## 2026-05-15: Production Route Retirement And Audit Expansion Run
+
+Task: run the full SOP on the temporary prelaunch `production` branch for a mixed worktree covering standalone Media Library retirement, AI Studio/media persistence hardening, and expanded Beeper/D-Bug production audits.
+
+Actions taken:
+
+- Cleared a docs blocker by stripping repo-local absolute markdown links out of the new Beeper and D-Bug packets before rerunning `docs:check`.
+- Fixed a real hook regression in `useMediaAutosavePreference` (`sessionUserId` write path) and stabilized its focus-retry test.
+- Caught a build-only type regression in `useExpertEditStageInteractions` after the targeted slice and full suite were already green, then reran build and the full suite after the fix.
+- Published four logical commits on `production`:
+  - `ccdd3f41d` `feat(ai-studio): retire standalone media library route`
+  - `260c1e780` `fix(ai-studio): harden saved media authority`
+  - `e8c5d2053` `docs(media): reconcile standalone library retirement`
+  - `4d64f7f34` `docs(beeper): record deeper production audit lanes`
+
+Training result:
+
+- The validation ladder was materially stronger because `docs:check` ran before staging and `build` stayed in the gate after targeted tests.
+- The main miss was assuming the targeted product slice plus full suite were enough; the build still caught a type error those tests did not exercise.
+- Beeper/D-Bug report packets are still prone to local absolute-link drift when generated quickly; early docs validation remains the right containment step.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- The mixed worktree was split coherently into product, follow-up product, media docs, and audit artifacts.
+- The final full suite stayed green after the fixes.
+- The production-only branch contract held for the entire run.
+
+What slipped:
+
+- The autosave hook regression and the `useExpertEditStageInteractions` type mismatch were both avoidable first-pass misses.
+- The new audit docs still defaulted to invalid repo-local absolute links and needed cleanup.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `no`
+- SOP/doc update needed: `no`
+
+Next training focus:
+
+- On the next mixed production run, treat `docs:check` plus `build` as early gates whenever Beeper packet generation and shared editor hooks both moved in the same run.

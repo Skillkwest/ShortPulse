@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+import { resolveMediaStorageQuotaUserMessage } from "../mediaStorageQuota";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
@@ -112,6 +113,8 @@ export type PersistGeneratedAudioResult = {
   storagePath: string;
   signedUrl: string;
   outputRowId: string | null;
+  saveState: "saved" | "idle" | "blocked_storage";
+  saveError: string | null;
 };
 
 export type PersistGeneratedVideoResult = PersistGeneratedAudioResult & {
@@ -132,6 +135,29 @@ const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const resolveAutosaveSaveOutcome = ({
+  mediaFileId,
+  autosaveDecisionReason,
+}: {
+  mediaFileId: string | null;
+  autosaveDecisionReason: string;
+}): {
+  saveState: "saved" | "idle" | "blocked_storage";
+  saveError: string | null;
+} => {
+  if (mediaFileId) {
+    return {
+      saveState: "saved",
+      saveError: null,
+    };
+  }
+  const quotaMessage = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
+  return {
+    saveState: quotaMessage ? "blocked_storage" : "idle",
+    saveError: quotaMessage,
+  };
 };
 
 const normalizeProviderErrorMessage = (value: unknown): string | null => {
@@ -1014,6 +1040,10 @@ export const persistGeneratedAudioAsset = async ({
     }
   }
   const outputRowId = outputRows[0]?.id ?? null;
+  const saveOutcome = resolveAutosaveSaveOutcome({
+    mediaFileId,
+    autosaveDecisionReason,
+  });
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -1054,7 +1084,7 @@ export const persistGeneratedAudioAsset = async ({
     previewUrl: signedResult.data.signedUrl,
     previewStoragePath: storagePath,
     fullStoragePath: storagePath,
-    saveState: mediaFileId ? "saved" : "idle",
+    saveState: saveOutcome.saveState,
     hiddenInReferenceGrid: false,
     referenceGridVisible: true,
     publicationState: "published",
@@ -1083,6 +1113,8 @@ export const persistGeneratedAudioAsset = async ({
     storagePath,
     signedUrl: signedResult.data.signedUrl,
     outputRowId,
+    saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
   };
 };
 
@@ -1298,6 +1330,10 @@ export const persistGeneratedVideoAsset = async ({
     }
   }
   const outputRowId = outputRows[0]?.id ?? null;
+  const saveOutcome = resolveAutosaveSaveOutcome({
+    mediaFileId,
+    autosaveDecisionReason,
+  });
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -1338,7 +1374,7 @@ export const persistGeneratedVideoAsset = async ({
     previewUrl: signedResult.data.signedUrl,
     previewStoragePath,
     fullStoragePath: storagePath,
-    saveState: mediaFileId ? "saved" : "idle",
+    saveState: saveOutcome.saveState,
     hiddenInReferenceGrid: false,
     referenceGridVisible: true,
     publicationState: "published",
@@ -1372,6 +1408,8 @@ export const persistGeneratedVideoAsset = async ({
     previewPosterStoragePath,
     previewPosterUrl,
     outputRowId,
+    saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
   };
 };
 

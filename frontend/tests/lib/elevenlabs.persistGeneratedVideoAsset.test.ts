@@ -226,6 +226,37 @@ describe("persistGeneratedVideoAsset", () => {
     });
   });
 
+  it("fails closed when the autosave preference lookup errors", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: "user preference read failed" },
+    });
+
+    await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+      generationReplay: { source: "reroll-1" },
+      extraMetadata: { remuxed_from: "source-video-1" },
+    });
+
+    expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
   it("keeps video output records when media autosave insert fails", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

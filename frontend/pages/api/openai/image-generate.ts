@@ -41,6 +41,8 @@ type ImageGenerateSuccessResponse = {
     mimeType: string;
     modelId: string;
     savedMediaIds: string[];
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 
@@ -189,6 +191,8 @@ export default async function handler(
         mimeType: generated.contentType,
         modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
         savedMediaIds: persisted.mediaFileId ? [persisted.mediaFileId] : [],
+        saveState: persisted.saveState,
+        saveError: persisted.saveError,
       },
     });
   } catch (error) {

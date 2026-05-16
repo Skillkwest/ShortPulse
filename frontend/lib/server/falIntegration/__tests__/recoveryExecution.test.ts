@@ -1062,6 +1062,52 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("fails closed when the autosave preference lookup errors", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "running",
+          failure_reason_code: "terminal_success_no_media",
+          recovery_state: "queued",
+        },
+      ],
+      { userPreferenceError: { message: "user preference read failed" } }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: [],
+        note: "autosave_skipped",
+      })
+    );
+    expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(scenario.mediaEventInserts[0]).toEqual(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
   it("uses write-returned output ids when immediate output rereads are stale", async () => {
     const scenario = createAiGenerationsAdmin([
       {

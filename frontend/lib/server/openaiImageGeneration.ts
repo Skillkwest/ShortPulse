@@ -20,6 +20,7 @@ import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
 import { writeAppErrorLog } from "./api/appErrorLogs";
+import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
   associateGenerationWithProjectForUser,
@@ -180,21 +181,6 @@ const parseOpenAiImageResponse = async (
   };
 };
 
-const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("user_preferences")
-      .select("media_autosave_enabled")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) return true;
-    const value = (data as { media_autosave_enabled?: unknown } | null)?.media_autosave_enabled;
-    return typeof value === "boolean" ? value : true;
-  } catch {
-    return true;
-  }
-};
-
 const associateGeneratedOpenAiImageWithProject = async ({
   generationId,
   mediaFileId,
@@ -348,7 +334,7 @@ export const persistGeneratedImageAsset = async ({
     requestId: resolvedRequestId,
   });
   const effectiveHiddenInReferenceGrid = hiddenInReferenceGrid || abandonment.abandoned;
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(userId);
+  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ userId, supabaseAdmin });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,

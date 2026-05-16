@@ -484,3 +484,40 @@ Capability decision:
 - New tool needed: `no`
 - Existing helper update needed: `no`
 - SOP/doc update needed: `no`
+
+## 2026-05-15 - Production media autosave and training-system expansion
+
+Prompt cadence used:
+
+- run your sop on production. commit and push should be part of that sop
+
+What changed in this run:
+
+- Published the production AI Studio/media autosave hardening lane, including save-state propagation, quota refresh handling, workspace persistence fixes, and the media-panel KPI tooling/migration package.
+- Published the Beeper/Bopper training-system reorg, removed the old Beeper mode tree, and introduced the Holomony agent space and retained artifacts.
+
+What worked:
+
+- The validation ladder held: changed tests, `build`, `docs:check`, and the full suite all passed before the first Git write.
+- The full-suite rerun exposed the real edit-modal ref regression, which let me fix the underlying callback-ref churn instead of shipping a flaky test workaround.
+- Branch discipline stayed correct on `production` from start to finish.
+
+What failed or slipped:
+
+- The targeted Vitest call initially used repo-root paths while running from `frontend`.
+- Product and training-system docs still arrived as one large mixed dirty tree, which made the batch review heavier than it should have been.
+
+Durable lesson:
+
+- Keep frontend-relative changed-test manifests for repo-root SOP runs so the first targeted rerun is not wasted on path mismatches.
+- When production product work and agent-training lanes land together, split the Git batches before the first commit even if validation can be shared.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `no`
+- SOP/doc update needed: `no`

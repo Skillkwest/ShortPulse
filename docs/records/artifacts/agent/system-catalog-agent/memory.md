@@ -1,31 +1,22 @@
 # System Catalog Agent Artifact Memory
 
-Purpose: retain working memory notes for the System Catalog Agent outside the primary repo-visible memory surface.
+Purpose: retain only narrow historical notes that are not worth promoting into the primary repo-visible memory surface.
 
-## Current Focus
+## Load Rule
 
-- Maintain the systems catalog as the architecture and production-readiness authority.
-- Convert system scores into prioritized work and strong execution handoffs.
-- Work against the current production-readiness deadline of `2026-06-06`.
-
-## Current Priority Systems
-
-- Use `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-06-06.md` as the authority for current priority order.
-- Current active ship-critical focus:
-  - `reference-grid`
-  - `edit-workflow`
-  - `project-workspace-persistence`
-- `generation-recovery-settlement` remains queue-critical but is currently in `completed externally, pending Catalog Agent review` state.
+- Do not load this file during routine Catalog Agent runs.
+- Use `docs/agents/system-catalog-agent/memory.md` for current durable behavior.
+- Use dated reports or metric logs for historical evidence.
 
 ## Working Rule
 
-When catalog work produces a durable lesson, promote the concise version into `docs/agents/system-catalog-agent/memory.md` and keep broader supporting notes here or in dated reports.
+When a note becomes important for current launch decisions:
 
-## Durable Notes
+- promote the concise version into `docs/agents/system-catalog-agent/memory.md`, or
+- move the detail into a dated report or retained metric log
 
-- 2026-05-10: Media Library speed work should prioritize canonical preview authority, derivative-first browse, signed-URL reuse, and visible-window-only scheduling before worker/browser experiments.
-- 2026-05-10: The retained short-form roadmap for this lane is `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-10-media-library-speed-and-lean-roadmap.md`.
-- 2026-05-10: Phase 0 preparation now has a concrete tool entrypoint at `frontend/scripts/media_library_phase0_bundle.mjs`, with preset-driven live API probes and optional JSON packet output.
-- 2026-05-10: The planning family now has an explicit precedence order: master audit packet first, short roadmap second, Phase 0 checklist third.
-- 2026-05-10: The canonical sequence is Phase 0 through Phase 8, with limited overlap allowed only where the master packet explicitly permits it.
-- 2026-05-11: After initial implementation, prompt/media active-view cleanup and prompt-load dedupe remain worth keeping, but prompt CRUD no-op tuning is secondary to preview-authority and resolver-path work.
+This file should stay intentionally sparse. If it starts accumulating current-state truth, prune it again.
+
+## Retained Legacy Note
+
+- 2026-05-10 through 2026-05-11 media-library speed planning remains historical retained context only. Use the dated reports in `docs/records/artifacts/agent/system-catalog-agent/reports/` if that lane is reopened; do not treat those notes as current launch-priority truth by default.

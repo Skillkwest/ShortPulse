@@ -7,9 +7,9 @@ Purpose: list the current retained tools Holomony uses for media optimization an
 - `docs/agents/holomony/AGENTS.md`
   - Holomony-scoped execution overlay for surface scope, scoring, and stop rules
 - `frontend/scripts/media_panel_kpi_score.mjs`
-  - scores media panel KPI packets
+  - scores media panel KPI packets and compares retained packet runs
 - `frontend/scripts/media_panel_kpi_capture.mjs`
-  - captures a live AI Studio or Elements embedded media panel run and derives a KPI packet
+  - captures repeated live AI Studio or Elements embedded media panel runs and derives a KPI packet
 - `frontend/tests/e2e/media-library-runtime.audit.js`
   - retained browser audit for panel/modal runtime checks
 - `frontend/scripts/media_library_checkpoint_runner.mjs`
@@ -33,7 +33,6 @@ Purpose: list the current retained tools Holomony uses for media optimization an
 
 ## Current Gaps
 
-- no regression-comparison mode yet for KPI runs
 - no first-class Reference Grid KPI capture path yet
 - repeated retained baseline packets are still thin across approved surfaces
 - some panel metrics still depend on what the live session exposes

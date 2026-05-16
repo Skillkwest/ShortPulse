@@ -47,6 +47,9 @@ Purpose: provide one repeatable workflow for rating or refining a system row in 
 - Source-of-truth docs:
 - Core code paths:
 - Known incidents or operational signals:
+- Report paths:
+- Commit id or worktree checkpoint:
+- Validation commands or suites:
 - Open questions:
 
 ### 6. Score the system
@@ -66,6 +69,9 @@ Purpose: provide one repeatable workflow for rating or refining a system row in 
 - `Active lane`:
 - `Execution status`:
 - `Review basis`:
+- Previous score:
+- Proposed score:
+- Score delta:
 
 ### 7. Justify the score
 
@@ -74,6 +80,7 @@ Write one short paragraph:
 - why the scores make sense
 - what the biggest weaknesses are
 - what would most likely change the rating later
+- why the score delta is `+1`, `0`, or `-1`
 
 ### 8. Calibrate when relevant
 
@@ -94,5 +101,6 @@ A system rating pass is complete when:
 - source-of-truth references were checked
 - the four core scores are assigned
 - `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Blocker status`, `Blocker refs`, `Active lane`, `Execution status`, and `Review basis` are assigned
+- previous score, proposed score, and score delta are explicit
 - the `/10` shorthand is assigned when the evidence is strong enough
 - `Notes` captures the rationale or uncertainty

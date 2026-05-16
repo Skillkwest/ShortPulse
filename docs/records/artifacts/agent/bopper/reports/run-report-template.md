@@ -2,6 +2,8 @@
 
 Purpose: <one sentence describing the average-user testing run>.
 
+Operator note: this report is the compact retained technical record, not the lightweight trainer summary.
+
 ## Task
 
 - Requested work:
@@ -74,6 +76,13 @@ Purpose: <one sentence describing the average-user testing run>.
 - Probable code surfaces:
 - Supporting docs or tests inspected:
 - What another agent should inspect first:
+
+## Operator Detail
+
+- Exact route / URL states:
+- Runtime / environment caveats:
+- Technical observations needed for change work:
+- Likely owner or next operator:
 
 ## Evidence Packet
 

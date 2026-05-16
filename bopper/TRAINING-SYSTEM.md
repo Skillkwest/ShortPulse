@@ -160,28 +160,48 @@ It must capture what Bopper concluded as a paying Studio user:
 This is the detailed workflow report.
 
 It should synthesize the click log, decision log, findings, and code-follow-up surfaces.
+This is part of the real operator record and should preserve the technical detail needed to make product changes.
 
 ### `bopper/checkpoint-summaries/...`
 
 This is the short ADHD-friendly digest.
 
 It should summarize the full run packet, detailed report, and retained report in a format that is easy to scan quickly.
+It should use real Markdown headings so the trainer can visually parse it fast instead of reading a plain bullet slab.
+It is not the operator record.
 
 It should always preserve:
 
-- the lane
-- what Bopper tried
+- a top-line result sentence
+- what he tried
 - what worked
-- what failed
-- what confused Bopper
-- the likely ICP takeaway
+- what broke or confused him
+- one short take on trust / keep-going / ICP reaction
 - what got handed off
+- a quoted customer-reaction line
+- and first-person full thought sentences so the trainer hears the run in Bopper's voice
+
+Default body shape:
+
+- `Bottom Line`
+- `What I Tried`
+- `What Worked`
+- `What Broke`
+- `My Take`
+
+Footer lines only:
+
+- `Handoff: ...`
+- `Read next: ...`
+
+It should avoid carrying the heavier operator details that belong in the technical record.
 
 ### `docs/records/artifacts/agent/bopper/reports/...`
 
 This is the retained audit record.
 
 It should be the compact, durable version another agent can use later without replaying the whole run.
+This is part of the real operator record and should keep the technical detail needed for follow-up work.
 
 ### `docs/records/artifacts/agent/bopper/persona-design-lessons.md`
 
@@ -211,6 +231,27 @@ Every substantive run should preserve explicit answers to these questions:
 10. Would Bopper keep going, retry once, change routes, or abandon?
 11. Did the run confirm, weaken, or refine the persona itself?
 12. Did the run teach anything reusable about how future testing personas should be built?
+
+## Operator Record Rule
+
+The real technical/operator record lives in:
+
+- `bopper/runs/<timestamp>-<slug>/`
+- `bopper/reports/...`
+- `docs/records/artifacts/agent/bopper/reports/...`
+
+Those surfaces should preserve the detail needed to make real changes, including:
+
+- route and environment specifics
+- interaction-fidelity notes
+- click-by-click rationale
+- runtime and evidence references
+- exact failure states
+- code/doc follow-up surfaces
+- probable ownership or first inspection points
+- retest-debt implications
+
+The checkpoint summary should not try to replace that layer.
 
 ## Minimum Update Rule
 

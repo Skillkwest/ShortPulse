@@ -87,3 +87,16 @@ For each durable lesson, capture:
   - Route truth can still be validated, but any pricing, plan trust, or ROI judgment should be softened when the visible account state does not match the persona contract.
 - What other agents should copy:
   - If a persona depends on paid access, align the test identity with the persona whenever possible. If that is not possible, record the entitlement mismatch as a fidelity caveat instead of pretending the persona fit was clean.
+
+### 2026-05-16: Saved-Work Failure Feels More Severe Than First-Run Failure
+
+- Assumption tested:
+  - Reopening an existing saved project should matter at least as much as creating a new one for this paid workflow-driven persona.
+- Evidence:
+  - During the `Open Projects` trust lane, Bopper was willing to try multiple normal recovery moves. The decisive break was not the stale tab or the public production dashboard. It was the moment a clearly labeled saved-project restore flow crashed after reassuring progress copy.
+- Result:
+  - Confirmed.
+- What this means for future Bopper runs:
+  - Saved-work integrity and reopen confidence should be treated as high-severity business signals, not just secondary polish after create works.
+- What other agents should copy:
+  - When building a persona centered on repeatable monetized output, saved-state reliability often matters more than first-run novelty. Make that explicit in the persona and scorecards.

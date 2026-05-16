@@ -2,11 +2,13 @@
 
 Purpose: store non-authoritative retained artifacts for the System Catalog Agent's catalog stewardship, audit history, and production-readiness handoff generation.
 
+Local artifact-handling instructions live in `docs/records/artifacts/agent/system-catalog-agent/AGENTS.md`.
+
 ## Status
 
-System Catalog Agent is currently at `Level 1: Supervised`.
+System Catalog Agent is currently an active supervised steward with a durable operating surface, retained artifact area, learning logs, and launch-control workflow.
 
-The agent has a durable contract, repo-visible memory, and an initial artifact area. It is ready to begin recurring catalog audit and handoff work.
+The space is no longer an initial setup area. It is the maintained retained-evidence and learning surface for ongoing catalog, handoff, and launch-readiness work.
 
 ## Artifact Layout
 
@@ -14,6 +16,7 @@ The agent has a durable contract, repo-visible memory, and an initial artifact a
 - `sops.md`: workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.
 - `training-history.md`: supervised setup and future training runs.
+- `metrics/`: time-based learning logs for launch-state trends, score movement, and queue-decision hindsight.
 - `reports/`: full audit, roadmap, dispatch tracking, and report intake area.
   - `reports/external-lane-closeouts/`: closeout reports written by execution agents for Catalog Agent review.
 

@@ -12,7 +12,7 @@ Purpose: keep known average-user issue validations visible after the first hando
 
 | Issue | Route / Surface | Why it matters | Trigger for retest | Source handoff |
 | --- | --- | --- | --- | --- |
-| None right now. | - | - | - | - |
+| Saved project reopen runtime regression | local reopened `AI Studio` project / dashboard recovery | Bopper now reads reopen as less trustworthy than create, which directly harms saved-work confidence for a paying user. | Retest after the local AI Studio preset/runtime regression is repaired. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-16-local-ai-studio-project-reopen-runtime-regression.md` |
 
 ## Resolved Items
 

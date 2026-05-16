@@ -17,12 +17,12 @@ Purpose: keep the highest-value next testing lanes visible so Beeper spends less
 
 - Why this is next:
   - AI Studio just gained a validated success path, so lower-coverage routes should win next
-  - Character coverage improved, but fresh-session resume now has an open engineering issue and the route still lacks clean reuse validation
+  - Character coverage improved, but continuity is still broken and the route still lacks clean reuse validation
 - Entry surface:
   - production `/character`
 - Success condition:
-  - either confirm the bootstrap issue is gone
-  - or validate a cleaner manage-list/create-save workflow than this checkpoint reached
+  - either confirm reload/re-entry continuity in a more standard browser surface
+  - or validate a cleaner manage-list/create-save workflow than this checkpoint reached once continuity is trustworthy
 
 ### 2. Dashboard deeper control or announcement behavior
 

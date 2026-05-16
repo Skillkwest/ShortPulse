@@ -787,3 +787,31 @@ Next training focus:
 
 - keep Beeper's future runs fully alpha-lane specific unless the trainer explicitly requests a comparison
 - preserve separation in reports, coverage logs, and retained lessons during the next live run
+
+## 2026-05-15: Production Character Reuse Lane
+
+Task: run a Beeper-only Character route bundle focused on meaningful edit reuse and continuity truth.
+
+Actions taken:
+
+- Started from the low-coverage Character lane selected by the queue and route-success map.
+- Opened production `/character` in the Codex in-app browser and signed in through the real auth gate.
+- Noted that the first sign-in did not settle into a protected Character session cleanly and instead landed on a public dashboard-style surface.
+- Re-entered Character, signed in again, and reached the existing-character editor.
+- Renamed the visible character from `Beeper QA 68762` to `Beeper QA 68762 R1`.
+- Applied reload continuity pressure immediately after the real edit.
+- Observed `Checking your session…` followed by auth bounce instead of a restored editor.
+- Repeated sign-in plus Character re-entry once more and observed the route still failing to settle back into the editor.
+- Inspected `frontend/lib/authGuard.ts`, `frontend/pages/_app.tsx`, and the Character shell/loading surfaces.
+- Wrote a new D-Bug handoff for the reload-auth-bounce signature.
+
+Training result:
+
+- Beeper pushed Character farther than the earlier bundle by tying the continuity failure directly to a real edit -> reload journey.
+- The Character route now has a cleaner trust-break signature than the earlier generic bootstrap-stall note.
+- Beeper also learned that this result is still medium-confidence because the browser surface was the Codex in-app browser, so the next best correction is a cleaner standard-browser retest if available.
+
+Next training focus:
+
+- rerun the Character continuity path in a more standard browser surface if possible
+- if that lane is blocked, move to the next low-coverage route instead of re-polishing AI Studio

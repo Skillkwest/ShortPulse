@@ -30,12 +30,23 @@ Each closeout report should contain:
 - lane id
 - source handoff path
 - execution status
+- systems touched
 - files changed
 - summary of what changed
+- acceptance criteria reached
+- evidence snapshot
 - validation run
+- validation evidence
 - blockers encountered
 - residual risk
 - recommended next step for Catalog Agent review
+
+The closeout should be specific enough that the Catalog Agent can answer:
+
+- what repo state this report describes
+- what was actually completed
+- what validation proves it
+- whether the report supports `no score change`, `consider +1`, or `consider -1`
 
 ## Template
 

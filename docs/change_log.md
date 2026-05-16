@@ -6,7 +6,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - AI Studio generate concurrency hardening:
   - removed the remaining active generate-button click locks in Music and Expert Edit so users can trigger repeated generations without waiting for prior renders to settle,
   - converted AI Studio lane/audio busy tracking to concurrent-aware counting and replaced the old boolean-shaped lane API with explicit begin/end generation markers,
-  - and validated the lane with focused Vitest coverage for Music, Expert Edit, AI Studio lane state, audio generation state, task submission, task orchestration, and generation controller flows.
+  - removed the remaining shared credit, Character Mode preflight/loading, and reservation/admission submit gates that still blocked rapid repeat generate clicks across create, edit, video, audio, and agent-output surfaces,
+  - and closed the lane with focused Vitest coverage for Music, Sound Effects, Voices, PromptStep actions, AI Studio view-model/controller flows, generation billing reservations, and Fal submit proxy behavior.
 - Staging/working-development Supabase parity hardening:
   - applied `sql/migrations/123_add_audio_companion_art_projection_fields.sql` to the staging Supabase project so `generation_projection` now matches working-development on the companion-art columns and pending index,
   - expanded `scripts/ops/supabase_public_schema_parity.sh` to compare columns and indexes in addition to tables, routines, and policies,

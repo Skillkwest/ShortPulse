@@ -19,6 +19,8 @@ Purpose: convert a low-confidence workflow into a bounded, better-understood sur
 - Target score: `6/10`
 - Ship floor: `6/10`
 - Confidence is low and the workflow still looks like a likely concentration point for mixed view state, persistence glue, and AI Studio integration assumptions.
+- Fresh production evidence now exists:
+  - Beeper captured a real edit -> reload -> auth bounce on `/character` plus weak save confidence on `2026-05-15`
 - Why the score is currently low:
   - workflow authority is still too implicit across shell state, persistence, and mode integration
   - current confidence is limited by unclear boundaries and sparse targeted evidence
@@ -101,6 +103,20 @@ Inspect first:
   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
 - Filename:
   - `YYYY-MM-DD-characters-workflow-hardening-closeout.md`
+- Required contents:
+  - lane id
+  - source handoff path
+  - execution status
+  - systems touched
+  - files changed
+  - summary of what changed
+  - acceptance criteria reached
+  - evidence snapshot
+  - validation run
+  - validation evidence
+  - blockers encountered
+  - residual risk
+  - recommended next step for Catalog Agent review
 
 ## Closeout And Archive
 

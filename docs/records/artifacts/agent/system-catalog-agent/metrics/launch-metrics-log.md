@@ -1,0 +1,8 @@
+# Launch Metrics Log
+
+Purpose: track the top launch-state signals over time so the Catalog Agent can measure whether ShortPulse is actually moving toward ship readiness.
+
+| Snapshot date | Basis | `P0` below floor | Active ship-path blockers | Running external lanes | Reviewed-complete awaiting broader rerate | Non-blocking production findings tracked | Score changes in snapshot | Freshness | Notes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| `2026-05-07` | baseline execution snapshot | 6 | 1 | 1 | 1 | 0 | 0 | `stale as of 2026-05-15` | Baseline launch-control state before the May 15 production refresh. |
+| `2026-05-15` | production launch-state refresh | 6 | 1 | 1 | 1 | 2 | 0 | `current` | Recovery lane reviewed complete with no score lift, Reference Grid remained active blocker, and two non-blocking production media findings were recorded. |

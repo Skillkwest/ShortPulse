@@ -1,0 +1,36 @@
+{
+  "packetVersion": 2,
+  "measuredAt": "2026-05-16T06:28:04.333Z",
+  "environment": "production",
+  "captureMode": "playwright-panel-audit+live-perf-handle",
+  "sampleCount": 1,
+  "surface": "elements-media-panel",
+  "notes": [
+    "Derived automatically from the Elements embedded media panel KPI capture helper.",
+    "Single-run browser capture. Repeat runs are recommended before treating this as sprint-level evidence.",
+    "firstMediaPaintP95Ms and openToFirstMediaP95Ms were both populated from the first visible media moment in this run.",
+    "Canonical preview coverage was derived from panel sign stats using resolved durable vs resolved original counts when available."
+  ],
+  "metrics": {
+    "firstMediaPaintP95Ms": 414,
+    "loadingStateVisibleMsP95": 362,
+    "openToFirstMediaP95Ms": 414,
+    "stableContentSettleMsP95": null,
+    "signBatchP95Ms": 483,
+    "resolveCallsPerOpen": 0,
+    "fallbackCallsPerOpen": null,
+    "stateFlipCountPerOpen": 2,
+    "extraListCallsPerOpen": 1,
+    "signFailedRatio": 0,
+    "resolveFailedRatio": null,
+    "fallbackFailedRatio": null,
+    "consoleErrorsPerOpen": 0,
+    "visualRegressionCount": null,
+    "missingPreviewRatio": null,
+    "canonicalPreviewCoverageRatio": 0.3333,
+    "emptyStateMismatchCount": null,
+    "saveRoundtripFailureRate": null,
+    "saveRoundtripMismatchRate": null,
+    "saveBrowseReadyRatio": null
+  }
+}

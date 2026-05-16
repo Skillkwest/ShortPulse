@@ -48,6 +48,7 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 - The current branch must match `shortpulse.allowedBranch` before any Git write.
 - If the user has already established a standing approved branch for the repo and the local checkout has drifted elsewhere, realign `shortpulse.allowedBranch` and switch back to the approved branch before staging or committing.
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
+- For large or mixed worktrees, create the batch manifest before the first staging step. Do not let the first commit become the place where batch boundaries are discovered.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
 - Do not push directly to `main`.
 - Do not expose secrets, env values, tokens, customer-private data, or temporary env copies.
@@ -231,10 +232,11 @@ If the batch touches high-risk areas, run or schedule the relevant specialist ch
 Before staging a high-risk, mixed-lane, or shared-file batch, run the reusable preflight helper on the candidate file list:
 
 ```bash
-npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <targeted-tests...> --include-suite-hot
+npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <targeted-tests...> --include-suite-hot --print-test-manifest
 ```
 
 Use `docs/agents/gear-ball/shared-file-risk-map.md` to decide when a file must be adapted manually, deferred to a reconciliation batch, or re-run as a suite-hot test before the full suite.
+If invoking from repo root, prefer repo-relative frontend test paths or rely on preflight normalization so the emitted Vitest targets are frontend-relative.
 
 ### 5. Validate Before Commit
 
@@ -245,6 +247,12 @@ Run the smallest validation that proves the batch, then escalate based on risk:
 - API/server logic: targeted API/server tests plus type/build checks when contracts changed.
 - SQL/schema: migration parity, security checklist, SQL diagnostics, and Supabase CLI hosted-target validation when authorized.
 - Release-sized batch: use `docs/release-checklist.md`.
+
+Treat these as hard escalation triggers, not optional judgment calls:
+
+- If a batch touches shared editor/runtime hooks, shared page shells, `frontend/pages/`, `frontend/pages/api/`, or `frontend/package.json`, run `npm -C frontend run build` before the final full suite.
+- If a batch includes generated or agent-produced docs/packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/`, run `npm -C frontend run docs:check` before staging or before the first commit for that lane.
+- If both triggers fire in the same run, treat `build` and `docs:check` as early gates before the first Git write.
 
 For a large, mixed, or cross-cutting worktree, full test green is the commit-readiness bar:
 
@@ -318,6 +326,18 @@ Commit message guidelines:
 - Add a commit body when validation is partial, the batch is a checkpoint, or the operational risk needs context.
 
 ### 9. Post-Commit Audit
+
+Immediately after each batch commit:
+
+```bash
+git status --short
+```
+
+Rules:
+
+- Run this inter-batch leftover audit before staging the next batch, not only before the final push.
+- Any unexpected leftover path must be folded into the just-finished batch with an amend, intentionally assigned to a later batch, or explicitly deferred as unrelated pre-existing work.
+- Do not continue to the next batch by assumption when the leftover audit reveals adjacent drift.
 
 After each commit, account for hooks such as Husky and lint-staged that may inspect or rewrite staged files:
 

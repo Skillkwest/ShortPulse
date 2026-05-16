@@ -94,14 +94,15 @@ const SUITE_HOT_RULES = [
 
 function printHelp() {
   console.log(`Usage:
-  node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--tests <tests...>] [--include-suite-hot] [--dry-run]
-  node scripts/ops/gear_ball_preflight.mjs --staged [--tests <tests...>] [--include-suite-hot] [--dry-run]
+  node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--tests <tests...>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
+  node scripts/ops/gear_ball_preflight.mjs --staged [--tests <tests...>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
 
 Options:
   --files              Repo-relative file paths to preflight.
   --staged             Use the current staged file list.
-  --tests              Additional vitest paths to run.
+  --tests              Additional vitest paths to run. Accepts either frontend-relative or repo-relative frontend test paths.
   --include-suite-hot  Add suite-hot targeted tests when touched paths match known risk rules.
+  --print-test-manifest  Print the normalized frontend-relative Vitest target list before running checks.
   --dry-run            Print planned checks without executing them.
   --help               Show this message.
 `);
@@ -117,6 +118,14 @@ function normalizePath(value) {
     .replaceAll(path.sep, "/")
     .replace(/^\.\/+/, "")
     .trim();
+}
+
+function toFrontendRelativeTestPath(value) {
+  const normalized = normalizePath(value);
+  if (!normalized) return normalized;
+  return normalized.startsWith("frontend/")
+    ? normalized.slice("frontend/".length)
+    : normalized;
 }
 
 function collectFlagValues(args, flag) {
@@ -217,8 +226,9 @@ if (hasFlag(args, "--help")) {
 
 const dryRun = hasFlag(args, "--dry-run");
 const includeSuiteHot = hasFlag(args, "--include-suite-hot");
+const printTestManifest = hasFlag(args, "--print-test-manifest");
 const filesArg = collectFlagValues(args, "--files").map(normalizePath);
-const testsArg = collectFlagValues(args, "--tests").map(normalizePath);
+const testsArg = collectFlagValues(args, "--tests").map(toFrontendRelativeTestPath);
 const staged = hasFlag(args, "--staged") || filesArg.length === 0;
 
 const files = [
@@ -250,7 +260,9 @@ const prettierFiles = files.filter((file) =>
 const targetedTests = [
   ...new Set([
     ...testsArg,
-    ...(includeSuiteHot ? deriveSuiteHotTests(files) : []),
+    ...(includeSuiteHot
+      ? deriveSuiteHotTests(files).map(toFrontendRelativeTestPath)
+      : []),
   ]),
 ];
 
@@ -306,6 +318,13 @@ if (sharedRiskWarnings.length > 0) {
 if (checks.length === 0) {
   console.log("checks: none");
   process.exit(0);
+}
+
+if (printTestManifest && targetedTests.length > 0) {
+  console.log("vitest target manifest:");
+  for (const target of targetedTests) {
+    console.log(`- ${target}`);
+  }
 }
 
 console.log("planned checks:");

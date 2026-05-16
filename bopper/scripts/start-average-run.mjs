@@ -275,22 +275,26 @@ Purpose: ${task}.
 const buildCheckpointSummaryTemplate = ({ dateLabel, task, environment }) =>
   `# Bopper Checkpoint Summary - ${dateLabel}
 
-Purpose: short trainer-facing summary for the Bopper run: ${task}.
+## Bottom Line
+I should say in one blunt sentence whether the route worked, failed, or stayed mixed.
 
-## Snapshot
+## What I Tried
+I tested:
+I ran this in the ${environment} environment.
 
-- Environment: ${environment}
-- Lane:
-- Tried:
-- Worked:
-- Failed:
-- Confused:
-- ICP takeaway:
-- Abandonment point:
-- Handoff:
-- Detailed report:
-- Retained report:
-- D-Bug handoff:
+## What Worked
+I could:
+
+## What Broke
+I got stuck because:
+
+## My Take
+I would / would not keep going because:
+I felt:
+> "What I would likely say or believe after this run."
+
+Handoff:
+Read next:
 `;
 
 const buildRetainedReportTemplate = ({ dateLabel, slug, task, environment, baseUrl }) =>

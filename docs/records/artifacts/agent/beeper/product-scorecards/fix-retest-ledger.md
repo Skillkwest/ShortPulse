@@ -9,3 +9,4 @@ Purpose: track product issues from discovery through claimed fix through verifie
 | AI Studio top-tab/panel mismatch | AI Studio | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-ai-studio-top-tab-panel-mismatch.md` | No | No | Open | Retest after top-tab or layout-state changes. |
 | Public home dashboard title mismatch | Public home | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-public-home-dashboard-title-mismatch.md` | No | No | Open | Low severity, but easy polish win. |
 | Character route bootstrap stall | Character | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-character-route-bootstrap-stall.md` | No | No | Open | Retest after bootstrap/restore/loading-state changes. |
+| Character reload auth bounce | Character | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-character-reload-auth-bounce.md` | No | No | Open | Retest after auth/restore work or after confirming whether the issue reproduces in a standard browser. |

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Catalog Agent Operator Brief - 2026-05-16</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #17181b;
+        --panel: #22252a;
+        --panel-2: #2c3036;
+        --text: #f3f4f6;
+        --muted: #c9ced6;
+        --accent: #ffb86b;
+        --good: #7ee787;
+        --warn: #ffd866;
+        --hold: #8ab4ff;
+        --done: #b392f0;
+        --border: #3b4048;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: linear-gradient(180deg, #15171a 0%, #1c1f24 100%);
+        color: var(--text);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.4;
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      .hero, .section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+      }
+
+      h1, h2, h3 {
+        margin: 0 0 12px;
+        line-height: 1.1;
+      }
+
+      h1 {
+        font-size: 32px;
+        color: var(--accent);
+      }
+
+      h2 {
+        font-size: 24px;
+        color: #fff3df;
+        margin-bottom: 14px;
+      }
+
+      h3 {
+        font-size: 18px;
+        color: var(--muted);
+        margin-top: 18px;
+      }
+
+      p, li {
+        font-size: 16px;
+        color: var(--text);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .status {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 5px 9px;
+        margin-bottom: 10px;
+      }
+
+      .running { background: rgba(126, 231, 135, 0.14); color: var(--good); }
+      .ready { background: rgba(255, 216, 102, 0.14); color: var(--warn); }
+      .hold { background: rgba(138, 180, 255, 0.14); color: var(--hold); }
+      .done { background: rgba(179, 146, 240, 0.16); color: var(--done); }
+
+      .lane {
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .path {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: #d9d0e3;
+        word-break: break-word;
+      }
+
+      .path a {
+        color: #cfe7ff;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .path a:hover {
+        color: #ffffff;
+      }
+
+      .next-step {
+        border-left: 4px solid var(--accent);
+        padding-left: 12px;
+        margin-top: 8px;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <h1>Operator Brief</h1>
+        <p><strong>Run:</strong> Full repo + worktree audit on <code>production</code></p>
+        <p><strong>Ship target:</strong> <strong>July 2, 2026</strong></p>
+      </section>
+
+      <section class="section">
+        <h2>What Changed</h2>
+        <ul>
+          <li>Three ship-critical lanes that used to be <code>queue-only</code> are now real handoffs.</li>
+          <li><code>Reference Grid</code> is still the active blocker already running.</li>
+          <li><code>Generation recovery / settlement</code> stays reviewed complete, but its score did not move yet.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>What You Can Paste Now</h2>
+
+        <h3>Already Running</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="status running">Already Running</div>
+            <p><strong>Reference Grid</strong></p>
+            <p class="lane">Lane: <code>reference-grid-styles-drop-blocker</code></p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.html">docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.html</a></p>
+          </article>
+        </div>
+
+        <h3>Ready To Paste Now</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="status ready">Ready To Paste Now</div>
+            <p><strong>Edit workflow</strong></p>
+            <p class="lane">Lane: <code>edit-workflow-hardening</code></p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.html">docs/agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status ready">Ready To Paste Now</div>
+            <p><strong>Billing / credits</strong></p>
+            <p class="lane">Lane: <code>billing-credits-runtime-hardening</code></p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status ready">Ready To Paste Now</div>
+            <p><strong>Security boundaries</strong></p>
+            <p class="lane">Lane: <code>security-boundaries-release-audit</code></p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status ready">Ready To Paste Now</div>
+            <p><strong>Generation submission / polling</strong></p>
+            <p class="lane">Lane: <code>generation-submission-polling-hardening</code></p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.html</a></p>
+          </article>
+        </div>
+
+        <h3>Ready But Hold</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="status hold">Ready But Hold</div>
+            <p><strong>Project / workspace persistence</strong></p>
+            <p class="lane">Lane: <code>project-workspace-persistence-hardening</code></p>
+            <p class="small">Hold reason: stronger direct production proof is still missing.</p>
+            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-06-project-workspace-persistence.html">docs/agents/system-catalog-agent/handoffs/2026-05-06-project-workspace-persistence.html</a></p>
+          </article>
+        </div>
+
+        <h3>Reviewed Complete</h3>
+        <div class="cards">
+          <article class="card">
+            <div class="status done">Reviewed Complete</div>
+            <p><strong>Generation recovery / settlement</strong></p>
+            <p class="lane">Lane: <code>generation-recovery-settlement-hardening</code></p>
+            <p class="small">Keep closed unless the runtime rerate reopens it.</p>
+            <p class="path"><a href="../../../../../systems/next-agent-handoff-generation-recovery-hardening.html">docs/systems/next-agent-handoff-generation-recovery-hardening.html</a></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>What To Do Next</h2>
+        <div class="next-step">
+          <p><strong>Best next product lane:</strong> paste <strong>Edit workflow</strong>.</p>
+          <p><strong>Best parallel platform lanes:</strong> paste <strong>Billing / credits</strong> and <strong>Security boundaries</strong>.</p>
+          <p><strong>After that:</strong> paste <strong>Generation submission / polling</strong>.</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Do Not Do Yet</h2>
+        <ul>
+          <li>Do not reopen <code>Generation recovery / settlement</code> yet.</li>
+          <li>Do not move <code>Project / workspace persistence</code> ahead of the new runtime lanes yet.</li>
+          <li>Do not treat local template reports as launch truth.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>Notes</h2>
+        <p class="path">Full audit packet: <a href="2026-05-16-production-repo-audit-and-dispatch-output.html">docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-production-repo-audit-and-dispatch-output.html</a></p>
+        <p class="path">Live queue: <a href="../../../../../agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.html">docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.html</a></p>
+      </section>
+    </div>
+  </body>
+</html>

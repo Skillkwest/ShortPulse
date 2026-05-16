@@ -444,6 +444,100 @@ Capability decision:
 - Existing helper update needed: `no`
 - SOP/doc update needed: `no`
 
+## 2026-05-16 - Production expert-edit control-plane and retained packet closeout
+
+Prompt cadence used:
+
+- run sop
+
+What changed in this run:
+
+- Published the production AI Studio/admin lane for expert-edit system presets, runtime prompt/version hardening, media-panel KPI scoring, billing guardrail updates, and SQL migration `125`.
+- Closed out the remaining Beeper/Bopper/System Catalog/Gear Ball/Holomony packet lane and recorded the retained report for this production run.
+
+What worked:
+
+- The early build gate caught a type-contract mismatch in the character-mode decision helper before any commit.
+- The full-suite rerun found the only real remaining regressions, and both fixes stayed inside test scope.
+- The inter-batch leftover audit kept the product lane and retained-doc lane separated cleanly.
+
+What failed or slipped:
+
+- My first `gear-ball:preflight` attempt from repo root was clumsy under `zsh`, so I had to fall back to direct validation commands.
+- Two suite-hot UI tests still depended on brittle accessible-name matching and only broke under full-suite pressure.
+
+Durable lesson:
+
+- When card buttons derive their accessible name from nested title + body text, click the intended action by scoping to the card or dialog container instead of relying on an exact name string.
+- When a page has repeated `Save` buttons, scope the interaction to the active dialog/card. Unscoped role queries are not stable enough for suite-hot admin pages.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `no`
+- SOP/doc update needed: `yes`
+
+## 2026-05-15 - Post-Run Process Tightening
+
+Task: encode the specific changes needed to move Gear Ball closer to a `10/10` run quality after the latest production SOP passes.
+
+Actions taken:
+
+- Added a hard rule that large or mixed worktrees must get a batch manifest before the first staging step.
+- Added an inter-batch leftover audit rule so `git status --short` is checked after every commit, not only before the final push.
+- Hardened `gear-ball:preflight` so repo-root `frontend/...` test paths are normalized to frontend-relative Vitest targets automatically.
+- Added a `--print-test-manifest` mode so the next run can inspect the exact frontend-relative Vitest target list before execution.
+- Updated the public Gear Ball contract, the worktree SOP, retained memory, and the tools inventory to reflect the tighter process.
+
+Training result:
+
+- The remaining friction from the last run is now treated as mechanical process debt, not as something to relearn ad hoc.
+- The next large mixed run should fail earlier and more clearly if batch boundaries or test targets are malformed.
+
+Next training focus:
+
+- Confirm on the next real mixed run that the inter-batch leftover audit prevents post-commit doc tails.
+- Confirm the normalized preflight test manifest removes repo-root Vitest path mistakes entirely.
+
+## 2026-05-15 - Training Synthesis Audit
+
+Task: audit the Gear Ball SOP stack against retained run history and synthesize repeated failure modes into a smaller set of hard rules.
+
+Actions taken:
+
+- Reviewed the retained training history and production/working-development reports for repeated slips.
+- Identified five recurring themes:
+  - Git-index collisions from parallel writes
+  - branch drift before the first Git write
+  - leftover adjacent docs/training tails after early commits
+  - repo-root Vitest path mismatches
+  - build-only regressions or docs-packet issues on compound-risk runs
+- Confirmed the first four are already addressed by recent SOP/tooling updates.
+- Added the remaining hard rules:
+  - early `build` on shared frontend hooks/pages/API/package-manifest runs
+  - early `docs:check` on generated audit-doc / agent-packet lanes
+- Updated the baseline KPI so these failure modes are measurable instead of anecdotal.
+
+Training result:
+
+- The recurring failure set is now narrower and more explicit.
+- Gear Ball’s remaining path to `10/10` is mostly disciplined execution against these codified gates, not major missing infrastructure.
+
+Synthesized pattern summary:
+
+- Most low scores came from process shape, not technical inability.
+- The highest-value fixes were small guardrails added exactly where the retained evidence showed repetition.
+- Large mixed runs benefit more from earlier hard gates than from more verbose reporting.
+
+Next training focus:
+
+- Validate that early `build` catches the next compound-risk regression before the full suite.
+- Validate that early `docs:check` catches generated audit-packet drift before the first docs commit.
+
 Next training focus:
 
 - On the next mixed production run, treat `docs:check` plus `build` as early gates whenever Beeper packet generation and shared editor hooks both moved in the same run.

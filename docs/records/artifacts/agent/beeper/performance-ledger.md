@@ -21,17 +21,18 @@ Purpose: track Beeper's earned performance over time instead of relying on one-o
 | 2026-05-15 | prod media library search lane | 9.2 | high | none | 2.0 | 1.3 | 1.8 | 1.5 | 1.4 | 1.0 | 0.2 | coverage expansion | move to the character route and validate one meaningful stateful action instead of another Media Library partial |
 | 2026-05-15 | prod character route bundle | 8.9 | medium | none | 1.9 | 1.4 | 1.6 | 1.4 | 1.4 | 1.0 | 0.2 | evidence quality | capture a cleaner settle-state probe when Character bootstrap appears stuck instead of relying mostly on screenshots |
 | 2026-05-15 | prod ai studio stateful non-generate lane | 9.5 | high | none | 2.0 | 1.5 | 1.9 | 1.4 | 1.3 | 1.0 | 0.4 | code/handoff usefulness | leave AI Studio and close another lower-coverage route with the same end-to-end discipline |
+| 2026-05-15 | prod character reuse lane | 8.7 | medium | none | 1.6 | 1.4 | 1.6 | 1.5 | 1.4 | 1.0 | 0.2 | real-user fidelity | rerun the same Character continuity path in a more standard browser surface so the route bug can be separated cleanly from in-app-browser noise |
 
 ## Current Trend
 
-- Current operating score: `9.3 / 10`
-- Current weakest category: `code/handoff usefulness`
-- Current main limiter: breadth is improving, but Character, Dashboard, and Media Library still need more route-level closure
+- Current operating score: `9.2 / 10`
+- Current weakest category: `real-user fidelity`
+- Current main limiter: breadth is improving, but Character continuity still needs a cleaner confirmation surface and broader dashboard/media closure remains open
 
 ## Campaign Snapshot
 
 - Coverage Score: `7.4 / 10`
-- Impact Score: `8.7 / 10`
+- Impact Score: `8.8 / 10`
 - Campaign read:
   - individual run quality is strong
   - route breadth is improving now that AI Studio has one validated success path

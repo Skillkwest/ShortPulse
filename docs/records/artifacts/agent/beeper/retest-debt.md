@@ -17,6 +17,7 @@ Purpose: keep known issue validations visible after the first handoff so Beeper 
 | AI Studio top-tab/panel mismatch | `/ai-studio` | Navigation trust drops when top layout tabs do not map cleanly to visible panel state. | Retest after AI Studio top-tab or layout-state changes. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-ai-studio-top-tab-panel-mismatch.md` |
 | Public home dashboard title mismatch | `/` after logout | Signed-out users receive the wrong browser title, which weakens route identity and polish. | Retest after public-home metadata or title logic changes. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-public-home-dashboard-title-mismatch.md` |
 | Character route bootstrap stall | `/character` fresh reopen | Route trust breaks when a reopened Character session stays on loading skeleton instead of settling back into the editor. | Retest after Character bootstrap/restore/loading-state changes. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-character-route-bootstrap-stall.md` |
+| Character reload auth bounce | `/character` after real edit + reload | Continuity trust breaks when reload or immediate re-entry falls back through session check to auth instead of restoring the editor. | Retest after Character auth/restore/loading-state changes or after confirming behavior in a standard browser. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-character-reload-auth-bounce.md` |
 
 ## Resolved Items
 

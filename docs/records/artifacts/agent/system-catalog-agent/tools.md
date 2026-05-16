@@ -21,4 +21,5 @@ Purpose: record helper commands, scripts, and future tooling needs for the Syste
 ## Tooling Needs
 
 - A reusable closeout diff summarizer if repeated report-intake runs prove too slow or inconsistent.
-- A compact system scorecard generator if repeated runs prove the manual summaries too slow or error-prone.
+- A lightweight metrics updater or snapshot helper if the launch-metrics, score-movement, and decision-outcome logs become too manual to maintain consistently.
+- A lane cycle-time helper if dispatch, completion, and review timestamps start getting noisy across many concurrent agents.

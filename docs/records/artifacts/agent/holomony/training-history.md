@@ -177,3 +177,78 @@ Next training focus:
 
 - capture the first retained Elements baseline packet
 - build regression/compare mode for retained KPI packets
+
+## 2026-05-15: KPI Compare Mode
+
+Task: add retained packet comparison so Holomony can judge whether an approved surface is actually improving over time.
+
+Actions taken:
+
+- extended the KPI scorer with `--compare <older> <newer>`
+- added meaningful-improvement and meaningful-regression classification by metric type
+- added comparison flags for weak evidence, coverage drops, and additional score caps
+- updated the KPI SOP and Holomony retained tool inventory to treat comparison as a first-class workflow
+
+Training result:
+
+- Holomony can now compare retained runs instead of relying on memory or manual eyeballing
+- the next operational leverage comes from capturing more retained packets, not inventing more scoring theory
+
+Next training focus:
+
+- capture repeated retained baseline packets for AI Studio and Elements
+- use compare mode on the first real pair of retained packets per approved surface
+
+## 2026-05-15: Production Panel Baseline Capture
+
+Task: capture retained production KPI packet pairs for both approved panel surfaces and use compare mode on real retained data.
+
+Actions taken:
+
+- captured two retained production packets for `ai-studio-panel`
+- captured two retained production packets for `elements-media-panel`
+- used compare mode on both retained surface pairs
+- recorded the retained report for the first production baseline evidence set
+
+Training result:
+
+- Holomony now has real retained packet history for both approved surfaces
+- after correcting the capture helper, the shared panel weakness is clearer than before:
+  - canonical preview coverage stayed weak
+  - extra list churn stayed present
+  - Elements still showed slightly worse visible state churn
+- the initial fallback-storm diagnosis was a measurement bug, not a product truth
+
+## 2026-05-16: KPI Honesty Hardening And Repeated Production Panel Capture
+
+Task: repair the main KPI integrity gap, then refresh retained production evidence for both approved panel surfaces.
+
+Actions taken:
+
+- upgraded the KPI capture helper so it now defaults to `5` repeated panel opens
+- made direct timing `p95` fields stay `null` until repeated-run evidence is strong enough to justify them
+- updated capture tests and KPI SOP guidance to match the stricter contract
+- captured new repeated retained production packets for:
+  - `ai-studio-panel`
+  - `elements-media-panel`
+- compared the new packets against the latest 2026-05-15 retained baselines
+
+Training result:
+
+- Holomony's KPI system is materially harder to overstate now
+- the next product lane is clearer than before:
+  - the panel count-only optimization did not eliminate the remaining second open-phase list request
+  - canonical preview coverage is now the clearest shared weakness in the refreshed evidence
+- the biggest remaining process gap is retained-summary drift, not lack of tooling
+
+Next training focus:
+
+- inspect the still-remaining open-phase `/api/media/list` duplication on the approved panel surfaces
+- inspect why the refreshed repeated packets now show `canonicalPreviewCoverageRatio: 0`
+- keep Holomony's retained summary surfaces updated immediately after real runtime evidence changes
+- the next lane should target shared panel-runtime behavior, not surface-scaffold tooling
+
+Next training focus:
+
+- raise evidence quality beyond single-sample packets
+- investigate the shared list-count/canonical-preview weakness across approved panel surfaces

@@ -101,9 +101,13 @@ Inspect first:
   - lane id
   - source handoff path
   - execution status
+  - systems touched
   - files changed
   - summary of what changed
+  - acceptance criteria reached
+  - evidence snapshot
   - validation run
+  - validation evidence
   - blockers encountered
   - residual risk
   - recommended next step for Catalog Agent review

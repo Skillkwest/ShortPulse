@@ -85,6 +85,44 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
   - ICP takeaway
   - handoff
 
+### 2026-05-16 - Rich summary formatting
+
+- The ADHD-friendly checkpoint summary should use rich Markdown structure so it is easy to read quickly.
+- Do not default to a flat bullet wall.
+- Use short titled sections, bold labels, and one quoted customer-reaction line when possible.
+
+### 2026-05-16 - More ADHD-friendly skim pattern
+
+- Favor a faster skim pattern over a richer report pattern.
+- This earlier label set was a stepping stone and is now superseded by the smaller five-section shape below.
+- Keep sections tiny so the trainer can read the whole summary in seconds.
+
+### 2026-05-16 - Larger simpler summary headings
+
+- Use actual Markdown section headers so the summary reads larger and cleaner.
+- This earlier four-label simplification is now superseded by the smaller five-section shape below.
+
+### 2026-05-16 - Fewer summary sections
+
+- The checkpoint summary still has too many sections if it feels like a report outline.
+- Collapse the main body to five sections:
+  - `Bottom Line`
+  - `What I Tried`
+  - `What Worked`
+  - `What Broke`
+  - `My Take`
+- Keep `Handoff` and `Read next` as short footer lines instead of full sections.
+
+### 2026-05-16 - Summary voice rule
+
+- Write checkpoint summaries in Bopper's own voice.
+- Use first-person full thought sentences instead of fragment bullets or operator phrasing.
+
+### 2026-05-16 - Summary vs operator-record split
+
+- The checkpoint summary is just for the trainer to quickly feel the user experience.
+- Keep the technical operator detail in the packet, detailed report, retained report, and any D-Bug handoff.
+
 ### 2026-05-15 - D-Bug escalation
 
 - Any real issue or error should also get a D-Bug handoff in D-Bug's folder.

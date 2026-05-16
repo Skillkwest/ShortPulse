@@ -63,6 +63,8 @@ When it refers to the current operating package, queue, or dispatch log, use the
 
 When a new production window begins, create the new dated package files first, then treat those files as the authoritative current-window surfaces.
 
+Mark the previous dated plan or queue files as `superseded` at the top and exclude them from routine load so old window files do not compete with live launch truth.
+
 ## Standard Run Types
 
 ### 1. Catalog audit run
@@ -76,6 +78,10 @@ Use when enough new repo evidence exists to justify revisiting one or more syste
 ### 3. Handoff generation run
 
 Use when catalog data should be turned into copy/paste-ready execution packets for other agents.
+
+### 3a. Dispatch-ready audit output run
+
+Use when a meaningful audit should end with an ordered next-work list and paste-ready prompts for external agents.
 
 ### 4. Report intake run
 
@@ -110,6 +116,8 @@ If the run spans multiple modes, do them in this order:
 3. rerate
 4. queue update
 5. handoff generation
+6. dispatch-ready output
+7. operator brief
 
 ### Step 3. Freeze the audit target
 
@@ -121,6 +129,35 @@ Before rerating, define the evidence snapshot:
 
 Do not rerate against a moving target if active edits are still landing in the same system boundary.
 
+For full repo audits, explicitly record all of these:
+
+- active branch
+- commit anchor
+- whether the worktree is included
+- whether the pass is production-only, local-only, or mixed evidence
+
+### Step 3a. Classify evidence quality
+
+Before updating queue order or score posture, classify the evidence:
+
+- `production durable`
+  - committed repo truth on the active release path
+  - retained production reports with concrete route/runtime evidence
+- `repo durable`
+  - current code or docs in the repo or worktree that materially change likely next work
+- `local follow-up`
+  - local-only reports or local dev findings that are useful but not launch truth by themselves
+- `incomplete artifact`
+  - template shells, partial stubs, or unfilled reports that should not drive queue or score movement
+
+Use these rules:
+
+- `production durable` can move launch-state fields and queue order.
+- `repo durable` can move packaging, queue readiness, and follow-up scope.
+- `repo durable` alone should not lift a score unless validation and evidence anchors are strong enough.
+- `local follow-up` can inform future lanes, but should not become production blocker truth without corroboration.
+- `incomplete artifact` should be ignored for rating and queue decisions until it becomes real evidence.
+
 ### Step 4. Reconstruct the baseline
 
 For each system in scope, identify:
@@ -129,6 +166,7 @@ For each system in scope, identify:
 - previous confidence or ship-floor interpretation
 - active known issues
 - current queue priority
+- whether the row is active, ready, held, queue-only, or reviewed-complete
 - prior handoff or report history that matters
 
 ### Step 5. Audit repo truth
@@ -142,6 +180,7 @@ Inspect the real code and doc surfaces for the systems in scope:
 - auth and security boundaries
 - operator or admin surfaces
 - test coverage and validation artifacts
+- relevant current worktree diffs when the audit target includes the worktree
 
 Do not treat agent claims or report prose as sufficient proof by themselves.
 
@@ -154,6 +193,23 @@ Use `docs/agents/system-catalog-agent/system-score-criteria.md` plus the ship-ba
 - whether the system is now at or above ship floor
 - whether new follow-up scope is required instead of a score lift
 
+For any score movement proposal, name all of these explicitly:
+
+- previous score
+- proposed new score
+- score delta:
+  - `+1`
+  - `0`
+  - `-1`
+- exact evidence anchors:
+  - report path
+  - commit id or declared worktree checkpoint
+  - validation commands
+  - blocker or incident refs when relevant
+
+Do not move a score upward unless those anchors are present.
+Do not move a score downward on vague concern alone. Name the concrete failure evidence.
+
 ### Step 7. Update the catalog surfaces
 
 Only after the audit, update the relevant surfaces:
@@ -163,6 +219,7 @@ Only after the audit, update the relevant surfaces:
 - dispatch log when lane state changes
 - operating package when the active lane snapshot changes
 - dated reports when the audit itself should be retained
+- superseded dated queue/plan files when a production window rolls forward
 
 ### Step 8. Generate handoffs carefully
 
@@ -175,7 +232,27 @@ When creating new handoffs:
 - include required report path and report filename pattern
 - avoid overlapping file ownership across concurrently active lanes
 
-### Step 9. Ingest external lane reports
+### Step 9. Produce dispatch-ready audit output
+
+After a meaningful audit, produce an ordered next-work list using:
+
+- `docs/agents/system-catalog-agent/dispatch-ready-audit-output-template.md`
+
+The output should:
+
+- run from highest priority to lowest priority
+- include only the next meaningful lanes, not every system row
+- include the handoff path for each item
+- include a paste-ready prompt block for the receiving agent
+
+If a high-priority queue item is still `queue-only` and lacks a handoff, do one of these before closing the run:
+
+- create the missing handoff, or
+- explicitly record that the missing handoff is the next Catalog Agent action
+
+Keep reviewed-complete lanes out of the exact next-work list unless they have actually reopened. Track them separately as follow-up or rerate candidates so the queue stays actionable.
+
+### Step 10. Ingest external lane reports
 
 When an execution lane ends:
 
@@ -192,13 +269,42 @@ When an execution lane ends:
   - partial with follow-up required
   - blocked and queue-affecting
 
-### Step 10. Validate and self-audit
+### Step 11. Validate and self-audit
 
 Before ending the run:
 
 - run `npm -C frontend run docs:check` for catalog/doc changes
 - run any targeted checks required by the systems touched
 - self-audit for index drift, status drift, or inconsistent lane wording
+
+### Step 12. Produce user operator brief
+
+After every meaningful run, create one ADHD-friendly operator brief using:
+
+- `docs/agents/system-catalog-agent/operator-brief-template.md`
+
+The brief should:
+
+- summarize what changed in scan-friendly form
+- list every currently relevant handoff lane with clear status
+- tell the user the exact next paste action
+- clearly separate:
+  - already running
+  - ready to paste now
+  - ready but hold
+  - reviewed complete
+
+Prefer one dated retained report per run over scattered ad hoc summaries.
+
+Always create a companion HTML render next to the Markdown brief so the summary can be opened as a formatted artifact instead of raw Markdown source.
+
+Treat the HTML file as the canonical user-facing operator brief.
+Treat the Markdown file as source-only backing material for repo traceability.
+
+At closeout, surface both paths to the user:
+
+- the HTML rendered brief
+- the Markdown source brief
 
 ## Handoff Design Standard
 
@@ -218,6 +324,17 @@ Every execution handoff must include:
 - required context
 - required validation
 - done state
+
+## Maintenance And Pruning Rule
+
+Trim or demote anything that degrades current launch decisions:
+
+- superseded dated plan/queue files that still read like live authority
+- duplicate current-state memory that competes with queue, dispatch log, or scoreboard
+- incomplete template reports that look like finished evidence
+- historical planning notes that remain on the default reading path after the lane is closed
+
+Prefer demotion and clear `superseded` labels over deletion when historical traceability still matters.
 - stop conditions
 - required closeout report path
 - required closeout filename pattern
@@ -249,12 +366,72 @@ Each report should include:
 - lane id
 - source handoff path
 - execution status
+- systems touched
 - files changed
 - summary of what changed
+- acceptance criteria reached
+- evidence snapshot
 - validation run
+- validation evidence
 - blockers encountered
 - residual risk
 - recommended next step for Catalog Agent review
+
+## Review-Basis Standard
+
+When updating `Review basis` in the catalog, prefer this structure:
+
+- baseline:
+  - prior retained report or kickoff packet
+- refresh or rerate:
+  - exact dated report path
+- code snapshot:
+  - commit id when available
+  - or a declared worktree checkpoint when uncommitted
+- validation:
+  - short command list or test reference
+
+Do not leave `Review basis` as a vague label when a stronger evidence anchor exists.
+
+## Catalog Tool Health Review
+
+At least once per active production week, review whether the catalog tool itself is still working well enough to trust.
+
+Check at minimum:
+
+- closeout compliance:
+  - how many finished lanes produced a closeout report
+- evidence quality:
+  - how many rerating decisions had exact report, snapshot, and validation anchors
+- rerating lead time:
+  - how long completed lanes sat before Catalog Agent review
+- launch-state freshness:
+  - whether scoreboard, queue, dispatch log, and catalog launch fields still match
+- queue usefulness:
+  - whether recent work validated the current next-lane ordering or exposed reprioritization pressure
+
+Record the result in the standing Catalog Agent health-metrics surface.
+
+## Measurement And Learning Update Rule
+
+When a run materially changes launch-state interpretation, score posture, or queue confidence, update the retained learning logs:
+
+- `docs/records/artifacts/agent/system-catalog-agent/metrics/launch-metrics-log.md`
+- `docs/records/artifacts/agent/system-catalog-agent/metrics/score-movement-log.md`
+- `docs/records/artifacts/agent/system-catalog-agent/metrics/decision-outcome-log.md`
+
+Use them to record:
+
+- what changed
+- what stayed intentionally unchanged
+- whether a queue decision looks stronger or weaker in hindsight
+
+During an active production window, also:
+
+- add or update one retained weekly review entry
+- update lane cycle-time entries for lanes whose status changed materially
+- record misses when the process or the earlier judgment was meaningfully weak
+- backtest meaningful production findings against prior catalog beliefs
 
 ## Status Model
 

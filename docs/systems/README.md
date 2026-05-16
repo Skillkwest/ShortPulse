@@ -151,6 +151,12 @@ Use the catalog to distinguish system maturity from execution urgency.
 - `Execution status` expresses the current lane state such as `not dispatched`, `ready`, `running externally`, or `completed externally, pending review`.
 - `Review basis` names the evidence snapshot or review mode behind the row.
 
+When possible, `Review basis` should identify:
+
+- the dated report path
+- the commit id or declared worktree checkpoint
+- the validation reference used for the row
+
 Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor.
 
 Priority bands should be used like this:
@@ -238,9 +244,17 @@ Update `docs/systems/catalog.md` when:
 Update `docs/systems/ship-readiness-scoreboard.md` in the same pass when:
 
 - any launch-facing catalog field changes
-- the queue order changes
-- the dispatch log changes
-- blocker state changes
+
+Do not move `Current score (/10)` in the same pass unless the rerating packet also records:
+
+- previous score
+- proposed score
+- score delta
+- exact report path
+- exact commit id or declared worktree checkpoint
+- exact validation reference
+
+Queue, dispatch, and blocker changes can happen in the same run, but they are not prerequisites for score movement.
 
 Update the taxonomy docs when:
 

@@ -43,7 +43,7 @@ Purpose: give Bopper an owned workspace folder inside the repo for average-user 
 - `PERSONA.md` is the active ICP card Bopper should use during run planning.
 - `TRAINING-SYSTEM.md` defines the required docs Bopper must update for every substantive run.
 - Keep detailed checkpoint reports here.
-- Keep short trainer-facing summaries in `checkpoint-summaries/`.
+- Keep short trainer-facing summaries in `checkpoint-summaries/`, and keep them rich-formatted so they are easy to scan.
 - Keep route, confusion, and abandonment pattern logs current after each substantive run.
 - Use this workspace to make Bopper easy for the trainer to scan and correct.
 - Keep day-to-day Bopper work segregated from Beeper. Historical Beeper files are archival context only.

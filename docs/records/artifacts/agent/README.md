@@ -77,6 +77,7 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/holomony/tools.md`
 - `docs/records/artifacts/agent/system-catalog-agent/README.md`
 - `docs/records/artifacts/agent/system-catalog-agent/memory.md`
+- `docs/records/artifacts/agent/system-catalog-agent/metrics/README.md`
 - `docs/records/artifacts/agent/system-catalog-agent/reports/README.md`
 - `docs/records/artifacts/agent/system-catalog-agent/sops.md`
 - `docs/records/artifacts/agent/system-catalog-agent/training-history.md`

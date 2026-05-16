@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Next-Agent Handoff: Edit Workflow Hardening</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #17181b;
+        --panel: #22252a;
+        --panel-2: #2c3036;
+        --text: #f3f4f6;
+        --muted: #c9ced6;
+        --accent: #ffb86b;
+        --border: #3b4048;
+        --link: #cfe7ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: linear-gradient(180deg, #15171a 0%, #1c1f24 100%);
+        color: var(--text);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.45;
+      }
+      .wrap { max-width: 1100px; margin: 0 auto; }
+      .hero, .section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+      }
+      h1 { margin: 0 0 10px; font-size: 30px; line-height: 1.1; color: var(--accent); }
+      p { margin: 0 0 10px; font-size: 15px; }
+      .meta { color: var(--muted); }
+      a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <h1>Next-Agent Handoff: Edit Workflow Hardening</h1>
+        <p class="meta">Browser-friendly view generated for local in-app browsing.</p>
+        <p><a href="2026-05-06-edit-workflow.md">Open source Markdown</a></p>
+      </section>
+      <section class="section">
+        <pre># Next-Agent Handoff: Edit Workflow Hardening
+
+## Lane Id
+
+`edit-workflow-hardening`
+
+Purpose: raise the weakest major AI Studio workflow from a fragile `5/10` toward the ship floor.
+
+## Copy/Paste Use
+
+- This packet is ready to paste into another agent.
+- Treat it as a bounded execution lane.
+- Do not turn this into a broad AI Studio redesign pass unless the stop rules are hit and the evidence demands it.
+
+## Why this task
+
+- System: `Edit workflow`
+- Current score: `5/10`
+- Target score: `7/10`
+- Ship floor: `7/10`
+- Edit is a large, stateful surface with layers, markup, inpaint, token rules, flatten/export, and restore behavior concentrated in a few big files.
+- Why the score is currently low:
+  - too much workflow state and behavior is concentrated in a small number of large seams
+  - restore and prompt-reference behavior still carries high regression risk
+
+## Recommended agent profile
+
+AI Studio workflow modularization agent with strong state-surface decomposition discipline.
+
+## Scoped task
+
+Find the highest-ROI bounded hardening change inside the Edit workflow and either implement it or reduce the lane to a sharply scoped next patch.
+
+Prefer reducing workflow fragility over adding new workflow capability.
+
+## Owned write surface
+
+- `frontend/features/ai-studio/components/edit/`
+- `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+- directly related Edit tests
+
+## Avoid surface
+
+- provider integration files
+- recovery and billing files
+- Reference Grid and Media Library workflow files
+- broad project-system persistence surfaces outside Edit-owned restore behavior
+
+## In scope
+
+- Expert Edit state ownership
+- prompt-reference token behavior
+- stage/export/flatten boundaries
+- restore-session parity concerns
+- targeted regression tests
+
+## Out of scope
+
+- Create-mode runtime work
+- provider integration changes
+- Reference Grid redesign
+- project system redesign outside Edit-owned restore boundaries
+
+## Required context
+
+Read first:
+
+- `docs/systems/catalog.md`
+- `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`
+- `docs/sops/sop_image_generation.md`
+- `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
+- `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
+
+Inspect first:
+
+- `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
+- `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`
+- `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+- related Edit tests
+
+## Questions to answer
+
+1. What single Edit seam is carrying too much state and risk today?
+2. Which bounded extraction or invariant check would reduce the most fragility?
+3. What regression test is missing from the current Edit-owned behavior?
+
+## Expected output
+
+- one bounded hardening patch with tests, or
+- one findings packet that names the best next seam and why it matters more than other Edit cleanup
+
+## Suggested validation
+
+- targeted Expert Edit tests
+- type-check or build only if the touched seam requires it
+- `npm -C frontend run docs:check` if docs change
+
+## Done state
+
+- one concrete Edit fragility is removed, isolated, or better defended by tests
+
+## Stop rules
+
+- Stop before broad canvas or workflow redesign unless the bounded fix is impossible without it.
+
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-edit-workflow-hardening-closeout.md`
+- Required contents:
+  - lane id
+  - source handoff path
+  - execution status
+  - systems touched
+  - files changed
+  - summary of what changed
+  - acceptance criteria reached
+  - evidence snapshot
+  - validation run
+  - validation evidence
+  - blockers encountered
+  - residual risk
+  - recommended next step for Catalog Agent review
+
+## Closeout And Archive
+
+- Return one of:
+  - bounded hardening patch complete
+  - findings packet complete
+  - blocked with evidence
+- End with:
+  - what changed
+  - what was verified
+  - residual risk
+  - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
+- After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.
+</pre>
+      </section>
+    </div>
+  </body>
+</html>

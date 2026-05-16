@@ -1,4 +1,12 @@
-# Production-Readiness Plan Through 2026-06-06
+# Superseded: Production-Readiness Plan Through 2026-06-06
+
+This plan is historical only.
+
+Use the active plan instead:
+
+- `docs/agents/system-catalog-agent/production-readiness-plan-2026-07-02.md`
+
+Do not use this file for current launch-control decisions.
 
 Purpose: define the current one-month plan for moving ShortPulse to a production ship bar by `2026-06-06`.
 

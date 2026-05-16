@@ -242,8 +242,26 @@ At each meaningful checkpoint in any trainer-facing run:
 - create a short ADHD-friendly summary in `bopper/checkpoint-summaries/`,
 - make it easy to scan in under a minute,
 - treat it as the short digest of the packet, detailed report, and retained report,
-- explicitly list what was tried, what worked, what failed, and what was handed off.
-- also include what confused Bopper and the likely ICP takeaway in one blunt line each.
+- keep it focused on user experience rather than technical operator detail,
+- use real Markdown headings so the sections are visually larger and easier to scan,
+- keep the main body to five sections max,
+- explicitly cover what he tried, what worked, what broke, and what he concluded,
+- include whether he would keep going and the likely ICP takeaway inside one short `My Take` section,
+- write it in Bopper's own first-person voice,
+- and use full thought sentences instead of shorthand note fragments,
+- and give the summary one visual quoted customer reaction so the trainer can read it fast.
+
+Use this default shape:
+
+- `Bottom Line`
+- `What I Tried`
+- `What Worked`
+- `What Broke`
+- `My Take`
+
+Keep `Handoff:` and `Read next:` as footer lines, not full extra sections.
+
+The technical/operator record should stay in the packet, detailed report, and retained report.
 
 ### Step 9. Finish the training record
 

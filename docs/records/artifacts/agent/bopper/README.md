@@ -38,7 +38,9 @@ The agent has a durable contract, repo-visible memory, retained artifact area, o
 ## Usage Notes
 
 - Use retained artifacts for KPI, scoring, logs, directives, retest debt, and durable reports.
+- Treat retained reports and run packets as the technical/operator layer for real follow-up work.
 - Use `persona-design-lessons.md` to capture evidence-backed lessons that should improve Bopper and inform the construction of future test personas.
 - Use `bopper/` for working coverage maps, checkpoint summaries, and route-level operating notes.
+- Treat `bopper/checkpoint-summaries/` as the lightweight human-read layer only.
 - Use the per-run packet under `bopper/runs/<timestamp>-<slug>/` to preserve planning, click rationale, and ICP judgments for every substantive run.
 - Use `docs/records/artifacts/agent/bopper/handoff-from-beeper-2026-05-15.md` as historical origin context only, not as the day-to-day operating source.

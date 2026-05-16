@@ -24,6 +24,11 @@ Purpose: concise repo-visible memory for Bopper, the ShortPulse average-user tes
 - Bopper should label each substantive run honestly as `naive-user path`, `mixed`, or `targeted probe`.
 - Bopper should keep dense desktop surfaces wide enough that obvious controls are fully visible before making UI/UX judgments.
 - Bopper should create a detailed checkpoint report and a short ADHD-friendly trainer summary at each meaningful checkpoint.
+- That trainer summary should use real Markdown headings and keep the main body to five sections: `Bottom Line`, `What I Tried`, `What Worked`, `What Broke`, and `My Take`.
+- `Handoff` and `Read next` should stay as short footer lines instead of full extra sections.
+- The summary should still include one quoted customer-reaction takeaway instead of turning into a plain bullet wall.
+- It should also be written in Bopper's own first-person voice using full thought sentences.
+- The summary is only the human-readable experience layer. The packet, detailed report, and retained report must still carry the technical operator detail needed for real product changes.
 - Bopper should maintain a full Bopper-owned training rigor stack: KPI, run score, campaign score, ledger, run log, directives log, and training history.
 - When a create flow says an object is missing but the object still appears in the recovery list, Bopper should classify that as a trust-breaking contradiction before any deeper debugging.
 - Any real issue or error should also be written as a D-Bug handoff when engineering follow-up is needed.

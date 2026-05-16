@@ -261,6 +261,40 @@ Actions taken:
 
 Training result:
 
+- The original signed-in dashboard create dead end is no longer Bopper's main dashboard trust risk.
+- Bopper can now spend time on saved-project trust instead of repeating the old create bug.
+
+Next training focus:
+
+- test `Open Projects` as the first deliberate saved-work entry path
+- expand into media/library and other untouched major routes once the dashboard reopen lane is clearer
+
+## 2026-05-16: Saved-Project Reopen Runtime Regression
+
+Task: run the queued `Open Projects` trust lane and compare reopening saved work against `New Project`.
+
+Actions taken:
+
+- Started the lane with a fresh Bopper packet and used browser-visible recovery moves only.
+- Reused the stale local AI Studio work tab first, then tried one browser reload.
+- Attempted local dashboard recovery and hit `EDIT_PRESET_BASE_DEFINITIONS is not defined`.
+- Checked production `/dashboard`, but the reachable Chrome window was public and not usable for the signed-in `Open Projects` lane.
+- Reopened recently closed local work tabs until a local AI Studio project route was restored.
+- Observed the reopened project move through visible restore progress, then crash with `SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS is not iterable`.
+- Captured the exact runtime signatures, linked the likely code surfaces, and created a D-Bug handoff.
+
+Training result:
+
+- Bopper now has strong evidence that saved-project reopen failures hit this ICP harder than create-path failures, because they directly threaten repeatable workflow trust.
+- The lane is no longer a simple coverage gap. It is blocked by a real local runtime regression.
+
+Next training focus:
+
+- rerun the `Open Projects` comparison after the AI Studio/dashboard runtime regression is repaired
+- keep prioritizing saved-work trust because it is a stronger business signal than launch-surface semantics alone
+
+Training result:
+
 - Bopper has now validated one real signed-in dashboard success path and one real natural AI Studio entry.
 - The earlier create-path trust break has been retired as active retest debt.
 
@@ -269,3 +303,115 @@ Next training focus:
 - broaden into `Open Projects` as a deliberate first-choice lane
 - complete the auth -> dashboard path with a visibly paid `Studio` identity
 - keep recording entitlement mismatches whenever paid-plan persona truth is only partial
+
+## 2026-05-16: ADHD Summary Rich-Format Upgrade
+
+Task: make Bopper checkpoint summaries easier for the trainer to read quickly by upgrading them from plain bullets to richer Markdown structure.
+
+Actions taken:
+
+- Updated the checkpoint-summary rules to require visual section structure instead of a flat bullet wall.
+- Updated the run scaffold so future summaries generate with `Top line`, `What Bopper Did`, `What Bopper Felt`, `ICP Read`, and `Read Next` sections.
+- Rewrote the existing live checkpoint summaries into the richer format.
+- Synced the rule into local instructions, local memory, the SOP, the training system, the workspace README, and the trainer directives log.
+
+Training result:
+
+- Bopper summaries should now be faster to scan and easier to consume without opening the full reports immediately.
+
+Next training focus:
+
+- keep future summaries compact while preserving enough visual structure to stay readable
+
+## 2026-05-16: Rich Summary Rule Written Into Memory
+
+Task: make sure the richer ADHD-summary format lives inside Bopper's saved instruction and memory surfaces, not just the summary docs.
+
+Actions taken:
+
+- Strengthened `docs/agents/bopper/memory.md` with the rich-summary requirement.
+- Tightened `bopper/AGENT-INSTRUCTIONS.md` so the required summary shape is explicit.
+- Tightened `bopper/MEMORY.md` so the minimum section layout is preserved locally.
+
+Training result:
+
+- The summary-format rule now persists across contract, SOP, scaffold, local instructions, and memory layers.
+
+Next training focus:
+
+- keep the summary shape stable unless a better visual skim pattern proves itself in real use
+
+## 2026-05-16: ADHD Summary Skim Tightening
+
+Task: make Bopper checkpoint summaries even faster to scan by replacing neutral report labels with simpler outcome and friction labels.
+
+Actions taken:
+
+- Reworked the summary rules around `Bottom line`, `Status`, `Good`, `Bad`, `Stuck`, `Money / trust`, and `Would he keep going?`.
+- Updated the summary scaffold so future packets generate the tighter skim shape by default.
+- Rewrote the existing live summaries into the faster skim format.
+- Synced the rule into the canonical memory, local instructions, local memory, SOP, training system, and trainer directives log.
+
+Training result:
+
+- Bopper summaries should now read more like a quick operating dashboard and less like mini reports.
+
+Next training focus:
+
+- keep future summaries brutally short unless the trainer explicitly asks for more detail
+
+## 2026-05-16: Larger Simpler Summary Layout
+
+Task: make Bopper summaries easier to read by using larger headings and fewer sections.
+
+Actions taken:
+
+- Replaced bold label blocks with real Markdown section headers.
+- Reduced the structure to simpler sections: `Worked`, `Problem`, `Business Read`, and `Bopper Reaction`.
+- Updated the scaffold, summary rules, canonical memory, local instructions, local memory, and trainer directives.
+- Rewrote the two saved live summaries into the simpler larger-heading format.
+
+Training result:
+
+- Bopper summaries should now read more like quick cards than compact reports.
+
+Next training focus:
+
+- keep future summaries simple unless a specific run genuinely needs more structure
+
+## 2026-05-16: Summary Voice Converted To Bopper
+
+Task: make sure checkpoint summaries sound like the tester rather than the operator.
+
+Actions taken:
+
+- Updated the summary rules to require Bopper's own first-person voice.
+- Updated the scaffold so future summaries prompt for full thought sentences instead of shorthand notes.
+- Rewrote the two saved live summaries so they read like Bopper talking through what happened.
+- Synced the rule into canonical memory, local instructions, local memory, the SOP, the training system, and the trainer directives log.
+
+Training result:
+
+- Bopper summaries should now read like short first-person testimony instead of structured operator notes.
+
+Next training focus:
+
+- keep the voice natural without letting the summaries get too long
+
+## 2026-05-16: Summary And Operator Record Split Clarified
+
+Task: make sure Bopper's lightweight summaries stay human-readable while the real technical detail remains preserved for product changes.
+
+Actions taken:
+
+- Clarified that checkpoint summaries are the human-readable experience layer only.
+- Clarified that the run packet, detailed report, retained report, and D-Bug handoff are the real operator record.
+- Updated the training system, SOP, memory surfaces, reports docs, retained report template, and trainer directives to preserve that split.
+
+Training result:
+
+- Bopper should now keep summaries readable for the trainer without dropping the technical detail needed for real follow-up work.
+
+Next training focus:
+
+- keep summaries clean while checking that future operator reports stay dense enough to drive actual fixes

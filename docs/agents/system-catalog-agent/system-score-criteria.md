@@ -1,11 +1,12 @@
 # System Score Criteria
 
-Purpose: define what `10/10` means for each current system row so the catalog has a concrete target state instead of an abstract aspiration.
+Purpose: define the ship-floor and mature-state criteria for each current system row so the catalog helps ShortPulse ship honestly before it chases idealized scores.
 
 ## How To Use This
 
 - `Ship floor` is the minimum acceptable score for the current production window.
 - `10/10` is the ideal mature-state target.
+- For the current prelaunch window, optimize for reaching and defending `Ship floor` first.
 - Do not claim `10/10` just because tests passed once. The criteria below imply sustained strength, clarity, and low operational friction.
 - Do not move a score based on narrative confidence alone. A rerating should name the evidence that satisfied the relevant gates.
 
@@ -24,6 +25,29 @@ A system should not move upward unless the rerating packet can point to the rele
   - incidents, diagnostics, or known-issue posture materially improved when relevant
 - release readiness:
   - no ship-blocking known issue remains in that system lane
+
+## Score-Movement Protocol
+
+Every rerating decision should explicitly record:
+
+- previous score
+- proposed score
+- score delta:
+  - `+1`
+  - `0`
+  - `-1`
+- exact evidence anchors:
+  - report path
+  - commit id or declared worktree checkpoint
+  - validation commands or suites
+  - blocker or incident refs when relevant
+
+Rules:
+
+- do not move upward without exact evidence anchors
+- do not move downward on unease alone
+- lane completion by itself is not score evidence
+- when the evidence only supports stronger operating certainty, prefer `0` with refreshed launch-state fields
 
 ## Score Gate Meanings
 

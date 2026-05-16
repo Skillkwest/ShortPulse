@@ -1,4 +1,12 @@
-# Prioritized System-By-System Handoff Queue
+# Superseded: Prioritized System-By-System Handoff Queue
+
+This queue is historical only.
+
+Use the active queue instead:
+
+- `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.md`
+
+Do not use this file for current launch-control sequencing.
 
 Purpose: define the ordered execution queue the Catalog Agent should hand to specialist agents during the current production-readiness window.
 
@@ -7,6 +15,7 @@ Purpose: define the ordered execution queue the Catalog Agent should hand to spe
 - Higher rows should be worked before lower rows unless fresh evidence changes the order.
 - Queue position is based on ship impact, not on how easy the work looks.
 - A row can move down only when the current blocker above it is genuinely reduced.
+- After a meaningful audit, the Catalog Agent should turn the top actionable rows into a dispatch-ready ordered worklist with paste-ready prompts.
 
 ## Queue
 
@@ -41,6 +50,7 @@ Purpose: define the ordered execution queue the Catalog Agent should hand to spe
 - Priorities `1..6` are the current ship-critical execution set.
 - Priorities `7..12` are the next ship-relevant confidence and boundary set.
 - Priorities `13..23` should generally be validated and selectively hardened, not expanded by momentum alone.
+- If a top-priority row is still `queue-only`, that missing handoff should usually be treated as the next Catalog Agent output gap to close.
 
 ## Immediate Handoff Set
 

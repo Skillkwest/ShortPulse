@@ -7,10 +7,20 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-06-kickoff.md`: initial mission framing, deadline, baseline scores, and first priority systems.
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
 - `2026-05-15-production-launch-state-refresh.md`: production-only launch-state refresh that reconciles May 15 evidence without forcing a full rerating.
-- `2026-05-10-media-library-speed-and-lean-roadmap.md`: retained short-form roadmap distilled from the media-library audit and rewritten phased plan.
-- `2026-05-10-media-library-phase0-execution-checklist.md`: concrete preparation checklist, commands, and tool entrypoints for the Media Library speed/lean program.
+- `2026-05-16-production-repo-audit-and-dispatch-output.md`: full repo-plus-worktree audit on `production`, July 2 window refresh, and current dispatch-ready worklist.
+- `2026-05-16-operator-brief.html`: canonical rich-format operator brief for the full repo-plus-worktree audit.
+- `2026-05-16-operator-brief.md`: source-only backing artifact for the operator brief.
+- `2026-05-16-memory-and-catalog-prune-audit.md`: pruning audit for Catalog Agent memory, retained context, and launch-focus catalog docs.
+- `2026-05-16-workspace-audit.md`: workspace-structure audit confirming the Catalog Agent space is self-contained and operational.
 - `external-lane-closeouts/README.md`: intake rules for closeout reports written by execution agents.
 - `external-lane-closeouts/template.md`: reusable closeout format for execution agents finishing a lane.
+
+## Historical Retained Reports
+
+- `2026-05-10-media-library-speed-and-lean-roadmap.md`
+- `2026-05-10-media-library-phase0-execution-checklist.md`
+
+These remain preserved, but they are not part of the default Catalog Agent launch-readiness reading path unless that media-library lane is reopened.
 
 ## Organization Rule
 

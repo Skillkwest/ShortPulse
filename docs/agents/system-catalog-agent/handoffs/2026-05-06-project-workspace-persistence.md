@@ -108,6 +108,20 @@ Inspect first:
   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
 - Filename:
   - `YYYY-MM-DD-project-workspace-persistence-hardening-closeout.md`
+- Required contents:
+  - lane id
+  - source handoff path
+  - execution status
+  - systems touched
+  - files changed
+  - summary of what changed
+  - acceptance criteria reached
+  - evidence snapshot
+  - validation run
+  - validation evidence
+  - blockers encountered
+  - residual risk
+  - recommended next step for Catalog Agent review
 
 ## Closeout And Archive
 

@@ -1,0 +1,17 @@
+# Bopper Click Log
+
+Purpose: capture what Bopper clicked, why he clicked it, and whether that choice felt intuitive.
+
+## Run
+
+- Date: 2026-05-16
+- Task: Bopper compare Open Projects as the first deliberate entry path against New Project trust and reopening clarity
+
+| Step | Surface | Visible options noticed | Clicked / input | Why Bopper chose it | Expected result | Actual result | Did it feel intuitive? | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | stale local AI Studio tab in Chrome | existing local work tab, public production dashboard tab, Gmail | reused the existing local AI Studio tab | It looked like the most natural "keep working" surface for a returning user who already had saved work | reopen into a usable signed-in workspace or at least a stable dashboard handoff | the stale local tab first showed a connection error and needed recovery | partial; reusing an old work tab felt natural, but the state itself was degraded | `notes.md`, Computer Use state showing `localhost refused to connect` |
+| 2 | same local tab recovery | `Reload` on the Chrome error page | clicked `Reload` | A normal user would try the obvious browser recovery once before changing route | reconnect to the local AI Studio page | page stayed broken, so the stale tab did not self-recover | yes for the click, no for the result | Computer Use state with `This site can't be reached` |
+| 3 | local signed-in recovery attempt | address bar already focused on a broken project route | entered `http://localhost:3000/dashboard` | Dashboard is the obvious safe place to recover and then choose `Open Projects` | return to signed-in dashboard and use the projects entry path | dashboard recovery hit a runtime overlay instead of a usable route | partial; the move made sense, but the app gave a developer crash state | Computer Use state showing `EDIT_PRESET_BASE_DEFINITIONS is not defined` |
+| 4 | production dashboard fallback | visible `Log in`, `Explore pricing`, `New Project` | switched to `https://www.shortpulse.ai/dashboard` | If local is unstable, the next believable move is to check the real product in the same browser profile | reach a signed-in production dashboard and compare `Open Projects` against `New Project` | production dashboard was public and showed `Log in`, so the signed-in lane was unavailable | yes, but it exposed that this browser window was not authenticated for production | Computer Use screenshot/state for production public dashboard |
+| 5 | Chrome tab recovery | browser reopen shortcut | pressed `Cmd+Shift+T` repeatedly | Reopening the last working tab is a normal-user recovery move when saved work seems lost | restore the recent local work tabs and get back to a signed-in project context | reopened `127.0.0.1:3000/media-library` 404 first, then reopened a local `ShortPulse · AI Studio` project tab | yes; this felt like the most natural non-admin recovery move in the whole run | Computer Use states for `404` media-library tab and reopened local AI Studio tab |
+| 6 | reopened local AI Studio project | visible project-restore progress card | waited for restore to continue | The route looked like it was correctly reopening saved work, so waiting was the obvious move | load the project workspace and open AI Studio | progress advanced to `Opening Untitled project`, then the app crashed into `SOMETHING WENT WRONG` / `We hit a rendering error` | yes until the crash; the route looked trustworthy right before it failed | Computer Use state showing restore progress and final rendering error |

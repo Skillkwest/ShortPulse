@@ -88,11 +88,11 @@ Suggested scoring:
 ## Current Campaign Read - 2026-05-15
 
 - Coverage Score: `7.4 / 10`
-- Impact Score: `8.7 / 10`
+- Impact Score: `8.8 / 10`
 
 Reasoning:
 
-- impact is strong because Beeper has already found multiple believable product issues and narrowed them well
+- impact is strong because Beeper has already found multiple believable product issues and continues to turn partial route coverage into cleaner trust-break signatures
 - coverage improved because AI Studio now has one validated persisted editing path
 - coverage is still limited because `character`, `media library`, and broader `dashboard` behavior remain only partial
 

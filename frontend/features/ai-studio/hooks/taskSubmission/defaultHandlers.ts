@@ -132,6 +132,8 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
         fullStoragePath: response.output.fullStoragePath,
         mimeType: response.output.mimeType,
         savedMediaIds: response.output.savedMediaIds,
+        saveState: response.output.saveState,
+        saveError: response.output.saveError,
       });
       return {
         terminal: "immediate",

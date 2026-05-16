@@ -666,6 +666,41 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("fails closed when the autosave preference lookup errors", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: "user preference read failed" },
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockReset();
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-no-autosave",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
   it("settles abandoned direct terminal success without republishing to the reference grid", async () => {
     readGenerationAbandonmentContextMock.mockResolvedValue({
       abandoned: true,

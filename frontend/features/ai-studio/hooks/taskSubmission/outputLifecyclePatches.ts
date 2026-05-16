@@ -4,7 +4,7 @@
  */
 import type { SubmissionPatch } from "./types";
 import type { Provider } from "../../logic/stateParsers";
-import type { StudioOutput } from "../../types";
+import type { StudioOutput, StudioOutputSaveState } from "../../types";
 
 type SubmissionFailurePatch = {
   timestamp: string;
@@ -70,6 +70,8 @@ type CompletedSubmissionPatchInput = {
   fullStoragePath?: string | null;
   mimeType?: string | null;
   savedMediaIds?: string[];
+  saveState?: StudioOutputSaveState;
+  saveError?: string | null;
 };
 
 /**
@@ -86,6 +88,8 @@ export const applyCompletedSubmissionPatch = ({
   fullStoragePath,
   mimeType,
   savedMediaIds = [],
+  saveState,
+  saveError = null,
 }: CompletedSubmissionPatchInput): StudioOutput => ({
   ...item,
   generationId,
@@ -102,7 +106,8 @@ export const applyCompletedSubmissionPatch = ({
   fullStoragePath: fullStoragePath ?? item.fullStoragePath ?? null,
   mimeType: mimeType ?? item.mimeType ?? null,
   mediaSource: "generated",
-  saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+  saveState: saveState ?? (savedMediaIds.length > 0 ? "saved" : "idle"),
+  saveError,
   savedMediaIds,
   status: savedMediaIds.length > 0 ? "saved" : "ready",
   errorMessage: null,

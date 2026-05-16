@@ -171,6 +171,8 @@ export const createSubmissionLifecycleCallbacks = ({
     fullStoragePath,
     mimeType,
     savedMediaIds = [],
+    saveState,
+    saveError = null,
   }: ImmediateGenerationResult) => {
     markStarted(requestId, provider);
     if (isOutputAbandoned?.(outputId)) return;
@@ -186,6 +188,8 @@ export const createSubmissionLifecycleCallbacks = ({
         fullStoragePath,
         mimeType,
         savedMediaIds,
+        saveState,
+        saveError,
       })
     );
     void ensureGenerationRecord({

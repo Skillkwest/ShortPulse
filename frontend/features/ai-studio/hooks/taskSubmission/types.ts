@@ -6,7 +6,7 @@ import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
-import { StudioOutput } from "../../types";
+import { StudioOutput, type StudioOutputSaveState } from "../../types";
 
 export type SubmissionModelConfig = ReturnType<typeof getModelConfig>;
 
@@ -22,6 +22,8 @@ export type ImmediateGenerationResult = {
   fullStoragePath?: string | null;
   mimeType?: string | null;
   savedMediaIds?: string[];
+  saveState?: StudioOutputSaveState;
+  saveError?: string | null;
 };
 
 export type BaseSubmissionArgs = {

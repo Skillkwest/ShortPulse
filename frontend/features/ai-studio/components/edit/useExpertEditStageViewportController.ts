@@ -56,7 +56,10 @@ type UseExpertEditStageViewportControllerResult = {
   resetStageViewport: () => void;
   beginMarkupPanGesture: (
     event: React.PointerEvent<HTMLDivElement>,
-    scope: ExpertEditStageScope
+    scope: ExpertEditStageScope,
+    options?: {
+      allowPrimaryPanWithoutModifier?: boolean;
+    }
   ) => boolean;
   continueMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
@@ -168,7 +171,13 @@ export const useExpertEditStageViewportController = ({
   );
 
   const beginMarkupPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, scope: ExpertEditStageScope) => {
+    (
+      event: React.PointerEvent<HTMLDivElement>,
+      scope: ExpertEditStageScope,
+      options?: {
+        allowPrimaryPanWithoutModifier?: boolean;
+      }
+    ) => {
       if (!shouldApplyMarkupViewport) {
         return false;
       }
@@ -177,7 +186,9 @@ export const useExpertEditStageViewportController = ({
       const isPrimaryPointerPanButton =
         event.button === 0 || isPointerButtonPressed(event.buttons, 0b001);
       const isSpacePanGesture = isMarkupPanSpacePressed && isPrimaryPointerPanButton;
-      if (!isMiddleMousePanGesture && !isSpacePanGesture) {
+      const isBackdropPrimaryPanGesture =
+        Boolean(options?.allowPrimaryPanWithoutModifier) && isPrimaryPointerPanButton;
+      if (!isMiddleMousePanGesture && !isSpacePanGesture && !isBackdropPrimaryPanGesture) {
         return false;
       }
       event.preventDefault();
@@ -231,28 +242,17 @@ export const useExpertEditStageViewportController = ({
       const deltaY = event.clientY - session.startClientY;
       const deltaXRatio = deltaX / Math.max(1, session.stageWidth);
       const deltaYRatio = deltaY / Math.max(1, session.stageHeight);
-      const viewportSize = {
-        width: session.stageWidth,
-        height: session.stageHeight,
-      };
-      const clampOptions = resolveViewportClampOptions(
-        session.scope,
-        event.currentTarget,
-        viewportSize
-      );
-      setMarkupViewport((previous) =>
-        clampMarkupViewportState(
-          {
+      setMarkupViewport(
+        (previous) =>
+          ({
             ...previous,
             offsetXRatio: session.startOffsetXRatio + deltaXRatio,
             offsetYRatio: session.startOffsetYRatio + deltaYRatio,
-          },
-          clampOptions
-        )
+          }) satisfies MarkupViewportState
       );
       return true;
     },
-    [markupPanPointerSessionRef, resolveViewportClampOptions, setMarkupViewport]
+    [markupPanPointerSessionRef, setMarkupViewport]
   );
 
   const endMarkupPanGesture = React.useCallback(

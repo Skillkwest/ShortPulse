@@ -266,6 +266,82 @@ describe("sessionSnapshot", () => {
     });
   });
 
+  it("preserves identity-only image attachments when no renderable preview url survives", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "agent-attachment-identity-only-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Test prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [
+        {
+          id: "u-1",
+          role: "user",
+          content: "",
+          attachments: [
+            {
+              id: "img-1",
+              kind: "image",
+              imageUrl: "blob:composer-owned-preview",
+              imageFallbackUrls: [],
+              previewStoragePath: "user-1/generated/preview.png",
+              fullStoragePath: "user-1/generated/full.png",
+              text: null,
+              aspect: null,
+              referenceId: "out-1",
+              referenceUrl: null,
+              referenceRenderUrl: null,
+            },
+          ],
+        },
+      ],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+      canvasState: undefined,
+      expertEditSessionState: null,
+    });
+
+    expect(snapshot.agentRuntimes?.standard.messages[0]?.attachments?.[0]).toMatchObject({
+      kind: "image",
+      imageUrl: null,
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceId: "out-1",
+    });
+  });
+
   it("preserves apply_prompt workflow artifacts in Pulse session snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "pulse-apply-prompt-session",

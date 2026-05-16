@@ -29,6 +29,12 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.queryByLabelText("Sound effect output format")).not.toBeInTheDocument();
     expect(screen.getByText("MP3")).toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
+    expect(screen.getByText("Inspiration")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sound effect inspiration")).toBeInTheDocument();
+    expect(container.querySelector(".sound-effects-properties-divider-wrap")).not.toBeNull();
+    expect(container.querySelector(".sound-effects-properties-divider")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByText("0 / 450")).toBeInTheDocument();
   }, 20000);
@@ -102,6 +108,16 @@ describe("SoundEffectsPropertiesPanel", () => {
         loop: true,
         outputFormat: "mp3_44100_128",
       })
+    );
+  });
+
+  it("appends inspiration chips into the prompt", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "cinematic boom" }));
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "cinematic boom"
     );
   });
 

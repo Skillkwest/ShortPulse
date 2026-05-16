@@ -46,7 +46,7 @@ describe("useExpertEditStageInteractions", () => {
     expect(args.handleMovePointerDown).not.toHaveBeenCalled();
   });
 
-  it("keeps inline move pointer down routed to move handlers", () => {
+  it("short-circuits inline move pointer down when a pan gesture starts", () => {
     const args = buildArgs("move");
     args.beginMarkupPanGesture.mockReturnValue(true);
 
@@ -56,8 +56,8 @@ describe("useExpertEditStageInteractions", () => {
       result.current.inlineStageInteractionRouter.onPointerDown(createPointerEvent());
     });
 
-    expect(args.beginMarkupPanGesture).not.toHaveBeenCalled();
-    expect(args.handleMovePointerDown).toHaveBeenCalledTimes(1);
+    expect(args.beginMarkupPanGesture).toHaveBeenCalledTimes(1);
+    expect(args.handleMovePointerDown).not.toHaveBeenCalled();
   });
 
   it("short-circuits modal inpaint pointer move while pan is active", () => {

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaAutosavePreference } from "../useMediaAutosavePreference";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -20,24 +20,28 @@ const createDeferred = <T>(): Deferred<T> => {
 };
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
-const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
-  readSupabaseUserId: readSupabaseUserIdMock,
+  useSupabaseSessionState: useSupabaseSessionStateMock,
 }));
 
 describe("useMediaAutosavePreference", () => {
   beforeEach(() => {
     vi.mocked(ensureSupabaseQueryClient).mockReset();
-    vi.mocked(readSupabaseUserId).mockReset();
+    vi.mocked(useSupabaseSessionState).mockReset();
     window.localStorage.clear();
   });
 
   it("loads local preference and becomes ready when no user session exists", async () => {
     window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled", "false");
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
 
     const { result } = renderHook(() => useMediaAutosavePreference());
@@ -47,6 +51,41 @@ describe("useMediaAutosavePreference", () => {
     });
 
     expect(result.current.mediaAutosaveEnabled).toBe(false);
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("prefers the signed-in remote preference over stale local fallback", async () => {
+    window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled", "false");
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { media_autosave_enabled: true }, error: null });
+
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useMediaAutosavePreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.mediaAutosaveEnabled).toBe(true);
     expect(result.current.syncState).toBe("ready");
     expect(result.current.error).toBeNull();
   });
@@ -67,7 +106,11 @@ describe("useMediaAutosavePreference", () => {
       .fn()
       .mockResolvedValue({ data: { media_autosave_enabled: true }, error: null });
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue("user-1");
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "user_preferences") throw new Error("Unexpected table");
@@ -105,12 +148,58 @@ describe("useMediaAutosavePreference", () => {
     });
 
     await act(async () => {
-      firstWrite.reject(new Error("stale failure"));
+      firstWrite.resolve({ error: { message: "stale failure" } });
       await Promise.resolve();
     });
 
     expect(result.current.mediaAutosaveEnabled).toBe(true);
     expect(result.current.error).toBeNull();
     expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled")).toBe("true");
+  });
+
+  it("retries a failed signed-in load on window focus", async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("temporary read failure"))
+      .mockResolvedValueOnce({ data: { media_autosave_enabled: false }, error: null });
+
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useMediaAutosavePreference());
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("error");
+    });
+    expect(result.current.mediaAutosaveEnabled).toBe(true);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("ready");
+    });
+    expect(result.current.mediaAutosaveEnabled).toBe(false);
   });
 });

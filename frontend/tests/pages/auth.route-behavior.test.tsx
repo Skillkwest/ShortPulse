@@ -127,7 +127,7 @@ describe("Auth route behavior", () => {
 
   it("uses asPath fallback while router query is hydrating", async () => {
     routerState.isReady = false;
-    routerState.asPath = "/auth?next=%2Fmedia-library";
+    routerState.asPath = "/auth?next=%2Fai-studio";
     signInWithPasswordMock.mockResolvedValue({
       error: null,
       data: { session: { user: { id: "user-1" } } },
@@ -140,7 +140,7 @@ describe("Auth route behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/media-library");
+      expect(pushMock).toHaveBeenCalledWith("/ai-studio");
     });
   });
 

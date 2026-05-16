@@ -136,8 +136,8 @@ describe("Auth callback route behavior", () => {
 
   it("updates the password and redirects after a recovery callback", async () => {
     setCallbackRoute(
-      "/auth/callback?flow=recovery&next=%2Fmedia-library#type=recovery&access_token=test-token",
-      { flow: "recovery", next: "/media-library" }
+      "/auth/callback?flow=recovery&next=%2Fai-studio#type=recovery&access_token=test-token",
+      { flow: "recovery", next: "/ai-studio" }
     );
     readSupabaseSessionMock.mockResolvedValue({
       user: { id: "user-1" },
@@ -157,7 +157,7 @@ describe("Auth callback route behavior", () => {
     await waitFor(() => {
       expect(updateUserMock).toHaveBeenCalledWith({ password: "newpass123" });
       expect(refreshSupabaseSessionMock).toHaveBeenCalledTimes(1);
-      expect(replaceMock).toHaveBeenCalledWith("/media-library");
+      expect(replaceMock).toHaveBeenCalledWith("/ai-studio");
     });
   });
 

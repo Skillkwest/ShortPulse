@@ -8,7 +8,7 @@ import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools
 import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
 import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
-import type { StageInteractionHandlers } from "./ExpertEditStageSurface";
+import type { StageInteractionHandlers, StagePanHandlers } from "./ExpertEditStageSurface";
 import type { RailTool } from "./expertEditPanelViewContract";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import type { MarkupStroke } from "./markupStrokeController";
@@ -41,6 +41,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
     interactionHandlers: StageInteractionHandlers
   ) => React.ReactNode;
   inlineStageInteractionRouter: StageInteractionRouterHandlers;
+  inlineBackdropPanHandlers: StagePanHandlers;
   modalStageInteractionRouter: StageInteractionRouterHandlers;
   isInpaintCollapsed: boolean;
   isInpaintCollapsing: boolean;
@@ -129,6 +130,7 @@ export function useExpertEditStageWorkspaceRuntime({
   isPrimaryStageGenerating,
   renderSelectedLayerTransformOverlay,
   inlineStageInteractionRouter,
+  inlineBackdropPanHandlers,
   modalStageInteractionRouter,
   isInpaintCollapsed,
   isInpaintCollapsing,
@@ -353,6 +355,7 @@ export function useExpertEditStageWorkspaceRuntime({
   };
 
   return {
+    inlineBackdropPanHandlers,
     inlineInteractionHandlers,
     inlineStageWheelHandler: inlineStageInteractionRouter.onWheel,
     inlineSceneContent,

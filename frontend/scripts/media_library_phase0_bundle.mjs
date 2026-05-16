@@ -21,14 +21,16 @@ const LOADED_ENV_FILES = loadLocalEnv({
   ],
 });
 
-const DEFAULT_BASE_URL = process.env.SHORTPULSE_STAGING_BASE_URL?.trim() || "";
+const DEFAULT_BASE_URL =
+  process.env.SHORTPULSE_MEDIA_LIBRARY_BASE_URL?.trim() ||
+  process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ||
+  "";
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_SAMPLES = 6;
 const DEFAULT_WARMUP = 2;
 const DEFAULT_SURFACE = "media-library-panel";
 const DEFAULT_MEDIA_KIND = "all";
 const DEFAULT_PROFILE = "expanded";
-const DEFAULT_ROUTE_LIMIT = 60;
 const DEFAULT_SURFACE_LIMIT = 36;
 const DEFAULT_OUTPUT_FILE = path.join(
   os.tmpdir(),
@@ -37,11 +39,6 @@ const DEFAULT_OUTPUT_FILE = path.join(
 const SURFACE_PRESETS = {
   panel: {
     surface: "media-library-panel",
-    mediaKind: "all",
-    profile: "expanded",
-  },
-  route: {
-    surface: "media-library-route",
     mediaKind: "all",
     profile: "expanded",
   },
@@ -73,7 +70,7 @@ const CHECKLIST_LINES = [
   "2. Reconcile doc/runtime drift for folder-canvas behavior and performance tuning docs.",
   "3. Capture baseline metrics: first visible media paint, first decoded image, first visible video frame, sign-batch calls per open, resolve-previews rate, storage-download fallback rate, repeat-open latency.",
   "4. Capture derivative coverage: image thumbs, video posters, video hover previews, backlog size, terminal failure classes.",
-  "5. Run the route/runtime audit on a real large library and preserve the output packet.",
+  "5. Run the AI Studio panel/modal runtime audit on a real large library and preserve the output packet.",
   "6. Record which runtime knobs are real controls versus hard-coded behavior.",
 ];
 
@@ -168,7 +165,7 @@ const usage = () => {
       "",
       "Options:",
       "  --run-probe              Run live authenticated probes for /api/media/list, /api/media/sign-batch, /api/media/resolve-previews.",
-      `  --base-url <url>         App base URL. Default env: SHORTPULSE_STAGING_BASE_URL (${DEFAULT_BASE_URL || "unset"}).`,
+      `  --base-url <url>         App base URL. Default env: SHORTPULSE_MEDIA_LIBRARY_BASE_URL (${DEFAULT_BASE_URL || "unset"}).`,
       "  --token <token>          Bearer token for a real user with media rows. Required for --run-probe.",
       `  --preset <name>          Preset probe shape: ${Object.keys(SURFACE_PRESETS).join(", ")}.`,
       `  --surface <value>        Probe surface. Default: ${DEFAULT_SURFACE}.`,
@@ -235,8 +232,7 @@ const fetchJson = async ({ baseUrl, routePath, token, method = "POST", body, tim
 };
 
 export const buildListRequestBody = ({ surface, mediaKind, profile, limit }) => {
-  const effectiveLimit =
-    limit > 0 ? limit : surface === "media-library-route" ? DEFAULT_ROUTE_LIMIT : DEFAULT_SURFACE_LIMIT;
+  const effectiveLimit = limit > 0 ? limit : DEFAULT_SURFACE_LIMIT;
 
   return {
     tab: undefined,
@@ -429,7 +425,9 @@ const writeReport = (outputPath, content) => {
 
 const runProbe = async (args) => {
   if (!args.baseUrl) {
-    throw new Error("Missing --base-url (or SHORTPULSE_STAGING_BASE_URL) for --run-probe.");
+    throw new Error(
+      "Missing --base-url (or SHORTPULSE_MEDIA_LIBRARY_BASE_URL) for --run-probe."
+    );
   }
   if (!args.token) {
     throw new Error("Missing --token for --run-probe. Use a real user with media rows.");

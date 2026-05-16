@@ -47,8 +47,8 @@ const SQL_DIAGNOSTICS = [
 
 const PHASE0_COMMANDS = [
   "npm -C frontend run media:phase0",
-  "npm -C frontend run media:phase0:probe -- --preset route --base-url <url> --token <token>",
-  "npm -C frontend run test:e2e:media-library-runtime",
+  "npm -C frontend run media:phase0:probe -- --preset panel --base-url <url> --token <token>",
+  "npm -C frontend run test:e2e:elements-panel-layout",
 ];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");

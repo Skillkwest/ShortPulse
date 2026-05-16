@@ -20,6 +20,11 @@ export type StageInteractionHandlers = {
   onPointerLeave: React.PointerEventHandler<HTMLDivElement>;
 };
 
+export type StagePanHandlers = Pick<
+  StageInteractionHandlers,
+  "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onPointerLeave"
+>;
+
 type ExpertEditInlineStageSurfaceProps = {
   stageRef: React.Ref<HTMLDivElement>;
   isEmpty: boolean;
@@ -43,6 +48,7 @@ type ExpertEditInlineStageSurfaceProps = {
   isPresetsOpen: boolean;
   surfaceStyle: React.CSSProperties;
   shouldRenderInteractive: boolean;
+  backdropPanHandlers: StagePanHandlers;
   interactionHandlers: StageInteractionHandlers;
   onStageMouseDown?: React.MouseEventHandler<HTMLDivElement>;
   onStageAuxClick?: React.MouseEventHandler<HTMLDivElement>;
@@ -80,6 +86,7 @@ export function ExpertEditInlineStageSurface({
   isPresetsOpen,
   surfaceStyle,
   shouldRenderInteractive,
+  backdropPanHandlers,
   interactionHandlers,
   onStageMouseDown,
   onStageAuxClick,
@@ -100,6 +107,12 @@ export function ExpertEditInlineStageSurface({
       onPointerMoveCapture={onPointerMoveCapture}
       onPointerUpCapture={onPointerUpCapture}
       onPointerCancelCapture={onPointerCancelCapture}
+      onPointerDown={backdropPanHandlers.onPointerDown}
+      onPointerMove={backdropPanHandlers.onPointerMove}
+      onPointerUp={backdropPanHandlers.onPointerUp}
+      onPointerCancel={backdropPanHandlers.onPointerCancel}
+      onPointerLeave={backdropPanHandlers.onPointerLeave}
+      onWheel={onStageWheel}
     >
       <PrimaryStageViewportLayer style={viewportStyle}>
         <PrimaryCanvasFrameStack

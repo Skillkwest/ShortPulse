@@ -44,7 +44,6 @@ vi.mock("../../lib/authGuard", () => ({
   PROTECTED_ROUTES: [
     "/performance",
     "/saved-creators",
-    "/media-library",
     "/profile",
     "/ai-studio",
     "/creator-studio",

@@ -861,7 +861,6 @@ jobs:
               - 'frontend/features/ai-studio/**'
               - 'frontend/features/media-library/**'
               - 'frontend/pages/ai-studio.tsx'
-              - 'frontend/pages/media-library.tsx'
               - 'frontend/pages/_app.tsx'
               - 'frontend/styles/ai-studio-canvas.css'
               - 'frontend/lib/mediaPerfTelemetry.ts'

@@ -33,11 +33,16 @@
 
 .sound-effects-properties-compose-area {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
   padding-bottom: 22px;
+}
+
+.sound-effects-properties-divider-wrap {
+  min-height: 24px;
+  padding: 8px 0;
 }
 
 .sound-effects-properties-script-input-shell {
@@ -47,6 +52,11 @@
   border: 1px solid rgba(201, 205, 214, 0.12);
   border-radius: 6px;
   background: rgba(57, 63, 67, 0.16);
+}
+
+.sound-effects-properties-script-input-shell--with-inspiration {
+  display: flex;
+  flex-direction: column;
 }
 
 .sound-effects-properties-script-input {
@@ -87,14 +97,145 @@
   border-radius: 999px;
 }
 
+.sound-effects-properties-script-input-shell-divider {
+  width: calc(100% - 32px);
+  height: 1px;
+  margin: 0 auto;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.14),
+    rgba(201, 205, 214, 0.14) 72%,
+    rgba(201, 205, 214, 0)
+  );
+  opacity: 0.8;
+}
+
+.sound-effects-properties-inspiration-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
+.sound-effects-properties-inspiration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sound-effects-properties-inspiration-label {
+  margin: 0;
+  color: rgba(242, 247, 255, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sound-effects-properties-inspiration-track {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.sound-effects-properties-inspiration-scroller {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  cursor: grab;
+  scrollbar-width: none;
+}
+
+.sound-effects-properties-inspiration-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.sound-effects-properties-inspiration-scroller.is-dragging {
+  cursor: grabbing;
+}
+
+.sound-effects-properties-inspiration-chip {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(242, 247, 255, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.sound-effects-properties-inspiration-chip:hover {
+  border-color: rgba(201, 205, 214, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sound-effects-properties-inspiration-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sound-effects-properties-inspiration-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 247, 255, 0.72);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.sound-effects-properties-inspiration-arrow:hover:not(:disabled) {
+  border-color: rgba(201, 205, 214, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 250, 255, 0.92);
+}
+
+.sound-effects-properties-inspiration-arrow:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 .sound-effects-properties-script-input:focus,
 .sound-effects-properties-script-input:focus-visible,
 .sound-effects-properties-generate-btn:focus,
 .sound-effects-properties-generate-btn:focus-visible,
 .sound-effects-properties-loop-switch:focus,
-.sound-effects-properties-loop-switch:focus-visible {
+.sound-effects-properties-loop-switch:focus-visible,
+.sound-effects-properties-inspiration-chip:focus,
+.sound-effects-properties-inspiration-chip:focus-visible,
+.sound-effects-properties-inspiration-arrow:focus,
+.sound-effects-properties-inspiration-arrow:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+.sound-effects-properties-inspiration-chip:focus-visible,
+.sound-effects-properties-inspiration-arrow:focus-visible {
+  outline: 1px solid rgba(201, 205, 214, 0.62);
+  outline-offset: 2px;
 }
 
 .sound-effects-properties-script-actions {
@@ -294,6 +435,15 @@
 
   .sound-effects-properties-script-input {
     min-height: 380px;
+  }
+
+  .sound-effects-properties-inspiration-track {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .sound-effects-properties-inspiration-controls {
+    justify-self: end;
   }
 
   .sound-effects-properties-script-actions {

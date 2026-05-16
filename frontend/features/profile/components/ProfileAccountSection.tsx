@@ -113,7 +113,7 @@ export function ProfileAccountSection({
       </section>
 
       <ProfilePreferenceToggleCard
-        title="AI Studio autosave"
+        title="Media Library autosave"
         description="Control whether eligible AI Studio media is automatically saved to your Media Library."
         enabled={mediaAutosaveEnabled}
         disabled={mediaAutosaveDisabled}

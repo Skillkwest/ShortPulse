@@ -865,6 +865,103 @@ describe("dragDrop payload extraction", () => {
     vi.useRealTimers();
   });
 
+  it("prefers a drag-time snapshot thumbnail for composer image payloads when available", () => {
+    vi.useFakeTimers();
+    const { event, dragNode, setData } = makeDragEvent();
+    const image = document.createElement("img");
+    image.className = "reference-card-image";
+    image.setAttribute("src", "/reference.png");
+    Object.defineProperty(image, "complete", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 768,
+    });
+    dragNode.appendChild(image);
+
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,composer-chip-snapshot",
+    });
+
+    try {
+      prepareReferenceDrag(
+        event,
+        {
+          id: "out-composer-snapshot",
+          prompt: "Prompt",
+          mode: "image",
+          aspect: "1:1",
+          model: "Model",
+          status: "ready",
+          timestamp: "Now",
+          previewStoragePath: "user-1/generated/preview.png",
+          fullStoragePath: "user-1/generated/full.png",
+        },
+        {
+          sourceSurface: "curated",
+          composerImageArtifact: {
+            displayArtifactUrl: "blob:resolved-card-artifact",
+            displayArtifactKind: "blob",
+            promptText: "Dragged prompt",
+            mediaId: "media-1",
+            previewStoragePath: "user-1/generated/preview.png",
+            fullStoragePath: "user-1/generated/full.png",
+          },
+        }
+      );
+
+      const composerSessionToken = setData.mock.calls.find(
+        ([type]) => type === COMPOSER_IMAGE_DROP_SESSION_TYPE
+      )?.[1];
+      const payload = extractComposerImageDropPayload({
+        files: emptyFileList,
+        types: [COMPOSER_IMAGE_DROP_SESSION_TYPE],
+        getData: (type: string) =>
+          type === COMPOSER_IMAGE_DROP_SESSION_TYPE ? composerSessionToken : "",
+      } as unknown as DataTransfer);
+
+      expect(resolveComposerImageDropSession(composerSessionToken)?.displayArtifactUrl).toBe(
+        "data:image/jpeg;base64,composer-chip-snapshot"
+      );
+      expect(payload).toMatchObject({
+        displayArtifactUrl: "data:image/jpeg;base64,composer-chip-snapshot",
+        displayArtifactKind: "data",
+      });
+    } finally {
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalToDataUrl,
+      });
+      clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+      vi.runAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not export raw provider urls for generated outputs without storage authority", () => {
     const { event, dragNode, setData } = makeDragEvent();
     dragNode.dataset.dragPreviewKind = "image";

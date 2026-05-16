@@ -1,7 +1,10 @@
 import React from "react";
 
 import { isSpaceActivationKey } from "./expertEditPanelViewContract";
-import { isKeyboardEventFromEditableTarget } from "./expertEditInteractionUtils";
+import {
+  isKeyboardEventFromEditableTarget,
+  isKeyboardEventFromInteractiveTarget,
+} from "./expertEditInteractionUtils";
 
 type UseExpertEditStageKeyboardBindingsArgs = {
   isMarkupExpandSelected: boolean;
@@ -32,10 +35,15 @@ export function useExpertEditStageKeyboardBindings({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSpaceActivationKey(event)) return;
+      if (event.defaultPrevented) return;
+      if (isKeyboardEventFromInteractiveTarget(event)) return;
+      event.preventDefault();
       setIsMarkupPanSpacePressed(true);
     };
     const handleKeyUp = (event: KeyboardEvent) => {
       if (!isSpaceActivationKey(event)) return;
+      if (isKeyboardEventFromInteractiveTarget(event)) return;
+      event.preventDefault();
       setIsMarkupPanSpacePressed(false);
     };
     const handleWindowBlur = () => {

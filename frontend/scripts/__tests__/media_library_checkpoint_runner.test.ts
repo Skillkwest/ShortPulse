@@ -26,7 +26,7 @@ describe("media_library_checkpoint_runner", () => {
     const checkpoint = getCheckpoint("count-hot-path");
     expect(checkpoint?.title).toBe("Count Hot Path");
     expect(getCheckpoint("panel-runtime-churn")?.title).toBe("Panel Runtime Churn");
-    expect(getCheckpoint("route-runtime-churn")?.title).toBe("Route Runtime Churn");
+    expect(getCheckpoint("route-runtime-churn")).toBeNull();
     expect(getCheckpoint("missing")).toBeNull();
   });
 

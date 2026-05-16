@@ -5,6 +5,7 @@ import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
   ExpertEditInlineStageSurface,
   ExpertEditModalStageSurface,
+  type StagePanHandlers,
   type StageInteractionHandlers,
 } from "./ExpertEditStageSurface";
 type ExpertEditStageWorkspaceProps = {
@@ -31,6 +32,7 @@ type ExpertEditStageWorkspaceProps = {
   primarySurfaceStyle: React.CSSProperties;
   emptyPrimarySurfaceStyle: React.CSSProperties;
   shouldRenderInlineInteractiveStage: boolean;
+  inlineBackdropPanHandlers: StagePanHandlers;
   inlineInteractionHandlers: StageInteractionHandlers;
   onStageMouseDown: React.MouseEventHandler<HTMLDivElement>;
   onStageAuxClick: React.MouseEventHandler<HTMLDivElement>;
@@ -102,6 +104,7 @@ export function ExpertEditStageWorkspace({
   primarySurfaceStyle,
   emptyPrimarySurfaceStyle,
   shouldRenderInlineInteractiveStage,
+  inlineBackdropPanHandlers,
   inlineInteractionHandlers,
   onStageMouseDown,
   onStageAuxClick,
@@ -166,6 +169,7 @@ export function ExpertEditStageWorkspace({
               hasPrimaryCompositePreview ? primarySurfaceStyle : emptyPrimarySurfaceStyle
             }
             shouldRenderInteractive={shouldRenderInlineInteractiveStage}
+            backdropPanHandlers={inlineBackdropPanHandlers}
             interactionHandlers={inlineInteractionHandlers}
             onStageMouseDown={onStageMouseDown}
             onStageAuxClick={onStageAuxClick}

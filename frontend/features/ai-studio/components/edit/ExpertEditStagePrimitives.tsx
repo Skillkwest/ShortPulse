@@ -10,6 +10,12 @@ type PrimaryStageShellProps = {
   onPointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
   onPointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
   onPointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMove?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerCancel?: React.PointerEventHandler<HTMLDivElement>;
+  onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
+  onWheel?: React.WheelEventHandler<HTMLDivElement>;
 };
 
 export function PrimaryStageShell({
@@ -22,7 +28,61 @@ export function PrimaryStageShell({
   onPointerMoveCapture,
   onPointerUpCapture,
   onPointerCancelCapture,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onPointerLeave,
+  onWheel,
 }: PrimaryStageShellProps) {
+  const handleBackdropPointerDown = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onPointerDown?.(event);
+    },
+    [onPointerDown]
+  );
+
+  const handleBackdropPointerMove = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onPointerMove?.(event);
+    },
+    [onPointerMove]
+  );
+
+  const handleBackdropPointerUp = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onPointerUp?.(event);
+    },
+    [onPointerUp]
+  );
+
+  const handleBackdropPointerCancel = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onPointerCancel?.(event);
+    },
+    [onPointerCancel]
+  );
+
+  const handleBackdropPointerLeave = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onPointerLeave?.(event);
+    },
+    [onPointerLeave]
+  );
+
+  const handleBackdropWheel = React.useCallback<React.WheelEventHandler<HTMLDivElement>>(
+    (event) => {
+      if (event.target !== event.currentTarget) return;
+      onWheel?.(event);
+    },
+    [onWheel]
+  );
+
   return (
     <div
       ref={stageRef}
@@ -36,6 +96,12 @@ export function PrimaryStageShell({
       onPointerMoveCapture={onPointerMoveCapture}
       onPointerUpCapture={onPointerUpCapture}
       onPointerCancelCapture={onPointerCancelCapture}
+      onPointerDown={onPointerDown ? handleBackdropPointerDown : undefined}
+      onPointerMove={onPointerMove ? handleBackdropPointerMove : undefined}
+      onPointerUp={onPointerUp ? handleBackdropPointerUp : undefined}
+      onPointerCancel={onPointerCancel ? handleBackdropPointerCancel : undefined}
+      onPointerLeave={onPointerLeave ? handleBackdropPointerLeave : undefined}
+      onWheel={onWheel ? handleBackdropWheel : undefined}
     >
       {children}
       {overlayActions}

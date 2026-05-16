@@ -70,6 +70,7 @@ import {
   resolveMarkupStrokeIdCounterFromStrokes,
 } from "./expertEditLayerSessionUtils";
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
+import { isClientPointInsideElementBounds } from "./expertEditInteractionUtils";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
 const EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON = 0.001;
 
@@ -638,6 +639,44 @@ export function ExpertEditPanelView({
     },
   });
 
+  const inlineBackdropPanHandlers = React.useMemo(
+    () => ({
+      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+        if (
+          isClientPointInsideElementBounds({
+            element: primaryCanvasFrameStackElement,
+            clientX: event.clientX,
+            clientY: event.clientY,
+          })
+        ) {
+          return;
+        }
+        beginMarkupPanGesture(event, "inline", {
+          allowPrimaryPanWithoutModifier: true,
+        });
+      },
+      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+        continueMarkupPanGesture(event);
+      },
+      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+        endMarkupPanGesture(event);
+      },
+      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
+        endMarkupPanGesture(event);
+      },
+      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
+        endMarkupPanGestureOnLeave(event);
+      },
+    }),
+    [
+      beginMarkupPanGesture,
+      continueMarkupPanGesture,
+      endMarkupPanGesture,
+      endMarkupPanGestureOnLeave,
+      primaryCanvasFrameStackElement,
+    ]
+  );
+
   const {
     activeStageRenderScale,
     clearTransformPointerSession,
@@ -942,6 +981,7 @@ export function ExpertEditPanelView({
   });
 
   const {
+    inlineBackdropPanHandlers: inlineStageBackdropPanHandlers,
     inlineStageWheelHandler,
     inlineInteractionHandlers,
     inlineSceneContent,
@@ -964,6 +1004,7 @@ export function ExpertEditPanelView({
     isPrimaryStageGenerating,
     renderSelectedLayerTransformOverlay,
     inlineStageInteractionRouter,
+    inlineBackdropPanHandlers,
     modalStageInteractionRouter,
     isInpaintCollapsed,
     isInpaintCollapsing,
@@ -1182,6 +1223,7 @@ export function ExpertEditPanelView({
     primarySurfaceStyle: primaryCompositionSurfaceStyle,
     emptyPrimarySurfaceStyle: emptyPrimaryCompositionSurfaceStyle,
     shouldRenderInlineInteractiveStage,
+    inlineBackdropPanHandlers: inlineStageBackdropPanHandlers,
     inlineInteractionHandlers,
     onInlineStageWheel: inlineStageWheelHandler,
     onStageMouseDown: handleMarkupStageMiddleClickSuppress,

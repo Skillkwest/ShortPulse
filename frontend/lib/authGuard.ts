@@ -6,7 +6,6 @@ import { useSupabaseSessionState } from "./supabaseClient";
 export const PROTECTED_ROUTES = [
   "/performance",
   "/saved-creators",
-  "/media-library",
   "/profile",
   "/ai-studio",
   "/creator-studio",

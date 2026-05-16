@@ -3742,7 +3742,7 @@ describe("ExpertEditPanelView", () => {
     expect(primaryStage.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
   });
 
-  it.skip("pans the inline stage camera from the primary interaction surface", async () => {
+  it("pans the inline stage camera from the primary interaction surface", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -4055,7 +4055,7 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(modalAfterRecenter?.offsetY ?? 0)).toBeLessThan(0.01);
   });
 
-  it.skip("keeps inline stage pan and zoom active from the primary surface without a loaded image", async () => {
+  it("keeps inline stage pan and zoom active from the primary surface without a loaded image", async () => {
     render(<ExpertEditPanelView {...baseProps} referenceText="prompt text" />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
@@ -4102,6 +4102,61 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(40);
     expect(primaryStage).toHaveClass("is-empty-stage");
     expect(screen.queryByText("Click to upload an image")).not.toBeInTheDocument();
+  });
+
+  it("keeps inline stage pan and zoom active from the backdrop outside the loaded canvas", async () => {
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-shell-pan-inline.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
+
+    const primaryStageShell = container.querySelector(
+      ".edit-expert-primary-stage-shell"
+    ) as HTMLDivElement | null;
+    expect(primaryStageShell).toBeTruthy();
+    mockElementRect(primaryStageShell as HTMLDivElement, createSquareRect(320));
+
+    dispatchNativeWheelEvent(primaryStageShell as HTMLDivElement, {
+      deltaY: -120,
+      clientX: 24,
+      clientY: 24,
+    });
+    const afterZoom = readMarkupViewportTransform();
+    expect(afterZoom).not.toBeNull();
+    expect(afterZoom?.scale ?? 0).toBeGreaterThan(1);
+
+    fireEvent.pointerDown(primaryStageShell as HTMLDivElement, {
+      pointerId: 991,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 68,
+      clientY: 74,
+    });
+    fireEvent.pointerMove(primaryStageShell as HTMLDivElement, {
+      pointerId: 991,
+      pointerType: "mouse",
+      clientX: 172,
+      clientY: 188,
+    });
+    fireEvent.pointerUp(primaryStageShell as HTMLDivElement, {
+      pointerId: 991,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 172,
+      clientY: 188,
+    });
+
+    const afterPan = readMarkupViewportTransform();
+    expect(afterPan).not.toBeNull();
+    expect(Math.abs(afterPan?.offsetX ?? 0)).toBeGreaterThan(60);
+    expect(Math.abs(afterPan?.offsetY ?? 0)).toBeGreaterThan(60);
   });
 
   it.skip("pans the markup modal viewport with middle-mouse drag without holding space", async () => {
@@ -5606,7 +5661,9 @@ describe("ExpertEditPanelView", () => {
       const primaryDropzone = screen.getByLabelText("Primary composition surface");
       const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
 
-      fireEvent.keyDown(window, { code: "Space", key: " " });
+      act(() => {
+        fireEvent.keyDown(window, { code: "Space", key: " " });
+      });
       expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
 
       act(() => {

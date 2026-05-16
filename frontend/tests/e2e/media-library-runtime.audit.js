@@ -1,9 +1,9 @@
 /* global require, process, console, __dirname, document, HTMLElement, setTimeout, window, URL */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Media Library runtime heavy browser audit.
- * Exercises the route, panel, and modal media-library surfaces with real browser interactions
- * and fails on severe runtime signals such as max-depth or runaway render warnings.
+ * AI Studio Media Library panel/modal browser audit.
+ * Signs in to AI Studio, opens the Media Library panel and modal, and
+ * checks for severe runtime/browser signals while exercising the main browse tabs.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -32,7 +32,7 @@ const MEDIA_LIBRARY_ROUTE_PATHS = [
   "/api/account/media-compliance",
   "/api/media/",
   "/api/media",
-  "/media-library",
+  "/ai-studio",
 ];
 
 const MEDIA_LIBRARY_SUPABASE_TABLE_PATTERNS = [
@@ -46,6 +46,24 @@ const MEDIA_LIBRARY_SUPABASE_TABLE_PATTERNS = [
 const MEDIA_LIBRARY_STORAGE_PATTERNS = [
   /\/storage\/v1\/(?:object|render\/image)\/(?:sign|public)\/media_library(?:[/?#]|$)/i,
 ];
+
+function usage() {
+  process.stdout.write(
+    [
+      "Usage:",
+      "  node frontend/tests/e2e/media-library-runtime.audit.js [options]",
+      "",
+      "Environment:",
+      "  PLAYWRIGHT_AUDIT_EMAIL              Required real test account email",
+      "  PLAYWRIGHT_AUDIT_PASSWORD           Optional password override",
+      "  PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL   Default base URL (default http://localhost:3000)",
+      "  PLAYWRIGHT_PANEL_BASE_URL           Optional panel base URL override",
+      "  PLAYWRIGHT_MODAL_BASE_URL           Optional modal base URL override",
+      "  PLAYWRIGHT_HEADLESS                 Set to false to watch the audit",
+      "",
+    ].join("\n")
+  );
+}
 
 function loadEnvFromFileIfNeeded(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -75,14 +93,18 @@ function loadAuditEnv() {
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  usage();
+  process.exit(0);
+}
+
 loadAuditEnv();
 
 const DEFAULT_BASE_URL = (
   process.env.PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL || "http://localhost:3000"
 ).trim();
-const ROUTE_BASE_URL = (process.env.PLAYWRIGHT_ROUTE_BASE_URL || DEFAULT_BASE_URL).trim();
 const PANEL_BASE_URL = (process.env.PLAYWRIGHT_PANEL_BASE_URL || DEFAULT_BASE_URL).trim();
-const MODAL_BASE_URL = (process.env.PLAYWRIGHT_MODAL_BASE_URL || DEFAULT_BASE_URL).trim();
+const MODAL_BASE_URL = (process.env.PLAYWRIGHT_MODAL_BASE_URL || PANEL_BASE_URL).trim();
 const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
 
 function loadAuditCredentials() {
@@ -133,15 +155,13 @@ function isIgnorableRequestFailure(entry) {
 }
 
 function summarizeSignals(consoleEntries, pageErrors, httpFailures, requestFailures) {
-  const severeConsole = consoleEntries.filter(
-    (entry) => {
-      if (hasSevereSignal(entry.text)) return true;
-      if (entry.type !== "error") return false;
-      if (shouldIgnoreConsole(entry.text)) return false;
-      if (isGenericResourceFailure(entry.text)) return false;
-      return true;
-    }
-  );
+  const severeConsole = consoleEntries.filter((entry) => {
+    if (hasSevereSignal(entry.text)) return true;
+    if (entry.type !== "error") return false;
+    if (shouldIgnoreConsole(entry.text)) return false;
+    if (isGenericResourceFailure(entry.text)) return false;
+    return true;
+  });
   const severePageErrors = pageErrors.filter((entry) => !shouldIgnoreConsole(entry.text));
   const relevantHttpFailures = httpFailures.filter((entry) => isMediaLibraryRelevantUrl(entry.url));
   const relevantRequestFailures = requestFailures.filter(
@@ -180,6 +200,21 @@ async function waitForNonAuthRoute(page, timeoutMs) {
   } catch {
     return false;
   }
+}
+
+async function satisfyMediaComplianceIfPresent(page) {
+  const gateHeading = page.getByRole("heading", { name: /^confirm media rights$/i }).first();
+  const gateVisible = await gateHeading.isVisible().catch(() => false);
+  if (!gateVisible) return;
+
+  const agreementCheckbox = page
+    .getByLabel(/^i confirm that the media i use in shortpulse follows these rules\.$/i)
+    .first();
+  const continueButton = page.getByRole("button", { name: /^continue$/i }).first();
+
+  await agreementCheckbox.check({ force: true });
+  await continueButton.click({ timeout: 10_000 });
+  await gateHeading.waitFor({ state: "hidden", timeout: 20_000 });
 }
 
 async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
@@ -286,27 +321,9 @@ async function attachSurfaceObservers(page) {
   return { consoleEntries, pageErrors, httpFailures, requestFailures };
 }
 
-async function satisfyMediaComplianceIfPresent(page) {
-  const gateHeading = page.getByRole("heading", { name: /^confirm media rights$/i }).first();
-  const gateVisible = await gateHeading.isVisible().catch(() => false);
-  if (!gateVisible) return;
-
-  const agreementCheckbox = page
-    .getByLabel(/^i confirm that the media i use in shortpulse follows these rules\.$/i)
-    .first();
-  const continueButton = page.getByRole("button", { name: /^continue$/i }).first();
-
-  await agreementCheckbox.check({ force: true });
-  await continueButton.click({ timeout: 10_000 });
-  await gateHeading.waitFor({ state: "hidden", timeout: 20_000 });
-}
-
-async function openAiStudioMediaLibrarySurface(page, surface) {
-  const target =
-    surface === "modal"
-      ? page.getByRole("dialog", { name: /media library/i }).first()
-      : page.locator('section[aria-label="Media library panel"]').first();
-  if (await target.isVisible().catch(() => false)) return target;
+async function openAiStudioMediaPanel(page) {
+  const panel = page.locator('section[aria-label="Media library panel"]').first();
+  if (await panel.isVisible().catch(() => false)) return panel;
 
   const mediaButton = page.getByRole("button", { name: /^media$/i }).first();
   const expandPanelButton = page
@@ -318,94 +335,35 @@ async function openAiStudioMediaLibrarySurface(page, surface) {
   const deadline = Date.now() + 45_000;
 
   while (Date.now() < deadline) {
-    if (await target.isVisible().catch(() => false)) return target;
-
+    if (await panel.isVisible().catch(() => false)) return panel;
     if (await retryProjectButton.isVisible().catch(() => false)) {
       throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
     }
-
-    if (surface === "panel" && (await expandPanelButton.isVisible().catch(() => false))) {
+    if (await expandPanelButton.isVisible().catch(() => false)) {
       await expandPanelButton.click({ timeout: 10_000 });
-      await target.waitFor({ timeout: 20_000 });
-      return target;
+      await panel.waitFor({ timeout: 20_000 });
+      return panel;
     }
-
     if (await mediaButton.isVisible().catch(() => false)) {
       await mediaButton.click({ timeout: 10_000 });
-      await target.waitFor({ timeout: 20_000 });
-      return target;
+      await panel.waitFor({ timeout: 20_000 });
+      return panel;
     }
-
     await page.waitForTimeout(500);
   }
 
-  throw new Error(
-    `Timed out waiting for the AI Studio ${surface} media library controls to become ready.`
-  );
+  throw new Error("Timed out waiting for the AI Studio media panel to become ready.");
 }
 
-async function runRouteAudit(browser, creds) {
-  const context = await browser.newContext({ viewport: { width: 1720, height: 980 } });
-  const page = await context.newPage();
-  const observers = await attachSurfaceObservers(page);
-  const result = {
-    surface: "route",
-    ok: false,
-    baseUrl: ROUTE_BASE_URL,
-    tabClicks: [],
-    loadMoreClicks: 0,
-    scrollChurn: null,
-    severeSignals: null,
-    finalUrl: null,
-  };
+async function openAiStudioMediaModal(page) {
+  const modal = page.getByRole("dialog", { name: /media library/i }).first();
+  if (await modal.isVisible().catch(() => false)) return modal;
 
-  try {
-    await ensureSignedIn(page, ROUTE_BASE_URL, "/media-library", creds.email, creds.password);
-    await page.getByRole("heading", { name: /^media library$/i }).waitFor({ timeout: 20_000 });
-
-    const tabNames = [
-      "Uploaded Videos",
-      "Saved Prompts",
-      "AI Studio Generations",
-      "Private",
-      "Uploaded Images",
-    ];
-
-    for (const tabName of tabNames) {
-      await page.getByRole("button", { name: new RegExp(`^${tabName}$`, "i") }).click();
-      result.tabClicks.push(tabName);
-      await page.waitForTimeout(650);
-      result.loadMoreClicks += await clickLoadMore(
-        page,
-        page.getByRole("button", { name: /^load more$/i }).first(),
-        3,
-        700
-      );
-      await page.evaluate(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "auto" });
-      });
-      await page.waitForTimeout(250);
-      await page.evaluate(() => {
-        window.scrollTo({ top: 0, behavior: "auto" });
-      });
-      await page.waitForTimeout(150);
-    }
-
-    result.scrollChurn = await churnScrollable(page, "body", 6);
-    await page.getByRole("heading", { name: /^media library$/i }).waitFor({ timeout: 10_000 });
-    result.finalUrl = page.url();
-    result.severeSignals = summarizeSignals(
-      observers.consoleEntries,
-      observers.pageErrors,
-      observers.httpFailures,
-      observers.requestFailures
-    );
-    result.ok = result.severeSignals.ok;
-  } finally {
-    await context.close();
-  }
-
-  return result;
+  const openButton = page.getByRole("button", { name: /^Media Library$/i }).last();
+  await openButton.waitFor({ timeout: 20_000 });
+  await openButton.click({ timeout: 10_000 });
+  await modal.waitFor({ timeout: 20_000 });
+  return modal;
 }
 
 async function runPanelAudit(browser, creds) {
@@ -430,7 +388,7 @@ async function runPanelAudit(browser, creds) {
 
   try {
     await ensureSignedIn(page, PANEL_BASE_URL, "/ai-studio", creds.email, creds.password);
-    const panel = await openAiStudioMediaLibrarySurface(page, "panel");
+    const panel = await openAiStudioMediaPanel(page);
 
     const folderNameButtons = page.locator(".media-library-panel-folder-chip-name");
     const folderButtonCount = await folderNameButtons.count();
@@ -499,18 +457,14 @@ async function runModalAudit(browser, creds) {
 
   try {
     await ensureSignedIn(page, MODAL_BASE_URL, "/ai-studio", creds.email, creds.password);
-    const modal = await openAiStudioMediaLibrarySurface(page, "modal");
+    await openAiStudioMediaPanel(page);
+    const modal = await openAiStudioMediaModal(page);
 
-    const tabNames = [
-      "Uploaded Videos",
-      "Saved Prompts",
-      "AI Studio Generations",
-      "Private",
-      "Uploaded Images",
-    ];
-
+    const tabNames = ["Videos", "Prompts", "Images", "All Media"];
     for (const tabName of tabNames) {
-      await modal.getByRole("tab", { name: new RegExp(tabName, "i") }).first().click();
+      const tab = modal.getByRole("tab", { name: new RegExp(`^${tabName}$`, "i") }).first();
+      if (!(await tab.isVisible().catch(() => false))) continue;
+      await tab.click();
       result.tabClicks.push(tabName);
       await page.waitForTimeout(650);
       result.loadMoreClicks += await clickLoadMore(
@@ -538,29 +492,6 @@ async function runModalAudit(browser, creds) {
   return result;
 }
 
-function isModalAuditTopologyAvailable() {
-  if (process.env.PLAYWRIGHT_MEDIA_LIBRARY_FORCE_MODAL_AUDIT === "true") {
-    return true;
-  }
-  return MODAL_BASE_URL !== PANEL_BASE_URL;
-}
-
-function createSkippedModalAuditResult() {
-  return {
-    surface: "modal",
-    ok: true,
-    skipped: true,
-    skipReason:
-      "Modal audit requires a separate modal-only server. Set PLAYWRIGHT_MODAL_BASE_URL to a different base URL.",
-    baseUrl: MODAL_BASE_URL,
-    tabClicks: [],
-    loadMoreClicks: 0,
-    scrollChurn: null,
-    severeSignals: null,
-    finalUrl: null,
-  };
-}
-
 async function main() {
   const creds = loadAuditCredentials();
   if (!creds.email) {
@@ -580,20 +511,14 @@ async function main() {
   const output = {
     ok: false,
     generatedAt: new Date().toISOString(),
-    routeBaseUrl: ROUTE_BASE_URL,
     panelBaseUrl: PANEL_BASE_URL,
     modalBaseUrl: MODAL_BASE_URL,
     surfaces: [],
   };
 
   try {
-    output.surfaces.push(await runRouteAudit(browser, creds));
     output.surfaces.push(await runPanelAudit(browser, creds));
-    output.surfaces.push(
-      isModalAuditTopologyAvailable()
-        ? await runModalAudit(browser, creds)
-        : createSkippedModalAuditResult()
-    );
+    output.surfaces.push(await runModalAudit(browser, creds));
     output.ok = output.surfaces.every((surface) => surface.ok);
     console.log(JSON.stringify(output, null, 2));
     if (!output.ok) process.exitCode = 1;

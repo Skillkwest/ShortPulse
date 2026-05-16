@@ -483,6 +483,12 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
     const referenceRenderUrl = sanitizeHydratedMediaUrl(
       asNullableString(attachment.referenceRenderUrl)
     );
+    const previewStoragePath = sanitizeHydratedAttachmentIdentity(
+      asNullableString(attachment.previewStoragePath)
+    );
+    const fullStoragePath = sanitizeHydratedAttachmentIdentity(
+      asNullableString(attachment.fullStoragePath)
+    );
     const preview =
       kind === "image"
         ? resolveComposerImageAttachmentPreview({
@@ -493,22 +499,28 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
             referenceUrl,
           })
         : null;
-    if (kind === "image" && !preview) return;
+    const hasRepairableImageIdentity =
+      kind === "image" &&
+      Boolean(
+        previewStoragePath ||
+        fullStoragePath ||
+        referenceUrl ||
+        referenceRenderUrl ||
+        imageUrl ||
+        imageFallbackUrls?.length
+      );
+    if (kind === "image" && !preview && !hasRepairableImageIdentity) return;
     normalized.push({
       id: resolvedId,
       kind,
       referenceId: asNullableString(attachment.referenceId),
       mediaId: sanitizeHydratedAttachmentIdentity(asNullableString(attachment.mediaId)),
       text,
-      previewStoragePath: sanitizeHydratedAttachmentIdentity(
-        asNullableString(attachment.previewStoragePath)
-      ),
-      fullStoragePath: sanitizeHydratedAttachmentIdentity(
-        asNullableString(attachment.fullStoragePath)
-      ),
+      previewStoragePath,
+      fullStoragePath,
       referenceUrl,
       referenceRenderUrl,
-      imageUrl: preview?.url ?? null,
+      imageUrl: preview?.url ?? imageUrl,
       imageFallbackUrls: preview?.candidates.slice(1) ?? imageFallbackUrls,
       aspect: asNullableString(attachment.aspect),
       deliveryStatus:

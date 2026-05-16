@@ -511,6 +511,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   <AgentImageAttachmentPreview
                     src={projectedImageAttachment?.preview.url ?? null}
                     sources={projectedImageAttachment?.preview.candidates ?? null}
+                    repairAttachment={attachment}
                   />
                 ) : (
                   <div className="agent-attachment-card-prompt" aria-hidden="true">

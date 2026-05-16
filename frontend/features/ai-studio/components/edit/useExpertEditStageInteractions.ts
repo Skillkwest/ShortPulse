@@ -66,30 +66,27 @@ export const useExpertEditStageInteractions = ({
     [endMarkupDrawGesture, endMarkupPanGesture]
   );
 
-  const shouldHandleModalPanGesture = React.useCallback(
+  const shouldHandlePanGesture = React.useCallback(
     (
       event: React.PointerEvent<HTMLDivElement>,
       context: { scope: "inline" | "modal" },
       handler: (event: React.PointerEvent<HTMLDivElement>, scope: "inline" | "modal") => boolean
-    ) => context.scope === "modal" && handler(event, context.scope),
+    ) => handler(event, context.scope),
     []
   );
 
-  const shouldContinueModalPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, context: { scope: "inline" | "modal" }) =>
-      context.scope === "modal" && continueMarkupPanGesture(event),
+  const shouldContinuePanGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => continueMarkupPanGesture(event),
     [continueMarkupPanGesture]
   );
 
-  const shouldEndModalPanGesture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, context: { scope: "inline" | "modal" }) =>
-      context.scope === "modal" && endMarkupPanGesture(event),
+  const shouldEndPanGesture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => endMarkupPanGesture(event),
     [endMarkupPanGesture]
   );
 
-  const shouldEndModalPanGestureOnLeave = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, context: { scope: "inline" | "modal" }) =>
-      context.scope === "modal" && endMarkupPanGestureOnLeave(event),
+  const shouldEndPanGestureOnLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => endMarkupPanGestureOnLeave(event),
     [endMarkupPanGestureOnLeave]
   );
 
@@ -99,7 +96,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldHandleModalPanGesture(event, context, beginMarkupPanGesture)) return;
+        if (shouldHandlePanGesture(event, context, beginMarkupPanGesture)) return;
         if (!transformEditingEnabled) return;
         handleMovePointerDown(event);
       },
@@ -107,7 +104,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldContinueModalPanGesture(event, context)) return;
+        if (shouldContinuePanGesture(event)) return;
         if (!transformEditingEnabled) return;
         handleMovePointerMove(event);
       },
@@ -115,7 +112,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGesture(event, context)) return;
+        if (shouldEndPanGesture(event)) return;
         if (!transformEditingEnabled) return;
         endTransformPointerSession(event);
       },
@@ -123,7 +120,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGesture(event, context)) return;
+        if (shouldEndPanGesture(event)) return;
         if (!transformEditingEnabled) return;
         endTransformPointerSession(event);
       },
@@ -131,7 +128,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGestureOnLeave(event, context)) return;
+        if (shouldEndPanGestureOnLeave(event)) return;
         if (!transformEditingEnabled) return;
         handleMovePointerLeave(event);
       },
@@ -149,10 +146,10 @@ export const useExpertEditStageInteractions = ({
       handleMovePointerDown,
       handleMovePointerLeave,
       handleMovePointerMove,
-      shouldContinueModalPanGesture,
-      shouldEndModalPanGesture,
-      shouldEndModalPanGestureOnLeave,
-      shouldHandleModalPanGesture,
+      shouldContinuePanGesture,
+      shouldEndPanGesture,
+      shouldEndPanGestureOnLeave,
+      shouldHandlePanGesture,
       transformEditingEnabled,
     ]
   );
@@ -163,35 +160,35 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldHandleModalPanGesture(event, context, beginMarkupPanGesture)) return;
+        if (shouldHandlePanGesture(event, context, beginMarkupPanGesture)) return;
         handleInpaintStagePointerDown(event);
       },
       onPointerMove: (
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldContinueModalPanGesture(event, context)) return;
+        if (shouldContinuePanGesture(event)) return;
         handleInpaintStagePointerMove(event);
       },
       onPointerUp: (
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGesture(event, context)) return;
+        if (shouldEndPanGesture(event)) return;
         handleInpaintStagePointerUp(event);
       },
       onPointerCancel: (
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGesture(event, context)) return;
+        if (shouldEndPanGesture(event)) return;
         handleInpaintStagePointerCancel(event);
       },
       onPointerLeave: (
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGestureOnLeave(event, context)) return;
+        if (shouldEndPanGestureOnLeave(event)) return;
         handleInpaintStagePointerLeave(event);
       },
       onWheel: (
@@ -209,10 +206,10 @@ export const useExpertEditStageInteractions = ({
       handleInpaintStagePointerMove,
       handleInpaintStagePointerUp,
       handleStageViewportWheel,
-      shouldContinueModalPanGesture,
-      shouldEndModalPanGesture,
-      shouldEndModalPanGestureOnLeave,
-      shouldHandleModalPanGesture,
+      shouldContinuePanGesture,
+      shouldEndPanGesture,
+      shouldEndPanGestureOnLeave,
+      shouldHandlePanGesture,
     ]
   );
 
@@ -222,14 +219,14 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldHandleModalPanGesture(event, context, beginMarkupPanGesture)) return;
+        if (shouldHandlePanGesture(event, context, beginMarkupPanGesture)) return;
         beginMarkupDrawGesture(event);
       },
       onPointerMove: (
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldContinueModalPanGesture(event, context)) return;
+        if (shouldContinuePanGesture(event)) return;
         continueMarkupDrawGesture(event);
       },
       onPointerUp: handleMarkupStagePointerTerminal,
@@ -238,7 +235,7 @@ export const useExpertEditStageInteractions = ({
         event: React.PointerEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (shouldEndModalPanGestureOnLeave(event, context)) return;
+        if (shouldEndPanGestureOnLeave(event)) return;
         endMarkupDrawGestureOnLeave(event);
       },
       onWheel: (
@@ -255,9 +252,9 @@ export const useExpertEditStageInteractions = ({
       endMarkupDrawGestureOnLeave,
       handleMarkupStagePointerTerminal,
       handleStageViewportWheel,
-      shouldContinueModalPanGesture,
-      shouldEndModalPanGestureOnLeave,
-      shouldHandleModalPanGesture,
+      shouldContinuePanGesture,
+      shouldEndPanGestureOnLeave,
+      shouldHandlePanGesture,
     ]
   );
 

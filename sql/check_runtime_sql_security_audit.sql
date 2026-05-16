@@ -90,6 +90,26 @@ function_checks(signature, check_name, check_pass, detail) as (
 
     select
         r.signature,
+        'owner_postgres'::text as check_name,
+        case
+            when r.regproc is null then false
+            else exists (
+                select 1
+                from pg_proc p
+                where p.oid = r.regproc
+                  and pg_get_userbyid(p.proowner) = 'postgres'
+            )
+        end as check_pass,
+        case
+            when r.regproc is null then 'cannot verify (function missing)'
+            else 'owner must be postgres'
+        end as detail
+    from resolved r
+
+    union all
+
+    select
+        r.signature,
         'execute_service_role'::text as check_name,
         case
             when r.regproc is null then false

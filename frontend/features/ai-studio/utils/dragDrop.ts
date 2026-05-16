@@ -940,8 +940,21 @@ export const prepareReferenceDrag = (
     output.mode === "image"
       ? (resolvedImageTransferUrl ?? previewUrl ?? null)
       : (previewUrl ?? resolvedImageTransferUrl ?? null);
+  const resolvedComposerDisplayArtifactUrl =
+    composerImageArtifact && output.mode === "image"
+      ? (datasetSnapshotTransferUrl ?? composerImageArtifact.displayArtifactUrl)
+      : (composerImageArtifact?.displayArtifactUrl ?? null);
+  const resolvedComposerDisplayArtifactKind = resolvedComposerDisplayArtifactUrl?.startsWith(
+    "blob:"
+  )
+    ? ("blob" as const)
+    : resolvedComposerDisplayArtifactUrl?.startsWith("data:")
+      ? ("data" as const)
+      : resolvedComposerDisplayArtifactUrl
+        ? ("url" as const)
+        : (composerImageArtifact?.displayArtifactKind ?? "url");
   const resolvedPrimaryImagePreviewUrl =
-    composerImageArtifact?.displayArtifactUrl ??
+    resolvedComposerDisplayArtifactUrl ??
     (output.mode === "image"
       ? (exposedRenderedTransferUrl ??
         resolvedImageTransferUrl ??
@@ -987,8 +1000,7 @@ export const prepareReferenceDrag = (
     referenceUrl:
       composerImageArtifact?.referenceUrl ??
       (allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null),
-    referenceRenderUrl:
-      composerImageArtifact?.displayArtifactUrl ?? exposedRenderedTransferUrl ?? null,
+    referenceRenderUrl: resolvedComposerDisplayArtifactUrl ?? exposedRenderedTransferUrl ?? null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),
@@ -1052,8 +1064,9 @@ export const prepareReferenceDrag = (
       referenceId: output.id?.trim() || null,
       outputId: output.id?.trim() || null,
       mediaId: composerImageArtifact.mediaId?.trim() || referenceMediaId || null,
-      displayArtifactUrl: composerImageArtifact.displayArtifactUrl,
-      displayArtifactKind: composerImageArtifact.displayArtifactKind,
+      displayArtifactUrl:
+        resolvedComposerDisplayArtifactUrl ?? composerImageArtifact.displayArtifactUrl,
+      displayArtifactKind: resolvedComposerDisplayArtifactKind,
       previewStoragePath: previewStoragePath || null,
       fullStoragePath: fullStoragePath || null,
       referenceUrl:

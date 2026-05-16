@@ -27,6 +27,7 @@ export const AgentComposerAttachmentImage: React.FC<AgentComposerAttachmentImage
     <AgentImageAttachmentPreview
       src={projectedAttachment?.preview.url ?? null}
       sources={projectedAttachment?.preview.candidates ?? null}
+      repairAttachment={attachment}
       debugLabel={debugLabel}
     />
   );

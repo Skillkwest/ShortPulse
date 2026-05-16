@@ -113,7 +113,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
    - `/profile?section=credits` reflects updated plan and package prices from `/api/billing/catalog`.
    - New plans render correctly even when the plan id is not one of the legacy fixed tiers.
    - `/profile?section=storage` reflects recurring storage add-on catalog entries from `/api/billing/catalog`.
-   - Authenticated `/dashboard` and `/media-library` reflect the correct storage entitlement from the active contract plus add-ons.
+   - Authenticated `/dashboard` and AI Studio media surfaces reflect the correct storage entitlement from the active contract plus add-ons.
    - Checkout opens with the intended package amount.
    - Webhook grants expected credits after successful payment.
    - Webhook sync captures recurring storage add-on subscription items into `billing_subscription_storage_addons`.

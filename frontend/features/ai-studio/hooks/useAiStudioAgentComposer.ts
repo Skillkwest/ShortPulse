@@ -276,25 +276,82 @@ export const useAiStudioAgentComposer = ({
         return;
       }
       void (async () => {
+        const internalPayload = extractInternalReferenceDragPayload(transfer);
+        const resolvedInternalImageSource =
+          internalPayload && resolveInternalImageDropSource
+            ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
+            : null;
         const composerImagePayload = extractComposerImageDropPayload(transfer);
         if (composerImagePayload) {
+          const droppedReferenceId =
+            composerImagePayload.outputId ??
+            composerImagePayload.referenceId ??
+            resolvedInternalImageSource?.outputId ??
+            internalPayload?.outputId ??
+            null;
+          const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
+          const normalizedPromptText =
+            composerImagePayload.promptText?.trim() ||
+            resolvedInternalImageSource?.promptText?.trim() ||
+            matchedOutput?.prompt?.trim() ||
+            matchedOutput?.previewText?.trim() ||
+            null;
+
+          const hasInternalVideoReference =
+            internalPayload?.mediaKind === "video" || matchedOutput?.mode === "video";
+          if (hasInternalVideoReference) {
+            setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+            return;
+          }
+
+          const internalImageUrls = resolvedInternalImageSource
+            ? buildResolvedInternalImageUrls([
+                resolvedInternalImageSource.preparedImageUrl,
+                resolvedInternalImageSource.preview.url,
+              ])
+            : [];
+          const normalizedInternalImageUrl = internalImageUrls[0] ?? null;
+          if (normalizedInternalImageUrl) {
+            if (!agentSessionEnabled) {
+              ensureAgentSession();
+            }
+            setAgentAttachmentError(null);
+            insertAttachment({
+              id: randomId(),
+              kind: "image",
+              referenceId: droppedReferenceId,
+              mediaId:
+                resolvedInternalImageSource?.mediaId ??
+                composerImagePayload.mediaId ??
+                internalPayload?.mediaId ??
+                null,
+              previewStoragePath:
+                resolvedInternalImageSource?.previewStoragePath ??
+                composerImagePayload.previewStoragePath ??
+                null,
+              fullStoragePath:
+                resolvedInternalImageSource?.fullStoragePath ??
+                composerImagePayload.fullStoragePath ??
+                null,
+              referenceUrl: null,
+              referenceRenderUrl: null,
+              imageUrl: normalizedInternalImageUrl,
+              imageFallbackUrls: internalImageUrls.slice(1),
+              text: normalizedPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+            });
+            return;
+          }
+
           const displayArtifactUrl = normalizeDroppedImageCandidate(
             composerImagePayload.displayArtifactUrl
           );
-          const droppedReferenceId =
-            composerImagePayload.outputId ?? composerImagePayload.referenceId ?? null;
-          const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
           const matchedOutputImageUrl = normalizeDurableDroppedImageCandidate(
             matchedOutput ? resolveReferenceTransferUrl(matchedOutput, "image") : null
           );
           const referenceUrl = normalizeDurableDroppedImageCandidate(
             composerImagePayload.referenceUrl
           );
-          const normalizedPromptText =
-            composerImagePayload.promptText?.trim() ||
-            matchedOutput?.prompt?.trim() ||
-            matchedOutput?.previewText?.trim() ||
-            null;
           const orderedImageUrls = buildAgentAttachmentImageCandidates({
             imageUrl: displayArtifactUrl,
             imageFallbackUrls: resolveDroppedImageUrls([referenceUrl, matchedOutputImageUrl]),
@@ -330,12 +387,7 @@ export const useAiStudioAgentComposer = ({
         }
 
         const payload = extractDragDropPayload(transfer);
-        const internalPayload = extractInternalReferenceDragPayload(transfer);
         const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
-        const resolvedInternalImageSource =
-          internalPayload && resolveInternalImageDropSource
-            ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
-            : null;
         const droppedReferenceId =
           payload.referenceId ??
           resolvedInternalImageSource?.outputId ??

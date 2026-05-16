@@ -43,7 +43,7 @@ describe("media_library_phase0_bundle", () => {
       "--token",
       "abc",
       "--surface",
-      "media-library-route",
+      "media-library-panel",
       "--media-kind",
       "images",
       "--profile",
@@ -60,7 +60,7 @@ describe("media_library_phase0_bundle", () => {
     expect(args.runProbe).toBe(true);
     expect(args.baseUrl).toBe("https://example.com");
     expect(args.token).toBe("abc");
-    expect(args.surface).toBe("media-library-route");
+    expect(args.surface).toBe("media-library-panel");
     expect(args.mediaKind).toBe("images");
     expect(args.profile).toBe("minimal");
     expect(args.samples).toBe(4);
@@ -70,10 +70,10 @@ describe("media_library_phase0_bundle", () => {
   });
 
   it("applies presets before explicit overrides", () => {
-    const args = parseArgs(["--preset", "route", "--media-kind", "videos"]);
+    const args = parseArgs(["--preset", "modal", "--media-kind", "videos"]);
 
-    expect(args.preset).toBe("route");
-    expect(args.surface).toBe("media-library-route");
+    expect(args.preset).toBe("modal");
+    expect(args.surface).toBe("media-library-modal");
     expect(args.mediaKind).toBe("videos");
     expect(args.profile).toBe("expanded");
   });
@@ -96,13 +96,13 @@ describe("media_library_phase0_bundle", () => {
 
     expect(
       buildListRequestBody({
-        surface: "media-library-route",
+        surface: "media-library-modal",
         mediaKind: "all",
         profile: "expanded",
         limit: 0,
       })
     ).toMatchObject({
-      limit: 60,
+      limit: 36,
       includeLibraryTotalCount: false,
     });
   });
@@ -185,5 +185,6 @@ describe("media_library_phase0_bundle", () => {
     expect(markdown).toContain("POST /api/media/list");
     expect(markdown).toContain("Sample rows observed: 12");
     expect(markdown).toContain("Suggested Next Commands");
+    expect(markdown).toContain("test:e2e:media-library-runtime");
   });
 });

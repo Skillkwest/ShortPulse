@@ -3,10 +3,11 @@
  * Keeps a local fallback while synchronizing per-user preference when available.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../lib/supabaseClient";
 
 const DEFAULT_MEDIA_AUTOSAVE_ENABLED = true;
 const MEDIA_AUTOSAVE_STORAGE_KEY = "shortpulse.ai_studio.media_autosave_enabled";
+const MEDIA_AUTOSAVE_RETRY_DELAY_MS = 15_000;
 
 export type MediaAutosaveSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -41,17 +42,20 @@ const writeLocalMediaAutosave = (value: boolean): void => {
  * Reads and writes `user_preferences.media_autosave_enabled` with local fallback.
  */
 export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult => {
+  const sessionSnapshot = useSupabaseSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
   const [mediaAutosaveEnabled, setMediaAutosaveEnabledState] = useState<boolean>(
     DEFAULT_MEDIA_AUTOSAVE_ENABLED
   );
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<MediaAutosaveSyncState>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState<number>(0);
   const latestValueRef = useRef<boolean>(DEFAULT_MEDIA_AUTOSAVE_ENABLED);
   const remoteSyncEnabledRef = useRef<boolean>(true);
   const writeVersionRef = useRef<number>(0);
   const hasLocalOverrideRef = useRef<boolean>(false);
+  const lastResolvedUserIdRef = useRef<string | null>(null);
 
   const updateLocalValue = useCallback((value: boolean) => {
     latestValueRef.current = value;
@@ -60,29 +64,39 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
   }, []);
 
   useEffect(() => {
+    if (!sessionSnapshot.initialized) {
+      setLoading(true);
+      setSyncState("loading");
+      return;
+    }
     let active = true;
+    const localValue = readLocalMediaAutosave();
+    const userChanged = lastResolvedUserIdRef.current !== sessionUserId;
+    if (userChanged) {
+      hasLocalOverrideRef.current = false;
+      remoteSyncEnabledRef.current = true;
+      lastResolvedUserIdRef.current = sessionUserId;
+    }
     setLoading(true);
     setSyncState("loading");
 
     (async () => {
-      updateLocalValue(readLocalMediaAutosave());
       try {
-        const supabase = ensureSupabaseQueryClient();
-        const id = await readSupabaseUserId();
-        if (!id) {
+        if (!sessionUserId) {
           if (!active) return;
-          setUserId(null);
+          updateLocalValue(localValue);
           setError(null);
           setSyncState("ready");
           return;
         }
+
+        const supabase = ensureSupabaseQueryClient();
         if (!active) return;
-        setUserId(id);
 
         const { data: storedPreference, error: preferenceError } = await supabase
           .from("user_preferences")
           .select("media_autosave_enabled")
-          .eq("user_id", id)
+          .eq("user_id", sessionUserId)
           .maybeSingle();
         if (preferenceError) throw preferenceError;
         if (!active) return;
@@ -94,12 +108,14 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
         }
 
         if (!active) return;
+        remoteSyncEnabledRef.current = true;
         setError(null);
         setSyncState("ready");
       } catch (err) {
         if (!active) return;
         if (isMissingUserPreferencesTableError(err)) {
           remoteSyncEnabledRef.current = false;
+          updateLocalValue(localValue);
           setError(null);
           setSyncState("ready");
           return;
@@ -116,7 +132,35 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
     return () => {
       active = false;
     };
-  }, [updateLocalValue]);
+  }, [reloadVersion, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== MEDIA_AUTOSAVE_STORAGE_KEY) return;
+      if (sessionUserId) return;
+      updateLocalValue(readLocalMediaAutosave());
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [sessionUserId, updateLocalValue]);
+
+  useEffect(() => {
+    if (syncState !== "error") return;
+    const retry = () => {
+      setReloadVersion((current) => current + 1);
+    };
+    const retryTimer = window.setTimeout(retry, MEDIA_AUTOSAVE_RETRY_DELAY_MS);
+    window.addEventListener("focus", retry);
+    window.addEventListener("online", retry);
+    return () => {
+      window.clearTimeout(retryTimer);
+      window.removeEventListener("focus", retry);
+      window.removeEventListener("online", retry);
+    };
+  }, [syncState]);
 
   const persistPreference = useCallback(
     async (value: boolean) => {
@@ -129,7 +173,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
       setSyncState("saving");
       setError(null);
 
-      if (!userId || !remoteSyncEnabledRef.current) {
+      if (!sessionUserId || !remoteSyncEnabledRef.current) {
         if (requestVersion === writeVersionRef.current) {
           setSyncState("ready");
         }
@@ -140,7 +184,10 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
         const supabase = ensureSupabaseQueryClient();
         const { error: upsertError } = await supabase
           .from("user_preferences")
-          .upsert({ user_id: userId, media_autosave_enabled: value }, { onConflict: "user_id" });
+          .upsert(
+            { user_id: sessionUserId, media_autosave_enabled: value },
+            { onConflict: "user_id" }
+          );
         if (upsertError) throw upsertError;
 
         if (requestVersion !== writeVersionRef.current) return;
@@ -159,7 +206,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
         setSyncState("error");
       }
     },
-    [userId, updateLocalValue]
+    [sessionUserId, updateLocalValue]
   );
 
   const setMediaAutosaveEnabled = useCallback(

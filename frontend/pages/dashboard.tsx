@@ -11,7 +11,6 @@ import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
   ChartBar,
   CloudArrowUp,
-  FolderSimple,
   Person,
   ShieldCheck,
   Sparkle,
@@ -165,16 +164,6 @@ const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] 
 };
 
 const dashboardToolCards: DashboardToolCard[] = [
-  {
-    title: "Media Library",
-    eyebrow: "Storage",
-    description: "Upload and organize private assets with secure, per-user storage.",
-    href: "/media-library",
-    cta: "Open library →",
-    variant: "tool-media",
-    image: "/dashboard/media-library-purple.png",
-    icon: FolderSimple,
-  },
   {
     title: "Character",
     eyebrow: "Identity",

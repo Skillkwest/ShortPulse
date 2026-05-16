@@ -157,6 +157,62 @@ describe("sessionSnapshotHydrator", () => {
     });
   });
 
+  it("keeps identity-only image attachments restoreable when preview urls were stripped", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [
+            {
+              id: "u-1",
+              role: "user",
+              content: "",
+              attachments: [
+                {
+                  id: "img-1",
+                  kind: "image",
+                  imageUrl: null,
+                  previewStoragePath: "user-1/generated/preview.png",
+                  fullStoragePath: "user-1/generated/full.png",
+                  referenceUrl: null,
+                  referenceRenderUrl: null,
+                  text: null,
+                },
+              ],
+            },
+          ],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: null,
+        pulseSessionInstanceId: null,
+        pulse: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.agentRuntimes.standard.messages[0]?.attachments?.[0]).toMatchObject({
+      kind: "image",
+      imageUrl: null,
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+    });
+  });
+
   it("hydrates video poster delivery fields from snapshots", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

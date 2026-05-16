@@ -15,6 +15,7 @@ Purpose: product/domain source-of-truth documents used by engineering, product, 
 ## Active inventory
 - `docs/product/ai-studio-pricing.md`
 - `docs/product/billing-pricing-catalog.md`
+- `docs/product/media-storage-save-blocking.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/product/shortflow_outlier_source_of_truth.md`
 - `docs/product/shortpulse_top_performing_videos_source_of_truth.md`

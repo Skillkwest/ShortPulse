@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
@@ -169,7 +169,7 @@ describe("useAiStudioAgentComposer", () => {
 
     expect(ensureAgentSession).toHaveBeenCalledTimes(1);
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
-    expect(extractInternalReferenceDragPayloadMock).not.toHaveBeenCalled();
+    expect(extractInternalReferenceDragPayloadMock).toHaveBeenCalledTimes(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
       referenceId: "out-1",
@@ -181,6 +181,95 @@ describe("useAiStudioAgentComposer", () => {
       referenceUrl: "https://signed.example.com/generated.png",
       referenceRenderUrl: "blob:resolved-artifact",
       text: "Dragged prompt",
+    });
+  });
+
+  it("prefers internal image resolution over the direct composer payload when both are present", async () => {
+    const ensureAgentSession = vi.fn();
+    extractComposerImageDropPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "https://fragile.example.com/preview.png",
+      displayArtifactKind: "url",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: "https://signed.example.com/generated.png",
+      promptText: "Dragged prompt",
+      sourceSurface: "all-refs",
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "image",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: "https://signed.example.com/generated.png",
+      referenceRenderUrl: "https://fragile.example.com/preview.png",
+      sourceSurface: "all-refs",
+    });
+    const resolveInternalImageDropSource = vi.fn(
+      async () =>
+        ({
+          kind: "internal",
+          sourceKind: "generated_output",
+          sourceId: "out-1:0",
+          provenance: {
+            origin: "ai-studio-reference-grid",
+            outputId: "out-1",
+            mediaId: "media-1",
+            imageIndex: 0,
+            sourceSurface: "all-refs",
+            resolutionReason: "output_storage_path",
+          },
+          outputId: "out-1",
+          mediaId: "media-1",
+          mediaSource: "generated",
+          preview: {
+            url: "blob:composer-owned-preview",
+          },
+          previewStoragePath: "user-1/generated/preview.png",
+          fullStoragePath: "user-1/generated/full.png",
+          promptText: "Resolved prompt",
+          preparedImageUrl: "blob:composer-owned-preview",
+          loadBlob: vi.fn(async () => new Blob(["image-bytes"], { type: "image/png" })),
+        }) satisfies ResolvedInternalReferenceSource
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => "https://weak.example.com/preview.png",
+        resolveInternalImageDropSource,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(resolveInternalImageDropSource).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        imageUrl: "blob:composer-owned-preview",
+        imageFallbackUrls: [],
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        referenceUrl: null,
+        referenceRenderUrl: null,
+        text: "Dragged prompt",
+      });
     });
   });
 

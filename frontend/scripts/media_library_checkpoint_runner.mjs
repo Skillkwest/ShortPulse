@@ -23,24 +23,26 @@ const CHECKPOINTS = {
   "phase0-baseline": {
     title: "Phase 0 Baseline",
     description:
-      "Captures the retained prep packet, probe, and browser/runtime baseline before deeper browse-path changes.",
+      "Captures the retained prep packet, probe, and AI Studio media-surface baseline before deeper browse-path changes.",
     commands: [
       "npm run media:phase0",
       "npm run test:e2e:media-library-runtime",
     ],
     doneHint:
-      "Done when at least one retained baseline packet exists for route, panel, and derivative health comparison.",
+      "Done when at least one retained baseline packet exists for the AI Studio panel/modal surfaces and derivative health comparison.",
   },
   "preview-authority": {
     title: "Preview Authority",
     description:
-      "Use after the count checkpoint to simplify which layer decides the preview URL for visible media rows.",
+      "Use after the count checkpoint to simplify which layer decides the preview URL for visible AI Studio media rows.",
     commands: [
-      "npm test -- tests/api/media-list.test.ts",
+      "npm test -- tests/api/media-list.test.ts --testNamePattern=\"does not seed initial signed urls for the modal surface|does not seed initial signed urls for the panel surface|supports panel mediaKind queries without tab|supports audio mediaKind queries without tab\"",
+      "npm test -- tests/api/media-resolve-previews.test.ts --testNamePattern=\"does not apply transforms by default when surface is media-library-panel|prefers trusted direct preview urls over storage lookup on browse surfaces|narrows browse-surface storage lookup to preferred and original candidates\"",
+      "npm test -- features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts --testNamePattern=\"limits panel resolver escalation to visible unresolved rows|limits modal resolver escalation to visible unresolved rows|prefers durable direct preview urls over signing for panel rows|prefers durable direct preview urls over signing for modal rows|does not blind-prefetch beyond the initial slice before visibility is known|keeps dense panel-style signing bounded across initial open and load-more append|does not schedule deferred offscreen prefetch work for panel signing\"",
       "npm test -- features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx",
     ],
     doneHint:
-      "Done when the normal browse path is closer to list -> authoritative preview fields -> sign/render.",
+      "Done when the AI Studio media browse path is closer to list -> authoritative preview fields -> sign/render.",
   },
   "panel-runtime-churn": {
     title: "Panel Runtime Churn",
@@ -54,17 +56,6 @@ const CHECKPOINTS = {
     ],
     doneHint:
       "Done when panel refresh, append, and signed-preview paths validate without broad panel-suite noise and without redundant runtime row churn.",
-  },
-  "route-runtime-churn": {
-    title: "Route Runtime Churn",
-    description:
-      "Validates route runtime reductions so media-tab cache updates and prompt/media selectors avoid unnecessary shared-runtime churn.",
-    commands: [
-      "npm test -- features/media-library/runtime/__tests__/store.test.ts",
-      "npm test -- features/media-library/runtime/__tests__/useMediaLibraryRouteRuntime.test.ts",
-    ],
-    doneHint:
-      "Done when route runtime cache updates batch cleanly and route prompt/media selectors stay stable under unrelated runtime changes.",
   },
 };
 

@@ -15,6 +15,33 @@ export const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
   return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
 };
 
+export const isKeyboardEventFromInteractiveTarget = (event: KeyboardEvent) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (isKeyboardEventFromEditableTarget(event)) return true;
+  return Boolean(
+    target.closest(
+      'button, a, summary, [role="button"], [role="link"], [role="menuitem"], [tabindex]'
+    )
+  );
+};
+
+export const isClientPointInsideElementBounds = ({
+  element,
+  clientX,
+  clientY,
+}: {
+  element: Element | null;
+  clientX: number;
+  clientY: number;
+}) => {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  return (
+    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+  );
+};
+
 export type TransformPointerSession = {
   active: boolean;
   pointerId: number;

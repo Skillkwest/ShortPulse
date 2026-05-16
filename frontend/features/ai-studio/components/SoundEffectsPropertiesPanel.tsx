@@ -31,6 +31,29 @@ const soundEffectPromptPlaceholder =
   "Describe the sound effect you want to generate with detail, texture, space, and motion.";
 const maxPromptCharacters = 450;
 const defaultSoundEffectsFormat: SoundEffectFormat = "mp3_44100_128";
+const soundEffectInspirationChips = [
+  "cinematic boom",
+  "whoosh sweep",
+  "thunder crack",
+  "vinyl crackle",
+  "crowd cheer",
+  "glass shatter",
+  "door slam",
+  "engine rev",
+  "sword clash",
+  "heartbeat pulse",
+  "rain ambience",
+  "ocean waves",
+  "footsteps gravel",
+  "keyboard typing",
+  "camera shutter",
+  "drone hum",
+  "fire crackle",
+  "radio static",
+  "phone vibration",
+  "magic sparkle",
+] as const;
+const inspirationScrollStepPx = 280;
 
 const formatCreditValue = (value: number): string => {
   const roundedValue = Number(value.toFixed(1));
@@ -58,8 +81,19 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   pricingPolicy = null,
   pricingPolicyReady = true,
 }: SoundEffectsPropertiesPanelProps) {
+  const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const inspirationDragPointerIdRef = React.useRef<number | null>(null);
+  const inspirationDragStartXRef = React.useRef(0);
+  const inspirationDragStartScrollLeftRef = React.useRef(0);
+  const inspirationDidDragRef = React.useRef(false);
+  const suppressChipClickRef = React.useRef(false);
   const [prompt, setPrompt] = React.useState("");
   const [loopEnabled, setLoopEnabled] = React.useState(false);
+  const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
+  const [inspirationScrollState, setInspirationScrollState] = React.useState({
+    canScrollBack: false,
+    canScrollForward: false,
+  });
 
   const durationSeconds = null;
   const generateCost =
@@ -76,6 +110,117 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
   const isGenerateEnabled =
     Boolean(onGenerate) && pricingPolicyReady && prompt.trim().length > 0 && !isInsufficientCredits;
+
+  const syncInspirationScrollState = React.useCallback(() => {
+    const node = inspirationScrollerRef.current;
+    if (!node) {
+      setInspirationScrollState({
+        canScrollBack: false,
+        canScrollForward: false,
+      });
+      return;
+    }
+    const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+    setInspirationScrollState({
+      canScrollBack: node.scrollLeft > 4,
+      canScrollForward: node.scrollLeft < maxScrollLeft - 4,
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      syncInspirationScrollState();
+    });
+    const handleResize = () => {
+      syncInspirationScrollState();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [syncInspirationScrollState]);
+
+  const scrollInspirationBy = React.useCallback(
+    (offset: number) => {
+      const node = inspirationScrollerRef.current;
+      if (!node) return;
+      node.scrollBy({
+        left: offset,
+        behavior: "smooth",
+      });
+      window.setTimeout(syncInspirationScrollState, 180);
+    },
+    [syncInspirationScrollState]
+  );
+
+  const appendInspirationChip = React.useCallback((chip: string) => {
+    setPrompt((currentPrompt) => {
+      const trimmedPrompt = currentPrompt.trim();
+      const nextPrompt = trimmedPrompt.length > 0 ? `${trimmedPrompt}, ${chip}` : chip;
+      return nextPrompt.slice(0, maxPromptCharacters);
+    });
+  }, []);
+
+  const handleInspirationChipClick = React.useCallback(
+    (chip: string) => {
+      if (suppressChipClickRef.current) {
+        suppressChipClickRef.current = false;
+        return;
+      }
+      appendInspirationChip(chip);
+    },
+    [appendInspirationChip]
+  );
+
+  const handleInspirationPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const node = inspirationScrollerRef.current;
+      if (!node) return;
+      inspirationDragPointerIdRef.current = event.pointerId;
+      inspirationDragStartXRef.current = event.clientX;
+      inspirationDragStartScrollLeftRef.current = node.scrollLeft;
+      inspirationDidDragRef.current = false;
+      suppressChipClickRef.current = false;
+      setIsDraggingInspiration(false);
+      node.setPointerCapture(event.pointerId);
+    },
+    []
+  );
+
+  const handleInspirationPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const node = inspirationScrollerRef.current;
+      if (!node || inspirationDragPointerIdRef.current !== event.pointerId) return;
+      const deltaX = event.clientX - inspirationDragStartXRef.current;
+      if (!inspirationDidDragRef.current && Math.abs(deltaX) > 4) {
+        inspirationDidDragRef.current = true;
+        suppressChipClickRef.current = true;
+        setIsDraggingInspiration(true);
+      }
+      if (!inspirationDidDragRef.current) return;
+      node.scrollLeft = inspirationDragStartScrollLeftRef.current - deltaX;
+      syncInspirationScrollState();
+    },
+    [syncInspirationScrollState]
+  );
+
+  const endInspirationDrag = React.useCallback(
+    (pointerId?: number) => {
+      const node = inspirationScrollerRef.current;
+      if (node && pointerId != null && node.hasPointerCapture(pointerId)) {
+        node.releasePointerCapture(pointerId);
+      }
+      inspirationDragPointerIdRef.current = null;
+      window.setTimeout(() => {
+        suppressChipClickRef.current = false;
+      }, 0);
+      inspirationDidDragRef.current = false;
+      setIsDraggingInspiration(false);
+      syncInspirationScrollState();
+    },
+    [syncInspirationScrollState]
+  );
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
@@ -95,7 +240,17 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       <div className="sound-effects-properties-shell">
         <div className="sound-effects-properties-main">
           <div className="sound-effects-properties-compose-area">
-            <div className="sound-effects-properties-script-input-shell">
+            <div
+              className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
+              aria-hidden="true"
+            >
+              <div
+                className="sound-effects-properties-divider reference-grid-horizontal-divider"
+                aria-hidden="true"
+              />
+            </div>
+
+            <div className="sound-effects-properties-script-input-shell sound-effects-properties-script-input-shell--with-inspiration">
               <textarea
                 className="sound-effects-properties-script-input"
                 value={prompt}
@@ -104,6 +259,64 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                 placeholder={soundEffectPromptPlaceholder}
                 aria-label="Sound effect prompt"
               />
+
+              <div
+                className="sound-effects-properties-script-input-shell-divider"
+                aria-hidden="true"
+              />
+
+              <div className="sound-effects-properties-inspiration-rail">
+                <div className="sound-effects-properties-inspiration-header">
+                  <p className="sound-effects-properties-inspiration-label">Inspiration</p>
+                </div>
+
+                <div className="sound-effects-properties-inspiration-track">
+                  <div
+                    ref={inspirationScrollerRef}
+                    className={`sound-effects-properties-inspiration-scroller ${
+                      isDraggingInspiration ? "is-dragging" : ""
+                    }`}
+                    aria-label="Sound effect inspiration"
+                    onScroll={syncInspirationScrollState}
+                    onPointerDown={handleInspirationPointerDown}
+                    onPointerMove={handleInspirationPointerMove}
+                    onPointerUp={(event) => endInspirationDrag(event.pointerId)}
+                    onPointerCancel={(event) => endInspirationDrag(event.pointerId)}
+                  >
+                    {soundEffectInspirationChips.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        className="sound-effects-properties-inspiration-chip"
+                        onClick={() => handleInspirationChipClick(chip)}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="sound-effects-properties-inspiration-controls">
+                    <button
+                      type="button"
+                      className="sound-effects-properties-inspiration-arrow"
+                      onClick={() => scrollInspirationBy(-inspirationScrollStepPx)}
+                      disabled={!inspirationScrollState.canScrollBack}
+                      aria-label="Scroll inspiration left"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      className="sound-effects-properties-inspiration-arrow"
+                      onClick={() => scrollInspirationBy(inspirationScrollStepPx)}
+                      disabled={!inspirationScrollState.canScrollForward}
+                      aria-label="Scroll inspiration right"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="sound-effects-properties-script-actions">

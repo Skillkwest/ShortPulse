@@ -61,6 +61,7 @@ export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clip
 export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
 export type StudioOutputSubmissionMode = "provider-task" | "direct-request";
 export type StudioOutputCompanionArtStatus = "pending" | "processing" | "ready" | "failed";
+export type StudioOutputSaveState = "idle" | "saving" | "saved" | "failed" | "blocked_storage";
 
 export type StudioOutput = {
   id: string;
@@ -74,7 +75,7 @@ export type StudioOutput = {
   generationId?: string;
   savedMediaIds?: string[];
   promptId?: string;
-  saveState?: "idle" | "saving" | "saved" | "failed";
+  saveState?: StudioOutputSaveState;
   saveError?: string | null;
   status: "ready" | "saved";
   timestamp: string;

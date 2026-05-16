@@ -81,8 +81,10 @@ describe("Profile account settings autosave toggle", () => {
 
   it("renders autosave preference card in account settings", () => {
     render(<ProfilePage />);
-    expect(screen.getByRole("heading", { name: "AI Studio autosave" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Disable AI Studio autosave" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Media Library autosave" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Disable Media Library autosave" })
+    ).toBeInTheDocument();
   });
 
   it("forwards toggle intent to media autosave setter", () => {
@@ -96,7 +98,7 @@ describe("Profile account settings autosave toggle", () => {
     });
 
     render(<ProfilePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Disable AI Studio autosave" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disable Media Library autosave" }));
     expect(setMediaAutosaveEnabled).toHaveBeenCalledWith(false);
   });
 
@@ -110,7 +112,7 @@ describe("Profile account settings autosave toggle", () => {
     });
 
     const { rerender } = render(<ProfilePage />);
-    expect(screen.getByRole("button", { name: "Disable AI Studio autosave" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disable Media Library autosave" })).toBeDisabled();
 
     useMediaAutosavePreferenceMock.mockReturnValue({
       mediaAutosaveEnabled: true,
@@ -121,7 +123,7 @@ describe("Profile account settings autosave toggle", () => {
     });
     rerender(<ProfilePage />);
 
-    expect(screen.getByRole("button", { name: "Disable AI Studio autosave" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disable Media Library autosave" })).toBeDisabled();
     expect(screen.getByText("Saving autosave preference...")).toBeInTheDocument();
   });
 

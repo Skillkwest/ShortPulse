@@ -537,6 +537,68 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     );
   });
 
+  it("normalizes quota failures into blocked_storage with friendly copy", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(
+      new Error(
+        "Media storage limit exceeded. Delete media, upgrade your plan, or add recurring storage before saving more files."
+      )
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(setUiError).toHaveBeenCalledWith(
+      "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files."
+    );
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "blocked_storage",
+        saveError:
+          "Media storage limit exceeded. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          ui_error_message:
+            "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+        }),
+      })
+    );
+  });
+
   it("reruns a manual save after an in-flight autosave fails so manual UX is preserved", async () => {
     const outputs = new Map<string, StudioOutput>([
       [

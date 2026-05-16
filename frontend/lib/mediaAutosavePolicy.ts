@@ -2,6 +2,7 @@
  * Shared media autosave policy decisions for AI Studio client and server paths.
  * Keeps manual/auto persistence eligibility deterministic and testable.
  */
+import type { StudioOutputSaveState } from "../features/ai-studio/types";
 
 export type PersistenceIntent = "manual" | "auto";
 
@@ -26,7 +27,7 @@ export type AutoSaveEligibilityInput = {
   hasMedia: boolean;
   hasDurableLibraryAuthority?: boolean;
   hasPromptOnlyText?: boolean;
-  saveState?: "idle" | "saving" | "saved" | "failed" | null;
+  saveState?: StudioOutputSaveState | null;
   savedMediaIds?: string[] | null;
 };
 
@@ -52,7 +53,8 @@ export const canAutoSaveOutput = (input: AutoSaveEligibilityInput): AutoSaveDeci
   if (
     hasPersistedMediaIds(input.savedMediaIds) ||
     input.saveState === "saved" ||
-    input.saveState === "saving"
+    input.saveState === "saving" ||
+    input.saveState === "blocked_storage"
   ) {
     return { allowed: false, reason: "already_saved" };
   }

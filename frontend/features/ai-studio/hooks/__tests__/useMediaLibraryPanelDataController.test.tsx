@@ -146,7 +146,7 @@ describe("useMediaLibraryPanelDataController", () => {
     );
 
     await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
       expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
     });
 
@@ -253,7 +253,23 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("requests library total count only for new media scopes", async () => {
+  it("requests library total count only when the first page does not prove the total", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: "cursor-1",
+        hasMore: true,
+        signedById: new Map(),
+        libraryTotalCount: null,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 5,
+      });
+
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
         projectId: "project-1",
@@ -298,6 +314,48 @@ describe("useMediaLibraryPanelDataController", () => {
     );
   });
 
+  it("derives library total count from loaded rows when the first page exhausts the scope", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-1",
+          filename: "cat.png",
+          file_type: "image/png",
+          created_at: "2026-04-27T00:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: null,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.libraryTotalCount).toBe(1);
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaListPageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        countOnly: true,
+      })
+    );
+  });
+
   it("keeps current media rows visible during same-scope refresh", async () => {
     const refreshDeferred = createDeferred<{
       rows: Array<{ id: string; filename: string; file_type: string; created_at: string }>;
@@ -317,13 +375,6 @@ describe("useMediaLibraryPanelDataController", () => {
             created_at: "2026-04-27T00:00:00.000Z",
           },
         ],
-        nextCursor: null,
-        hasMore: false,
-        signedById: new Map(),
-        libraryTotalCount: 1,
-      })
-      .mockResolvedValueOnce({
-        rows: [],
         nextCursor: null,
         hasMore: false,
         signedById: new Map(),
@@ -404,13 +455,6 @@ describe("useMediaLibraryPanelDataController", () => {
         signedById: new Map(),
         libraryTotalCount: 0,
       })
-      .mockResolvedValueOnce({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-        signedById: new Map(),
-        libraryTotalCount: 0,
-      })
       .mockReturnValueOnce(refreshMediaDeferred.promise);
     fetchMediaPromptListPageMock
       .mockResolvedValueOnce({
@@ -484,13 +528,6 @@ describe("useMediaLibraryPanelDataController", () => {
         signedById: new Map(),
         libraryTotalCount: 0,
       })
-      .mockResolvedValueOnce({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-        signedById: new Map(),
-        libraryTotalCount: 0,
-      })
       .mockRejectedValueOnce(new Error("media refresh failed"));
     fetchMediaPromptListPageMock
       .mockResolvedValueOnce({
@@ -524,7 +561,7 @@ describe("useMediaLibraryPanelDataController", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(3);
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
       expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
     });
 

@@ -16,6 +16,7 @@ import type {
   StudioOutputCharacterContext,
   StudioOutputMediaSource,
   StudioOutputPreviewTier,
+  StudioOutputSaveState,
   StudioOutputStyleContext,
   ToolId,
 } from "../types";
@@ -54,7 +55,7 @@ export type AiStudioSessionOutputV1 = {
   generationId?: string;
   promptId?: string;
   savedMediaIds?: string[];
-  saveState?: "idle" | "saving" | "saved" | "failed";
+  saveState?: StudioOutputSaveState;
   saveError?: string | null;
   status: "ready" | "saved";
   timestamp: string;

@@ -4,7 +4,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
-import type { StudioOutput } from "../types";
+import type { StudioOutput, StudioOutputSaveState } from "../types";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
   associateGenerationWithProject,
@@ -89,11 +89,16 @@ export const useAiStudioPersistenceActions = ({
   );
 
   const markOutputSaveFailed = useCallback(
-    (outputId: string, message: string, options?: { showPill?: boolean }) => {
+    (
+      outputId: string,
+      message: string,
+      options?: { showPill?: boolean; state?: StudioOutputSaveState }
+    ) => {
       const showPill = options?.showPill ?? true;
+      const failedState = options?.state ?? "failed";
       updateOutputById(outputId, (item) => ({
         ...item,
-        saveState: showPill ? "failed" : item.saveState,
+        saveState: showPill ? failedState : item.saveState,
         saveError: showPill ? message : item.saveError,
       }));
     },

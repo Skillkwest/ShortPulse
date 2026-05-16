@@ -339,7 +339,7 @@ const normalizeProjectionQueueState = (value: unknown): string | null => {
 
 const normalizeProjectionSaveState = (
   value: unknown
-): "idle" | "saving" | "saved" | "failed" | null => {
+): "idle" | "saving" | "saved" | "failed" | "blocked_storage" | null => {
   const normalized = asTrimmedString(value)?.toLowerCase();
   switch (normalized) {
     case "idle":
@@ -350,6 +350,8 @@ const normalizeProjectionSaveState = (
       return "saved";
     case "failed":
       return "failed";
+    case "blocked_storage":
+      return "blocked_storage";
     default:
       return null;
   }
@@ -361,12 +363,15 @@ const resolveRestoredOutputSaveState = ({
 }: {
   projection: ProjectGenerationProjectionRow;
   row: SnapshotRecord;
-}): "idle" | "saving" | "saved" | "failed" => {
+}): "idle" | "saving" | "saved" | "failed" | "blocked_storage" => {
   const savedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
   if (savedMediaIds.length > 0) return "saved";
   return (
     normalizeProjectionSaveState(projection.save_state) ??
-    (row.saveState === "saving" || row.saveState === "saved" || row.saveState === "failed"
+    (row.saveState === "saving" ||
+    row.saveState === "saved" ||
+    row.saveState === "failed" ||
+    row.saveState === "blocked_storage"
       ? row.saveState
       : "idle")
   );

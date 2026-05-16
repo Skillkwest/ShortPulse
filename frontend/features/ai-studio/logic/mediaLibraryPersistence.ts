@@ -6,8 +6,9 @@ import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supa
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import {
-  MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
+  normalizeMediaStorageQuotaUiCopy,
+  MEDIA_STORAGE_FULL_USER_MESSAGE,
 } from "../../../lib/mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
@@ -489,6 +490,10 @@ const saveMediaUrlToLibraryViaServerCopy = async (
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const payloadRecord = asRecord(payload);
+    const normalizedQuotaError = normalizeMediaStorageQuotaUiCopy(payloadRecord);
+    if (normalizedQuotaError) {
+      throw new Error(normalizedQuotaError.message);
+    }
     const message =
       asOptionalString(payloadRecord.error) ??
       asOptionalString(payloadRecord.details) ??
@@ -1356,7 +1361,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         // best-effort cleanup only
       }
       throw new Error(
-        `${MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE}. Delete media, upgrade your plan, or add recurring storage before saving more files.`
+        normalizeMediaStorageQuotaUiCopy(error)?.message ?? MEDIA_STORAGE_FULL_USER_MESSAGE
       );
     }
     if (input.source === "ai_studio" && input.generationId && isDuplicateInsertError(error)) {

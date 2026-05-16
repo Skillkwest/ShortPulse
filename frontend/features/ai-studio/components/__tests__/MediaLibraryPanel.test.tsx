@@ -1433,7 +1433,7 @@ describe("MediaLibraryPanel", () => {
         screen.queryByRole("button", { name: "Remove prompt Prompt One" })
       ).not.toBeInTheDocument();
     });
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
   });
 
   it("uploads desktop files dropped on a folder tile and assigns them to that folder", async () => {

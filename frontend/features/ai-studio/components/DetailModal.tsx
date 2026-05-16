@@ -389,15 +389,20 @@ function DetailModalContent({
     !isPromptOnly && displayPreviewUrl && outputId && onSaveReference && canSaveReferenceMedia
   );
   const isMediaSaved = mediaSaveState === "saved";
-  const isMediaSaveDisabled = mediaSaveState === "saving" || mediaSaveState === "saved";
+  const isMediaSaveDisabled =
+    mediaSaveState === "saving" ||
+    mediaSaveState === "saved" ||
+    mediaSaveState === "blocked_storage";
   const mediaSaveLabel =
     mediaSaveState === "saving"
       ? "Saving..."
       : mediaSaveState === "saved"
         ? "Saved"
-        : mediaSaveState === "failed"
-          ? "Retry Save"
-          : "Save";
+        : mediaSaveState === "blocked_storage"
+          ? "Storage Full"
+          : mediaSaveState === "failed"
+            ? "Retry Save"
+            : "Save";
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();

@@ -253,6 +253,9 @@ export const useMediaLibraryPanelDataController = ({
         if (mediaRequestTokenRef.current !== requestToken) return;
         const existingRows = reset ? [] : mediaRowsRef.current;
         const nextRows = mergePageRows(existingRows, result.rows);
+        const derivedLibraryTotalCount = result.hasMore ? null : nextRows.length;
+        const returnedLibraryTotalCount =
+          typeof result.libraryTotalCount === "number" ? result.libraryTotalCount : null;
         setMediaRows(nextRows);
         setSignedUrls(result.signedById);
         const previousLibraryTotalCount = mediaScopeCacheRef.current.libraryTotalCount;
@@ -265,10 +268,17 @@ export const useMediaLibraryPanelDataController = ({
           error: null,
           loadedAtMs: Date.now(),
           resolvedScopeKey: scopeKey,
+          libraryTotalCount:
+            returnedLibraryTotalCount ??
+            previousLibraryTotalCount ??
+            derivedLibraryTotalCount ??
+            prev.libraryTotalCount,
         }));
         if (
           reset &&
           previousLibraryTotalCount === null &&
+          returnedLibraryTotalCount === null &&
+          derivedLibraryTotalCount === null &&
           libraryCountRequestedScopeKeyRef.current !== scopeKey
         ) {
           void loadLibraryTotalCount({ scopeKey });

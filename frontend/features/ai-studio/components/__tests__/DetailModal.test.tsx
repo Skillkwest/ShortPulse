@@ -316,6 +316,23 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Retry Save" })).toBeInTheDocument();
   });
 
+  it("shows Storage Full and disables saving when quota blocks persistence", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          saveState: "blocked_storage",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Storage Full" })).toBeDisabled();
+  });
+
   it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
     const { baseElement } = render(
       <DetailModal

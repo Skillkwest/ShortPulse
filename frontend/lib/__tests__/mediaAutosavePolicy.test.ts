@@ -74,6 +74,18 @@ describe("mediaAutosavePolicy", () => {
     expect(
       canAutoSaveOutput({
         intent: "auto",
+        source: "generated",
+        mediaAutosaveEnabled: true,
+        hasMedia: true,
+        saveState: "blocked_storage",
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "already_saved",
+    });
+    expect(
+      canAutoSaveOutput({
+        intent: "auto",
         source: "library",
         mediaAutosaveEnabled: true,
         hasMedia: true,

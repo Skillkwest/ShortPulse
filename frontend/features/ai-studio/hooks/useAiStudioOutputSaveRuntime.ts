@@ -2,9 +2,9 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR } from "../logic/mediaLibraryPersistence";
-import { MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE } from "../../../lib/mediaStorageQuota";
+import { normalizeMediaStorageQuotaUiCopy } from "../../../lib/mediaStorageQuota";
 import type { Provider } from "../logic/stateParsers";
-import type { StudioOutput } from "../types";
+import type { StudioOutput, StudioOutputSaveState } from "../types";
 import type {
   PersistOutputSaveOptions,
   PersistOutputSaveResult,
@@ -63,14 +63,17 @@ const GENERIC_LIBRARY_SAVE_UI_ERROR =
 const resolveLibrarySaveFailureMessage = (errors: string[]): string =>
   errors[0] ?? "Media library save did not return a media id.";
 
-const isSafeUserFacingLibrarySaveMessage = (message: string): boolean => {
-  const normalized = message.trim();
-  if (!normalized) return false;
-  return normalized.startsWith(MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE);
-};
+const resolveStorageQuotaUiMessage = (message: string): string | null =>
+  normalizeMediaStorageQuotaUiCopy(message)?.message ?? null;
+
+const isSafeUserFacingLibrarySaveMessage = (message: string): boolean =>
+  Boolean(resolveStorageQuotaUiMessage(message));
 
 const resolveLibrarySaveUiErrorMessage = (message: string): string =>
-  isSafeUserFacingLibrarySaveMessage(message) ? message : GENERIC_LIBRARY_SAVE_UI_ERROR;
+  resolveStorageQuotaUiMessage(message) ?? GENERIC_LIBRARY_SAVE_UI_ERROR;
+
+const resolveOutputSaveFailureState = (message: string): StudioOutputSaveState =>
+  resolveStorageQuotaUiMessage(message) ? "blocked_storage" : "failed";
 
 const resolvePersistIntent = (options?: PersistOutputSaveOptions): "manual" | "auto" =>
   options?.intent === "auto" ? "auto" : "manual";
@@ -275,7 +278,9 @@ export const useAiStudioOutputSaveRuntime = ({
             };
           }
           const failureMessage = resolveLibrarySaveFailureMessage(errors);
-          markOutputSaveFailed(outputId, failureMessage);
+          markOutputSaveFailed(outputId, failureMessage, {
+            state: resolveOutputSaveFailureState(failureMessage),
+          });
           const uiErrorMessage = resolveLibrarySaveUiErrorMessage(failureMessage);
           const surfacedUiErrorMessage = shouldSurfaceLibrarySaveUiError({
             message: failureMessage,

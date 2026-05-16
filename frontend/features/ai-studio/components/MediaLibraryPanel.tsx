@@ -292,7 +292,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery: normalizedSearch,
     activeTab: activeMediaTab ?? "saved_prompts",
-    firstMediaPaintEventName: "media.modal.first_media_paint",
+    firstMediaPaintEventName: "media.panel.first_media_paint",
     previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
     signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
     surface: panelSurfaceConfig.listSurface,

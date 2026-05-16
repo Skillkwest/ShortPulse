@@ -111,7 +111,9 @@ const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
       ? "Saving..."
       : item.saveState === "saved"
         ? "Saved"
-        : "Save failed";
+        : item.saveState === "blocked_storage"
+          ? "Storage full"
+          : "Save failed";
   if (item.saveState === "saved") {
     if (!isSelected) return null;
     return (
@@ -186,8 +188,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
-  const saveDisabled = item.saveState === "saving";
-  const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
+  const saveDisabled = item.saveState === "saving" || item.saveState === "blocked_storage";
+  const saveLabel =
+    item.saveState === "failed"
+      ? "Retry save"
+      : item.saveState === "blocked_storage"
+        ? "Storage full"
+        : "Save to media library";
   const canSaveReference = canSaveReferenceOutput(item);
   const canDownloadReference = canDownloadReferenceOutput(item);
   const shouldShowSaveAction = Boolean(

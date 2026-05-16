@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ProfilePreferenceToggleCard } from "../ProfilePreferenceToggleCard";
 
 const baseProps = {
-  title: "AI Studio autosave",
+  title: "Media Library autosave",
   description: "Autosave generated media to your library.",
   enabled: true,
   onToggle: vi.fn(),
@@ -27,7 +27,7 @@ describe("ProfilePreferenceToggleCard", () => {
     const onToggle = vi.fn();
     render(<ProfilePreferenceToggleCard {...baseProps} enabled onToggle={onToggle} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Disable AI Studio autosave" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disable Media Library autosave" }));
     expect(onToggle).toHaveBeenCalledWith(false);
   });
 
@@ -35,7 +35,7 @@ describe("ProfilePreferenceToggleCard", () => {
     const onToggle = vi.fn();
     render(<ProfilePreferenceToggleCard {...baseProps} disabled onToggle={onToggle} />);
 
-    const toggleButton = screen.getByRole("button", { name: "Disable AI Studio autosave" });
+    const toggleButton = screen.getByRole("button", { name: "Disable Media Library autosave" });
     expect(toggleButton).toBeDisabled();
     fireEvent.click(toggleButton);
     expect(onToggle).not.toHaveBeenCalled();

@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
@@ -355,27 +356,6 @@ const downloadRemoteFile = async (
     buffer: Buffer.from(arrayBuffer),
     contentType: response.headers.get("content-type"),
   };
-};
-
-const readMediaAutosaveEnabledForUser = async ({
-  supabaseAdmin,
-  userId,
-}: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  userId: string;
-}): Promise<boolean> => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("user_preferences")
-      .select("media_autosave_enabled")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) return true;
-    const value = (data as { media_autosave_enabled?: unknown } | null)?.media_autosave_enabled;
-    return typeof value === "boolean" ? value : true;
-  } catch {
-    return true;
-  }
 };
 
 export const listElevenLabsVoices = async (): Promise<ElevenLabsVoice[]> => {

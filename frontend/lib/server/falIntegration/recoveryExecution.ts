@@ -3,6 +3,7 @@
  * Centralizes retrieval, persistence, settlement, and lifecycle transitions.
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
+import { readMediaAutosaveEnabledForUser } from "../api/mediaAutosavePreference";
 import {
   persistGenerationOutputRecords,
   readPersistedGenerationOutputs,
@@ -131,21 +132,6 @@ const isTerminalMediaPersistenceError = (error: unknown): boolean => {
     normalized.includes("media_files insert failed") &&
     normalized.includes("media_files_user_id_fkey")
   );
-};
-
-const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("user_preferences")
-      .select("media_autosave_enabled")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) return true;
-    const value = (data as { media_autosave_enabled?: unknown } | null)?.media_autosave_enabled;
-    return typeof value === "boolean" ? value : true;
-  } catch {
-    return true;
-  }
 };
 
 const logRecoveryAutosaveDecisionEvent = async ({
@@ -1027,7 +1013,9 @@ export const executeGenerationRecovery = async ({
     };
   }
 
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(generation.user_id);
+  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({
+    userId: generation.user_id,
+  });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,

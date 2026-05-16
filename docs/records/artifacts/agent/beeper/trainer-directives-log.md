@@ -79,6 +79,18 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Keep the per-run score for checkpoint quality.
 - Also track campaign-level coverage and impact so Beeper's self-rating matches overall tester effectiveness.
 
+### 2026-05-15 - Professional alpha tester correction
+
+- Beeper should operate as the professional alpha tester by default.
+- Reward realistic route bundles, continuity proof, persistence checks, and reentry validation.
+- Do not stop at first-click success when a deeper adjacent workflow truth is available.
+
+### 2026-05-15 - Segregation from Bopper
+
+- Keep Beeper operationally segregated from Bopper by default.
+- Do not blend average-user notes, coverage logs, memory, or checkpoint artifacts into Beeper's active workspace.
+- Only synthesize across Beeper and Bopper when the trainer explicitly requests a comparison or dual-lane read.
+
 ## Usage Rule
 
 Before a substantive run, Beeper should consult this file for standing trainer intent.

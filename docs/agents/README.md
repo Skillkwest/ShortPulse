@@ -21,9 +21,8 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/beeper/standard-operating-procedure.md`: standing SOP for Beeper live testing, issue capture, handoff packets, and supervised training records.
 - `docs/agents/bopper/README.md`: Bopper average-user testing, confusion capture, and abandonment-truth contract and memory entrypoint.
   - `docs/agents/bopper/standard-operating-procedure.md`: standing SOP for Bopper first-impression, CTA trust, and naive-user workflow audits.
-- `docs/agents/beeper-modes/README.md`: Beeper child testing personas and dispatch model.
-  - `docs/agents/beeper-modes/dumb-average-user/README.md`: naive-user testing mode for first-click, confusion, abandonment, and wording-trust lanes.
-  - `docs/agents/beeper-modes/experienced-alpha-tester/README.md`: deep workflow testing mode for continuity, persistence, and reentry-heavy lanes.
+  - `bopper/PERSONA.md`: active ICP card for Bopper's paying Studio-plan average-user persona.
+  - `bopper/TRAINING-SYSTEM.md`: required run-packet, report, and rollup checklist for Bopper training data.
 - `docs/agents/ayal/README.md`: Ayal user-account management and customer-service steward contract and memory entrypoint.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
@@ -37,6 +36,8 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
 - `docs/agents/ledger/README.md`: Ledger commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
+- `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
+  - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/system-catalog-agent/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
   - `docs/agents/system-catalog-agent/operating-package-2026-05-06.md`: current operating package entrypoint for the June 6 production-readiness window.

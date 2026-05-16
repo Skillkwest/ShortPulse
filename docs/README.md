@@ -50,9 +50,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/beeper/standard-operating-procedure.md`
 - `docs/agents/bopper/README.md`
 - `docs/agents/bopper/standard-operating-procedure.md`
-- `docs/agents/beeper-modes/README.md`
-- `docs/agents/beeper-modes/dumb-average-user/README.md`
-- `docs/agents/beeper-modes/experienced-alpha-tester/README.md`
 - `docs/agents/d-bug/README.md`
 - `docs/agents/d-bug/standard-operating-procedure.md`
 - `docs/agents/d-bug/scorecard-operations.md`
@@ -169,6 +166,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_ai_studio_media_library_operations.md`
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`
+- `docs/sops/sop_media_panel_performance_kpi.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
 - `docs/sops/sop_performance_ai_detection.md`
 - `docs/sops/sop_ai_studio_index.md`

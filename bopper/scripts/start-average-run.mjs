@@ -54,6 +54,12 @@ const writeIfMissing = (filePath, content) => {
   return true;
 };
 
+const writeJsonIfMissing = (filePath, value) => {
+  if (fs.existsSync(filePath)) return false;
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+  return true;
+};
+
 const formatDateParts = (date) => {
   const yyyy = String(date.getFullYear());
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -76,6 +82,7 @@ Purpose: chronological scratch log for one supervised Bopper run.
 - Base URL: ${baseUrl}
 - Interaction fidelity:
 - Audit user:
+- Persona lens:
 
 ## Chronological Log
 
@@ -96,11 +103,118 @@ Purpose: chronological scratch log for one supervised Bopper run.
 
 ## End Of Run
 
+- Run brief path:
 - Detailed report path:
 - Checkpoint summary path:
 - Retained report path:
 - D-Bug handoff path:
 - Training-history update needed:
+`;
+
+const buildRunBriefTemplate = ({ dateLabel, task, environment, baseUrl }) => `# Bopper Run Brief
+
+Purpose: define why this lane is worth testing and what Bopper expects before the run starts.
+
+## Run Metadata
+
+- Date: ${dateLabel}
+- Task: ${task}
+- Environment: ${environment}
+- Base URL: ${baseUrl}
+
+## Why This Lane
+
+- Lane choice rationale:
+- Coverage gap or retest reason:
+- Why this is high ROI right now:
+
+## Persona Lens
+
+- ICP pressure points in scope:
+- Business goal in this route:
+- Credit-risk concern:
+- Support-dependence concern:
+- Low-effort / payoff concern:
+
+## Expected User Path
+
+- Entry route:
+- First likely click:
+- Next likely click:
+- Why those controls will look right to Bopper:
+
+## Expected Outcomes
+
+- What would count as intuitive:
+- What would count as confusing:
+- What would count as abandon-worthy:
+- What would count as a strong business-use signal:
+
+## Guardrails
+
+- What Bopper should avoid because it would be too smart:
+- What shortcuts would change the run label:
+`;
+
+const buildClickLogTemplate = ({ dateLabel, task }) => `# Bopper Click Log
+
+Purpose: capture what Bopper clicked, why he clicked it, and whether that choice felt intuitive.
+
+## Run
+
+- Date: ${dateLabel}
+- Task: ${task}
+
+| Step | Surface | Visible options noticed | Clicked / input | Why Bopper chose it | Expected result | Actual result | Did it feel intuitive? | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | \`<route or surface>\` | \`<what looked available>\` | \`<what Bopper clicked>\` | \`<why this looked like the right move>\` | \`<expected>\` | \`<actual>\` | \`<yes/no/partial and why>\` | \`<screenshot/json/code>\` |
+`;
+
+const buildDecisionLogTemplate = ({ dateLabel, task }) => `# Bopper Decision Log
+
+Purpose: capture the ICP's judgments and conclusions during the run.
+
+## Run
+
+- Date: ${dateLabel}
+- Task: ${task}
+
+## Step Judgments
+
+| Step | Surface | What Bopper concluded | Did he know what to do next? | Did he feel credit risk? | Did he feel he needed admin help? | Did this feel worth the effort? | Likely keep going or abandon? |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | \`<route or surface>\` | \`<user conclusion>\` | \`<yes/no/partial>\` | \`<low/medium/high>\` | \`<yes/no/partial>\` | \`<yes/no/partial>\` | \`<keep going/retry/change route/abandon>\` |
+
+## End-State Conclusion
+
+- Did the UI feel intuitive overall?:
+- What was Bopper struggling with most?:
+- What part felt most support-dependent?:
+- What part felt most credit-risky?:
+- What part felt like too much work for the payoff?:
+- What would Bopper likely say about the app after this run?:
+`;
+
+const buildEvidenceManifestTemplate = ({ dateLabel, task }) => `# Bopper Evidence Manifest
+
+Purpose: keep the run packet self-contained by naming what evidence exists and what each artifact proves.
+
+## Run
+
+- Date: ${dateLabel}
+- Task: ${task}
+
+## Expected Artifacts
+
+- UI screenshots:
+- Runtime/network captures:
+- Console captures:
+- Any copied API payloads or IDs:
+
+## Artifact Notes
+
+- What each artifact proves:
+- Missing evidence to capture before closeout:
 `;
 
 const buildDetailedReportTemplate = ({ dateLabel, slug, task, environment, baseUrl }) =>
@@ -114,12 +228,14 @@ Purpose: ${task}.
 - Environment: ${environment}
 - Base URL: ${baseUrl}
 - Interaction fidelity:
+- Persona lens:
 
 ## Naive-User Path
 
 - Entry route:
 - First click:
 - Next obvious action:
+- Why those clicks looked right:
 - What Bopper expected:
 - What Bopper ignored:
 
@@ -137,8 +253,20 @@ Purpose: ${task}.
 
 - None yet.
 
+## ICP Judgments
+
+- Did the UI feel intuitive?:
+- What was Bopper struggling with?:
+- Did Bopper know what to do next without admin help?:
+- Did this feel risky from a credit perspective?:
+- Did this feel worth what he pays for Studio?:
+- Did this feel like too much work for the expected payoff?:
+
 ## Evidence
 
+- Run brief:
+- Click log:
+- Decision log:
 - Screenshots:
 - Runtime signals:
 - Code/doc surfaces:
@@ -152,10 +280,14 @@ Purpose: short trainer-facing summary for the Bopper run: ${task}.
 ## Snapshot
 
 - Environment: ${environment}
+- Lane:
 - Tried:
 - Worked:
 - Failed:
+- Confused:
+- ICP takeaway:
 - Abandonment point:
+- Handoff:
 - Detailed report:
 - Retained report:
 - D-Bug handoff:
@@ -175,19 +307,25 @@ Purpose: ${task}.
 - Audit user:
 - Trainer directives consulted:
 - Tools used:
+- Persona lens:
+- Business intent:
 
 ## Scope
 
 - Routes covered:
+- Interaction fidelity:
 - Primary naive-user journey:
 - What was intentionally skipped:
 - Route success target:
+- Retest-debt item:
+- Lane choice rationale:
+- ICP pressure points in scope:
 
 ## Action Log
 
-| Step | Surface | Action | Result | Evidence |
-| --- | --- | --- | --- | --- |
-| 1 | \`<route or tool>\` | \`<what Bopper clicked>\` | \`<what happened>\` | \`<screenshot/json/code>\` |
+| Step | Surface | Action | Why Bopper clicked it | Expected | Actual | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | \`<route or tool>\` | \`<what Bopper clicked>\` | \`<why this looked right to the ICP>\` | \`<what Bopper thought would happen>\` | \`<what happened>\` | \`<screenshot/json/code>\` |
 
 ## Findings
 
@@ -206,11 +344,22 @@ Purpose: ${task}.
 ## Average-User Lens
 
 - first click:
+- next obvious click:
 - what Bopper expected:
 - what actually happened:
 - what Bopper ignored:
 - what Bopper misunderstood:
 - abandonment point:
+
+## ICP Judgments
+
+- Did the UI feel intuitive?:
+- What was Bopper struggling with?:
+- Did Bopper know what to do next without admin help?:
+- Did this feel risky from a credit perspective?:
+- Did this feel worth what he pays for \`Studio\`?:
+- Did this feel like too much work for the expected payoff?:
+- What conclusion would Bopper likely make about ShortPulse after this run?:
 
 ## Code Follow-Up
 
@@ -221,6 +370,9 @@ Purpose: ${task}.
 ## Evidence Packet
 
 - JSON packet:
+- Run brief:
+- Click log:
+- Decision log:
 - Screenshots:
 - Console / runtime signals:
 - Local code references:
@@ -230,14 +382,18 @@ Purpose: ${task}.
 - Score out of 10:
 - Confidence tag:
 - Hard gate triggered:
+- Score breakdown:
 - What felt strong:
 - What slipped:
 - Weakest category:
 - Next-run drill:
+- ROI gained:
 
 ## Training Record
 
 - Memory / training-history update needed?: <yes/no and why>
+- Coverage update needed?: <yes/no and why>
+- Retest-debt update needed?: <yes/no and why>
 `;
 
 const main = async () => {
@@ -265,7 +421,12 @@ const main = async () => {
 
   const runDir = path.join(repoRoot, "bopper", "runs", `${timestampLabel}-${slug}`);
   const evidenceDir = path.join(runDir, "evidence");
+  const packetPath = path.join(runDir, "packet.json");
+  const runBriefPath = path.join(runDir, "run-brief.md");
   const notesPath = path.join(runDir, "notes.md");
+  const clickLogPath = path.join(runDir, "click-log.md");
+  const decisionLogPath = path.join(runDir, "decision-log.md");
+  const evidenceManifestPath = path.join(evidenceDir, "README.md");
   const detailedReportPath = path.join(repoRoot, "bopper", "reports", `${datedSlug}.md`);
   const checkpointSummaryPath = path.join(
     repoRoot,
@@ -291,7 +452,40 @@ const main = async () => {
 
   const templateParams = { dateLabel, slug, task, environment, baseUrl };
 
+  const packetData = {
+    ok: true,
+    slug,
+    task,
+    environment,
+    baseUrl,
+    dateLabel,
+    timestampLabel,
+    datedSlug,
+    runDir,
+    evidenceDir,
+    evidenceManifestPath,
+    packetPath,
+    runBriefPath,
+    notesPath,
+    clickLogPath,
+    decisionLogPath,
+    detailedReportPath,
+    checkpointSummaryPath,
+    retainedReportPath,
+  };
+
+  const createdPacket = writeJsonIfMissing(packetPath, packetData);
+  const createdRunBrief = writeIfMissing(runBriefPath, buildRunBriefTemplate(templateParams));
   const createdNotes = writeIfMissing(notesPath, buildNotesTemplate(templateParams));
+  const createdClickLog = writeIfMissing(clickLogPath, buildClickLogTemplate(templateParams));
+  const createdDecisionLog = writeIfMissing(
+    decisionLogPath,
+    buildDecisionLogTemplate(templateParams)
+  );
+  const createdEvidenceManifest = writeIfMissing(
+    evidenceManifestPath,
+    buildEvidenceManifestTemplate(templateParams)
+  );
   const createdDetailedReport = writeIfMissing(
     detailedReportPath,
     buildDetailedReportTemplate(templateParams)
@@ -308,18 +502,20 @@ const main = async () => {
   console.log(
     JSON.stringify(
       {
-        ok: true,
-        slug,
-        task,
-        environment,
-        baseUrl,
-        runDir,
-        evidenceDir,
+        ...packetData,
+        runBriefPath,
         notesPath,
+        clickLogPath,
+        decisionLogPath,
         detailedReportPath,
         checkpointSummaryPath,
         retainedReportPath,
+        createdPacket,
+        createdRunBrief,
         createdNotes,
+        createdClickLog,
+        createdDecisionLog,
+        createdEvidenceManifest,
         createdDetailedReport,
         createdCheckpointSummary,
         createdRetainedReport,

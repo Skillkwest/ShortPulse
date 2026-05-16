@@ -76,6 +76,23 @@ Purpose: <one sentence describing the testing or audit run>.
 - Next-run drill:
 - Real ROI gained:
 
+## Product Evaluation
+
+- Product score:
+- Product score breakdown:
+  - clarity:
+  - ease of start:
+  - ease of completion:
+  - trust:
+  - error handling:
+  - continuity:
+  - speed perception:
+  - polish:
+- Product confidence:
+- Strongest positive:
+- Strongest trust break:
+- Next product priority:
+
 ## Training Record
 
 - New helper or script needed?: <yes/no and why>
@@ -83,3 +100,4 @@ Purpose: <one sentence describing the testing or audit run>.
 - SOP / checklist update needed?: <yes/no and why>
 - Memory / training-history update needed?: <yes/no and why>
 - Retest-debt update needed?: <yes/no and why>
+- Product scoreboard update needed?: <yes/no and why>

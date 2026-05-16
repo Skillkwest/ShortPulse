@@ -34,7 +34,7 @@ Common fields for both profiles:
 ## Current Consumer Lock
 1. `media-library-modal` uses `expanded`.
 2. `media-library-panel` uses `expanded`.
-3. The retired standalone Media Library page historically used `minimal`.
+3. The historical implementation historically used `minimal`.
 4. Historical route fallback queries had to honor the same profile split when the list API was unavailable.
 
 ## Required Tests

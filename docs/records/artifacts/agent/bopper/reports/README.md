@@ -6,6 +6,7 @@ Purpose: store future full run reports for significant average-user walkthroughs
 
 - Use one dated report per substantive supervised run.
 - Pair each retained report with a scratch packet under `bopper/runs/` when raw evidence matters.
+- Prefer packets that include a structured `packet.json` and an `evidence/README.md` manifest so later agents do not depend on chat memory.
 - Use `run-report-template.md` as the default retained-report starting point.
 - Retained reports should stay dense, reproducible, and trainer-useful.
 - Every substantive report should preserve:

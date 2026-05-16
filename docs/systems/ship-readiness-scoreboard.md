@@ -4,15 +4,34 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 
 ## Snapshot
 
-- Snapshot date: `2026-05-07`
+- Snapshot date: `2026-05-15`
+- Snapshot freshness as of `2026-05-15`: `current`
+- Freshness reason:
+  - launch-state fields were refreshed against the current production-only evidence pass
+  - no newer blocker, lane, or production completion event has landed since this refresh
 - Primary sources:
   - `docs/systems/catalog.md`
   - `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-06-06.md`
   - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-06-dispatch-log.md`
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-15-production-launch-state-refresh.md`
+
+## Freshness Rule
+
+Treat this scoreboard as exact launch-control truth only when:
+
+- the snapshot is inside the 7-day freshness window
+- and no blocker, lane, or external completion event has landed since the snapshot
+
+When stale:
+
+- use this file as a baseline only
+- refresh the catalog, queue, dispatch log, and scoreboard together before making exact sequencing decisions
 
 ## Current Ship Bar
 
 ShortPulse is not ship-ready while any `P0 ship-critical` system remains below its ship floor or while an active ship-path blocker remains open.
+
+For exact sequencing inside a priority band, the handoff queue remains the authority.
 
 ## Active Ship-Path Blocker
 
@@ -56,12 +75,23 @@ ShortPulse is not ship-ready while any `P0 ship-critical` system remains below i
 
 ## Active Lanes
 
-- completed externally, review pending:
+- reviewed complete, score unchanged pending broader runtime rerate:
   - `generation-recovery-settlement-hardening`
-- dispatched and running:
+- dispatched and still awaiting closeout:
   - `reference-grid-styles-drop-blocker`
 - next ready:
   - `edit-workflow-hardening`
+- ready held:
+  - `project-workspace-persistence-hardening`
+
+## Non-Blocking Production Findings
+
+- `Media delivery / signing / preview resolution`
+  - a stale signed-thumb path reached production clients in `historical implementation`
+  - current behavior recovered client-side, so this remains follow-up work, not a ship-path blocker
+- `Media Library workflow`
+  - Uploaded Images no-match search empty-state copy currently misreads a search miss as if no uploads exist
+  - this is a real production UX defect, but not a blocker
 
 ## How To Use This
 
@@ -70,4 +100,5 @@ ShortPulse is not ship-ready while any `P0 ship-critical` system remains below i
   - what is below floor
   - what is actively blocking ship
   - what lane should move next
+- Use `Priority band` for urgency class and the dated handoff queue for exact order.
 - Do not rerate from this file alone. The catalog remains the canonical rating surface.

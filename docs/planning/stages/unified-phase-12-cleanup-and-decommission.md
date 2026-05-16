@@ -169,7 +169,7 @@ Route (pages)
 ├ ○ /creator-studio
 ├ ○ /dashboard
 ├ ○ /landing
-├ ○ legacy standalone Media Library page
+├ ○ historical implementation
 ├ ○ /onboarding
 ├ ○ /performance
 ├ ○ /performance-soon

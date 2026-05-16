@@ -48,7 +48,7 @@ Tickets: `UX2-01`, `UX2-02`, `UX2-07`
 - [ ] Build a modal inventory matrix for:
   - `frontend/pages/dashboard.tsx`
   - `frontend/pages/profile.tsx`
-  - `legacy standalone Media Library page`
+  - `historical implementation`
   - `frontend/pages/performance.tsx`
   - `frontend/features/ai-studio/components/DetailModal.tsx`
   - `frontend/features/ai-studio/components/ModelModal.tsx`
@@ -131,7 +131,7 @@ Tickets: `UX3-01`, `UX3-02`, `UX3-03`, `UX3-04`, kickoff of `UX5-01`
 - [ ] Align Performance route intent between live and placeholder entries.
 - [ ] Standardize "coming soon" copy + CTA pattern.
 - [ ] Audit dashboard cards for consistency: title, description, CTA text, destination state.
-- [ ] Start modularization split for one high-churn surface (recommended first target: `legacy standalone Media Library page`).
+- [ ] Start modularization split for one high-churn surface (recommended first target: `historical implementation`).
 
 ### Acceptance criteria
 - No primary dashboard CTA ends in ambiguous/no-next-action state.

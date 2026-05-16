@@ -20,7 +20,7 @@
       "step": 1,
       "surface": "media library route",
       "action": "open production media library",
-      "result": "signed-in Media Library loaded at legacy standalone Media Library page",
+      "result": "signed-in Media Library loaded at historical implementation",
       "evidence": "media-search-01-library-home.png"
     },
     {
@@ -56,7 +56,7 @@
     "title": "Media Library search no-match state uses misleading zero-library copy",
     "severity": "medium",
     "repro": [
-      "Open production legacy standalone Media Library page while signed in",
+      "Open production historical implementation while signed in",
       "Stay on Uploaded Images",
       "Enter a no-match query such as zzzz_beeper_no_match",
       "Observe the count badge drop to 0",

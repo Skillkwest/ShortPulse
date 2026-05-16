@@ -2,7 +2,7 @@
 
 Status: draft  
 Owner: Frontend Engineering  
-Scope: `legacy standalone Media Library page`, AI Studio Media Library modal, AI Studio Media Library panel  
+Scope: `historical implementation`, AI Studio Media Library modal, AI Studio Media Library panel  
 Depends on: completed Media Library runtime rebuild
 
 ## Purpose
@@ -10,7 +10,7 @@ Define the next lane for Media Library work now that the runtime rebuild is comp
 
 ## Problem Statement
 The Media Library runtime is now stable, but the three user-facing surfaces still reflect an incremental build history:
-- `legacy standalone Media Library page` is serviceable but visually heavy and operationally dense.
+- `historical implementation` is serviceable but visually heavy and operationally dense.
 - AI Studio modal is functional but compacted around legacy modal assumptions.
 - AI Studio panel is structurally correct but still feels like an operations panel, not a polished library surface.
 

@@ -52,7 +52,7 @@ Out of scope:
 
 ## Regression Review
 1. No regressions observed in parity suites.
-2. Archive controls and add-fileslegacy standalone Media Library page actions remain unchanged.
+2. Archive controls and add-files actions remain unchanged.
 
 ## Rollback Readiness
 - Rollback path: revert this slice changes to restore header/archive presentation constants in `ReferenceCanvas`.

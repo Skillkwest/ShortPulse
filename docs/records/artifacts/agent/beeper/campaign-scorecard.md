@@ -30,7 +30,7 @@ Beeper now has three distinct score views:
 
 - Purpose: grade how much of the product has at least one believable validated success path
 - Scale: `0.0 - 10.0`
-- Focus: route breadth and depth, not report neatness
+- Focus: route breadth, depth, and continuity truth, not report neatness
 
 ### 3. Impact Score
 
@@ -51,7 +51,7 @@ Start from the current major-route map:
 
 Suggested scoring:
 
-- `10.0`: every major route has at least one validated normal-user success path and the weakest route is no worse than `partial`
+- `10.0`: every major route has at least one validated normal-user success path and the key saved-state routes also have continuity proof
 - `8.0`: most major routes have one validated success path, with only one route still shallow
 - `6.0`: several routes are validated, but at least one major route is still only `opened`
 - `4.0`: coverage is concentrated in a few comfortable surfaces
@@ -69,6 +69,7 @@ Impact should be judged from:
 
 - number of believable trust-breaking moments found
 - number of meaningful workflow uncertainties removed
+- number of meaningful continuity or persistence uncertainties removed
 - retest debt reduced after fixes
 - usefulness of downstream handoffs
 

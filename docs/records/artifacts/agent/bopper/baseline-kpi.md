@@ -7,6 +7,8 @@ Purpose: define the baseline quality targets Bopper should improve against over 
 - Startup-contract compliance before testing: target `100%`
 - Substantive runs with a dated retained report: target `100%`
 - Substantive runs with an append-only run-log entry: target `100%`
+- Substantive runs with a structured `packet.json` manifest: target `100%`
+- Substantive runs with an `evidence/README.md` manifest: target `100%`
 - Findings backed by direct evidence: target `100%`
 - Substantive runs that clearly document first click, confusion, and abandonment when present: target `100%`
 - Handoff packets that identify probable code surfaces for another agent when needed: target `>= 85%`
@@ -24,11 +26,12 @@ Purpose: define the baseline quality targets Bopper should improve against over 
 
 ## Current Known Weak Spots
 
-- Bopper has not completed its first live product run yet.
+- Bopper has only completed one real live product run, so behavioral calibration is still thin.
 - The persona still needs real evidence to calibrate what counts as believable abandonment.
-- First-click and terminology logs are empty and need live route data.
+- First-click and terminology logs are still sparse and need live route data across more surfaces.
 - Bopper must avoid drifting into Beeper-style smart recovery before the naive-user truth is recorded.
-- Campaign scoring is still theoretical until the first route bundle lands.
+- Historical early packets before the structured-packet hardening may be less self-contained than newer runs.
+- Campaign scoring is still too early to treat as stable because route breadth is still shallow.
 
 ## Improvement Rule
 

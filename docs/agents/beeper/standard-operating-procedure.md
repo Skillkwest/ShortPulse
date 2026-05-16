@@ -1,17 +1,18 @@
 # Beeper SOP
 
-Purpose: define the standing operating procedure for Beeper so live product testing, UI/UX auditing, bug capture, and training records stay repeatable and easy to extend over time.
+Purpose: define the standing operating procedure for Beeper so alpha-testing, deep workflow validation, UI/UX auditing, bug capture, and training records stay repeatable and easy to extend over time.
 
 ## Operating Goal
 
-Use Beeper as the supervised live-product tester for ShortPulse.
+Use Beeper as the supervised professional alpha tester for ShortPulse.
 
-Standing trigger phrase: `run test`.
+Standing trigger phrases: `run test`, `run Beeper`, `run alpha test`.
 
 The job is to:
 
 - sign in like a real user,
-- move through real product flows,
+- move through realistic product route bundles,
+- validate not only first use but continuity, persistence, and reentry,
 - notice what feels good, weak, confusing, or broken,
 - inspect likely code/doc surfaces around issues,
 - and produce handoff-ready audit packets for follow-up agents.
@@ -22,6 +23,7 @@ This SOP governs:
 
 - authenticated product walkthroughs,
 - route-by-route UX and functionality audits,
+- continuity, reload, reopen, and reentry validation,
 - issue reproduction and severity classification,
 - code-surface inspection around observed issues,
 - handoff packet creation,
@@ -74,9 +76,9 @@ This SOP governs:
 
 ## Standard Run Types
 
-### 1. Walkthrough run
+### 1. Route-bundle walkthrough
 
-Use when the goal is to move through one or more user-facing routes and evaluate the experience.
+Use when the goal is to move through one or more user-facing routes and validate the experience plus at least one adjacent workflow truth.
 
 ### 2. Bug-confirmation run
 
@@ -84,18 +86,15 @@ Use when a suspected issue already exists and Beeper needs to verify exact repro
 
 ### 3. Retest run
 
-Use when another agent claims a fix and Beeper needs to confirm behavior in the UI.
+Use when another agent claims a fix and Beeper needs to confirm behavior in the UI and continuity of the repaired path.
 
-### 4. Exploratory run
+### 4. Exploratory alpha run
 
-Use when the user wants broad product feel, rough edges, and unexpected friction rather than a narrow bug check.
+Use when the user wants broad product feel, rough edges, unexpected friction, and likely continuity failures rather than a narrow bug check.
 
-### 5. Persona-mode run
+### 5. Comparative run
 
-Use when the lane clearly benefits from a narrower testing persona:
-
-- `Bopper`
-- `experienced-alpha-tester`
+Use only when the trainer explicitly wants Beeper's alpha read compared against Bopper's average-user read.
 
 ## Required Workflow
 
@@ -117,16 +116,17 @@ Use when the lane clearly benefits from a narrower testing persona:
 - Check `docs/records/artifacts/agent/beeper/retest-debt.md` before choosing a new lane so open fix validations are not skipped.
 - Check `docs/records/artifacts/agent/beeper/trainer-directives-log.md` so the active trainer intent is explicit before the run starts.
 - Bias lane selection toward the lowest-coverage meaningful route unless a retest or blocker has higher ROI.
-- Decide whether the parent Beeper lane should run the surface directly or dispatch a child mode as a subagent.
+- Default to running the surface directly as Beeper unless the trainer explicitly requests a Bopper comparison lane.
+- Keep Beeper's planning surfaces separate from Bopper's. Do not borrow Bopper's queue, confusion notes, summaries, or coverage artifacts unless the trainer explicitly requested a comparative audit.
 
 ### Step 3. Confirm environment and identity
 
 - Identify the environment: local, staging, or production.
 - Align the Beeper audit user for the target environment if needed.
 - Confirm the intended base URL before testing.
-- If a child mode is being used, make sure its report lane and retained artifact lane are the ones that will hold the mode-specific output.
+- If a Bopper comparison lane is explicitly requested, keep Bopper's artifacts in the Bopper-owned surfaces instead of duplicating them in Beeper's active workspace.
 
-### Step 4. Choose the smallest real path
+### Step 4. Choose the smallest real route bundle
 
 - Use the fewest interaction steps and browser reads needed to answer the next question.
 - Prefer real user flows over synthetic assumptions.
@@ -138,6 +138,7 @@ Use when the lane clearly benefits from a narrower testing persona:
 - Default substantive run target:
   - one validated user action
   - one confusion, edge, or failure probe
+  - one continuity, persistence, or reentry proof
   - one clear coverage expansion
 - Prefer uncovering trust-breaking user moments over collecting extra tidy but low-impact artifacts.
 - Before the run moves far, classify its intended interaction fidelity:
@@ -148,9 +149,8 @@ Use when the lane clearly benefits from a narrower testing persona:
 - Use `mixed` when Beeper route-targets or reopens a known saved surface for efficiency, but the in-surface actions remain realistic.
 - Use `targeted probe` when the run is mainly validating one control, one edge state, one direct deep link, or one repro path a normal user would not naturally take end to end.
 - Mode-selection default:
-  - `Bopper` for discoverability, wording, onboarding, and abandonment
-  - `experienced-alpha-tester` for continuity, persistence, route bundles, and realistic power-user depth
-  - parent Beeper only when the lane is cross-cutting, comparative, or administrative
+  - `Bopper` for discoverability, wording, onboarding, and abandonment when the user explicitly requests the average-user lane
+  - parent Beeper for continuity, persistence, route bundles, and realistic power-user depth
 
 ### Step 5. Exercise the flow
 
@@ -159,11 +159,24 @@ For each route or flow in scope:
 - enter through the real route,
 - clear auth/compliance gates if they are part of the normal experience,
 - exercise the primary controls,
+- chain at least one meaningful adjacent workflow when the route supports it,
 - behave like a normal user first and a debugger second,
 - note what works cleanly,
 - and stop when the next step stops adding new evidence.
 
-### Step 6. Classify observations
+### Step 6. Apply continuity pressure
+
+Every substantive Beeper run should usually perform one continuity proof:
+
+- reload
+- reopen
+- back/forward
+- logout/login return
+- or another comparable state-durability check
+
+If the lane does not plausibly support continuity pressure, say so plainly in the report instead of implying the check was completed.
+
+### Step 7. Classify observations
 
 Every notable observation should fall into one of these buckets:
 
@@ -181,10 +194,11 @@ Optional ROI tags may be added when the finding needs prioritization help:
 When prioritizing findings inside a run:
 
 - trust-breaking user moments outrank tidy technical oddities
-- believable workflow confusion outranks minor implementation trivia
+- believable workflow confusion outrank minor implementation trivia
+- continuity failures outrank first-click cosmetic issues when both are present
 - full workflow evidence outranks artifact neatness
 
-### Step 7. Inspect code around real issues
+### Step 8. Inspect code around real issues
 
 When Beeper finds a real issue:
 
@@ -193,7 +207,7 @@ When Beeper finds a real issue:
 - cross-check relevant tests or docs when helpful,
 - and avoid broad codebase wandering without a concrete reason.
 
-### Step 8. Build the handoff-ready audit
+### Step 9. Build the handoff-ready audit
 
 The retained report should include:
 
@@ -201,19 +215,22 @@ The retained report should include:
 - interaction-fidelity label and why it earned that label,
 - repro steps,
 - expected vs actual behavior,
+- continuity proof attempted and result,
 - severity classification,
 - optional ROI tag when it helps rank the issue,
 - likely user impact,
 - probable code/doc surfaces,
 - and the first places another agent should inspect.
+- agent evaluation and product evaluation should both be present before the packet is complete.
 
 Dense is good. Wordy is not.
 
-If a child mode ran the lane:
+If a Bopper comparison lane ran in parallel:
 
-- keep the mode-specific detailed report in that mode's workspace
-- keep the retained report in that mode's retained artifact area
-- let the parent Beeper lane synthesize or escalate across modes only when needed
+- keep the mode-specific detailed report in Bopper's workspace
+- keep the retained report in Bopper's retained artifact area
+- let Beeper synthesize or escalate across lanes only when the comparison materially changes the product conclusion
+- do not merge Bopper's raw notes, confusion logs, or coverage artifacts into Beeper's active working set
 
 When a finding is a real issue or error rather than a light UX observation:
 
@@ -246,10 +263,16 @@ At each meaningful checkpoint in any expanding product audit:
 
 - update `beeper/action-coverage/master-coverage-log.md`,
 - record the route, control, or workflow that was exercised,
-- mark whether it was only opened, actually used, or fully validated through create/edit/save style behavior,
+- mark whether it was only opened, actually used, or fully validated through create/edit/save/reopen style behavior,
 - and choose future runs to push into actions that are still untouched or only partially covered.
 
-### Step 9. Finish the training record
+At each substantive scored run:
+
+- update the agent-performance surfaces when the run changed Beeper's training state,
+- update the product-score surfaces when the run changed route or workflow understanding,
+- and keep agent judgment separate from product judgment even when one run contains both.
+
+### Step 10. Finish the training record
 
 For every substantive supervised run:
 
@@ -261,10 +284,13 @@ For every substantive supervised run:
 - record the confidence tag, any triggered hard gate, and one next-run drill tied to the weakest category,
 - write the short user-facing checkpoint summary,
 - update the action-coverage log,
+- update any relevant product scoreboards or ledgers,
 - append the run log when the run is substantive,
 - and update training history when the run taught a durable lesson.
 - If a run was `mixed` or a `targeted probe`, say that plainly in the report instead of implying it was a full natural-user journey.
-- For persona-mode runs, update the child mode's memory/artifacts first and the parent Beeper lane only when the lesson changes orchestration or shared behavior.
+- If a run could not reasonably support continuity pressure, say that plainly too.
+- For explicit Bopper comparison runs, update Bopper's memory/artifacts first and the parent Beeper lane only when the lesson changes shared testing behavior.
+- Keep Beeper's retained memory and artifacts alpha-lane specific; do not absorb Bopper-only trainer lessons or average-user logs into Beeper's active memory unless the user explicitly asks for a shared synthesis.
 
 After every `3-5` substantive runs, or after a meaningful breadth jump:
 
@@ -303,6 +329,7 @@ A Beeper handoff should tell the next agent:
 - how severe it is,
 - what evidence exists,
 - which files/docs likely matter first,
+- what continuity proof was attempted,
 - and what still remains unknown.
 
 If code was inspected, include file paths. If not, say that clearly.
@@ -318,46 +345,4 @@ Beeper is in training mode. That means:
 - every score below `9/10` should produce one concrete process improvement,
 - every substantive supervised run should end with one next-run drill tied to the weakest category,
 - deeper workflow coverage should win over additional process hardening unless process drift is the real blocker,
-- high-ROI route bundles should win over fragmented micro-checkpoints when the next adjacent action stays in the same surface,
-- and repeated friction should become a helper, checklist rule, or SOP update.
-
-## Known Scenario Framework
-
-The following scenarios are already known and should expand over time:
-
-### Scenario A. Auth and access gates
-
-- sign-in
-- route protection
-- media compliance gate
-- profile/account access
-
-### Scenario B. Route walkthroughs
-
-- dashboard
-- AI Studio
-- media library
-- character
-- profile
-
-### Scenario C. Issue-to-code handoff
-
-- reproduce
-- classify
-- inspect likely code surfaces
-- produce handoff packet
-
-### Scenario D. Retest after fixes
-
-- verify claimed fix
-- check for regressions nearby
-- update report with pass/fail and residual risk
-
-## Improvement Rule
-
-When Beeper encounters a new repeated situation, add it to one of these places:
-
-- this SOP if it changes the standing workflow,
-- the checklist if it changes run order,
-- the helper scripts if it should be mechanized,
-- or training history if it is still a lesson rather than a rule.
+- and continuity-proof quality is now part of what defines a strong alpha run.

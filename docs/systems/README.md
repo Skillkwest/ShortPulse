@@ -95,7 +95,7 @@ The catalog row schema is:
 - `Primary surfaces`
 - `Depends on`
 - `Related operator systems`
-- `Owner`
+- `Steward`
 - `Criticality`
 - `Health`
 - `Risk`
@@ -105,8 +105,10 @@ The catalog row schema is:
 - `Ship floor`
 - `Ship status`
 - `Priority band`
-- `Active blocker`
+- `Blocker status`
+- `Blocker refs`
 - `Active lane`
+- `Execution status`
 - `Review basis`
 - `Source of truth`
 - `Last reviewed`
@@ -143,8 +145,10 @@ Use the catalog to distinguish system maturity from execution urgency.
 - `Ship floor` is the minimum acceptable `/10` score for the current production window.
 - `Ship status` compares `Current score (/10)` against `Ship floor`.
 - `Priority band` expresses execution urgency, not maturity.
-- `Active blocker` names the current known blocker when one exists.
+- `Blocker status` expresses whether the system currently has no blocker, an active blocker, a waived blocker, multiple blockers, or is blocked by another system.
+- `Blocker refs` names the current known blocker id or ids when they exist.
 - `Active lane` names the current handoff lane id or `queue-only`.
+- `Execution status` expresses the current lane state such as `not dispatched`, `ready`, `running externally`, or `completed externally, pending review`.
 - `Review basis` names the evidence snapshot or review mode behind the row.
 
 Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor.
@@ -155,6 +159,59 @@ Priority bands should be used like this:
 - `P1 ship-relevant`: next systems that can still block or destabilize ship readiness
 - `P2 validation`: important systems that should be validated or selectively hardened, but are not the first release-control lane
 
+## Queue precedence
+
+The catalog uses two urgency layers on purpose:
+
+- `Priority band`:
+  - urgency class
+- handoff queue:
+  - exact next-work order
+
+When they disagree or seem to conflict:
+
+- use `Priority band` to understand why a system matters
+- use the current dated handoff queue to decide exact execution order
+
+The queue always wins for exact sequencing.
+
+## Launch-state freshness
+
+The launch-facing fields in the catalog are:
+
+- `Ship status`
+- `Priority band`
+- `Blocker status`
+- `Blocker refs`
+- `Active lane`
+- `Execution status`
+- `Review basis`
+
+Treat those fields as stale when either of these is true:
+
+- more than `7` calendar days have passed since the execution snapshot in `Review basis`
+- a blocker, lane, or external execution result changed after the last refresh
+
+When stale:
+
+- the catalog remains useful as a baseline
+- but exact launch-control decisions should wait for a refresh pass
+
+## Score vs execution state
+
+Keep these concepts separate:
+
+- system maturity:
+  - `Current score (/10)`
+  - `Ship floor`
+  - `Ship status`
+- execution state:
+  - `Priority band`
+  - `Active lane`
+  - `Execution status`
+  - `Blocker status`
+  - `Blocker refs`
+
 ## Rating pass workflow
 
 Use this sequence every time:
@@ -164,7 +221,7 @@ Use this sequence every time:
 3. Read the linked source-of-truth docs and inspect the main code paths.
 4. Refine `Boundary`, `Primary surfaces`, `Depends on`, and `Related operator systems` if needed.
 5. Score `Criticality`, `Health`, `Risk`, and `Confidence`.
-6. Set `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Active blocker`, `Active lane`, and `Review basis`.
+6. Set `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Blocker status`, `Blocker refs`, `Active lane`, `Execution status`, and `Review basis`.
 7. Add a short note explaining the score and any open questions.
 
 Use `docs/systems/rating-pass-template.md` for the working checklist.
@@ -178,6 +235,13 @@ Update `docs/systems/catalog.md` when:
 - a platform dependency or control-plane boundary changes materially
 - a major incident or refactor changes system health/risk assumptions
 
+Update `docs/systems/ship-readiness-scoreboard.md` in the same pass when:
+
+- any launch-facing catalog field changes
+- the queue order changes
+- the dispatch log changes
+- blocker state changes
+
 Update the taxonomy docs when:
 
 - `docs/systems/` gains or loses durable top-level artifacts
@@ -186,7 +250,9 @@ Update the taxonomy docs when:
 ## Review cadence
 
 - Update the catalog in the same change when a durable system boundary changes.
-- Do a lightweight review at least monthly or at milestone boundaries.
+- Do a lightweight architecture review at least monthly or at milestone boundaries.
+- Refresh launch-facing fields at least weekly during an active production window.
+- Refresh launch-facing fields immediately when blocker status, lane status, or external completion state changes.
 - Keep `Last reviewed` current on edited rows.
 
 ## Validation

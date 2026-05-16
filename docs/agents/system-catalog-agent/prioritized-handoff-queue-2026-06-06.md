@@ -55,11 +55,21 @@ The Catalog Agent should treat these as the current active handoff packet set:
 
 ## Current Dispatch Snapshot
 
-As of `2026-05-07`:
+As of `2026-05-15`:
 
-- completed externally, pending Catalog Agent review before rerating:
+- reviewed complete, score unchanged pending broader runtime rerate:
   - `Generation recovery / settlement`
-- dispatched and running:
+- dispatched and still awaiting closeout:
   - `Reference Grid`
 - ready next:
   - `Edit workflow`
+- ready held:
+  - `Project / workspace persistence`
+
+## Fresh Production Follow-Up Signals
+
+- production-only follow-up findings that did not change the exact queue order:
+  - `Media Library workflow`: Uploaded Images no-match search empty-state copy is misleading
+  - `Media delivery / signing / preview resolution`: recoverable stale signed-thumb path reached production clients
+- local-only contradiction retained as follow-up evidence, not promoted to production queue truth:
+  - dashboard `New Project` dead-end reported by Bopper

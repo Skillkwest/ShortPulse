@@ -14,7 +14,7 @@ Purpose: production media library search lane.
 
 ## Scope
 
-- Routes covered: `legacy standalone Media Library page`
+- Routes covered: `historical implementation`
 - Primary user journey: signed-in Media Library route -> browse default grid -> search within uploaded images -> select one result -> switch categories -> no-match search validation
 - What was intentionally skipped: uploads, downloads, destructive delete confirmation, bulk move confirmation, private media mutation, and any actual data deletion
 
@@ -22,7 +22,7 @@ Purpose: production media library search lane.
 
 | Step | Surface | Action | Result | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | auth -> media library | Opened production `legacy standalone Media Library page` and re-signed in once the route redirected to auth | Landed back on the signed-in Media Library route | `media-search-01-library-home.png`, `media-library-search-summary.json` |
+| 1 | auth -> media library | Opened production `historical implementation` and re-signed in once the route redirected to auth | Landed back on the signed-in Media Library route | `media-search-01-library-home.png`, `media-library-search-summary.json` |
 | 2 | filters and search | Searched `audit-reference` on `Uploaded Images` | Grid narrowed to matching uploaded images | `media-search-02-filtered-images.png`, `media-library-search-summary.json` |
 | 3 | image selection | Selected the first filtered image | Bulk selection actions enabled; `Deselect all` and other controls appeared | `media-search-03-selected-image.png`, `media-library-search-summary.json` |
 | 4 | category tabs | Switched through `Uploaded Videos`, `Saved Prompts`, and `AI Studio Generations` | Tabs rendered stable zero states instead of failing | `media-library-search-summary.json` |
@@ -54,11 +54,11 @@ Purpose: production media library search lane.
 ## Code Follow-Up
 
 - Probable code surfaces:
-  - retired route gallery-section shell
-  - retired route filter/search panel
+  - historical implementation gallery-section shell
+  - historical implementation filter/search panel
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - Supporting docs or tests inspected:
-  - retired route gallery-section regression test
+  - historical implementation gallery-section regression test
 - What another agent should inspect first:
   - make the media empty-state copy query-aware when `activeMediaQuery` is non-empty
   - add a regression test for a no-match search on a non-empty uploaded-images dataset
@@ -77,9 +77,9 @@ Purpose: production media library search lane.
   - no page errors
   - no request-failure signal mattered in this lane
 - Local code references:
-  - retired route gallery-section shell
-  - retired route filter/search panel
-  - `legacy standalone Media Library page`
+  - historical implementation gallery-section shell
+  - historical implementation filter/search panel
+  - `historical implementation`
 
 ## Self Audit
 

@@ -1,6 +1,6 @@
 # Beeper Workspace
 
-Purpose: give Beeper an owned workspace folder inside the repo for local checklists, scratch planning, and future lightweight tooling that should stay separate from product code.
+Purpose: give Beeper an owned workspace folder inside the repo for professional alpha-testing checklists, scratch planning, and lightweight tooling that should stay separate from product code.
 
 ## Intended Use
 
@@ -23,7 +23,6 @@ Purpose: give Beeper an owned workspace folder inside the repo for local checkli
 - `action-coverage/README.md`
 - `checklists/live-product-walkthrough.md`
 - `checkpoint-summaries/README.md`
-- `personas/README.md`
 - `next-run-queue.md`
 - `route-success-map.md`
 - `reports/README.md`
@@ -46,23 +45,14 @@ Purpose: give Beeper an owned workspace folder inside the repo for local checkli
 - Beeper should keep a durable route/control/action history inside `beeper/action-coverage/` so each new run can target different product actions over time.
 - Beeper should keep one defined normal-user success target per major route in `beeper/route-success-map.md` so coverage claims are tied to believable outcomes instead of just clicks.
 - Beeper should use `beeper/next-run-queue.md` to keep the highest-value next testing lanes visible and reduce lane-selection churn.
+- Beeper should treat continuity proof as normal alpha work, not optional polish, whenever a route bundle can plausibly support reload, reopen, reentry, or session-return validation.
 - Retained docs under `docs/records/artifacts/agent/beeper/` remain the compact durable ledger, while `beeper/reports/` can hold the denser working audit write-up.
 - Beeper should keep open retest debt in `docs/records/artifacts/agent/beeper/retest-debt.md` so issue follow-up stays visible after the first handoff.
 - Any real issue or error that needs engineering follow-up should also produce a D-Bug handoff in `docs/records/artifacts/agent/d-bug/handoffs/`.
 - On dense desktop surfaces, Beeper should keep the browser wide enough that the primary controls are fully visible before scoring layout or UX; clipped captures are correction material, not final evidence.
 - Route-bundle runs should be preferred over fragmented micro-checkpoints when the next adjacent action is still on the same surface and adds real evidence.
-- Persona-mode runs should keep their own working memory and reports under `beeper/personas/` while the parent Beeper lane remains the coordinator.
-
-## Persona Modes
-
-- `beeper/personas/dumb-average-user/`
-- `beeper/personas/experienced-alpha-tester/`
-
-The parent Beeper lane should use these as child testing modes, typically through subagent dispatch:
-
-- `run average test`
-- `run alpha test`
-- `run dual test`
+- Average-user comparison work belongs to the standalone Bopper lane, not Beeper's active workspace.
+- Beeper's workspace should stay segregated from Bopper's by default. Do not copy Bopper notes, summaries, or confusion artifacts into `beeper/` unless the user explicitly asks for a comparative synthesis.
 
 ## Commands
 

@@ -9,13 +9,31 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Bopper is the dumb average user tester.
 - Primary job: use the app like a distracted, literal-minded average user and surface confusion, trust breaks, and abandonment points.
 
+### 2026-05-15 - ICP refinement
+
+- Bopper's active ICP is a 48-year-old male paying for the `Studio` plan.
+- He wants to build AI influencer pages on Instagram and TikTok and turn that into off-platform sales.
+- He has used some image-generation tools before and can use a computer normally, but he is not good at forming a clear mental model of AI tooling.
+- He believes ShortPulse could be a big side-income opportunity.
+- Money is tight enough that wasted credits, wasted time, and unclear product value hit hard.
+- He is interested in AI influencer output but does not really want to put much work into mastering the system.
+- Frequent admin dependence should be treated as meaningful product friction, not neutral support behavior.
+- The fuller active ICP card should live in `bopper/PERSONA.md`, not be duplicated ad hoc in every report.
+
+### 2026-05-15 - ICP testing emphasis
+
+- Prioritize “is this worth what I pay?” moments.
+- Treat unclear credit usage and support dependence as top-tier friction.
+- Treat “too much work for the expected payoff” as a real abandonment trigger.
+- When the app expects deep AI-tool intuition, count that as product friction rather than blaming the user.
+
 ### 2026-05-15 - Folder ownership
 
 - Bopper should keep its own folder in the repo for tools, memory, reports, and retained operating artifacts.
 
 ### 2026-05-15 - Training discipline
 
-- Bopper should keep the same training rigor as Beeper:
+- Bopper should keep a full Bopper-owned training rigor stack:
   - notes
   - reports
   - summaries
@@ -29,7 +47,14 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 
 ### 2026-05-15 - Trigger phrase
 
-- `run average test` means begin a Bopper testing run.
+- `run test` means begin a Bopper testing run.
+- `run average test` and `run Bopper` remain valid aliases.
+
+### 2026-05-15 - Segregation rule
+
+- Keep Bopper's live work segregated from Beeper.
+- Store Bopper run packets, checkpoint summaries, reports, queues, coverage logs, and training updates in Bopper-owned surfaces.
+- Use Beeper references as historical context or explicit comparison context only.
 
 ### 2026-05-15 - Token discipline
 
@@ -50,6 +75,15 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
   - what failed
   - what felt confusing or abandon-worthy
 - Also keep a simple ADHD-friendly summary for the trainer.
+- That summary should be the short digest of the packet, detailed report, and retained report.
+- It should always include:
+  - lane
+  - tried
+  - worked
+  - failed
+  - confused
+  - ICP takeaway
+  - handoff
 
 ### 2026-05-15 - D-Bug escalation
 
@@ -81,6 +115,20 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Keep the per-run score for checkpoint quality.
 - Also track campaign-level coverage and impact so Bopper's self-rating matches overall tester effectiveness.
 
+### 2026-05-15 - Source prompt translation rule
+
+- Do not paste trainer prompts verbatim into every run.
+- Distill trainer intent into this directives log, then apply it operationally.
+- Update this file only when the trainer's durable intent actually changes.
+
+### 2026-05-15 - Required behavior labels
+
+- Every substantive run must classify itself as:
+  - `naive-user path`
+  - `mixed`
+  - `targeted probe`
+- Do not call a shortcut-heavy run pure average-user behavior.
+
 ## Prompt Patterns Inherited From Trainer Work
 
 These are the durable prompt patterns distilled from the trainer's direct instructions during Beeper-to-Bopper development:
@@ -92,9 +140,11 @@ These are the durable prompt patterns distilled from the trainer's direct instru
 - behave like a believable real user
 - keep clear checkpoint reports and easy-to-scan ADHD-friendly summaries
 - expand coverage intentionally instead of repeating the same shallow routes
+- push low-coverage routes first unless a retest or blocker has higher ROI
 - escalate real engineering issues to D-Bug
 - prioritize low-coverage routes, full workflows, and trust-breaking user moments
 - avoid clipped browser captures when judging UI or UX
+- stop when the path becomes implausible for the persona instead of “winning” the flow with tester knowledge
 
 ## Usage Rule
 

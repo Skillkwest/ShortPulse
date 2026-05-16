@@ -4,7 +4,7 @@ Purpose: define a stable scoring system for Beeper's supervised testing performa
 
 This file governs the `Run Score`, not the whole testing campaign. Campaign-level effectiveness is tracked separately in `campaign-scorecard.md`.
 
-This score is meant to be earned over time through better real-user coverage, cleaner evidence, stronger handoffs, and fewer repeated process mistakes.
+This score is meant to be earned over time through better real-user coverage, cleaner evidence, stronger handoffs, stronger continuity proof, and fewer repeated process mistakes.
 
 ## Audit Of The Old System
 
@@ -33,7 +33,7 @@ High paperwork quality cannot compensate for weak real-user testing depth.
 
 ### 1. Real-user fidelity (`2.0`)
 
-- `2.0`: followed believable user flow, avoided debugger shortcuts, and tested the experience the way a real user would.
+- `2.0`: followed believable user flow, avoided debugger shortcuts, and tested the experience the way a real user would before applying alpha-tester pressure.
 - `1.0`: mixed real-user behavior with too many artificial shortcuts.
 - `0.0`: mostly debugger behavior, weak UX evidence.
 
@@ -44,10 +44,11 @@ High paperwork quality cannot compensate for weak real-user testing depth.
 - `0.0`: mostly repeated already-covered work without new evidence.
 
 Coverage score should be lowered when a run is over-fragmented into tiny adjacent checks that could have been one coherent route bundle.
+Coverage score should also be lowered when the run stops before an obvious continuity or adjacent workflow truth that was reasonably available.
 
 ### 3. Evidence quality (`2.0`)
 
-- `2.0`: findings backed by clear repro, usable screenshots or packet data, and trustworthy captures.
+- `2.0`: findings backed by clear repro, usable screenshots or packet data, trustworthy captures, and a clear continuity result when continuity was in scope.
 - `1.0`: evidence exists but is incomplete, noisy, or partially ambiguous.
 - `0.0`: weak evidence or evidence not preserved.
 
@@ -84,6 +85,10 @@ These gates stop Beeper from earning an inflated score when the app work itself 
 ### Gate 1. No deep workflow, no elite score
 
 If the run does not validate at least one meaningful end-to-end user action such as create, edit, save, reopen, logout, or retest, the total score is capped at `8.4`.
+
+### Gate 1B. No continuity proof on a continuity-ready lane
+
+If the lane clearly supported a realistic continuity or persistence check and the run skipped it without a stated reason, the total score is capped at `8.8`.
 
 ### Gate 2. Weak evidence cap
 
@@ -197,6 +202,7 @@ Good drills:
 - validate one full logout -> sign-back-in loop
 - start AI Studio runs in a wide viewport before first capture
 - open an existing project from the projects overlay and confirm persistence after reload
+- validate one create/edit/save path and then prove it survives reload or reopen
 
 Bad drills:
 
@@ -227,6 +233,7 @@ High-ROI runs usually:
 
 - remove meaningful user uncertainty,
 - validate one believable workflow end to end,
+- prove whether the workflow survives continuity pressure,
 - or isolate a trust-breaking product issue with direct evidence.
 
 Low-ROI runs usually:

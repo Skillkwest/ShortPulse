@@ -100,11 +100,11 @@ Structure (locked):
 - [x] Add platform filter tabs (IG/TikTok/YT) on Performance.
   Evidence: `frontend/features/performance/components/FilterBars.tsx`
 - [x] Integrate Media Library UI polish (error banners, retry behavior, empty states).
-  Evidence: `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+  Evidence: `historical implementation`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - [x] Improve Media Library preview modal sizing/fit for mixed media.
-  Evidence: `legacy standalone Media Library page`, `frontend/styles/workspace-media.css`
+  Evidence: `historical implementation`, `frontend/styles/workspace-media.css`
 - [x] Add client-side logging/error surfacing for Supabase-heavy flows.
-  Evidence: `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`, `frontend/lib/appErrorReporter.ts`
+  Evidence: `historical implementation`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`, `frontend/lib/appErrorReporter.ts`
 - [x] Document Supabase bootstrap paths for media + creators.
   Evidence: `docs/local-development.md`, `docs/supabase_full_schema.sql`
 - [x] Add contributor/testing guidance after adopting a harness.

@@ -695,3 +695,95 @@ Next training focus:
 - Run the first live `dumb-average-user` lane.
 - Run the first live `experienced-alpha-tester` lane.
 - Decide whether `run test` should auto-pick one mode or default to a dual comparison on specific routes.
+
+## 2026-05-15: Professional Alpha Tester Hardening
+
+Task: tighten Beeper from a broad live tester into a stronger professional alpha tester.
+
+Actions taken:
+
+- Rewrote Beeper's contract, memory, and SOP to make alpha-testing the default role.
+- Promoted route bundles, continuity proof, persistence checks, and reentry validation from optional good practice into core operating expectations.
+- Tightened the performance scorecard so continuity-ready lanes are penalized if they skip durability checks without a stated reason.
+- Updated campaign scoring to value continuity truth more explicitly.
+- Updated trainer directives, workspace docs, retained artifact docs, and tool inventory so future sessions inherit the stronger alpha bar cleanly.
+
+Training result:
+
+- Beeper is now explicitly judged as a professional alpha tester rather than a generic click-through tester.
+- Strong runs now require more than first-use truth; they should usually prove whether the workflow survives reload, reopen, or session return.
+
+Next training focus:
+
+- use the stronger alpha bar on the next live route bundle
+- prefer a lane that can clearly demonstrate continuity truth, not just first-click success
+
+## 2026-05-15: Dual Evaluation Framework
+
+Task: create the two linked scoring systems needed to improve both Beeper and ShortPulse over time.
+
+Actions taken:
+
+- Added a dual-evaluation framework that separates agent judgment from product judgment while linking them through shared evidence and confidence.
+- Added agent capability and readiness ladders so Beeper can be trained toward harder work intentionally.
+- Added trainer feedback and mistake-pattern logs so repeated corrections become durable.
+- Added a retained product-score system with route scoreboards, workflow scoreboards, trust-break logging, fix-retest tracking, and positive-pattern capture.
+- Added a shared evaluation packet template and expanded the standard retained report template to include product scoring.
+- Seeded the product scoreboards with the current retained product truth from Beeper's existing production runs.
+
+Training result:
+
+- Beeper now has one system for improving tester performance and one system for improving ShortPulse itself.
+- The product score layer is no longer theoretical; it starts with seeded route and workflow reads from real retained evidence.
+
+Next training focus:
+
+- use the shared evaluation packet on the next substantive run
+- keep the route and workflow scoreboards current instead of letting them drift behind the reports
+
+## 2026-05-15: Persona Scaffold Retirement
+
+Task: prune internal Beeper persona scaffolds that were adding drift after Bopper became the real average-user lane and Beeper became the default alpha tester.
+
+Actions taken:
+
+- Removed the inactive `beeper/personas/` workspace tree.
+- Removed the obsolete `docs/agents/beeper-modes/` child-mode contracts and SOPs.
+- Removed the obsolete `docs/records/artifacts/agent/beeper-modes/` retained artifact tree.
+- Simplified Beeper's current contract, memory, SOP, workspace docs, retained memory, tools, and indexes so the live operating model is now:
+  - `Beeper` for professional alpha testing
+  - `Bopper` for explicit average-user comparison when requested
+- Kept the earlier persona-scaffold references only in historical ledgers so the training record still explains why the files once existed.
+
+Training result:
+
+- Beeper's active runtime context is now leaner and less likely to load stale persona-orchestration rules.
+- The average-user lane is no longer competing with Beeper's own alpha identity inside the same memory path.
+- The current operating model is easier to reload cleanly in future sessions.
+
+Next training focus:
+
+- keep Beeper's active context focused on alpha route bundles, continuity proof, retest closure, and product scoring
+- only load Bopper comparison context when the trainer explicitly asks for average-user contrast
+
+## 2026-05-15: Segregation Hardening From Bopper
+
+Task: make Beeper stay segregated in its work away from Bopper unless the trainer explicitly asks for a comparison.
+
+Actions taken:
+
+- Tightened Beeper's contract so segregation from Bopper is now an explicit operating rule rather than an implied preference.
+- Tightened Beeper's repo-visible memory with a direct separation rule covering workspace, reports, memory, and conclusions.
+- Tightened the SOP so Beeper does not borrow Bopper's queue, confusion logs, summaries, or coverage artifacts during normal alpha work.
+- Tightened Beeper's workspace and retained memory docs so average-user notes do not drift into Beeper-owned active surfaces by default.
+- Logged the trainer directive explicitly so future reloads keep the separation intact.
+
+Training result:
+
+- Beeper's alpha-testing lane is now cleaner and less likely to absorb average-user framing or artifacts by accident.
+- The comparison boundary between Beeper and Bopper is now explicit at the contract, SOP, memory, and trainer-directive levels.
+
+Next training focus:
+
+- keep Beeper's future runs fully alpha-lane specific unless the trainer explicitly requests a comparison
+- preserve separation in reports, coverage logs, and retained lessons during the next live run

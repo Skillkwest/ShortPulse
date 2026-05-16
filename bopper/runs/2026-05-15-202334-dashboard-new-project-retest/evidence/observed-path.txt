@@ -1,0 +1,6 @@
+Visible path observed during run:
+1. Public dashboard/landing at /
+2. Clicked New Project CTA that promises Open the AI Studio
+3. Landed on /pricing?intent=create-project instead of AI Studio or project creation
+4. Followed Log in path because persona is already a paying Studio customer
+5. Reached /auth?next=%2Fdashboard and stopped at credential boundary

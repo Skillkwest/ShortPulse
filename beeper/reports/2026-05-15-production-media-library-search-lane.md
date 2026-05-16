@@ -37,11 +37,11 @@
 ## Code Follow-Up
 
 - likely ownership:
-  - retired route gallery-section shell
-  - retired route filter/search panel
+  - historical implementation gallery-section shell
+  - historical implementation filter/search panel
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - useful test gap:
-  - retired route gallery-section regression test
+  - historical implementation gallery-section regression test
 
 ## Evidence
 

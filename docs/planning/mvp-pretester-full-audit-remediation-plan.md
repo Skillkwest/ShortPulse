@@ -48,7 +48,7 @@ Medium:
 - API coverage gaps for Stripe, upload handlers, and admin routes.
   Evidence path: `frontend/tests/api/`
 - Modularization debt in oversized/high-churn files.
-  Evidence paths: `legacy standalone Media Library page`, `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/falClient.ts`
+  Evidence paths: `historical implementation`, `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/falClient.ts`
 
 Documentation/SOP drift:
 - Architecture/local development docs still describe the app as client-only.
@@ -248,54 +248,54 @@ Exit criteria:
 Goal: reduce change risk and improve developer velocity by splitting oversized files.
 
 Checklist:
-- [x] Extract shared media tab/cache/search/signing helpers from `legacy standalone Media Library page` into a feature logic module.
+- [x] Extract shared media tab/cache/search/signing helpers from `historical implementation` into a feature logic module.
   Evidence paths: `frontend/features/media-library/logic/mediaLibraryPageHelpers.ts`, `frontend/features/media-library/logic/__tests__/mediaLibraryPageHelpers.test.ts`
 - [x] Extract focused-file modal move-option derivation into shared move routing logic.
-  Evidence paths: `frontend/features/media-library/logic/mediaMoveRouting.ts`, `frontend/features/media-library/logic/__tests__/mediaMoveRouting.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/logic/mediaMoveRouting.ts`, `frontend/features/media-library/logic/__tests__/mediaMoveRouting.test.ts`, `historical implementation`
 - [x] Extract media-tab cache reconciliation for moved rows into shared Media Library logic.
-  Evidence paths: `frontend/features/media-library/logic/mediaMoveCache.ts`, `frontend/features/media-library/logic/__tests__/mediaMoveCache.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/logic/mediaMoveCache.ts`, `frontend/features/media-library/logic/__tests__/mediaMoveCache.test.ts`, `historical implementation`
 - [x] Extract Media Library modal image zoom/pan controller into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`, `frontend/features/media-library/hooks/__tests__/useMediaModalImageZoom.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`, `frontend/features/media-library/hooks/__tests__/useMediaModalImageZoom.test.ts`, `historical implementation`
 - [x] Extract Media Library file-modal CRUD handlers (open/close, rename, single-delete) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`, `frontend/features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`, `frontend/features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts`, `historical implementation`
 - [x] Extract Media Library bulk-selection move orchestration (eligible-row derivation, destination options, move-batch/cache reconciliation, and feedback) into a dedicated hook.
-  Evidence paths: dedicated bulk-selection move hook + focused hook tests, former standalone Media Library page
+  Evidence paths: dedicated bulk-selection move hook + focused hook tests, historical implementation
 - [x] Extract Media Library preview signing/hydration pass orchestration (batch prioritization, resolver fallback, perf telemetry) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`, `historical implementation`
 - [x] Extract Media Library tab fetch/cache orchestration (prompt loading, media-page fetch, stale-cache policy, and load-more observer wiring) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaTabDataController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaTabDataController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts`, `historical implementation`
 - [x] Extract Media Library upload pipeline controllers (drag/drop intake, optimistic placeholders, upload/insert/sign reconciliation) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`, `historical implementation`
 - [x] Extract Media Library prompt-modal CRUD handlers (open/close, edit-save, prompt delete, and prompt-modal error routing) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaPromptModalCrud.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPromptModalCrud.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaPromptModalCrud.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPromptModalCrud.test.ts`, `historical implementation`
 - [x] Extract Media Library bulk-delete orchestration (selected-row confirmation flow, prompt/media delete routing, storage cleanup, and cache reconciliation) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaBulkDeleteController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaBulkDeleteController.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaBulkDeleteController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaBulkDeleteController.test.ts`, `historical implementation`
 - [x] Extract Media Library single-file modal move orchestration (move request, signed-preview refresh, cache reconciliation, and move-menu/error UI state) into a dedicated hook.
-  Evidence paths: `frontend/features/media-library/hooks/useMediaSingleMoveController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaSingleMoveController.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/hooks/useMediaSingleMoveController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaSingleMoveController.test.ts`, `historical implementation`
 - [x] Extract Media Library modal render blocks (focused-file preview/edit modal and saved-prompt edit modal) into dedicated feature components.
-  Evidence paths: `frontend/features/media-library/components/MediaFileModal.tsx`, `frontend/features/media-library/components/MediaPromptModal.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaFileModal.tsx`, `frontend/features/media-library/components/MediaPromptModal.tsx`, `historical implementation`
 - [x] Extract Media Library delete-confirm render blocks (single-file delete and bulk-selected delete dialogs) into a shared feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaDeleteConfirmModal.tsx`, `frontend/features/media-library/components/__tests__/MediaDeleteConfirmModal.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaDeleteConfirmModal.tsx`, `frontend/features/media-library/components/__tests__/MediaDeleteConfirmModal.test.tsx`, `historical implementation`
 - [x] Extract Media Library prompt/media gallery render blocks (prompt card grid, media card grid, and load-more control) into dedicated feature components.
-  Evidence paths: `frontend/features/media-library/components/MediaPromptGrid.tsx`, prompt-grid tests, retired route gallery component/tests, former standalone Media Library page
+  Evidence paths: `frontend/features/media-library/components/MediaPromptGrid.tsx`, prompt-grid tests, historical implementation gallery component/tests, historical implementation
 - [x] Extract Media Library gallery actions block (section heading, selection controls, bulk-move menu, and bulk-move feedback notices) into a dedicated feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaGalleryActions.tsx`, `frontend/features/media-library/components/__tests__/MediaGalleryActions.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaGalleryActions.tsx`, `frontend/features/media-library/components/__tests__/MediaGalleryActions.test.tsx`, `historical implementation`
 - [x] Extract Media Library filter/search tab-strip block (tab toggles, visible-count chip, and search input behavior) into a dedicated feature component.
-  Evidence paths: retired route filter/search panel + focused component tests, former standalone Media Library page
+  Evidence paths: historical implementation filter/search panel + focused component tests, historical implementation
 - [x] Extract Media Library upload-stage block (drag/drop intake surface, file picker, selected-file summary, and storage usage card) into a dedicated feature component.
-  Evidence paths: retired route upload-stage component + focused component tests, former standalone Media Library page
+  Evidence paths: historical implementation upload-stage component + focused component tests, historical implementation
 - [x] Extract Media Library page header hero block (title/description plus storage + plan status cards) into a dedicated feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaLibraryHeader.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryHeader.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaLibraryHeader.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryHeader.test.tsx`, `historical implementation`
 - [x] Extract Media Library gallery section shell (action toolbar wiring, loading/empty state messaging, and prompt/media grid branch composition) into a dedicated feature component.
-  Evidence paths: retired route gallery-section component + focused component tests, former standalone Media Library page
+  Evidence paths: historical implementation gallery-section component + focused component tests, historical implementation
 - [x] Extract Media Library modal stack (single-file delete confirm, bulk-delete confirm, focused-file modal, and focused-prompt modal composition) into a dedicated feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaLibraryModalStack.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryModalStack.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaLibraryModalStack.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryModalStack.test.tsx`, `historical implementation`
 - [x] Extract Media Library filters-row shell (dashboard nav prefab card + filter/search panel composition) into a dedicated feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaFiltersRow.tsx`, `frontend/features/media-library/components/__tests__/MediaFiltersRow.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaFiltersRow.tsx`, `frontend/features/media-library/components/__tests__/MediaFiltersRow.test.tsx`, `historical implementation`
 - [x] Extract Media Library workspace content composition (header/upload/filters/gallery section ordering and prop-group wiring) into a dedicated feature component.
-  Evidence paths: `frontend/features/media-library/components/MediaLibraryWorkspaceContent.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryWorkspaceContent.test.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/components/MediaLibraryWorkspaceContent.tsx`, `frontend/features/media-library/components/__tests__/MediaLibraryWorkspaceContent.test.tsx`, `historical implementation`
 - [x] Extract Media Library data-side-effect helpers (media event logging, delete-path collection, and storage-path removal batching) into a dedicated logic module.
-  Evidence paths: `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`, `frontend/features/media-library/logic/__tests__/mediaLibraryDataEffects.test.ts`, `legacy standalone Media Library page`
+  Evidence paths: `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`, `frontend/features/media-library/logic/__tests__/mediaLibraryDataEffects.test.ts`, `historical implementation`
 - [x] Extract `ai-studio` agent composer/attachment lifecycle state and drag-drop handlers into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioAgentComposer.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentComposer.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` agent send/refine/enhance/describe orchestration into a dedicated hook.
@@ -334,8 +334,8 @@ Checklist:
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceGridProps.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` studio-preview prop composition + detail-modal action wiring into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioPreviewDetailProps.test.ts`, `frontend/pages/ai-studio.tsx`
-- [x] Split `legacy standalone Media Library page` into page orchestration + feature modules for tab data, modal actions, and performance/signing logic.
-  Evidence paths: `legacy standalone Media Library page`, `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPreviewRuntime.test.ts`
+- [x] Split `historical implementation` into page orchestration + feature modules for tab data, modal actions, and performance/signing logic.
+  Evidence paths: `historical implementation`, `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPreviewRuntime.test.ts`
 - [x] Split `frontend/pages/ai-studio.tsx` into focused controllers (character mode, agent orchestration, generation submission, UI composition).
   Evidence paths: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/hooks/useAiStudioCharacterModeController.ts`, `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`, `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`, `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
 - [x] Split `frontend/features/ai-studio/hooks/useAiStudioState.ts` into smaller hooks by concern for this pass (output lifecycle, workflow settings, reference/modal state, prompt/reference composition, task orchestration).
@@ -344,7 +344,7 @@ Checklist:
 - [x] Convert `frontend/lib/falClient.ts` from many repeated submit/status wrappers to a registry-driven generic client API.
   Evidence paths: `frontend/lib/falClient.ts`, `frontend/pages/api/fal/`, `frontend/tests/pages/ai-studio.character-mode.test.tsx`, `frontend/tests/api/fal-status.ownership.test.ts`
 - [x] Set measurable modularity targets: no core source file above `800` lines in this pass; no new file above `500` lines without explicit rationale in doc comments.
-  Evidence paths: `legacy standalone Media Library page` (`743` lines), `frontend/pages/ai-studio.tsx` (`756` lines), `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` (`446` lines)
+  Evidence paths: `historical implementation` (`743` lines), `frontend/pages/ai-studio.tsx` (`756` lines), `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` (`446` lines)
 
 Exit criteria:
 - High-churn files are decomposed with behavior preserved.
@@ -461,12 +461,12 @@ Documentation verification:
 - 2026-02-14: Continued `media-library` modularization by extracting the upload-stage block into a dedicated feature component with focused component test coverage and page integration.
 - 2026-02-14: Continued `media-library` modularization by extracting the page header hero block into `frontend/features/media-library/components/MediaLibraryHeader.tsx` with focused component test coverage and page integration.
 - 2026-02-14: Stabilized `validate` type-check flow by replacing closure-captured failure context in `useAiStudioOutputLifecycle` with deterministic `findOutputById` context lookup before metadata reporting.
-- 2026-02-14: Continued `media-library` modularization by extracting the gallery section shell into a dedicated feature component, moving action-toolbar wiring and state-branch rendering out of the former standalone Media Library page with focused component test coverage and page integration.
-- 2026-02-14: Continued `media-library` modularization by extracting the modal stack into `frontend/features/media-library/components/MediaLibraryModalStack.tsx`, moving delete-confirm and focused modal composition out of `legacy standalone Media Library page` with focused component test coverage and page integration.
-- 2026-02-14: Continued `media-library` modularization by extracting the filters-row shell into `frontend/features/media-library/components/MediaFiltersRow.tsx`, moving dashboard-nav and filter-panel composition out of `legacy standalone Media Library page` with focused component test coverage and page integration.
-- 2026-02-14: Continued `media-library` modularization by extracting workspace content composition into `frontend/features/media-library/components/MediaLibraryWorkspaceContent.tsx`, consolidating header/upload/filters/gallery ordering and prop-group wiring outside `legacy standalone Media Library page` with focused component test coverage and page integration.
-- 2026-02-14: Continued `media-library` modularization by extracting media event logging and storage delete-path helpers into `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`, removing side-effect utility internals from `legacy standalone Media Library page` with focused logic test coverage and page integration.
-- 2026-02-14: Completed active `media-library` page split by extracting preview/signing/viewport runtime into `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` with focused hook coverage, reducing `legacy standalone Media Library page` to `743` lines and closing Phase 3 modularity checklist targets for `media-library.tsx` + `ai-studio.tsx`.
+- 2026-02-14: Continued `media-library` modularization by extracting the gallery section shell into a dedicated feature component, moving action-toolbar wiring and state-branch rendering out of the historical implementation with focused component test coverage and page integration.
+- 2026-02-14: Continued `media-library` modularization by extracting the modal stack into `frontend/features/media-library/components/MediaLibraryModalStack.tsx`, moving delete-confirm and focused modal composition out of `historical implementation` with focused component test coverage and page integration.
+- 2026-02-14: Continued `media-library` modularization by extracting the filters-row shell into `frontend/features/media-library/components/MediaFiltersRow.tsx`, moving dashboard-nav and filter-panel composition out of `historical implementation` with focused component test coverage and page integration.
+- 2026-02-14: Continued `media-library` modularization by extracting workspace content composition into `frontend/features/media-library/components/MediaLibraryWorkspaceContent.tsx`, consolidating header/upload/filters/gallery ordering and prop-group wiring outside `historical implementation` with focused component test coverage and page integration.
+- 2026-02-14: Continued `media-library` modularization by extracting media event logging and storage delete-path helpers into `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`, removing side-effect utility internals from `historical implementation` with focused logic test coverage and page integration.
+- 2026-02-14: Completed active `media-library` page split by extracting preview/signing/viewport runtime into `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` with focused hook coverage, reducing `historical implementation` to `743` lines and closing Phase 3 modularity checklist targets for `media-library.tsx` + `ai-studio.tsx`.
 - 2026-02-14: Started Phase 4 auth-boundary consolidation by centralizing protected-path rules in `frontend/lib/server/api/protectedApiPaths.ts`, reusing middleware-authenticated user context headers in `requireApiUser/getOptionalApiUser/requireAdminUser`, and keeping non-protected-route fallback verification; validated with new auth/proxy tests plus full `validate`.
 - 2026-02-14: Completed Phase 4 by capturing synthetic auth-boundary latency evidence (`proxy-context p50=0.07ms/p95=0.25ms` vs fallback `p50=13.28ms/p95=13.42ms`) and adding middleware-auth-context ownership tests for `kei/task-status`, then validating with full `validate` and `docs:check`.
 - 2026-02-14: Extended Phase 4 ownership-safety verification by adding middleware-auth-context regression coverage for `fal/status` so both KEI and Fal status polling paths enforce provider-request ownership after auth-boundary consolidation.

@@ -5,8 +5,9 @@ Purpose: retain Bopper's helper inventory and future tooling needs.
 ## Current Tools
 
 - local browser-driven route testing
-- Beeper's existing audit-user and training packet helpers when a shared setup path is sufficient
-- `node bopper/scripts/start-average-run.mjs --slug <name>` for scaffolding a Bopper run packet, detailed report shell, checkpoint summary shell, and retained report shell
+- `bopper/HANDOFF.md` for the workspace-local distilled handoff
+- `bopper/AGENT-INSTRUCTIONS.md` and `bopper/MEMORY.md` for thin local reload support
+- `node bopper/scripts/start-average-run.mjs --slug <name>` for scaffolding a Bopper run packet, `packet.json`, evidence manifest, detailed report shell, checkpoint summary shell, and retained report shell
 - `bopper/action-coverage/master-coverage-log.md` for obvious-entry route/control/action coverage planning
 - `bopper/route-success-map.md` for defining naive-user success targets
 - `bopper/next-run-queue.md` for ranked lane selection

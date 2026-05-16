@@ -154,3 +154,35 @@ Actions taken:
 Training result:
 
 - The canonical systems catalog is now much closer to a usable release-control instrument instead of a good-but-passive architecture table.
+
+## 2026-05-15: Launch-Control Model Tightening
+
+Task: fix the remaining catalog-model gaps that were still weakening the system as a launch-readiness tool.
+
+Actions taken:
+
+- Replaced `Owner` with `Steward` to make the field about catalog accountability rather than implied code authorship.
+- Added structured `Blocker status`, `Blocker refs`, and `Execution status` fields to the canonical catalog table.
+- Replaced opaque review-basis labels with concrete baseline and execution snapshot references.
+- Added freshness, queue-precedence, scoreboard-sync, and launch-state cadence rules.
+- Marked the existing May 7 execution snapshot surfaces as stale as of May 15 until a refresh pass occurs.
+
+Training result:
+
+- The catalog is now more honest about launch-state uncertainty and better structured for exact release-control refreshes.
+
+## 2026-05-15: Production Launch-State Refresh
+
+Task: refresh the active launch-state surfaces against current production evidence on `production` without forcing a full rerating.
+
+Actions taken:
+
+- Created a dated production launch-state refresh report and used it as the new evidence anchor for the refreshed rows.
+- Updated the dispatch log, queue snapshot, operating package, scoreboard, and selected catalog rows to reflect the May 15 operating picture.
+- Marked `Generation recovery / settlement` as reviewed complete at the execution level while explicitly holding its score unchanged.
+- Kept `Reference Grid` as the active blocker lane, kept `Edit workflow` next, and kept `Project / workspace persistence` held because the strongest new contradiction report was local-only.
+- Recorded two non-blocking production follow-up findings in the media surfaces without promoting them above the ship-critical queue.
+
+Training result:
+
+- The Catalog Agent now has a concrete pattern for production-only launch-state refreshes: reconcile evidence, update operating truth, and separate execution-state movement from score movement.

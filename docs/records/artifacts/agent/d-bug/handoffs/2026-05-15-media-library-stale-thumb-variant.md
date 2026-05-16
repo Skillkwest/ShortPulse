@@ -10,7 +10,7 @@ Historical note: the standalone Media Library page was removed from the product.
 
 ### Failing surface
 
-- Route, component, script, command, or subsystem: production former standalone Media Library page first-paint preview seeding through `/api/media/list`
+- Route, component, script, command, or subsystem: production historical implementation first-paint preview seeding through `/api/media/list`
 - Environment: production
 - User-visible symptom: one media card burns a failed preview request before recovering to the full original image
 - Exact error text or signature: `net::ERR_BLOCKED_BY_ORB` on signed Supabase image URL for `.../variants/images/4bd51927-1a92-4ee4-add6-711103921cdf/thumb_480`
@@ -24,7 +24,7 @@ Historical note: the standalone Media Library page was removed from the product.
 
 - Reproduction steps:
   1. Sign into production as the Beeper audit user.
-  2. Open the former standalone Media Library page.
+  2. Open the historical implementation.
   3. Watch initial image-card requests on first paint.
   4. Observe a failed signed request for media row `4bd51927-1a92-4ee4-add6-711103921cdf`.
 - Expected behavior: route-first preview seeding should only hand the browser a valid lightweight preview URL or a safe fallback that does not force a failed image request first.
@@ -77,7 +77,7 @@ Inspect first:
 - `frontend/pages/api/media/list.ts` around line `403`
 - `frontend/lib/mediaPreviewPathCore.ts` around line `174`
 - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts` around line `60`
-- retired route gallery grid component
+- historical implementation gallery grid component
 - `frontend/lib/server/mediaDerivatives/processMediaDerivative.ts`
 
 ### Questions for D-Bug

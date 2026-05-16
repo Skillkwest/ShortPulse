@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- AI Studio generate concurrency hardening:
+  - removed the remaining active generate-button click locks in Music and Expert Edit so users can trigger repeated generations without waiting for prior renders to settle,
+  - converted AI Studio lane/audio busy tracking to concurrent-aware counting and replaced the old boolean-shaped lane API with explicit begin/end generation markers,
+  - and validated the lane with focused Vitest coverage for Music, Expert Edit, AI Studio lane state, audio generation state, task submission, task orchestration, and generation controller flows.
 - Staging/working-development Supabase parity hardening:
   - applied `sql/migrations/123_add_audio_companion_art_projection_fields.sql` to the staging Supabase project so `generation_projection` now matches working-development on the companion-art columns and pending index,
   - expanded `scripts/ops/supabase_public_schema_parity.sh` to compare columns and indexes in addition to tables, routines, and policies,
@@ -773,7 +777,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Updated UI/UX plan + issue board to reflect partial completion of `UX0-01` and linked the report as current acceptance evidence.
 
 ## 2026-02-14 (UI/UX baseline completion + keyboard pass kickoff)
-- Completed UX-0 screenshot matrix across all priority routes (`/dashboard`, `/ai-studio`, `legacy standalone Media Library page`, `/profile`, `/performance`) at `1440`, `1024`, `768`, and `390`.
+- Completed UX-0 screenshot matrix across all priority routes (`/dashboard`, `/ai-studio`, `historical implementation`, `/profile`, `/performance`) at `1440`, `1024`, `768`, and `390`.
 - Added consolidated report `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md` with full artifact table and first-pass keyboard baseline findings.
 - Updated UI/UX issue board and source plan status: `UX0-01` marked done; `UX0-02` moved to in-progress with blockers logged (no media cards present, no visible downgrade action in billing section for cancel-modal path).
 
@@ -833,32 +837,32 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Refreshed `docs/planning/mvp-pretester-full-audit-remediation-plan.md` current sprint focus to the next `P1` modularization targets (`media-library.tsx`, `generationBilling.ts`, `falClient.ts`) and marked active-scope `P0` documentation alignment complete.
 
 ## 2026-02-14 (Media Library modularization seam: move-cache reconciliation)
-- Extracted moved-row cache reconciliation logic from `legacy standalone Media Library page` into `frontend/features/media-library/logic/mediaMoveCache.ts`.
+- Extracted moved-row cache reconciliation logic from `historical implementation` into `frontend/features/media-library/logic/mediaMoveCache.ts`.
 - Added focused unit coverage in `frontend/features/media-library/logic/__tests__/mediaMoveCache.test.ts` for destination-query matching behavior, cross-tab row removal, and cache no-op guardrails.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: modal image zoom/pan controller)
-- Extracted modal image zoom/pan state and interaction handlers from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`.
+- Extracted modal image zoom/pan state and interaction handlers from `historical implementation` into `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaModalImageZoom.test.ts` for keyboard zoom toggles, non-image guardrails, and pointer pan/capture lifecycle behavior.
-- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2871` lines.
+- Updated `historical implementation` to consume the new hook and reduced page length to `2871` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: file-modal CRUD controller)
-- Extracted file-modal CRUD handlers (open/close, rename, single-delete) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`.
+- Extracted file-modal CRUD handlers (open/close, rename, single-delete) from `historical implementation` into `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts` for modal lifecycle, rename update flow, and single-delete state reconciliation.
-- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2820` lines.
+- Updated `historical implementation` to consume the new hook and reduced page length to `2820` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: bulk move controller)
-- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from the former standalone Media Library page into a dedicated hook.
+- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from the historical implementation into a dedicated hook.
 - Added focused hook coverage for selection filtering, success-path cache/state updates, and request-failure error surfacing.
-- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2634` lines.
+- Updated `historical implementation` to consume the new hook and reduced page length to `2634` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: preview signing/hydration controller)
-- Extracted preview signing/hydration pass orchestration (row prioritization, batch signing, resolver fallback, and failure telemetry) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
+- Extracted preview signing/hydration pass orchestration (row prioritization, batch signing, resolver fallback, and failure telemetry) from `historical implementation` into `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts` for successful signing application, unresolved fallback behavior, and in-flight guardrails.
-- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2473` lines.
+- Updated `historical implementation` to consume the new hook and reduced page length to `2473` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Generation billing modularization split)
@@ -872,10 +876,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Reduced `frontend/lib/falClient.ts` to `523` lines and verified compatibility via targeted Fal/UI tests plus full quality gates (`cd frontend && npm run validate`, `cd frontend && npm run build`, `cd frontend && npm run docs:check`).
 
 ## 2026-02-14 (Media Library modularization seam: tab-data/cache + upload pipeline controllers)
-- Extracted media-tab fetch/cache orchestration from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaTabDataController.ts` (prompt loading, tab-page fetch/cursor handling, stale-cache policy, and load-more observer wiring).
-- Extracted upload pipeline controllers from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaUploadController.ts` (drag/drop and picker intake, optimistic placeholders, storage upload + row insert + preview-sign reconciliation).
+- Extracted media-tab fetch/cache orchestration from `historical implementation` into `frontend/features/media-library/hooks/useMediaTabDataController.ts` (prompt loading, tab-page fetch/cursor handling, stale-cache policy, and load-more observer wiring).
+- Extracted upload pipeline controllers from `historical implementation` into `frontend/features/media-library/hooks/useMediaUploadController.ts` (drag/drop and picker intake, optimistic placeholders, storage upload + row insert + preview-sign reconciliation).
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts` and `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`.
-- Updated `legacy standalone Media Library page` to consume both hooks and reduced page length to `2093` lines (from `2473`).
+- Updated `historical implementation` to consume both hooks and reduced page length to `2093` lines (from `2473`).
 - Re-ran quality gates: `cd frontend && npm run validate` (`78` files, `273` tests), `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Admin error telemetry hardening: immutable events + generation route coverage)

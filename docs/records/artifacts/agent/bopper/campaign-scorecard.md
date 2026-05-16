@@ -86,13 +86,16 @@ Suggested scoring:
 
 ## Current Campaign Read - 2026-05-15
 
-- Coverage Score: `0.0 / 10`
-- Impact Score: `0.0 / 10`
+- Coverage Score: `4.5 / 10`
+- Impact Score: `7.5 / 10`
 
 Reasoning:
 
-- Bopper has not completed a live production run yet
-- coverage, impact, and retest debt remain theoretical until the first route bundle lands
+- Dashboard and AI Studio now each have one validated naive-user success path.
+- Auth has been seen but not completed end to end.
+- Media Library, Character, and Profile remain untouched, so route breadth is still shallow even after the fix retest.
+- Impact improved because Bopper both found a high-value trust break earlier and then retired that debt with a direct visible-path retest.
+- The next campaign priority is broadening beyond dashboard-centric routes while preserving the same naive-user rigor.
 
 ## Interpretation
 

@@ -65,8 +65,9 @@ This must be resolved or explicitly re-waived with fresh evidence before final s
 
 ## Current Lane Snapshot
 
-As of `2026-05-07`:
+As of `2026-05-15`:
 
-- `Generation recovery / settlement` is marked complete externally, but its score is unchanged until the Catalog Agent reviews the returned work.
-- `Reference Grid` remains the active external blocker lane.
+- `Generation recovery / settlement` is treated as execution-complete and reviewed, but its score remains unchanged pending a broader generation-runtime rerate.
+- `Reference Grid` remains the active external blocker lane and still lacks a closeout packet.
 - `Edit workflow` remains the next ready handoff.
+- `Project / workspace persistence` remains ready but held because the strongest new contradiction report is local-only and this prelaunch window is production-only.

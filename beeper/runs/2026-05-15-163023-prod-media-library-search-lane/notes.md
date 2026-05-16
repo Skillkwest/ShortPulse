@@ -13,11 +13,11 @@ Purpose: chronological scratch log for one supervised Beeper run.
 ## Chronological Log
 
 1. Startup context loaded: continued from the ranked next-run queue after the validated profile settings save lane; trainer directives for real-user behavior, wide browser rule, checkpoint reporting, coverage expansion, and D-Bug handoff readiness remained active.
-2. Route or surface opened: opened production `legacy standalone Media Library page` in a wide viewport, hit the unauthenticated redirect, then signed in with the dedicated audit account once typing support was available in the browser tool.
+2. Route or surface opened: opened production `historical implementation` in a wide viewport, hit the unauthenticated redirect, then signed in with the dedicated audit account once typing support was available in the browser tool.
 3. Interaction performed: validated the main Media Library route, used the media search field, switched category tabs, selected one filtered image, confirmed selection actions enabled, and then cleared selection with `Deselect all`.
 4. Evidence captured: saved wide screenshots for the home view, filtered image results, selected-image state, and the no-match empty state under active search.
 5. Issue noticed: with an active no-match search query on `Uploaded Images`, the route says `No images uploaded yet.` even though the library clearly has uploaded images; the empty-state copy ignores search context and reads like total data loss.
-6. Code/doc surface inspected: narrowed the empty-state behavior to the retired route gallery-section shell, the search/count UI to the retired route filter/search panel, and the filtered-count wiring to the former standalone Media Library page; also checked the retired route gallery-section tests.
+6. Code/doc surface inspected: narrowed the empty-state behavior to the historical implementation gallery-section shell, the search/count UI to the historical implementation filter/search panel, and the filtered-count wiring to the historical implementation; also checked the historical implementation gallery-section tests.
 7. Handoff note drafted: yes; prepared a D-Bug intake for the search empty-state mismatch.
 
 ## Raw Findings

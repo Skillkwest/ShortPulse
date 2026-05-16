@@ -12,8 +12,11 @@ Purpose: keep known average-user issue validations visible after the first hando
 
 | Issue | Route / Surface | Why it matters | Trigger for retest | Source handoff |
 | --- | --- | --- | --- | --- |
-| Dashboard `New Project` -> `Project unavailable` dead end | `/` dashboard into `/ai-studio?projectId=...` | The most obvious create path appears to work, then immediately tells the user the just-created project is unavailable. That is a major trust break and a believable abandonment point. | Retest after dashboard project-create or AI Studio bootstrap/restore wiring changes. | `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-dashboard-new-project-project-unavailable.md` |
+| None right now. | - | - | - | - |
 
 ## Resolved Items
 
-- None yet.
+- Dashboard `New Project` -> `Project unavailable` dead end
+  - Route / surface: signed-in dashboard into `/ai-studio?projectId=...`
+  - Resolution evidence: `docs/records/artifacts/agent/bopper/reports/2026-05-15-local-dashboard-new-project-fix-retest.md`
+  - Resolution note: the signed-in dashboard `New Project` path and the adjacent project-library `New Project` path now both land in usable AI Studio without reproducing the old contradiction.

@@ -2,7 +2,9 @@
 
 Date: `2026-05-06`
 
-Last updated: `2026-05-07`
+Last updated: `2026-05-15`
+
+Freshness status as of `2026-05-15`: `current`
 
 Purpose: record which handoff packets have already been dispatched to execution agents during the current production-readiness window.
 
@@ -15,7 +17,8 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/systems/next-agent-handoff-generation-recovery-hardening.md`
 - Status:
   - completed externally on `2026-05-07`
-  - catalog review still required before any rerating
+  - reviewed against repo evidence on `2026-05-15`
+  - score unchanged pending broader generation-runtime rerate
 - Why completed:
   - highest-priority production-critical runtime lane
 
@@ -26,7 +29,8 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.md`
 - Status:
   - dispatched
-  - external agent currently running
+  - no closeout received by `2026-05-15`
+  - treated as still running externally
 - Why active:
   - active P0 user-visible blocker in the ship path
 
@@ -44,7 +48,15 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/agents/system-catalog-agent/handoffs/2026-05-06-project-workspace-persistence.md`
 - Status:
   - ready
-  - intentionally held until the first two lanes report back
+  - intentionally held after the May 15 production refresh because the strongest new contradiction report is local-only
+
+## Refresh Notes
+
+- `2026-05-15` production launch-state refresh:
+  - reviewed production reports from Beeper
+  - reviewed targeted repo changes in recovery, project/workspace persistence, and media-preview surfaces
+  - did not promote the local Bopper dashboard dead-end report into production launch truth during the production-only prelaunch window
+  - retained the existing exact queue order
 
 ## Operating Note
 
@@ -53,3 +65,5 @@ Do not rerate a completed lane here until the Catalog Agent has:
 - reviewed the returned patch or findings,
 - decided whether the queue order changes,
 - and updated the relevant rating or follow-up scope.
+
+Do not treat this log as exact launch-control truth after the 7-day freshness window without a fresh launch-state pass.

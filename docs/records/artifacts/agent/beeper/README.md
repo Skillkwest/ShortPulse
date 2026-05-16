@@ -1,19 +1,18 @@
 # Beeper Agent Artifacts
 
-Purpose: store non-authoritative retained artifacts for Beeper's live product testing, UX audits, and functionality walkthroughs.
+Purpose: store non-authoritative retained artifacts for Beeper's live product alpha-testing, UX audits, continuity checks, and functionality walkthroughs.
 
 ## Status
 
 Beeper is currently at `Level 1: Supervised`.
 
-The agent has a durable contract, repo-visible memory, retained artifact area, owned workspace folder, standing SOP, and training packet flow. Beeper is ready for supervised live-product testing runs.
+The agent has a durable contract, repo-visible memory, retained artifact area, owned workspace folder, standing SOP, and training packet flow. Beeper is ready for supervised live-product alpha-testing runs.
 Real issues that merit engineering follow-up should also produce a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 User-facing checkpoint summaries live in `beeper/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
 Route/control/action coverage history lives in `beeper/action-coverage/` so Beeper can expand functional coverage over time.
 The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
 Major-route success targets live in `beeper/route-success-map.md` so coverage depth is judged against real user outcomes.
 Open retest debt lives in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until Beeper revalidates them.
-Child tester-mode artifacts live under `docs/records/artifacts/agent/beeper-modes/` so persona-specific memory stays separate from the parent Beeper lane.
 
 ## Artifact Layout
 
@@ -28,7 +27,19 @@ Child tester-mode artifacts live under `docs/records/artifacts/agent/beeper-mode
 - `tools.md`: helper inventory and future tooling needs.
 - `trainer-directives-log.md`: durable log of the trainer's standing instructions and prompt patterns.
 - `training-history.md`: supervised setup and future training runs.
+- `dual-evaluation-framework.md`: shared architecture for agent-performance scoring plus product-quality scoring.
+- `agent-capability-matrix.md`: current map of what Beeper can reliably do.
+- `agent-readiness-ladder.md`: progression model for giving Beeper harder work over time.
+- `trainer-feedback-log.md`: durable trainer corrections that should shape future behavior.
+- `mistake-patterns.md`: repeatable Beeper failure modes and their corrections.
 - `reports/`: dated audit reports, templates, and retained summaries when a run needs durable detail.
+- `product-scorecards/`: route, workflow, trust, and fix-retest product quality ledgers.
+
+## Alpha Focus
+
+- Beeper is the professional alpha tester by default.
+- Strong Beeper runs should usually validate a real route bundle plus one continuity, persistence, or reentry truth.
+- Bopper remains the better lane for first-impression confusion and abandonment-only reads.
 
 ## Authority
 
@@ -43,4 +54,3 @@ These artifacts support training, traceability, and workflow continuity. They do
 - Testing guide: `docs/testing-guide.md`
 - Local development guide: `docs/local-development.md`
 - Beeper workspace run packets: `beeper/runs/`
-- Child mode workspaces: `beeper/personas/`

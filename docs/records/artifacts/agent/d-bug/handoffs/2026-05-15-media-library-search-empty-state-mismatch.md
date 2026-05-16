@@ -16,7 +16,7 @@ Historical note: the standalone Media Library page was removed from the product.
 ## Repro
 
 1. Sign into production as the Beeper audit user.
-2. Open the former standalone Media Library page.
+2. Open the historical implementation.
 3. Stay on `Uploaded Images`.
 4. Enter a no-match query such as `zzzz_beeper_no_match`.
 5. Observe:
@@ -47,18 +47,18 @@ Historical note: the standalone Media Library page was removed from the product.
 ## Likely Code Surfaces
 
 - empty-state copy resolver:
-  - retired route gallery-section shell
+  - historical implementation gallery-section shell
 - search input and count surface:
-  - retired route filter/search panel
+  - historical implementation filter/search panel
 - filtered visible-count wiring:
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - current test coverage:
-  - retired route gallery-section regression test
+  - historical implementation gallery-section regression test
 
 ## First Debug Read
 
-- `visibleCount` is already query-aware in the former standalone Media Library page
-- the likely mismatch is presentation logic in the retired route gallery-section shell: it resolves empty copy only from `activeTab`, not from `activeMediaQuery`
+- `visibleCount` is already query-aware in the historical implementation
+- the likely mismatch is presentation logic in the historical implementation gallery-section shell: it resolves empty copy only from `activeTab`, not from `activeMediaQuery`
 - likely fix shape:
   - if `activeMediaQuery.trim()` is non-empty and `files.length === 0`, render query-aware no-results copy instead of tab-empty copy
   - add tests for a searched no-match image state and probably a searched no-match prompt state

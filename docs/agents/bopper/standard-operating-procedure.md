@@ -6,7 +6,14 @@ Purpose: define the standing operating procedure for Bopper so naive-user testin
 
 Use Bopper as the supervised `dumb average user` tester for ShortPulse.
 
-Standing trigger phrase: `run average test`.
+Standing trigger phrase: `run test`.
+
+Accepted aliases:
+
+- `run average test`
+- `run Bopper`
+
+All three trigger phrases start Bopper's SOP. Live Bopper work should stay inside Bopper-owned surfaces rather than Beeper's operational lane.
 
 The job is to:
 
@@ -37,12 +44,14 @@ This SOP governs:
 - `docs/records/artifacts/agent/bopper/performance-scorecard.md`
 - `docs/records/artifacts/agent/bopper/performance-ledger.md`
 - `docs/records/artifacts/agent/bopper/campaign-scorecard.md`
+- `docs/records/artifacts/agent/bopper/persona-design-lessons.md`
 - `docs/records/artifacts/agent/bopper/retest-debt.md`
 - `docs/records/artifacts/agent/bopper/trainer-directives-log.md`
 - `docs/records/artifacts/agent/bopper/training-history.md`
 
 ### Working materials
 
+- `bopper/TRAINING-SYSTEM.md`
 - `bopper/action-coverage/master-coverage-log.md`
 - `bopper/checkpoint-summaries/README.md`
 - `bopper/reports/README.md`
@@ -97,13 +106,20 @@ Use when Bopper is paired with Beeper and the goal is to contrast naive-user tru
 ### Step 2. Start the training packet
 
 - Create a dated packet before substantive supervised work.
-- Use the packet for chronological notes and raw evidence.
+- Use the packet for:
+  - `packet.json`
+  - `run-brief.md`
+  - chronological `notes.md`
+  - `click-log.md`
+  - `decision-log.md`
+  - raw evidence under `evidence/`
 - Check `bopper/action-coverage/master-coverage-log.md` before picking the lane.
 - Check `bopper/route-success-map.md` so the run aims at a believable naive-user success target.
 - Check `bopper/next-run-queue.md` before inventing a new lane.
 - Check `docs/records/artifacts/agent/bopper/retest-debt.md` before choosing a new lane so unresolved trust-fix validations are not forgotten.
 - Check `docs/records/artifacts/agent/bopper/trainer-directives-log.md` so the current trainer intent is explicit before the run starts.
 - Bias lane selection toward low-coverage routes or open trust-breaking retests.
+- Use `bopper/TRAINING-SYSTEM.md` as the checklist for what the run must preserve.
 
 ### Step 3. Confirm environment and identity
 
@@ -138,8 +154,11 @@ For each surface:
 
 - enter through the visible route
 - click the obvious CTA
+- record why that click looked like the right choice for this ICP
 - note what was ignored
 - record confusion exactly when it happens
+- record whether the UI felt intuitive at that step
+- record whether the step felt risky, support-heavy, or too much work for the expected payoff
 - stop when the path no longer feels believable for an average user
 
 ### Step 6. Classify observations
@@ -187,11 +206,17 @@ The retained report should include:
 
 - exact surface and environment
 - interaction-fidelity label and why it earned that label
+- why the lane was chosen
 - first click
 - next obvious click
+- why those clicks looked correct to Bopper
 - what Bopper ignored
 - what Bopper misunderstood
 - where Bopper would likely abandon
+- whether the UI and UX felt intuitive
+- what Bopper was struggling with
+- whether Bopper felt credit risk or support dependence
+- what business or user conclusion Bopper came to
 - severity and user impact
 - probable code/doc surfaces if a real issue was found
 - route success target
@@ -216,13 +241,19 @@ At each meaningful checkpoint in any trainer-facing run:
 
 - create a short ADHD-friendly summary in `bopper/checkpoint-summaries/`,
 - make it easy to scan in under a minute,
+- treat it as the short digest of the packet, detailed report, and retained report,
 - explicitly list what was tried, what worked, what failed, and what was handed off.
+- also include what confused Bopper and the likely ICP takeaway in one blunt line each.
 
 ### Step 9. Finish the training record
 
 For every substantive supervised run:
 
+- keep `run-brief.md`
 - keep chronological notes
+- keep `click-log.md`
+- keep `decision-log.md`
+- keep `packet.json`
 - write the retained report
 - write the detailed report
 - write the short checkpoint summary
@@ -233,6 +264,7 @@ For every substantive supervised run:
 - append the run log
 - update campaign score snapshots when a breadth or impact change is meaningful
 - update training history when the run taught a durable lesson
+- update persona-design lessons when the run taught something reusable about how Bopper or future personas should be modeled
 
 ## Improvement Rule
 

@@ -11,6 +11,8 @@ Purpose: <one sentence describing the average-user testing run>.
 - Audit user:
 - Trainer directives consulted:
 - Tools used:
+- Persona lens:
+- Business intent:
 
 ## Scope
 
@@ -20,12 +22,14 @@ Purpose: <one sentence describing the average-user testing run>.
 - What was intentionally skipped:
 - Route success target:
 - Retest-debt item:
+- Lane choice rationale:
+- ICP pressure points in scope:
 
 ## Action Log
 
-| Step | Surface | Action | Result | Evidence |
-| --- | --- | --- | --- | --- |
-| 1 | `<route or tool>` | `<what Bopper clicked>` | `<what happened>` | `<screenshot/json/code>` |
+| Step | Surface | Action | Why Bopper clicked it | Expected | Actual | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `<route or tool>` | `<what Bopper clicked>` | `<why this looked right to the ICP>` | `<what Bopper thought would happen>` | `<what happened>` | `<screenshot/json/code>` |
 
 ## Findings
 
@@ -55,6 +59,16 @@ Purpose: <one sentence describing the average-user testing run>.
 - what Bopper misunderstood:
 - abandonment point:
 
+## ICP Judgments
+
+- Did the UI feel intuitive?:
+- What was Bopper struggling with?:
+- Did Bopper know what to do next without admin help?:
+- Did this feel risky from a credit perspective?:
+- Did this feel worth what he pays for `Studio`?:
+- Did this feel like too much work for the expected payoff?:
+- What conclusion would Bopper likely make about ShortPulse after this run?:
+
 ## Code Follow-Up
 
 - Probable code surfaces:
@@ -64,6 +78,10 @@ Purpose: <one sentence describing the average-user testing run>.
 ## Evidence Packet
 
 - JSON packet:
+- Evidence manifest:
+- Run brief:
+- Click log:
+- Decision log:
 - Screenshots:
 - Console / runtime signals:
 - Local code references:

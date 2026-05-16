@@ -61,8 +61,10 @@ Purpose: provide one repeatable workflow for rating or refining a system row in 
 - `Ship floor`:
 - `Ship status`:
 - `Priority band`:
-- `Active blocker`:
+- `Blocker status`:
+- `Blocker refs`:
 - `Active lane`:
+- `Execution status`:
 - `Review basis`:
 
 ### 7. Justify the score
@@ -91,6 +93,6 @@ A system rating pass is complete when:
 - surfaces and dependencies are listed
 - source-of-truth references were checked
 - the four core scores are assigned
-- `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Active blocker`, `Active lane`, and `Review basis` are assigned
+- `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Blocker status`, `Blocker refs`, `Active lane`, `Execution status`, and `Review basis` are assigned
 - the `/10` shorthand is assigned when the evidence is strong enough
 - `Notes` captures the rationale or uncertainty

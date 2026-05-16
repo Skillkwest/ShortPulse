@@ -18,6 +18,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 - `docs/records/evidence/kei/`: retained evidence packet family for the completed STG-04 KEI compatibility decommission lane.
 - `docs/records/evidence/ai-studio-reference-grid-reliability/`: retained evidence packet family for the Reference Grid reliability planning program.
 - `docs/records/evidence/media-library-runtime-rebuild/`: retained evidence packet family for the closed Media Library runtime rebuild lane.
+- `docs/records/evidence/media-storage-save-blocking/`: retained closeout evidence for the storage-full media save blocking implementation lane.
 - `docs/records/evidence/naming-canonicalization/`: retained evidence packet family for the naming canonicalization program and alias-sunset release-window evidence.
 - `docs/records/evidence/media-rendering-hardening-v2/`: retained evidence packet family for the media-rendering hardening v2 program.
 - `docs/records/evidence/sql/`: retained STG-02 SQL hardening validation packets and evidence template.

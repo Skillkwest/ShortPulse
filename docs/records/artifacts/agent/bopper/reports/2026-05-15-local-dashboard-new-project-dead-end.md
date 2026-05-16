@@ -103,7 +103,7 @@ Purpose: Dashboard first-click project creation dead-end audit.
 
 ## Evidence Packet
 
-- JSON packet: `bopper/runs/2026-05-15-181132-dashboard-new-project-dead-end/notes.md`
+- JSON packet: none; this run happened before `packet.json` scaffolding was added during later packet hardening
 - Screenshots: Computer Use captures from the dashboard modal, AI Studio error gate, and recovery modal
 - Console / runtime signals:
   - `POST /api/projects/create 200 in 2.6s`
@@ -127,3 +127,7 @@ Purpose: Dashboard first-click project creation dead-end audit.
 ## Training Record
 
 - Memory / training-history update needed?: yes; this was Bopper's first real run and it established a reusable contradiction pattern for future average-user audits
+
+## Historical Note
+
+- This retained report predates the later `packet.json` plus `evidence/README.md` packet hardening. Future runs should preserve those structured artifacts directly in the run folder.

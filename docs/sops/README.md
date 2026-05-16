@@ -53,6 +53,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_ai_studio_media_library_operations.md` (target UX + runtime delta contract for `All Media` section order/pagination, preview/ingest gestures, folder membership, and folder-canvas domains)
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`
+- `docs/sops/sop_media_panel_performance_kpi.md`
 - `docs/sops/sop_performance_ai_detection.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`

@@ -48,8 +48,8 @@ The media library packed grid (`frontend/styles/workspace-media.css`, class `.me
 - `.media-library-body .media-grid-packed` overrides at lines 1422-1490
 
 **Codebase touchpoints:**
-- retired standalone Media Library page gallery grid component
-- retired standalone Media Library page gallery-section wrapper applying `.media-gallery-packed`
+- historical implementation gallery grid component
+- historical implementation gallery-section wrapper applying `.media-gallery-packed`
 - `frontend/styles/workspace-media.css` — packed grid CSS
 
 **Why this package specifically:**
@@ -77,11 +77,11 @@ If ADR-0009 virtualized grid lands and item counts grow into the thousands, eval
 Media gallery thumbnails render as plain `<img>` tags with full-resolution signed Supabase URLs. Every card in the packed grid downloads the original-size asset even at thumbnail display size. This wastes bandwidth and slows initial paint, especially on the media library page with 30-60 visible cards.
 
 **What it replaces:**
-- Raw `<img>` elements in the retired standalone Media Library page media cards
+- Raw `<img>` elements in the historical implementation media cards
 - Manual aspect-ratio sizing via `style={{ aspectRatio }}`
 
 **Codebase touchpoints:**
-- retired standalone Media Library page card thumbnail rendering
+- historical implementation card thumbnail rendering
 - `frontend/lib/mediaPreviewPath.ts` — variant path resolution (already supports thumb/poster variants)
 - `frontend/lib/mediaSignedUrlCache.ts` — URL signing cache
 - `next.config.js` — image optimization config
@@ -141,14 +141,14 @@ The AI Studio reference canvas and agent chat panel have drag-and-drop interacti
 Success/error feedback is currently managed through inline state variables rendered as conditional text blocks. Examples:
 - `bulkMoveError` / `bulkMoveNotice` in `MediaGalleryActions`
 - Generation completion/failure states in AI Studio
-- Upload progress and errors in the retired standalone Media Library page upload-stage component
+- Upload progress and errors in the historical implementation upload-stage component
 - Credit deduction confirmations
 
 This means each feature independently manages its own notification rendering, and notifications disappear when the component re-renders or the user navigates away.
 
 **Codebase touchpoints:**
 - `frontend/features/media-library/components/MediaGalleryActions.tsx` — bulk move/delete feedback
-- retired standalone Media Library page upload-stage feedback
+- historical implementation upload-stage feedback
 - `frontend/features/ai-studio/components/AiStudioPageContent.tsx` — generation status
 - `frontend/features/ai-studio/hooks/useAiStudioTaskOrchestration.ts` — task lifecycle events
 
@@ -207,7 +207,7 @@ The custom solution works but lacks pinch-to-zoom on touch, gallery browsing bet
 A `formatDate` function is threaded as a prop through media library components. Without a date library, this is likely a custom formatter using `Date` methods. As the app grows (performance analytics timestamps, generation history, billing events), consistent date formatting becomes more important.
 
 **Codebase touchpoints:**
-- retired standalone Media Library page gallery-section `formatDate` prop
+- historical implementation gallery-section `formatDate` prop
 - `frontend/features/media-library/components/MediaPromptGrid.tsx` — prompt card dates
 - `frontend/features/performance/` — analytics timestamp display
 

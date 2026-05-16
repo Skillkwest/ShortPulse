@@ -1,0 +1,24 @@
+- main:
+  - link "Go to ShortPulse dashboard home":
+    - /url: /
+    - img "ShortPulse logo"
+  - heading "Welcome back" [level=1]
+  - paragraph: Use your email and password to continue.
+  - tablist "Authentication mode":
+    - tab "Sign in" [selected]
+    - tab "Sign up"
+  - generic: Email
+  - textbox "Email":
+    - /placeholder: you@example.com
+  - generic: Password
+  - button "Forgot password?"
+  - textbox "Password":
+    - /placeholder: ••••••••
+  - button "Show password":
+  - button "Sign in" [disabled]:
+    - text: Sign in
+  - paragraph:
+    - text: Don't have an account?
+    - button "Sign up"
+  - paragraph: By continuing, you agree to use ShortPulse under your workspace account.
+- alert

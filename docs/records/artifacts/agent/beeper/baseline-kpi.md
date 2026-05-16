@@ -21,6 +21,9 @@ Purpose: define the baseline quality targets Beeper should improve against over 
 - Open retest-debt items with a clear validation trigger in `retest-debt.md`: target `100%`
 - Campaign Coverage Score from `campaign-scorecard.md`: target `>= 8.0`
 - Campaign Impact Score from `campaign-scorecard.md`: target `>= 8.5`
+- Substantive runs with a filled product-evaluation section: target `100%`
+- Product routes with a current route-scoreboard entry: target `100%`
+- Core workflows with a current workflow-scoreboard entry: target `>= 80%`
 
 ## Current Known Weak Spots
 

@@ -23,6 +23,10 @@ Purpose: keep repo-visible memory for the System Catalog Agent's catalog steward
 - 2026-05-07: External agent completion is not enough to move a score. The Catalog Agent must ingest the closeout report, inspect the repo, and rerate only from repo-backed evidence.
 - 2026-05-07: External execution-agent reports belong in `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/` and should be treated as intake artifacts, not as authoritative catalog updates.
 - 2026-05-07: The catalog itself now carries ship-floor, ship-status, priority-band, active-lane, and review-basis fields. That means the canonical system registry can also act as a release-control surface without forcing multiple-doc reconciliation for basic ship questions.
+- 2026-05-15: Launch-control fields need their own freshness discipline. A strong catalog is not enough if execution-state overlays stay stale.
+- 2026-05-15: `Priority band` explains urgency class, but the dated handoff queue remains the authority for exact next-work order.
+- 2026-05-15: A launch-state refresh can legitimately move execution status, blocker posture, and review basis without moving the score. Do not force a score lift when the evidence only supports operating-state cleanup.
+- 2026-05-15: During the current prelaunch window, production launch truth comes from `production`. Local-only contradiction reports are valuable follow-up evidence but should not be promoted into production blocker state without corroboration.
 
 ## Open Follow-Ups
 

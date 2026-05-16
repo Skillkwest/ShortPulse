@@ -12,7 +12,7 @@ Purpose: production core route audit.
 
 ## Scope
 
-- Routes covered: `/dashboard`, `/ai-studio`, `legacy standalone Media Library page`, `/character`, `/profile`
+- Routes covered: `/dashboard`, `/ai-studio`, `historical implementation`, `/character`, `/profile`
 - Primary user journey: sign in with the production audit account, load the core surfaces, capture runtime signals, then drill into the first concrete failure.
 - What was intentionally skipped: deep generation flows, uploads, destructive mutations, and multi-step project creation.
 
@@ -23,7 +23,7 @@ Purpose: production core route audit.
 | 1    | walkthrough script         | Ran the starter production route sweep                                               | All five core routes loaded and produced screenshots                                                                                                      | `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`                                      |
 | 2    | dashboard                  | Read the signed-in shell and top-level content                                       | Dashboard loaded; announcement copy looked informal/test-like for production                                                                              | `route-01.png`                                                                                                   |
 | 3    | media-library              | Followed the only concrete runtime failure from the sweep                            | One signed image request hit `net::ERR_BLOCKED_BY_ORB`                                                                                                    | `audit-summary.json`                                                                                             |
-| 4    | media-library focused pass | Reopened `legacy standalone Media Library page`, waited for preview recovery, and inspected rendered cards | The broken preview recovered to the original upload URL; the route was not hard-broken                                                                    | `media-library-focused.json`, `media-library-focused.png`                                                        |
+| 4    | media-library focused pass | Reopened `historical implementation`, waited for preview recovery, and inspected rendered cards | The broken preview recovered to the original upload URL; the route was not hard-broken                                                                    | `media-library-focused.json`, `media-library-focused.png`                                                        |
 | 5    | network probe              | Fetched the failing signed URL directly                                              | Response was `400` with JSON body `{\"statusCode\":\"404\",\"error\":\"Not found\",\"message\":\"The resource was not found\"}`                           | local curl probe noted in run packet                                                                             |
 | 6    | in-app API capture         | Captured the actual `/api/media/list` response from the app session                  | Row `4bd51927-1a92-4ee4-add6-711103921cdf` came back with a stale `thumb_variant_path`; other `1x1` thumbs matched `1x1` source rows and were not the bug | `media-library-list-network.json`                                                                                |
 | 7    | code follow-up             | Read list signing + preview recovery code                                            | The route signs seeded preview candidates without existence verification, while the client retries and falls back on preview error                        | `frontend/pages/api/media/list.ts`, `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts` |
@@ -36,7 +36,7 @@ Purpose: production core route audit.
 
 ### Functional Issues
 
-- `P2` Recoverable stale image-variant pointer on production `legacy standalone Media Library page`.
+- `P2` Recoverable stale image-variant pointer on production `historical implementation`.
   - Evidence:
     - `audit-summary.json` logged `net::ERR_BLOCKED_BY_ORB` for `.../variants/images/4bd51927-1a92-4ee4-add6-711103921cdf/thumb_480`.
     - Direct probe of that signed URL returned `400` with a JSON `404 Not found` body.
@@ -64,7 +64,7 @@ Purpose: production core route audit.
   - `frontend/pages/api/media/list.ts:403-491`
   - `frontend/lib/mediaPreviewPathCore.ts:174-213`
   - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts:60-128`
-  - retired route gallery grid component
+  - historical implementation gallery grid component
 - Supporting docs or tests inspected:
   - `docs/troubleshooting.md` media preview checklist
   - `docs/systems/catalog.md` entries for `media-library-workflow`, `media-delivery-signing-preview-resolution`, and `media-derivatives-variants`
@@ -90,7 +90,7 @@ Purpose: production core route audit.
   - `frontend/pages/api/media/list.ts`
   - `frontend/lib/mediaPreviewPathCore.ts`
   - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts`
-  - retired route gallery grid component
+  - historical implementation gallery grid component
 
 ## Self Audit
 

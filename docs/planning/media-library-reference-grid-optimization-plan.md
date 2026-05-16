@@ -115,7 +115,7 @@ Signing strategy:
 
 ### 4) Render architecture
 Adopt virtualized grid rendering for:
-- `legacy standalone Media Library page`
+- `historical implementation`
 - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
 

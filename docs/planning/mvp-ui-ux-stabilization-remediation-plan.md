@@ -91,11 +91,11 @@ Goal: standardize core interaction patterns and remove accessibility blockers.
 
 Checklist:
 - [ ] Standardize modal behavior: Escape closes, focus enters modal on open, focus returns to trigger on close, backdrop clicks are intentional.
-  Evidence paths: `frontend/pages/dashboard.tsx`, `frontend/pages/profile.tsx`, `legacy standalone Media Library page`, `frontend/pages/performance.tsx`, `frontend/features/ai-studio/components/DetailModal.tsx`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/performance/components/VideoDetailModal.tsx`
+  Evidence paths: `frontend/pages/dashboard.tsx`, `frontend/pages/profile.tsx`, `historical implementation`, `frontend/pages/performance.tsx`, `frontend/features/ai-studio/components/DetailModal.tsx`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/performance/components/VideoDetailModal.tsx`
 - [ ] Ensure nested confirmation overlays are real dialogs (`role="dialog"`, `aria-modal="true"`, labeled title/description).
   Evidence path: `frontend/features/ai-studio/components/DetailModal.tsx`
 - [ ] Fix Media Library tab semantics (`role="tab"`, `aria-selected`, controlled panel mapping).
-  Evidence path: `legacy standalone Media Library page`
+  Evidence path: `historical implementation`
 - [ ] Remove or implement non-functional interactive affordances (`role="button"`/pointer cursor elements must have working actions and keyboard support).
   Evidence paths: `frontend/pages/performance.tsx`, `frontend/features/saved-creators/components/SavedCreatorsHeader.tsx`, `frontend/styles/workspace-chrome.css`, `frontend/pages/dashboard.tsx`
 - [ ] Add consistent skip-link and main landmark structure to authenticated routes that currently miss it.
@@ -132,7 +132,7 @@ Checklist:
 - [ ] Choose one button system as canonical and migrate overlapping surfaces.
   Evidence paths: `frontend/styles/components-buttons.css`, `frontend/styles/ui-patterns.css`
 - [ ] Normalize plan naming and palette to fixed product rule (`Free`, `Media`, `Studio`, `Business`).
-  Evidence paths: `docs/dev-ground-rules.md`, `frontend/pages/performance.tsx`, `frontend/pages/saved-creators.tsx`, `legacy standalone Media Library page`
+  Evidence paths: `docs/dev-ground-rules.md`, `frontend/pages/performance.tsx`, `frontend/pages/saved-creators.tsx`, `historical implementation`
 - [x] Fix self-referential radius tokens and verify downstream consumers render correctly.
   Evidence path: `frontend/styles/foundation.css`
 - [ ] Define a single source of truth for global interaction states (hover, focus-visible, disabled, loading).
@@ -148,7 +148,7 @@ Goal: reduce complexity that slows UI iteration and causes inconsistent behavior
 
 Checklist:
 - [ ] Split oversized UI files and CSS sheets impacting frequent UX changes.
-  Target paths: `legacy standalone Media Library page`, `frontend/pages/ai-studio.tsx`, `frontend/styles/workspace-media.css`, `frontend/styles/character-manager.css`, `frontend/styles/ai-studio-layout.css`
+  Target paths: `historical implementation`, `frontend/pages/ai-studio.tsx`, `frontend/styles/workspace-media.css`, `frontend/styles/character-manager.css`, `frontend/styles/ai-studio-layout.css`
 - [ ] Set refactor targets for this pass: core UX files under `800` lines; new files under `500` lines unless documented.
 - [ ] Use AI Studio style inventory findings to reduce token sprawl and duplicate style patterns.
   Evidence path: `docs/design/ai-studio-style-inventory.md`

@@ -11,7 +11,6 @@ type ResolvePreviewUrlsByMediaIdsArgs = {
   ids: string[];
   expiresInSeconds?: number;
   surface?:
-    | "media-library-route"
     | "media-library-modal"
     | "media-library-panel"
     | "reference-grid"

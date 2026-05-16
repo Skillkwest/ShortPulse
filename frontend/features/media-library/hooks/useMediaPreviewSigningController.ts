@@ -62,7 +62,7 @@ type UseMediaPreviewSigningControllerArgs<
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?: "media-library-route" | "media-library-modal" | "media-library-panel";
+  surface?: "media-library-modal" | "media-library-panel";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
@@ -95,7 +95,7 @@ export const useMediaPreviewSigningController = <
   visibleMediaVersion,
   isSigningPassEnabled = true,
   isSignPrefetchEnabled = true,
-  surface = "media-library-route",
+  surface = "media-library-panel",
   unresolvedWarningPrefix = "[media-library]",
   isResultStillRelevant,
   maxSignAttemptsPerItem,

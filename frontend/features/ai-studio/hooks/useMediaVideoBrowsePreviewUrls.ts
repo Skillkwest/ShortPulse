@@ -7,7 +7,7 @@ import { isVideoUrl } from "../logic/stateParsers";
 type UseMediaVideoBrowsePreviewUrlsArgs = {
   mediaRows: MediaFileRow[];
   currentUserId?: string | null;
-  surface?: "media-library-panel" | "media-library-modal" | "media-library-route";
+  surface?: "media-library-panel" | "media-library-modal";
   visibleMediaIdsRef?: React.MutableRefObject<Set<string>>;
 };
 

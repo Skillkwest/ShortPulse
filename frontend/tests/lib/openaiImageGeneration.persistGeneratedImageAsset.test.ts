@@ -207,6 +207,35 @@ describe("persistGeneratedImageAsset", () => {
     });
   });
 
+  it("fails closed when the autosave preference lookup errors", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: "user preference read failed" },
+    });
+
+    await persistGeneratedImageAsset({
+      userId: "user-1",
+      promptText: "Cinematic portrait",
+      modelId: "gpt-image-2",
+      projectId: "project-1",
+      requestedSize: "1024x1024",
+      requestedQuality: "medium",
+      outputBuffer: Buffer.from("image"),
+      outputContentType: "image/png",
+    });
+
+    expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
   it("keeps output delivery when media autosave insert fails", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

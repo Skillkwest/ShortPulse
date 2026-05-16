@@ -1,10 +1,9 @@
 /**
  * Shared Media Library surface config.
- * Centralizes route, modal, and panel runtime knobs so future adapters do not duplicate them.
+ * Centralizes modal and panel runtime knobs so future adapters do not duplicate them.
  */
 import { resolveModalSignBudget } from "../../ai-studio/logic/mediaLibraryModalModel";
 import { resolveMediaPreviewSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
-import { resolveRouteSignBudget } from "../logic/mediaLibraryPageHelpers";
 import type { MediaLibrarySurfaceConfig, MediaLibrarySurfaceKind } from "./types";
 
 const PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
@@ -42,18 +41,6 @@ export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
   MediaLibrarySurfaceKind,
   MediaLibrarySurfaceConfig
 > = {
-  route: {
-    kind: "route",
-    listSurface: "media-library-route",
-    listProfile: "minimal",
-    adaptiveSurface: "media-library-grid",
-    imageCardPreviewProfile: "media-library-route-image-card",
-    pageSize: 60,
-    cacheTtlMs: 30_000,
-    loadMoreRootMargin: "600px 0px",
-    visibilityRootMargin: "520px 0px",
-    signBudgetResolver: resolveRouteSignBudget,
-  },
   modal: {
     kind: "modal",
     listSurface: "media-library-modal",

@@ -29,7 +29,6 @@ type SignedMediaUrlBatchOptions = {
   expiresInSeconds?: number;
   forceRefresh?: boolean;
   surface?:
-    | "media-library-route"
     | "media-library-modal"
     | "media-library-panel"
     | "reference-grid"

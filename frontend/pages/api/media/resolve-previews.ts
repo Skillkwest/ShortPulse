@@ -45,7 +45,6 @@ const MAX_MEDIA_IDS = 40;
 const MAX_BASENAME_LOOKUP_CONCURRENCY = 6;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const ALLOWED_SURFACE_VALUES = new Set([
-  "media-library-route",
   "media-library-modal",
   "media-library-panel",
   "reference-grid",
@@ -53,11 +52,7 @@ const ALLOWED_SURFACE_VALUES = new Set([
   "character-grid",
   "detail-modal",
 ]);
-const BROWSE_SURFACE_VALUES = new Set([
-  "media-library-route",
-  "media-library-modal",
-  "media-library-panel",
-]);
+const BROWSE_SURFACE_VALUES = new Set(["media-library-modal", "media-library-panel"]);
 
 const resolveBrowseSurfaceSigningStoragePaths = (row: MediaLookupRow, userId: string): string[] => {
   const candidates = [
@@ -122,7 +117,6 @@ const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null =
   const normalized = value.trim().toLowerCase();
   if (
     normalized === "none" ||
-    normalized === "media-library-route-image-card" ||
     normalized === "media-library-modal-image-card" ||
     normalized === "media-library-panel-image-card"
   ) {

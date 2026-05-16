@@ -22,7 +22,6 @@ type ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow extends SigningCandidateRow
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   currentUserId?: string | null;
   surface?:
-    | "media-library-route"
     | "media-library-modal"
     | "media-library-panel"
     | "reference-grid"
@@ -38,7 +37,6 @@ type HydrateMediaPreviewViaStorageDownloadArgs<TRow extends SigningCandidateRow>
   downloadFromStoragePath: (storagePath: string) => Promise<Blob | null>;
   applyObjectUrlForRow: (row: TRow, objectUrl: string) => void;
   surface?:
-    | "media-library-route"
     | "media-library-modal"
     | "media-library-panel"
     | "reference-grid"
@@ -47,11 +45,7 @@ type HydrateMediaPreviewViaStorageDownloadArgs<TRow extends SigningCandidateRow>
     | "detail-modal";
 };
 
-const LOCAL_SIGN_FIRST_SURFACES = new Set([
-  "media-library-route",
-  "media-library-modal",
-  "media-library-panel",
-]);
+const LOCAL_SIGN_FIRST_SURFACES = new Set(["media-library-modal", "media-library-panel"]);
 const MAX_LOCAL_SIGN_CANDIDATES_PER_ROW = 2;
 
 export const signMediaStoragePath = async (

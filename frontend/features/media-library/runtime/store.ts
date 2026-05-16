@@ -1,6 +1,6 @@
 /**
  * Shared Media Library runtime store.
- * Normalizes media/prompt entities once so route, modal, and panel adapters can stop cloning full row arrays.
+ * Normalizes media/prompt entities once so modal and panel adapters can stop cloning full row arrays.
  */
 import { MEDIA_DATA_TABS, createEmptyMediaTabCache } from "../logic/mediaLibraryPageHelpers";
 import type {
@@ -89,7 +89,6 @@ export const createMediaLibraryRuntimeState = <
   mediaById: {},
   promptById: {},
   surfaceStateByKind: {
-    route: createEmptyMediaLibrarySurfaceState(),
     modal: createEmptyMediaLibrarySurfaceState(),
     panel: createEmptyMediaLibrarySurfaceState(),
   },
@@ -346,7 +345,7 @@ export const applyMediaSignedUrls = <
     }
   }
 
-  for (const surface of ["route", "modal", "panel"] as const) {
+  for (const surface of ["modal", "panel"] as const) {
     let changed = false;
     const currentSurfaceState = state.surfaceStateByKind[surface];
     const nextSignedUrlById = { ...currentSurfaceState.preview.signedUrlById };
@@ -622,7 +621,7 @@ export const selectTotalCachedMediaBytes = <
 ): number => {
   const countedIds = new Set<string>();
   let totalBytes = 0;
-  for (const surface of ["route", "modal", "panel"] as const) {
+  for (const surface of ["modal", "panel"] as const) {
     for (const tab of MEDIA_DATA_TABS) {
       for (const mediaId of state.surfaceStateByKind[surface].orderedViews.mediaIdsByTab[tab]) {
         if (countedIds.has(mediaId)) continue;

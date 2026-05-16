@@ -50,7 +50,7 @@ type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab 
   firstMediaPaintEventName: MediaPerfEventName;
   previewProfile: MediaPreviewTransformProfile;
   signBudgetResolver: () => MediaSignBudget;
-  surface: "media-library-route" | "media-library-modal" | "media-library-panel";
+  surface: "media-library-modal" | "media-library-panel";
   visibilityRootMargin: string;
   applySignedUrlsToSurface?: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   beforeRetry?: (params: { row: TRow; failedUrl?: string | null }) => void;

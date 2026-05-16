@@ -4,16 +4,9 @@
  */
 import { addBreadcrumb } from "./clientBreadcrumbs";
 
-export type MediaPerfSurface =
-  | "media-library-route"
-  | "media-library-modal"
-  | "media-library-panel"
-  | "reference-grid";
+export type MediaPerfSurface = "media-library-modal" | "media-library-panel" | "reference-grid";
 
 export type MediaPerfEventName =
-  | "media.route.first_card_shell"
-  | "media.route.first_media_paint"
-  | "media.route.open_to_first_media"
   | "media.modal.first_card_shell"
   | "media.modal.first_media_paint"
   | "media.modal.open_to_first_media"

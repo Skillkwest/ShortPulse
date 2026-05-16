@@ -142,7 +142,7 @@ type UseMediaTabDataControllerArgs<
   activeTab: MediaTab;
   activeTabRef: MutableRefObject<MediaTab>;
   cacheTtlMs: number;
-  surface: "media-library-route" | "media-library-modal";
+  surface: "media-library-modal" | "media-library-panel";
   currentUserIdRef: MutableRefObject<string | null>;
   fetchEnabled?: boolean;
   fetchTimeoutMs?: number;
@@ -159,12 +159,6 @@ type UseMediaTabDataControllerArgs<
   setMediaTabCache: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
   setPrompts: Dispatch<SetStateAction<TPrompt[]>>;
   setPromptsLoaded: Dispatch<SetStateAction<boolean>>;
-};
-
-const resolveProfileForSurface = (
-  surface: "media-library-route" | "media-library-modal"
-): MediaListProfile => {
-  return surface === "media-library-route" ? "minimal" : "expanded";
 };
 
 /**
@@ -383,7 +377,7 @@ export const useMediaTabDataController = <
         if (!userId) throw new Error("Not signed in");
         currentUserIdRef.current = userId;
 
-        const profile = resolveProfileForSurface(surface);
+        const profile: MediaListProfile = "expanded";
         const apiResult = await fetchMediaListPage<TRow>({
           tab,
           query: normalizedQuery,

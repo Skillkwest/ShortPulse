@@ -11,6 +11,7 @@ import {
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+import { resolveMediaStorageQuotaUserMessage } from "../mediaStorageQuota";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import {
   attachMediaFileToGenerationOutput,
@@ -66,6 +67,8 @@ export type PersistGeneratedImageResult = {
   storagePath: string;
   signedUrl: string;
   outputRowId: string | null;
+  saveState: "saved" | "idle" | "blocked_storage";
+  saveError: string | null;
 };
 
 type OpenAiImageGenerationResult = {
@@ -88,6 +91,29 @@ const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+const resolveAutosaveSaveOutcome = ({
+  mediaFileId,
+  autosaveDecisionReason,
+}: {
+  mediaFileId: string | null;
+  autosaveDecisionReason: string;
+}): {
+  saveState: "saved" | "idle" | "blocked_storage";
+  saveError: string | null;
+} => {
+  if (mediaFileId) {
+    return {
+      saveState: "saved",
+      saveError: null,
+    };
+  }
+  const quotaMessage = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
+  return {
+    saveState: quotaMessage ? "blocked_storage" : "idle",
+    saveError: quotaMessage,
+  };
 };
 
 const sanitizeStem = (value: string): string => {
@@ -470,6 +496,10 @@ export const persistGeneratedImageAsset = async ({
     }
   }
   const outputRowId = outputRows[0]?.id ?? null;
+  const saveOutcome = resolveAutosaveSaveOutcome({
+    mediaFileId,
+    autosaveDecisionReason,
+  });
   const publicationMetadata = {
     ...generationMetadata,
     autosave_decision: autosaveDecision,
@@ -509,7 +539,7 @@ export const persistGeneratedImageAsset = async ({
     previewUrl: signedResult.data.signedUrl,
     previewStoragePath: storagePath,
     fullStoragePath: storagePath,
-    saveState: mediaFileId ? "saved" : "idle",
+    saveState: saveOutcome.saveState,
     hiddenInReferenceGrid: effectiveHiddenInReferenceGrid,
     referenceGridVisible: !effectiveHiddenInReferenceGrid,
     publicationState: abandonment.abandoned ? "suppressed" : "published",
@@ -539,5 +569,7 @@ export const persistGeneratedImageAsset = async ({
     storagePath,
     signedUrl: signedResult.data.signedUrl,
     outputRowId,
+    saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
   };
 };

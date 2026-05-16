@@ -5,7 +5,6 @@
 
 export type MediaPreviewTransformProfile =
   | "none"
-  | "media-library-route-image-card"
   | "media-library-modal-image-card"
   | "media-library-panel-image-card"
   | "project-card-preview";
@@ -22,11 +21,6 @@ const PROFILE_TRANSFORM_PRESETS: Record<
   Exclude<MediaPreviewTransformProfile, "none">,
   MediaPreviewImageTransform
 > = {
-  "media-library-route-image-card": {
-    width: 640,
-    quality: 60,
-    resize: "contain",
-  },
   "media-library-modal-image-card": {
     width: 512,
     quality: 52,
@@ -53,7 +47,6 @@ export const resolvePreviewProfileForSurface = (
   surface?: string | null
 ): MediaPreviewTransformProfile => {
   const normalized = trimLower(surface);
-  if (normalized === "media-library-route") return "media-library-route-image-card";
   if (normalized === "media-library-panel") return "media-library-panel-image-card";
   if (normalized === "media-library-modal") return "media-library-modal-image-card";
   return "none";

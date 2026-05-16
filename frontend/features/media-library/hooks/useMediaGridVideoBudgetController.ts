@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 
-type VideoBudgetSurface = "media-library-route" | "media-library-modal";
+type VideoBudgetSurface = "media-library-modal" | "media-library-panel";
 
 type VideoBudgetItem = {
   id: string;
@@ -55,7 +55,7 @@ const areStringSetsEqual = (left: Set<string>, right: Set<string>): boolean => {
 };
 
 /**
- * Shared route/modal video autoplay budget controller.
+ * Shared modal/panel video autoplay budget controller.
  * Bounds concurrent autoplay and detaches offscreen sources after a short idle delay.
  */
 export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>({

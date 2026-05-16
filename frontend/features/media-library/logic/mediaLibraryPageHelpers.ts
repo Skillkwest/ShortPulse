@@ -17,8 +17,6 @@ export type { MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 export const BUCKET = "media_library";
 export const PRIVATE_MEDIA_SOURCE = "private_upload";
 const PRIVATE_MEDIA_FOLDER = "private";
-const MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-
 export type MediaDataTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
 
 export type MediaCursor = {
@@ -40,31 +38,6 @@ export type MediaTabCache<TRow> = {
 
 export type MediaTabRequestState = Record<MediaDataTab, number>;
 export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
-
-const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 8,
-  prefetchWindow: 18,
-  signBatchSize: 4,
-};
-const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 6,
-  prefetchWindow: 13,
-  signBatchSize: 3,
-};
-const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 4,
-  prefetchWindow: 9,
-  signBatchSize: 2,
-};
-
-export const resolveRouteSignBudget = (): MediaSignBudget => {
-  return resolveMediaPreviewSignBudget({
-    desktop: MEDIA_ROUTE_SIGN_BUDGET_DESKTOP,
-    smallScreen: MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN,
-    constrained: MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED,
-    smallScreenQuery: MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY,
-  });
-};
 
 export const MEDIA_DATA_TABS: MediaDataTab[] = [
   "uploaded_images",

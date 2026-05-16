@@ -1,6 +1,6 @@
 /**
  * Media Library runtime constants.
- * These values reflect the canonical shipped behavior across route, modal, and panel surfaces.
+ * These values reflect the canonical shipped behavior across modal and panel surfaces.
  */
 
 export const MEDIA_LIBRARY_VIRTUALIZATION_ENABLED = true;

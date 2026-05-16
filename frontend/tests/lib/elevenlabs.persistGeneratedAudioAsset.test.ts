@@ -198,6 +198,36 @@ describe("persistGeneratedAudioAsset", () => {
     });
   });
 
+  it("fails closed when the autosave preference lookup errors", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: "user preference read failed" },
+    });
+
+    await persistGeneratedAudioAsset({
+      userId: "user-1",
+      promptText: "Rainy city ambience",
+      provider: "elevenlabs",
+      modelId: "music_v1",
+      projectId: "project-1",
+      sourceMode: "music",
+      outputBuffer: Buffer.from("audio"),
+      outputContentType: "audio/mpeg",
+      outputFormat: "mp3_44100_128",
+    });
+
+    expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
   it("keeps audio output records when media autosave insert fails", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

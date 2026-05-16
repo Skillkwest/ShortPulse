@@ -1,6 +1,6 @@
 /**
- * Server-authoritative media-list API for route/modal pagination.
- * Provides tab-filtered keyset paging plus optional route-first signed URL hydration.
+ * Server-authoritative media-list API for modal/panel pagination.
+ * Provides tab-filtered keyset paging plus optional initial signed URL hydration.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
@@ -28,7 +28,7 @@ import {
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../lib/server/mediaFoldersService";
 
-type MediaListSurface = "media-library-route" | "media-library-modal" | "media-library-panel";
+type MediaListSurface = "media-library-modal" | "media-library-panel";
 type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
 type MediaListCursor = {
@@ -89,20 +89,13 @@ const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
   "media-library-panel": 36,
-  "media-library-route": 60,
 };
 
-const INITIAL_ROUTE_SIGN_BUDGET = 8;
+const INITIAL_SIGN_BUDGET = 8;
 
-const shouldSeedInitialSignedUrls = ({
-  surface,
-  countOnly,
-}: {
-  surface: MediaListSurface;
-  countOnly: boolean;
-}): boolean => {
+const shouldSeedInitialSignedUrls = ({ countOnly }: { countOnly: boolean }): boolean => {
   if (countOnly) return false;
-  return surface === "media-library-route";
+  return true;
 };
 
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
@@ -134,11 +127,7 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 };
 
 const toSurface = (value: unknown): MediaListSurface | null => {
-  if (
-    value === "media-library-route" ||
-    value === "media-library-modal" ||
-    value === "media-library-panel"
-  ) {
+  if (value === "media-library-modal" || value === "media-library-panel") {
     return value;
   }
   return null;
@@ -402,7 +391,7 @@ const resolveInitialSignedById = async ({
   surface: MediaListSurface;
 }): Promise<Record<string, string | null>> => {
   const previewProfile = resolvePreviewProfileForSurface(surface);
-  const seedRows = rows.slice(0, INITIAL_ROUTE_SIGN_BUDGET);
+  const seedRows = rows.slice(0, INITIAL_SIGN_BUDGET);
   if (!seedRows.length) return {};
 
   const primaryCandidateById = new Map<string, string>();
@@ -692,7 +681,7 @@ export default async function handler(
       });
       nextCursor = buildCursor(rows);
       hasMore = rows.length === limit && Boolean(nextCursor);
-      if (shouldSeedInitialSignedUrls({ surface, countOnly })) {
+      if (shouldSeedInitialSignedUrls({ countOnly })) {
         signedById = await resolveInitialSignedById({
           rows,
           userId: user.id,

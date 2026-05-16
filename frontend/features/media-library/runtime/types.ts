@@ -1,6 +1,6 @@
 /**
  * Shared Media Library runtime types.
- * Establishes the canonical client-side contracts used by route, modal, and panel adapters.
+ * Establishes the canonical client-side contracts used by modal and panel adapters.
  */
 import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
@@ -11,7 +11,7 @@ import type {
   MediaTabCache,
 } from "../logic/mediaLibraryPageHelpers";
 
-export type MediaLibrarySurfaceKind = "route" | "modal" | "panel";
+export type MediaLibrarySurfaceKind = "modal" | "panel";
 
 export type MediaLibraryAdaptiveSurface =
   | "media-library-grid"

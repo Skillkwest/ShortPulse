@@ -14,7 +14,7 @@ Purpose: provide a ready-to-run baseline QA checklist for Phase UX-0 before reme
 ## Scope
 - Dashboard: `/dashboard`
 - AI Studio: `/ai-studio`
-- Media Library: `/media-library`
+- Media Library: `legacy standalone Media Library page`
 - Profile: `/profile`
 - Performance: `/performance`
 
@@ -37,7 +37,7 @@ Store screenshots using this naming pattern:
 | --- | --- | --- | --- | --- | --- |
 | `/dashboard` | [ ] | [ ] | [ ] | [ ] |  |
 | `/ai-studio` | [ ] | [ ] | [ ] | [ ] |  |
-| `/media-library` | [ ] | [ ] | [ ] | [ ] |  |
+| `legacy standalone Media Library page` | [ ] | [ ] | [ ] | [ ] |  |
 | `/profile` | [ ] | [ ] | [ ] | [ ] |  |
 | `/performance` | [ ] | [ ] | [ ] | [ ] |  |
 

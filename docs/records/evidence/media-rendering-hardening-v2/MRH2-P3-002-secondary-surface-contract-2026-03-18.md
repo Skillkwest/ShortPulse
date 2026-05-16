@@ -48,7 +48,7 @@ Additional targeted coverage rerun:
 ## Risk Review
 - Character-grid and quick-swap still render through `next/image` with `unoptimized` in key paths. This slice intentionally did not replace those renderers; it tightened the preview-source contract instead.
 - Detail-modal and panel preview modal behavior is now explicitly tested around full/direct URL preference, which reduces future drift risk without widening the slice into renderer rewrites.
-- Media Library file modal behavior remained on the existing direct focused-file signed path in [media-library.tsx](../../../../frontend/pages/media-library.tsx); no code change was needed there for this slice.
+- Media Library file modal behavior remained on the existing direct focused-file signed path in the former route-owned `media-library.tsx` page; no code change was needed there for this slice.
 
 ## Rollback
 - Revert this slice to restore the previous inline character-grid preview helper and remove the new secondary-surface policy tests.

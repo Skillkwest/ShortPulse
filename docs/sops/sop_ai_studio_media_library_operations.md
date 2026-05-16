@@ -19,7 +19,6 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - Cross-surface ingestion into Reference Grid, Quick Slot Inventory, and Canvas.
   - Folder-canvas interaction contract and persistence boundary.
 - Out of scope:
-  - Standalone `/media-library` route page styling details.
   - Billing product pricing decisions beyond the storage-quota contract referenced below.
 
 ## Canonical implementation map
@@ -345,7 +344,6 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ## Related docs
 
-- `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`

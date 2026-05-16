@@ -24,7 +24,7 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 
 ## Characterization Inventory
 1. Route shell and route-owned behavior:
-   - `frontend/tests/pages/media-library.route-behavior.test.tsx`
+   - removed standalone media-library route-behavior test (historical)
 2. Shared signing hot path:
    - `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`
 3. Route pagination/data controller:
@@ -37,9 +37,9 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
    - `frontend/features/media-library/runtime/__tests__/store.test.ts`
 
 ## Commands Run
-1. `cd frontend && npm run test -- tests/pages/media-library.route-behavior.test.tsx features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts features/media-library/hooks/__tests__/useMediaTabDataController.test.ts features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx features/media-library/runtime/__tests__/store.test.ts`
+1. Historical targeted test bundle included the removed standalone media-library route-behavior test plus the shared preview-signing, tab-data, modal, panel, and runtime-store suites.
 2. `cd frontend && npm run docs:check`
-3. Live browser repro against `http://127.0.0.1:3000/media-library` using the configured Playwright audit account
+3. Live browser repro against the former local standalone Media Library route using the configured Playwright audit account
 4. Live browser repro against `http://127.0.0.1:3000/ai-studio` panel path using the configured Playwright audit account
 5. Live browser repro against `http://127.0.0.1:3001/ai-studio` on an isolated local copy started with `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` and the configured Playwright audit account
 
@@ -51,7 +51,7 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 2. The prior unstable `useMediaTabDataController` lane now terminates cleanly inside the characterization bundle.
 3. `docs:check` passed with docs, semantic drift, migration parity, archive manifest, model catalog parity, naming drift, and operator-map checks green.
 4. The modal test bundle emitted expected unresolved-preview warning logs during stale-refresh scenarios; those logs did not fail the run and are part of the current characterization surface.
-5. The first live route repro on `/media-library` exposed the real browser failure mode:
+5. The first live repro on the former standalone Media Library page exposed the real browser failure mode:
    - repeated `Maximum update depth exceeded` warnings in `MediaLibrary`
    - route remained rendered but was in the same overload class reported by the user
 6. After adding a no-op guard for semantically identical ordered row/cache writes in `frontend/features/media-library/runtime/store.ts`, the same live route repro no longer emitted the max-depth warning.

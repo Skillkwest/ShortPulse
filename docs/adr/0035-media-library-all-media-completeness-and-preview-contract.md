@@ -41,7 +41,6 @@ Tradeoffs:
 
 ## Links
 - `docs/sops/sop_ai_studio_media_library_operations.md`
-- `docs/sops/sop_media_library_ui.md`
 - `sql/check_media_all_media_completeness_drift.sql`
 - `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
 - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`

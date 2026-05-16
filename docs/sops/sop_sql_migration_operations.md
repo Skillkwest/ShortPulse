@@ -39,7 +39,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_media_derivative_terminal_failures.sql`: terminal derivative failure diagnostics for image rows exhausted out of retry (read-only).
 - `sql/repair_media_derivative_requeue_terminal_row.sql`: targeted operator requeue for a repaired terminal image row (read-write).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
-- `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit plus canary schema/table/sequence grant checks for app/runtime roles (read-only). This is the release gate for hosted execute posture on operator RPC families such as admin stats and model-pricing control-plane functions.
+- `sql/check_runtime_sql_security_audit.sql`: runtime RPC existence/owner/security-definer/execute-grant audit plus canary schema/table/sequence grant checks for app/runtime roles (read-only). This is the release gate for hosted operator RPC posture on families such as admin stats and model-pricing control-plane functions.
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).
 - `sql/check_control_plane_scheduler_health.sql`: canonical `pg_cron` liveness/missing/inactive/failing/stalled diagnostics (read-only).
 - `sql/check_pg_net_failure_taxonomy.sql`: canonical `pg_net` queue-depth/failure-taxonomy diagnostics (read-only).
@@ -194,7 +194,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 
 - Execute `sql/check_runtime_sql_security_audit.sql` in staging/production.
 - Expect `failing_checks = 0` before phase/deploy signoff.
-- Treat missing service-role execute posture on admin stats, model-pricing control-plane, agent-safety control-plane, and other operator/runtime RPCs as a release blocker, not a degradable warning.
+- Treat owner drift, missing `SECURITY DEFINER`, or missing service-role execute posture on admin stats, model-pricing control-plane, agent-safety control-plane, and other operator/runtime RPCs as a release blocker, not a degradable warning.
 - Treat failing schema/table/sequence grant checks as release blockers even when function execute posture is still green; those checks are the canary for role-grant collapse on hosted environments.
 
 6. Lint SQL before merge when migrations/functions changed.

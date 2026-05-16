@@ -74,7 +74,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### Media usage RPCs
 
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
-- Used by: `frontend/pages/media-library.tsx` for accurate storage usage display independent of paged list cache.
+- Used by: dashboard/account storage surfaces for accurate usage display independent of paged list caches.
 
 ### characters
 

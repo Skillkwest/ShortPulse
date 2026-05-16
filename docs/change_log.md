@@ -450,7 +450,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Unified Media Library background to saved-creators dark theme; flattened upload hero and media panels to saved-creator card styling via `media-panel` class and body override.
 - Aligned panel spacing (18px rhythm), adjusted upload card padding/gaps, and recolored panel backgrounds to the shared ash-08 tone.
 - Refined upgrade (“Need more storage?”) button: brand amber text, warmer/darker glow, hover lift with controlled brightness.
-- Added `docs/sops/sop_media_library_ui.md` covering header composition, media panel styling, upload spacing, upgrade hover rules, and asset locations.
+- Added `legacy standalone Media Library UI SOP` covering header composition, media panel styling, upload spacing, upgrade hover rules, and asset locations.
 
 ## 2026-12-29
 - Removed the backend entirely (FastAPI, Alembic, API docs) and rewrote the repo to be frontend-only with Supabase client usage; updated README, env sample, schemas, security/testing/contributor docs, and documentation overview accordingly.
@@ -773,7 +773,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Updated UI/UX plan + issue board to reflect partial completion of `UX0-01` and linked the report as current acceptance evidence.
 
 ## 2026-02-14 (UI/UX baseline completion + keyboard pass kickoff)
-- Completed UX-0 screenshot matrix across all priority routes (`/dashboard`, `/ai-studio`, `/media-library`, `/profile`, `/performance`) at `1440`, `1024`, `768`, and `390`.
+- Completed UX-0 screenshot matrix across all priority routes (`/dashboard`, `/ai-studio`, `legacy standalone Media Library page`, `/profile`, `/performance`) at `1440`, `1024`, `768`, and `390`.
 - Added consolidated report `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md` with full artifact table and first-pass keyboard baseline findings.
 - Updated UI/UX issue board and source plan status: `UX0-01` marked done; `UX0-02` moved to in-progress with blockers logged (no media cards present, no visible downgrade action in billing section for cancel-modal path).
 
@@ -833,32 +833,32 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Refreshed `docs/planning/mvp-pretester-full-audit-remediation-plan.md` current sprint focus to the next `P1` modularization targets (`media-library.tsx`, `generationBilling.ts`, `falClient.ts`) and marked active-scope `P0` documentation alignment complete.
 
 ## 2026-02-14 (Media Library modularization seam: move-cache reconciliation)
-- Extracted moved-row cache reconciliation logic from `frontend/pages/media-library.tsx` into `frontend/features/media-library/logic/mediaMoveCache.ts`.
+- Extracted moved-row cache reconciliation logic from `legacy standalone Media Library page` into `frontend/features/media-library/logic/mediaMoveCache.ts`.
 - Added focused unit coverage in `frontend/features/media-library/logic/__tests__/mediaMoveCache.test.ts` for destination-query matching behavior, cross-tab row removal, and cache no-op guardrails.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: modal image zoom/pan controller)
-- Extracted modal image zoom/pan state and interaction handlers from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`.
+- Extracted modal image zoom/pan state and interaction handlers from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaModalImageZoom.test.ts` for keyboard zoom toggles, non-image guardrails, and pointer pan/capture lifecycle behavior.
-- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2871` lines.
+- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2871` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: file-modal CRUD controller)
-- Extracted file-modal CRUD handlers (open/close, rename, single-delete) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`.
+- Extracted file-modal CRUD handlers (open/close, rename, single-delete) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts` for modal lifecycle, rename update flow, and single-delete state reconciliation.
-- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2820` lines.
+- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2820` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: bulk move controller)
-- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaBulkMoveController.ts`.
+- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaBulkMoveController.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaBulkMoveController.test.ts` for selection filtering, success-path cache/state updates, and request-failure error surfacing.
-- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2634` lines.
+- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2634` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: preview signing/hydration controller)
-- Extracted preview signing/hydration pass orchestration (row prioritization, batch signing, resolver fallback, and failure telemetry) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
+- Extracted preview signing/hydration pass orchestration (row prioritization, batch signing, resolver fallback, and failure telemetry) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts` for successful signing application, unresolved fallback behavior, and in-flight guardrails.
-- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2473` lines.
+- Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2473` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Generation billing modularization split)
@@ -872,10 +872,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Reduced `frontend/lib/falClient.ts` to `523` lines and verified compatibility via targeted Fal/UI tests plus full quality gates (`cd frontend && npm run validate`, `cd frontend && npm run build`, `cd frontend && npm run docs:check`).
 
 ## 2026-02-14 (Media Library modularization seam: tab-data/cache + upload pipeline controllers)
-- Extracted media-tab fetch/cache orchestration from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaTabDataController.ts` (prompt loading, tab-page fetch/cursor handling, stale-cache policy, and load-more observer wiring).
-- Extracted upload pipeline controllers from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaUploadController.ts` (drag/drop and picker intake, optimistic placeholders, storage upload + row insert + preview-sign reconciliation).
+- Extracted media-tab fetch/cache orchestration from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaTabDataController.ts` (prompt loading, tab-page fetch/cursor handling, stale-cache policy, and load-more observer wiring).
+- Extracted upload pipeline controllers from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaUploadController.ts` (drag/drop and picker intake, optimistic placeholders, storage upload + row insert + preview-sign reconciliation).
 - Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts` and `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`.
-- Updated `frontend/pages/media-library.tsx` to consume both hooks and reduced page length to `2093` lines (from `2473`).
+- Updated `legacy standalone Media Library page` to consume both hooks and reduced page length to `2093` lines (from `2473`).
 - Re-ran quality gates: `cd frontend && npm run validate` (`78` files, `273` tests), `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Admin error telemetry hardening: immutable events + generation route coverage)
@@ -1950,7 +1950,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - `docs/api/api-internal-routes.md`,
   - `docs/security-checklist.md`,
   - `docs/deployment.md`,
-  - `docs/sops/sop_media_library_ui.md`,
+  - `legacy standalone Media Library UI SOP`,
   - `frontend/.env.example`.
 - Added phase evidence artifact:
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-b-media-upload-service-route.md`.
@@ -2997,7 +2997,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - load-more append behavior with no destructive row clearing.
 - Updated media operations/troubleshooting docs for no-flash stale refresh validation:
   - `docs/sops/sop_media_performance_operations.md`
-  - `docs/sops/sop_media_library_ui.md`
+  - `legacy standalone Media Library UI SOP`
   - `docs/troubleshooting.md`
 
 ## 2026-03-02 (AI Studio agent inline preview drag/drop guard)
@@ -3201,7 +3201,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 ## 2026-03-11
 - Realigned Media Library documentation to a `Target Contract + Current Runtime Delta` model with `All Media` master-folder semantics.
 - Updated `docs/sops/sop_ai_studio_media_library_operations.md` with explicit `All Media` sectioned display contract (prompt text cards + image/video masonry at true aspect ratio), right-click media ingest to Reference Grid, folder membership move/assign semantics, deletion semantics, and folder-canvas domain requirements.
-- Updated dependent references in `docs/sops/sop_media_library_ui.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_ai_studio_session_persistence_reference_only.md`, `README.md`, `docs/routes.md`, and `docs/api/api-internal-routes.md` for consistency.
+- Updated dependent references in `legacy standalone Media Library UI SOP`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_ai_studio_session_persistence_reference_only.md`, `README.md`, `docs/routes.md`, and `docs/api/api-internal-routes.md` for consistency.
 - Added `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md` and updated ADR/index discoverability (`docs/README.md`, `docs/adr/README.md`, `docs/sops/README.md`).
 
 ## 2026-03-13

@@ -161,7 +161,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_supabase_auth_email_operations.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_saved_creators.md`
-- `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_ai_studio_media_library_operations.md`
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`
@@ -211,6 +210,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/product/README.md`
 - `docs/product/ai-studio-pricing.md`
 - `docs/product/billing-pricing-catalog.md`
+- `docs/product/media-storage-save-blocking.md`
 - `docs/product/growth-analytics-admin-stats.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/product/shortflow_outlier_source_of_truth.md`

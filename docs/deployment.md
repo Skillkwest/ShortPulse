@@ -124,7 +124,7 @@ as applicable):
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
   - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
   - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
-  - Media Library route/modal/panel now ship with one canonical list runtime: `/api/media/list` plus the default virtualization, video-budget, sign-prefetch, and gesture behaviors.
+  - Media Library modal/panel now ship with one canonical list runtime: `/api/media/list` plus the default virtualization, video-budget, sign-prefetch, and gesture behaviors.
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated adaptive preview surfaces such as `reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`)
   - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
   - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)

@@ -14,7 +14,7 @@ No performance or rollout baseline may be treated as authoritative until every r
 ## Metric Truth Table
 | metric | current source | trust status | issue | required action before baseline signoff |
 | --- | --- | --- | --- | --- |
-| first card render timing | `frontend/pages/media-library.tsx`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | Trusted with scope limit | Route and modal emit first-card shell today; panel, file modal, panel preview modal, reference-grid, character-grid, and detail-modal do not | Restrict baseline timing signoff to route/modal until replacement metrics or new emitters exist |
+| first card render timing | `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | Trusted with scope limit | Route and modal emit first-card shell today; panel, file modal, panel preview modal, reference-grid, character-grid, and detail-modal do not | Restrict baseline timing signoff to route/modal until replacement metrics or new emitters exist |
 | first media paint timing | `frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | Trusted with scope limit | Route and modal emit first-media paint today; panel, file modal, panel preview modal, reference-grid, character-grid, and detail-modal do not | Restrict timing baseline to route/modal and document exclusions explicitly |
 | sign failure count | `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts` sign-batch completion/failure events | Trusted with validation | Trust depends on consistent unresolved classification after resolver fallback | Align unresolved taxonomy across sign/resolve |
 | transformed count | URL inspection for `/storage/v1/render/image/` and optimizer URLs | Trusted with caveat | Detects transforms but not policy intent | Use only as transform-occurrence field, not delivery-mode truth |
@@ -41,9 +41,9 @@ Each baseline packet must include:
 ## Emitter Coverage Map
 | baseline metric | emitting code path | currently covered surfaces | notes |
 | --- | --- | --- | --- |
-| first card render timing | `frontend/pages/media-library.tsx`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | No parallel first-card emitter exists today for panel/file/detail/character/reference surfaces |
+| first card render timing | `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | No parallel first-card emitter exists today for panel/file/detail/character/reference surfaces |
 | first media paint timing | `frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | Tied to image/video load handlers |
-| open-to-first-media | `frontend/pages/media-library.tsx`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | Useful timing companion for route/modal only |
+| open-to-first-media | `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | Useful timing companion for route/modal only |
 | sign failure / fallback / transformed counts | `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts` | `media-library-route`, `media-library-modal`, `media-library-panel` | Same controller emits blocked policy-derived fields; only count fields are baseline-safe today |
 | reference-grid render pressure | `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridTelemetryController.ts`, `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridScrollController.ts` | `reference-grid` | Use as supplemental reference-grid evidence until a direct paint/timing baseline exists |
 

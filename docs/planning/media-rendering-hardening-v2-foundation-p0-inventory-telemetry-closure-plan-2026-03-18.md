@@ -30,7 +30,7 @@ The [surface policy matrix](./media-rendering-hardening-v2-surface-policy-matrix
 The current telemetry truth spec correctly blocks `preview_delivery_mode` and `optimizer_bypassed`, but repo audit shows a second problem: trusted first-card / first-media timing emitters exist for route and modal only.
 
 Trusted or partially trusted timing/sign emitters currently come from:
-1. [media-library route timing](../../frontend/pages/media-library.tsx)
+1. media-library route timing (`legacy standalone Media Library page`)
 2. [media-library route first-media paint](../../frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts)
 3. [media-library modal timing](../../frontend/features/ai-studio/components/MediaLibraryModal.tsx)
 4. [route/modal/panel sign/fallback counts](../../frontend/features/media-library/hooks/useMediaPreviewSigningController.ts)

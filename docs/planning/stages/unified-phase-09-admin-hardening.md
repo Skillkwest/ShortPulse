@@ -144,7 +144,7 @@ Route (pages)
 ├ ○ /creator-studio
 ├ ○ /dashboard
 ├ ○ /landing
-├ ○ /media-library
+├ ○ legacy standalone Media Library page
 ├ ○ /onboarding
 ├ ○ /performance
 ├ ○ /performance-soon

@@ -11,7 +11,7 @@ If regressions reappear, check `app_error_logs` for `source='client.api_network'
 
 Symptoms:
 
-- A protected route such as `/ai-studio`, `/creator-studio`, `/profile`, or `/media-library` does not continue past the media-rights gate.
+- A protected route such as `/ai-studio`, `/creator-studio`, or `/profile` does not continue past the media-rights gate.
 - The user sees `Unauthorized`, `Media agreement service is temporarily unavailable.`, or repeated retries with no progress.
 
 Interpretation:
@@ -774,10 +774,9 @@ Checklist:
   - verify adaptive media surfaces include the active panel/grid surfaces:
     - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid`
 - Inspect open-to-first-media attribution events:
-  - `media.route.open_to_first_media`
   - `media.modal.open_to_first_media`
-- If modal/route grids stutter at higher counts, verify the canonical Media Library runtime is intact:
-  - Media Library route/modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
+- If modal or panel grids stutter at higher counts, verify the canonical Media Library runtime is intact:
+  - Media Library modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
 - If Reference Grid interactions degrade in long sessions, verify:
   - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
   - adaptive preview routing is active:

@@ -22,7 +22,7 @@ Purpose: provide complete UX-0 baseline evidence for all five priority authentic
 - Artifact retention note: `/tmp` is non-durable; upload these images to team evidence storage for durable retention.
 
 ## Route coverage
-- Included routes: `/dashboard`, `/ai-studio`, `/media-library`, `/profile`, `/performance`
+- Included routes: `/dashboard`, `/ai-studio`, `legacy standalone Media Library page`, `/profile`, `/performance`
 - Viewports captured per route: `1440`, `1024`, `768`, `390`
 
 ## Screenshot matrix (UX0-01)
@@ -37,10 +37,10 @@ Purpose: provide complete UX-0 baseline evidence for all five priority authentic
 | `/ai-studio` | `1024x900` | `2026-02-14_ai-studio_1024w_base.png` | `1024x900` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_ai-studio_1024w_base.png` |
 | `/ai-studio` | `768x1024` | `2026-02-14_ai-studio_768w_base.png` | `768x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_ai-studio_768w_base.png` |
 | `/ai-studio` | `390x844` | `2026-02-14_ai-studio_390w_base.png` | `390x844` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_ai-studio_390w_base.png` |
-| `/media-library` | `1440x1024` | `2026-02-14_media-library_1440w_base.png` | `1440x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_1440w_base.png` |
-| `/media-library` | `1024x900` | `2026-02-14_media-library_1024w_base.png` | `1024x900` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_1024w_base.png` |
-| `/media-library` | `768x1024` | `2026-02-14_media-library_768w_base.png` | `768x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_768w_base.png` |
-| `/media-library` | `390x844` | `2026-02-14_media-library_390w_base.png` | `390x844` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_390w_base.png` |
+| `legacy standalone Media Library page` | `1440x1024` | `2026-02-14_media-library_1440w_base.png` | `1440x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_1440w_base.png` |
+| `legacy standalone Media Library page` | `1024x900` | `2026-02-14_media-library_1024w_base.png` | `1024x900` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_1024w_base.png` |
+| `legacy standalone Media Library page` | `768x1024` | `2026-02-14_media-library_768w_base.png` | `768x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_768w_base.png` |
+| `legacy standalone Media Library page` | `390x844` | `2026-02-14_media-library_390w_base.png` | `390x844` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_media-library_390w_base.png` |
 | `/profile` | `1440x1024` | `2026-02-14_profile_1440w_base.png` | `1440x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_profile_1440w_base.png` |
 | `/profile` | `1024x900` | `2026-02-14_profile_1024w_base.png` | `1024x900` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_profile_1024w_base.png` |
 | `/profile` | `768x1024` | `2026-02-14_profile_768w_base.png` | `768x1024` | `/tmp/shortpulse-uiux-baseline-2026-02-14/2026-02-14_profile_768w_base.png` |

@@ -7,7 +7,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 ## Scope
 
 - In scope:
-  - Media Library route (`/media-library`), AI Studio Media Library panel, and AI Studio Media Library modal.
+  - AI Studio Media Library panel and AI Studio Media Library modal.
   - Reference Grid autoplay performance controls.
   - Signed URL hydration and batch signing behavior.
   - Local telemetry inspection for tuning and incident triage.
@@ -25,8 +25,6 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/pages/api/media/resolve-previews.ts`
 - Server-authoritative list API:
   - `frontend/pages/api/media/list.ts`
-- Media Library route:
-  - `frontend/pages/media-library.tsx`
 - AI Studio Media Library modal:
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - AI Studio Media Library panel:
@@ -61,7 +59,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 
 ### 1) Validate Baseline Path
 
-1. Open Media Library route and AI Studio modal.
+1. Open the AI Studio Media Library panel and modal.
 2. Confirm media cards render quickly with placeholders first, then preview hydration.
 3. Confirm pagination/search remains responsive with large tabs.
 4. Confirm `POST /api/media/list` is active as the canonical Media Library list route.
@@ -76,12 +74,12 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 2. Confirm `POST /api/media/sign-batch` is called during lazy-sign passes.
 3. Confirm response status is `200` and payload contains:
    - `urls: { "<storage_path>": "<signed_url>|null" }`
-4. Confirm media-library surfaces (`route/modal/panel`) return `x-shortpulse-media-sign-preview-profile` and transformed signed URLs for images.
+4. Confirm media-library surfaces (`modal/panel`) return `x-shortpulse-media-sign-preview-profile` and transformed signed URLs for images.
 5. Confirm failed entries degrade to placeholder (not a blocking error state).
 
 ### 2b) Validate Next Optimizer Bypass Contract
 
-1. Load media-heavy `All Media` on route/modal/panel.
+1. Load media-heavy `All Media` on the AI Studio modal and panel.
 2. Confirm image card `src` values stay as Supabase signed URLs and are not rewritten to `/_next/image?...`.
 3. Confirm `/api/media/resolve-previews` responses include `x-shortpulse-media-resolve-preview-profile`.
 4. Confirm detail modal/download remain full-quality (no quality regression).
@@ -144,8 +142,7 @@ Key indicators:
 - `preview_delivery_mode` and `optimizer_bypassed` are debugging-only dimensions during media-rendering hardening; do not use them as pass/fail or rollout-gate evidence until the telemetry truth spec unblocks them
 - first-card/first-media-paint timing trends
 - open-to-first-media timers:
-  - `media.route.open_to_first_media`
-  - `media.modal.open_to_first_media`
+- `media.modal.open_to_first_media`
 - bulk move timings/failures via `media.move.bulk.completed` and `media.move.bulk.failed`
 - reference-grid render and heap trends via:
   - `media.grid.render.commit`
@@ -159,13 +156,11 @@ Key indicators:
 
 ## Tuning Knobs
 
-- Media Library sign budget constants:
-  - `MEDIA_ROUTE_SIGN_BUDGET_*` in `frontend/pages/media-library.tsx`
 - Modal sign budget constants:
   - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Panel sign budget constants:
   - `MEDIA_LIBRARY_PANEL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-- Route/modal fetch-transition rules:
+- Modal fetch-transition rules:
   - `resolveMediaFetchTransition` in `frontend/features/media-library/logic/mediaFetchTransition.ts`
   - fetch reasons: `initial`, `tab_or_query_reset`, `stale_refresh`, `load_more`
 - Media list/runtime contract:
@@ -375,7 +370,6 @@ Monitor these events during rollout:
      - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
 10. Manual verification:
 
-- Media Library route (images/videos/private/AI tabs)
 - AI Studio modal search + paging + selection
 - Reference Grid autoplay behavior on desktop and small-screen widths
 - Canvas + split interactions (top canvas divider + quick-slot/all-refs divider)

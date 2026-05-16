@@ -44,11 +44,6 @@ ShortPulse is a Next.js pages-router app with both browser surfaces and first-pa
 - Responsibility: per-user CRUD for creator handles.
 - Data model and RLS expectations: `docs/data-dictionary.md`, `docs/security-checklist.md`
 
-### `/media-library`
-- Responsibility: per-user file upload/list/download/delete/rename.
-- Uses authenticated batch preview signing via `/api/media/sign-batch` for grid/list hydration.
-- Storage isolation expectations: `docs/security-checklist.md`, `sql/storage_policies.sql`
-
 ### `/ai-studio`
 - Responsibility: creative workspace UI; current state and workflow details in `docs/product/shortpulse_ai_studio.md`.
 

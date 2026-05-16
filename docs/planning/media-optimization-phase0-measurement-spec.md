@@ -60,7 +60,7 @@ Size distribution targets:
 
 ## Instrumentation points
 Primary UI surfaces:
-- `frontend/pages/media-library.tsx`
+- `legacy standalone Media Library page`
 - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
 

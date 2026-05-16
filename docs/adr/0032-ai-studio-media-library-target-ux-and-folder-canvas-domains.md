@@ -48,7 +48,6 @@ Adopt the following Media Library target architecture contract:
 
 ## Related
 - `docs/sops/sop_ai_studio_media_library_operations.md`
-- `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`

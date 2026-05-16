@@ -30,7 +30,7 @@ Use dated packet names:
 ## Linked docs
 1. `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 2. `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
-3. `docs/sops/sop_media_library_ui.md`
+3. `legacy standalone Media Library UI SOP`
 4. `docs/sops/sop_ai_studio_media_library_operations.md`
 
 ## Packets

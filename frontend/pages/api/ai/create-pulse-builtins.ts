@@ -19,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: builtInCatalog.source,
       updatedAt: builtInCatalog.updatedAt,
       updatedByEmail: builtInCatalog.updatedByEmail,
+      degraded: builtInCatalog.degraded,
     });
   } catch (error) {
     await logApiRouteException({

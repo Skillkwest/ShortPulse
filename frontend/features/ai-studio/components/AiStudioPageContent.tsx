@@ -21,7 +21,6 @@ import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
-import { EXPERT_EDIT_STYLE_CATALOG, type ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
@@ -44,9 +43,7 @@ import type {
 import type { ResolveVoiceChangerInternalReferenceSource } from "./VoiceChangerSourceDropzone";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
-import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
-import { useStylesLibraryPanelIdsPreference } from "../hooks/useStylesLibraryPanelIdsPreference";
-import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
+import { useAiStudioStylesRuntime } from "../hooks/useAiStudioStylesRuntime";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -61,10 +58,6 @@ import type {
 } from "../reference-grid/referenceGridTypes";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import {
-  reorderStylesLibraryOrderedIds,
-  resolveOrderedStylesCatalog,
-} from "../logic/stylesLibraryCatalog";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
@@ -690,143 +683,18 @@ export function AiStudioPageContent({
   const expertCreateMode =
     resolvedCreateProperties.expertCreateMode ?? uncontrolledExpertCreateMode;
   const {
-    styleDetailsById,
-    error: styleDetailsSaveError,
+    handleDeleteStyle,
+    handleReorderStyle,
+    styleDetailsSaveError,
+    stylesDeleteError,
     upsertStyleDetails,
-    deleteStyleDetails,
-  } = useStylesLibraryStyleDetailsPreference();
-  const {
-    deletedStyleIds,
-    error: stylesDeleteError,
-    deleteStyleId,
-  } = useStylesLibraryDeletedStyleIdsPreference();
-  const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
-    useStylesLibraryPanelIdsPreference();
-  const seededStyleIds = React.useMemo(
-    () => new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id)),
-    []
-  );
-  const stylesCatalogWithOverrides = React.useMemo(() => {
-    const resolveStyleName = (style: {
-      style?: string;
-      title?: string;
-      referenceImageName?: string;
-    }): string => {
-      return (
-        style.style?.trim() ||
-        style.title?.trim() ||
-        style.referenceImageName?.trim() ||
-        "Custom Style"
-      );
-    };
-    const baseStyleIds = new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id));
-    const overrideEntries = Object.entries(styleDetailsById);
-
-    const overriddenBaseStyles = EXPERT_EDIT_STYLE_CATALOG.map((style) => {
-      if (style.placeholder) return style;
-      const styleDetails = styleDetailsById[style.id];
-      if (!styleDetails) return style;
-      const resolvedStyleName = resolveStyleName(styleDetails);
-      const resolvedPreviewUrl = styleDetails.previewImageUrl.trim() || style.previewUrl;
-      return {
-        ...style,
-        style: resolvedStyleName,
-        title: resolvedStyleName,
-        referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
-        stylePrompt: styleDetails.stylePrompt.trim(),
-        previewUrl: resolvedPreviewUrl,
-      };
-    });
-
-    const customStyleTiles: ExpertEditStyleTile[] = overrideEntries
-      .filter(([styleId]) => !baseStyleIds.has(styleId))
-      .map(([styleId, styleDetails]) => {
-        const resolvedStyleName = resolveStyleName(styleDetails);
-        return {
-          id: styleId,
-          style: resolvedStyleName,
-          title: resolvedStyleName,
-          referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
-          stylePrompt: styleDetails.stylePrompt.trim(),
-          previewUrl: styleDetails.previewImageUrl.trim() || null,
-          placeholder: false,
-        };
-      });
-
-    return [...overriddenBaseStyles, ...customStyleTiles];
-  }, [styleDetailsById]);
-  const visibleStylesCatalog = React.useMemo(() => {
-    const deletedIdSet = deletedStyleIds.length > 0 ? new Set(deletedStyleIds) : null;
-    const filteredStyles =
-      deletedIdSet == null
-        ? stylesCatalogWithOverrides
-        : stylesCatalogWithOverrides.filter((style) => !deletedIdSet.has(style.id));
-    return resolveOrderedStylesCatalog(filteredStyles, stylePanelIds);
-  }, [deletedStyleIds, stylePanelIds, stylesCatalogWithOverrides]);
-  const handleDeleteStyle = React.useCallback(
-    async (styleId: string): Promise<boolean> => {
-      const normalizedStyleId = styleId.trim();
-      if (!normalizedStyleId) return false;
-      if (seededStyleIds.has(normalizedStyleId)) {
-        return deleteStyleId(normalizedStyleId);
-      }
-      const deleted = await deleteStyleDetails(normalizedStyleId);
-      if (!deleted) return false;
-      void removeStylePanelId(normalizedStyleId);
-      return true;
-    },
-    [deleteStyleDetails, deleteStyleId, removeStylePanelId, seededStyleIds]
-  );
-  const handleReorderStyle = React.useCallback(
-    (sourceStyleId: string, targetStyleId: string) => {
-      const nextOrder = reorderStylesLibraryOrderedIds(
-        visibleStylesCatalog.map((style) => style.id),
-        sourceStyleId,
-        targetStyleId
-      );
-      void setStylePanelIds(nextOrder);
-    },
-    [setStylePanelIds, visibleStylesCatalog]
-  );
-  React.useEffect(() => {
-    if (!selectedStyleId) return;
-    const styleStillVisible = visibleStylesCatalog.some((style) => style.id === selectedStyleId);
-    if (!styleStillVisible) {
-      setSelectedStyleId(null);
-    }
-  }, [selectedStyleId, visibleStylesCatalog]);
-  const selectedStylePrompt = React.useMemo(() => {
-    if (!selectedStyleId) return null;
-    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
-    const normalizedPrompt = selectedStyle?.stylePrompt?.trim() ?? "";
-    return normalizedPrompt.length ? normalizedPrompt : null;
-  }, [selectedStyleId, visibleStylesCatalog]);
-  const selectedStyleContext = React.useMemo<StudioOutput["styleContext"] | null>(() => {
-    if (!selectedStyleId) return null;
-    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
-    if (!selectedStyle || selectedStyle.placeholder) return null;
-    const styleName =
-      selectedStyle.style?.trim() ||
-      selectedStyle.title?.trim() ||
-      selectedStyle.referenceImageName?.trim() ||
-      null;
-    const stylePrompt = selectedStyle.stylePrompt?.trim() || null;
-    const stylePreviewImageUrl = selectedStyle.previewUrl?.trim() || null;
-    if (!styleName && !stylePrompt) return null;
-    return {
-      applied: true,
-      styleId: selectedStyle.id,
-      styleName,
-      stylePrompt,
-      ...(stylePreviewImageUrl ? { stylePreviewImageUrl } : {}),
-    };
-  }, [selectedStyleId, visibleStylesCatalog]);
-  React.useEffect(() => {
-    onSelectedStylePromptChange?.(selectedStylePrompt);
-  }, [onSelectedStylePromptChange, selectedStylePrompt]);
-  React.useEffect(() => {
-    onSelectedStyleContextChange?.(selectedStyleContext);
-  }, [onSelectedStyleContextChange, selectedStyleContext]);
+    visibleStylesCatalog,
+  } = useAiStudioStylesRuntime({
+    selectedStyleId,
+    setSelectedStyleId,
+    onSelectedStylePromptChange,
+    onSelectedStyleContextChange,
+  });
   const isQuickSlotToggleAvailable = Boolean(
     resolvedReferenceGridProps.onAddCuratedReference &&
     resolvedReferenceGridProps.onRemoveCuratedReference &&
@@ -1411,7 +1279,6 @@ export function AiStudioPageContent({
     () => (
       <StylesLibraryPanel
         styles={visibleStylesCatalog}
-        selectedStyleId={selectedStyleId}
         onReorderStyle={handleReorderStyle}
         onSaveStyleDetails={upsertStyleDetails}
         saveError={styleDetailsSaveError}
@@ -1424,7 +1291,6 @@ export function AiStudioPageContent({
       handleDeleteStyle,
       handleReorderStyle,
       resolveStyleLibraryInternalDrop,
-      selectedStyleId,
       styleDetailsSaveError,
       stylesDeleteError,
       upsertStyleDetails,

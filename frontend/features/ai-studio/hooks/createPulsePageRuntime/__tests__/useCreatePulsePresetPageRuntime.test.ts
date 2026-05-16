@@ -38,6 +38,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
       loading: false,
       error: null,
       source: "control_plane",
+      degraded: false,
       isAuthoritative: true,
       refresh: vi.fn(),
     });
@@ -196,6 +197,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
       loading: false,
       error: "Unable to load Pulse built-ins.",
       source: "seed",
+      degraded: true,
       isAuthoritative: false,
       refresh: vi.fn(),
     });

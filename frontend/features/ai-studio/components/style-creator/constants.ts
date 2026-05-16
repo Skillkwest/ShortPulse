@@ -9,16 +9,25 @@ export const CUSTOM_STYLE_NAME_PREFIX = "Custom Style";
 export const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 
 export const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
-  "Files",
+  "files",
   "text/plain",
   "text/reference-url",
   "text/reference-render-url",
   "text/reference-id",
   "text/reference-output-id",
   "text/reference-media-id",
+  "text/reference-media-kind",
+  "text/reference-preview-storage-path",
+  "text/reference-full-storage-path",
   "text/reference-origin",
   "image/url",
   "text/uri-list",
+  "application/x-shortpulse-reference-drag-token",
+  "text/reference-drag-token",
+  "application/x-shortpulse-composer-image-drop-token",
+  "text/reference-composer-image-drop-token",
+  "application/x-shortpulse-composer-image-drop",
+  "text/reference-composer-image-payload",
 ]);
 
 export const BLOCKED_STYLE_IMAGE_SOURCE_ERROR = "blocked-style-image-source";

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME,
   analyzeExpertEditPromptTokens,
+  buildExpertEditSubmissionReferencePlan,
   buildExpertEditSubmissionReferenceInputs,
   buildExpertEditPromptHighlightSegments,
   buildExpertEditPrimarySlotToken,
@@ -181,16 +182,51 @@ describe("expertEditPromptReferences", () => {
     ]);
   });
 
-  it("keeps figure mapping stable with missing middle slot and duplicate urls", () => {
+  it("preserves slot-order figure numbering when different secondary slots reuse the same url", () => {
+    const plan = buildExpertEditSubmissionReferencePlan({
+      flattenedPrimaryUrl: "https://example.com/primary.png",
+      secondarySlots: ["https://example.com/shared.png", null, "https://example.com/shared.png"],
+      referencedSlotIndexes: [0, 2],
+    });
     const compiled = compileExpertEditSubmissionPrompt({
       displayPrompt: "Use @img1 and @img3.",
       secondarySlots: ["https://example.com/shared.png", null, "https://example.com/shared.png"],
-      referenceInputs: ["https://example.com/primary.png", "https://example.com/shared.png"],
+      referenceInputs: plan.referenceInputs,
+      secondaryFigureNumbersBySlotIndex: plan.secondaryFigureNumbersBySlotIndex,
     });
 
-    expect(compiled.submissionPrompt).toContain("Use Figure 2 and Figure 2.");
+    expect(plan.referenceInputs).toEqual([
+      "https://example.com/primary.png",
+      "https://example.com/shared.png",
+      "https://example.com/shared.png",
+    ]);
+    expect(compiled.submissionPrompt).toContain("Use Figure 2 and Figure 3.");
     expect(compiled.submissionPrompt).toContain("Figure 2 = @img1 secondary reference.");
-    expect(compiled.submissionPrompt).toContain("Figure 2 = @img3 secondary reference.");
+    expect(compiled.submissionPrompt).toContain("Figure 3 = @img3 secondary reference.");
+  });
+
+  it("keeps @main distinct from secondary references when a restored slot reuses the primary url", () => {
+    const plan = buildExpertEditSubmissionReferencePlan({
+      flattenedPrimaryUrl: "https://example.com/shared.png",
+      secondarySlots: ["https://example.com/shared.png", null, null],
+      referencedSlotIndexes: [0],
+    });
+    const compiled = compileExpertEditSubmissionPrompt({
+      displayPrompt: "Use @main for identity and @img1 for clothing.",
+      secondarySlots: ["https://example.com/shared.png", null, null],
+      referenceInputs: plan.referenceInputs,
+      secondaryFigureNumbersBySlotIndex: plan.secondaryFigureNumbersBySlotIndex,
+    });
+
+    expect(plan.referenceInputs).toEqual([
+      "https://example.com/shared.png",
+      "https://example.com/shared.png",
+    ]);
+    expect(compiled.submissionPrompt).toContain(
+      "Use Figure 1 for identity and Figure 2 for clothing."
+    );
+    expect(compiled.submissionPrompt).toContain("Figure 1 = primary base image.");
+    expect(compiled.submissionPrompt).toContain("Figure 2 = @img1 secondary reference.");
   });
 
   it("extracts and sets drag token payloads for secondary slots", () => {

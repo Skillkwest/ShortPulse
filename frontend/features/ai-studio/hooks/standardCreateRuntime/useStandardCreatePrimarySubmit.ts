@@ -1,11 +1,5 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
+import { useCallback } from "react";
 import type { StudioMode, ToolId } from "../../types";
-
-type StandardAgentSendResult = {
-  prompt?: string | null;
-  referenceTitle?: string | null;
-} | void;
 
 type GenerateStandardCreateOutput = (
   promptOverride?: string | null,
@@ -18,21 +12,15 @@ type GenerateStandardCreateOutput = (
 
 type UseStandardCreatePrimarySubmitParams = {
   enabled?: boolean;
-  mode: StudioMode;
   selectedTool: ToolId | null;
   chatModeEnabled: boolean;
   agentInput: string;
   prompt: string;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits: number | null;
-  handleAgentSend: (
-    message?: string,
-    options?: { captureResult?: boolean }
-  ) => Promise<StandardAgentSendResult>;
   handleGenerate: GenerateStandardCreateOutput;
   handleProviderPrimarySubmit: () => void;
-  handleStandardAgentCaptureResult: (promptText: string, referenceTitle?: string | null) => void;
-  setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
+  setSharedPrompt: (value: string) => void;
 };
 
 const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
@@ -40,43 +28,29 @@ const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
 
 /**
  * Standard Create primary submit command.
- * Owns chat-mode agent send and chat-off provider generation.
+ * Uses the visible composer text as the only generation prompt in Standard Create.
  */
 export const useStandardCreatePrimarySubmit = ({
   enabled = true,
-  mode,
   selectedTool,
   chatModeEnabled,
   agentInput,
   prompt,
   currentCostCredits,
   promptReferenceGenerateCostCredits,
-  handleAgentSend,
   handleGenerate,
   handleProviderPrimarySubmit,
-  handleStandardAgentCaptureResult,
-  setPromptOrigin,
+  setSharedPrompt = () => undefined,
 }: UseStandardCreatePrimarySubmitParams) =>
   useCallback(() => {
     if (!enabled) return;
-    if (isStandardCreateTextTool(selectedTool) && mode === "text") {
+    if (isStandardCreateTextTool(selectedTool)) {
+      const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();
+      if (!visibleComposerPrompt) return;
       if (chatModeEnabled) {
-        handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-          if (result?.prompt) {
-            handleStandardAgentCaptureResult(result.prompt, result.referenceTitle);
-          }
-        });
-        return;
+        setSharedPrompt(visibleComposerPrompt);
       }
-      const rawPrompt = resolveChatOffCreatePrompt({
-        agentInput,
-        sharedPrompt: prompt,
-        allowSharedPromptFallback: true,
-      });
-      if (rawPrompt) {
-        setPromptOrigin("manual");
-      }
-      void handleGenerate(rawPrompt ?? "", {
+      void handleGenerate(visibleComposerPrompt, {
         modeOverride: "image",
         toolOverride: "create",
         costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
@@ -89,13 +63,10 @@ export const useStandardCreatePrimarySubmit = ({
     chatModeEnabled,
     currentCostCredits,
     enabled,
-    handleAgentSend,
     handleGenerate,
     handleProviderPrimarySubmit,
-    handleStandardAgentCaptureResult,
-    mode,
     prompt,
     promptReferenceGenerateCostCredits,
     selectedTool,
-    setPromptOrigin,
+    setSharedPrompt,
   ]);

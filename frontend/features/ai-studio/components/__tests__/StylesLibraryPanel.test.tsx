@@ -65,7 +65,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("renders delete action only for non-placeholder styles", () => {
-    render(<StylesLibraryPanel styles={createStylesWithPlaceholder()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStylesWithPlaceholder()} />);
 
     expect(screen.getByRole("button", { name: "Delete style: Cinematic" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete style: None" })).not.toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("pins none as the first immutable style tile", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
 
     const styleButtons = screen.getAllByRole("button", { name: /Style tile:/i });
     expect(styleButtons[0]).toHaveAccessibleName("Style tile: None");
@@ -89,7 +89,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("opens create modal with the trailing add style button", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add style" }));
 
@@ -103,7 +103,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("shows a style prompt character counter and enforces the 1000-char input cap", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
     fireEvent.click(screen.getByRole("button", { name: "Add style" }));
 
     const stylePromptInput = screen.getByLabelText("Style Prompt");
@@ -117,13 +117,7 @@ describe("StylesLibraryPanel", () => {
 
   it("saves a new style from the add style modal", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    render(
-      <StylesLibraryPanel
-        styles={createStyles()}
-        selectedStyleId={null}
-        onSaveStyleDetails={onSaveStyleDetails}
-      />
-    );
+    render(<StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add style" }));
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Dream Glow" } });
@@ -196,11 +190,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -312,11 +302,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -449,7 +435,6 @@ describe("StylesLibraryPanel", () => {
       render(
         <StylesLibraryPanel
           styles={createStyles()}
-          selectedStyleId={null}
           onSaveStyleDetails={onSaveStyleDetails}
           resolveInternalStyleDrop={resolveInternalStyleDrop}
         />
@@ -574,7 +559,6 @@ describe("StylesLibraryPanel", () => {
       render(
         <StylesLibraryPanel
           styles={createStyles()}
-          selectedStyleId={null}
           onSaveStyleDetails={onSaveStyleDetails}
           resolveInternalStyleDrop={resolveInternalStyleDrop}
         />
@@ -681,11 +665,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -797,11 +777,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -865,11 +841,7 @@ describe("StylesLibraryPanel", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -915,11 +887,7 @@ describe("StylesLibraryPanel", () => {
       vi.stubGlobal("fetch", fetchMock);
       try {
         render(
-          <StylesLibraryPanel
-            styles={createStyles()}
-            selectedStyleId={null}
-            onSaveStyleDetails={onSaveStyleDetails}
-          />
+          <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
         );
 
         const panel = screen.getByRole("region", { name: "Styles library" });
@@ -965,11 +933,7 @@ describe("StylesLibraryPanel", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -1018,11 +982,7 @@ describe("StylesLibraryPanel", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
 
       const panel = screen.getByRole("region", { name: "Styles library" });
@@ -1106,7 +1066,7 @@ describe("StylesLibraryPanel", () => {
       },
     });
     try {
-      render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+      render(<StylesLibraryPanel styles={createStyles()} />);
       fireEvent.click(screen.getByRole("button", { name: "Add style" }));
       const dialog = screen.getByRole("dialog", { name: "Add style" });
       const uploadInput = dialog.querySelector(
@@ -1184,11 +1144,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
       fireEvent.click(screen.getByRole("button", { name: "Add style" }));
       const dialog = screen.getByRole("dialog", { name: "Add style" });
@@ -1290,7 +1246,7 @@ describe("StylesLibraryPanel", () => {
       },
     });
     try {
-      render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+      render(<StylesLibraryPanel styles={createStyles()} />);
       fireEvent.click(screen.getByRole("button", { name: "Add style" }));
       const dialog = screen.getByRole("dialog", { name: "Add style" });
       const uploadInput = dialog.querySelector(
@@ -1378,11 +1334,7 @@ describe("StylesLibraryPanel", () => {
     });
     try {
       render(
-        <StylesLibraryPanel
-          styles={createStyles()}
-          selectedStyleId={null}
-          onSaveStyleDetails={onSaveStyleDetails}
-        />
+        <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
       );
       fireEvent.click(screen.getByRole("button", { name: "Add style" }));
       const dialog = screen.getByRole("dialog", { name: "Add style" });
@@ -1430,7 +1382,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("reorders style cards via drag and drop", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
 
     const sourceTile = screen
       .getByRole("button", { name: "Style tile: Cinematic" })
@@ -1461,13 +1413,7 @@ describe("StylesLibraryPanel", () => {
 
   it("delegates reorder to the shared page callback when provided", () => {
     const onReorderStyle = vi.fn();
-    render(
-      <StylesLibraryPanel
-        styles={createStyles()}
-        selectedStyleId={null}
-        onReorderStyle={onReorderStyle}
-      />
-    );
+    render(<StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />);
 
     const sourceTile = screen
       .getByRole("button", { name: "Style tile: Cinematic" })
@@ -1491,7 +1437,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("opens and closes the delete confirmation modal", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete style: Cinematic" }));
     expect(screen.getByRole("dialog", { name: "Delete this style?" })).toBeInTheDocument();
@@ -1502,13 +1448,7 @@ describe("StylesLibraryPanel", () => {
 
   it("confirms delete and calls onDeleteStyle with the selected style id", async () => {
     const onDeleteStyle = vi.fn().mockResolvedValue(true);
-    render(
-      <StylesLibraryPanel
-        styles={createStyles()}
-        selectedStyleId={null}
-        onDeleteStyle={onDeleteStyle}
-      />
-    );
+    render(<StylesLibraryPanel styles={createStyles()} onDeleteStyle={onDeleteStyle} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete style: Cinematic" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
@@ -1522,7 +1462,7 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("opens edit modal when a style tile is clicked", () => {
-    render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
+    render(<StylesLibraryPanel styles={createStyles()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Style tile: Cinematic" }));
 
@@ -1536,13 +1476,7 @@ describe("StylesLibraryPanel", () => {
 
   it("saves style details from edit modal", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
-    render(
-      <StylesLibraryPanel
-        styles={createStyles()}
-        selectedStyleId={null}
-        onSaveStyleDetails={onSaveStyleDetails}
-      />
-    );
+    render(<StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Style tile: Cinematic" }));
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Neo Noir" } });

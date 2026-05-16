@@ -8,7 +8,6 @@ import {
   AgentChatPanel,
   type AgentChatPanelProps,
   AgentInputBar,
-  AgentResponseInlineGenerateButton,
   AgentSaveButton,
   AgentSendButton,
 } from "../../../../prefabs/agent";
@@ -17,11 +16,10 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
+  AgentOutputGenerateRequest,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
-import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
-import type { PromptStepInlineGenerateConfig } from "./types";
 
 type StandardPromptStepChatSurfaceProps = {
   chatOnly: boolean;
@@ -64,8 +62,7 @@ type StandardPromptStepChatSurfaceProps = {
   agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
-  chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
-  useAgentResponseInlineGeneratePrefab?: boolean;
+  onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   highlightLatestAssistantOnly: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
   disableOutputGenerate: boolean;
@@ -96,7 +93,6 @@ type StandardPromptStepChatSurfaceProps = {
     ready: number;
     failed: number;
   };
-  prompt: string;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
@@ -131,8 +127,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   agentBootstrapPending,
   onAgentSend,
   onGenerateOutputPrompt,
-  chatModeInlineGenerate,
-  useAgentResponseInlineGeneratePrefab = false,
+  onApplyOutputPrompt,
   highlightLatestAssistantOnly,
   CreateChatPanel = AgentChatPanel,
   disableOutputGenerate,
@@ -158,33 +153,15 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   chatPromptSaveButtonClassName,
   chatPromptSaveButtonUnstyled,
   imageAttachmentCounts,
-  prompt,
   onAssistantMessageEdit,
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
-  const inlineGenerateCostLabel =
-    outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
-  const hasResolvedInlineGeneratePrompt = Boolean(
-    resolveChatOffCreatePrompt({
-      agentInput,
-      sharedPrompt: prompt,
-      allowSharedPromptFallback: true,
-    })
-  );
   const canSendAgentInput =
     chatModeEnabled && (agentInput.trim().length > 0 || stagedAttachments.length > 0);
   const hasInsideInputSendButton = embedSendButtonInInput && chatModeEnabled;
-  const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
-  const inlineGenerateDisabled =
-    Boolean(chatModeInlineGenerate?.disabled) ||
-    disableOutputGenerate ||
-    !hasResolvedInlineGeneratePrompt;
-  const inlineGenerateGuardrailReason =
-    hasInlineGenerateAction && inlineGenerateDisabled ? outputGenerateGuardrailReason : null;
   const hasAuxComposerControls = Boolean(composerMiddleContent) || Boolean(composerLeadingContent);
-  const shouldUsePostInputInlineGenerate = hasInlineGenerateAction && hasAuxComposerControls;
   const shouldStackTrailingComposerControls =
     stackTrailingComposerControls && hasAuxComposerControls;
   const hasAgentChatContent =
@@ -235,6 +212,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         onInputChange={(value) => onAgentInputChange?.(value)}
         onSend={onAgentSend ?? (() => {})}
         onGenerateOutputPrompt={onGenerateOutputPrompt}
+        onApplyOutputPrompt={onApplyOutputPrompt}
         onAssistantMessageEdit={onAssistantMessageEdit}
         highlightLatestAssistantOnly={highlightLatestAssistantOnly}
         disableOutputGenerate={disableOutputGenerate}
@@ -364,33 +342,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
 
   const chatModeActionsContent = (
     <div className="agent-inline-actions">
-      {hasInlineGenerateAction && !shouldUsePostInputInlineGenerate ? (
-        useAgentResponseInlineGeneratePrefab ? (
-          <AgentResponseInlineGenerateButton
-            className="agent-chat-inline-generate-btn"
-            onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-            costCredits={outputGenerateCostCredits}
-            disabled={inlineGenerateDisabled}
-            ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-          />
-        ) : (
-          <button
-            type="button"
-            className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-            onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-            disabled={inlineGenerateDisabled}
-            aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-          >
-            <span className="agent-generate-label">Generate</span>
-            <span className="model-chip-pill generate-pill">
-              <span aria-hidden="true" className="model-chip-icon">
-                ✦
-              </span>
-              <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-            </span>
-          </button>
-        )
-      ) : null}
       {chatModeToggleContent}
       {onSavePrompt ? (
         <AgentSaveButton
@@ -403,36 +354,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
       ) : null}
     </div>
   );
-
-  const postInputInlineGenerateContent = shouldUsePostInputInlineGenerate ? (
-    <div className="agent-composer-post-input-actions">
-      {useAgentResponseInlineGeneratePrefab ? (
-        <AgentResponseInlineGenerateButton
-          className="agent-chat-inline-generate-btn"
-          onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-          costCredits={outputGenerateCostCredits}
-          disabled={inlineGenerateDisabled}
-          ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-        />
-      ) : (
-        <button
-          type="button"
-          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-          onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-          disabled={inlineGenerateDisabled}
-          aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-        >
-          <span className="agent-generate-label">Generate</span>
-          <span className="model-chip-pill generate-pill">
-            <span aria-hidden="true" className="model-chip-icon">
-              ✦
-            </span>
-            <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-          </span>
-        </button>
-      )}
-    </div>
-  ) : null;
 
   const composerMiddleControlContent = composerMiddleContent ? (
     <div className="agent-composer-middle">{composerMiddleContent}</div>
@@ -447,8 +368,8 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   const composerRowContent = (
     <div
       className={`step2-input-row prompt-actions-compact agent-composer-row ${
-        shouldUsePostInputInlineGenerate ? "has-post-input-inline-generate" : ""
-      } ${shouldStackTrailingComposerControls ? "is-stacked" : ""}`.trim()}
+        shouldStackTrailingComposerControls ? "is-stacked" : ""
+      }`.trim()}
     >
       {shouldStackTrailingComposerControls ? (
         <>
@@ -456,7 +377,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
             {chatModeToggleContent}
             {inputShellContent}
             {composerLeadingControlContent}
-            {chatModeEnabled ? null : postInputInlineGenerateContent}
           </div>
           {stackedControlsRowContent}
         </>
@@ -465,7 +385,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
           {inputShellContent}
           {composerMiddleControlContent}
           {composerLeadingControlContent}
-          {postInputInlineGenerateContent}
           {chatModeActionsContent}
           {chatSendButtonContent}
         </>
@@ -529,20 +448,12 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
           className={`create-expert-chat-composer-overlay-zone ${shouldBlurComposerUnderlay ? "is-composer-expanded" : ""}`.trim()}
         >
           <div className="create-expert-chat-composer-base-layer">{chatHistoryContent}</div>
-          <div className="create-expert-chat-composer-overlay">
-            {inlineGenerateGuardrailReason ? (
-              <div className="inline-warning-hint">{inlineGenerateGuardrailReason}</div>
-            ) : null}
-            {composerRowContent}
-          </div>
+          <div className="create-expert-chat-composer-overlay">{composerRowContent}</div>
         </div>
       ) : (
         <>
           {chatHistoryContent}
           {chatSpacerContent}
-          {inlineGenerateGuardrailReason ? (
-            <div className="inline-warning-hint">{inlineGenerateGuardrailReason}</div>
-          ) : null}
           {composerRowContent}
         </>
       )}

@@ -4,6 +4,7 @@ import {
   CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT,
   CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT,
   CHARACTER_MODE_TELEMETRY_SOURCE,
+  DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_MEDIA_VISIBLE_EVENT,
   GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
@@ -37,6 +38,9 @@ describe("error telemetry source policy", () => {
     ]);
     expect(SYNTHETIC_TEST_SOURCE_LIKE_PATTERN).toBe("admin.synthetic_test.%");
     expect(ADMISSION_LIMITED_TELEMETRY_SOURCE).toBe("telemetry.api.fal_submit.admission_limited");
+    expect(DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE).toBe(
+      "telemetry.api.direct_submit.admission_limited"
+    );
     expect(CHARACTER_MODE_TELEMETRY_SOURCE).toBe("telemetry.character_mode");
     expect(CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT).toBe(
       "character_mode_reference_refresh_empty"

@@ -18,7 +18,8 @@ import {
 } from "./generationCharacterModePreflight";
 import { runGenerationCharacterPreparation } from "./generationCharacterPreparation";
 import { runGenerationCreditGuardrail } from "./generationCreditGuardrail";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import { resolveSubmissionModeForModelId } from "./taskSubmission/outputBootstrap";
+import type { StudioMode, StudioOutput, StudioOutputSubmissionMode, ToolId } from "../types";
 
 type GenerateOptions = {
   modeOverride?: StudioMode;
@@ -96,6 +97,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     prompt: string;
     modeOverride?: StudioMode;
     selectedToolOverride?: ToolId | null;
+    submissionModeOverride?: StudioOutputSubmissionMode;
   }) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   generateOutput: (promptOverride?: string | null, options?: AiStudioGenerateOutputOptions) => void;
@@ -188,7 +190,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         return [];
       }
       const { referenceImageUrl, extraImageUrls } = resolveReferenceInputsForTool(tool);
-      return buildImageReferenceInputs(referenceImageUrl, extraImageUrls);
+      return buildImageReferenceInputs(referenceImageUrl, extraImageUrls, {
+        preserveDuplicateExtras: true,
+      });
     },
     [resolveReferenceInputsForTool]
   );
@@ -254,6 +258,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         prompt: promptToUse,
         modeOverride: effectiveMode,
         selectedToolOverride: effectiveTool,
+        submissionModeOverride: resolveSubmissionModeForModelId(effectiveModelId),
       });
 
       const preparationResult = await runGenerationCharacterPreparation({

@@ -3,6 +3,12 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  clearComposerImageDropSession,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  registerComposerImageDropSession,
+} from "../../../../../lib/internalReferenceDragSession";
+import {
+  captureStyleDropSnapshot,
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
   normalizeStylePromptFallbackText,
@@ -236,6 +242,219 @@ describe("style-creator source normalization", () => {
     });
   });
 
+  it("preserves legacy internal reference ids through captured style-drop snapshots", async () => {
+    installFileReaderMock("data:image/png;base64,from-legacy-internal");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-id",
+        "text/reference-source-surface",
+        "text/reference-url",
+        "text/plain",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-id") return "legacy-out-1";
+        if (type === "text/reference-source-surface") return "all-refs";
+        if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+        if (type === "text/plain") return "legacy prompt";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "legacy-out-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "legacy-out-1",
+        mediaId: null,
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "payload_reference_url",
+      },
+      outputId: "legacy-out-1",
+      mediaId: null,
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/stale-reference.png",
+        width: 1024,
+        height: 768,
+      },
+      previewStoragePath: null,
+      fullStoragePath: null,
+      promptText: "legacy internal prompt",
+      loadBlob: async () => new Blob(["legacy-internal-bytes"], { type: "image/png" }),
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    const resolved = await resolveStyleSource({
+      dropSnapshot: captureStyleDropSnapshot(transfer),
+      resolveInternalStyleDrop: resolver,
+    });
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(resolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceId: "legacy-out-1",
+        outputId: "legacy-out-1",
+        sourceSurface: "all-refs",
+      })
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(resolved).toEqual({
+      kind: "internal",
+      sourceImageDataUrl: "data:image/png;base64,from-legacy-internal",
+      promptText: "legacy prompt",
+      internalPayloadPresent: true,
+      resolutionReason: "payload_reference_url",
+      resolutionStage: "primary",
+      candidateCount: 1,
+    });
+  });
+
+  it("preserves storage-path hints through captured style-drop snapshots", async () => {
+    installFileReaderMock("data:image/png;base64,from-storage-path-internal");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-output-id",
+        "text/reference-media-id",
+        "text/reference-preview-storage-path",
+        "text/reference-full-storage-path",
+      ],
+      getData: (type: string) => {
+        if (type === "text/reference-output-id") return "out-storage-1";
+        if (type === "text/reference-media-id") return "media-storage-1";
+        if (type === "text/reference-preview-storage-path") return "user-1/generated/preview.png";
+        if (type === "text/reference-full-storage-path") return "user-1/generated/full.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-storage-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-storage-1",
+        mediaId: "media-storage-1",
+        imageIndex: 0,
+        sourceSurface: null,
+        resolutionReason: "output_storage_path",
+      },
+      outputId: "out-storage-1",
+      mediaId: "media-storage-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/out-storage-preview.png",
+      },
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "storage path prompt",
+      loadBlob: async () => new Blob(["storage-path-bytes"], { type: "image/png" }),
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    const resolved = await resolveStyleSource({
+      dropSnapshot: captureStyleDropSnapshot(transfer),
+      resolveInternalStyleDrop: resolver,
+    });
+
+    expect(resolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-storage-1",
+        mediaId: "media-storage-1",
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+      })
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(resolved.kind).toBe("internal");
+  });
+
+  it("recovers composer-image payload authority through captured style-drop snapshots", async () => {
+    installFileReaderMock("data:image/png;base64,from-composer-payload");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const token = registerComposerImageDropSession({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "composer-ref-1",
+      outputId: "composer-out-1",
+      mediaId: "composer-media-1",
+      displayArtifactUrl: "data:image/png;base64,composer-artifact",
+      displayArtifactKind: "data",
+      previewStoragePath: "user-1/generated/composer-preview.png",
+      fullStoragePath: "user-1/generated/composer-full.png",
+      referenceUrl: "https://cdn.example.com/composer-reference.png",
+      promptText: "composer prompt",
+      sourceSurface: "all-refs",
+      width: 1024,
+      height: 768,
+      mimeType: "image/png",
+    });
+    const transfer = {
+      files: [],
+      types: [COMPOSER_IMAGE_DROP_SESSION_TYPE],
+      getData: (type: string) => (type === COMPOSER_IMAGE_DROP_SESSION_TYPE ? token : ""),
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "composer-media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "composer-out-1",
+        mediaId: "composer-media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path",
+      },
+      outputId: "composer-out-1",
+      mediaId: "composer-media-1",
+      mediaSource: "generated",
+      preview: {
+        url: "data:image/png;base64,composer-artifact",
+        width: 1024,
+        height: 768,
+      },
+      previewStoragePath: "user-1/generated/composer-preview.png",
+      fullStoragePath: "user-1/generated/composer-full.png",
+      promptText: "internal composer prompt",
+      loadBlob: async () => new Blob(["composer-bytes"], { type: "image/png" }),
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    try {
+      const resolved = await resolveStyleSource({
+        dropSnapshot: captureStyleDropSnapshot(transfer),
+        resolveInternalStyleDrop: resolver,
+      });
+
+      expect(resolver).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputId: "composer-out-1",
+          mediaId: "composer-media-1",
+          previewStoragePath: "user-1/generated/composer-preview.png",
+          fullStoragePath: "user-1/generated/composer-full.png",
+          referenceRenderUrl: "data:image/png;base64,composer-artifact",
+          referenceUrl: "https://cdn.example.com/composer-reference.png",
+        })
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(resolved).toEqual(
+        expect.objectContaining({
+          kind: "internal",
+          promptText: "composer prompt",
+          internalPayloadPresent: true,
+        })
+      );
+    } finally {
+      clearComposerImageDropSession(token);
+    }
+  });
+
   it("resolves dropped preview artifacts from internal sources", async () => {
     installFileReaderMock("data:image/png;base64,from-internal");
     installImageAndCanvasMocks({
@@ -375,6 +594,20 @@ describe("style-creator prompt sanitization and drop acceptance", () => {
   it("accepts internal reference transfer hints", () => {
     const transfer = {
       types: ["text/reference-output-id", "text/reference-origin"],
+    } as unknown as DataTransfer;
+    expect(canAcceptStyleLibraryImageDropHint(transfer)).toBe(true);
+  });
+
+  it("accepts normalized custom session token types for internal drops", () => {
+    const transfer = {
+      types: ["APPLICATION/X-SHORTPULSE-COMPOSER-IMAGE-DROP-TOKEN"],
+    } as unknown as DataTransfer;
+    expect(canAcceptStyleLibraryImageDropHint(transfer)).toBe(true);
+  });
+
+  it("accepts uppercase file transfer hints after normalization", () => {
+    const transfer = {
+      types: ["FILES"],
     } as unknown as DataTransfer;
     expect(canAcceptStyleLibraryImageDropHint(transfer)).toBe(true);
   });

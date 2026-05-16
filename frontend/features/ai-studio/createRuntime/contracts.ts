@@ -9,7 +9,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
+  AgentOutputGenerateRequest,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import type { ModelModalContext } from "../components/ModelModal";
@@ -73,10 +73,9 @@ export type StandardCreateAgentRuntimeActions = {
   onRemoveAgentAttachment: (id: string) => void;
   onClearAgentAttachments: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
+  onApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
   onClearAgentChat: () => void;
   onPrimarySubmit: () => void;
-  onChatOffInlineGenerate: () => void;
 };
 
 export type StandardCreateRuntimeProps = {
@@ -147,7 +146,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   isPromptRefining: boolean;
   isReferencePromptEnhancing: false;
   describeInFlightCount: number;
-  setChatModeEnabled: Dispatch<SetStateAction<boolean>>;
+  setChatModeEnabled: (value: boolean) => void;
   handleAgentInputChange: (value: string) => void;
   handleAgentSend: (
     textOverride?: string,
@@ -160,6 +159,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
+  handleApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
   handleClearAgentChat: () => void;
   hydrateFromSessionAgentSnapshot: (
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">

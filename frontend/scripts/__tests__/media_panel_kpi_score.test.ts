@@ -65,6 +65,8 @@ describe("media_panel_kpi_score", () => {
     expect(scored.missingMetrics).toEqual([]);
     expect(scored.evidence).toBe("high");
     expect(scored.scoreCapsApplied).toEqual([]);
+    expect(scored.diagnostics).toEqual([]);
+    expect(scored.nextFocus).toBeNull();
   });
 
   it("caps partial packets with weak evidence", () => {
@@ -125,6 +127,8 @@ describe("media_panel_kpi_score", () => {
     expect(markdown).toContain("AI Studio Media Panel");
     expect(markdown).toContain("Category Scores");
     expect(markdown).toContain("Evidence quality");
+    expect(markdown).toContain("Next focus");
+    expect(markdown).toContain("## Diagnostics");
   });
 
   it("rejects unsupported packet versions", () => {
@@ -199,6 +203,48 @@ describe("media_panel_kpi_score", () => {
     expect(scored.rawOverallScore10).toBeGreaterThan(scored.overallScore10);
     expect(scored.overallScore10).toBeLessThanOrEqual(5.5);
     expect(scored.scoreCapsApplied).toContain("visual regressions observed");
+  });
+
+  it("emits actionable diagnostics and a likely next focus for weak panel packets", () => {
+    const scored = scorePacket({
+      packetVersion: 2,
+      environment: "production",
+      captureMode: "playwright-panel-audit+live-perf-handle",
+      sampleCount: 5,
+      surface: "ai-studio-panel",
+      metrics: {
+        firstMediaPaintP95Ms: 1094,
+        loadingStateVisibleMsP95: 1002,
+        openToFirstMediaP95Ms: 1094,
+        stableContentSettleMsP95: null,
+        signBatchP95Ms: 1801,
+        resolveCallsPerOpen: 0,
+        fallbackCallsPerOpen: null,
+        stateFlipCountPerOpen: 2.2,
+        extraListCallsPerOpen: 1,
+        signFailedRatio: 0,
+        resolveFailedRatio: 0,
+        fallbackFailedRatio: null,
+        consoleErrorsPerOpen: 0,
+        visualRegressionCount: null,
+        missingPreviewRatio: null,
+        canonicalPreviewCoverageRatio: 0,
+        emptyStateMismatchCount: null,
+      },
+    });
+
+    expect(scored.diagnostics.map((diagnostic) => diagnostic.key)).toEqual([
+      "preview-authority-canonical-coverage",
+      "signing-cost-hot-path",
+      "open-phase-list-churn",
+      "visible-state-churn",
+      "evidence-depth-gap",
+    ]);
+    expect(scored.nextFocus?.lane).toBe("preview-authority");
+    expect(scored.nextFocus?.severity).toBe("critical");
+    expect(scored.nextFocus?.ownerFiles).toContain(
+      "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts"
+    );
   });
 
   it("caps strong packets with tiny sample counts", () => {

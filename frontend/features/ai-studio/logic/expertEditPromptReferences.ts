@@ -53,11 +53,17 @@ export type CompileExpertEditSubmissionPromptInput = {
   displayPrompt: string;
   secondarySlots: [string | null, string | null, string | null];
   referenceInputs: string[];
+  secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>;
 };
 
 export type CompileExpertEditSubmissionPromptResult = {
   submissionPrompt: string;
   hasTokenReferences: boolean;
+};
+
+export type ExpertEditSubmissionReferencePlan = {
+  referenceInputs: string[];
+  secondaryFigureNumbersBySlotIndex: Partial<Record<number, number>>;
 };
 
 const normalizeSlotUrl = (value: string | null | undefined): string => {
@@ -256,17 +262,55 @@ export const buildExpertEditSubmissionReferenceInputs = ({
   secondarySlots: [string | null, string | null, string | null];
   referencedSlotIndexes: number[];
 }): string[] => {
+  return buildExpertEditSubmissionReferencePlan({
+    flattenedPrimaryUrl,
+    flattenedMarkupReferenceUrl,
+    secondarySlots,
+    referencedSlotIndexes,
+  }).referenceInputs;
+};
+
+/**
+ * Builds the canonical provider reference input order and the slot -> figure map used by prompt compilation.
+ */
+export const buildExpertEditSubmissionReferencePlan = ({
+  flattenedPrimaryUrl,
+  flattenedMarkupReferenceUrl,
+  secondarySlots,
+  referencedSlotIndexes,
+}: {
+  flattenedPrimaryUrl: string | null;
+  flattenedMarkupReferenceUrl?: string | null;
+  secondarySlots: [string | null, string | null, string | null];
+  referencedSlotIndexes: number[];
+}): ExpertEditSubmissionReferencePlan => {
   const referencedSecondaryUrls = referencedSlotIndexes.map(
     (slotIndex) => secondarySlots[slotIndex]
   );
-  const candidates = [
-    flattenedPrimaryUrl,
-    flattenedMarkupReferenceUrl ?? null,
-    ...referencedSecondaryUrls,
-  ];
-  return Array.from(
-    new Set(candidates.map((value) => normalizeSlotUrl(value)).filter((value) => value.length > 0))
-  ).slice(0, MAX_EXPERT_EDIT_REFERENCE_INPUTS);
+  const referenceInputs: string[] = [];
+  const secondaryFigureNumbersBySlotIndex: Partial<Record<number, number>> = {};
+  const pushReferenceInput = (value: string | null | undefined): number | null => {
+    const normalizedValue = normalizeSlotUrl(value);
+    if (!normalizedValue.length) return null;
+    if (referenceInputs.length >= MAX_EXPERT_EDIT_REFERENCE_INPUTS) {
+      return null;
+    }
+    referenceInputs.push(normalizedValue);
+    return referenceInputs.length;
+  };
+
+  pushReferenceInput(flattenedPrimaryUrl);
+  pushReferenceInput(flattenedMarkupReferenceUrl ?? null);
+  referencedSlotIndexes.forEach((slotIndex, index) => {
+    const figureNumber = pushReferenceInput(referencedSecondaryUrls[index]);
+    if (figureNumber == null) return;
+    secondaryFigureNumbersBySlotIndex[slotIndex] = figureNumber;
+  });
+
+  return {
+    referenceInputs,
+    secondaryFigureNumbersBySlotIndex,
+  };
 };
 
 export const buildExpertEditPromptHighlightSegments = (
@@ -315,8 +359,13 @@ export const buildExpertEditPromptHighlightSegments = (
 const resolveFigureNumberBySlotIndex = (
   slotIndex: number,
   secondarySlots: [string | null, string | null, string | null],
-  referenceInputs: string[]
+  referenceInputs: string[],
+  secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>
 ): number | null => {
+  const mappedFigureNumber = secondaryFigureNumbersBySlotIndex?.[slotIndex];
+  if (typeof mappedFigureNumber === "number" && Number.isFinite(mappedFigureNumber)) {
+    return mappedFigureNumber;
+  }
   const slotUrl = normalizeSlotUrl(secondarySlots[slotIndex]);
   if (!slotUrl) return null;
   const inputIndex = referenceInputs.findIndex((value) => normalizeSlotUrl(value) === slotUrl);
@@ -327,13 +376,19 @@ const resolveFigureNumberBySlotIndex = (
 const resolveFigureNumberByTokenKind = (
   diagnostic: ExpertEditPromptTokenDiagnostic,
   secondarySlots: [string | null, string | null, string | null],
-  referenceInputs: string[]
+  referenceInputs: string[],
+  secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>
 ): number | null => {
   if (diagnostic.kind === "primary") {
     return 1;
   }
   if (diagnostic.slotIndex == null) return null;
-  return resolveFigureNumberBySlotIndex(diagnostic.slotIndex, secondarySlots, referenceInputs);
+  return resolveFigureNumberBySlotIndex(
+    diagnostic.slotIndex,
+    secondarySlots,
+    referenceInputs,
+    secondaryFigureNumbersBySlotIndex
+  );
 };
 
 const appendFigureMap = ({
@@ -341,11 +396,13 @@ const appendFigureMap = ({
   diagnostics,
   secondarySlots,
   referenceInputs,
+  secondaryFigureNumbersBySlotIndex,
 }: {
   prompt: string;
   diagnostics: ExpertEditPromptTokenDiagnostic[];
   secondarySlots: [string | null, string | null, string | null];
   referenceInputs: string[];
+  secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>;
 }): string => {
   const hasPrimaryReference = diagnostics.some((item) => item.isValid && item.kind === "primary");
   const validSecondaryDiagnostics = diagnostics.filter(
@@ -361,7 +418,8 @@ const appendFigureMap = ({
     const figureNumber = resolveFigureNumberBySlotIndex(
       diagnostic.slotIndex,
       secondarySlots,
-      referenceInputs
+      referenceInputs,
+      secondaryFigureNumbersBySlotIndex
     );
     if (figureNumber == null) return;
     const token = `@img${diagnostic.slotIndex + 1}`;
@@ -386,6 +444,7 @@ export const compileExpertEditSubmissionPrompt = ({
   displayPrompt,
   secondarySlots,
   referenceInputs,
+  secondaryFigureNumbersBySlotIndex,
   options,
 }: CompileExpertEditSubmissionPromptInput & {
   options?: ExpertEditPromptTokenAnalysisOptions;
@@ -407,7 +466,8 @@ export const compileExpertEditSubmissionPrompt = ({
       const figureNumber = resolveFigureNumberByTokenKind(
         diagnostic,
         secondarySlots,
-        referenceInputs
+        referenceInputs,
+        secondaryFigureNumbersBySlotIndex
       );
       compiledPromptParts.push(figureNumber != null ? `Figure ${figureNumber}` : diagnostic.token);
     } else {
@@ -423,6 +483,7 @@ export const compileExpertEditSubmissionPrompt = ({
     diagnostics: analysis.diagnostics,
     secondarySlots,
     referenceInputs,
+    secondaryFigureNumbersBySlotIndex,
   });
 
   return {

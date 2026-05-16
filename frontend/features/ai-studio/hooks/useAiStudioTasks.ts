@@ -41,6 +41,7 @@ import {
   type PollStatus,
   type ShortPulseLifecycleHint,
   readShortPulseLifecycleHint,
+  resolveProviderTerminalFailureCopy,
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
   terminalSuccessStates,
@@ -194,6 +195,10 @@ const isRecognizedSaveState = (
   value === "saved" ||
   value === "failed" ||
   value === "blocked_storage";
+
+const resolveSettledStatusFromSaveState = (
+  saveState: StudioOutput["saveState"]
+): StudioOutput["status"] => (saveState === "saved" ? "saved" : "ready");
 
 const fetchStatusByModelId = async (modelId: string, taskId: string) =>
   fetchQueuedGenerationStatusByModelId(modelId, taskId);
@@ -410,7 +415,7 @@ export function useAiStudioTasks({
           ...item,
           generationId: item.generationId ?? visibleGeneration.generationId ?? item.generationId,
           taskState: "success",
-          status: "ready",
+          status: resolveSettledStatusFromSaveState("saved"),
           timestamp,
           resultUrls: areStringArraysEqual(item.resultUrls, nextResultUrls)
             ? item.resultUrls
@@ -863,7 +868,7 @@ export function useAiStudioTasks({
                   queueState:
                     normalizeLifecycleQueueState(lifecycleHint?.queueState) ?? item.queueState,
                   taskState: item.taskState === "success" ? item.taskState : "success",
-                  status: item.status === "ready" ? item.status : "ready",
+                  status: resolveSettledStatusFromSaveState(nextSaveState),
                   timestamp:
                     item.timestamp === (lifecycleStatusLabel ?? "Just now")
                       ? item.timestamp
@@ -1146,6 +1151,7 @@ export function useAiStudioTasks({
             }
 
             if (terminalFailureStates.has(state)) {
+              const rawFailure = resolveProviderTerminalFailureCopy(status, state);
               addBreadcrumb({
                 type: "ui",
                 level: "warn",
@@ -1156,21 +1162,41 @@ export function useAiStudioTasks({
                   output_id: outputId,
                   status_state: state,
                   poll_attempt: attempt,
+                  error_message: rawFailure.message,
                 },
+              });
+              notifyGenerationFailure(outputId, rawFailure.message, rawFailure.detail, {
+                reasonCode: "provider_error",
+                providerState: state,
+                pollAttempt: attempt,
+                elapsedMs: Date.now() - startedAt,
+                maxWaitMs,
               });
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
                 status: item.status === "ready" ? item.status : "ready",
-                taskState: item.taskState === "running" ? item.taskState : "running",
+                taskState: item.taskState === "fail" ? item.taskState : "fail",
                 timestamp:
-                  item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
-                    ? item.timestamp
-                    : RECOVERY_RECHECK_TIMESTAMP,
-                errorMessage: null,
-                errorMessageShort: null,
-                errorDetail: null,
+                  item.timestamp === "Generation failed" ? item.timestamp : "Generation failed",
+                errorMessage:
+                  item.errorMessage === rawFailure.message ? item.errorMessage : rawFailure.message,
+                errorMessageShort:
+                  item.errorMessageShort === rawFailure.shortMessage
+                    ? item.errorMessageShort
+                    : rawFailure.shortMessage,
+                errorDetail:
+                  item.errorDetail === rawFailure.detail ? item.errorDetail : rawFailure.detail,
               }));
-              scheduleRecoveryRecheckPoll({});
+              if (onGenerationFailure) {
+                onGenerationFailure({
+                  outputId,
+                  taskId,
+                  provider,
+                  message: rawFailure.detail,
+                  reasonCode: "provider_error",
+                });
+              }
+              clearPollTimer(outputId);
               return;
             }
 

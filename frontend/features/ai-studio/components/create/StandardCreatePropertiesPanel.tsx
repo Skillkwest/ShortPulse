@@ -15,7 +15,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
+  AgentOutputGenerateRequest,
 } from "../../../../prefabs/agent";
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
@@ -70,7 +70,6 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
-  isChatOffInlineGenerateDisabled?: boolean;
   outputGenerateCostCredits?: number | null;
   hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
@@ -85,9 +84,8 @@ export type StandardCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
+  onApplyAgentOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onGenerate: () => void;
-  onChatOffInlineGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
@@ -575,12 +573,11 @@ export function StandardCreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
-  onGenerateFromAgentOutputPrompt,
+  onApplyAgentOutputPrompt,
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
-  isChatOffInlineGenerateDisabled = false,
   outputGenerateCostCredits = null,
   hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
@@ -606,7 +603,6 @@ export function StandardCreatePropertiesPanel({
   stylesCatalog,
   createModeToggle = null,
   onGenerate,
-  onChatOffInlineGenerate,
   guardrailReason,
 }: StandardCreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
@@ -774,12 +770,7 @@ export function StandardCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
-    onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
-    chatModeInlineGenerate: {
-      onGenerate: onChatOffInlineGenerate,
-      disabled: isChatOffInlineGenerateDisabled,
-      ariaLabel: "Generate with current prompt",
-    },
+    onApplyOutputPrompt: onApplyAgentOutputPrompt,
     onSavePrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
@@ -826,7 +817,6 @@ export function StandardCreatePropertiesPanel({
     hideAgentIntroMessage: true,
     agentAttachmentDropTarget: "input",
     hideInputDropHint: true,
-    useAgentResponseInlineGeneratePrefab: true,
     highlightLatestAssistantOnly: true,
     CreateChatPanel: StandardCreateChatPanel,
     chatComposerOverlayEnabled: true,

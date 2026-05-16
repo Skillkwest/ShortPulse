@@ -15,6 +15,7 @@ export type UseCreatePulseBuiltInCatalogResult = {
   loading: boolean;
   error: string | null;
   source: "control_plane" | "seed" | null;
+  degraded: boolean;
   isAuthoritative: boolean;
   refresh: () => Promise<void>;
 };
@@ -22,6 +23,7 @@ export type UseCreatePulseBuiltInCatalogResult = {
 const loadCreatePulseBuiltInCatalog = async (): Promise<{
   builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
   source: "control_plane" | "seed";
+  degraded: boolean;
 }> => {
   const response = await fetchWithAuth("/api/ai/create-pulse-builtins", {
     method: "GET",
@@ -35,10 +37,12 @@ const loadCreatePulseBuiltInCatalog = async (): Promise<{
   const payload = (await response.json()) as {
     builtInDefinitions?: unknown;
     source?: unknown;
+    degraded?: unknown;
   };
   return {
     builtInDefinitions: normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions),
     source: payload.source === "control_plane" ? "control_plane" : "seed",
+    degraded: payload.degraded === true,
   };
 };
 
@@ -51,6 +55,7 @@ export const useCreatePulseBuiltInCatalog = ({
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<"control_plane" | "seed" | null>("seed");
+  const [degraded, setDegraded] = useState<boolean>(false);
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -58,6 +63,7 @@ export const useCreatePulseBuiltInCatalog = ({
       setLoading(false);
       setError(null);
       setSource("seed");
+      setDegraded(false);
       return;
     }
 
@@ -66,6 +72,7 @@ export const useCreatePulseBuiltInCatalog = ({
       const nextCatalog = await loadCreatePulseBuiltInCatalog();
       setBuiltInDefinitions(nextCatalog.builtInDefinitions);
       setSource(nextCatalog.source);
+      setDegraded(nextCatalog.degraded);
       setError(null);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to load Pulse built-ins.");
@@ -83,7 +90,8 @@ export const useCreatePulseBuiltInCatalog = ({
     loading,
     error,
     source,
-    isAuthoritative: !loading && error == null && source === "control_plane",
+    degraded,
+    isAuthoritative: !loading && error == null && !degraded && source === "control_plane",
     refresh,
   };
 };

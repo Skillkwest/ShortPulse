@@ -10,7 +10,6 @@ import {
   resolveProjectEntryPhase,
 } from "../features/ai-studio/logic/aiStudioPageProjectState";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
-import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import { useAiStudioReferenceAssetActions } from "../features/ai-studio/hooks/useAiStudioReferenceAssetActions";
 import { useAiStudioWorkspaceActions } from "../features/ai-studio/hooks/useAiStudioWorkspaceActions";
@@ -48,7 +47,6 @@ import {
   resolvePulseArtifactGenerationRoute,
   usePulseCreatePrimarySubmit,
 } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
-import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
 import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type { StudioMode, ToolId } from "../features/ai-studio/types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../features/ai-studio/logic/chatModeDefaults";
@@ -109,7 +107,6 @@ type UseAiStudioCreatePanelRuntimeParams = {
   handleCreatePulsePresetStart: CreatePanelHandlePulsePresetStart;
   handleGenerate: CreatePanelHandleGenerate;
   handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
-  handleStandardAgentCaptureResult: (promptText: string, referenceTitle?: string | null) => void;
 };
 type UseAiStudioEditVideoPanelRuntimesParams = {
   base: AiStudioPageBaseRuntime;
@@ -188,7 +185,6 @@ const useAiStudioCreatePanelRuntime = ({
   handleCreatePulsePresetStart,
   handleGenerate,
   handleOpenModelModal,
-  handleStandardAgentCaptureResult,
 }: UseAiStudioCreatePanelRuntimeParams): CreatePanelProps => {
   const {
     aspect,
@@ -215,11 +211,8 @@ const useAiStudioCreatePanelRuntime = ({
     setAspect,
     setImageResolution,
     setIsCreateCharacterModeEnabled,
-    setMode,
-    setSelectedToolWithEditIntentReset,
     setStandardCreatePrompt,
     setUiNotice,
-    setVideoReferenceText,
     standardPrompt,
     useReferenceImageIndicator,
   } = base;
@@ -248,7 +241,6 @@ const useAiStudioCreatePanelRuntime = ({
     handleRemoveAgentAttachment,
     isAgentDropActive,
     persistedAgentRuntime,
-    setPromptOrigin,
     stagedAgentPrompt,
   } = activeCreateAgentRuntime;
   const standardCreateAgentRuntime =
@@ -259,57 +251,28 @@ const useAiStudioCreatePanelRuntime = ({
     () => undefined,
     []
   );
+  const noopApplyAgentOutputPrompt = useCallback(() => undefined, []);
   const chatModeEnabled =
     standardCreateAgentRuntime?.chatModeEnabled ?? STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
+  const handleApplyAgentOutputPrompt =
+    standardCreateAgentRuntime?.handleApplyAgentOutputPrompt ?? noopApplyAgentOutputPrompt;
   const handleProviderPrimarySubmit = useCallback(() => {
     void handleGenerate();
   }, [handleGenerate]);
   const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
-    mode,
     selectedTool,
     chatModeEnabled,
     agentInput,
     prompt: standardPrompt,
     currentCostCredits,
     promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-    handleAgentSend,
     handleGenerate,
     handleProviderPrimarySubmit,
-    handleStandardAgentCaptureResult,
-    setPromptOrigin,
+    setSharedPrompt: setStandardCreatePrompt,
   });
-  const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
-    agentInput,
-    prompt: standardPrompt,
-    currentCostCredits,
-    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-    handleGenerate,
-    setPromptOrigin,
-  });
-  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
-    useAiStudioAgentOutputGenerationBridge({
-      enabled: expertCreateMode !== "pulse",
-      outputs: base.outputs,
-      referenceGridReadyOutputIds: base.referenceGridReadyOutputIds,
-      mode,
-      selectedTool,
-      isGenerateDisabled: effectiveIsGenerateDisabled,
-      hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-      model,
-      characterModeEnabled: isCreateCharacterModeEnabled,
-      selectedCharacterId: createSelectedCharacterId,
-      currentCostCredits,
-      promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-      setVideoReferenceText,
-      setEditReferenceText: base.setEditReferenceText,
-      setSharedPrompt: setStandardCreatePrompt,
-      setSelectedToolWithEditIntentReset,
-      setMode,
-      setPromptOrigin,
-      handleGenerate,
-    });
+  const assistantBubbleMedia = undefined;
   const pulsePrimarySubmitGuardrail =
     pulseArtifactTarget != null ? pulseGenerationGuardrail : effectiveGenerationGuardrail;
   const pulsePrimarySubmitCostCredits =
@@ -479,10 +442,9 @@ const useAiStudioCreatePanelRuntime = ({
         onRemoveAgentAttachment: handleRemoveAgentAttachment,
         onClearAgentAttachments: handleClearAgentAttachments,
         onAssistantMessageEdit: handleAssistantMessageEdit,
-        onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
+        onApplyAgentOutputPrompt: handleApplyAgentOutputPrompt,
         onClearAgentChat: handleClearAgentChat,
         onPrimarySubmit: handleStandardCreatePrimarySubmit,
-        onChatOffInlineGenerate: handleChatOffInlineGenerate,
       },
     });
     return {
@@ -528,12 +490,11 @@ const useAiStudioCreatePanelRuntime = ({
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,
-    handleChatOffInlineGenerate,
+    handleApplyAgentOutputPrompt,
     handleClearAgentAttachments,
     handleClearAgentChat,
     handleCreateCharacterSelection,
     handleGenerate,
-    handleGenerateFromAgentOutputPrompt,
     handleOpenCharacterLibrary,
     handleOpenModelModal,
     handlePulseCreatePromptChange,
@@ -1087,7 +1048,6 @@ const AiStudioPageRuntimeBody = ({
     activeOutput,
     activeOutputId,
     activeSessionPersistenceSessionId,
-    addAgentPromptReference,
     addCharacterReferences,
     addLibraryMediaReference,
     addLibraryPromptReference,
@@ -1459,14 +1419,6 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   });
-
-  const handleStandardAgentCaptureResult = useCallback(
-    (promptText: string, referenceTitle?: string | null) => {
-      addAgentPromptReference(promptText, referenceTitle ?? undefined);
-      setPromptOrigin("agent");
-    },
-    [addAgentPromptReference, setPromptOrigin]
-  );
   const workflowBeginnerPolicy = useMemo(
     () => createWorkflowBeginnerModePolicy(beginnerMode, true),
     [beginnerMode]
@@ -1533,7 +1485,6 @@ const AiStudioPageRuntimeBody = ({
     handleCreatePulsePresetStart,
     handleGenerate,
     handleOpenModelModal,
-    handleStandardAgentCaptureResult,
   });
   const {
     propertiesCreate: pagePropertiesCreate,

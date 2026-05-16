@@ -79,6 +79,19 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(0.6667);
     expect(packet.metrics.visualRegressionCount).toBeNull();
     expect(packet.metrics.emptyStateMismatchCount).toBeNull();
+    expect(packet.analysis.signStatsPhaseUsed).toBe("open");
+    expect(packet.analysis.openPhaseSignTabBreakdown).toEqual([
+      {
+        tab: "unknown",
+        samples: 15,
+        signBatchP95Ms: 280,
+        totalSigned: 60,
+        totalFailed: 0,
+        totalResolvedDurable: 40,
+        totalResolvedOriginal: 20,
+        canonicalPreviewCoverageRatio: 0.6667,
+      },
+    ]);
   });
 
   it("keeps direct timing p95 fields null when fewer than five runs were captured", () => {
@@ -92,6 +105,105 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
     expect(packet.metrics.signBatchP95Ms).toBe(280);
     expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(0.6667);
+  });
+
+  it("prefers open-phase sign stats over post-tab churn when deriving coverage", () => {
+    const packet = buildPacketFromPanelCapture(
+      {
+        captures: Array.from({ length: 5 }, () =>
+          createCaptureSample({
+            openPhasePerfHandle: {
+              available: true,
+              signStats: [
+                {
+                  surface: "media-library-panel",
+                  tab: "uploaded_images",
+                  samples: 1,
+                  p95_duration_ms: 210,
+                  total_signed: 6,
+                  total_failed: 0,
+                  total_resolved_durable: 6,
+                  total_resolved_original: 0,
+                  total_primary_durable: 6,
+                  total_primary_original: 0,
+                },
+              ],
+              resolveStats: [],
+              fallbackStats: [],
+            },
+            postTabPerfHandle: {
+              available: true,
+              signStats: [
+                {
+                  surface: "media-library-panel",
+                  tab: "uploaded_images",
+                  samples: 1,
+                  p95_duration_ms: 510,
+                  total_signed: 6,
+                  total_failed: 0,
+                  total_resolved_durable: 0,
+                  total_resolved_original: 6,
+                  total_primary_durable: 0,
+                  total_primary_original: 6,
+                },
+              ],
+              resolveStats: [],
+              fallbackStats: [],
+            },
+            perfHandle: {
+              available: true,
+              signStats: [
+                {
+                  surface: "media-library-panel",
+                  tab: "uploaded_images",
+                  samples: 1,
+                  p95_duration_ms: 510,
+                  total_signed: 6,
+                  total_failed: 0,
+                  total_resolved_durable: 0,
+                  total_resolved_original: 6,
+                  total_primary_durable: 0,
+                  total_primary_original: 6,
+                },
+              ],
+              resolveStats: [],
+              fallbackStats: [],
+            },
+          })
+        ),
+      },
+      {
+        environment: "production",
+      }
+    );
+
+    expect(packet.metrics.signBatchP95Ms).toBe(210);
+    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
+    expect(packet.analysis.signStatsPhaseUsed).toBe("open");
+    expect(packet.analysis.openPhaseSignTabBreakdown).toEqual([
+      {
+        tab: "uploaded_images",
+        samples: 5,
+        signBatchP95Ms: 210,
+        totalSigned: 30,
+        totalFailed: 0,
+        totalResolvedDurable: 30,
+        totalResolvedOriginal: 0,
+        canonicalPreviewCoverageRatio: 1,
+      },
+    ]);
+    expect(packet.analysis.postTabSignTabBreakdown).toEqual([
+      {
+        tab: "uploaded_images",
+        samples: 5,
+        signBatchP95Ms: 510,
+        totalSigned: 30,
+        totalFailed: 0,
+        totalResolvedDurable: 0,
+        totalResolvedOriginal: 30,
+        canonicalPreviewCoverageRatio: 0,
+      },
+    ]);
   });
 
   it("builds an Elements packet using the same shared telemetry surface", () => {

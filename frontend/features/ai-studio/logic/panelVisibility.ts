@@ -70,20 +70,29 @@ export const resolveHeaderShortcutStateMap = ({
 }: {
   effectiveVisibility: EffectivePanelVisibility;
   availability: PanelToggleAvailability;
-}): HeaderShortcutStateMap => ({
-  "quick-slot-inventory": {
-    pressed: effectiveVisibility.quickSlot,
-    disabled: !availability.quickSlot,
-  },
-  "reference-grid": {
-    pressed: effectiveVisibility.referenceGrid,
-    disabled: false,
-  },
-  styles: {
-    pressed: effectiveVisibility.styles,
-    disabled: !availability.styles,
-  },
-});
+}): HeaderShortcutStateMap => {
+  const activeShortcutId: HeaderShortcutId | null = effectiveVisibility.quickSlot
+    ? "quick-slot-inventory"
+    : effectiveVisibility.referenceGrid
+      ? "reference-grid"
+      : effectiveVisibility.styles
+        ? "styles"
+        : null;
+  return {
+    "quick-slot-inventory": {
+      pressed: activeShortcutId === "quick-slot-inventory",
+      disabled: !availability.quickSlot,
+    },
+    "reference-grid": {
+      pressed: activeShortcutId === "reference-grid",
+      disabled: false,
+    },
+    styles: {
+      pressed: activeShortcutId === "styles",
+      disabled: !availability.styles,
+    },
+  };
+};
 
 /**
  * Toggles a single header shortcut while respecting toggle availability.
@@ -104,17 +113,18 @@ export const togglePanelVisibilityByShortcut = ({
       styles: !panelVisibility.styles,
     };
   }
-  if (shortcutId === "quick-slot-inventory" && !availability.quickSlot) return panelVisibility;
+  if (shortcutId === "quick-slot-inventory") {
+    if (!availability.quickSlot) return panelVisibility;
+    return {
+      ...panelVisibility,
+      quickSlot: true,
+      referenceGrid: false,
+    };
+  }
   return {
     ...panelVisibility,
-    quickSlot:
-      shortcutId === "quick-slot-inventory"
-        ? !panelVisibility.quickSlot
-        : panelVisibility.quickSlot,
-    referenceGrid:
-      shortcutId === "reference-grid"
-        ? !panelVisibility.referenceGrid
-        : panelVisibility.referenceGrid,
+    quickSlot: false,
+    referenceGrid: true,
   };
 };
 

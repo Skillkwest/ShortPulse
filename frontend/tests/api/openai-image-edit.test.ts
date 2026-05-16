@@ -41,6 +41,7 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/openai/image-edit", () => {
   beforeEach(() => {
@@ -98,6 +99,39 @@ describe("POST /api/openai/image-edit", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(editOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(402).json({
+        error: "Insufficient credits. Add credits or switch plans before retrying.",
+        code: "INSUFFICIENT_CREDITS",
+      });
+      return null;
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait edit",
+        size: "1024x1024",
+        quality: "medium",
+        images: [{ image_url: "https://example.com/base.png" }],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(editOpenAiImageMock).not.toHaveBeenCalled();
+    expect(persistGeneratedImageAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Insufficient credits. Add credits or switch plans before retrying.",
+      code: "INSUFFICIENT_CREDITS",
+    });
   });
 
   it("charges, edits, and persists one GPT Image 2 output", async () => {

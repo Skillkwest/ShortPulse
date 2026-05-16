@@ -1,7 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
-import { hasComposerImageAttachmentPreview } from "../../logic/composerImageAttachment";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
@@ -26,9 +25,6 @@ export type RunStandardCreateAgentSendParams = Pick<
   | "prompt"
   | "latestAgentPrompt"
   | "setLatestAgentPrompt"
-  | "selectedTool"
-  | "setSharedPrompt"
-  | "setPromptOrigin"
   | "sendToAgent"
   | "appendUserMessage"
   | "updateMessageById"
@@ -47,7 +43,8 @@ const cloneMessageAttachments = (
 ) => attachments.map((attachment) => ({ ...attachment }));
 
 const stripModeSpecificContext = (context: AgentContext): AgentContext => {
-  const { pulse: _pulse, ...standardContext } = context;
+  const { pulse, ...standardContext } = context;
+  void pulse;
   return standardContext;
 };
 
@@ -70,9 +67,6 @@ export const runStandardCreateAgentSend = async ({
   prompt,
   latestAgentPrompt,
   setLatestAgentPrompt,
-  selectedTool,
-  setSharedPrompt,
-  setPromptOrigin,
   sendToAgent,
   appendUserMessage,
   updateMessageById,
@@ -128,6 +122,9 @@ export const runStandardCreateAgentSend = async ({
   const sentFromComposer = typeof textOverride !== "string";
   const userMessageText = trimmed || outboundText;
   const optimisticUserMessageId = appendUserMessage(userMessageText, outboundAttachments);
+  const originalAgentInput = agentInput;
+  const originalAgentAttachments = cloneMessageAttachments(agentAttachments);
+  let composerCleared = false;
   const patchOptimisticMessageAttachments = (
     updater: (
       attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
@@ -165,36 +162,29 @@ export const runStandardCreateAgentSend = async ({
       })
     );
   };
-  if (sentFromComposer && trimmed) {
-    setAgentInput("");
-  }
-  if (outboundAttachments.length > 0) {
-    setAgentAttachments([]);
-  }
-  try {
-    const imageAttachmentsMissingUrl = outboundAttachments.filter(
-      (attachment) => attachment.kind === "image" && !hasComposerImageAttachmentPreview(attachment)
-    );
-    if (imageAttachmentsMissingUrl.length > 0) {
-      const failedIds = imageAttachmentsMissingUrl.map((attachment) => attachment.id);
-      updateOptimisticAttachmentDelivery(
-        failedIds,
-        "failed",
-        "Image URL missing. Remove this image and attach it again."
-      );
-      setAgentAttachmentError(
-        "One or more attached images are missing a valid URL. Remove failed images and try again."
-      );
-      trackAgentUiEvent("studio_agent_attachment_missing_url", {
-        failed_image_attachments: failedIds.length,
-      });
-      return;
+  const clearComposerDraft = () => {
+    if (composerCleared) return;
+    composerCleared = true;
+    if (sentFromComposer && trimmed) {
+      setAgentInput("");
     }
-
+    if (outboundAttachments.length > 0) {
+      setAgentAttachments([]);
+    }
+  };
+  const restoreComposerDraft = () => {
+    if (!composerCleared) return;
+    composerCleared = false;
+    if (sentFromComposer) {
+      setAgentInput(originalAgentInput);
+    }
+    if (outboundAttachments.length > 0) {
+      setAgentAttachments(originalAgentAttachments);
+    }
+  };
+  try {
     const imageAttachmentIds = outboundAttachments
-      .filter(
-        (attachment) => attachment.kind === "image" && hasComposerImageAttachmentPreview(attachment)
-      )
+      .filter((attachment) => attachment.kind === "image")
       .map((attachment) => attachment.id);
     let preparedImageUrls = new Map<string, string>();
     if (imageAttachmentIds.length > 0) {
@@ -217,6 +207,7 @@ export const runStandardCreateAgentSend = async ({
           trackAgentUiEvent("studio_agent_attachment_missing_url", {
             failed_image_attachments: preparedImageResult.failedIds.length,
           });
+          restoreComposerDraft();
           return;
         }
         updateOptimisticAttachmentDelivery(
@@ -231,12 +222,15 @@ export const runStandardCreateAgentSend = async ({
           failed_image_attachments: preparedImageResult.failedIds.length,
           attempted_image_attachments: preparedImageResult.attemptedCount,
         });
+        restoreComposerDraft();
         return;
       }
 
       preparedImageUrls = preparedImageResult.preparedImageUrls;
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
+
+    clearComposerDraft();
 
     const requestContext = mergeAttachmentContext({
       baseContext,
@@ -253,6 +247,7 @@ export const runStandardCreateAgentSend = async ({
       optimisticUserMessageId,
     });
     if (discarded) {
+      restoreComposerDraft();
       return;
     }
 
@@ -260,6 +255,7 @@ export const runStandardCreateAgentSend = async ({
       trackAgentUiEvent("studio_agent_response_empty", {
         mode_hint: options?.modeHint ?? "chat",
       });
+      restoreComposerDraft();
       if (options?.captureResult) return;
       return;
     }
@@ -272,10 +268,6 @@ export const runStandardCreateAgentSend = async ({
 
     if (appliedPrompt) {
       setLatestAgentPrompt(appliedPrompt);
-      if (selectedTool === "create" || selectedTool === "text") {
-        setSharedPrompt(appliedPrompt);
-        setPromptOrigin("agent");
-      }
     }
 
     if (options?.captureResult && appliedPrompt) {

@@ -135,9 +135,10 @@ describe("Dashboard guest route", () => {
     );
     expect(
       screen.getByRole("link", {
-        name: "New Project: Open the AI Studio",
+        name: "New Project: Compare plans and unlock your first project",
       })
     ).toHaveAttribute("href", "/pricing?intent=create-project");
+    expect(screen.getByText("ShortPulse · Home")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", {
         name: /open projects/i,

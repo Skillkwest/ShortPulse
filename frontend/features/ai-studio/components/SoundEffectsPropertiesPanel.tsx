@@ -111,7 +111,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       pricingPolicy,
       pricingPolicyReady,
     }) ?? null;
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
+  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating;
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,
@@ -185,6 +185,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
   const handleInspirationPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isGenerating) return;
       const node = inspirationScrollerRef.current;
       if (!node) return;
       inspirationDragPointerIdRef.current = event.pointerId;
@@ -195,11 +196,12 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       setIsDraggingInspiration(false);
       node.setPointerCapture(event.pointerId);
     },
-    []
+    [isGenerating]
   );
 
   const handleInspirationPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isGenerating) return;
       const node = inspirationScrollerRef.current;
       if (!node || inspirationDragPointerIdRef.current !== event.pointerId) return;
       const deltaX = event.clientX - inspirationDragStartXRef.current;
@@ -212,7 +214,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       node.scrollLeft = inspirationDragStartScrollLeftRef.current - deltaX;
       syncInspirationScrollState();
     },
-    [syncInspirationScrollState]
+    [isGenerating, syncInspirationScrollState]
   );
 
   const endInspirationDrag = React.useCallback(
@@ -246,7 +248,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   }, [durationSeconds, generateCost, loopEnabled, onGenerate, prompt]);
 
   return (
-    <section className="sound-effects-properties-panel tool-properties">
+    <section className="sound-effects-properties-panel tool-properties" aria-busy={isGenerating}>
       <div className="sound-effects-properties-shell">
         <div ref={splitContainerRef} className="sound-effects-properties-main">
           <section
@@ -274,6 +276,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                 maxLength={maxPromptCharacters}
                 placeholder={soundEffectPromptPlaceholder}
                 aria-label="Sound effect prompt"
+                readOnly={isGenerating}
               />
 
               <div
@@ -304,6 +307,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                         key={chip}
                         type="button"
                         className="sound-effects-properties-inspiration-chip"
+                        disabled={isGenerating}
                         onClick={() => handleInspirationChipClick(chip)}
                       >
                         {chip}
@@ -316,7 +320,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       type="button"
                       className="sound-effects-properties-inspiration-arrow"
                       onClick={() => scrollInspirationBy(-inspirationScrollStepPx)}
-                      disabled={!inspirationScrollState.canScrollBack}
+                      disabled={isGenerating || !inspirationScrollState.canScrollBack}
                       aria-label="Scroll inspiration left"
                     >
                       ←
@@ -325,7 +329,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       type="button"
                       className="sound-effects-properties-inspiration-arrow"
                       onClick={() => scrollInspirationBy(inspirationScrollStepPx)}
-                      disabled={!inspirationScrollState.canScrollForward}
+                      disabled={isGenerating || !inspirationScrollState.canScrollForward}
                       aria-label="Scroll inspiration right"
                     >
                       →
@@ -348,6 +352,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                     role="switch"
                     aria-checked={loopEnabled}
                     aria-label="Loop sound effect"
+                    disabled={isGenerating}
                     onClick={() => setLoopEnabled((currentValue) => !currentValue)}
                   >
                     <span className="sound-effects-properties-loop-switch-label">Loop</span>

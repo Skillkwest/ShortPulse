@@ -47,6 +47,7 @@ type CreateSubmissionLifecycleCallbacksParams = {
   ) => void;
   ensureGenerationRecord: (input: EnsureGenerationRecordInput) => Promise<string | null>;
   markStarted: (taskId: string, provider: Provider) => void;
+  createLifecycleContractError: (detail: string) => Error;
 };
 
 const syncResolvedGenerationId = ({
@@ -87,13 +88,28 @@ export const createSubmissionLifecycleCallbacks = ({
   startPollingTask,
   ensureGenerationRecord,
   markStarted,
+  createLifecycleContractError,
 }: CreateSubmissionLifecycleCallbacksParams) => {
+  let claimedLifecycleMode: "queued" | "direct" | null = null;
+  const claimLifecycleMode = (nextMode: "queued" | "direct", actionLabel: string) => {
+    if (claimedLifecycleMode == null) {
+      claimedLifecycleMode = nextMode;
+      return;
+    }
+    const detail =
+      claimedLifecycleMode === nextMode
+        ? `Submission lifecycle already claimed '${nextMode}' before ${actionLabel}.`
+        : `Submission lifecycle cannot ${actionLabel} after '${claimedLifecycleMode}' was already claimed.`;
+    throw createLifecycleContractError(detail);
+  };
+
   const startPollingWithGeneration = (
     taskId: string | undefined,
     provider: Provider,
     patch: SubmissionPatch = {},
     submitResponse?: FalSubmitResponse
   ) => {
+    claimLifecycleMode("queued", "starting queued polling");
     const submitGenerationId =
       submitResponse &&
       "request_id" in submitResponse &&
@@ -174,6 +190,7 @@ export const createSubmissionLifecycleCallbacks = ({
     saveState,
     saveError = null,
   }: ImmediateGenerationResult) => {
+    claimLifecycleMode("direct", "completing a direct-response submission");
     markStarted(requestId, provider);
     if (isOutputAbandoned?.(outputId)) return;
     updateOutputById(outputId, (item) =>

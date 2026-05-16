@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { StudioOutput } from "../../types";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
@@ -216,12 +217,35 @@ describe("useAiStudioGenerationController", () => {
       prompt: "prompt",
       modeOverride: "image",
       selectedToolOverride: "create",
+      submissionModeOverride: "provider-task",
     });
     expect(generateOutput).toHaveBeenCalledWith(
       "prompt",
       expect.objectContaining({ outputIdOverride: "out-optimistic" })
     );
     expect(generateResult).toEqual({ accepted: true, optimisticOutputId: "out-optimistic" });
+  });
+
+  it("marks gpt-image-2 optimistic placeholders as direct-request submissions", async () => {
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-openai");
+    const generateOutput = vi.fn();
+    const params = createParams({
+      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      generateOutput,
+      insertOptimisticGenerationPlaceholder,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt");
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith({
+      prompt: "prompt",
+      modeOverride: "image",
+      selectedToolOverride: "create",
+      submissionModeOverride: "direct-request",
+    });
   });
 
   it("cleans up optimistic placeholder when pre-submit character prep fails", async () => {
@@ -477,6 +501,41 @@ describe("useAiStudioGenerationController", () => {
         modelIdOverride: "fal-ai/bytedance/seedream/v5/lite/edit",
         referenceInputsOverride: ["blob:flatten-primary", "https://example.com/extra.png"],
       })
+    );
+  });
+
+  it("preserves duplicate derived edit references during regenerate preflight", async () => {
+    const regenerateOutput = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => null);
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/bytedance/seedream/v5/lite/edit",
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides,
+      resolveReferenceInputsForTool: vi.fn(() => ({
+        referenceImageUrl: "https://example.com/shared.png",
+        extraImageUrls: [
+          "https://example.com/shared.png",
+          null,
+          "https://example.com/shared.png",
+        ] as [string | null, string | null, string | null],
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit();
+    });
+
+    expect(resolveCharacterModeSubmissionOverrides).toHaveBeenCalledWith(
+      "default prompt",
+      "edit",
+      null,
+      [
+        "https://example.com/shared.png",
+        "https://example.com/shared.png",
+        "https://example.com/shared.png",
+      ]
     );
   });
 

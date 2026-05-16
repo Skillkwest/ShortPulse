@@ -5,12 +5,11 @@
 import React from "react";
 import { postExtractStyle } from "../../logic/styleExtraction";
 import type { StylesLibraryStyleDetails } from "../../types";
-import {
-  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
-  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
-} from "../../../../lib/internalReferenceDragSession";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
-import { extractInternalReferenceDragPayload } from "../../utils/dragDrop";
+import {
+  extractComposerImageDropPayload,
+  extractInternalReferenceDragPayload,
+} from "../../utils/dragDrop";
 import {
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
@@ -19,6 +18,7 @@ import {
 import { buildExtractionFailureResult } from "./extraction";
 import {
   applyStylePreviewToPendingEdit,
+  buildStyleDropSnapshotTransfer,
   buildInitialStyleDetails,
   buildNewStyleDetails,
   buildNextCustomStyleName,
@@ -162,15 +162,25 @@ const classifyPlainTextKind = (value: string): string => {
   return "text";
 };
 
-const countRawSnapshotUrlSeeds = (dropSnapshot: StyleDropSnapshot): number => {
+const normalizeOptionalText = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || null;
+};
+
+const countRawSnapshotUrlSeeds = (
+  dropSnapshot: StyleDropSnapshot,
+  composerPayload?: { displayArtifactUrl?: string | null; referenceUrl?: string | null } | null
+): number => {
   const uriListValue = dropSnapshot.uriList
     .split(/\r?\n/)
     .map((item) => item.trim())
     .find((item) => item.length > 0 && !item.startsWith("#"));
   const plainText = dropSnapshot.plainText.trim();
   return [
+    composerPayload?.displayArtifactUrl ?? null,
     dropSnapshot.referenceRenderUrl,
     dropSnapshot.imageUrl,
+    composerPayload?.referenceUrl ?? null,
     dropSnapshot.referenceUrl,
     uriListValue ?? null,
     /^(?:data:image\/|blob:|https?:\/\/|\/)/i.test(plainText) ? plainText : null,
@@ -201,42 +211,9 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
   internalPayloadPresent?: boolean | null;
   errorMessage?: string;
 }) => {
-  const transferLikeSnapshot = {
-    types: dropSnapshot.transferTypes,
-    files: dropSnapshot.files,
-    getData: (type: string) => {
-      switch (type) {
-        case INTERNAL_REFERENCE_DRAG_SESSION_TYPE:
-        case INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE:
-          return dropSnapshot.internalReferenceDragToken;
-        case "text/reference-origin":
-          return dropSnapshot.referenceOrigin;
-        case "text/reference-output-id":
-          return dropSnapshot.referenceOutputId;
-        case "text/reference-id":
-          return dropSnapshot.referenceOutputId;
-        case "text/reference-media-id":
-          return dropSnapshot.referenceMediaId;
-        case "text/reference-image-index":
-          return dropSnapshot.referenceImageIndex;
-        case "text/reference-source-surface":
-          return dropSnapshot.referenceSourceSurface;
-        case "text/reference-url":
-          return dropSnapshot.referenceUrl;
-        case "text/reference-render-url":
-          return dropSnapshot.referenceRenderUrl;
-        case "image/url":
-          return dropSnapshot.imageUrl;
-        case "text/plain":
-          return dropSnapshot.plainText;
-        case "text/uri-list":
-          return dropSnapshot.uriList;
-        default:
-          return "";
-      }
-    },
-  } as unknown as DataTransfer;
+  const transferLikeSnapshot = buildStyleDropSnapshotTransfer(dropSnapshot);
   const internalPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
+  const composerPayload = extractComposerImageDropPayload(transferLikeSnapshot);
   trackStyleSourceResolutionDiagnostic({
     flow,
     outcome,
@@ -246,18 +223,28 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
         ? internalPayloadPresent
         : Boolean(internalPayload),
     internalDragTokenPresent: Boolean(dropSnapshot.internalReferenceDragToken.trim()),
-    rawSnapshotSeedCount: countRawSnapshotUrlSeeds(dropSnapshot),
+    rawSnapshotSeedCount: countRawSnapshotUrlSeeds(dropSnapshot, composerPayload),
     transferTypes: dropSnapshot.transferTypes,
-    referenceOrigin: dropSnapshot.referenceOrigin || null,
-    referenceOutputId: dropSnapshot.referenceOutputId || null,
-    referenceMediaId: dropSnapshot.referenceMediaId || null,
+    referenceOrigin:
+      normalizeOptionalText(internalPayload?.origin) ??
+      normalizeOptionalText(dropSnapshot.referenceOrigin),
+    referenceOutputId:
+      normalizeOptionalText(internalPayload?.outputId) ??
+      normalizeOptionalText(internalPayload?.referenceId) ??
+      normalizeOptionalText(dropSnapshot.referenceOutputId),
+    referenceMediaId:
+      normalizeOptionalText(internalPayload?.mediaId) ??
+      normalizeOptionalText(dropSnapshot.referenceMediaId),
     referenceImageIndex: (() => {
-      const raw = dropSnapshot.referenceImageIndex.trim();
-      if (!raw) return null;
-      const parsed = Number.parseInt(raw, 10);
+      const parsed =
+        typeof internalPayload?.imageIndex === "number"
+          ? internalPayload.imageIndex
+          : Number.parseInt(dropSnapshot.referenceImageIndex.trim(), 10);
       return Number.isFinite(parsed) ? parsed : null;
     })(),
-    referenceSourceSurface: dropSnapshot.referenceSourceSurface || null,
+    referenceSourceSurface:
+      normalizeOptionalText(internalPayload?.sourceSurface) ??
+      normalizeOptionalText(dropSnapshot.referenceSourceSurface),
     referenceUrlKind: classifyTransferredUrlKind(dropSnapshot.referenceUrl),
     referenceRenderUrlKind: classifyTransferredUrlKind(dropSnapshot.referenceRenderUrl),
     imageUrlKind: classifyTransferredUrlKind(dropSnapshot.imageUrl),

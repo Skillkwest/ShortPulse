@@ -8,6 +8,7 @@ const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsSoundEffectMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
+const probeMediaDurationSecondsMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -32,10 +33,15 @@ vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
   markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
 }));
 
+vi.mock("../../lib/server/mediaAudioExtraction", () => ({
+  probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/elevenlabs/sound-effects", () => {
   beforeEach(() => {
@@ -67,6 +73,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       note: "captured",
     });
     markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    probeMediaDurationSecondsMock.mockResolvedValue(2.4);
   });
 
   it("rejects out-of-range explicit durations", async () => {
@@ -85,6 +92,40 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(402).json({
+        error: "Insufficient credits. Add credits or switch plans before retrying.",
+        code: "INSUFFICIENT_CREDITS",
+      });
+      return null;
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Huge downlift boom.",
+        durationSeconds: null,
+        loop: false,
+        outputFormat: "mp3_44100_128",
+        modelId: "eleven_text_to_sound_v2",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Insufficient credits. Add credits or switch plans before retrying.",
+      code: "INSUFFICIENT_CREDITS",
+    });
   });
 
   it("rejects unsupported model ids before billing", async () => {
@@ -163,6 +204,8 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         projectId: "project-1",
         extraMetadata: expect.objectContaining({
           debited_credits: 15,
+          duration_ms: 2400,
+          resolved_duration_seconds: 2.4,
           loop_enabled: true,
           provider_character_cost: 100,
           provider_request_id: "provider-sfx-1",
@@ -201,7 +244,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         companionArtStoragePath: null,
         companionArtStatus: "pending",
         mimeType: "audio/mpeg",
-        durationMs: null,
+        durationMs: 2400,
         waveformPeaks: null,
         modelId: "eleven_text_to_sound_v2",
         characterCost: 100,

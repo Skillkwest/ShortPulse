@@ -44,6 +44,7 @@ describe("GET /api/ai/create-pulse-builtins", () => {
       source: "control_plane",
       updatedAt: "2026-05-05T18:00:00.000Z",
       updatedByEmail: "admin@example.com",
+      degraded: false,
     });
 
     const req = { method: "GET" };
@@ -56,6 +57,30 @@ describe("GET /api/ai/create-pulse-builtins", () => {
       source: "control_plane",
       updatedAt: "2026-05-05T18:00:00.000Z",
       updatedByEmail: "admin@example.com",
+      degraded: false,
+    });
+  });
+
+  it("returns degraded seed fallback metadata when runtime resolution fails soft", async () => {
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
+      source: "seed",
+      updatedAt: null,
+      updatedByEmail: null,
+      degraded: true,
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
+      source: "seed",
+      updatedAt: null,
+      updatedByEmail: null,
+      degraded: true,
     });
   });
 });

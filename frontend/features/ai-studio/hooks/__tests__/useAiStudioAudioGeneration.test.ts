@@ -268,6 +268,72 @@ describe("useAiStudioAudioGeneration", () => {
     );
   });
 
+  it("preserves structured retry guidance for admission-limited music responses", async () => {
+    let outputs: StudioOutput[] = [];
+    let uiError: string | null = null;
+
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(({ prompt }: { prompt: string }) => {
+      outputs = [createPlaceholderOutput("out-music-limit", prompt), ...outputs];
+      return "out-music-limit";
+    });
+    const updateOutputById = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: {
+        get: vi.fn((name: string) => (name === "Retry-After" ? "13" : null)),
+      },
+      json: async () => ({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        admissionScope: "shared_provider",
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure,
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    let accepted: boolean | void = true;
+    await act(async () => {
+      accepted = await result.current.handleMusicGenerate({
+        text: "busy shared lane",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+      });
+    });
+
+    expect(accepted).toBe(false);
+    expect(uiError).toBe(
+      "Shared generation capacity is busy right now. Please retry in 13 seconds."
+    );
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-music-limit",
+      "Shared generation capacity is busy right now. Please retry in 13 seconds.",
+      "Shared generation capacity is busy right now. Please retry in 13 seconds."
+    );
+  });
+
   it("prepends a remuxed video output for voice changer generations", async () => {
     let outputs: StudioOutput[] = [];
     let uiError: string | null = null;

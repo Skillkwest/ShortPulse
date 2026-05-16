@@ -32,6 +32,27 @@ describe("buildImageReferenceInputs", () => {
       "https://example.com/extra-b.png",
     ]);
   });
+
+  it("preserves duplicate extras when slot identity must be retained", () => {
+    expect(
+      buildImageReferenceInputs(
+        "https://example.com/shared.png",
+        [
+          "https://example.com/shared.png",
+          "https://example.com/extra-a.png",
+          "https://example.com/shared.png",
+        ],
+        {
+          preserveDuplicateExtras: true,
+        }
+      )
+    ).toEqual([
+      "https://example.com/shared.png",
+      "https://example.com/shared.png",
+      "https://example.com/extra-a.png",
+      "https://example.com/shared.png",
+    ]);
+  });
 });
 
 describe("buildVideoReferenceInputs", () => {
@@ -233,6 +254,23 @@ describe("resolveAutoVideoModelForLane", () => {
 });
 
 describe("buildRegenerateReferencePool", () => {
+  it("preserves duplicate edit slot references during regenerate", () => {
+    expect(
+      buildRegenerateReferencePool({
+        selectedTool: "edit",
+        useReferenceImageIndicator: false,
+        activeOutputPreviewUrl: "https://example.com/generated.png",
+        referenceUrl: "https://example.com/shared.png",
+        extraUrls: ["https://example.com/shared.png", null, "https://example.com/shared.png"],
+        videoReferenceMode: "standard",
+      })
+    ).toEqual([
+      "https://example.com/shared.png",
+      "https://example.com/shared.png",
+      "https://example.com/shared.png",
+    ]);
+  });
+
   it("never prepends active output for video tools", () => {
     expect(
       buildRegenerateReferencePool({

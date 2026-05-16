@@ -17,6 +17,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
       new Response(
         JSON.stringify({
           source: "control_plane",
+          degraded: false,
           builtInDefinitions: [
             {
               presetId: "catalog_test",
@@ -56,6 +57,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
     });
     expect(result.current.error).toBeNull();
     expect(result.current.source).toBe("control_plane");
+    expect(result.current.degraded).toBe(false);
     expect(result.current.isAuthoritative).toBe(true);
     expect(result.current.builtInDefinitions).toEqual(
       expect.arrayContaining([
@@ -73,6 +75,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
         new Response(
           JSON.stringify({
             source: "control_plane",
+            degraded: false,
             builtInDefinitions: [
               {
                 presetId: "catalog_test",
@@ -117,7 +120,51 @@ describe("useCreatePulseBuiltInCatalog", () => {
       ])
     );
     expect(result.current.source).toBe("control_plane");
+    expect(result.current.degraded).toBe(false);
     expect(result.current.isAuthoritative).toBe(false);
     expect(result.current.error).toBe("network down");
+  });
+
+  it("reports degraded seed fallback explicitly when the runtime route fails soft", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          source: "seed",
+          degraded: true,
+          builtInDefinitions: [
+            {
+              presetId: "catalog_test",
+              label: "Catalog Test",
+              description: "Seed fallback entry.",
+              systemInstructions: "Use the seeded catalog.",
+              runtimeMode: "workflow_gpt",
+              activationMode: "activate_and_start",
+              outputMode: "chat_reply",
+              memoryPolicy: "session",
+              starterAssistantMessage: null,
+              workflowStageHints: null,
+              artifactTarget: "image_prompt",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    const { result } = renderHook(() => useCreatePulseBuiltInCatalog());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.source).toBe("seed");
+    expect(result.current.degraded).toBe(true);
+    expect(result.current.isAuthoritative).toBe(false);
   });
 });

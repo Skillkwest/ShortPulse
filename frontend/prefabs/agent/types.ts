@@ -56,6 +56,7 @@ export type AgentAttachment = {
   referenceUrl?: string | null;
   referenceRenderUrl?: string | null;
   imageUrl?: string | null;
+  submissionImageUrl?: string | null;
   imageFallbackUrls?: string[];
   aspect?: string | null;
   deliveryStatus?: AgentAttachmentDeliveryStatus;

@@ -14,12 +14,103 @@ const SURFACE_PROFILES = {
     label: "AI Studio Media Panel",
     notes:
       "Primary Libraries > Media panel inside AI Studio. Optimize for fast first paint, low resolver churn, and zero trust-breaking display errors.",
+    ownerFiles: [
+      "frontend/features/ai-studio/components/MediaLibraryPanel.tsx",
+      "frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts",
+      "frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts",
+      "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
+      "frontend/lib/mediaPerfTelemetry.ts",
+    ],
   },
   "elements-media-panel": {
     label: "Elements Embedded Media Panel",
     notes:
       "Embedded Media panel inside Elements. Optimize for the same preview/runtime contract while guarding against embed-shell overhead.",
+    ownerFiles: [
+      "frontend/features/ai-studio/components/ElementsEmbeddedMediaLibraryPanel.tsx",
+      "frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts",
+      "frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts",
+      "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
+      "frontend/lib/mediaPerfTelemetry.ts",
+    ],
   },
+};
+
+const DIAGNOSTIC_DEFS = [
+  {
+    key: "preview-authority-canonical-coverage",
+    label: "Canonical preview authority weakness",
+    severity: "critical",
+    lane: "preview-authority",
+    description:
+      "Visible rows are still leaning on original assets or non-canonical media instead of durable canonical preview-backed delivery.",
+    ownerFiles: [
+      "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
+      "frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts",
+    ],
+    when: (metric) => (metric("canonicalPreviewCoverageRatio") ?? 1) < 0.6,
+  },
+  {
+    key: "signing-cost-hot-path",
+    label: "Preview signing cost too high",
+    severity: "high",
+    lane: "signing-cost",
+    description:
+      "Preview signing is consuming too much of the open path and is likely amplifying perceived panel delay.",
+    ownerFiles: [
+      "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
+      "frontend/lib/mediaPerfTelemetry.ts",
+    ],
+    when: (metric) => (metric("signBatchP95Ms") ?? 0) >= 900,
+  },
+  {
+    key: "open-phase-list-churn",
+    label: "Open-phase list churn still present",
+    severity: "high",
+    lane: "list-orchestration",
+    description:
+      "The panel is still issuing at least one extra list request during the open phase instead of settling from the primary browse load.",
+    ownerFiles: [
+      "frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts",
+      "frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts",
+    ],
+    when: (metric) => (metric("extraListCallsPerOpen") ?? 0) > 0.1,
+  },
+  {
+    key: "visible-state-churn",
+    label: "Visible loading churn remains high",
+    severity: "medium",
+    lane: "panel-state-churn",
+    description:
+      "The panel flips visible states too often before settling, which can make a technically successful load still feel unstable.",
+    ownerFiles: [
+      "frontend/features/ai-studio/components/MediaLibraryPanel.tsx",
+      "frontend/features/ai-studio/components/ElementsEmbeddedMediaLibraryPanel.tsx",
+      "frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts",
+    ],
+    when: (metric) => (metric("stateFlipCountPerOpen") ?? 0) > 1,
+  },
+  {
+    key: "evidence-depth-gap",
+    label: "Evidence depth still weak",
+    severity: "medium",
+    lane: "measurement-depth",
+    description:
+      "The KPI packet is still missing enough direct measurements that optimization claims should stay provisional.",
+    ownerFiles: [
+      "frontend/scripts/media_panel_kpi_capture.mjs",
+      "frontend/scripts/media_panel_kpi_score.mjs",
+    ],
+    when: (metric, context) =>
+      context.evidence === "low" || context.evidence === "insufficient" || context.coverage < 0.75,
+  },
+];
+
+const DIAGNOSTIC_SEVERITY_RANK = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
 };
 
 const METRIC_DEFS = [
@@ -345,7 +436,13 @@ const readinessLabel = (score10) => {
 
 const evidenceLabel = (coverage, sampleCount) => {
   const coverageEvidence =
-    coverage >= 0.9 ? "high" : coverage >= 0.75 ? "medium" : coverage >= 0.5 ? "low" : "insufficient";
+    coverage >= 0.9
+      ? "high"
+      : coverage >= 0.75
+        ? "medium"
+        : coverage >= 0.5
+          ? "low"
+          : "insufficient";
   const sampleEvidence =
     sampleCount == null
       ? "low"
@@ -359,6 +456,9 @@ const evidenceLabel = (coverage, sampleCount) => {
   const ranking = ["insufficient", "low", "medium", "high"];
   return ranking[Math.min(ranking.indexOf(coverageEvidence), ranking.indexOf(sampleEvidence))];
 };
+
+const severitySort = (left, right) =>
+  (DIAGNOSTIC_SEVERITY_RANK[right.severity] ?? 0) - (DIAGNOSTIC_SEVERITY_RANK[left.severity] ?? 0);
 
 const validateTemplateSurface = (surface) => {
   if (!SURFACE_PROFILES[surface]) {
@@ -455,6 +555,7 @@ const validatePacket = (packet) => {
     captureMode: ensureStringOrNull(packet.captureMode, "captureMode"),
     sampleCount: ensureSampleCountOrNull(packet.sampleCount),
     notes: Array.isArray(packet.notes) ? packet.notes : [],
+    analysis: packet.analysis && typeof packet.analysis === "object" ? packet.analysis : null,
     metrics,
   };
 };
@@ -527,7 +628,9 @@ export const scorePacket = (packet) => {
   const validated = validatePacket(packet);
   const profile = SURFACE_PROFILES[validated.surface];
   const metrics = validated.metrics;
-  const scoredMetrics = METRIC_DEFS.map((metricDef) => scoreMetric(metricDef, metrics[metricDef.key]));
+  const scoredMetrics = METRIC_DEFS.map((metricDef) =>
+    scoreMetric(metricDef, metrics[metricDef.key])
+  );
 
   const measuredWeight = scoredMetrics
     .filter((metric) => metric.present)
@@ -569,6 +672,34 @@ export const scorePacket = (packet) => {
     .filter((metric) => !metric.present)
     .map((metric) => metric.key);
 
+  const metricValue = (key) =>
+    scoredMetrics.find((metric) => metric.key === key && metric.present)?.value ?? null;
+  const diagnostics = DIAGNOSTIC_DEFS.filter((diagnostic) =>
+    diagnostic.when(metricValue, {
+      coverage,
+      evidence,
+      surface: validated.surface,
+      sampleCount: validated.sampleCount,
+    })
+  )
+    .map((diagnostic) => ({
+      key: diagnostic.key,
+      label: diagnostic.label,
+      severity: diagnostic.severity,
+      lane: diagnostic.lane,
+      description: diagnostic.description,
+      ownerFiles: diagnostic.ownerFiles,
+    }))
+    .sort(severitySort);
+  const nextFocus = diagnostics[0]
+    ? {
+        lane: diagnostics[0].lane,
+        reason: diagnostics[0].description,
+        severity: diagnostics[0].severity,
+        ownerFiles: diagnostics[0].ownerFiles,
+      }
+    : null;
+
   return {
     packetVersion: validated.packetVersion,
     measuredAt: validated.measuredAt,
@@ -578,17 +709,22 @@ export const scorePacket = (packet) => {
     surface: validated.surface,
     surfaceLabel: profile.label,
     surfaceNotes: profile.notes,
+    analysis: validated.analysis,
     rawOverallScore10,
     overallScore10,
     overallScore100: Number(normalizedScore100.toFixed(1)),
     grade: evidence === "insufficient" ? "I" : gradeScore(overallScore10),
-    readiness: evidence === "insufficient" ? "insufficient evidence" : readinessLabel(overallScore10),
+    readiness:
+      evidence === "insufficient" ? "insufficient evidence" : readinessLabel(overallScore10),
     evidence,
     coverage,
     measuredWeight,
     totalPossibleWeight: TOTAL_POSSIBLE_WEIGHT,
     scoreCapsApplied,
     missingMetrics,
+    diagnostics,
+    nextFocus,
+    ownerFiles: profile.ownerFiles,
     metrics: scoredMetrics,
     categories,
   };
@@ -621,12 +757,8 @@ const compareScoredMetric = (metricDef, olderMetric, newerMetric) => {
   const delta = newerMetric.value - olderMetric.value;
   const threshold = compareThresholdForMetric(metricDef);
   const meaningful = Math.abs(delta) >= threshold;
-  const improved =
-    meaningful &&
-    (metricDef.direction === "higher" ? delta > 0 : delta < 0);
-  const regressed =
-    meaningful &&
-    (metricDef.direction === "higher" ? delta < 0 : delta > 0);
+  const improved = meaningful && (metricDef.direction === "higher" ? delta > 0 : delta < 0);
+  const regressed = meaningful && (metricDef.direction === "higher" ? delta < 0 : delta > 0);
 
   return {
     key: metricDef.key,
@@ -656,7 +788,11 @@ export const comparePackets = (olderPacket, newerPacket) => {
   const olderMetricMap = new Map(older.metrics.map((metric) => [metric.key, metric]));
   const newerMetricMap = new Map(newer.metrics.map((metric) => [metric.key, metric]));
   const metricComparisons = METRIC_DEFS.map((metricDef) =>
-    compareScoredMetric(metricDef, olderMetricMap.get(metricDef.key), newerMetricMap.get(metricDef.key))
+    compareScoredMetric(
+      metricDef,
+      olderMetricMap.get(metricDef.key),
+      newerMetricMap.get(metricDef.key)
+    )
   );
 
   const meaningfulImprovements = metricComparisons.filter(
@@ -731,6 +867,9 @@ export const buildMarkdownReport = (scored) => {
     `- Readiness: ${scored.readiness}`,
     `- Evidence quality: ${scored.evidence}`,
     `- Coverage: ${(scored.coverage * 100).toFixed(0)}%`,
+    `- Next focus: ${
+      scored.nextFocus ? `${scored.nextFocus.lane} (${scored.nextFocus.severity})` : "none"
+    }`,
     "",
     "## Category Scores",
   ];
@@ -758,6 +897,31 @@ export const buildMarkdownReport = (scored) => {
   } else {
     for (const key of scored.missingMetrics) {
       lines.push(`- ${key}`);
+    }
+  }
+
+  lines.push("", "## Diagnostics");
+  if (scored.diagnostics.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const diagnostic of scored.diagnostics) {
+      lines.push(`- [${diagnostic.severity}] ${diagnostic.label}: ${diagnostic.description}`);
+      lines.push(`  - lane: ${diagnostic.lane}`);
+      lines.push(`  - owner files: ${diagnostic.ownerFiles.join(", ")}`);
+    }
+  }
+
+  if (scored.analysis && typeof scored.analysis === "object") {
+    const openPhaseSignTabBreakdown = Array.isArray(scored.analysis.openPhaseSignTabBreakdown)
+      ? scored.analysis.openPhaseSignTabBreakdown
+      : [];
+    if (openPhaseSignTabBreakdown.length > 0) {
+      lines.push("", "## Open-Phase Sign Breakdown");
+      for (const entry of openPhaseSignTabBreakdown) {
+        lines.push(
+          `- ${entry.tab}: coverage=${entry.canonicalPreviewCoverageRatio ?? "n/a"}, signed=${entry.totalSigned ?? 0}, p95=${entry.signBatchP95Ms ?? "n/a"} ms`
+        );
+      }
     }
   }
 
@@ -954,12 +1118,18 @@ const main = () => {
       `Readiness: ${scored.readiness}`,
       `Evidence quality: ${scored.evidence}`,
       `Coverage: ${(scored.coverage * 100).toFixed(0)}%`,
+      scored.nextFocus
+        ? `Next focus: ${scored.nextFocus.lane} (${scored.nextFocus.severity})`
+        : "Next focus: none",
       ...scored.categories.map(
         (category) =>
           `${category.label}: ${
             category.score10 == null ? "not measured" : `${category.score10} / 10`
           }`
       ),
+      scored.diagnostics.length > 0
+        ? `Diagnostics: ${scored.diagnostics.map((diagnostic) => diagnostic.key).join(", ")}`
+        : "Diagnostics: none",
       scored.scoreCapsApplied.length > 0
         ? `Score caps: ${scored.scoreCapsApplied.join(", ")}`
         : "Score caps: none",

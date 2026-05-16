@@ -56,13 +56,9 @@ export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>
   const candidates = previewCandidates.storagePaths.slice(0, maxSignCandidatesPerRow);
   const primaryPath = candidates[0] ?? null;
   const directUrl = previewCandidates.directUrl;
-  const normalizedStoragePath = typeof row.storage_path === "string" ? row.storage_path.trim() : "";
-  const directUrlKind =
-    directUrl && normalizedStoragePath && directUrl.trim() === normalizedStoragePath
-      ? "original"
-      : directUrl
-        ? "durable"
-        : "unknown";
+  const directUrlKind = directUrl
+    ? classifyMediaPreviewPath(row, directUrl, currentUserId)
+    : "unknown";
   return {
     id: row.id,
     primaryPath,
@@ -110,6 +106,7 @@ export const mapMediaSignResults = <TRow extends PreviewSigningRowLike>(params: 
     const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
     const directUrl = signedFromPath ? null : entry.directUrl;
     const signedUrl = signedFromPath ?? directUrl;
+    const resolvedPreviewSource = matchedPath ?? directUrl;
     return {
       id: entry.id,
       signedUrl,
@@ -118,7 +115,7 @@ export const mapMediaSignResults = <TRow extends PreviewSigningRowLike>(params: 
       primaryPathKind: entry.primaryPathKind,
       resolvedPathKind: classifyMediaPreviewPath(
         rowsById.get(entry.id) ?? { storage_path: "" },
-        matchedPath,
+        resolvedPreviewSource,
         currentUserId
       ),
     };

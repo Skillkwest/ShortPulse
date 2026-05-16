@@ -59,6 +59,17 @@ const getCaptureSamples = (capture) =>
       ? [capture]
       : [];
 
+const getSamplePerfHandleForPhase = (sample, phase) => {
+  if (!sample || typeof sample !== "object") return null;
+  if (phase === "open") {
+    return sample.openPhasePerfHandle ?? sample.perfHandle ?? null;
+  }
+  if (phase === "post-tabs") {
+    return sample.postTabPerfHandle ?? sample.perfHandle ?? null;
+  }
+  return sample.perfHandle ?? null;
+};
+
 const loadEnvFromFileIfNeeded = (filePath) => {
   if (!fs.existsSync(filePath)) return;
   const raw = fs.readFileSync(filePath, "utf8");
@@ -171,14 +182,20 @@ const countConsoleErrors = (entries) =>
         .length
     : 0;
 
-const aggregateSignStats = (capture) => {
-  const buckets = getCaptureSamples(capture).flatMap((sample) =>
-    Array.isArray(sample?.perfHandle?.signStats)
-      ? sample.perfHandle.signStats.filter(
-          (bucket) => bucket?.surface === (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+const collectSignBucketsBySample = (capture, phase = "open") =>
+  getCaptureSamples(capture).map((sample) =>
+    Array.isArray(getSamplePerfHandleForPhase(sample, phase)?.signStats)
+      ? getSamplePerfHandleForPhase(sample, phase).signStats.filter(
+          (bucket) =>
+            bucket?.surface ===
+            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
         )
       : []
   );
+
+const aggregateSignStats = (capture, phase = "open") => {
+  const bucketsBySample = collectSignBucketsBySample(capture, phase);
+  const buckets = bucketsBySample.flatMap((entry) => entry);
   if (!buckets.length) return null;
 
   const totals = buckets.reduce(
@@ -225,6 +242,59 @@ const aggregateSignStats = (capture) => {
     canonicalPreviewCoverageRatio:
       canonicalPreviewCoverageRatio == null ? null : Number(canonicalPreviewCoverageRatio.toFixed(4)),
   };
+};
+
+const buildSignTabBreakdown = (capture, phase = "open") => {
+  const buckets = collectSignBucketsBySample(capture, phase).flatMap((entry) => entry);
+  if (!buckets.length) return [];
+
+  const byTab = new Map();
+  for (const bucket of buckets) {
+    const tab = normalizeString(bucket?.tab) || "unknown";
+    const entry = byTab.get(tab) ?? {
+      tab,
+      samples: 0,
+      totalSigned: 0,
+      totalFailed: 0,
+      totalResolvedDurable: 0,
+      totalResolvedOriginal: 0,
+      maxP95DurationMs: 0,
+    };
+    entry.samples += toFiniteNumber(bucket?.samples) ?? 0;
+    entry.totalSigned += toFiniteNumber(bucket?.total_signed) ?? 0;
+    entry.totalFailed += toFiniteNumber(bucket?.total_failed) ?? 0;
+    entry.totalResolvedDurable += toFiniteNumber(bucket?.total_resolved_durable) ?? 0;
+    entry.totalResolvedOriginal += toFiniteNumber(bucket?.total_resolved_original) ?? 0;
+    entry.maxP95DurationMs = Math.max(
+      entry.maxP95DurationMs,
+      toFiniteNumber(bucket?.p95_duration_ms) ?? 0
+    );
+    byTab.set(tab, entry);
+  }
+
+  return Array.from(byTab.values())
+    .map((entry) => {
+      const denominator = entry.totalResolvedDurable + entry.totalResolvedOriginal;
+      return {
+        tab: entry.tab,
+        samples: entry.samples,
+        signBatchP95Ms: entry.maxP95DurationMs || null,
+        totalSigned: entry.totalSigned,
+        totalFailed: entry.totalFailed,
+        totalResolvedDurable: entry.totalResolvedDurable,
+        totalResolvedOriginal: entry.totalResolvedOriginal,
+        canonicalPreviewCoverageRatio:
+          denominator > 0
+            ? Number((entry.totalResolvedDurable / denominator).toFixed(4))
+            : null,
+      };
+    })
+    .sort((left, right) => {
+      const leftCoverage = left.canonicalPreviewCoverageRatio ?? -1;
+      const rightCoverage = right.canonicalPreviewCoverageRatio ?? -1;
+      if (leftCoverage !== rightCoverage) return leftCoverage - rightCoverage;
+      return (right.totalSigned ?? 0) - (left.totalSigned ?? 0);
+    });
 };
 
 const aggregateResolveStats = (capture) => {
@@ -338,7 +408,9 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       )
     )
   );
-  const signAggregate = aggregateSignStats(capture);
+  const signAggregate = aggregateSignStats(capture, "open");
+  const openPhaseSignTabBreakdown = buildSignTabBreakdown(capture, "open");
+  const postTabSignTabBreakdown = buildSignTabBreakdown(capture, "post-tabs");
   const resolveAggregate = aggregateResolveStats(capture);
   const fallbackAggregate = aggregateFallbackStats(capture);
   const firstMediaPaintP95Ms =
@@ -369,9 +441,14 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
         ? `${firstVisibleMediaSamples.length} of ${sampleCount} capture runs reached a visible media card during the open-phase measurement.`
         : "No capture run reached a visible media card during the open-phase measurement.",
       signAggregate?.canonicalPreviewCoverageRatio == null
-        ? "Canonical preview coverage was not derivable from the live sign stats in this run."
-        : "Canonical preview coverage was derived from panel sign stats using resolved durable vs resolved original counts when available.",
+        ? "Canonical preview coverage was not derivable from open-phase panel sign stats in this run."
+        : "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available.",
     ],
+    analysis: {
+      signStatsPhaseUsed: signAggregate ? "open" : "none",
+      openPhaseSignTabBreakdown,
+      postTabSignTabBreakdown,
+    },
     metrics: {
       firstMediaPaintP95Ms:
         firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
@@ -619,6 +696,19 @@ async function captureTabResults(page, panel) {
   return results;
 }
 
+const readPerfHandle = async (page) =>
+  page.evaluate(() => {
+    const handle = window.__shortpulseMediaPerf;
+    if (!handle) return { available: false };
+    return {
+      available: true,
+      durationStats: typeof handle.durationStats === "function" ? handle.durationStats() : null,
+      signStats: typeof handle.signStats === "function" ? handle.signStats() : null,
+      resolveStats: typeof handle.resolveStats === "function" ? handle.resolveStats() : null,
+      fallbackStats: typeof handle.fallbackStats === "function" ? handle.fallbackStats() : null,
+    };
+  });
+
 async function runPanelCapture({ baseUrl, headless, surface }) {
   const surfaceSpec = getCaptureSurfaceSpec(surface);
   if (!surfaceSpec) {
@@ -666,20 +756,11 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
         : await openAiStudioMediaPanel(page);
     const openState = await measurePanelOpenState(page, surfaceSpec.panelSelector);
     await waitForDelay(1_200);
+    const openPhasePerfHandle = await readPerfHandle(page);
     capturePhase = "tabs";
     const tabResults = await captureTabResults(page, panel);
     capturePhase = "post-tabs";
-    const perfHandle = await page.evaluate(() => {
-      const handle = window.__shortpulseMediaPerf;
-      if (!handle) return { available: false };
-      return {
-        available: true,
-        durationStats: typeof handle.durationStats === "function" ? handle.durationStats() : null,
-        signStats: typeof handle.signStats === "function" ? handle.signStats() : null,
-        resolveStats: typeof handle.resolveStats === "function" ? handle.resolveStats() : null,
-        fallbackStats: typeof handle.fallbackStats === "function" ? handle.fallbackStats() : null,
-      };
-    });
+    const postTabPerfHandle = await readPerfHandle(page);
 
     return {
       ok: countConsoleErrors(consoleEntries) === 0,
@@ -696,7 +777,9 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
       resolveRequestCount: resolveRequests.length,
       initialResolveRequestCount: resolveRequests.filter((entry) => entry.phase === "open").length,
       consoleEntries,
-      perfHandle,
+      openPhasePerfHandle,
+      postTabPerfHandle,
+      perfHandle: postTabPerfHandle,
     };
   } finally {
     await context.close();

@@ -12,7 +12,7 @@ import type { PromptStepProps } from "./promptStep/types";
 export type { PromptStepProps } from "./promptStep/types";
 
 export function PromptStep({
-  stepNumber: _stepNumber,
+  stepNumber,
   title = "Choose Prompt Mode",
   subtitle = "Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.",
   prompt,
@@ -42,6 +42,7 @@ export function PromptStep({
   onClearAgentChat,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
+  onApplyOutputPrompt,
   chatModeInlineGenerate,
   useAgentResponseInlineGeneratePrefab = false,
   onSavePrompt,
@@ -95,6 +96,7 @@ export function PromptStep({
   onPromptSelect,
   onPromptKeyDown,
 }: PromptStepProps) {
+  void stepNumber;
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
   );
@@ -361,8 +363,7 @@ export function PromptStep({
                 agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
-                chatModeInlineGenerate={chatModeInlineGenerate}
-                useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
+                onApplyOutputPrompt={onApplyOutputPrompt}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 CreateChatPanel={CreateChatPanel}
                 disableOutputGenerate={disableOutputGenerate}
@@ -388,7 +389,6 @@ export function PromptStep({
                 chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
                 chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
-                prompt={prompt}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (

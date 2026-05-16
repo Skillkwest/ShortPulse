@@ -3,6 +3,7 @@
 Purpose: explain how CSS is split to keep files focused and under the line limit.
 
 ## Files and responsibilities
+
 - `styles/globals.css`: Aggregator; only imports other CSS files.
 - `styles/foundation.css`: Resets, tokens, typography, layout primitives, base page shells.
 - `styles/ui-patterns.css`: Buttons, chips, panels, stat cards, preview tiles, shared UI atoms.
@@ -37,23 +38,26 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/ai-studio-responsive.css`: AI Studio responsive breakpoints.
 - `styles/ai-studio-create-expert.tokens.css`: Expert create tokens, panel shell, and top-level spacing/heading defaults.
 - `styles/ai-studio-create-expert-chat.css`: Expert inline chat shell, message presentation, and assistant/user text treatments.
-- `styles/ai-studio-create-expert-output-generate.css`: Expert output-generate card/pill styling (history + inline generate CTA).
+- `styles/ai-studio-create-expert-output-generate.css`: Expert assistant-output action column styling (history preview, apply CTA, and any retained output action layout).
 - `styles/ai-studio-create-expert-composer.css`: Expert composer input shell, attachment strip, and send-row controls.
 - `styles/ai-studio-create-expert-controls.css`: Expert control rows, model/aspect/resolution selectors, character-mode toggle/picker states.
 - `styles/ai-studio-create-expert-motion.css`: Expert-specific keyframes and reduced-motion overrides.
 - `styles/ai-studio-create-expert-responsive.css`: Expert-specific responsive overrides at small breakpoints.
 
 ## Adding styles
+
 - Prefer extending the feature sheet that matches the surface; avoid reintroducing a monolithic `globals.css`.
 - If a new surface does not fit existing files, add a new CSS file and import it from `globals.css`.
 - Aim to keep each file under ~500 lines; if it grows beyond that, document why and plan a split.
 - Avoid deep selectors; keep class-based styling aligned with React components.
 
 ## Palette constraints
+
 - Avoid the dark tones `#21211e`, `#1f201c`, and `#1e1e1b`; use `#1c1f20` as the panel/base tone across surfaces.
 - Treat runtime `--color-panel` in `styles/foundation.css` as the canonical panel/base authority unless an explicit later migration changes that token.
 
 ## AI Studio Edit Authority
+
 - Keep AI Studio Edit authority layered in this order:
   - `styles/ai-studio-edit-theme.css`
   - `styles/ai-studio-edit-expert.tokens.css`
@@ -61,14 +65,16 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - Preserve this order in `globals.css`; token and alias work should happen before broad literal migration in `ai-studio-edit-expert.css`.
 
 ## Import order
+
 `globals.css` imports in this order to maintain token availability and predictable overrides:
-1) foundation
-2) component system (`components-buttons.css`, `components-cards.css`, `components-inputs.css`, `accessibility.css`)
-3) ui + workspace core (`ui-patterns.css`, `workspace-shared.css`, `workspace-chrome.css`, `workspace-dashboard.css`)
-4) ai-studio primary shell/surfaces (`ai-studio-layout` through `ai-studio-reference-properties`)
-5) prefabs (`prefabs-agent.css`, `prefabs-agent-variants.css`)
-6) ai-studio secondary/editor layers (`ai-studio-properties` through `ai-studio-create-expert-responsive`)
-7) character + workspace route sheets (`character.css`, `character-manager.css`, `workspace-tools.css`, `workspace-media.css`, `workspace-profile.css`)
-8) performance (`performance-core.css`, `performance-detail.css`, `performance-responsive.css`)
-9) landing (`landing-core.css`, `landing-sections.css`)
-10) auth + viewport lock (`auth.css`, `viewport-lock.css`)
+
+1. foundation
+2. component system (`components-buttons.css`, `components-cards.css`, `components-inputs.css`, `accessibility.css`)
+3. ui + workspace core (`ui-patterns.css`, `workspace-shared.css`, `workspace-chrome.css`, `workspace-dashboard.css`)
+4. ai-studio primary shell/surfaces (`ai-studio-layout` through `ai-studio-reference-properties`)
+5. prefabs (`prefabs-agent.css`, `prefabs-agent-variants.css`)
+6. ai-studio secondary/editor layers (`ai-studio-properties` through `ai-studio-create-expert-responsive`)
+7. character + workspace route sheets (`character.css`, `character-manager.css`, `workspace-tools.css`, `workspace-media.css`, `workspace-profile.css`)
+8. performance (`performance-core.css`, `performance-detail.css`, `performance-responsive.css`)
+9. landing (`landing-core.css`, `landing-sections.css`)
+10. auth + viewport lock (`auth.css`, `viewport-lock.css`)

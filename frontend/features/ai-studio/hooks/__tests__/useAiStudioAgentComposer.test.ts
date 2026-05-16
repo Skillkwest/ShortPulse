@@ -180,7 +180,7 @@ describe("useAiStudioAgentComposer", () => {
         kind: "image",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: "blob:resolved-artifact",
+        imageUrl: null,
         imageFallbackUrls: [],
         previewStoragePath: "user-1/generated/preview.png",
         fullStoragePath: "user-1/generated/full.png",
@@ -238,6 +238,7 @@ describe("useAiStudioAgentComposer", () => {
         referenceId: "out-1",
         mediaId: "media-1",
         imageUrl: "blob:materialized-composer-preview",
+        submissionImageUrl: expect.stringMatching(/^blob:/),
         imageFallbackUrls: [],
         previewStoragePath: "user-1/generated/preview.png",
         fullStoragePath: "user-1/generated/full.png",
@@ -248,7 +249,7 @@ describe("useAiStudioAgentComposer", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith("https://signed.example.com/generated.png");
-    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
   });
 
   it("prefers internal image resolution over the direct composer payload when both are present", async () => {
@@ -329,8 +330,9 @@ describe("useAiStudioAgentComposer", () => {
         kind: "image",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: "blob:composer-owned-preview",
-        imageFallbackUrls: [],
+        imageUrl: expect.stringMatching(/^blob:/),
+        submissionImageUrl: expect.stringMatching(/^blob:/),
+        imageFallbackUrls: ["blob:composer-owned-preview"],
         previewStoragePath: "user-1/generated/preview.png",
         fullStoragePath: "user-1/generated/full.png",
         referenceUrl: null,
@@ -403,6 +405,7 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: "https://example.com/image-fresh-preview.png",
+      submissionImageUrl: "https://example.com/image-fresh.png",
       imageFallbackUrls: ["https://example.com/image-fresh.png"],
     });
   });
@@ -463,7 +466,7 @@ describe("useAiStudioAgentComposer", () => {
     ]);
   });
 
-  it("defaults desktop image-file drops to a single attachment", () => {
+  it("defaults desktop image-file drops to a single attachment", async () => {
     const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -488,15 +491,18 @@ describe("useAiStudioAgentComposer", () => {
     });
 
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
-    expect(result.current.agentAttachments).toEqual([
-      expect.objectContaining({
-        kind: "image",
-        imageUrl: "blob:one.png",
-      }),
-    ]);
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toEqual([
+        expect.objectContaining({
+          kind: "image",
+          imageUrl: "blob:one.png",
+          submissionImageUrl: "blob:one.png",
+        }),
+      ]);
+    });
   });
 
-  it("stages up to the configured image-file drop limit", () => {
+  it("stages up to the configured image-file drop limit", async () => {
     const ensureAgentSession = vi.fn();
     const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
     Object.defineProperty(URL, "createObjectURL", {
@@ -524,16 +530,21 @@ describe("useAiStudioAgentComposer", () => {
       result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
     });
 
-    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+      expect(result.current.agentAttachments.map((attachment) => attachment.imageUrl)).toEqual([
+        "blob:one.png",
+        "blob:two.png",
+        "blob:three.png",
+      ]);
+      expect(
+        result.current.agentAttachments.map((attachment) => attachment.submissionImageUrl)
+      ).toEqual(["blob:one.png", "blob:two.png", "blob:three.png"]);
+    });
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
-    expect(result.current.agentAttachments.map((attachment) => attachment.imageUrl)).toEqual([
-      "blob:one.png",
-      "blob:two.png",
-      "blob:three.png",
-    ]);
   });
 
-  it("revokes owned blob urls when an attachment is removed", () => {
+  it("revokes owned blob urls when an attachment is removed", async () => {
     const createObjectUrlMock = vi.fn(() => "blob:owned-preview");
     const revokeObjectUrlMock = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
@@ -557,6 +568,10 @@ describe("useAiStudioAgentComposer", () => {
 
     act(() => {
       result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(1);
     });
 
     act(() => {
@@ -772,6 +787,7 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: "https://example.com/fallback-image.png",
+      submissionImageUrl: "https://example.com/fallback-image.png",
       fullStoragePath: "https://example.com/fallback-image.png",
       text: "Reference note",
     });
@@ -847,13 +863,17 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       mediaId: "media-1",
-      imageUrl: "https://signed.example.com/stable-preview.png",
+      imageUrl: expect.stringMatching(/^blob:/),
+      submissionImageUrl: expect.stringMatching(/^blob:/),
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",
       referenceUrl: null,
       referenceRenderUrl: null,
       text: "Resolved prompt",
     });
+    expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).toContain(
+      "https://signed.example.com/stable-preview.png"
+    );
     expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).not.toContain(
       "https://cdn.example.com/weak-panel-preview.png"
     );
@@ -996,6 +1016,7 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: "https://signed.example.com/reference-image.png",
+      submissionImageUrl: "https://signed.example.com/reference-image.png",
       text: "Reference note",
     });
   });
@@ -1034,6 +1055,7 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: optimizerUrl,
+      submissionImageUrl: durableReferenceUrl,
       imageFallbackUrls: [durableReferenceUrl],
       referenceUrl: null,
       referenceRenderUrl: optimizerUrl,

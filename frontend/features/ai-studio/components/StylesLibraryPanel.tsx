@@ -5,8 +5,12 @@
 import React from "react";
 import { CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
-import { resolveStylePreviewBackgroundImage } from "./edit/expertEditStyles";
-import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
+import {
+  NONE_STYLE_ID,
+  prependNoneStyleTile,
+  resolveStylePreviewBackgroundImage,
+  type ExpertEditStyleTile,
+} from "./edit/expertEditStyles";
 import {
   STYLE_PROMPT_MAX_CHARACTERS,
   STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
@@ -17,20 +21,8 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-const NONE_STYLE_ID = "__none_style__";
-const NONE_STYLE_TILE: ExpertEditStyleTile = {
-  id: NONE_STYLE_ID,
-  title: "None",
-  style: "None",
-  referenceImageName: "None",
-  stylePrompt: "",
-  previewUrl: null,
-  placeholder: false,
-};
-
 export type StylesLibraryPanelProps = {
   styles: readonly ExpertEditStyleTile[];
-  selectedStyleId: string | null;
   onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   deleteError?: string | null;
@@ -99,7 +91,7 @@ export function StylesLibraryPanel({
     resolveInternalStyleDrop,
   });
   const stylesWithNoneFirst = React.useMemo(
-    () => [NONE_STYLE_TILE, ...renderedStyles],
+    () => prependNoneStyleTile(renderedStyles),
     [renderedStyles]
   );
   const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;

@@ -42,10 +42,10 @@ export function GuestDashboardView({ createProjectHref }: GuestDashboardViewProp
 
           <div className="hero-quick-row">
             <DashboardQuickActionCard
-              ariaLabel="New Project: Open the AI Studio"
+              ariaLabel="New Project: Compare plans and unlock your first project"
               className="hero-onboarding hero-new-project-card"
               title="New Project"
-              helperText="Open the AI Studio"
+              helperText="Compare plans to unlock your first project"
               href={createProjectHref}
               icon={<Plus size={30} weight="bold" className="hero-new-project-icon" />}
             />

@@ -11,6 +11,7 @@ import {
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
 
 type SoundEffectsRequestBody = {
   text?: unknown;
@@ -151,6 +152,22 @@ export default async function handler(
         prompt_influence: DEFAULT_PROMPT_INFLUENCE,
       },
     });
+    let resolvedDurationSeconds: number | null = null;
+    try {
+      resolvedDurationSeconds = await probeMediaDurationSeconds({
+        buffer: generated.buffer,
+        filename: null,
+        mimeType: generated.contentType,
+      });
+    } catch {
+      resolvedDurationSeconds = null;
+    }
+    const responseDurationMs =
+      resolvedDurationSeconds != null
+        ? Math.round(resolvedDurationSeconds * 1000)
+        : durationSeconds == null
+          ? null
+          : Math.round(durationSeconds * 1000);
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "sound-effects",
@@ -177,6 +194,8 @@ export default async function handler(
         billing_source_ref: charge.sourceRef,
         debited_credits: charge.credits,
         duration_seconds: durationSeconds,
+        resolved_duration_seconds: resolvedDurationSeconds,
+        duration_ms: responseDurationMs,
         loop_enabled: loop,
         pricing_metadata: charge.chargeMetadata,
         prompt_influence: DEFAULT_PROMPT_INFLUENCE,
@@ -220,7 +239,7 @@ export default async function handler(
         companionArtStoragePath: null,
         companionArtStatus: "pending",
         mimeType: generated.contentType,
-        durationMs: durationSeconds == null ? null : Math.round(durationSeconds * 1000),
+        durationMs: responseDurationMs,
         waveformPeaks: null,
         modelId,
         characterCost: generated.characterCost,

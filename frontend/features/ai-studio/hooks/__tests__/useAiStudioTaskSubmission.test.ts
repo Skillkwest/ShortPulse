@@ -338,6 +338,289 @@ describe("useAiStudioTaskSubmission", () => {
     );
     expect(outputs[0]?.generationId).toBe("gen-direct-complete-1");
     expect(outputs[0]?.taskId).toBe("openai-req-1");
+    expect(outputs[0]?.submissionMode).toBe("direct-request");
+  });
+
+  it("preserves direct-complete output state when a handler also attempts queued polling", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-drift");
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
+    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(
+      async ({ completeGenerationImmediately, startPollingWithGeneration }) => {
+        completeGenerationImmediately?.({
+          provider: "openai-image",
+          generationId: "gen-direct-complete-drift",
+          requestId: "openai-req-drift",
+          previewUrl: "https://cdn.test/openai-drift.png",
+          resultUrls: ["https://cdn.test/openai-drift.png"],
+          previewStoragePath: "user-1/generations/images/openai-drift.png",
+          fullStoragePath: "user-1/generations/images/openai-drift.png",
+          mimeType: "image/png",
+          savedMediaIds: ["media-openai-drift"],
+        });
+        startPollingWithGeneration("queued-should-not-start", "fal-seedream");
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "gpt-image-2",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "medium",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        projectId: "project-1",
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "generation_submit_lifecycle_contract",
+        metadata: expect.objectContaining({
+          output_id: outputs[0]?.id,
+          started_task_id: "openai-req-drift",
+          started_provider: "openai-image",
+        }),
+      })
+    );
+    expect(outputs[0]?.taskState).toBe("success");
+    expect(outputs[0]?.generationId).toBe("gen-direct-complete-drift");
+    expect(outputs[0]?.taskId).toBe("openai-req-drift");
+  });
+
+  it("recovers queued polling after a post-handoff client exception without failing the output", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("status timer unavailable");
+      })
+      .mockImplementation(() => undefined);
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("image-req-recover", "fal-seedream");
+        return true;
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(startPollingTask).toHaveBeenCalledTimes(2);
+    expect(outputs[0]?.taskId).toBe("image-req-recover");
+    expect(outputs[0]?.provider).toBe("fal-seedream");
+    expect(outputs[0]?.taskState).toBe("running");
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "generation_submit_post_handoff_error",
+        metadata: expect.objectContaining({
+          started_task_id: "image-req-recover",
+          started_provider: "fal-seedream",
+          lifecycle_mode: "queued",
+        }),
+      })
+    );
+  });
+
+  it("keeps the first queued handoff when a handler attempts to start polling twice", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("image-req-primary", "fal-seedream");
+        startPollingWithGeneration("image-req-duplicate", "fal-seedream");
+        return true;
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startPollingTask).toHaveBeenCalledTimes(1);
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "image-req-primary",
+      outputs[0]?.id,
+      0,
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      { initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS }
+    );
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "generation_submit_lifecycle_contract",
+        metadata: expect.objectContaining({
+          output_id: outputs[0]?.id,
+          started_task_id: "image-req-primary",
+          started_provider: "fal-seedream",
+        }),
+      })
+    );
+    expect(outputs[0]?.taskId).toBe("image-req-primary");
+    expect(outputs[0]?.taskState).toBe("running");
   });
 
   it("prefers the caller-provided displayed billed credits in shortpulse context", async () => {

@@ -1,6 +1,6 @@
 import {
   analyzeExpertEditPromptTokens,
-  buildExpertEditSubmissionReferenceInputs,
+  buildExpertEditSubmissionReferencePlan,
   compileExpertEditSubmissionPrompt,
 } from "../../logic/expertEditPromptReferences";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
@@ -116,12 +116,13 @@ export const prepareExpertEditSubmission = ({
     linkedSecondarySlotIndexes: tokenAnalysis.referencedSlotIndexes,
     extraImageUrls,
   });
-  const referenceInputs = buildExpertEditSubmissionReferenceInputs({
+  const referencePlan = buildExpertEditSubmissionReferencePlan({
     flattenedPrimaryUrl,
     flattenedMarkupReferenceUrl,
     secondarySlots: extraImageUrls,
     referencedSlotIndexes: resolvedSecondarySlotIndexes,
   });
+  const referenceInputs = referencePlan.referenceInputs;
   const linkedSecondaryReferenceInputs = tokenAnalysis.referencedSlotIndexes
     .map((slotIndex) => extraImageUrls[slotIndex]?.trim() ?? "")
     .filter((value) => value.length > 0);
@@ -129,6 +130,7 @@ export const prepareExpertEditSubmission = ({
     displayPrompt: promptText,
     secondarySlots: extraImageUrls,
     referenceInputs,
+    secondaryFigureNumbersBySlotIndex: referencePlan.secondaryFigureNumbersBySlotIndex,
     options: {
       allowSecondaryTokens: allowSecondaryReferenceTokens,
       maxSecondaryReferences: maxSecondaryReferenceTokens,

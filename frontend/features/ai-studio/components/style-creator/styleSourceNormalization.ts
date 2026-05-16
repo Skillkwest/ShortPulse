@@ -17,8 +17,11 @@ import {
 import { readFileAsDataUrl } from "./styleImageDerivation";
 import type { ResolveInternalStyleDrop, ResolvedInternalStyleSource } from "./styleSourceResolver";
 import {
+  extractComposerImageDropPayload,
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
+  type ComposerImageDropPayload,
+  type InternalReferenceDragPayload,
   normalizeReferenceTransferUrlCandidate,
 } from "../../utils/dragDrop";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
@@ -212,18 +215,51 @@ const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
   return await readFileAsDataUrl(blob);
 };
 
+const buildInternalPayloadFromComposerDropPayload = (
+  composerPayload: ComposerImageDropPayload | null
+): InternalReferenceDragPayload | null => {
+  if (!composerPayload) return null;
+  return {
+    version: composerPayload.version,
+    origin: composerPayload.origin,
+    referenceId: composerPayload.referenceId,
+    outputId: composerPayload.outputId,
+    imageIndex: 0,
+    mediaId: composerPayload.mediaId,
+    ...(composerPayload.previewStoragePath
+      ? { previewStoragePath: composerPayload.previewStoragePath }
+      : {}),
+    ...(composerPayload.fullStoragePath
+      ? { fullStoragePath: composerPayload.fullStoragePath }
+      : {}),
+    referenceUrl: composerPayload.referenceUrl ?? null,
+    ...(composerPayload.displayArtifactUrl
+      ? { referenceRenderUrl: composerPayload.displayArtifactUrl }
+      : {}),
+    sourceSurface: composerPayload.sourceSurface,
+    ...(typeof composerPayload.width === "number" ? { width: composerPayload.width } : {}),
+    ...(typeof composerPayload.height === "number" ? { height: composerPayload.height } : {}),
+  };
+};
+
 const collectSnapshotImageUrlCandidates = ({
   snapshot,
   dragPayloadImageUrl,
+  composerPayloadImageUrl,
+  composerPayloadReferenceUrl,
 }: {
   snapshot: StyleDropSnapshot;
   dragPayloadImageUrl?: string | null;
+  composerPayloadImageUrl?: string | null;
+  composerPayloadReferenceUrl?: string | null;
 }): string[] => {
   const plainText = snapshot.plainText.trim();
   const snapshotUriList = getFirstUriListValue(snapshot.uriList);
   return dedupeStyleSourceUrls([
+    normalizeReferenceTransferUrlCandidate(composerPayloadImageUrl, { unwrapNextImage: false }),
     normalizeReferenceTransferUrlCandidate(snapshot.referenceRenderUrl, { unwrapNextImage: false }),
     normalizeReferenceTransferUrlCandidate(snapshot.imageUrl, { unwrapNextImage: false }),
+    normalizeReferenceTransferUrlCandidate(composerPayloadReferenceUrl, { unwrapNextImage: false }),
     normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, { unwrapNextImage: false }),
     normalizeReferenceTransferUrlCandidate(snapshotUriList, { unwrapNextImage: false }),
     normalizeReferenceTransferUrlCandidate(dragPayloadImageUrl, { unwrapNextImage: false }),
@@ -305,14 +341,17 @@ export const resolveStyleSource = async ({
   }
 
   const transferLikeSnapshot = buildStyleDropSnapshotTransfer(snapshot);
-  const internalDropPayload = extractInternalReferenceDragPayload(transferLikeSnapshot);
+  const composerDropPayload = extractComposerImageDropPayload(transferLikeSnapshot);
+  const internalDropPayload =
+    extractInternalReferenceDragPayload(transferLikeSnapshot) ??
+    buildInternalPayloadFromComposerDropPayload(composerDropPayload);
   const internalSource =
     internalDropPayload && resolveInternalStyleDrop
       ? await resolveInternalStyleDrop(internalDropPayload).catch(() => null)
       : null;
   const dragPayload = extractDragDropPayload(transferLikeSnapshot);
   const promptText = normalizeStylePromptFallbackText(
-    dragPayload.promptText || internalSource?.promptText || ""
+    dragPayload.promptText || composerDropPayload?.promptText || internalSource?.promptText || ""
   );
   let internalResolutionError: StyleDropPreviewError | null = null;
 
@@ -352,6 +391,8 @@ export const resolveStyleSource = async ({
   const sourceUrls = collectSnapshotImageUrlCandidates({
     snapshot,
     dragPayloadImageUrl: dragPayload.imageUrl,
+    composerPayloadImageUrl: composerDropPayload?.displayArtifactUrl ?? null,
+    composerPayloadReferenceUrl: composerDropPayload?.referenceUrl ?? null,
   });
   if (!sourceUrls.length) {
     if (internalResolutionError) {

@@ -17,15 +17,15 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 
 ## Canonical code paths
 
-| Area | Source of truth | Responsibility |
-| --- | --- | --- |
-| Token domain logic | `frontend/features/ai-studio/logic/expertEditPromptReferences.ts` | Parse/validate tokens, build highlight segments, compile submission prompt, drag payload helpers. |
-| Expert Edit prompt UI | `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` | Prompt textarea + mirror highlight, token drag insertion, inline invalid-token message timing, token warning toast trigger. |
-| Expert inline generate preflight | `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts` | Blocks generate for invalid tokens, compiles submission prompt overrides, handles flattened reference input assembly. |
-| Expert panel prop adapter | `frontend/features/ai-studio/hooks/useAiStudioEditExpertPanelProps.ts` | Threads prompt overrides from panel callback into generation controller options. |
-| Generation controller | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` | Resolves display/submission prompt override precedence and character-mode composition. |
-| Prompt composer / submission | `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts` | Applies prompt overrides and submits provider-facing prompt with reference inputs. |
-| Prompt highlight styles | `frontend/styles/ai-studio-edit-expert.css` | Mirror layer visuals, token colors, caret visibility, prompt-layer stacking/wrapping sync. |
+| Area                             | Source of truth                                                              | Responsibility                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Token domain logic               | `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`            | Parse/validate tokens, build highlight segments, compile submission prompt, drag payload helpers.                           |
+| Expert Edit prompt UI            | `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`        | Prompt textarea + mirror highlight, token drag insertion, inline invalid-token message timing, token warning toast trigger. |
+| Expert inline generate preflight | `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts` | Blocks generate for invalid tokens, compiles submission prompt overrides, handles flattened reference input assembly.       |
+| Expert panel prop adapter        | `frontend/features/ai-studio/hooks/useAiStudioEditExpertPanelProps.ts`       | Threads prompt overrides from panel callback into generation controller options.                                            |
+| Generation controller            | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`       | Resolves display/submission prompt override precedence and character-mode composition.                                      |
+| Prompt composer / submission     | `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`   | Applies prompt overrides and submits provider-facing prompt with reference inputs.                                          |
+| Prompt highlight styles          | `frontend/styles/ai-studio-edit-expert.css`                                  | Mirror layer visuals, token colors, caret visibility, prompt-layer stacking/wrapping sync.                                  |
 
 ## User-facing behavior contract
 
@@ -46,17 +46,18 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 
 ## Token grammar and validation
 
-| Token input | Validity rule | Result |
-| --- | --- | --- |
-| `@main` | Valid when the primary image is available | Valid primary reference token. |
-| `@img1`, `@img2`, `@img3` | Valid only if matching secondary slot is populated | Valid reference token. |
-| `@img1`, `@img2`, `@img3` in default inpaint | Invalid for the FLUX Fill lane | Invalid (`secondary_tokens_disabled`). |
-| More than one unique `@imgN` in reference inpaint | Exceeds the single-reference masked lane | Invalid (`too_many_secondary_references`). |
-| `@img` | Missing numeric suffix | Invalid (`missing_index`). |
-| `@img4+` | Out of supported range | Invalid (`out_of_range`). |
-| `@imgN` with empty slot | Slot has no image | Invalid (`empty_slot`). |
+| Token input                                       | Validity rule                                      | Result                                     |
+| ------------------------------------------------- | -------------------------------------------------- | ------------------------------------------ |
+| `@main`                                           | Valid when the primary image is available          | Valid primary reference token.             |
+| `@img1`, `@img2`, `@img3`                         | Valid only if matching secondary slot is populated | Valid reference token.                     |
+| `@img1`, `@img2`, `@img3` in default inpaint      | Invalid for the FLUX Fill lane                     | Invalid (`secondary_tokens_disabled`).     |
+| More than one unique `@imgN` in reference inpaint | Exceeds the single-reference masked lane           | Invalid (`too_many_secondary_references`). |
+| `@img`                                            | Missing numeric suffix                             | Invalid (`missing_index`).                 |
+| `@img4+`                                          | Out of supported range                             | Invalid (`out_of_range`).                  |
+| `@imgN` with empty slot                           | Slot has no image                                  | Invalid (`empty_slot`).                    |
 
 Normalization rules:
+
 - Token parsing is case-insensitive (`@IMG1` is treated as `@img1` logically).
 - Canonical token form for drag payloads is lowercase (`@imgN`).
 - Duplicate valid tokens are allowed and preserve their positions in prompt text.
@@ -116,33 +117,40 @@ Normalization rules:
 ### Compilation contract
 
 Input:
+
 - display prompt (raw user text with `@main` and/or `@imgN`)
 - secondary slots
 - final `referenceInputs` order
 
 Output:
+
 - token text replaced with mapped `Figure N` references based on final `referenceInputs` order (`@main` -> `Figure 1`).
+- slot identity is authoritative for figure numbering. If restored or reused secondary slots point at the same underlying URL, each referenced slot still keeps its own `Figure N` position in submit order.
 - appended reference-map block:
   - `Figure 1 = primary base image.`
   - `Figure X = @imgN secondary reference.`
   - `Treat all secondary references as edits to Figure 1 unless explicitly overridden.`
 
 If no tokens are present:
+
 - submit behavior keeps the raw prompt unchanged.
 - no token compilation block is appended.
 - Standard/Markup still include populated secondary references in the payload when available.
 
 If tokens exist but are invalid:
+
 - compile function returns display prompt unchanged.
 - caller must block generate in preflight (authoritative invalid handling).
 
 ## Prompt override plumbing contract
 
 Expert Edit regenerate callback options support:
+
 - `displayPromptOverride?: string | null`
 - `submissionPromptOverride?: string | null`
 
 Controller precedence:
+
 1. Guardrail/start checks use display prompt override when provided.
 2. Character composition uses submission prompt override as base when provided.
 3. Final provider submission prompt precedence:
@@ -171,12 +179,12 @@ Controller precedence:
 
 ## Error handling UX contract
 
-| Condition | Expected behavior |
-| --- | --- |
-| Invalid token while typing | No immediate inline warning; keep editing uninterrupted. |
-| User clicks Generate with invalid token | Block generate, show warning toast, show inline prompt error. |
-| Invalid token corrected | Inline token error auto-clears after prompt becomes valid. |
-| Missing secondary slot for referenced token | Inline error identifies missing slot number. |
+| Condition                                   | Expected behavior                                             |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| Invalid token while typing                  | No immediate inline warning; keep editing uninterrupted.      |
+| User clicks Generate with invalid token     | Block generate, show warning toast, show inline prompt error. |
+| Invalid token corrected                     | Inline token error auto-clears after prompt becomes valid.    |
+| Missing secondary slot for referenced token | Inline error identifies missing slot number.                  |
 
 ## Testing requirements
 

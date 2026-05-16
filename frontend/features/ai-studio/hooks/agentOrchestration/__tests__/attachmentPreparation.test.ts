@@ -86,6 +86,34 @@ describe("prepareAgentImageAttachments", () => {
     expect(prepareImageUrlMock).toHaveBeenCalledWith("https://cdn.test/resolved.png");
   });
 
+  it("prefers the dedicated submission image source over preview resolution", async () => {
+    prepareImageUrlMock.mockResolvedValueOnce("https://cdn.test/prepared-uploaded.png");
+
+    const result = await prepareAgentImageAttachments({
+      attachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          imageUrl: "blob:tiny-preview",
+          submissionImageUrl: "blob:full-upload-source",
+          previewStoragePath: "user-1/generated/preview.png",
+          fullStoragePath: "user-1/generated/full.png",
+          text: null,
+          aspect: null,
+        },
+      ],
+      preparedImageUrlCache: new Map(),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      imageAttachmentIds: ["img-1"],
+      preparedImageUrls: new Map([["img-1", "https://cdn.test/prepared-uploaded.png"]]),
+    });
+    expect(resolveAgentAttachmentPreviewUrlMock).not.toHaveBeenCalled();
+    expect(prepareImageUrlMock).toHaveBeenCalledWith("blob:full-upload-source");
+  });
+
   it("uses the shared projected preview when a legacy image attachment only has render-hint preview fields", async () => {
     prepareImageUrlMock.mockResolvedValueOnce("https://cdn.test/prepared-legacy.png");
 

@@ -89,7 +89,7 @@ export function AuthenticatedDashboardView({
             {hideLegacySections ? (
               <>
                 <DashboardQuickActionCard
-                  ariaLabel="New Project: Start a new project in AI Studio"
+                  ariaLabel="New Project: Name and create a new project"
                   className="hero-onboarding hero-new-project-card"
                   title="New Project"
                   helperText={
@@ -97,7 +97,7 @@ export function AuthenticatedDashboardView({
                       ? "Creating your project..."
                       : projectCreateError
                         ? projectCreateError
-                        : "Open the AI Studio"
+                        : "Name your project and open AI Studio"
                   }
                   onClick={onCreateProject}
                   disabled={isCreatingProject}

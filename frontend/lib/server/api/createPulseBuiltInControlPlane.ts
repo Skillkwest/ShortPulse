@@ -22,12 +22,11 @@ export type RuntimeCreatePulseBuiltInCatalogResolution = {
   updatedAt: string | null;
   updatedByEmail: string | null;
   source: "control_plane" | "seed";
+  degraded: boolean;
 };
 
 export type RuntimeCreatePulseBuiltInCatalogAdminResolution =
-  RuntimeCreatePulseBuiltInCatalogResolution & {
-    degraded: boolean;
-  };
+  RuntimeCreatePulseBuiltInCatalogResolution;
 
 export class CreatePulseBuiltInCatalogVersionMismatchError extends Error {
   constructor() {
@@ -42,7 +41,7 @@ const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
 
 let runtimeBuiltInCatalogCache: {
   expiresAtMs: number;
-  value: ActiveCreatePulseBuiltInCatalog | null;
+  resolution: RuntimeCreatePulseBuiltInCatalogResolution;
 } | null = null;
 
 const asNullableString = (value: unknown): string | null => {
@@ -111,6 +110,7 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
+      degraded: false,
     };
   }
 
@@ -120,50 +120,45 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
     runtimeBuiltInCatalogCache &&
     runtimeBuiltInCatalogCache.expiresAtMs > nowMs
   ) {
-    const cached = runtimeBuiltInCatalogCache.value;
-    if (cached) {
-      return {
-        builtInDefinitions: cached.builtInDefinitions,
-        updatedAt: cached.updatedAt,
-        updatedByEmail: cached.updatedByEmail,
-        source: "control_plane",
-      };
-    }
-    return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-    };
+    return runtimeBuiltInCatalogCache.resolution;
   }
 
   try {
     const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog();
+    const resolution: RuntimeCreatePulseBuiltInCatalogResolution = activeCatalog
+      ? {
+          builtInDefinitions: activeCatalog.builtInDefinitions,
+          updatedAt: activeCatalog.updatedAt,
+          updatedByEmail: activeCatalog.updatedByEmail,
+          source: "control_plane",
+          degraded: false,
+        }
+      : {
+          builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+          updatedAt: null,
+          updatedByEmail: null,
+          source: "seed",
+          degraded: false,
+        };
     runtimeBuiltInCatalogCache = {
       expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: activeCatalog,
+      resolution,
     };
-    if (activeCatalog) {
-      return {
-        builtInDefinitions: activeCatalog.builtInDefinitions,
-        updatedAt: activeCatalog.updatedAt,
-        updatedByEmail: activeCatalog.updatedByEmail,
-        source: "control_plane",
-      };
-    }
+    return resolution;
   } catch {
+    const resolution = {
+      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      updatedAt: null,
+      updatedByEmail: null,
+      source: "seed" as const,
+      degraded: true,
+    };
     runtimeBuiltInCatalogCache = {
       expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: null,
+      resolution,
     };
+    return resolution;
   }
-
-  return {
-    builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-    updatedAt: null,
-    updatedByEmail: null,
-    source: "seed",
-  };
 };
 
 export const resolveCreatePulseBuiltInCatalogForAdmin = async ({

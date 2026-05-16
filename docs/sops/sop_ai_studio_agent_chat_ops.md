@@ -3,21 +3,24 @@
 Purpose: operational playbook for the AI Studio chat agent—where it lives in the UI, how context is built, how actions are applied, and how to validate or debug it without touching the model prompts themselves.
 
 ## Scope
+
 - In scope: AI Studio chat/agent surfaces in Create → Prompt step, drag-and-drop reference attachments into chat, Text prompt refinement through the active mode-owned agent route, and reference Describe actions.
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
-- Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
+
+- Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. In Standard Create, generation uses only the text currently visible in the composer.
 - Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`. Its raw-pass runtime contract is intentionally frozen until a future dedicated change.
 - Standard chat response color semantics: Standard is now a raw assistant-text lane. Ordinary replies remain in the neutral chat text treatment and stay in outbound Standard history. Prompt application must happen through explicit UI actions, not hidden Standard route shaping.
 - Retired expanded column: the right-side Agent Chat rail is removed. Agent conversation UI now stays inside the active Create composer so Standard/Pulse runtime state does not leave the mode-owned Create surface.
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
-- Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
+- Primary Generate controls: Expert Standard uses the composer-row `Generate` button. Beginner Standard uses the `ComposeSendCard` primary Generate control. Both use the visible composer-owned prompt, and the agent is only involved if the user explicitly applies assistant output into that composer.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
 - Reference Grid prompt cards: no per-card Generate CTA; cards are for selection/drag/save/remove while generation runs from primary Generate controls.
 - Describe & Text actions: “Describe” on a reference and “Refine prompt” use the runtime-specific studio-agent transport. Standard uses `/api/ai/studio-agent-standard` as a raw model pass-through; Pulse uses `/api/ai/studio-agent-pulse` as the guided/runtime-owned lane.
 
 ## System prerequisites & gates
+
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (Standard studio-agent default `gpt-5.4-nano`), optional `STUDIO_AGENT_PULSE_MODEL` (guided Pulse workflow model; inherits `OPENAI_MODEL` when unset), optional `OPENAI_API_BASE`.
 - Timeout budgets: `STUDIO_AGENT_TIMEOUT_MS` as shared default; optional `STUDIO_AGENT_VISION_TIMEOUT_MS`, `STUDIO_AGENT_TURN_TIMEOUT_MS`, and `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` split vision-summary, generic generation-turn, and guided Pulse generation-turn budgets. Unset split values inherit the nearest shared budget.
 - Runtime path: Standard and Pulse each use one mode-owned route. The removed direct-bypass, generic-route, text fast-path, and legacy V2 fallback switches are not valid controls for Create agents.
@@ -27,30 +30,35 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.
 
 ## Data flow (chat send)
-1) User types in `AgentInputBar` → `handleAgentSend` in `frontend/pages/ai-studio.tsx`.
-2) Optional: user drags prompt/image references from the Reference Grid into the chat surface. These are staged as `AgentAttachment[]` and shown in the attachment tray.
+
+1. User types in `AgentInputBar` → `handleAgentSend` in `frontend/pages/ai-studio.tsx`.
+2. Optional: user drags prompt/image references from the Reference Grid into the chat surface. These are staged as `AgentAttachment[]` and shown in the attachment tray.
    - In Create inline chat, once the user sends the turn, those attachments move onto the matching user chat bubble so the composer clears immediately while the preview remains in history with its related text.
-3) `getAgentContext` (in `useAiStudioState`) builds a focused base context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
-4) Staged attachments are merged into context before send:
+3. `getAgentContext` (in `useAiStudioState`) builds a focused base context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
+4. Staged attachments are merged into context before send:
    - prompt attachments become `context.references` entries (`kind: "prompt"`),
    - image attachments become both `context.references` + `context.media` (up to 3),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
-5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6) Standard sends raw user/assistant turns through the Standard transport with no local Standard rewrite/precheck/canonical loop. That is an explicit current product decision, not an accidental gap. Pulse still runs the guided pre-send/runtime safety pipeline.
-7) The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
-8) Pulse runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Standard bypasses the local Standard precheck path by design.
-9) Mixed/image Pulse turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
-10) Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance; Standard responses must not include `workflowSession`.
-11) Canonical runtime response is lane-owned:
+5. `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
+6. Standard sends raw user/assistant turns through the Standard transport with no local Standard rewrite/precheck/canonical loop. That is an explicit current product decision, not an accidental gap. Pulse still runs the guided pre-send/runtime safety pipeline.
+7. The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
+8. Pulse runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Standard bypasses the local Standard precheck path by design.
+9. Mixed/image Pulse turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
+10. Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance; Standard responses must not include `workflowSession`.
+11. Canonical runtime response is lane-owned:
+
 - Standard resolves to plain assistant `message`.
 - Pulse may return `message`, structured actions, and/or workflow-session updates.
-12) UI applies prompt text only when a feature explicitly chooses to use the returned content. Clicking a message or “Add to grid” writes a prompt reference card.
+
+12. UI applies prompt text only when a feature explicitly chooses to use the returned content. Clicking a message or “Add to grid” writes a prompt reference card.
 
 Prompt ownership rule:
+
 - Standard no longer relies on hidden prompt derivation from the route.
 - Prompt state should move only through explicit prompt-application UI behavior, not through hidden Standard route shaping.
 
 ## User workflows & expected outcomes
+
 - **Iterate in Chat mode (Create tool):**
   - Send → Standard returns raw assistant text or Pulse returns guided output. “Generate” only changes when the UI explicitly applies returned prompt text.
   - Message click → adds a prompt card to Reference Grid and closes chat.
@@ -74,6 +82,7 @@ Prompt ownership rule:
   - Prompt-card save/add behavior belongs in the active Create composer or explicit prompt-reference actions, not a global right rail.
 
 ## Safeguards & drift control
+
 - Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + clientSessionKey`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
 - Pre-provider safety gate: guided/server-owned lanes such as Pulse evaluate provider-bound input text before execution and can deterministically rewrite or refuse without calling OpenAI. Standard does not.
 - Client pre-send gate mirrors the same logic for guided lanes, but server remains authoritative there. Standard does not use the local mirror gate.
@@ -88,6 +97,7 @@ Prompt ownership rule:
 - No-question policy: questions are removed from prompt contracts, action parsing, and UI chips.
 
 ## Operational checklist (per release or after prompt/model updates)
+
 - ✅ Agent on/off: flip `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` false → chat hides; API still guarded by `STUDIO_AGENT_ENABLED`.
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
 - ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be applied/saved explicitly.
@@ -98,20 +108,24 @@ Prompt ownership rule:
 - ✅ Runtime error path: force provider 503/timeout and confirm the route returns an explicit error payload and the prompt remains unchanged.
 
 ## Known gaps / follow-ups
+
 - No transcript persistence beyond session memory; only `clientSessionKey` persists for canonical continuity.
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.
 - Server vision runs in the runtime-specific studio-agent routes for both chat attachment turns and manual describe actions.
 
 ## Adversarial Corpus Lifecycle (Staging Scope)
+
 Use this lifecycle when maintaining the prompt-compiler adversarial regression corpus for the remediation stream.
 
 Sources (structured runtime telemetry):
+
 1. `studio-agent`:
    - `[studio-agent][telemetry]`
    - `[studio-agent][safety-input-precheck]`
 
 Candidate intake rules:
+
 1. Include events where one of these is true:
    - `status != 200`
    - `decision_action=refuse` on approved non-refusal corpus rows
@@ -123,6 +137,7 @@ Candidate intake rules:
 3. Exclude non-remediation routes and non-deterministic UI-only artifacts.
 
 Normalization and dedupe:
+
 1. Build a dedupe fingerprint from:
    - `route`
    - `flow/path` (when present)
@@ -132,6 +147,7 @@ Normalization and dedupe:
 2. Keep one representative sample per fingerprint per 24h window.
 
 Promotion rules (candidate -> active corpus):
+
 1. Promote when any condition is met:
    - incident-triggered regression (false refusal, fallback spike, or continuity break),
    - schema/contract regression surfaced by CI,
@@ -143,12 +159,14 @@ Promotion rules (candidate -> active corpus):
    - gate owner and decision timestamp.
 
 Demotion/retirement rules:
+
 1. Retire samples only after:
    - two consecutive green checkpoint runs with matching runtime scope key lineage,
    - no incident recurrences for 14 days.
 2. Keep retired samples archived under evidence artifacts for auditability.
 
 Storage and review cadence:
+
 1. Store active corpus artifacts under:
    - `docs/records/artifacts/agent-pipeline-remediation/master/ws-5/artifacts/`
 2. Review cadence:

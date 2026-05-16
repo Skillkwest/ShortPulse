@@ -112,7 +112,7 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
-  it("shows inline generate in chat-off mode and routes clicks", () => {
+  it("does not render inline generate in chat-off mode", () => {
     const onInlineGenerate = vi.fn();
     render(
       <PromptStep
@@ -123,13 +123,11 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    const generateButton = screen.getByRole("button", { name: "Generate with current prompt" });
-    expect(generateButton).not.toHaveClass("agent-response-inline-generate-prefab");
-    fireEvent.click(generateButton);
-    expect(onInlineGenerate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
+    expect(onInlineGenerate).not.toHaveBeenCalled();
   });
 
-  it("renders prefab-backed inline generate when variant flag is enabled", () => {
+  it("does not render prefab-backed inline generate in chat-off mode", () => {
     const onInlineGenerate = vi.fn();
     render(
       <PromptStep
@@ -141,10 +139,8 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    const generateButton = screen.getByRole("button", { name: "Generate with current prompt" });
-    expect(generateButton).toHaveClass("agent-response-inline-generate-prefab");
-    fireEvent.click(generateButton);
-    expect(onInlineGenerate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
+    expect(onInlineGenerate).not.toHaveBeenCalled();
   });
 
   it("hides inline generate while chat mode is enabled", () => {
@@ -218,7 +214,7 @@ describe("PromptStep agent actions", () => {
     expect(promptBubble).toHaveClass("agent-message--prompt-output");
   });
 
-  it("disables inline generate in chat-off mode when input is empty", () => {
+  it("does not render inline generate in chat-off mode when input is empty", () => {
     render(
       <PromptStep
         {...baseProps}
@@ -229,10 +225,10 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
 
-  it("keeps inline generate enabled in chat-off mode when the shared prompt can be used", () => {
+  it("does not render inline generate in chat-off mode when the shared prompt can be used", () => {
     render(
       <PromptStep
         {...baseProps}
@@ -243,10 +239,10 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
 
-  it("shows a generic disabled reason for chat-off inline generate when provided", () => {
+  it("does not show chat-off inline generate guardrails once the inline action is removed", () => {
     render(
       <PromptStep
         {...baseProps}
@@ -258,8 +254,8 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    expect(screen.getAllByText("Select a model before generating.").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+    expect(screen.queryByText("Select a model before generating.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
 
   it("keeps inline chat visible in chat-only mode", () => {

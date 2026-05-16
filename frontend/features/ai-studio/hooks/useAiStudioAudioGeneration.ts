@@ -15,6 +15,7 @@ import type { SoundEffectsGenerateRequest } from "../components/SoundEffectsProp
 import type { VoicesGenerateRequest } from "../components/VoicesPropertiesPanel";
 import type { StudioMode, StudioOutput, StudioOutputSaveState, ToolId } from "../types";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
 
 type VoicesGenerateSuccessResponse = {
   output: {
@@ -106,6 +107,9 @@ type MusicGenerateSuccessResponse = {
 type AudioGenerateErrorResponse = {
   error?: string;
   details?: string;
+  code?: string;
+  retryAfterSeconds?: number | string;
+  admissionScope?: "shared_provider" | "per_user";
 };
 
 type UseAiStudioAudioGenerationParams = {
@@ -145,8 +149,17 @@ const buildMusicOutputModelLabel = (): string =>
 const buildSoundEffectsOutputModelLabel = (): string =>
   resolveModelLabelById(SOUND_EFFECTS_MODEL_ID) ?? "ElevenLabs Sound Effects";
 
-const resolveAudioGenerateErrorMessage = (payload: AudioGenerateErrorResponse | null): string =>
-  payload?.details?.trim() || payload?.error?.trim() || "Audio generation failed.";
+const resolveAudioGenerateErrorMessage = ({
+  response,
+  payload,
+}: {
+  response: { status: number; headers?: Pick<Headers, "get"> | null };
+  payload: AudioGenerateErrorResponse | null;
+}): string =>
+  readGenerationAdmissionErrorMessage(response, payload) ||
+  payload?.details?.trim() ||
+  payload?.error?.trim() ||
+  "Audio generation failed.";
 
 const buildAudioShortpulseContext = ({
   selectedTool,
@@ -395,7 +408,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
-          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
           setUiError(message);
           return;
@@ -484,7 +497,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
-          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
           setUiError(message);
           return false;
@@ -563,7 +576,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
-          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
           setUiError(message);
           return;

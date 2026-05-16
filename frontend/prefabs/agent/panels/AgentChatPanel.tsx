@@ -109,6 +109,7 @@ export type AgentChatPanelProps = {
   onMessageClick?: (message: AgentMessage) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
+  onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -149,6 +150,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onMessageClick,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
+  onApplyOutputPrompt,
   onDrop,
   onDragOver,
   onDragEnter,
@@ -594,6 +596,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     const stagedBubbleMedia = resolveBubbleMediaState(
                       STAGED_AGENT_OUTPUT_MESSAGE_ID
                     );
+                    const showApplyOutputButton = Boolean(onApplyOutputPrompt);
+                    const showOutputGenerateButton = Boolean(onGenerateOutputPrompt);
                     return (
                       <div
                         className={`agent-message agent-assistant ${
@@ -610,10 +614,32 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         onDragEnd={handlePromptDragEnd}
                       >
                         <p className="tiny">{stagedPrompt}</p>
-                        {stagedBubbleMedia || !hideOutputGenerateControls ? (
+                        {stagedBubbleMedia ||
+                        (showOutputGenerateButton && !hideOutputGenerateControls) ||
+                        showApplyOutputButton ? (
                           <div className="agent-output-bubble-controls">
                             {renderOutputBubbleMedia(stagedBubbleMedia)}
-                            {hideOutputGenerateControls ? null : (
+                            {showApplyOutputButton ? (
+                              <button
+                                type="button"
+                                className="agent-output-apply-btn"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onApplyOutputPrompt?.({
+                                    messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
+                                    prompt: stagedPrompt,
+                                    source: "staged",
+                                  });
+                                }}
+                                onDoubleClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                aria-label="Apply this agent output to the composer"
+                              >
+                                Apply
+                              </button>
+                            ) : null}
+                            {hideOutputGenerateControls || !showOutputGenerateButton ? null : (
                               <AgentResponseInlineGenerateButton
                                 onClick={() =>
                                   handleOutputGenerateClick({
@@ -654,11 +680,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const showOutputGenerateButton =
                   message.role === "assistant" &&
                   !hideOutputGenerateControls &&
-                  canUseMessageAsPrompt;
+                  canUseMessageAsPrompt &&
+                  Boolean(onGenerateOutputPrompt);
+                const showApplyOutputButton =
+                  message.role === "assistant" &&
+                  canUseMessageAsPrompt &&
+                  Boolean(onApplyOutputPrompt);
                 const showOutputBubbleControls =
-                  Boolean(bubbleMedia && bubbleMedia.state !== "idle") || showOutputGenerateButton;
+                  Boolean(bubbleMedia && bubbleMedia.state !== "idle") ||
+                  showOutputGenerateButton ||
+                  showApplyOutputButton;
                 const shouldUseOutputGenerateLayout =
                   showOutputGenerateButton ||
+                  showApplyOutputButton ||
                   (preserveOutputGenerateLayoutWhenControlsHidden &&
                     Boolean(bubbleMedia && bubbleMedia.state !== "idle"));
                 const isLatestAssistantMessage =
@@ -774,6 +808,26 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     {showOutputBubbleControls && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">
                         {renderOutputBubbleMedia(bubbleMedia)}
+                        {showApplyOutputButton ? (
+                          <button
+                            type="button"
+                            className="agent-output-apply-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onApplyOutputPrompt?.({
+                                messageId: resolvedMessageId,
+                                prompt: assistantPromptText ?? "",
+                                source: "history",
+                              });
+                            }}
+                            onDoubleClick={(event) => {
+                              event.stopPropagation();
+                            }}
+                            aria-label="Apply this agent output to the composer"
+                          >
+                            Apply
+                          </button>
+                        ) : null}
                         {showOutputGenerateButton ? (
                           <AgentResponseInlineGenerateButton
                             onClick={() =>

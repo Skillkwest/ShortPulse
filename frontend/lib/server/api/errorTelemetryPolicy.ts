@@ -18,6 +18,8 @@ export const SYNTHETIC_TEST_SOURCE_PREFIX = "admin.synthetic_test.";
 export const SYNTHETIC_TEST_SOURCE_LIKE_PATTERN = `${SYNTHETIC_TEST_SOURCE_PREFIX}%`;
 
 export const ADMISSION_LIMITED_TELEMETRY_SOURCE = "telemetry.api.fal_submit.admission_limited";
+export const DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE =
+  "telemetry.api.direct_submit.admission_limited";
 export const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 export const GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE =
   "telemetry.generation.recovery.running_hard_timeout";

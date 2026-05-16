@@ -2,8 +2,15 @@
  * Pending output bootstrap helpers for generation submission.
  * Keeps placeholder creation and replay snapshot attachment out of the main submit hook.
  */
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import { buildGenerationReplayConfigV1 } from "../../logic/generationReplay";
-import type { GenerationReplayConfig, StudioMode, StudioOutput, ToolId } from "../../types";
+import type {
+  GenerationReplayConfig,
+  StudioMode,
+  StudioOutput,
+  StudioOutputSubmissionMode,
+  ToolId,
+} from "../../types";
 
 type BuildPendingSubmissionOutputParams = {
   id: string;
@@ -16,6 +23,7 @@ type BuildPendingSubmissionOutputParams = {
   styleContext?: StudioOutput["styleContext"];
   submissionTraceId: string;
   sourceRef: string;
+  submissionMode: StudioOutputSubmissionMode;
   hiddenInReferenceGrid?: boolean;
 };
 
@@ -43,6 +51,7 @@ export const buildPendingSubmissionOutput = ({
   styleContext,
   submissionTraceId,
   sourceRef,
+  submissionMode,
   hiddenInReferenceGrid,
 }: BuildPendingSubmissionOutputParams): StudioOutput => ({
   mode: outputMode,
@@ -66,9 +75,15 @@ export const buildPendingSubmissionOutput = ({
   characterContext,
   submissionTraceId,
   sourceRef,
+  submissionMode,
   ...(styleContext ? { styleContext } : {}),
   ...(hiddenInReferenceGrid ? { hiddenInReferenceGrid: true } : {}),
 });
+
+export const resolveSubmissionModeForModelId = (
+  modelId: string | null | undefined
+): StudioOutputSubmissionMode =>
+  modelId === OPENAI_GPT_IMAGE_2_MODEL_ID ? "direct-request" : "provider-task";
 
 export const reconcilePendingSubmissionOutput = (
   prev: StudioOutput[],

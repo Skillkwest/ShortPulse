@@ -11,6 +11,10 @@ import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
 import { isRecoverableReservationFailure } from "./generationBilling/errorGuards";
 import { logGenerationFailure } from "./appErrorLogs";
+import {
+  ADMISSION_LIMITED_TELEMETRY_SOURCE,
+  DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE,
+} from "./errorTelemetryPolicy";
 import { buildPricingParams, summarizePayload } from "./generationBilling/pricingParams";
 import {
   markGenerationReservationSubmitted,
@@ -106,6 +110,11 @@ const resolveSourceRef = ({
   if (typeof sourceRef === "string" && sourceRef.trim()) return sourceRef.trim();
   return randomUUID();
 };
+
+const resolveAdmissionLimitedTelemetrySource = (routeLabel: string): string =>
+  routeLabel.startsWith("/api/fal/")
+    ? ADMISSION_LIMITED_TELEMETRY_SOURCE
+    : DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE;
 
 /**
  * Reserves credits for a model call before provider submission.
@@ -263,15 +272,23 @@ export const chargeGenerationRequest = async ({
     pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
     pricingPolicySource: runtimePricingPolicy.source,
   };
-  const respondChargeFailure = async (
-    statusCode: number,
-    message: string,
-    metadata: JsonObject = {}
-  ): Promise<null> => {
+  const respondChargeFailure = async ({
+    statusCode,
+    message,
+    metadata = {},
+    responseBody = {},
+    source = "api.generation_billing_failure",
+  }: {
+    statusCode: number;
+    message: string;
+    metadata?: JsonObject;
+    responseBody?: JsonObject;
+    source?: string;
+  }): Promise<null> => {
     await logGenerationFailure({
       req,
       routeLabel,
-      source: "api.generation_billing_failure",
+      source,
       message,
       statusCode,
       userId: user.id,
@@ -282,7 +299,10 @@ export const chargeGenerationRequest = async ({
         ...metadata,
       },
     });
-    res.status(statusCode).json({ error: message });
+    res.status(statusCode).json({
+      error: message,
+      ...responseBody,
+    });
     return null;
   };
 
@@ -308,7 +328,19 @@ export const chargeGenerationRequest = async ({
   });
   if (reserveResult.status === "failed") {
     if (reserveResult.message === "insufficient_credits") {
-      return buildBypassCharge("insufficient_credits");
+      return respondChargeFailure({
+        statusCode: 402,
+        message: "Insufficient credits. Add credits or switch plans before retrying.",
+        metadata: {
+          reservation_mode: true,
+          reservation_status: reserveResult.status,
+          reservation_message: reserveResult.message ?? null,
+          reservation_code: reserveResult.code ?? null,
+        },
+        responseBody: {
+          code: "INSUFFICIENT_CREDITS",
+        },
+      });
     }
     const reservationFailureReason = isRecoverableReservationFailure(reserveResult)
       ? "reservation_rpc_unavailable"
@@ -323,20 +355,55 @@ export const chargeGenerationRequest = async ({
     return buildBypassCharge(reservationFailureReason);
   }
   if (reserveResult.status === "admission_limited") {
-    return buildBypassCharge("admission_limited");
+    const retryAfterSeconds = Math.max(
+      1,
+      reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds
+    );
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    return respondChargeFailure({
+      statusCode: 429,
+      message: "Too many active generations. Please retry shortly.",
+      source: resolveAdmissionLimitedTelemetrySource(routeLabel),
+      metadata: {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+        reservation_message: reserveResult.message ?? null,
+        admission_scope: "per_user",
+        admission_reason: reserveResult.admission?.reason ?? null,
+        admission_global_active: reserveResult.admission?.globalActive ?? null,
+        admission_global_max: reserveResult.admission?.globalMax ?? null,
+        admission_tier: reserveResult.admission?.tier ?? null,
+        admission_tier_active: reserveResult.admission?.tierActive ?? null,
+        admission_tier_max: reserveResult.admission?.tierMax ?? null,
+        retry_after_seconds: retryAfterSeconds,
+      },
+      responseBody: {
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds,
+        admissionScope: "per_user",
+      },
+    });
   }
   if (reserveResult.status === "already_captured" || reserveResult.status === "already_released") {
-    return respondChargeFailure(409, "Duplicate submit request id. Retry with a new request id.", {
-      reservation_mode: true,
-      reservation_status: reserveResult.status,
+    return respondChargeFailure({
+      statusCode: 409,
+      message: "Duplicate submit request id. Retry with a new request id.",
+      metadata: {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+      },
     });
   }
   if (reserveResult.status !== "reserved" && reserveResult.status !== "already_reserved") {
-    return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-      reservation_mode: true,
-      reservation_status: reserveResult.status,
-      reservation_message: reserveResult.message ?? null,
-      reservation_code: reserveResult.code ?? null,
+    return respondChargeFailure({
+      statusCode: 500,
+      message: GENERATION_BILLING_FAILURE_MESSAGE,
+      metadata: {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+        reservation_message: reserveResult.message ?? null,
+        reservation_code: reserveResult.code ?? null,
+      },
     });
   }
 

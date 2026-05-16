@@ -267,6 +267,36 @@ export const resolvePollStatusGenerationId = (status: PollStatus): string | null
   );
 };
 
+type ProviderTerminalFailureCopy = {
+  message: string;
+  detail: string;
+  shortMessage: string;
+};
+
+export const resolveProviderTerminalFailureCopy = (
+  status: PollStatus,
+  providerState?: string | null
+): ProviderTerminalFailureCopy => {
+  const rawDetail =
+    extractFailureMessageFromDetail(status.detail) ??
+    extractFailureMessageFromDetail(status.failMsg) ??
+    extractFailureMessageFromDetail(status.error) ??
+    extractFailureMessageFromDetail(status.message) ??
+    extractFailureMessageFromDetail(status.statusMessage);
+  const defaultMessage =
+    providerState === "cancelled" || providerState === "canceled"
+      ? "Generation canceled"
+      : "Generation failed";
+  const safeDetail = rawDetail && looksLikeFailureMessage(rawDetail) ? rawDetail : defaultMessage;
+  const safeMessage =
+    rawDetail && looksLikeFailureMessage(rawDetail) ? condenseError(rawDetail) : defaultMessage;
+  return {
+    message: safeMessage,
+    detail: safeDetail,
+    shortMessage: createShortErrorMessage(safeMessage),
+  };
+};
+
 type ProviderSuccessClassificationInput = {
   state: string;
 };

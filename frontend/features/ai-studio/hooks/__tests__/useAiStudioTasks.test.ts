@@ -281,6 +281,7 @@ describe("useAiStudioTasks", () => {
     await flushQueuedOutputUpdates();
 
     expect(output.saveState).toBe("saved");
+    expect(output.status).toBe("saved");
     expect(output.saveError).toBeNull();
   });
 
@@ -537,6 +538,7 @@ describe("useAiStudioTasks", () => {
     expect(output.previewUrl).toBe("https://cdn.test/canonical-preview.png");
     expect(output.resultUrls).toEqual(["https://cdn.test/canonical-full.png"]);
     expect(output.saveState).toBe("saved");
+    expect(output.status).toBe("saved");
     expect(output.saveError).toBeNull();
   });
 
@@ -957,6 +959,64 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         provider: "fal-nano-banana-2",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toBe("Downstream service error");
+
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails immediately on raw terminal provider errors without a lifecycle envelope", async () => {
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
+        status: "error",
+        detail: [{ type: "downstream_service_error", msg: "Downstream service error" }],
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-raw-terminal-error", "out-1", 0, "fal-nano-banana-2");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Downstream service error",
+      "Downstream service error",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "error",
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal-nano-banana-2",
+        message: "Downstream service error",
         reasonCode: "provider_error",
       })
     );

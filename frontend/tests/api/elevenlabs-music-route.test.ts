@@ -41,6 +41,7 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/elevenlabs/music", () => {
   beforeEach(() => {
@@ -73,6 +74,46 @@ describe("POST /api/elevenlabs/music", () => {
     });
     markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
     probeMediaDurationSecondsMock.mockResolvedValue(null);
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(429).json({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds: 6,
+        admissionScope: "per_user",
+      });
+      return null;
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Night-drive synth anthem",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsMusicMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 6,
+      admissionScope: "per_user",
+    });
   });
 
   it("falls back to the catalog-backed default music model id for auto duration", async () => {

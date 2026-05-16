@@ -29,12 +29,16 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 import { dispatchSubmissionByRoute } from "./taskSubmission/routeDispatch";
-import { applySubmissionFailureToOutputs } from "./taskSubmission/outputLifecyclePatches";
+import {
+  applyDispatchedSubmissionPatch,
+  applySubmissionFailureToOutputs,
+} from "./taskSubmission/outputLifecyclePatches";
 import {
   attachGenerationReplayToOutput,
   buildPendingSubmissionOutput,
   buildSubmissionReplaySnapshot,
   reconcilePendingSubmissionOutput,
+  resolveSubmissionModeForModelId,
 } from "./taskSubmission/outputBootstrap";
 import {
   CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR,
@@ -44,6 +48,7 @@ import {
 } from "./taskSubmission/submitInvariants";
 import { prepareSubmissionReferenceInputs } from "./taskSubmission/preflightPreparation";
 import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
@@ -51,7 +56,7 @@ import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContra
 
 type GenerationMetadata = Record<string, unknown>;
 type SubmissionInvariantError = Error & {
-  code?: "SUBMIT_NOT_STARTED";
+  code?: "SUBMIT_NOT_STARTED" | "SUBMIT_LIFECYCLE_CONTRACT";
   detail?: string;
 };
 
@@ -62,6 +67,15 @@ const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider sub
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
+  error.detail = detail;
+  return error;
+};
+
+const submitLifecycleContractError = (detail: string): SubmissionInvariantError => {
+  const error = new Error(
+    "Provider submission lifecycle contract was violated."
+  ) as SubmissionInvariantError;
+  error.code = "SUBMIT_LIFECYCLE_CONTRACT";
   error.detail = detail;
   return error;
 };
@@ -315,6 +329,7 @@ export const useAiStudioTaskSubmission = ({
           styleContext: options?.styleContextOverride,
           submissionTraceId,
           sourceRef,
+          submissionMode: resolveSubmissionModeForModelId(finalModel),
           hiddenInReferenceGrid:
             finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid,
         });
@@ -492,11 +507,12 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
+        let taskStarted = false;
+        let startedTaskId: string | null = null;
+        let startedProvider: Provider | null = null;
+        let startedLifecycleMode: "queued" | "direct" | null = null;
+        let submissionFailureSignaled = false;
         try {
-          let taskStarted = false;
-          let startedTaskId: string | null = null;
-          let startedProvider: Provider | null = null;
-          let submissionFailureSignaled = false;
           const notifyGenerationFailureForSubmit = (
             outputId: string,
             message: string,
@@ -530,7 +546,20 @@ export const useAiStudioTaskSubmission = ({
                 startedTaskId = normalizedTaskId;
                 startedProvider = provider;
               },
+              createLifecycleContractError: submitLifecycleContractError,
             });
+          const startPollingWithGenerationGuarded = (
+            ...args: Parameters<typeof startPollingWithGeneration>
+          ) => {
+            startedLifecycleMode = "queued";
+            return startPollingWithGeneration(...args);
+          };
+          const completeGenerationImmediatelyGuarded = (
+            ...args: Parameters<typeof completeGenerationImmediately>
+          ) => {
+            startedLifecycleMode = "direct";
+            return completeGenerationImmediately(...args);
+          };
 
           await dispatchSubmissionByRoute({
             id,
@@ -566,8 +595,8 @@ export const useAiStudioTaskSubmission = ({
             klingElements,
             notifyGenerationFailure: notifyGenerationFailureForSubmit,
             updateOutputById,
-            startPollingWithGeneration,
-            completeGenerationImmediately,
+            startPollingWithGeneration: startPollingWithGenerationGuarded,
+            completeGenerationImmediately: completeGenerationImmediatelyGuarded,
             createSubmitNotStartedError: submitNotStartedError,
           });
           if (submissionFailureSignaled) {
@@ -618,7 +647,96 @@ export const useAiStudioTaskSubmission = ({
             });
             return;
           }
+          if (submissionError?.code === "SUBMIT_LIFECYCLE_CONTRACT") {
+            void reportAppError({
+              source: "generation_submit_lifecycle_contract",
+              scope: "generation",
+              severity: "high",
+              message: "Generation submit handler violated the queued/direct lifecycle contract.",
+              metadata: {
+                output_id: id,
+                model_id: finalModel,
+                tool: effectiveTool,
+                task_started: taskStarted,
+                started_task_id: startedTaskId,
+                started_provider: startedProvider,
+                detail: submissionError.detail ?? null,
+              },
+            });
+            if (taskStarted) {
+              return;
+            }
+            notifyGenerationFailure(
+              id,
+              SUBMIT_NOT_STARTED_USER_ERROR,
+              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR
+            );
+            return;
+          }
           const message = error instanceof Error ? error.message : "Failed to start generation";
+          if (taskStarted && startedTaskId && startedProvider) {
+            const recoveredTaskId = startedTaskId;
+            const recoveredProvider = startedProvider;
+            void reportAppError({
+              source: "generation_submit_post_handoff_error",
+              scope: "generation",
+              severity: "high",
+              message: "Generation submit failed after provider handoff.",
+              metadata: {
+                output_id: id,
+                model_id: finalModel,
+                tool: effectiveTool,
+                started_task_id: recoveredTaskId,
+                started_provider: recoveredProvider,
+                lifecycle_mode: startedLifecycleMode,
+                error_message: message,
+              },
+            });
+            if (startedLifecycleMode === "queued") {
+              try {
+                updateOutputById(id, (item) =>
+                  applyDispatchedSubmissionPatch({
+                    item,
+                    patch: {},
+                    provider: recoveredProvider,
+                    taskId: recoveredTaskId,
+                  })
+                );
+                startPollingTask(
+                  recoveredTaskId,
+                  id,
+                  0,
+                  recoveredProvider,
+                  Date.now(),
+                  0,
+                  undefined,
+                  {
+                    initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+                  }
+                );
+              } catch (recoveryError) {
+                const recoveryMessage =
+                  recoveryError instanceof Error
+                    ? recoveryError.message
+                    : "Unknown post-handoff recovery failure";
+                void reportAppError({
+                  source: "generation_submit_post_handoff_recovery_failed",
+                  scope: "generation",
+                  severity: "high",
+                  message: "Generation submit recovery failed after provider handoff.",
+                  metadata: {
+                    output_id: id,
+                    model_id: finalModel,
+                    tool: effectiveTool,
+                    started_task_id: startedTaskId,
+                    started_provider: startedProvider,
+                    recovery_error_message: recoveryMessage,
+                  },
+                });
+              }
+            }
+            return;
+          }
           notifyGenerationFailure(id, message, message);
         }
       } finally {

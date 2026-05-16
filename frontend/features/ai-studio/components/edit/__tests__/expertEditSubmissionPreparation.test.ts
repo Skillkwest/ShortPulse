@@ -6,13 +6,13 @@ import {
 } from "../expertEditSubmissionPreparation";
 
 const analyzeExpertEditPromptTokensMock = vi.fn();
-const buildExpertEditSubmissionReferenceInputsMock = vi.fn();
+const buildExpertEditSubmissionReferencePlanMock = vi.fn();
 const compileExpertEditSubmissionPromptMock = vi.fn();
 
 vi.mock("../../../logic/expertEditPromptReferences", () => ({
   analyzeExpertEditPromptTokens: (...args: unknown[]) => analyzeExpertEditPromptTokensMock(...args),
-  buildExpertEditSubmissionReferenceInputs: (...args: unknown[]) =>
-    buildExpertEditSubmissionReferenceInputsMock(...args),
+  buildExpertEditSubmissionReferencePlan: (...args: unknown[]) =>
+    buildExpertEditSubmissionReferencePlanMock(...args),
   compileExpertEditSubmissionPrompt: (...args: unknown[]) =>
     compileExpertEditSubmissionPromptMock(...args),
 }));
@@ -25,7 +25,10 @@ describe("prepareExpertEditSubmission", () => {
       inlineError: null,
       referencedSlotIndexes: [1],
     });
-    buildExpertEditSubmissionReferenceInputsMock.mockReturnValue(["blob:flatten-1", "ref-2"]);
+    buildExpertEditSubmissionReferencePlanMock.mockReturnValue({
+      referenceInputs: ["blob:flatten-1", "ref-2"],
+      secondaryFigureNumbersBySlotIndex: { 1: 2 },
+    });
     compileExpertEditSubmissionPromptMock.mockReturnValue({
       hasTokenReferences: false,
       submissionPrompt: "Refine the scene",
@@ -50,7 +53,7 @@ describe("prepareExpertEditSubmission", () => {
       status: "invalid_tokens",
       message: "@img2 has no image in secondary slot 2.",
     });
-    expect(buildExpertEditSubmissionReferenceInputsMock).not.toHaveBeenCalled();
+    expect(buildExpertEditSubmissionReferencePlanMock).not.toHaveBeenCalled();
     expect(compileExpertEditSubmissionPromptMock).not.toHaveBeenCalled();
   });
 
@@ -70,7 +73,7 @@ describe("prepareExpertEditSubmission", () => {
       status: "invalid_tokens",
       message: "@img2 has no image in secondary slot 2.",
     });
-    expect(buildExpertEditSubmissionReferenceInputsMock).not.toHaveBeenCalled();
+    expect(buildExpertEditSubmissionReferencePlanMock).not.toHaveBeenCalled();
     expect(compileExpertEditSubmissionPromptMock).not.toHaveBeenCalled();
   });
 
@@ -88,7 +91,7 @@ describe("prepareExpertEditSubmission", () => {
       linkedSecondaryReferenceInputs: ["https://example.com/ref-2.png"],
       promptOverrideOptions: undefined,
     });
-    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+    expect(buildExpertEditSubmissionReferencePlanMock).toHaveBeenCalledWith({
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: null,
       secondarySlots: [null, "https://example.com/ref-2.png", null],
@@ -97,6 +100,10 @@ describe("prepareExpertEditSubmission", () => {
   });
 
   it("returns prompt override options when compiled prompt uses token references", () => {
+    buildExpertEditSubmissionReferencePlanMock.mockReturnValue({
+      referenceInputs: ["blob:flatten-1", "blob:markup-1"],
+      secondaryFigureNumbersBySlotIndex: {},
+    });
     compileExpertEditSubmissionPromptMock.mockReturnValue({
       hasTokenReferences: true,
       submissionPrompt: "Figure 1 = primary base image.",
@@ -111,13 +118,18 @@ describe("prepareExpertEditSubmission", () => {
 
     expect(result).toEqual({
       status: "ready",
-      referenceInputs: ["blob:flatten-1", "ref-2"],
+      referenceInputs: ["blob:flatten-1", "blob:markup-1"],
       linkedSecondaryReferenceInputs: [],
       promptOverrideOptions: {
         displayPromptOverride: "Use @main",
         submissionPromptOverride: "Figure 1 = primary base image.",
       },
     });
+    expect(compileExpertEditSubmissionPromptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secondaryFigureNumbersBySlotIndex: {},
+      })
+    );
   });
 
   it("falls back to all populated secondary refs for standard submits when no secondary tokens are linked", () => {
@@ -135,7 +147,7 @@ describe("prepareExpertEditSubmission", () => {
       editSubmitIntent: "standard",
     });
 
-    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+    expect(buildExpertEditSubmissionReferencePlanMock).toHaveBeenCalledWith({
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: null,
       secondarySlots: ["https://example.com/ref-1.png", null, "https://example.com/ref-3.png"],
@@ -158,7 +170,7 @@ describe("prepareExpertEditSubmission", () => {
       editSubmitIntent: "markup",
     });
 
-    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+    expect(buildExpertEditSubmissionReferencePlanMock).toHaveBeenCalledWith({
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: "blob:markup-1",
       secondarySlots: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
@@ -181,7 +193,7 @@ describe("prepareExpertEditSubmission", () => {
       editSubmitIntent: "inpaint",
     });
 
-    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+    expect(buildExpertEditSubmissionReferencePlanMock).toHaveBeenCalledWith({
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: null,
       secondarySlots: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
@@ -215,7 +227,7 @@ describe("prepareExpertEditSubmission", () => {
       message:
         "Inpaint only supports @main. Secondary references are not sent to the inpaint model.",
     });
-    expect(buildExpertEditSubmissionReferenceInputsMock).not.toHaveBeenCalled();
+    expect(buildExpertEditSubmissionReferencePlanMock).not.toHaveBeenCalled();
     expect(compileExpertEditSubmissionPromptMock).not.toHaveBeenCalled();
   });
 

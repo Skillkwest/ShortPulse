@@ -5,6 +5,10 @@ import {
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../lib/model-runtime/providerModelIds";
+import {
+  ADMISSION_LIMITED_TELEMETRY_SOURCE,
+  DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE,
+} from "../../lib/server/api/errorTelemetryPolicy";
 import { chargeGenerationRequest } from "../../lib/server/api/generationBilling";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
@@ -762,7 +766,47 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("bypasses admission-limited atomic reservation RPC decisions", async () => {
+  it("fails closed when the reservation RPC reports insufficient credits", async () => {
+    process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "P0001",
+        message: "Insufficient credits",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-insufficient-credits" },
+      url: "/api/fal/seedream-submit",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      payload: { prompt: "portrait" },
+      reason: "Fal Seedream generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_source_ref: "req-insufficient-credits",
+      })
+    );
+    expect(res.setHeader).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Insufficient credits. Add credits or switch plans before retrying.",
+      code: "INSUFFICIENT_CREDITS",
+    });
+  });
+
+  it("fails closed on admission-limited atomic reservation RPC decisions", async () => {
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [
@@ -802,15 +846,76 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Kie Veo generation",
     });
 
-    expect(charge).not.toBeNull();
+    expect(charge).toBeNull();
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_source_ref: "req-atomic-limit",
       })
     );
-    expect(charge?.billingMode).toBe("bypass");
-    expect(res.setHeader).not.toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "11");
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 11,
+      admissionScope: "per_user",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: ADMISSION_LIMITED_TELEMETRY_SOURCE,
+        statusCode: 429,
+      })
+    );
+  });
+
+  it("uses a direct-submit telemetry source for non-Fal admission denials", async () => {
+    process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [
+        {
+          status: "admission_limited",
+          source_ref: "req-openai-limit",
+          message: "admission_limited",
+          admission_reason: "tier_limit",
+          admission_global_active: 4,
+          admission_global_max: 4,
+          admission_tier: "image",
+          admission_tier_active: 2,
+          admission_tier_max: 2,
+          retry_after_seconds: 7,
+        },
+      ],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-openai-limit" },
+      url: "/api/openai/image-generate",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload: {
+        prompt: "portrait",
+        size: "1024x1024",
+        quality: "medium",
+        n: 1,
+      },
+      reason: "OpenAI image generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE,
+        statusCode: 429,
+      })
+    );
   });
 });

@@ -43,6 +43,7 @@ type Row = {
   filename: string;
   storage_path: string;
   file_type: string;
+  thumb_variant_path?: string | null;
   source?: string | null;
   status?: "uploading" | "ready";
   signedUrl?: string;
@@ -779,14 +780,15 @@ describe("useMediaPreviewSigningController", () => {
   });
 
   it("prefers durable direct preview urls over signing for panel rows", async () => {
+    const directPreviewUrl = "https://cdn.example.com/thumb-preview.png";
     resolveMediaPreviewCandidatesMock.mockReturnValue({
       storagePaths: ["user/images/private-thumb.png"],
-      directUrl: "https://cdn.example.com/thumb-preview.png",
+      directUrl: directPreviewUrl,
     });
     const applySpy = vi.fn();
 
     const { result } = renderHook(() => {
-      const [rows, setRows] = useState<Row[]>([makeRow()]);
+      const [rows, setRows] = useState<Row[]>([makeRow({ thumb_variant_path: directPreviewUrl })]);
       const [signPassNonce, setSignPassNonce] = useState(0);
       const activeTabRef = useRef<MediaTab>("uploaded_images");
       const activeMediaQueryRef = useRef("");
@@ -834,26 +836,25 @@ describe("useMediaPreviewSigningController", () => {
       return { rows };
     });
 
-    await waitFor(() =>
-      expect(result.current.rows[0]?.signedUrl).toBe("https://cdn.example.com/thumb-preview.png")
-    );
+    await waitFor(() => expect(result.current.rows[0]?.signedUrl).toBe(directPreviewUrl));
 
     expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
     expect(applySpy).toHaveBeenCalledWith(
       "uploaded_images",
-      new Map([["row-1", "https://cdn.example.com/thumb-preview.png"]])
+      new Map([["row-1", directPreviewUrl]])
     );
   });
 
   it("prefers durable direct preview urls over signing for modal rows", async () => {
+    const directPreviewUrl = "https://cdn.example.com/thumb-preview.png";
     resolveMediaPreviewCandidatesMock.mockReturnValue({
       storagePaths: ["user/images/private-thumb.png"],
-      directUrl: "https://cdn.example.com/thumb-preview.png",
+      directUrl: directPreviewUrl,
     });
     const applySpy = vi.fn();
 
     const { result } = renderHook(() => {
-      const [rows, setRows] = useState<Row[]>([makeRow()]);
+      const [rows, setRows] = useState<Row[]>([makeRow({ thumb_variant_path: directPreviewUrl })]);
       const [signPassNonce, setSignPassNonce] = useState(0);
       const activeTabRef = useRef<MediaTab>("uploaded_images");
       const activeMediaQueryRef = useRef("");
@@ -901,14 +902,12 @@ describe("useMediaPreviewSigningController", () => {
       return { rows };
     });
 
-    await waitFor(() =>
-      expect(result.current.rows[0]?.signedUrl).toBe("https://cdn.example.com/thumb-preview.png")
-    );
+    await waitFor(() => expect(result.current.rows[0]?.signedUrl).toBe(directPreviewUrl));
 
     expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
     expect(applySpy).toHaveBeenCalledWith(
       "uploaded_images",
-      new Map([["row-1", "https://cdn.example.com/thumb-preview.png"]])
+      new Map([["row-1", directPreviewUrl]])
     );
   });
 

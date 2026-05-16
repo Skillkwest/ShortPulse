@@ -36,6 +36,7 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/elevenlabs/text-to-speech", () => {
   beforeEach(() => {
@@ -77,6 +78,46 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(429).json({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds: 9,
+        admissionScope: "per_user",
+      });
+      return null;
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "voice-1",
+        voiceName: "Darian",
+        text: "Voiceover billing path verification script.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_multilingual_v2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 9,
+      admissionScope: "per_user",
+    });
   });
 
   it("rejects unsupported model ids before billing", async () => {

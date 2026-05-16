@@ -38,25 +38,25 @@ describe("panelVisibility", () => {
     });
   });
 
-  it("builds header shortcut pressed/disabled state", () => {
+  it("builds header shortcut pressed state from the top visible panel", () => {
     const state = resolveHeaderShortcutStateMap({
       effectiveVisibility: {
-        quickSlot: false,
+        quickSlot: true,
         referenceGrid: true,
         styles: false,
       },
       availability: {
-        quickSlot: false,
+        quickSlot: true,
         styles: true,
       },
     });
 
-    expect(state["quick-slot-inventory"]).toEqual({ pressed: false, disabled: true });
-    expect(state["reference-grid"]).toEqual({ pressed: true, disabled: false });
+    expect(state["quick-slot-inventory"]).toEqual({ pressed: true, disabled: false });
+    expect(state["reference-grid"]).toEqual({ pressed: false, disabled: false });
     expect(state.styles).toEqual({ pressed: false, disabled: false });
   });
 
-  it("toggles shortcuts globally and respects availability", () => {
+  it("selects named shortcut surfaces and respects availability", () => {
     const initial = createInitialPanelVisibility();
     const availability = { quickSlot: false, styles: true };
 
@@ -73,6 +73,42 @@ describe("panelVisibility", () => {
       availability,
     });
     expect(toggledStyles.styles).toBe(true);
+  });
+
+  it("selects quick slot inventory as an exclusive named destination", () => {
+    expect(
+      togglePanelVisibilityByShortcut({
+        panelVisibility: {
+          quickSlot: false,
+          referenceGrid: true,
+          styles: true,
+        },
+        shortcutId: "quick-slot-inventory",
+        availability: { quickSlot: true, styles: true },
+      })
+    ).toEqual({
+      quickSlot: true,
+      referenceGrid: false,
+      styles: true,
+    });
+  });
+
+  it("selects reference grid as an exclusive named destination", () => {
+    expect(
+      togglePanelVisibilityByShortcut({
+        panelVisibility: {
+          quickSlot: true,
+          referenceGrid: false,
+          styles: true,
+        },
+        shortcutId: "reference-grid",
+        availability: { quickSlot: true, styles: true },
+      })
+    ).toEqual({
+      quickSlot: false,
+      referenceGrid: true,
+      styles: true,
+    });
   });
 
   it.each([

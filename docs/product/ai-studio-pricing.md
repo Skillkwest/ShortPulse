@@ -45,8 +45,8 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
 - Phase-1 billable surfaces on this contract are:
   - core AI Studio create/edit/image/video generate + regenerate flows
-  - standard create primary + inline generate
-  - agent-output generate
+  - standard create primary generate
+  - explicit assistant-output apply + follow-on primary generate
   - Pulse artifact generate
   - Music
   - Sound Effects

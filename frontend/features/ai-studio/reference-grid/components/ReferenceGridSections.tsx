@@ -1,11 +1,10 @@
 import React from "react";
-import { Prohibit } from "phosphor-react";
 import type { StudioOutput } from "../../types";
 import { CanvasPropertiesPanel } from "../../components/canvas/CanvasPropertiesPanel";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
 import type { ExpertEditStyleTile } from "../../components/edit/expertEditStyles";
-import { resolveStylePreviewBackgroundImage } from "../../components/edit/expertEditStyles";
 import { ReferenceGridArchiveControls } from "./ReferenceGridArchiveControls";
+import { ReferenceStylesChooser } from "./ReferenceStylesChooser";
 
 type HorizontalSplitViewModel = {
   isAllRefsExpanded: boolean;
@@ -24,16 +23,6 @@ const QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
 const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
 const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
-const NONE_STYLE_ID = "__none_style__";
-const NONE_STYLE_TILE: ExpertEditStyleTile = {
-  id: NONE_STYLE_ID,
-  title: "None",
-  style: "None",
-  referenceImageName: "None",
-  stylePrompt: "",
-  previewUrl: null,
-  placeholder: false,
-};
 
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
@@ -148,8 +137,6 @@ export function ReferenceGridSections({
   curatedCardNodes,
   allRefsCardNodes,
 }: ReferenceGridSectionsProps) {
-  const styleTiles = stylesPanel?.styles ?? [];
-  const styleTilesWithNone = [NONE_STYLE_TILE, ...styleTiles];
   const hasInventorySections =
     showQuickSlotSection || showReferenceGridSection || showStylesSection;
   const showCanvasInventoryDivider = showRailCanvasSection && hasInventorySections;
@@ -629,92 +616,16 @@ export function ReferenceGridSections({
                     </button>
                   </div>
                 ) : null}
-                <section
-                  id="reference-rail-styles-section"
-                  className={`reference-styles-section${
-                    showStylesReferenceDivider && stylesSplit.isAllRefsExpanded
-                      ? " is-reference-grid-expanded"
-                      : ""
-                  }`}
-                  style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
-                  aria-label="Styles"
-                >
-                  <div
-                    ref={stylesHeaderRef}
-                    className={`reference-styles-header${
-                      !showStylesTitleInHeader ? " is-title-hidden" : ""
-                    }`}
-                  >
-                    {showStylesTitleInHeader ? (
-                      <div
-                        className={`reference-section-title-row${
-                          showTopStylesHeaderDivider ? " is-top-section-header" : ""
-                        }`}
-                      >
-                        <p className="eyebrow">Styles</p>
-                        {showTopStylesHeaderDivider ? (
-                          <span className="reference-section-title-divider" aria-hidden="true" />
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <p className="tiny subdued helper-text">
-                      Choose a style preset now. Drag-and-drop workflow support is coming soon.
-                    </p>
-                  </div>
-                  <div className="reference-styles-scroll">
-                    <div className="reference-styles-grid" role="list" aria-label="Style options">
-                      {styleTilesWithNone.map((style) => {
-                        const isNoneStyle = style.id === NONE_STYLE_ID;
-                        const isSelected = isNoneStyle
-                          ? stylesPanel?.selectedStyleId == null
-                          : !style.placeholder && stylesPanel?.selectedStyleId === style.id;
-                        return (
-                          <button
-                            key={style.id}
-                            type="button"
-                            className={`reference-styles-tile ${
-                              isSelected ? "is-selected" : ""
-                            } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
-                            aria-label={`Style tile: ${style.title}${
-                              style.placeholder ? " (coming soon)" : ""
-                            }`}
-                            aria-pressed={style.placeholder ? undefined : isSelected}
-                            disabled={style.placeholder}
-                            onClick={() => {
-                              if (style.placeholder) return;
-                              stylesPanel?.onSelectStyle?.(isNoneStyle ? null : style.id);
-                            }}
-                          >
-                            <span className="reference-styles-tile-title">{style.title}</span>
-                            <span
-                              className="reference-styles-tile-preview"
-                              style={
-                                style.previewUrl
-                                  ? {
-                                      backgroundImage: resolveStylePreviewBackgroundImage(
-                                        style.previewUrl
-                                      ),
-                                    }
-                                  : undefined
-                              }
-                              aria-hidden="true"
-                            >
-                              {style.placeholder ? (
-                                <span className="reference-styles-tile-coming-soon">
-                                  Coming soon
-                                </span>
-                              ) : isNoneStyle ? (
-                                <span className="reference-styles-none-icon" aria-hidden="true">
-                                  <Prohibit size={28} weight="duotone" />
-                                </span>
-                              ) : null}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
+                <ReferenceStylesChooser
+                  showStylesReferenceDivider={showStylesReferenceDivider}
+                  showStylesInventoryDivider={showStylesInventoryDivider}
+                  showStylesTitleInHeader={showStylesTitleInHeader}
+                  showTopStylesHeaderDivider={showTopStylesHeaderDivider}
+                  stylesHeaderRef={stylesHeaderRef}
+                  stylesPanel={stylesPanel}
+                  isReferenceGridExpanded={stylesSplit.isAllRefsExpanded}
+                  sectionStyle={stylesSplit.bottomSectionStyle}
+                />
               </div>
             ) : null}
             {showStylesSection && !showNestedReferenceStylesStack ? (
@@ -764,92 +675,16 @@ export function ReferenceGridSections({
                     </button>
                   </div>
                 ) : null}
-                <section
-                  id="reference-rail-styles-section"
-                  className={`reference-styles-section${
-                    showStylesReferenceDivider && stylesSplit.isAllRefsExpanded
-                      ? " is-reference-grid-expanded"
-                      : ""
-                  }`}
-                  style={showStylesInventoryDivider ? stylesSplit.bottomSectionStyle : undefined}
-                  aria-label="Styles"
-                >
-                  <div
-                    ref={stylesHeaderRef}
-                    className={`reference-styles-header${
-                      !showStylesTitleInHeader ? " is-title-hidden" : ""
-                    }`}
-                  >
-                    {showStylesTitleInHeader ? (
-                      <div
-                        className={`reference-section-title-row${
-                          showTopStylesHeaderDivider ? " is-top-section-header" : ""
-                        }`}
-                      >
-                        <p className="eyebrow">Styles</p>
-                        {showTopStylesHeaderDivider ? (
-                          <span className="reference-section-title-divider" aria-hidden="true" />
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <p className="tiny subdued helper-text">
-                      Choose a style preset now. Drag-and-drop workflow support is coming soon.
-                    </p>
-                  </div>
-                  <div className="reference-styles-scroll">
-                    <div className="reference-styles-grid" role="list" aria-label="Style options">
-                      {styleTilesWithNone.map((style) => {
-                        const isNoneStyle = style.id === NONE_STYLE_ID;
-                        const isSelected = isNoneStyle
-                          ? stylesPanel?.selectedStyleId == null
-                          : !style.placeholder && stylesPanel?.selectedStyleId === style.id;
-                        return (
-                          <button
-                            key={style.id}
-                            type="button"
-                            className={`reference-styles-tile ${
-                              isSelected ? "is-selected" : ""
-                            } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
-                            aria-label={`Style tile: ${style.title}${
-                              style.placeholder ? " (coming soon)" : ""
-                            }`}
-                            aria-pressed={style.placeholder ? undefined : isSelected}
-                            disabled={style.placeholder}
-                            onClick={() => {
-                              if (style.placeholder) return;
-                              stylesPanel?.onSelectStyle?.(isNoneStyle ? null : style.id);
-                            }}
-                          >
-                            <span className="reference-styles-tile-title">{style.title}</span>
-                            <span
-                              className="reference-styles-tile-preview"
-                              style={
-                                style.previewUrl
-                                  ? {
-                                      backgroundImage: resolveStylePreviewBackgroundImage(
-                                        style.previewUrl
-                                      ),
-                                    }
-                                  : undefined
-                              }
-                              aria-hidden="true"
-                            >
-                              {style.placeholder ? (
-                                <span className="reference-styles-tile-coming-soon">
-                                  Coming soon
-                                </span>
-                              ) : isNoneStyle ? (
-                                <span className="reference-styles-none-icon" aria-hidden="true">
-                                  <Prohibit size={28} weight="duotone" />
-                                </span>
-                              ) : null}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
+                <ReferenceStylesChooser
+                  showStylesReferenceDivider={showStylesReferenceDivider}
+                  showStylesInventoryDivider={showStylesInventoryDivider}
+                  showStylesTitleInHeader={showStylesTitleInHeader}
+                  showTopStylesHeaderDivider={showTopStylesHeaderDivider}
+                  stylesHeaderRef={stylesHeaderRef}
+                  stylesPanel={stylesPanel}
+                  isReferenceGridExpanded={stylesSplit.isAllRefsExpanded}
+                  sectionStyle={stylesSplit.bottomSectionStyle}
+                />
               </>
             ) : null}
           </div>

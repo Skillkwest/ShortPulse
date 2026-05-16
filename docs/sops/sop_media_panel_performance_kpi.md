@@ -22,6 +22,14 @@ This KPI is panel-first. Later phases can expand the same packet format and scor
 - detail modals
 - other media-heavy rendering surfaces
 
+The scorer is not just a score formatter. It now also emits:
+
+- ranked root-cause diagnostics
+- a likely next-fix lane
+- likely owner files for that lane
+
+Use those outputs as operational triage hints, not as a substitute for reading the code paths they point to.
+
 ## Scope
 
 In scope:
@@ -45,7 +53,7 @@ Out of scope:
 - scoring tool:
   - [frontend/scripts/media_panel_kpi_score.mjs](../../frontend/scripts/media_panel_kpi_score.mjs)
 - tool tests:
-  - [frontend/scripts/__tests__/media_panel_kpi_score.test.ts](../../frontend/scripts/__tests__/media_panel_kpi_score.test.ts)
+  - [frontend/scripts/**tests**/media_panel_kpi_score.test.ts](../../frontend/scripts/__tests__/media_panel_kpi_score.test.ts)
 - runtime telemetry:
   - [frontend/lib/mediaPerfTelemetry.ts](../../frontend/lib/mediaPerfTelemetry.ts)
 - panel checkpoint bundle:
@@ -154,9 +162,7 @@ Create a packet like this:
   "captureMode": "manual+telemetry",
   "sampleCount": 12,
   "surface": "ai-studio-panel",
-  "notes": [
-    "Optional human notes."
-  ],
+  "notes": ["Optional human notes."],
   "metrics": {
     "firstMediaPaintP95Ms": 620,
     "loadingStateVisibleMsP95": 820,
@@ -255,6 +261,16 @@ Compare two retained packets:
 cd frontend
 npm run media:kpi:score -- --compare /absolute/path/to/older.packet.json /absolute/path/to/newer.packet.json --format markdown
 ```
+
+Read the likely next-fix lane from a scored packet:
+
+- `preview-authority`
+- `signing-cost`
+- `list-orchestration`
+- `panel-state-churn`
+- `measurement-depth`
+
+These lanes are inferred from the measured metrics and point at the most likely high-ROI next area to inspect.
 
 ## How To Collect Metrics
 

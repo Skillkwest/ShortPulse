@@ -78,12 +78,13 @@ export const prepareAgentImageAttachments = async ({
     imageAttachments.map(async (attachment) => {
       const projectedImageAttachment = projectAgentAttachmentToComposerImageAttachment(attachment);
       const sourceUrl =
+        attachment.submissionImageUrl?.trim() ??
         (await resolveAgentAttachmentPreviewUrl({
           previewStoragePath: attachment.previewStoragePath ?? null,
           fullStoragePath: attachment.fullStoragePath ?? null,
           referenceRenderUrl: attachment.referenceRenderUrl ?? null,
           referenceUrl: attachment.referenceUrl ?? null,
-          imageUrl: attachment.imageUrl ?? null,
+          imageUrl: attachment.submissionImageUrl ?? attachment.imageUrl ?? null,
         }).catch(() => null)) ??
         projectedImageAttachment?.preview.url ??
         attachment.imageUrl?.trim() ??

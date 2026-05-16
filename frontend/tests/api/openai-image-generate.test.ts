@@ -37,6 +37,7 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/openai/image-generate", () => {
   beforeEach(() => {
@@ -91,6 +92,42 @@ describe("POST /api/openai/image-generate", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(429).json({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds: 11,
+        admissionScope: "per_user",
+      });
+      return null;
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait",
+        size: "1024x1024",
+        quality: "medium",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+    expect(persistGeneratedImageAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 11,
+      admissionScope: "per_user",
+    });
   });
 
   it("charges, generates, and persists one GPT Image 2 output", async () => {

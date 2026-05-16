@@ -4,7 +4,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
+  AgentOutputGenerateRequest,
 } from "../../../../prefabs/agent";
 import type { ModelModalContext } from "../../components/ModelModal";
 import type {
@@ -43,7 +43,7 @@ type UseStandardCreatePanelPropsParams = {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
+  handleApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   setAspect: (value: string) => void;
@@ -64,7 +64,6 @@ type UseStandardCreatePanelPropsParams = {
   handleClearAgentChat: () => void;
   useReferenceImageIndicator: boolean;
   handleStandardCreatePrimarySubmit: () => void;
-  handleChatOffInlineGenerate: () => void;
   savePromptReference: (customPrompt?: string) => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
@@ -123,7 +122,7 @@ export const buildStandardCreatePanelProps = ({
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAssistantMessageEdit,
-  handleGenerateFromAgentOutputPrompt,
+  handleApplyAgentOutputPrompt,
   isModelModalOpen,
   modelModalAnchor,
   setAspect,
@@ -140,7 +139,6 @@ export const buildStandardCreatePanelProps = ({
   handleClearAgentChat,
   useReferenceImageIndicator,
   handleStandardCreatePrimarySubmit,
-  handleChatOffInlineGenerate,
   savePromptReference,
   characterOptions,
   selectedCharacterId,
@@ -163,70 +161,79 @@ export const buildStandardCreatePanelProps = ({
   selectedStyleId,
   stylesCatalog,
   onOpenPresetsLibrary,
-}: UseStandardCreatePanelPropsParams): StandardCreatePropertiesPanelProps => ({
-  mode,
-  aspect,
-  modelId: model,
-  modelLabel: currentModelLabel,
-  prompt,
-  agentEnabled,
-  agentBootstrapPending: !agentBootstrapReady,
-  agentMessages,
-  agentInput,
-  chatModeEnabled,
-  agentIsSending: agentBusy,
-  agentError: agentAttachmentError ?? agentError ?? undefined,
-  stagedPrompt: stagedAgentPrompt,
-  assistantBubbleMedia,
-  stagedAttachments: agentAttachments,
-  agentDropActive: isAgentDropActive,
-  onAgentInputChange: handleAgentInputChange,
-  onChatModeEnabledChange: setChatModeEnabled,
-  onAgentSend: handleAgentSend,
-  onAgentAttachmentDrop: handleAgentAttachmentDrop,
-  onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
-  onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
-  onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
-  onRemoveAgentAttachment: handleRemoveAgentAttachment,
-  onClearAgentAttachments: handleClearAgentAttachments,
-  onAssistantMessageEdit: handleAssistantMessageEdit,
-  onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
-  isModelModalOpen,
-  modelModalAnchor,
-  onAspectChange: setAspect,
-  onModelPickerOpen: handleOpenModelModal,
-  onPromptChange: handleManualPromptChange,
-  isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
-  costCredits: createGenerateCostCredits,
-  outputGenerateCostCredits: promptReferenceGenerateCostCredits,
-  hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-  isGenerateDisabled,
-  isChatOffInlineGenerateDisabled: isGenerateDisabled,
-  guardrailReason: generationGuardrail,
-  onClearAgentChat: handleClearAgentChat,
-  shouldDisableSave: useReferenceImageIndicator && mode === "text",
-  onGenerate: handleStandardCreatePrimarySubmit,
-  onChatOffInlineGenerate: handleChatOffInlineGenerate,
-  onSavePrompt: savePromptReference,
-  characterOptions,
-  selectedCharacterId,
-  selectedCharacterLookId,
-  selectedCharacterLookLabel,
-  onSelectedCharacterIdChange: setSelectedCharacterId,
-  onOpenCharacterLibrary,
-  isCharacterOptionsLoading,
-  characterModeEnabled: isCharacterModeEnabled,
-  onCharacterModeEnabledChange: setIsCharacterModeEnabled,
-  refreshCharacterOptions,
-  loadCharacterLookOptions,
-  resolveCharacterAvatarUrlById,
-  imageResolution,
-  onImageResolutionChange: setImageResolution,
-  beginnerMode: beginnerCreateMode,
-  expertCreateUiEligible,
-  isStylesPanelOpen,
-  onStylesPanelToggle,
-  selectedStyleId,
-  stylesCatalog,
-  onOpenPresetsLibrary,
-});
+}: UseStandardCreatePanelPropsParams): StandardCreatePropertiesPanelProps => {
+  const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt) ?? "";
+  const hasVisibleComposerPrompt = visibleComposerPrompt.trim().length > 0;
+  const isPrimaryGenerateDisabled = isGenerateDisabled || !hasVisibleComposerPrompt;
+  const primaryGenerateGuardrailReason = isGenerateDisabled
+    ? generationGuardrail
+    : hasVisibleComposerPrompt
+      ? generationGuardrail
+      : "Enter a prompt to generate.";
+
+  return {
+    mode,
+    aspect,
+    modelId: model,
+    modelLabel: currentModelLabel,
+    prompt,
+    agentEnabled,
+    agentBootstrapPending: !agentBootstrapReady,
+    agentMessages,
+    agentInput,
+    chatModeEnabled,
+    agentIsSending: agentBusy,
+    agentError: agentAttachmentError ?? agentError ?? undefined,
+    stagedPrompt: stagedAgentPrompt,
+    assistantBubbleMedia,
+    stagedAttachments: agentAttachments,
+    agentDropActive: isAgentDropActive,
+    onAgentInputChange: handleAgentInputChange,
+    onChatModeEnabledChange: setChatModeEnabled,
+    onAgentSend: handleAgentSend,
+    onAgentAttachmentDrop: handleAgentAttachmentDrop,
+    onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
+    onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
+    onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+    onRemoveAgentAttachment: handleRemoveAgentAttachment,
+    onClearAgentAttachments: handleClearAgentAttachments,
+    onAssistantMessageEdit: handleAssistantMessageEdit,
+    onApplyAgentOutputPrompt: handleApplyAgentOutputPrompt,
+    isModelModalOpen,
+    modelModalAnchor,
+    onAspectChange: setAspect,
+    onModelPickerOpen: handleOpenModelModal,
+    onPromptChange: handleManualPromptChange,
+    isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
+    costCredits: createGenerateCostCredits,
+    outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+    hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
+    isGenerateDisabled: isPrimaryGenerateDisabled,
+    guardrailReason: primaryGenerateGuardrailReason,
+    onClearAgentChat: handleClearAgentChat,
+    shouldDisableSave: useReferenceImageIndicator && mode === "text",
+    onGenerate: handleStandardCreatePrimarySubmit,
+    onSavePrompt: savePromptReference,
+    characterOptions,
+    selectedCharacterId,
+    selectedCharacterLookId,
+    selectedCharacterLookLabel,
+    onSelectedCharacterIdChange: setSelectedCharacterId,
+    onOpenCharacterLibrary,
+    isCharacterOptionsLoading,
+    characterModeEnabled: isCharacterModeEnabled,
+    onCharacterModeEnabledChange: setIsCharacterModeEnabled,
+    refreshCharacterOptions,
+    loadCharacterLookOptions,
+    resolveCharacterAvatarUrlById,
+    imageResolution,
+    onImageResolutionChange: setImageResolution,
+    beginnerMode: beginnerCreateMode,
+    expertCreateUiEligible,
+    isStylesPanelOpen,
+    onStylesPanelToggle,
+    selectedStyleId,
+    stylesCatalog,
+    onOpenPresetsLibrary,
+  };
+};

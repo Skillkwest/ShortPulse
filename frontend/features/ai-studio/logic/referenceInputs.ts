@@ -101,13 +101,19 @@ export const resolveAutoVideoModelForLane = ({
 };
 
 /**
- * Builds ordered image references (primary first, then non-duplicate extras).
+ * Builds ordered image references, with optional duplicate-slot preservation.
  */
 export const buildImageReferenceInputs = (
   primary: string | null,
-  extras: (string | null)[]
+  extras: (string | null)[],
+  options?: {
+    preserveDuplicateExtras?: boolean;
+  }
 ): string[] => {
-  const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
+  const preserveDuplicateExtras = options?.preserveDuplicateExtras === true;
+  const orderedExtras = extras.filter((url): url is string =>
+    preserveDuplicateExtras ? Boolean(url) : Boolean(url && url !== primary)
+  );
   if (primary) {
     return [primary, ...orderedExtras];
   }
@@ -162,7 +168,9 @@ export const buildRegenerateReferencePool = ({
   videoModelId?: string | null;
 }): string[] => {
   if (isImageTool(selectedTool)) {
-    return buildImageReferenceInputs(referenceUrl, extraUrls);
+    return buildImageReferenceInputs(referenceUrl, extraUrls, {
+      preserveDuplicateExtras: true,
+    });
   }
 
   if (isVideoTool(selectedTool)) {

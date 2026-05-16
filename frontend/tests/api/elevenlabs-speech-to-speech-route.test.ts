@@ -104,6 +104,7 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+type MockResponse = ReturnType<typeof createMockResponse>;
 
 describe("POST /api/elevenlabs/speech-to-speech", () => {
   beforeEach(() => {
@@ -189,6 +190,42 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       previewPosterUrl: null,
       signedUrl: "https://signed.example/generated-video.mp4",
       outputRowId: "output-video-1",
+    });
+  });
+
+  it("stops before provider submission when billing already returned a fail-closed response", async () => {
+    chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
+      res.status(429).json({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds: 10,
+        admissionScope: "per_user",
+      });
+      return null;
+    });
+    readStoredMediaBufferMock.mockResolvedValueOnce({
+      buffer: Buffer.from("staged-audio"),
+      contentType: "audio/wav",
+      size: 12,
+    });
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+    expect(createRemuxedVoiceChangerVideoMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(persistGeneratedVideoAssetMock).not.toHaveBeenCalled();
+    expect(captureSucceededGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 10,
+      admissionScope: "per_user",
     });
   });
 

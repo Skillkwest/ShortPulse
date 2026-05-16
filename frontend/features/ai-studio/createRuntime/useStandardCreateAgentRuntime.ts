@@ -16,6 +16,7 @@ import type {
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
+  AgentOutputGenerateRequest,
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
@@ -27,6 +28,7 @@ import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteracti
 import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
+import { normalizeAgentOutputGenerateRequest } from "../logic/promptAdjacency";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
   AiStudioSessionAgentMessageV1,
@@ -120,6 +122,38 @@ const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"
     )
   );
 
+const resolveRestoredStandardComposerPrompt = ({
+  workspacePrompt,
+  runtimeInput,
+  chatModeEnabled,
+}: {
+  workspacePrompt: string;
+  runtimeInput: string;
+  chatModeEnabled: boolean;
+}): { prompt: string; agentInput: string; promptOriginFallback: boolean } => {
+  if (!chatModeEnabled) {
+    return {
+      prompt: workspacePrompt,
+      agentInput: runtimeInput,
+      promptOriginFallback: false,
+    };
+  }
+
+  if (runtimeInput.trim().length > 0) {
+    return {
+      prompt: runtimeInput,
+      agentInput: runtimeInput,
+      promptOriginFallback: false,
+    };
+  }
+
+  return {
+    prompt: workspacePrompt,
+    agentInput: workspacePrompt,
+    promptOriginFallback: workspacePrompt.trim().length > 0,
+  };
+};
+
 /**
  * Returns the Standard Create agent runtime.
  */
@@ -175,8 +209,6 @@ export const useStandardCreateAgentRuntime = ({
     new Map()
   );
   const standardAgentSessionNamespace = `ai-studio:${sessionId ?? "none"}::standard`;
-  const shouldMirrorAssistantPromptToSharedPrompt =
-    selectedTool === "create" || selectedTool === "text";
 
   const activeAgent = useCreateAgentStateCore({
     enabled: agentEnabled,
@@ -228,6 +260,33 @@ export const useStandardCreateAgentRuntime = ({
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
     resolveInternalImageDropSource,
   });
+  const handleChatModeChange = useCallback(
+    (value: boolean) => {
+      if (value === chatModeEnabled) return;
+      if (value) {
+        setAgentInput(prompt);
+      } else {
+        setStandardCreatePrompt(agentInput);
+      }
+      setChatModeEnabled(value);
+    },
+    [
+      agentInput,
+      chatModeEnabled,
+      prompt,
+      setAgentInput,
+      setChatModeEnabled,
+      setStandardCreatePrompt,
+    ]
+  );
+  const handleStandardAgentInputChange = useCallback(
+    (value: string) => {
+      handleAgentInputChange(value);
+      setStandardCreatePrompt(value);
+      setPromptOrigin("manual");
+    },
+    [handleAgentInputChange, setPromptOrigin, setStandardCreatePrompt]
+  );
 
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
@@ -263,9 +322,6 @@ export const useStandardCreateAgentRuntime = ({
         prompt,
         latestAgentPrompt,
         setLatestAgentPrompt,
-        selectedTool,
-        setSharedPrompt: setStandardCreatePrompt,
-        setPromptOrigin,
         sendToAgent,
         appendUserMessage,
         updateMessageById,
@@ -289,13 +345,10 @@ export const useStandardCreateAgentRuntime = ({
       latestAssistantMessage,
       notifyBootstrapPending,
       prompt,
-      selectedTool,
       sendToAgent,
       setAgentAttachmentError,
       setAgentAttachments,
       setAgentInput,
-      setPromptOrigin,
-      setStandardCreatePrompt,
       trackAgentUiEvent,
       updateMessageById,
     ]
@@ -339,10 +392,6 @@ export const useStandardCreateAgentRuntime = ({
         .find((message) => canUseAssistantMessageAsPrompt(message))?.id;
       if (latestEditableAssistantId === messageId) {
         setLatestAgentPrompt(commitContent);
-        setPromptOrigin("agent");
-        if (shouldMirrorAssistantPromptToSharedPrompt) {
-          setStandardCreatePrompt(commitContent);
-        }
       }
       trackAgentUiEvent("studio_agent_message_edit_committed", {
         message_id: messageId,
@@ -350,13 +399,23 @@ export const useStandardCreateAgentRuntime = ({
       });
       return true;
     },
-    [
-      agentMessages,
-      shouldMirrorAssistantPromptToSharedPrompt,
-      setStandardCreatePrompt,
-      trackAgentUiEvent,
-      updateMessageById,
-    ]
+    [agentMessages, trackAgentUiEvent, updateMessageById]
+  );
+  const handleApplyAgentOutputPrompt = useCallback(
+    (request: AgentOutputGenerateRequest) => {
+      const normalizedRequest = normalizeAgentOutputGenerateRequest(request);
+      if (!normalizedRequest) return;
+      setAgentInput(normalizedRequest.prompt);
+      setStandardCreatePrompt(normalizedRequest.prompt);
+      setLatestAgentPrompt(normalizedRequest.prompt);
+      setPromptOrigin("agent");
+      trackAgentUiEvent("studio_agent_output_applied_to_composer", {
+        message_id: normalizedRequest.messageId,
+        source: normalizedRequest.source,
+        prompt_chars: normalizedRequest.prompt.length,
+      });
+    },
+    [setAgentInput, setPromptOrigin, setStandardCreatePrompt, trackAgentUiEvent]
   );
 
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
@@ -377,12 +436,20 @@ export const useStandardCreateAgentRuntime = ({
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
       if (workspace.expertCreateMode !== "standard") return;
       const standardRuntime = agentRuntimes.standard;
+      const restoredComposerState = resolveRestoredStandardComposerPrompt({
+        workspacePrompt: workspace.standardPrompt,
+        runtimeInput: standardRuntime.input,
+        chatModeEnabled: standardRuntime.chatModeEnabled,
+      });
       replaceMessages(standardRuntime.messages);
-      setAgentInput(standardRuntime.input);
+      setAgentInput(restoredComposerState.agentInput);
       setAgentAttachments([]);
       setAgentAttachmentError(null);
+      setStandardCreatePrompt(restoredComposerState.prompt);
       setLatestAgentPrompt(standardRuntime.latestAgentPrompt);
-      setPromptOrigin(standardRuntime.promptOrigin);
+      setPromptOrigin(
+        restoredComposerState.promptOriginFallback ? "manual" : standardRuntime.promptOrigin
+      );
       setChatModeEnabled(standardRuntime.chatModeEnabled);
     },
     [
@@ -392,6 +459,7 @@ export const useStandardCreateAgentRuntime = ({
       setAgentInput,
       setChatModeEnabled,
       setLatestAgentPrompt,
+      setStandardCreatePrompt,
       setPromptOrigin,
     ]
   );
@@ -413,7 +481,9 @@ export const useStandardCreateAgentRuntime = ({
   ]);
 
   useEffect(() => {
-    setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+    queueMicrotask(() => {
+      setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+    });
   }, [sessionId]);
 
   useEffect(() => {
@@ -438,13 +508,13 @@ export const useStandardCreateAgentRuntime = ({
     promptOrigin,
     persistedAgentRuntime,
     chatModeEnabled,
-    setChatModeEnabled,
+    setChatModeEnabled: handleChatModeChange,
     setPromptOrigin,
     stagedAgentPrompt,
     isPromptRefining,
     isReferencePromptEnhancing: false,
     describeInFlightCount: 0,
-    handleAgentInputChange,
+    handleAgentInputChange: handleStandardAgentInputChange,
     handleAgentSend,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
@@ -455,6 +525,7 @@ export const useStandardCreateAgentRuntime = ({
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAssistantMessageEdit,
+    handleApplyAgentOutputPrompt,
     handleClearAgentChat,
   };
 };

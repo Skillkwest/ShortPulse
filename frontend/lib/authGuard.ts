@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { useSupabaseSessionState } from "./supabaseClient";
+import { refreshSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
 
 export const PROTECTED_ROUTES = [
   "/performance",
@@ -23,10 +23,30 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
   const router = useRouter();
   const { initialized, session, user } = useSupabaseSessionState();
   const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
+  const [, bumpRecoveryVersion] = useState(0);
+  const recoveryAttemptedRef = useRef(false);
+  const recoveryInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || !initialized) return;
+    if (session) {
+      recoveryAttemptedRef.current = false;
+      recoveryInFlightRef.current = false;
+      return;
+    }
     if (!session) {
+      if (recoveryInFlightRef.current) {
+        return;
+      }
+      if (!recoveryAttemptedRef.current) {
+        recoveryAttemptedRef.current = true;
+        recoveryInFlightRef.current = true;
+        void refreshSupabaseSession({ preserveSnapshotOnError: true }).finally(() => {
+          recoveryInFlightRef.current = false;
+          bumpRecoveryVersion((version) => version + 1);
+        });
+        return;
+      }
       router.replace(authRedirectPath);
     }
   }, [authRedirectPath, enabled, initialized, router, session]);

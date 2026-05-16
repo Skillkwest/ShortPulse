@@ -4,6 +4,7 @@ import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataC
 
 const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
 const fetchMediaPromptListPageMock = vi.hoisted(() => vi.fn());
+const setSignedUrlsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../media-library/logic/mediaListApi", () => ({
   fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
@@ -48,7 +49,7 @@ vi.mock("../../../media-library/runtime", async () => {
         loadedAtMs: null,
         resolvedScopeKey: null,
       });
-      const setSignedUrls = ReactModule.useRef(vi.fn()).current;
+      const setSignedUrls = ReactModule.useRef(setSignedUrlsMock).current;
 
       return {
         error,
@@ -89,6 +90,42 @@ describe("useMediaLibraryPanelDataController", () => {
       rows: [],
       nextCursor: null,
       hasMore: false,
+    });
+  });
+
+  it("applies seeded signed urls returned by the reset page load", async () => {
+    const signedById = new Map([["media-1", "https://signed.example/media-1-thumb.png"]]);
+
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-1",
+          storage_path: "user-1/uploads/images/media-1.png",
+          file_type: "image/png",
+          filename: "media-1.png",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById,
+      libraryTotalCount: 1,
+    });
+
+    renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(setSignedUrlsMock).toHaveBeenCalledWith(signedById);
     });
   });
 

@@ -13,6 +13,7 @@ vi.mock("../ReferenceGridArchiveControls", () => ({
 
 vi.mock("../../../components/edit/expertEditStyles", () => ({
   resolveStylePreviewBackgroundImage: () => "none",
+  prependNoneStyleTile: (tiles: unknown[]) => tiles,
 }));
 
 const createSplitViewModel = (

@@ -41,7 +41,7 @@ Snapshot persistence follows the same authority:
 Positive:
 
 1. Custom Pulse drafts and hidden workflow state cannot appear in Standard composer props or Standard route payloads.
-2. Standard direct chat, chat-off inline generate, and direct generate can evolve without Pulse workflow branches.
+2. Standard direct chat, explicit apply-to-composer, and primary generate can evolve without Pulse workflow branches.
 3. Pulse artifact generation reads Pulse workflow state only and never falls back to Standard composer input.
 4. Boundary tests can enforce imports and static ownership rather than relying only on runtime behavior.
 

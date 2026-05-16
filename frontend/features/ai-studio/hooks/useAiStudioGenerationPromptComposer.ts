@@ -48,6 +48,22 @@ type UseAiStudioGenerationPromptComposerParams = {
   ) => void;
 };
 
+const normalizeOrderedReferenceInputs = ({
+  candidates,
+  preserveDuplicates = false,
+}: {
+  candidates: string[];
+  preserveDuplicates?: boolean;
+}): string[] => {
+  const normalizedCandidates = candidates
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (preserveDuplicates) {
+    return normalizedCandidates.slice(0, 8);
+  }
+  return Array.from(new Set(normalizedCandidates)).slice(0, 8);
+};
+
 const resolvePromptForTool = ({
   tool,
   prompt,
@@ -92,19 +108,24 @@ export const useAiStudioGenerationPromptComposer = ({
     (
       baseInputs: string[],
       overrideInputs?: string[],
-      overrideMode: ReferenceInputsMode = "merge"
+      overrideMode: ReferenceInputsMode = "merge",
+      options?: {
+        preserveBaseDuplicates?: boolean;
+      }
     ) => {
-      const normalizeReferenceInputs = (candidates: string[]) =>
-        Array.from(
-          new Set(candidates.map((value) => value.trim()).filter((value) => value.length > 0))
-        ).slice(0, 8);
       if (!Array.isArray(overrideInputs)) {
-        return normalizeReferenceInputs(baseInputs);
+        return normalizeOrderedReferenceInputs({
+          candidates: baseInputs,
+          preserveDuplicates: options?.preserveBaseDuplicates,
+        });
       }
       if (overrideMode === "replace") {
-        return normalizeReferenceInputs(overrideInputs);
+        return normalizeOrderedReferenceInputs({
+          candidates: overrideInputs,
+          preserveDuplicates: true,
+        });
       }
-      return normalizeReferenceInputs([...overrideInputs, ...baseInputs]);
+      return normalizeOrderedReferenceInputs({ candidates: [...overrideInputs, ...baseInputs] });
     },
     []
   );
@@ -149,7 +170,9 @@ export const useAiStudioGenerationPromptComposer = ({
       const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
       const baseInputs =
         effectiveTool === "image" || effectiveTool === "edit"
-          ? buildImageReferenceInputs(referenceUrl, extraUrls)
+          ? buildImageReferenceInputs(referenceUrl, extraUrls, {
+              preserveDuplicateExtras: true,
+            })
           : isVideoGenerationTool
             ? buildVideoReferenceInputs(
                 referenceUrl,
@@ -161,7 +184,10 @@ export const useAiStudioGenerationPromptComposer = ({
       const imageInputs = resolveMergedReferenceInputs(
         baseInputs,
         options?.referenceInputsOverride,
-        options?.referenceInputsMode
+        options?.referenceInputsMode,
+        {
+          preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
+        }
       );
       submitTask(compiledSubmissionPrompt, imageInputs, {
         modeOverride: options?.modeOverride,
@@ -245,7 +271,10 @@ export const useAiStudioGenerationPromptComposer = ({
       const imageInputs = resolveMergedReferenceInputs(
         referencePool,
         options?.referenceInputsOverride,
-        options?.referenceInputsMode
+        options?.referenceInputsMode,
+        {
+          preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
+        }
       );
       submitTask(compiledSubmissionPrompt, imageInputs, {
         selectedToolOverride: effectiveTool,

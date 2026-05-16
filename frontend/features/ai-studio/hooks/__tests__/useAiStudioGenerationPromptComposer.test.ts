@@ -100,14 +100,55 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     act(() => {
       result.current.regenerateOutput({
-        referenceInputsOverride: ["https://example.com/flatten-primary.png"],
+        referenceInputsOverride: [
+          "https://example.com/flatten-primary.png",
+          "https://example.com/flatten-primary.png",
+          "https://example.com/flatten-secondary.png",
+        ],
         referenceInputsMode: "replace",
       });
     });
 
     expect(submitTask).toHaveBeenCalledWith(
       "edit prompt",
-      ["https://example.com/flatten-primary.png"],
+      [
+        "https://example.com/flatten-primary.png",
+        "https://example.com/flatten-primary.png",
+        "https://example.com/flatten-secondary.png",
+      ],
+      expect.objectContaining({ displayPromptOverride: "edit prompt" })
+    );
+  });
+
+  it("preserves duplicate edit base references when slot order is authoritative", () => {
+    const submitTask = vi.fn();
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/shared.png",
+      extraImageUrls: [
+        "https://example.com/shared.png",
+        "https://example.com/secondary.png",
+        "https://example.com/shared.png",
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      submitTask,
+      selectedTool: "edit",
+      resolveReferenceInputsForTool,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.regenerateOutput();
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      [
+        "https://example.com/shared.png",
+        "https://example.com/shared.png",
+        "https://example.com/secondary.png",
+        "https://example.com/shared.png",
+      ],
       expect.objectContaining({ displayPromptOverride: "edit prompt" })
     );
   });

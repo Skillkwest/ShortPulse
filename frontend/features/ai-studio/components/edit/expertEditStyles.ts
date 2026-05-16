@@ -11,6 +11,17 @@ export type ExpertEditStyleTile = {
   placeholder: boolean;
 };
 
+export const NONE_STYLE_ID = "__none_style__";
+export const NONE_STYLE_TILE: ExpertEditStyleTile = {
+  id: NONE_STYLE_ID,
+  title: "None",
+  style: "None",
+  referenceImageName: "None",
+  stylePrompt: "",
+  previewUrl: null,
+  placeholder: false,
+};
+
 const PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
   {
     id: "photorealistic",
@@ -47,6 +58,10 @@ const PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
 ];
 
 export const EXPERT_EDIT_STYLE_CATALOG: readonly ExpertEditStyleTile[] = [...PRIMARY_STYLE_TILES];
+
+export const prependNoneStyleTile = (
+  styles: readonly ExpertEditStyleTile[]
+): ExpertEditStyleTile[] => [NONE_STYLE_TILE, ...styles];
 
 export const resolveStylePreviewBackgroundImage = (previewUrl: string | null) => {
   const resolvedPreviewUrl = previewUrl?.trim() ?? "";

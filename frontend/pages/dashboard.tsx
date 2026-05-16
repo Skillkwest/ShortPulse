@@ -504,11 +504,12 @@ export default function DashboardPage({
 
   const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
+  const pageTitle = isAuthenticated ? "ShortPulse · Dashboard" : "ShortPulse · Home";
 
   return (
     <>
       <Head>
-        <title>ShortPulse · Dashboard</title>
+        <title>{pageTitle}</title>
         <meta
           name="description"
           content="ShortPulse public dashboard and workspace entry for pricing, account access, and AI Studio project flow."

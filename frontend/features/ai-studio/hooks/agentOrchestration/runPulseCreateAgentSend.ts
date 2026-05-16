@@ -1,7 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
-import { hasComposerImageAttachmentPreview } from "../../logic/composerImageAttachment";
 import { shouldApplyAgentPromptToSharedPrompt } from "../../logic/promptTargeting";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
@@ -56,11 +55,9 @@ const cloneMessageAttachments = (
 ) => attachments.map((attachment) => ({ ...attachment }));
 
 const stripGenericPromptContinuity = (context: AgentContext): AgentContext => {
-  const {
-    activePrompt: _activePrompt,
-    lastAssistantMessage: _lastAssistantMessage,
-    ...pulseContext
-  } = context;
+  const { activePrompt, lastAssistantMessage, ...pulseContext } = context;
+  void activePrompt;
+  void lastAssistantMessage;
   return pulseContext;
 };
 
@@ -226,30 +223,8 @@ export const runPulseCreateAgentSend = async ({
     removeMessageById(optimisticUserMessageId);
   };
   try {
-    const imageAttachmentsMissingUrl = outboundAttachments.filter(
-      (attachment) => attachment.kind === "image" && !hasComposerImageAttachmentPreview(attachment)
-    );
-    if (imageAttachmentsMissingUrl.length > 0) {
-      const failedIds = imageAttachmentsMissingUrl.map((attachment) => attachment.id);
-      updateOptimisticAttachmentDelivery(
-        failedIds,
-        "failed",
-        "Image URL missing. Remove this image and attach it again."
-      );
-      setAgentAttachmentError(
-        "One or more attached images are missing a valid URL. Remove failed images and try again."
-      );
-      trackAgentUiEvent("studio_agent_attachment_missing_url", {
-        failed_image_attachments: failedIds.length,
-      });
-      discardOptimisticUserMessage();
-      return;
-    }
-
     const imageAttachmentIds = outboundAttachments
-      .filter(
-        (attachment) => attachment.kind === "image" && hasComposerImageAttachmentPreview(attachment)
-      )
+      .filter((attachment) => attachment.kind === "image")
       .map((attachment) => attachment.id);
     let preparedImageUrls = new Map<string, string>();
     if (imageAttachmentIds.length > 0) {

@@ -8,6 +8,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
+  AgentOutputGenerateRequest,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
@@ -58,6 +59,7 @@ export type PromptStepProps = {
   onClearAgentChat?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
+  onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   useAgentResponseInlineGeneratePrefab?: boolean;
   // Actions

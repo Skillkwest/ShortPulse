@@ -3,6 +3,7 @@
  * Keeps provider submit logic out of UI hooks while preserving server-owned credentials.
  */
 import { fetchWithAuth } from "./authenticatedFetch";
+import { readGenerationAdmissionErrorMessage } from "./generationAdmissionErrors";
 import type {
   OpenAiImage2InputFidelity,
   OpenAiImage2Quality,
@@ -69,9 +70,17 @@ const submitOpenAiImageRequest = async ({
   });
   const data = (await response.json().catch(() => ({}))) as
     | OpenAiImageSubmitResponse
-    | { error?: string; details?: string };
+    | {
+        error?: string;
+        details?: string;
+        code?: string;
+        retryAfterSeconds?: number | string;
+        admissionScope?: "shared_provider" | "per_user";
+      };
   if (!response.ok) {
+    const admissionMessage = readGenerationAdmissionErrorMessage(response, data);
     const message =
+      admissionMessage ||
       ("details" in data && typeof data.details === "string" && data.details.trim()) ||
       ("error" in data && typeof data.error === "string" && data.error.trim()) ||
       fallbackMessage;

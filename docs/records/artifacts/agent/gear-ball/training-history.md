@@ -447,3 +447,40 @@ Capability decision:
 Next training focus:
 
 - On the next mixed production run, treat `docs:check` plus `build` as early gates whenever Beeper packet generation and shared editor hooks both moved in the same run.
+
+## 2026-05-15 - Production panel media and agent closeout
+
+Prompt cadence used:
+
+- run SOP on prod
+
+What changed in this run:
+
+- Finalized the panel-oriented media-library/runtime lane, including autosave projection save-state propagation and production-facing preview/detail parity.
+- Updated route/media ADR and planning docs, refreshed Beeper retained packets, and created the new Bopper agent space and retained artifact area.
+
+What worked:
+
+- Targeted reproduction plus grouped reruns isolated the real suite-hot failures quickly.
+- Build and full-suite reruns caught the auth recovery timing gap and the remaining test timeout pressure before push.
+- Keeping the branch contract pinned to `production` prevented any branch drift while the run expanded.
+
+What failed or slipped:
+
+- I underestimated the remaining dirty worktree after the earlier production commits and had to do a broader second batching pass.
+- The recovery-form test was modeling a `PASSWORD_RECOVERY` event on a signup callback route, which only passed intermittently under suite pressure.
+
+Durable lesson:
+
+- For auth callback recovery tests, the mocked route flow must match the emitted auth event; otherwise suite pressure can let the fallback error path win the race.
+- After any apparent closeout on a large production run, re-check the entire worktree immediately. A small visible leftover slice can hide a much larger second lane.
+
+Self-rating:
+
+- Run quality: `8/10`
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `no`
+- SOP/doc update needed: `no`

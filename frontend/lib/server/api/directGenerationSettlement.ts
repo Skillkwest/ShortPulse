@@ -12,6 +12,7 @@ import {
   isGenerationAbandonedMetadata,
 } from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
@@ -194,21 +195,6 @@ const updateGenerationRow = async ({
   if (error) throw error;
 };
 
-const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("user_preferences")
-      .select("media_autosave_enabled")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) return true;
-    const value = (data as { media_autosave_enabled?: unknown } | null)?.media_autosave_enabled;
-    return typeof value === "boolean" ? value : true;
-  } catch {
-    return true;
-  }
-};
-
 const readMediaDeliveryPathsById = async ({
   mediaFileIds,
   userId,
@@ -338,7 +324,9 @@ export const settleDirectGenerationSuccess = async ({
     providerState,
     outcome: "success",
   });
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(generation.user_id);
+  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({
+    userId: generation.user_id,
+  });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,

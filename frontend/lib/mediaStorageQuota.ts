@@ -59,3 +59,6 @@ export const normalizeMediaStorageQuotaUiCopy = (
     ctaHref: MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
   };
 };
+
+export const resolveMediaStorageQuotaUserMessage = (error: unknown): string | null =>
+  normalizeMediaStorageQuotaUiCopy(error)?.message ?? null;

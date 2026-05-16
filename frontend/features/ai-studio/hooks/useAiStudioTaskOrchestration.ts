@@ -277,6 +277,8 @@ export const useAiStudioTaskOrchestration = ({
               fullStoragePath: nextDelivery.fullStoragePath,
               mediaSource: item.mediaSource ?? "generated",
               previewTier: item.mode === "video" ? "preview_loop" : "full",
+              saveState: "saved",
+              saveError: null,
               archivedAt: null,
               archiveReason: null,
               errorMessage: null,

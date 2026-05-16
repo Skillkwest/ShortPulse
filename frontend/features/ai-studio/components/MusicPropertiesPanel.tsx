@@ -212,8 +212,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     pricingPolicyReady &&
     submissionLength > 0 &&
     isWithinPromptLimit &&
-    !isInsufficientCredits &&
-    !isGenerating;
+    !isInsufficientCredits;
 
   const syncInspirationScrollState = React.useCallback(() => {
     const node = inspirationScrollerRef.current;
@@ -342,7 +341,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
 
   const handleGenerate = React.useCallback(async () => {
-    if (!onGenerate || !submissionText || !isWithinPromptLimit || isGenerating) return;
+    if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
     const request = {
       text: submissionText,
       durationSeconds: null,
@@ -364,7 +363,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [
     estimatedCreditsPerSong,
     requestedMusicMode,
-    isGenerating,
     isWithinPromptLimit,
     onGenerate,
     songBatchCount,

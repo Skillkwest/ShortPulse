@@ -322,8 +322,11 @@ export function MediaLibraryModal({
         ? await signStoragePath(previewPosterStoragePath, { forceRefresh: true })
         : null;
       const fullStoragePath = file.storage_path;
-      const previewUrl = file.signedUrl ?? nextUrl;
-      const fullUrl = nextUrl;
+      const previewUrl = nextUrl;
+      const fullUrl =
+        (fullStoragePath && fullStoragePath !== previewStoragePath
+          ? await signStoragePath(fullStoragePath, { forceRefresh: true })
+          : null) ?? nextUrl;
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.add(file.id);

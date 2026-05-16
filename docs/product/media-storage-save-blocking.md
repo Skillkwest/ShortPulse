@@ -4,7 +4,11 @@ Purpose: define the source-of-truth product and implementation contract for how 
 
 ## Status
 
-Active source of truth for storage-full save blocking preparation and implementation.
+Closed implementation lane as of 2026-05-15.
+
+- Product and implementation contract remains the source of truth for future changes.
+- Current lane result: storage-full blocking and friendly messaging were implemented across the active AI Studio/manual-save/upload/autosave/polling/recovery surfaces.
+- Residual unrelated validation blocker at closeout: `frontend/features/ai-studio/components/AiStudioPageShell.tsx` still references undefined `resetProjectWorkspace`, which prevented a final repo build in this lane.
 
 ## Update triggers
 

@@ -100,4 +100,59 @@ describe("useMediaLibraryFolderDropController", () => {
     );
     expect(refreshFolders).toHaveBeenCalledTimes(1);
   });
+
+  it("proactively ignores desktop file drops while storage is full", async () => {
+    const setFolderError = vi.fn();
+    const setMembershipMessage = vi.fn();
+    const setMembershipPendingMessage = vi.fn();
+    const refreshActiveRows = vi.fn().mockResolvedValue(undefined);
+    const refreshFolders = vi.fn().mockResolvedValue(undefined);
+    const onDropFilesToFolder = vi.fn().mockResolvedValue(undefined);
+    readMediaLibraryDragPayloadMock.mockReturnValue(null);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryFolderDropController({
+        projectId: "project-1",
+        folders: [
+          {
+            id: "folder-1",
+            name: "Folder 1",
+            parentFolderId: null,
+            createdAt: "2026-04-24T00:00:00.000Z",
+            updatedAt: "2026-04-24T00:00:00.000Z",
+          },
+        ],
+        isStorageQuotaBlocked: true,
+        setFolderError,
+        setMembershipMessage,
+        setMembershipPendingMessage,
+        refreshActiveRows,
+        refreshFolders,
+        onDropFilesToFolder,
+      })
+    );
+
+    const file = new File(["video"], "clip.mp4", { type: "video/mp4" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: {
+        types: ["Files"],
+        files,
+      },
+    } as unknown as React.DragEvent<HTMLElement>;
+
+    await act(async () => {
+      await result.current.handleFolderDrop("folder-1", event);
+    });
+
+    expect(onDropFilesToFolder).not.toHaveBeenCalled();
+    expect(setFolderError).not.toHaveBeenCalledWith("Unable to process dropped files.");
+    expect(setMembershipPendingMessage).not.toHaveBeenCalled();
+  });
 });

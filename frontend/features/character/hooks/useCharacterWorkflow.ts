@@ -99,7 +99,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
   const [poseId, setPoseId] = useState<string | null>(null);
   const [results, setResults] = useState<CharacterGenerationResult[]>([]);
   const [isBuildingIdentity, setIsBuildingIdentity] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingCount, setGeneratingCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [hasWebGpu, setHasWebGpu] = useState<boolean>(
     () => typeof navigator !== "undefined" && "gpu" in navigator
@@ -107,6 +107,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
   const [modelsAvailable, setModelsAvailable] = useState<boolean>(false);
   const [capabilityMessage, setCapabilityMessage] = useState<string | undefined>(undefined);
   const objectUrlsRef = useRef<string[]>([]);
+  const isGenerating = generatingCount > 0;
 
   const addReferences = useCallback(
     (files: FileList | File[]) => {
@@ -193,7 +194,6 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
 
   const generate = useCallback(
     async (requestOverrides: Partial<CharacterGenerationRequest> = {}) => {
-      if (isGenerating) return;
       const activePrompt = (requestOverrides.prompt ?? prompt).trim();
       if (!activePrompt) {
         setError("Add a prompt to generate.");
@@ -205,11 +205,11 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
       const activeModel = requestOverrides.modelId ?? modelId;
 
       setError(null);
-      setIsGenerating(true);
+      setGeneratingCount((count) => count + 1);
 
       if (!identity.identityToken || identity.embeddingStatus !== "ready") {
         setError("Build the character identity before generating.");
-        setIsGenerating(false);
+        setGeneratingCount((count) => Math.max(0, count - 1));
         return;
       }
 
@@ -317,18 +317,10 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         const message = err instanceof Error ? err.message : "Character generation failed.";
         setError(message);
       } finally {
-        setIsGenerating(false);
+        setGeneratingCount((count) => Math.max(0, count - 1));
       }
     },
-    [
-      aspect,
-      identity.embeddingStatus,
-      identity.identityToken,
-      identity.references,
-      isGenerating,
-      modelId,
-      prompt,
-    ]
+    [aspect, identity.embeddingStatus, identity.identityToken, identity.references, modelId, prompt]
   );
 
   const clearError = useCallback(() => setError(null), []);

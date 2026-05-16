@@ -49,6 +49,8 @@ const createFindOutputById = (outputs: StudioOutput[]) => {
 };
 
 const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
+const originalFetch = global.fetch;
 
 const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
   ({
@@ -80,6 +82,11 @@ describe("useAiStudioAgentComposer", () => {
       configurable: true,
       value: originalCreateObjectURL,
     });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: originalRevokeObjectURL,
+    });
+    global.fetch = originalFetch;
   });
 
   it("clears attachment error when input changes", () => {
@@ -137,7 +144,7 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
-  it("stages composer image payloads directly without generic drag reconstruction", () => {
+  it("stages composer image payload previews directly without generic drag reconstruction", async () => {
     const ensureAgentSession = vi.fn();
     extractComposerImageDropPayloadMock.mockReturnValue({
       version: 1,
@@ -167,21 +174,81 @@ describe("useAiStudioAgentComposer", () => {
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
-    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        imageUrl: "blob:resolved-artifact",
+        imageFallbackUrls: [],
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        referenceUrl: "https://signed.example.com/generated.png",
+        referenceRenderUrl: null,
+        text: "Dragged prompt",
+      });
+    });
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
     expect(extractInternalReferenceDragPayloadMock).toHaveBeenCalledTimes(1);
-    expect(result.current.agentAttachments[0]).toMatchObject({
-      kind: "image",
+  });
+
+  it("materializes a local blob preview from durable identity when the drag payload preview is remote", async () => {
+    const ensureAgentSession = vi.fn();
+    const createObjectUrlMock = vi.fn(() => "blob:materialized-composer-preview");
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrlMock,
+    });
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+    })) as typeof fetch;
+    extractComposerImageDropPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
       referenceId: "out-1",
+      outputId: "out-1",
       mediaId: "media-1",
-      imageUrl: "blob:resolved-artifact",
-      imageFallbackUrls: ["https://signed.example.com/generated.png"],
+      displayArtifactUrl: "https://fragile.example.com/preview.png",
+      displayArtifactKind: "url",
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",
       referenceUrl: "https://signed.example.com/generated.png",
-      referenceRenderUrl: "blob:resolved-artifact",
-      text: "Dragged prompt",
+      promptText: "Dragged prompt",
+      sourceSurface: "all-refs",
     });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => "https://weak.example.com/preview.png",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        imageUrl: "blob:materialized-composer-preview",
+        imageFallbackUrls: [],
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        referenceUrl: "https://signed.example.com/generated.png",
+        referenceRenderUrl: null,
+        text: "Dragged prompt",
+      });
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("https://signed.example.com/generated.png");
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
   });
 
   it("prefers internal image resolution over the direct composer payload when both are present", async () => {
@@ -464,6 +531,39 @@ describe("useAiStudioAgentComposer", () => {
       "blob:two.png",
       "blob:three.png",
     ]);
+  });
+
+  it("revokes owned blob urls when an attachment is removed", () => {
+    const createObjectUrlMock = vi.fn(() => "blob:owned-preview");
+    const revokeObjectUrlMock = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrlMock,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrlMock,
+    });
+    const files = [new File(["image-bytes"], "preview.png", { type: "image/png" })];
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    act(() => {
+      result.current.handleRemoveAgentAttachment(result.current.agentAttachments[0]?.id ?? "");
+    });
+
+    expect(revokeObjectUrlMock).toHaveBeenCalledWith("blob:owned-preview");
   });
 
   it("rejects dropped video files before they reach the composer", () => {

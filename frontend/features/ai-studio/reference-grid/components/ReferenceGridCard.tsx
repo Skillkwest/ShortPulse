@@ -191,14 +191,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const saveDisabled =
-    isMediaStorageFull || item.saveState === "saving" || item.saveState === "blocked_storage";
+    isMediaStorageFull || item.saveState === "saving" || item.saveState === "saved";
   const saveLabel = isMediaStorageFull
     ? "Storage full"
-    : item.saveState === "failed"
+    : item.saveState === "failed" || item.saveState === "blocked_storage"
       ? "Retry save"
-      : item.saveState === "blocked_storage"
-        ? "Storage full"
-        : "Save to media library";
+      : "Save to media library";
   const canSaveReference = canSaveReferenceOutput(item);
   const canDownloadReference = canDownloadReferenceOutput(item);
   const shouldShowSaveAction = Boolean(

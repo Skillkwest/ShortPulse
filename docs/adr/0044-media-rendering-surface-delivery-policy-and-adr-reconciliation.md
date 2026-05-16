@@ -32,7 +32,7 @@ Surfaces:
 - `media-library-panel`
 
 Historical note:
-- The former standalone Media Library page used the same policy family before that page was retired.
+- The historical implementation used the same policy family before that page was retired.
 
 Policy:
 - Image cards target durable stored preview variants/derivatives as the steady-state path.

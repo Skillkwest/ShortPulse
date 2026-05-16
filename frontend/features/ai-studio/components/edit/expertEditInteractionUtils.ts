@@ -4,6 +4,7 @@
 export const STAGE_CONTEXT_MENU_WIDTH = 164;
 export const STAGE_CONTEXT_MENU_HEIGHT = 206;
 export const STAGE_CONTEXT_MENU_GUTTER = 8;
+export const KEYBOARD_PAN_OWNER_SELECTOR = '[data-keyboard-pan-owner="true"]';
 
 export const isKeyboardEventFromEditableTarget = (event: KeyboardEvent) => {
   const target = event.target;
@@ -19,6 +20,7 @@ export const isKeyboardEventFromInteractiveTarget = (event: KeyboardEvent) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return false;
   if (isKeyboardEventFromEditableTarget(event)) return true;
+  if (target.closest(KEYBOARD_PAN_OWNER_SELECTOR)) return false;
   return Boolean(
     target.closest(
       'button, a, summary, [role="button"], [role="link"], [role="menuitem"], [tabindex]'

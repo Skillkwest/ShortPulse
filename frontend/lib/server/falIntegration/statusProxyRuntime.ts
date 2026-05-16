@@ -23,6 +23,8 @@ export type ShortPulseLifecycleHint = {
   taskState: "pending" | "running" | "success" | "fail";
   isTerminal: boolean;
   resultUrls?: string[];
+  saveState?: "idle" | "saving" | "saved" | "failed" | "blocked_storage";
+  saveError?: string | null;
   errorMessage?: string | null;
   errorDetail?: unknown;
   providerState?: string | null;
@@ -92,6 +94,8 @@ export const buildShortPulseLifecycleHint = ({
   taskState,
   isTerminal,
   resultUrls,
+  saveState,
+  saveError,
   errorMessage,
   errorDetail,
   providerState,
@@ -107,6 +111,20 @@ export const buildShortPulseLifecycleHint = ({
   };
   if (Array.isArray(resultUrls) && resultUrls.length > 0) {
     next.resultUrls = resultUrls;
+  }
+  if (
+    saveState === "idle" ||
+    saveState === "saving" ||
+    saveState === "saved" ||
+    saveState === "failed" ||
+    saveState === "blocked_storage"
+  ) {
+    next.saveState = saveState;
+  }
+  if (saveError === null) {
+    next.saveError = null;
+  } else if (typeof saveError === "string" && saveError.trim().length > 0) {
+    next.saveError = saveError.trim();
   }
   if (typeof errorMessage === "string" && errorMessage.trim().length > 0) {
     next.errorMessage = errorMessage.trim();

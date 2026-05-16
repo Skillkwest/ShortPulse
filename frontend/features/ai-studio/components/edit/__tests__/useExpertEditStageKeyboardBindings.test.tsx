@@ -126,4 +126,99 @@ describe("useExpertEditStageKeyboardBindings", () => {
       button.remove();
     }
   });
+
+  it("treats stage keyboard owners as valid space-pan targets even though they are focusable", async () => {
+    const stageOwner = document.createElement("div");
+    stageOwner.setAttribute("data-keyboard-pan-owner", "true");
+    stageOwner.tabIndex = 0;
+    document.body.appendChild(stageOwner);
+    stageOwner.focus();
+
+    try {
+      const { result } = renderHook(() => {
+        const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
+        useExpertEditStageKeyboardBindings({
+          isMarkupExpandSelected: true,
+          isMorePresetsSurfaceOpen: false,
+          setIsMarkupPanSpacePressed,
+          canUndoGeneralAction: false,
+          canRedoGeneralAction: false,
+          handleUndoGeneralAction: vi.fn(),
+          handleRedoGeneralAction: vi.fn(),
+        });
+        return { isMarkupPanSpacePressed };
+      });
+
+      const keyDown = new KeyboardEvent("keydown", {
+        key: " ",
+        code: "Space",
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        stageOwner.dispatchEvent(keyDown);
+      });
+
+      await waitFor(() => {
+        expect(result.current.isMarkupPanSpacePressed).toBe(true);
+      });
+      expect(keyDown.defaultPrevented).toBe(true);
+    } finally {
+      stageOwner.remove();
+    }
+  });
+
+  it("always clears space-pan on keyup even when release lands on an interactive target", async () => {
+    const { result } = renderHook(() => {
+      const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
+      useExpertEditStageKeyboardBindings({
+        isMarkupExpandSelected: true,
+        isMorePresetsSurfaceOpen: false,
+        setIsMarkupPanSpacePressed,
+        canUndoGeneralAction: false,
+        canRedoGeneralAction: false,
+        handleUndoGeneralAction: vi.fn(),
+        handleRedoGeneralAction: vi.fn(),
+      });
+      return { isMarkupPanSpacePressed };
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: " ",
+          code: "Space",
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMarkupPanSpacePressed).toBe(true);
+    });
+
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+
+    try {
+      const keyUp = new KeyboardEvent("keyup", {
+        key: " ",
+        code: "Space",
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        button.dispatchEvent(keyUp);
+      });
+
+      await waitFor(() => {
+        expect(result.current.isMarkupPanSpacePressed).toBe(false);
+      });
+      expect(keyUp.defaultPrevented).toBe(false);
+    } finally {
+      button.remove();
+    }
+  });
 });

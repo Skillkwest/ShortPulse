@@ -15,13 +15,15 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.queryByText("Sound Effects")).not.toBeInTheDocument();
     expect(screen.queryByText("No sound effects yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Generated sound effects will appear here.")).not.toBeInTheDocument();
-    expect(
-      container.querySelector('[aria-label="Resize available sound effects and prompt sections"]')
-    ).toBeNull();
     expect(screen.getByLabelText("Sound effect prompt")).toHaveAttribute(
       "placeholder",
       "Describe the sound effect you want to generate with detail, texture, space, and motion."
     );
+    expect(
+      screen.getByRole("separator", {
+        name: "Resize sound effects spacer and composition sections",
+      })
+    ).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
       "aria-checked",
       "false"

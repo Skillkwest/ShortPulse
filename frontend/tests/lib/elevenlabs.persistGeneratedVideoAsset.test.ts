@@ -102,6 +102,7 @@ vi.mock("../../lib/server/videoPosterVariant", () => ({
     upsertVideoPreviewVariantFromBufferMock(...args),
 }));
 
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "../../lib/server/api/mediaAutosavePreference";
 import { persistGeneratedVideoAsset } from "../../lib/server/elevenlabs";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -232,7 +233,7 @@ describe("persistGeneratedVideoAsset", () => {
       error: { message: "user preference read failed" },
     });
 
-    await persistGeneratedVideoAsset({
+    const result = await persistGeneratedVideoAsset({
       userId: "user-1",
       promptText: "Cinematic skyline reveal",
       provider: "elevenlabs",
@@ -250,11 +251,30 @@ describe("persistGeneratedVideoAsset", () => {
       expect.objectContaining({
         metadata: expect.objectContaining({
           autosave_enabled: false,
+          autosave_preference_source: "lookup_error",
           autosave_decision: "autosave_skipped",
           autosave_decision_reason: "autosave_disabled",
         }),
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        saveState: "failed",
+        saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+          enabled: false,
+          source: "lookup_error",
+        }),
+      })
+    );
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      saveState: "failed",
+      saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+        enabled: false,
+        source: "lookup_error",
+      }),
+    });
   });
 
   it("keeps video output records when media autosave insert fails", async () => {
@@ -333,6 +353,47 @@ describe("persistGeneratedVideoAsset", () => {
       mediaFileId: null,
       outputRowId: "output-1",
       signedUrl: "https://signed.example/video.mp4",
+    });
+  });
+
+  it("marks storage-blocked video autosave results with blocked_storage", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    mediaFilesInsertMock.mockImplementation(() =>
+      resolveInsertSingle({
+        error: {
+          message:
+            "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)",
+        },
+      })
+    );
+
+    const result = await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+      generationReplay: { source: "reroll-1" },
+      extraMetadata: { remuxed_from: "source-video-1" },
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        saveState: "blocked_storage",
+        savedMediaIds: [],
+      })
+    );
+    expect(result).toMatchObject({
+      saveState: "blocked_storage",
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
     });
   });
 

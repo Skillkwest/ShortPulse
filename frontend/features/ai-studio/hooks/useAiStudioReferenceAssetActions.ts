@@ -5,6 +5,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
+import { requestMediaStorageQuotaSummaryRefresh } from "../../billing/useMediaStorageQuotaSummary";
 import {
   downloadBlobToFile,
   downloadUrlToFile,
@@ -108,13 +109,17 @@ export const useAiStudioReferenceAssetActions = ({
         setUiError(MEDIA_STORAGE_FULL_USER_MESSAGE);
         return;
       }
-      void saveReferenceToLibrary(outputId).catch((error) => {
-        const message =
-          error instanceof Error && error.message.trim().length
-            ? error.message.trim()
-            : "Unable to save media.";
-        setUiError(message);
-      });
+      void saveReferenceToLibrary(outputId)
+        .catch((error) => {
+          const message =
+            error instanceof Error && error.message.trim().length
+              ? error.message.trim()
+              : "Unable to save media.";
+          setUiError(message);
+        })
+        .finally(() => {
+          requestMediaStorageQuotaSummaryRefresh();
+        });
     },
     [isMediaStorageFull, saveReferenceToLibrary, setUiError]
   );

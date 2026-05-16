@@ -180,6 +180,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-1",
       resultUrls: ["https://cdn.shortpulse.test/projection-a.mp4"],
+      saveState: null,
+      saveError: null,
       status: "ready",
       taskState: "success",
       deliveryState: "canonical_owned",
@@ -220,6 +222,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-fail-1",
       resultUrls: [],
+      saveState: null,
+      saveError: null,
       status: "ready",
       taskState: "fail",
       queueState: null,
@@ -257,6 +261,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-success-pending-1",
       resultUrls: [],
+      saveState: null,
+      saveError: null,
       status: "ready",
       taskState: "success",
       recoveryPending: true,
@@ -302,6 +308,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-output-1",
       resultUrls: ["https://cdn.shortpulse.test/projected-output.mp4"],
+      saveState: null,
+      saveError: null,
       status: "ready",
       taskState: "success",
       deliveryState: "canonical_owned",
@@ -358,6 +366,8 @@ describe("falStatusPersistedResults", () => {
         "https://cdn.shortpulse.test/output-a.mp4",
         "https://cdn.shortpulse.test/output-b.mp4",
       ],
+      saveState: null,
+      saveError: null,
       status: "ready",
       taskState: "success",
       deliveryState: "canonical_owned",
@@ -409,6 +419,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-processing-1",
       resultUrls: ["https://cdn.shortpulse.test/output-a.mp4"],
+      saveState: null,
+      saveError: null,
       status: "processing",
       taskState: "success",
       deliveryState: "canonical_owned",
@@ -444,6 +456,7 @@ describe("falStatusPersistedResults", () => {
         taskState: "success",
         isTerminal: true,
         resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+        saveError: null,
         providerState: "completed",
         deliveryState: "canonical_owned",
         queueState: "dispatched",

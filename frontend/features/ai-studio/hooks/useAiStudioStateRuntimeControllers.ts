@@ -89,7 +89,8 @@ type UseAiStudioStateRuntimeControllersParams = {
   ) => void;
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
-  setPanelGenerating: (panel: "create" | "edit" | "video", isGenerating: boolean) => void;
+  beginPanelGeneration: (panel: "create" | "edit" | "video") => void;
+  endPanelGeneration: (panel: "create" | "edit" | "video") => void;
   setPulseCreatePrompt: (value: string) => void;
   setPulseSessionInstanceId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
@@ -198,7 +199,8 @@ export const useAiStudioStateRuntimeControllers = ({
   setOutputCollectionsForCreateMode,
   setOutputs,
   setOutputsState,
-  setPanelGenerating,
+  beginPanelGeneration,
+  endPanelGeneration,
   setPulseCreatePrompt,
   setPulseSessionInstanceId,
   setReferenceImageUrl,
@@ -281,7 +283,8 @@ export const useAiStudioStateRuntimeControllers = ({
     selectedTool,
     setImageReferenceImageUrl,
     setOutputs,
-    setPanelGenerating,
+    beginPanelGeneration,
+    endPanelGeneration,
     setSaved,
     setUiError,
     setUiNotice,

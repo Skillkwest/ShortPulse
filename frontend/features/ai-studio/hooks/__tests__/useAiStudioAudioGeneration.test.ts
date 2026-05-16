@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
@@ -417,5 +417,154 @@ describe("useAiStudioAudioGeneration", () => {
       savedMediaIds: ["media-voice"],
       taskState: "success",
     });
+  });
+
+  it("keeps music busy state active until parallel generations settle", async () => {
+    let outputs: StudioOutput[] = [];
+    let uiError: string | null = null;
+    let optimisticIndex = 0;
+    let firstPending: Promise<boolean | void> | null = null;
+    let secondPending: Promise<boolean | void> | null = null;
+    const responseResolvers: Array<
+      (value: {
+        ok: boolean;
+        json: () => Promise<{
+          output: {
+            provider: "elevenlabs";
+            mode: "audio";
+            generationId: string;
+            mediaFileId: string | null;
+            requestId: string;
+            previewUrl: string;
+            resultUrls: string[];
+            previewStoragePath: string;
+            fullStoragePath: string;
+            companionArtUrl?: string | null;
+            companionArtStoragePath?: string | null;
+            companionArtStatus?: "pending" | "processing" | "ready" | "failed" | null;
+            mimeType: string;
+            durationMs: number | null;
+            waveformPeaks: number[] | null;
+            modelId: string;
+          };
+        }>;
+      }) => void
+    > = [];
+
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(({ prompt }: { prompt: string }) => {
+      optimisticIndex += 1;
+      const outputId = `out-music-${optimisticIndex}`;
+      outputs = [createPlaceholderOutput(outputId, prompt), ...outputs];
+      return outputId;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const notifyGenerationFailure = vi.fn();
+
+    fetchWithAuthMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          responseResolvers.push(resolve);
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure,
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    await act(async () => {
+      firstPending = result.current.handleMusicGenerate({
+        text: "parallel synth cue",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+      });
+      secondPending = result.current.handleMusicGenerate({
+        text: "parallel synth cue",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.musicIsGenerating).toBe(true);
+
+    await act(async () => {
+      responseResolvers[0]?.({
+        ok: true,
+        json: async () => ({
+          output: {
+            provider: "elevenlabs",
+            mode: "audio",
+            generationId: "gen-music-1",
+            mediaFileId: "media-music-1",
+            requestId: "req-music-1",
+            previewUrl: "https://example.com/music-1.mp3",
+            resultUrls: ["https://example.com/music-1.mp3"],
+            previewStoragePath: "preview/music-1.mp3",
+            fullStoragePath: "full/music-1.mp3",
+            mimeType: "audio/mpeg",
+            durationMs: 30_000,
+            waveformPeaks: [0.1, 0.5, 0.2],
+            modelId: hardcodedMusicModelId,
+          },
+        }),
+      });
+      await firstPending;
+    });
+
+    expect(result.current.musicIsGenerating).toBe(true);
+
+    await act(async () => {
+      responseResolvers[1]?.({
+        ok: true,
+        json: async () => ({
+          output: {
+            provider: "elevenlabs",
+            mode: "audio",
+            generationId: "gen-music-2",
+            mediaFileId: "media-music-2",
+            requestId: "req-music-2",
+            previewUrl: "https://example.com/music-2.mp3",
+            resultUrls: ["https://example.com/music-2.mp3"],
+            previewStoragePath: "preview/music-2.mp3",
+            fullStoragePath: "full/music-2.mp3",
+            mimeType: "audio/mpeg",
+            durationMs: 30_000,
+            waveformPeaks: [0.2, 0.4, 0.3],
+            modelId: hardcodedMusicModelId,
+          },
+        }),
+      });
+      await secondPending;
+    });
+
+    await waitFor(() => {
+      expect(result.current.musicIsGenerating).toBe(false);
+    });
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 });

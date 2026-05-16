@@ -5,6 +5,7 @@
 import React from "react";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
@@ -31,6 +32,8 @@ const soundEffectPromptPlaceholder =
   "Describe the sound effect you want to generate with detail, texture, space, and motion.";
 const maxPromptCharacters = 450;
 const defaultSoundEffectsFormat: SoundEffectFormat = "mp3_44100_128";
+const minTopSpacerHeightPx = 112;
+const minBottomComposerHeightPx = 360;
 const soundEffectInspirationChips = [
   "cinematic boom",
   "whoosh sweep",
@@ -81,6 +84,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   pricingPolicy = null,
   pricingPolicyReady = true,
 }: SoundEffectsPropertiesPanelProps) {
+  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationDragPointerIdRef = React.useRef<number | null>(null);
   const inspirationDragStartXRef = React.useRef(0);
@@ -110,6 +114,14 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
   const isGenerateEnabled =
     Boolean(onGenerate) && pricingPolicyReady && prompt.trim().length > 0 && !isInsufficientCredits;
+  const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
+    enabled: true,
+    containerRef: splitContainerRef,
+    defaultTopRatio: 0.16,
+    minTopSectionHeightPx: minTopSpacerHeightPx,
+    minBottomSectionHeightPx: minBottomComposerHeightPx,
+    ariaLabel: "Resize sound effects spacer and composition sections",
+  });
 
   const syncInspirationScrollState = React.useCallback(() => {
     const node = inspirationScrollerRef.current;
@@ -238,18 +250,24 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   return (
     <section className="sound-effects-properties-panel tool-properties">
       <div className="sound-effects-properties-shell">
-        <div className="sound-effects-properties-main">
-          <div className="sound-effects-properties-compose-area">
-            <div
-              className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
-              aria-hidden="true"
-            >
-              <div
-                className="sound-effects-properties-divider reference-grid-horizontal-divider"
-                aria-hidden="true"
-              />
-            </div>
+        <div ref={splitContainerRef} className="sound-effects-properties-main">
+          <section
+            className="sound-effects-properties-top-spacer"
+            style={topSectionStyle}
+            aria-hidden="true"
+          />
 
+          <div
+            className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
+            {...dividerProps}
+          >
+            <div
+              className="sound-effects-properties-divider reference-grid-horizontal-divider"
+              aria-hidden="true"
+            />
+          </div>
+
+          <div className="sound-effects-properties-compose-area" style={bottomSectionStyle}>
             <div className="sound-effects-properties-script-input-shell sound-effects-properties-script-input-shell--with-inspiration">
               <textarea
                 className="sound-effects-properties-script-input"

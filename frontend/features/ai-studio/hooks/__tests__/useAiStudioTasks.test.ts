@@ -231,6 +231,59 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("success");
   });
 
+  it("clears stale blocked_storage save copy when polling reports saved canonical media", async () => {
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
+        status: "completed",
+        generationId: "gen-saved-1",
+        data: { images: [{ url: "https://cdn.test/saved.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/saved.png"],
+          saveState: "saved",
+          saveError: null,
+        },
+      })
+    );
+
+    let output = {
+      ...makeOutput(),
+      saveState: "blocked_storage" as const,
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask(
+        "task-status-saved-1",
+        "out-1",
+        0,
+        "fal-nano-banana-2",
+        Date.now(),
+        20
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(1_250);
+    await flushQueuedOutputUpdates();
+
+    expect(output.saveState).toBe("saved");
+    expect(output.saveError).toBeNull();
+  });
+
   it("honors the dispatch handoff delay override before the first status poll", async () => {
     fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
       asFalNanoBananaStatusResponse({
@@ -243,7 +296,12 @@ describe("useAiStudioTasks", () => {
       })
     );
 
-    let output = makeOutput();
+    let output = {
+      ...makeOutput(),
+      saveState: "blocked_storage" as const,
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+    };
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       if (id === output.id) {
         output = updater(output);
@@ -478,6 +536,8 @@ describe("useAiStudioTasks", () => {
     expect(output.generationId).toBe("gen-canonical-1");
     expect(output.previewUrl).toBe("https://cdn.test/canonical-preview.png");
     expect(output.resultUrls).toEqual(["https://cdn.test/canonical-full.png"]);
+    expect(output.saveState).toBe("saved");
+    expect(output.saveError).toBeNull();
   });
 
   it("reconciles projection-backed delivery on ordinary retry polls", async () => {

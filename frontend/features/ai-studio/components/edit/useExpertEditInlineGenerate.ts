@@ -104,7 +104,6 @@ export const useExpertEditInlineGenerate = ({
   notifyGenerationFailure,
 }: UseExpertEditInlineGenerateParams) => {
   const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
-  const inlineGenerateInFlightRef = React.useRef(false);
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
       editSubmitIntent === "inpaint"
@@ -117,9 +116,6 @@ export const useExpertEditInlineGenerate = ({
   );
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
-      if (inlineGenerateInFlightRef.current) {
-        return;
-      }
       const allowSecondaryReferenceTokens =
         editSubmitIntent === "inpaint"
           ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
@@ -143,7 +139,6 @@ export const useExpertEditInlineGenerate = ({
         return;
       }
 
-      inlineGenerateInFlightRef.current = true;
       setInlineGeneratePendingCount((currentCount) => currentCount + 1);
       let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
       const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
@@ -271,7 +266,6 @@ export const useExpertEditInlineGenerate = ({
           showStatusToast(failureMessage);
         }
       } finally {
-        inlineGenerateInFlightRef.current = false;
         setInlineGeneratePendingCount((currentCount) => Math.max(0, currentCount - 1));
         cleanupExpertEditSubmissionObjectUrls({
           objectUrls,
@@ -298,6 +292,7 @@ export const useExpertEditInlineGenerate = ({
     revokeObjectUrlSafe,
     scheduleTransientObjectUrlRevoke,
     resolveBlobDimensions,
+    resolveVariantCostCredits,
     showStatusToast,
     onInvalidPromptReferenceToken,
     resolveStageFlattenSnapshot,

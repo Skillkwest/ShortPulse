@@ -19,6 +19,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "result_urls",
   "saved_media_ids",
   "save_state",
+  "save_error",
   "preview_storage_path",
   "full_storage_path",
   "task_state",
@@ -52,6 +53,7 @@ type ProjectGenerationProjectionRow = {
   result_urls?: unknown;
   saved_media_ids?: unknown;
   save_state?: unknown;
+  save_error?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   task_state?: unknown;
@@ -881,7 +883,7 @@ const createSnapshotOutputRowFromProjection = ({
       archivedAt: null,
       archiveReason: null,
       saveState: restoredSaveState,
-      saveError: null,
+      saveError: asTrimmedString(projection.save_error),
       savedMediaIds: restoredSavedMediaIds,
       hiddenInReferenceGrid: asBoolean(projection.hidden_in_reference_grid) ?? false,
     },

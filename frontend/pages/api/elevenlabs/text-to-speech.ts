@@ -43,7 +43,7 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
 };

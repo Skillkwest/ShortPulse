@@ -56,6 +56,8 @@
     "media:phase0": "node ./scripts/media_library_phase0_bundle.mjs",
     "media:phase0:probe": "node ./scripts/media_library_phase0_bundle.mjs --run-probe",
     "media:readiness": "node ./scripts/media_library_diagnostics_readiness.mjs",
+    "media:kpi:score": "node ./scripts/media_panel_kpi_score.mjs",
+    "media:kpi:capture": "NODE_PATH=./node_modules node ./scripts/media_panel_kpi_capture.mjs",
     "media:checkpoint": "node ./scripts/media_library_checkpoint_runner.mjs --list",
     "media:checkpoint:count-hot-path": "node ./scripts/media_library_checkpoint_runner.mjs --checkpoint count-hot-path --run",
     "media:checkpoint:preview-authority": "node ./scripts/media_library_checkpoint_runner.mjs --checkpoint preview-authority --run",

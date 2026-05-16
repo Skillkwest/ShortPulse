@@ -5,6 +5,7 @@ import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaStorageQuotaUserMessage } from "../mediaStorageQuota";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
@@ -113,7 +114,7 @@ export type PersistGeneratedAudioResult = {
   storagePath: string;
   signedUrl: string;
   outputRowId: string | null;
-  saveState: "saved" | "idle" | "blocked_storage";
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
   saveError: string | null;
 };
 
@@ -140,17 +141,25 @@ const normalizeOptionalString = (value: unknown): string | null => {
 const resolveAutosaveSaveOutcome = ({
   mediaFileId,
   autosaveDecisionReason,
+  autosavePreferenceLookupMessage,
 }: {
   mediaFileId: string | null;
   autosaveDecisionReason: string;
+  autosavePreferenceLookupMessage: string | null;
 }): {
-  saveState: "saved" | "idle" | "blocked_storage";
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
   saveError: string | null;
 } => {
   if (mediaFileId) {
     return {
       saveState: "saved",
       saveError: null,
+    };
+  }
+  if (autosavePreferenceLookupMessage) {
+    return {
+      saveState: "failed",
+      saveError: autosavePreferenceLookupMessage,
     };
   }
   const quotaMessage = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
@@ -878,7 +887,13 @@ export const persistGeneratedAudioAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
+  const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
+    supabaseAdmin,
+    userId,
+  });
+  const mediaAutosaveEnabled = mediaAutosavePreference.enabled;
+  const autosavePreferenceLookupMessage =
+    resolveMediaAutosavePreferenceLookupUserMessage(mediaAutosavePreference);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,
@@ -926,6 +941,7 @@ export const persistGeneratedAudioAsset = async ({
         voice_id: voiceId,
         voice_name: voiceName,
         autosave_enabled: mediaAutosaveEnabled,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosavePolicyDecision.allowed
           ? "autosave_requested"
           : "autosave_skipped",
@@ -957,6 +973,7 @@ export const persistGeneratedAudioAsset = async ({
       media_kind: "audio",
       provider_request_id: resolvedProviderRequestId,
       autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: autosavePolicyDecision.allowed
         ? "provider_urls_persisted"
         : "autosave_skipped",
@@ -989,6 +1006,7 @@ export const persistGeneratedAudioAsset = async ({
             voice_id: voiceId,
             voice_name: voiceName,
             autosave_enabled: mediaAutosaveEnabled,
+            autosave_preference_source: mediaAutosavePreference.source,
             autosave_decision: "auto_persisted",
             autosave_decision_reason: autosavePolicyDecision.reason,
             project_id: resolvedProjectId,
@@ -1012,6 +1030,7 @@ export const persistGeneratedAudioAsset = async ({
           media_kind: "audio",
           provider_request_id: resolvedProviderRequestId,
           autosave_enabled: mediaAutosaveEnabled,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
@@ -1034,6 +1053,7 @@ export const persistGeneratedAudioAsset = async ({
           model_id: modelId,
           media_kind: "audio",
           source_mode: sourceMode,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_error: autosaveDecisionReason,
         },
       }).catch(() => undefined);
@@ -1043,6 +1063,7 @@ export const persistGeneratedAudioAsset = async ({
   const saveOutcome = resolveAutosaveSaveOutcome({
     mediaFileId,
     autosaveDecisionReason,
+    autosavePreferenceLookupMessage,
   });
 
   if (outputRowId) {
@@ -1061,6 +1082,7 @@ export const persistGeneratedAudioAsset = async ({
         media_kind: "audio",
         provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosaveDecision,
         autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
@@ -1085,6 +1107,7 @@ export const persistGeneratedAudioAsset = async ({
     previewStoragePath: storagePath,
     fullStoragePath: storagePath,
     saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
     hiddenInReferenceGrid: false,
     referenceGridVisible: true,
     publicationState: "published",
@@ -1138,7 +1161,13 @@ export const persistGeneratedVideoAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
+  const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
+    supabaseAdmin,
+    userId,
+  });
+  const mediaAutosaveEnabled = mediaAutosavePreference.enabled;
+  const autosavePreferenceLookupMessage =
+    resolveMediaAutosavePreferenceLookupUserMessage(mediaAutosavePreference);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,
@@ -1184,6 +1213,7 @@ export const persistGeneratedVideoAsset = async ({
         provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
         autosave_enabled: mediaAutosaveEnabled,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosavePolicyDecision.allowed
           ? "autosave_requested"
           : "autosave_skipped",
@@ -1217,6 +1247,7 @@ export const persistGeneratedVideoAsset = async ({
       media_kind: "video",
       provider_request_id: resolvedProviderRequestId,
       autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: autosavePolicyDecision.allowed
         ? "provider_urls_persisted"
         : "autosave_skipped",
@@ -1246,6 +1277,7 @@ export const persistGeneratedVideoAsset = async ({
             source_mode: sourceMode,
             mime_type: outputContentType,
             autosave_enabled: mediaAutosaveEnabled,
+            autosave_preference_source: mediaAutosavePreference.source,
             autosave_decision: "auto_persisted",
             autosave_decision_reason: autosavePolicyDecision.reason,
             project_id: resolvedProjectId,
@@ -1302,6 +1334,7 @@ export const persistGeneratedVideoAsset = async ({
           media_kind: "video",
           provider_request_id: resolvedProviderRequestId,
           autosave_enabled: mediaAutosaveEnabled,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
@@ -1324,6 +1357,7 @@ export const persistGeneratedVideoAsset = async ({
           model_id: modelId,
           media_kind: "video",
           source_mode: sourceMode,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_error: autosaveDecisionReason,
         },
       }).catch(() => undefined);
@@ -1333,6 +1367,7 @@ export const persistGeneratedVideoAsset = async ({
   const saveOutcome = resolveAutosaveSaveOutcome({
     mediaFileId,
     autosaveDecisionReason,
+    autosavePreferenceLookupMessage,
   });
 
   if (outputRowId) {
@@ -1351,6 +1386,7 @@ export const persistGeneratedVideoAsset = async ({
         media_kind: "video",
         provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosaveDecision,
         autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
@@ -1375,6 +1411,7 @@ export const persistGeneratedVideoAsset = async ({
     previewStoragePath,
     fullStoragePath: storagePath,
     saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
     hiddenInReferenceGrid: false,
     referenceGridVisible: true,
     publicationState: "published",

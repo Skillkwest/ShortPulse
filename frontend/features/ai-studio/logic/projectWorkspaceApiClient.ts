@@ -131,3 +131,27 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
 
   return payload.workspace;
 };
+
+export const resetAiStudioProjectWorkspaceSnapshotViaApi = async ({
+  projectId,
+}: {
+  projectId: string;
+}): Promise<void> => {
+  const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}/workspace`, {
+    method: "DELETE",
+    shortpulseLogScope: "app",
+    shortpulseRetryNetworkOnce: true,
+  });
+
+  let payload: AiStudioProjectWorkspaceApiPayload | null = null;
+  try {
+    payload = (await response.json()) as AiStudioProjectWorkspaceApiPayload;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
+    throw new Error(`Failed to reset project workspace snapshot: ${message}`);
+  }
+};

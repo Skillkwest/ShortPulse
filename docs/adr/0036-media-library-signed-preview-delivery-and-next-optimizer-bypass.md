@@ -11,7 +11,7 @@ Current steady-state direction is further defined by:
 - [ADR 0044](./0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md), which narrows this ADR to Media Library stabilization history and derivative-first surface policy
 
 ## Context
-The former standalone Media Library page plus the current modal/panel card previews were intermittently failing with repeated `/_next/image` `500` responses when the input URL was a Supabase signed storage URL. This caused slow visual fill, retry churn, and inconsistent behavior across long sessions.
+The historical implementation plus the current modal/panel card previews were intermittently failing with repeated `/_next/image` `500` responses when the input URL was a Supabase signed storage URL. This caused slow visual fill, retry churn, and inconsistent behavior across long sessions.
 
 We needed a fast stabilization path that:
 - preserves existing media payload contracts,

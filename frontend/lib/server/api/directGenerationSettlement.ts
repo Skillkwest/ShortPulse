@@ -13,6 +13,7 @@ import {
 } from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosavePreference";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
@@ -161,15 +162,35 @@ const stringifyDetail = (value: unknown, fallback: string): string => {
 const buildUnsettledBillingError = (note: string): string =>
   `Generation billing settlement did not complete: ${note}`;
 
-const resolveAutosaveProjectionSaveState = ({
+const resolveAutosaveProjectionSaveOutcome = ({
   savedMediaIds,
   autosaveDecisionReason,
+  autosavePreferenceLookupMessage,
 }: {
   savedMediaIds: string[];
   autosaveDecisionReason: string;
-}): "saved" | "idle" | "blocked_storage" => {
-  if (savedMediaIds.length > 0) return "saved";
-  return resolveMediaStorageQuotaUserMessage(autosaveDecisionReason) ? "blocked_storage" : "idle";
+  autosavePreferenceLookupMessage: string | null;
+}): {
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
+  saveError: string | null;
+} => {
+  if (savedMediaIds.length > 0) {
+    return {
+      saveState: "saved",
+      saveError: null,
+    };
+  }
+  if (autosavePreferenceLookupMessage) {
+    return {
+      saveState: "failed",
+      saveError: autosavePreferenceLookupMessage,
+    };
+  }
+  const saveError = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
+  return {
+    saveState: saveError ? "blocked_storage" : "idle",
+    saveError,
+  };
 };
 
 const mergeSettlementMetadata = ({
@@ -336,9 +357,12 @@ export const settleDirectGenerationSuccess = async ({
     providerState,
     outcome: "success",
   });
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({
+  const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     userId: generation.user_id,
   });
+  const mediaAutosaveEnabled = mediaAutosavePreference.enabled;
+  const autosavePreferenceLookupMessage =
+    resolveMediaAutosavePreferenceLookupUserMessage(mediaAutosavePreference);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,
@@ -362,6 +386,7 @@ export const settleDirectGenerationSuccess = async ({
       direct_terminal_settlement_outcome: "success",
       direct_terminal_provider_state: providerState,
       autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: autosavePolicyDecision.allowed
         ? "provider_urls_persisted"
         : "autosave_skipped",
@@ -398,6 +423,7 @@ export const settleDirectGenerationSuccess = async ({
           direct_terminal_settlement_outcome: "success",
           direct_terminal_provider_state: providerState,
           autosave_enabled: mediaAutosaveEnabled,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
         },
@@ -417,6 +443,7 @@ export const settleDirectGenerationSuccess = async ({
           provider: generation.provider,
           model_id: generation.model_id,
           route_label: routeLabel,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_error: autosaveDecisionReason,
         },
       }).catch(() => undefined);
@@ -470,6 +497,7 @@ export const settleDirectGenerationSuccess = async ({
           direct_terminal_provider_state: providerState,
           user_abandoned: isAbandoned,
           autosave_enabled: mediaAutosaveEnabled,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: autosaveDecision,
           autosave_decision_reason: autosaveDecisionReason,
         },
@@ -481,9 +509,10 @@ export const settleDirectGenerationSuccess = async ({
       ? (deliveryPathsByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
       : null;
   const normalizedSavedMediaIds = hasCanonicalStorageAuthority ? mediaFileIds : [];
-  const projectionSaveState = resolveAutosaveProjectionSaveState({
+  const projectionSaveOutcome = resolveAutosaveProjectionSaveOutcome({
     savedMediaIds: normalizedSavedMediaIds,
     autosaveDecisionReason,
+    autosavePreferenceLookupMessage,
   });
 
   await upsertGenerationProjection({
@@ -506,7 +535,8 @@ export const settleDirectGenerationSuccess = async ({
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
-    saveState: projectionSaveState,
+    saveState: projectionSaveOutcome.saveState,
+    saveError: projectionSaveOutcome.saveError,
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
     publicationState,
@@ -597,6 +627,7 @@ export const settleDirectGenerationSuccess = async ({
       direct_terminal_settlement: true,
       provider_state: providerState,
       user_abandoned: isAbandoned,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: autosaveDecision,
       autosave_decision_reason: autosaveDecisionReason,
     },

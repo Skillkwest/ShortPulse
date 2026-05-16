@@ -19,7 +19,7 @@ import {
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 export type AiStudioSubmitPanelKey = "create" | "edit" | "video";
-type AiStudioPanelGeneratingState = Record<AiStudioSubmitPanelKey, boolean>;
+type AiStudioPanelGeneratingCountState = Record<AiStudioSubmitPanelKey, number>;
 
 export type UseAiStudioCreationStateResult = {
   promptRef: MutableRefObject<HTMLTextAreaElement | null>;
@@ -93,7 +93,8 @@ export type UseAiStudioCreationStateResult = {
   createIsGenerating: boolean;
   editIsGenerating: boolean;
   videoIsGenerating: boolean;
-  setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
+  beginPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
+  endPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
   uiError: string | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   uiNotice: string | null;
@@ -171,30 +172,40 @@ export const useAiStudioCreationState = ({
   const [klingElements, setKlingElements] = useState<AiStudioKlingElement[]>([
     createEmptyAiStudioKlingElement(),
   ]);
-  const [panelGeneratingState, setPanelGeneratingState] = useState<AiStudioPanelGeneratingState>({
-    create: false,
-    edit: false,
-    video: false,
-  });
+  const [panelGeneratingCountState, setPanelGeneratingCountState] =
+    useState<AiStudioPanelGeneratingCountState>({
+      create: 0,
+      edit: 0,
+      video: 0,
+    });
   const [uiError, setUiError] = useState<string | null>(null);
   const [uiNotice, setUiNotice] = useState<string | null>(null);
   const lastVideoReferenceModeRef = useRef(videoReferenceMode);
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
   const lastNonMotionVideoModelRef = useRef<string | null>(null);
-  const createIsGenerating = panelGeneratingState.create;
-  const editIsGenerating = panelGeneratingState.edit;
-  const videoIsGenerating = panelGeneratingState.video;
+  const createIsGenerating = panelGeneratingCountState.create > 0;
+  const editIsGenerating = panelGeneratingCountState.edit > 0;
+  const videoIsGenerating = panelGeneratingCountState.video > 0;
 
-  const setPanelGenerating = (panel: AiStudioSubmitPanelKey, value: boolean) => {
-    setPanelGeneratingState((prev) => {
-      if (prev[panel] === value) return prev;
+  const updatePanelGeneratingCount = (panel: AiStudioSubmitPanelKey, delta: 1 | -1) => {
+    setPanelGeneratingCountState((prev) => {
+      const nextCount = delta > 0 ? prev[panel] + 1 : Math.max(0, prev[panel] - 1);
+      if (prev[panel] === nextCount) return prev;
       return {
         ...prev,
-        [panel]: value,
+        [panel]: nextCount,
       };
     });
   };
+
+  const beginPanelGeneration = useCallback((panel: AiStudioSubmitPanelKey) => {
+    updatePanelGeneratingCount(panel, 1);
+  }, []);
+
+  const endPanelGeneration = useCallback((panel: AiStudioSubmitPanelKey) => {
+    updatePanelGeneratingCount(panel, -1);
+  }, []);
 
   const updateExpertEditSessionState = useCallback(
     (
@@ -306,7 +317,8 @@ export const useAiStudioCreationState = ({
     createIsGenerating,
     editIsGenerating,
     videoIsGenerating,
-    setPanelGenerating,
+    beginPanelGeneration,
+    endPanelGeneration,
     uiError,
     setUiError,
     uiNotice,

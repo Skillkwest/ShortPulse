@@ -42,7 +42,7 @@ type GenerateSoundEffectSuccessResponse = {
     waveformPeaks: null;
     modelId: string;
     characterCost: number | null;
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
 };

@@ -1,5 +1,8 @@
 import React from "react";
-import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
+import {
+  requestMediaStorageQuotaSummaryRefresh,
+  useMediaStorageQuotaSummary,
+} from "../../billing/useMediaStorageQuotaSummary";
 import {
   deleteMediaFileWithStorage,
   deleteMediaPromptById,
@@ -13,7 +16,10 @@ import {
 } from "../logic/mediaLibraryPanelApi";
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
-import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
+import {
+  MEDIA_STORAGE_FULL_USER_MESSAGE,
+  resolveMediaStorageQuotaUserMessage,
+} from "../../../lib/mediaStorageQuota";
 
 const ROOT_FOLDER_LABEL = "All Media";
 
@@ -314,99 +320,107 @@ export const useMediaLibraryPanelMutationController = ({
       targetFolderId: string;
       files: FileList | File[];
     }): Promise<MediaFileRow[]> => {
-      const droppedFiles = Array.from(files);
-      if (!droppedFiles.length) return [];
-
-      setFolderError(null);
-      setMembershipMessage(null);
-
-      if (isStorageQuotaBlocked) {
-        throw new Error(MEDIA_STORAGE_FULL_USER_MESSAGE);
-      }
-
-      const uploadCandidates = droppedFiles
-        .map((file) => ({
-          file,
-          destinationTab: resolveUploadDestinationTabForFile(file),
-        }))
-        .filter(
-          (candidate): candidate is { file: File; destinationTab: MediaUploadDestinationTab } =>
-            candidate.destinationTab !== null
-        );
-      if (!uploadCandidates.length) {
-        throw new Error("Only image, video, and audio files can be dropped here.");
-      }
-
-      const uploadedRows: MediaFileRow[] = [];
-      for (const candidate of uploadCandidates) {
-        const uploaded = await uploadMediaFile({
-          file: candidate.file,
-          destinationTab: candidate.destinationTab,
-        });
-        uploadedRows.push({
-          id: uploaded.id,
-          filename: uploaded.filename,
-          storage_path: uploaded.storage_path,
-          preview_storage_path: uploaded.preview_storage_path,
-          file_type: uploaded.file_type,
-          source: uploaded.source,
-          created_at: uploaded.created_at,
-          metadata: null,
-          signedUrl: uploaded.signedUrl,
-        });
-      }
-
-      if (targetFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && uploadedRows.length > 0) {
-        await applyMediaFolderMembershipBatch(
-          {
-            action: "assign",
-            folderId: targetFolderId,
-            mediaIds: uploadedRows.map((row) => row.id),
-            promptIds: [],
-          },
-          projectId
-        );
-      }
-
-      const targetFolderName =
-        targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-          ? ROOT_FOLDER_LABEL
-          : (folders.find((folder) => folder.id === targetFolderId)?.name ?? "folder");
-      const uploadedCount = uploadedRows.length;
-      const skippedCount = Math.max(0, droppedFiles.length - uploadedCount);
-      setMembershipMessage(
-        skippedCount > 0
-          ? `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}. Skipped ${skippedCount} unsupported file${skippedCount === 1 ? "" : "s"}.`
-          : `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}.`
-      );
-
-      if (targetFolderId === activeFolderId && uploadedRows.length > 0) {
-        setMediaRows((previous) => {
-          const byId = new Map(previous.map((row) => [row.id, row]));
-          uploadedRows.forEach((row) => {
-            byId.set(row.id, row);
-          });
-          const nextRows = Array.from(byId.values());
-          nextRows.sort((left, right) => {
-            const createdDelta = createdAtTime(right.created_at) - createdAtTime(left.created_at);
-            if (createdDelta !== 0) return createdDelta;
-            return right.id.localeCompare(left.id);
-          });
-          return nextRows;
-        });
-      }
-
       try {
-        await Promise.all([refreshActiveRows(), refreshFolderState()]);
-      } catch (refreshError) {
-        setFolderError(
-          toMediaLibraryErrorText(
-            refreshError,
-            "Uploaded media, but failed to refresh folder contents."
-          )
+        const droppedFiles = Array.from(files);
+        if (!droppedFiles.length) return [];
+
+        setFolderError(null);
+        setMembershipMessage(null);
+
+        if (isStorageQuotaBlocked) {
+          throw new Error(MEDIA_STORAGE_FULL_USER_MESSAGE);
+        }
+
+        const uploadCandidates = droppedFiles
+          .map((file) => ({
+            file,
+            destinationTab: resolveUploadDestinationTabForFile(file),
+          }))
+          .filter(
+            (candidate): candidate is { file: File; destinationTab: MediaUploadDestinationTab } =>
+              candidate.destinationTab !== null
+          );
+        if (!uploadCandidates.length) {
+          throw new Error("Only image, video, and audio files can be dropped here.");
+        }
+
+        const uploadedRows: MediaFileRow[] = [];
+        for (const candidate of uploadCandidates) {
+          const uploaded = await uploadMediaFile({
+            file: candidate.file,
+            destinationTab: candidate.destinationTab,
+          });
+          uploadedRows.push({
+            id: uploaded.id,
+            filename: uploaded.filename,
+            storage_path: uploaded.storage_path,
+            preview_storage_path: uploaded.preview_storage_path,
+            file_type: uploaded.file_type,
+            source: uploaded.source,
+            created_at: uploaded.created_at,
+            metadata: null,
+            signedUrl: uploaded.signedUrl,
+          });
+        }
+
+        if (targetFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && uploadedRows.length > 0) {
+          await applyMediaFolderMembershipBatch(
+            {
+              action: "assign",
+              folderId: targetFolderId,
+              mediaIds: uploadedRows.map((row) => row.id),
+              promptIds: [],
+            },
+            projectId
+          );
+        }
+
+        const targetFolderName =
+          targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+            ? ROOT_FOLDER_LABEL
+            : (folders.find((folder) => folder.id === targetFolderId)?.name ?? "folder");
+        const uploadedCount = uploadedRows.length;
+        const skippedCount = Math.max(0, droppedFiles.length - uploadedCount);
+        setMembershipMessage(
+          skippedCount > 0
+            ? `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}. Skipped ${skippedCount} unsupported file${skippedCount === 1 ? "" : "s"}.`
+            : `Uploaded ${uploadedCount} file${uploadedCount === 1 ? "" : "s"} to ${targetFolderName}.`
         );
+
+        if (targetFolderId === activeFolderId && uploadedRows.length > 0) {
+          setMediaRows((previous) => {
+            const byId = new Map(previous.map((row) => [row.id, row]));
+            uploadedRows.forEach((row) => {
+              byId.set(row.id, row);
+            });
+            const nextRows = Array.from(byId.values());
+            nextRows.sort((left, right) => {
+              const createdDelta = createdAtTime(right.created_at) - createdAtTime(left.created_at);
+              if (createdDelta !== 0) return createdDelta;
+              return right.id.localeCompare(left.id);
+            });
+            return nextRows;
+          });
+        }
+
+        try {
+          await Promise.all([refreshActiveRows(), refreshFolderState()]);
+        } catch (refreshError) {
+          setFolderError(
+            toMediaLibraryErrorText(
+              refreshError,
+              "Uploaded media, but failed to refresh folder contents."
+            )
+          );
+        }
+        requestMediaStorageQuotaSummaryRefresh();
+        return uploadedRows;
+      } catch (error) {
+        if (resolveMediaStorageQuotaUserMessage(error)) {
+          requestMediaStorageQuotaSummaryRefresh();
+        }
+        throw error;
       }
-      return uploadedRows;
     },
     [
       activeFolderId,
@@ -431,6 +445,7 @@ export const useMediaLibraryPanelMutationController = ({
         setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
         setMembershipMessage("Deleted from All Media.");
         await refreshFolderState();
+        requestMediaStorageQuotaSummaryRefresh();
         void logMediaEvent("delete", "media_file", file.id, {
           storage_path: file.storage_path,
           surface: "ai-studio-media-library-panel",
@@ -472,6 +487,7 @@ export const useMediaLibraryPanelMutationController = ({
         const deletedIdSet = new Set(deletedIds);
         setMediaRows((previous) => previous.filter((row) => !deletedIdSet.has(row.id)));
         await refreshFolderState();
+        requestMediaStorageQuotaSummaryRefresh();
       }
 
       if (deletedIds.length === uniqueRows.length) {

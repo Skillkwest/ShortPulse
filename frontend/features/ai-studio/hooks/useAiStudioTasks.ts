@@ -186,6 +186,15 @@ const normalizeLifecycleQueueState = (
   }
 };
 
+const isRecognizedSaveState = (
+  value: string | null | undefined
+): value is NonNullable<StudioOutput["saveState"]> =>
+  value === "idle" ||
+  value === "saving" ||
+  value === "saved" ||
+  value === "failed" ||
+  value === "blocked_storage";
+
 const fetchStatusByModelId = async (modelId: string, taskId: string) =>
   fetchQueuedGenerationStatusByModelId(modelId, taskId);
 
@@ -430,6 +439,8 @@ export function useAiStudioTasks({
               : nextDelivery.fullStoragePath,
           mediaSource: item.mediaSource ?? "generated",
           previewTier: item.mode === "video" ? "preview_loop" : "full",
+          saveState: "saved",
+          saveError: null,
           archivedAt: null,
           archiveReason: null,
           errorMessage: null,
@@ -841,6 +852,12 @@ export function useAiStudioTasks({
                   previewUrl: resolvedUrls[0] ?? item.previewUrl ?? null,
                   resultUrls: resolvedUrls,
                 });
+                const nextSaveState = isRecognizedSaveState(lifecycleHint?.saveState)
+                  ? lifecycleHint.saveState
+                  : item.saveState;
+                const shouldClearLifecycleSaveError =
+                  lifecycleHint != null &&
+                  Object.prototype.hasOwnProperty.call(lifecycleHint, "saveError");
                 return {
                   ...item,
                   queueState:
@@ -868,6 +885,12 @@ export function useAiStudioTasks({
                       : nextDelivery.fullStoragePath,
                   mediaSource: item.mediaSource ?? "generated",
                   previewTier: item.mode === "video" ? "preview_loop" : "full",
+                  saveState: nextSaveState,
+                  saveError: shouldClearLifecycleSaveError
+                    ? (lifecycleHint?.saveError ?? null)
+                    : nextSaveState === "saved"
+                      ? null
+                      : (item.saveError ?? null),
                   archivedAt: null,
                   archiveReason: null,
                   errorMessage: item.errorMessage == null ? item.errorMessage : null,

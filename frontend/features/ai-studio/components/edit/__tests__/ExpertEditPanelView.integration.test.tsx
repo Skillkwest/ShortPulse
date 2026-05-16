@@ -167,6 +167,55 @@ describe("ExpertEditPanelView interaction flow", () => {
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
   });
 
+  it("moves keyboard focus onto the inline stage when the canvas is pressed", async () => {
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/original.png"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const surface = screen.getByLabelText("Primary composition surface");
+    fireEvent.pointerDown(surface);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(surface);
+    });
+  });
+
   it("keeps layers while Reset All clears transform, markup, and inpaint session state", async () => {
     const onSessionStateChange = vi.fn();
 
@@ -281,6 +330,9 @@ describe("ExpertEditPanelView interaction flow", () => {
       />
     );
 
+    const surface = screen.getByLabelText("Primary composition surface");
+    surface.focus();
+
     const inlineZoomSlider = screen.getByLabelText("Zoom stage") as HTMLInputElement;
     fireEvent.change(inlineZoomSlider, { target: { value: "80" } });
     expect(inlineZoomSlider.value).toBe("80");
@@ -291,6 +343,11 @@ describe("ExpertEditPanelView interaction flow", () => {
     const modal = await screen.findByRole("dialog", { name: "Expanded markup canvas" });
     const modalZoomSlider = within(modal).getByLabelText("Zoom stage") as HTMLInputElement;
     expect(modalZoomSlider.value).toBe("80");
+    await waitFor(() => {
+      expect(document.querySelector(".edit-expert-markup-modal-stage")).toBe(
+        document.activeElement
+      );
+    });
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -299,6 +356,7 @@ describe("ExpertEditPanelView interaction flow", () => {
         screen.queryByRole("dialog", { name: "Expanded markup canvas" })
       ).not.toBeInTheDocument();
     });
+    expect(document.activeElement).toBe(surface);
   });
 
   it("does not show the transform box when edit opens with a non-image reference URL", async () => {

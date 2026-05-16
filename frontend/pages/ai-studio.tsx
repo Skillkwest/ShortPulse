@@ -139,6 +139,7 @@ type UseAiStudioEditVideoPanelRuntimesParams = {
 };
 type UseAiStudioReferenceExperienceRuntimeParams = {
   base: AiStudioPageBaseRuntime;
+  isMediaStorageFull: boolean;
   linkedPromptReferenceIds: string[];
   propertiesCreate: CreatePanelProps;
   propertiesEditExpert: EditPanelProps;
@@ -722,6 +723,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
 
 const useAiStudioReferenceExperienceRuntime = ({
   base,
+  isMediaStorageFull,
   linkedPromptReferenceIds,
   propertiesCreate,
   propertiesEditExpert,
@@ -768,10 +770,6 @@ const useAiStudioReferenceExperienceRuntime = ({
     updateOutputPrompt,
     videoReferenceText,
   } = base;
-  const { quotaSummary } = useMediaStorageQuotaSummary({
-    enabled: true,
-  });
-  const isMediaStorageFull = quotaSummary?.isOverLimit === true;
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     projectId,
     findOutputById,
@@ -1210,6 +1208,10 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const { quotaSummary } = useMediaStorageQuotaSummary({
+    enabled: true,
+  });
+  const isMediaStorageFull = quotaSummary?.isOverLimit === true;
   const beginnerMode = false;
   const beginnerModeError = null;
   const beginnerModeLoading = false;
@@ -1292,6 +1294,7 @@ const AiStudioPageRuntimeBody = ({
     projectBootstrapApplied,
     projectBootstrapError,
     retryProjectBootstrap,
+    resetProjectWorkspace,
   } = useAiStudioPageProjectSessionRuntime({
     activeCreateAgentKind: activeCreateAgentRuntime.kind,
     activeCreatePulsePresetId,
@@ -1322,6 +1325,7 @@ const AiStudioPageRuntimeBody = ({
   });
   useAiStudioMediaAutosaveOrchestrator({
     enabled: !projectRouteRequested || (projectStatus === "ready" && projectBootstrapApplied),
+    isMediaStorageFull,
     outputs,
     mediaAutosaveEnabled,
     mediaAutosaveSyncState,
@@ -1548,6 +1552,7 @@ const AiStudioPageRuntimeBody = ({
     onDetailSavePrompt,
   } = useAiStudioReferenceExperienceRuntime({
     base,
+    isMediaStorageFull,
     linkedPromptReferenceIds,
     propertiesCreate,
     propertiesEditExpert: editExpertPanelProps,
@@ -1630,6 +1635,7 @@ const AiStudioPageRuntimeBody = ({
     referenceGridProps,
     studioPreviewProps,
     detailModalOutput,
+    isMediaStorageFull,
     onDetailClose,
     onUpdateOutputPrompt,
     onDeleteOutput,
@@ -1669,6 +1675,7 @@ const AiStudioPageRuntimeBody = ({
       projectsModalOpen={isProjectsModalOpen}
       projectId={projectId}
       retryProjectBootstrap={retryProjectBootstrap}
+      resetProjectWorkspace={resetProjectWorkspace}
       onOpenProjectsModal={handleOpenProjectsModal}
       onCloseProjectsModal={handleCloseProjectsModal}
       onSelectProjectFromModal={handleSelectProjectFromModal}

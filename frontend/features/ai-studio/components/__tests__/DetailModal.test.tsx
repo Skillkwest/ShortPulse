@@ -316,7 +316,8 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Retry Save" })).toBeInTheDocument();
   });
 
-  it("shows Storage Full and disables saving when quota blocks persistence", () => {
+  it("shows Retry Save and allows retrying after quota recovers", () => {
+    const onSaveReference = vi.fn();
     render(
       <DetailModal
         output={{
@@ -326,11 +327,12 @@ describe("DetailModal", () => {
         onClose={vi.fn()}
         onUpdatePrompt={vi.fn()}
         onDeleteOutput={vi.fn()}
-        onSaveReference={vi.fn()}
+        onSaveReference={onSaveReference}
       />
     );
 
-    expect(screen.getByRole("button", { name: "Storage Full" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry Save" }));
+    expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
   it("disables save proactively when the page knows storage is already full", () => {

@@ -48,7 +48,7 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
   remuxedVideo?: {
@@ -65,7 +65,7 @@ type GenerateAudioSuccessResponse = {
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
     modelId: string;
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
 };

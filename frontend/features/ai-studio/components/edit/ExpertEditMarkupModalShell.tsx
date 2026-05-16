@@ -6,6 +6,24 @@ import React from "react";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
+const assignRef = <T,>(ref: React.Ref<T | null> | undefined, value: T | null) => {
+  if (!ref) return;
+  if (typeof ref === "function") {
+    ref(value);
+    return;
+  }
+  (ref as React.MutableRefObject<T | null>).current = value;
+};
+
+const resolveFocusableElements = (root: HTMLElement): HTMLElement[] =>
+  Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(
+    (element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true"
+  );
+
 type ExpertEditMarkupModalShellProps = {
   isOpen: boolean;
   modalRef: React.Ref<HTMLDivElement>;
@@ -57,6 +75,40 @@ export const ExpertEditMarkupModalShell = ({
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
     disabled: !isOpen,
   });
+  const modalElementRef = React.useRef<HTMLDivElement | null>(null);
+  const stageElementRef = React.useRef<HTMLDivElement | null>(null);
+  const restoreFocusRef = React.useRef<HTMLElement | null>(null);
+  const handleModalRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      modalElementRef.current = node;
+      assignRef(modalRef, node);
+    },
+    [modalRef]
+  );
+  const handleStageRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      stageElementRef.current = node;
+      assignRef(stageRef, node);
+    },
+    [stageRef]
+  );
+
+  React.useEffect(() => {
+    if (isOpen) {
+      restoreFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      queueMicrotask(() => {
+        const focusTarget = stageElementRef.current ?? modalElementRef.current;
+        focusTarget?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    if (restoreFocusRef.current?.isConnected) {
+      restoreFocusRef.current.focus({ preventScroll: true });
+    }
+    restoreFocusRef.current = null;
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -71,11 +123,31 @@ export const ExpertEditMarkupModalShell = ({
       >
         <div
           className="edit-expert-markup-modal"
-          ref={modalRef}
+          ref={handleModalRef}
           role="dialog"
           aria-modal="true"
           aria-label="Expanded markup canvas"
+          tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key !== "Tab") return;
+            const modalElement = modalElementRef.current;
+            if (!modalElement) return;
+            const focusableElements = resolveFocusableElements(modalElement);
+            if (focusableElements.length <= 0) return;
+            const activeElement =
+              document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+            const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1;
+            const nextIndex = event.shiftKey
+              ? currentIndex <= 0
+                ? focusableElements.length - 1
+                : currentIndex - 1
+              : currentIndex < 0 || currentIndex >= focusableElements.length - 1
+                ? 0
+                : currentIndex + 1;
+            event.preventDefault();
+            focusableElements[nextIndex]?.focus({ preventScroll: true });
+          }}
           onPointerDown={(event) => event.stopPropagation()}
           onPointerMove={(event) => event.stopPropagation()}
           onPointerUp={(event) => event.stopPropagation()}
@@ -138,11 +210,16 @@ export const ExpertEditMarkupModalShell = ({
           </div>
           <div
             className="edit-expert-markup-modal-stage"
-            ref={stageRef}
+            ref={handleStageRef}
             style={stageStyle}
+            data-keyboard-pan-owner="true"
+            tabIndex={0}
             onMouseDown={onStageMouseDown}
             onAuxClick={onStageAuxClick}
-            onPointerDown={onStagePointerDown}
+            onPointerDown={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              onStagePointerDown(event);
+            }}
             onPointerMove={onStagePointerMove}
             onPointerUp={onStagePointerUp}
             onPointerCancel={onStagePointerCancel}

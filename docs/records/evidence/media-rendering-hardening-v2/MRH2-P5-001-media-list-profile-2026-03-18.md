@@ -25,7 +25,7 @@
 - `media-library-panel`: `expanded`
 
 Historical note:
-- The retired standalone Media Library page previously used the `minimal` profile before the page was removed.
+- The historical implementation previously used the `minimal` profile before the page was removed.
 
 This preserves current metadata-dependent UI behavior while removing default metadata overfetch from the route hot path.
 

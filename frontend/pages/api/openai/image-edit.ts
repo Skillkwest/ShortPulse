@@ -51,7 +51,7 @@ type ImageEditSuccessResponse = {
     mimeType: string;
     modelId: string;
     savedMediaIds: string[];
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
 };

@@ -4,6 +4,7 @@
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
 import { readMediaAutosaveEnabledForUser } from "../api/mediaAutosavePreference";
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "../api/mediaAutosavePreference";
 import {
   persistGenerationOutputRecords,
   readPersistedGenerationOutputs,
@@ -135,15 +136,35 @@ const isTerminalMediaPersistenceError = (error: unknown): boolean => {
   );
 };
 
-const resolveAutosaveProjectionSaveState = ({
+const resolveAutosaveProjectionSaveOutcome = ({
   savedMediaIds,
   autosaveDecisionReason,
+  autosavePreferenceLookupMessage,
 }: {
   savedMediaIds: string[];
   autosaveDecisionReason: string;
-}): "saved" | "idle" | "blocked_storage" => {
-  if (savedMediaIds.length > 0) return "saved";
-  return resolveMediaStorageQuotaUserMessage(autosaveDecisionReason) ? "blocked_storage" : "idle";
+  autosavePreferenceLookupMessage: string | null;
+}): {
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
+  saveError: string | null;
+} => {
+  if (savedMediaIds.length > 0) {
+    return {
+      saveState: "saved",
+      saveError: null,
+    };
+  }
+  if (autosavePreferenceLookupMessage) {
+    return {
+      saveState: "failed",
+      saveError: autosavePreferenceLookupMessage,
+    };
+  }
+  const saveError = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
+  return {
+    saveState: saveError ? "blocked_storage" : "idle",
+    saveError,
+  };
 };
 
 const logRecoveryAutosaveDecisionEvent = async ({
@@ -152,6 +173,7 @@ const logRecoveryAutosaveDecisionEvent = async ({
   requestId,
   actor,
   autosaveEnabled,
+  autosavePreferenceSource,
   autosaveDecision,
   decisionReason,
 }: {
@@ -160,6 +182,7 @@ const logRecoveryAutosaveDecisionEvent = async ({
   requestId: string | null;
   actor: RecoveryActor;
   autosaveEnabled: boolean;
+  autosavePreferenceSource: string;
   autosaveDecision: string;
   decisionReason: string;
 }) => {
@@ -175,6 +198,7 @@ const logRecoveryAutosaveDecisionEvent = async ({
           request_id: requestId,
           actor,
           autosave_enabled: autosaveEnabled,
+          autosave_preference_source: autosavePreferenceSource,
           autosave_decision: autosaveDecision,
           decision_reason: decisionReason,
         },
@@ -187,6 +211,7 @@ const logRecoveryAutosaveDecisionEvent = async ({
 const logRecoveryMediaVisibleEvent = async ({
   actor,
   autosaveEnabled,
+  autosavePreferenceSource,
   generation,
   mediaFileCount,
   mediaVisibleAt,
@@ -199,6 +224,7 @@ const logRecoveryMediaVisibleEvent = async ({
 }: {
   actor: RecoveryActor;
   autosaveEnabled: boolean;
+  autosavePreferenceSource: string;
   generation: {
     id: string;
     user_id: string;
@@ -251,6 +277,7 @@ const logRecoveryMediaVisibleEvent = async ({
           ? Math.max(0, mediaVisibleAtMs - generationCreatedAtMs)
           : null,
         autosave_enabled: autosaveEnabled,
+        autosave_preference_source: autosavePreferenceSource,
         used_existing_media_rows: usedExistingMediaRows,
         used_observation_payload: usedObservationPayload,
         used_observation_media_urls: usedObservationMediaUrls,
@@ -265,6 +292,7 @@ const syncRecoveredGenerationProjection = async ({
   actor,
   autosaveDecision,
   autosaveDecisionReason,
+  autosavePreferenceLookupMessage,
   generation,
   mediaFileIds,
   nowIso,
@@ -274,6 +302,7 @@ const syncRecoveredGenerationProjection = async ({
   actor: RecoveryActor;
   autosaveDecision: "autosave_skipped" | "auto_persisted";
   autosaveDecisionReason: string;
+  autosavePreferenceLookupMessage?: string | null;
   generation: {
     id: string;
     user_id: string;
@@ -328,9 +357,10 @@ const syncRecoveredGenerationProjection = async ({
       false);
   const publicationState =
     hasCanonicalOwnedMedia && !abandonment.abandoned ? "published" : "suppressed";
-  const projectionSaveState = resolveAutosaveProjectionSaveState({
+  const projectionSaveOutcome = resolveAutosaveProjectionSaveOutcome({
     savedMediaIds: normalizedSavedMediaIds,
     autosaveDecisionReason,
+    autosavePreferenceLookupMessage: autosavePreferenceLookupMessage ?? null,
   });
 
   if (hasCanonicalOwnedMedia) {
@@ -376,7 +406,8 @@ const syncRecoveredGenerationProjection = async ({
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
-    saveState: projectionSaveState,
+    saveState: projectionSaveOutcome.saveState,
+    saveError: projectionSaveOutcome.saveError,
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
     publicationState,
@@ -1033,9 +1064,12 @@ export const executeGenerationRecovery = async ({
     };
   }
 
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({
+  const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     userId: generation.user_id,
   });
+  const mediaAutosaveEnabled = mediaAutosavePreference.enabled;
+  const autosavePreferenceLookupMessage =
+    resolveMediaAutosavePreferenceLookupUserMessage(mediaAutosavePreference);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,
@@ -1050,6 +1084,7 @@ export const executeGenerationRecovery = async ({
         metadata: {
           recovery_actor: actor,
           recovery_outcome: "recovered_success",
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: "autosave_skipped",
           autosave_decision_reason: autosavePolicyDecision.reason,
         },
@@ -1063,6 +1098,7 @@ export const executeGenerationRecovery = async ({
       mediaFileIds: [],
       metadata: {
         actor,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
         recovery_execution: true,
@@ -1072,6 +1108,7 @@ export const executeGenerationRecovery = async ({
       actor,
       autosaveDecision: "autosave_skipped",
       autosaveDecisionReason: autosavePolicyDecision.reason,
+      autosavePreferenceLookupMessage,
       generation,
       mediaFileIds: [],
       nowIso,
@@ -1086,6 +1123,7 @@ export const executeGenerationRecovery = async ({
         generation_id: generation.id,
         media_file_count: 0,
         autosave_enabled: mediaAutosaveEnabled,
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: "autosave_skipped",
         decision_reason: autosavePolicyDecision.reason,
       },
@@ -1096,6 +1134,7 @@ export const executeGenerationRecovery = async ({
       requestId: generation.request_id,
       actor,
       autosaveEnabled: mediaAutosaveEnabled,
+      autosavePreferenceSource: mediaAutosavePreference.source,
       autosaveDecision: "autosave_skipped",
       decisionReason: autosavePolicyDecision.reason,
     });
@@ -1143,6 +1182,122 @@ export const executeGenerationRecovery = async ({
       projectId,
     });
   } catch (error) {
+    const quotaSaveError = resolveMediaStorageQuotaUserMessage(error);
+    if (quotaSaveError) {
+      const autosaveDecisionReason =
+        error instanceof Error ? error.message : "media_autosave_failed";
+      await applyRecoveryTransition({
+        generation,
+        attemptTransition: {
+          status: "succeeded",
+          observedAt: nowIso,
+          completedAt: nowIso,
+          metadata: {
+            recovery_actor: actor,
+            recovery_outcome: "recovered_success",
+            autosave_preference_source: mediaAutosavePreference.source,
+            autosave_decision: "autosave_skipped",
+            autosave_decision_reason: autosaveDecisionReason,
+          },
+        },
+      });
+      const persistedOutputRows = await persistGenerationOutputRecords({
+        generationId: generation.id,
+        userId: generation.user_id,
+        providerRequestId: generation.request_id,
+        resultUrls: recoveredUrls,
+        mediaFileIds: [],
+        metadata: {
+          actor,
+          autosave_preference_source: mediaAutosavePreference.source,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: autosaveDecisionReason,
+          recovery_execution: true,
+        },
+      });
+      await syncRecoveredGenerationProjection({
+        actor,
+        autosaveDecision: "autosave_skipped",
+        autosaveDecisionReason,
+        generation,
+        mediaFileIds: [],
+        nowIso,
+        persistedOutputRows,
+        recoveredUrls,
+      });
+      await settleRecoveryOutcome({
+        outcome: "success",
+        reason: "Generation recovered; media save blocked because storage is full.",
+        detail: {
+          actor,
+          generation_id: generation.id,
+          media_file_count: 0,
+          autosave_enabled: mediaAutosaveEnabled,
+          autosave_preference_source: mediaAutosavePreference.source,
+          autosave_decision: "autosave_skipped",
+          decision_reason: autosaveDecisionReason,
+        },
+      });
+      await logRecoveryAutosaveDecisionEvent({
+        generationId: generation.id,
+        userId: generation.user_id,
+        requestId: generation.request_id,
+        actor,
+        autosaveEnabled: mediaAutosaveEnabled,
+        autosavePreferenceSource: mediaAutosavePreference.source,
+        autosaveDecision: "autosave_skipped",
+        decisionReason: autosaveDecisionReason,
+      });
+      await writeAppErrorLog({
+        source: "telemetry.generation.recovery.media_autosave_failed",
+        message: "Generation recovery kept provider result URLs after media autosave failed.",
+        requestId: generation.request_id,
+        userId: generation.user_id,
+        statusCode: 200,
+        metadata: {
+          generation_id: generation.id,
+          provider: generation.provider,
+          model_id: generation.model_id,
+          route_label: routeLabel,
+          autosave_preference_source: mediaAutosavePreference.source,
+          autosave_error: autosaveDecisionReason,
+        },
+      }).catch(() => undefined);
+      await applyRecoveryTransition({
+        generation,
+        generationUpdates: buildRecoveredSuccessUpdate({
+          nowIso,
+          metadata: {
+            ...asObject(generation.metadata),
+            ...(abandonment.abandoned
+              ? {
+                  user_abandoned: true,
+                  abandoned_no_refund: abandonment.noRefund,
+                  hidden_in_reference_grid: true,
+                }
+              : {}),
+          },
+          actor,
+          autosaveEnabled: mediaAutosaveEnabled,
+          autosaveDecision: "autosave_skipped",
+          autosaveDecisionReason,
+        }),
+      });
+      void requestGenerationControlPlaneWake({
+        routeLabel,
+        reason: "recovered_success",
+      });
+      return {
+        ok: true,
+        state: "recovered",
+        generationId: generation.id,
+        requestId: generation.request_id,
+        mediaFileIds: [],
+        mediaUrls: recoveredUrls,
+        processed: true,
+        note: "autosave_skipped",
+      };
+    }
     if (!isTerminalMediaPersistenceError(error)) {
       throw error;
     }
@@ -1206,6 +1361,7 @@ export const executeGenerationRecovery = async ({
       metadata: {
         recovery_actor: actor,
         recovery_outcome: "recovered_success",
+        autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: "auto_persisted",
         autosave_decision_reason: autosavePolicyDecision.reason,
         media_file_count: mediaFileIds.length,
@@ -1220,6 +1376,7 @@ export const executeGenerationRecovery = async ({
     mediaFileIds,
     metadata: {
       actor,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: "auto_persisted",
       autosave_decision_reason: autosavePolicyDecision.reason,
       recovery_execution: true,
@@ -1229,6 +1386,7 @@ export const executeGenerationRecovery = async ({
     actor,
     autosaveDecision: "auto_persisted",
     autosaveDecisionReason: autosavePolicyDecision.reason,
+    autosavePreferenceLookupMessage,
     generation,
     mediaFileIds,
     nowIso,
@@ -1244,6 +1402,7 @@ export const executeGenerationRecovery = async ({
       generation_id: generation.id,
       media_file_count: mediaFileIds.length,
       autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
       autosave_decision: "auto_persisted",
       decision_reason: autosavePolicyDecision.reason,
     },
@@ -1254,12 +1413,14 @@ export const executeGenerationRecovery = async ({
     requestId: generation.request_id,
     actor,
     autosaveEnabled: mediaAutosaveEnabled,
+    autosavePreferenceSource: mediaAutosavePreference.source,
     autosaveDecision: "auto_persisted",
     decisionReason: autosavePolicyDecision.reason,
   });
   await logRecoveryMediaVisibleEvent({
     actor,
     autosaveEnabled: mediaAutosaveEnabled,
+    autosavePreferenceSource: mediaAutosavePreference.source,
     generation,
     mediaFileCount: mediaFileIds.length,
     mediaVisibleAt: new Date(),

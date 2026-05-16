@@ -147,6 +147,8 @@ describe("Seedream submission payloads", () => {
         mimeType: "image/png",
         modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
         savedMediaIds: ["media-openai-1"],
+        saveState: "saved",
+        saveError: null,
       },
     });
     vi.mocked(submitOpenAiGptImage2Edit).mockResolvedValue({
@@ -163,6 +165,8 @@ describe("Seedream submission payloads", () => {
         mimeType: "image/png",
         modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
         savedMediaIds: ["media-openai-1"],
+        saveState: "saved",
+        saveError: null,
       },
     });
   });
@@ -359,6 +363,8 @@ describe("Seedream submission payloads", () => {
       fullStoragePath: "user-1/generations/images/openai-full.png",
       mimeType: "image/png",
       savedMediaIds: ["media-openai-1"],
+      saveState: "saved",
+      saveError: null,
     });
     expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });

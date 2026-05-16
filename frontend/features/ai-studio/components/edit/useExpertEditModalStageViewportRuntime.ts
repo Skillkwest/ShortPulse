@@ -205,7 +205,12 @@ export const useExpertEditModalStageViewportRuntime = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [isMarkupExpandSelected, markupModalDomVersion, markupModalStageSize]);
+  }, [
+    isMarkupExpandSelected,
+    markupModalDomVersion,
+    markupModalStageElement,
+    markupModalStageSize,
+  ]);
 
   return {
     handleMarkupModalControlsRef,

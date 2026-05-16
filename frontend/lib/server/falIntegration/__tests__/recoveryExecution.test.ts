@@ -1097,12 +1097,86 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        saveState: "failed",
+        saveError:
+          "Media Library autosave was skipped because your autosave preference could not be verified. You can still save manually.",
+      })
+    );
     expect(scenario.mediaEventInserts[0]).toEqual(
       expect.objectContaining({
         metadata: expect.objectContaining({
           autosave_enabled: false,
+          autosave_preference_source: "lookup_error",
           autosave_decision: "autosave_skipped",
           decision_reason: "autosave_disabled",
+        }),
+      })
+    );
+  });
+
+  it("projects blocked_storage when recovery autosave hits storage quota", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+        failure_reason_code: "terminal_success_no_media",
+        recovery_state: "queued",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockRejectedValue(
+      new Error(
+        "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)"
+      )
+    );
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: [],
+        note: "autosave_skipped",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        saveState: "blocked_storage",
+        saveError:
+          "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+        savedMediaIds: [],
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.media_autosave_failed",
+        metadata: expect.objectContaining({
+          autosave_error:
+            "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)",
         }),
       })
     );

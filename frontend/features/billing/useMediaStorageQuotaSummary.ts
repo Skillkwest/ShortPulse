@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../lib/supabaseClient";
 import { getDefaultPlanStorageLimitBytes, type MediaStorageQuotaSummary } from "./storage";
 
+const MEDIA_STORAGE_QUOTA_REFRESH_EVENT = "shortpulse:media-storage-quota-refresh";
+
 type QuotaRpcRow = {
   used_bytes: number | string | null;
   base_limit_bytes: number | string | null;
@@ -107,9 +109,46 @@ export const useMediaStorageQuotaSummary = ({
     void refreshQuotaSummary();
   }, [refreshQuotaSummary]);
 
+  useEffect(() => {
+    if (!enabled || !user || typeof window === "undefined") return;
+
+    const handleWindowFocus = () => {
+      void refreshQuotaSummary();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshQuotaSummary();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [enabled, refreshQuotaSummary, user]);
+
+  useEffect(() => {
+    if (!enabled || !user || typeof window === "undefined") return;
+
+    const handleRequestedRefresh = () => {
+      void refreshQuotaSummary();
+    };
+
+    window.addEventListener(MEDIA_STORAGE_QUOTA_REFRESH_EVENT, handleRequestedRefresh);
+    return () => {
+      window.removeEventListener(MEDIA_STORAGE_QUOTA_REFRESH_EVENT, handleRequestedRefresh);
+    };
+  }, [enabled, refreshQuotaSummary, user]);
+
   return {
     quotaSummary,
     loading,
     refreshQuotaSummary,
   };
+};
+
+export const requestMediaStorageQuotaSummaryRefresh = (): void => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(MEDIA_STORAGE_QUOTA_REFRESH_EVENT));
 };

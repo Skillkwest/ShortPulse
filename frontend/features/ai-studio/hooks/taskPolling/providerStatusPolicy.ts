@@ -27,6 +27,8 @@ export type ShortPulseLifecycleHint = {
   taskState?: string | null;
   isTerminal?: boolean;
   resultUrls?: string[];
+  saveState?: string | null;
+  saveError?: string | null;
   errorMessage?: string | null;
   errorDetail?: unknown;
   providerState?: string | null;
@@ -291,12 +293,24 @@ export const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycle
   const raw = row.shortpulseLifecycle;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const lifecycle = raw as Record<string, unknown>;
+  const hasSaveState = Object.prototype.hasOwnProperty.call(lifecycle, "saveState");
+  const hasSaveError = Object.prototype.hasOwnProperty.call(lifecycle, "saveError");
   return {
     taskState: typeof lifecycle.taskState === "string" ? lifecycle.taskState : null,
     isTerminal: lifecycle.isTerminal === true,
     resultUrls: Array.isArray(lifecycle.resultUrls)
       ? lifecycle.resultUrls.filter((item): item is string => typeof item === "string")
       : [],
+    ...(hasSaveState
+      ? {
+          saveState: typeof lifecycle.saveState === "string" ? lifecycle.saveState : null,
+        }
+      : {}),
+    ...(hasSaveError
+      ? {
+          saveError: typeof lifecycle.saveError === "string" ? lifecycle.saveError : null,
+        }
+      : {}),
     errorMessage: typeof lifecycle.errorMessage === "string" ? lifecycle.errorMessage : null,
     errorDetail: lifecycle.errorDetail,
     providerState: typeof lifecycle.providerState === "string" ? lifecycle.providerState : null,

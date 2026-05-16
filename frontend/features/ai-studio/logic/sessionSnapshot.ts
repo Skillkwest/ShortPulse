@@ -207,6 +207,15 @@ export type AiStudioSessionSnapshotV2 = {
 };
 
 export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessionSnapshotV2;
+export type AiStudioProjectWorkspaceAutosaveCandidateKind =
+  | "full"
+  | "without_expert_edit"
+  | "without_canvas"
+  | "without_canvas_and_expert_edit"
+  | "without_archived_outputs"
+  | "without_archived_outputs_and_expert_edit"
+  | "without_archived_outputs_and_canvas"
+  | "without_archived_outputs_and_canvas_and_expert_edit";
 
 export type BuildAiStudioSessionSnapshotInput = {
   sessionId: string;
@@ -933,6 +942,115 @@ export const createAiStudioProjectWorkspaceSnapshot = (
     },
     agent: emptyAgentRuntime,
   };
+};
+
+const rebuildV2SnapshotMeta = (
+  snapshot: Omit<AiStudioSessionSnapshotV2, "meta"> & { updatedAt: string }
+): AiStudioSessionSnapshotV2 => ({
+  ...snapshot,
+  meta: {
+    generatedAt: snapshot.updatedAt,
+    checksum: computeChecksum(snapshot),
+  },
+});
+
+const stripArchivedOutputsFromSnapshot = (
+  snapshot: AiStudioSessionSnapshot
+): AiStudioSessionSnapshot => {
+  const nextOutputs = {
+    ...snapshot.outputs,
+    archived: [],
+    removedFromAllRefsIds: [],
+  };
+  if (snapshot.schemaVersion === 1) {
+    return {
+      ...snapshot,
+      outputs: nextOutputs,
+    };
+  }
+  const { meta, ...baseSnapshot } = snapshot as AiStudioSessionSnapshotV2;
+  void meta;
+  return rebuildV2SnapshotMeta({
+    ...(baseSnapshot as Omit<AiStudioSessionSnapshotV2, "meta">),
+    outputs: nextOutputs,
+  });
+};
+
+const stripCanvasFromSnapshot = (
+  snapshot: AiStudioSessionSnapshotV2
+): AiStudioSessionSnapshotV2 => {
+  const { meta, canvas, ...baseSnapshot } = snapshot;
+  void meta;
+  void canvas;
+  return rebuildV2SnapshotMeta(baseSnapshot);
+};
+
+const stripExpertEditFromSnapshot = (
+  snapshot: AiStudioSessionSnapshotV2
+): AiStudioSessionSnapshotV2 => {
+  const { meta, expertEdit, ...baseSnapshot } = snapshot;
+  void meta;
+  void expertEdit;
+  return rebuildV2SnapshotMeta(baseSnapshot);
+};
+
+export const createAiStudioProjectWorkspaceAutosaveCandidates = (
+  snapshot: AiStudioSessionSnapshot
+): Array<{
+  kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
+  snapshot: AiStudioSessionSnapshot;
+}> => {
+  const candidates: Array<{
+    kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
+    snapshot: AiStudioSessionSnapshot;
+  }> = [{ kind: "full", snapshot }];
+  if (snapshot.schemaVersion >= 2) {
+    const v2Snapshot = snapshot as AiStudioSessionSnapshotV2;
+    const withoutExpertEdit = stripExpertEditFromSnapshot(v2Snapshot);
+    const withoutCanvas = stripCanvasFromSnapshot(v2Snapshot);
+    const withoutCanvasAndExpertEdit = stripExpertEditFromSnapshot(withoutCanvas);
+    const withoutArchivedOutputs = stripArchivedOutputsFromSnapshot(v2Snapshot);
+    const withoutArchivedOutputsAndExpertEdit = stripExpertEditFromSnapshot(
+      withoutArchivedOutputs as AiStudioSessionSnapshotV2
+    );
+    const withoutArchivedOutputsAndCanvas = stripCanvasFromSnapshot(
+      withoutArchivedOutputs as AiStudioSessionSnapshotV2
+    );
+    const withoutArchivedOutputsAndCanvasAndExpertEdit = stripExpertEditFromSnapshot(
+      withoutArchivedOutputsAndCanvas
+    );
+    candidates.push(
+      { kind: "without_expert_edit", snapshot: withoutExpertEdit },
+      { kind: "without_canvas", snapshot: withoutCanvas },
+      { kind: "without_canvas_and_expert_edit", snapshot: withoutCanvasAndExpertEdit },
+      { kind: "without_archived_outputs", snapshot: withoutArchivedOutputs },
+      {
+        kind: "without_archived_outputs_and_expert_edit",
+        snapshot: withoutArchivedOutputsAndExpertEdit,
+      },
+      {
+        kind: "without_archived_outputs_and_canvas",
+        snapshot: withoutArchivedOutputsAndCanvas,
+      },
+      {
+        kind: "without_archived_outputs_and_canvas_and_expert_edit",
+        snapshot: withoutArchivedOutputsAndCanvasAndExpertEdit,
+      }
+    );
+  } else {
+    candidates.push({
+      kind: "without_archived_outputs",
+      snapshot: stripArchivedOutputsFromSnapshot(snapshot),
+    });
+  }
+
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const serialized = JSON.stringify(candidate.snapshot);
+    if (seen.has(serialized)) return false;
+    seen.add(serialized);
+    return true;
+  });
 };
 
 /**

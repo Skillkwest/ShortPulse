@@ -29,6 +29,7 @@ export type UpsertGenerationProjectionInput = {
   errorMessageShort?: string | null;
   errorDetail?: string | null;
   saveState?: string | null;
+  saveError?: string | null;
   hiddenInReferenceGrid?: boolean;
   referenceGridVisible?: boolean;
   publicationState?: string | null;
@@ -69,6 +70,8 @@ export type GenerationProjectionStatusContext = {
   queueState: string | null;
   errorMessageShort: string | null;
   errorDetail: string | null;
+  saveState: string | null;
+  saveError: string | null;
 };
 
 export type GenerationProjectionQueueContext = {
@@ -243,6 +246,7 @@ export const upsertGenerationProjection = async ({
   errorMessageShort,
   errorDetail,
   saveState,
+  saveError,
   hiddenInReferenceGrid,
   referenceGridVisible,
   publicationState,
@@ -286,6 +290,7 @@ export const upsertGenerationProjection = async ({
     error_message_short: errorMessageShort,
     error_detail: errorDetail,
     save_state: saveState,
+    save_error: saveError,
     publication_state: publicationState,
     started_at: startedAt,
     completed_at: completedAt,
@@ -300,6 +305,10 @@ export const upsertGenerationProjection = async ({
     if (normalized) {
       payload[key] = normalized;
     }
+  }
+
+  if (saveError === undefined && taskState === "success") {
+    payload.save_error = null;
   }
 
   if (typeof hiddenInReferenceGrid === "boolean") {
@@ -336,7 +345,7 @@ export const readGenerationProjectionStatusContext = async ({
   const { data, error } = await adminClient
     .from("generation_projection")
     .select(
-      "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, updated_at"
+      "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, save_state, save_error, updated_at"
     )
     .eq("user_id", userId)
     .eq("request_id", requestId)
@@ -358,6 +367,8 @@ export const readGenerationProjectionStatusContext = async ({
       queueState: asString(row.queue_state),
       errorMessageShort: asString(row.error_message_short),
       errorDetail: asString(row.error_detail),
+      saveState: asString(row.save_state),
+      saveError: asString(row.save_error),
     };
   }
 

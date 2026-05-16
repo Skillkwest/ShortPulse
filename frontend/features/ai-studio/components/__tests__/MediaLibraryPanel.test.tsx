@@ -22,6 +22,7 @@ const logMediaEventMock = vi.fn();
 const isAdaptiveSurfaceEnabledMock = vi.fn();
 const useMediaPreviewSigningControllerMock = vi.fn();
 const useMediaStorageQuotaSummaryMock = vi.fn();
+const requestMediaStorageQuotaSummaryRefreshMock = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -73,6 +74,8 @@ vi.mock("../../../media-library/hooks/useMediaPreviewSigningController", () => (
 
 vi.mock("../../../billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+  requestMediaStorageQuotaSummaryRefresh: (...args: unknown[]) =>
+    requestMediaStorageQuotaSummaryRefreshMock(...args),
 }));
 
 vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => ({
@@ -421,6 +424,7 @@ describe("MediaLibraryPanel", () => {
       loading: false,
       refreshQuotaSummary: vi.fn(),
     });
+    requestMediaStorageQuotaSummaryRefreshMock.mockReset();
     uploadMediaFileMock.mockResolvedValue({
       id: "uploaded-1",
       filename: "upload.png",
@@ -784,6 +788,8 @@ describe("MediaLibraryPanel", () => {
         expect.objectContaining({
           id: "media-1",
           url: "https://cdn.example.com/ref-1.png",
+          previewUrl: "https://cdn.example.com/ref-1.png",
+          fullUrl: "https://cdn.example.com/ref-1.png",
           fileType: "image",
         })
       );

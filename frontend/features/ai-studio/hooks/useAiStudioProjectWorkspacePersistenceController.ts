@@ -5,10 +5,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createAiStudioProjectWorkspaceSnapshot,
+  createAiStudioProjectWorkspaceAutosaveCandidates,
+  type AiStudioProjectWorkspaceAutosaveCandidateKind,
   type AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
+import {
+  resetAiStudioProjectWorkspaceSnapshotViaApi,
+  saveAiStudioProjectWorkspaceSnapshotViaApi,
+} from "../logic/projectWorkspaceApiClient";
 import {
   useAiStudioSessionAutosave,
   type AiStudioSessionAutosaveError,
@@ -16,7 +21,10 @@ import {
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
 import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
-import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
+import {
+  AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  type AiStudioSessionCanvasState,
+} from "../logic/sessionSnapshotCanvas";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -63,6 +71,25 @@ const resolveProjectPersistenceWarningMessage = ({
     default:
       return `Project autosave is retrying in the background: ${error.message}`;
   }
+};
+
+const utf8ByteLength = (value: string): number => {
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(value).byteLength;
+  }
+  return value.length;
+};
+
+const resolveReducedWorkspaceNotice = (
+  fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
+): string => {
+  if (fallbackKind.includes("archived_outputs")) {
+    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore.";
+  }
+  if (fallbackKind.includes("expert_edit") || fallbackKind.includes("canvas")) {
+    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Canvas layout or edit overlays may need to be rebuilt.";
+  }
+  return "Project autosave saved a reduced workspace snapshot to stay within size limits.";
 };
 
 /**
@@ -136,6 +163,32 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         : baseSessionSnapshot,
     [baseSessionSnapshot, patchSessionSnapshot]
   );
+  const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
+  const autosaveSnapshotSelection = (() => {
+    if (!sessionSnapshot) {
+      return {
+        snapshot: null as AiStudioSessionSnapshot | null,
+        fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+      };
+    }
+    for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
+      try {
+        const bytes = utf8ByteLength(JSON.stringify(candidate.snapshot));
+        if (bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES) {
+          return {
+            snapshot: candidate.snapshot,
+            fallbackKind: candidate.kind,
+          };
+        }
+      } catch {
+        // try the next candidate
+      }
+    }
+    return {
+      snapshot: sessionSnapshot,
+      fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+    };
+  })();
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {
@@ -148,6 +201,30 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     resetAiStudioOutputStore();
     applyEmptyProjectState?.();
   }, [applyEmptyProjectState, projectRuntimeAuthority, projectRuntimeRevision]);
+
+  useEffect(() => {
+    if (!projectId || autosaveSnapshotSelection.fallbackKind === "full") return;
+    const noticeKey = [
+      projectId,
+      sessionSnapshot?.updatedAt ?? "none",
+      autosaveSnapshotSelection.fallbackKind,
+    ].join("|");
+    if (reducedSnapshotNoticeKeyRef.current === noticeKey) return;
+    reducedSnapshotNoticeKeyRef.current = noticeKey;
+    onPersistenceWarning?.(
+      resolveReducedWorkspaceNotice(
+        autosaveSnapshotSelection.fallbackKind as Exclude<
+          AiStudioProjectWorkspaceAutosaveCandidateKind,
+          "full"
+        >
+      )
+    );
+  }, [
+    autosaveSnapshotSelection.fallbackKind,
+    onPersistenceWarning,
+    projectId,
+    sessionSnapshot?.updatedAt,
+  ]);
 
   const handleProjectBootstrapSettled = useCallback(
     (activeProjectId: string) => {
@@ -241,7 +318,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   useAiStudioSessionAutosave({
     sessionId: projectId,
-    snapshot: sessionSnapshot,
+    snapshot: autosaveSnapshotSelection.snapshot,
     enabled: projectBootstrapReady && !activeBootstrapError,
     persistSnapshot: writeProjectWorkspaceSnapshot,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
@@ -259,6 +336,17 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionRestoreCandidate.retry();
   }, [projectId, projectRuntimeRevision, sessionRestoreCandidate]);
 
+  const resetProjectWorkspace = useCallback(async () => {
+    if (!projectId) return;
+    await resetAiStudioProjectWorkspaceSnapshotViaApi({ projectId });
+    setBootstrapError((current) =>
+      current?.projectId === projectId && current.revision === projectRuntimeRevision
+        ? null
+        : current
+    );
+    sessionRestoreCandidate.retry();
+  }, [projectId, projectRuntimeRevision, sessionRestoreCandidate]);
+
   return {
     sessionId,
     sessionSnapshot,
@@ -269,5 +357,6 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       activeBootstrapError?.message ??
       (sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null),
     retryProjectBootstrap,
+    resetProjectWorkspace,
   };
 };

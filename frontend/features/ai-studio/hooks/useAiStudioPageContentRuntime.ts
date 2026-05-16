@@ -40,6 +40,7 @@ type UseAiStudioPageContentRuntimeParams = {
   referenceGridProps: AiStudioPageContentProps["referenceGridProps"];
   studioPreviewProps: AiStudioPageContentProps["studioPreviewProps"];
   detailModalOutput: AiStudioPageContentProps["detailModalOutput"];
+  isMediaStorageFull: AiStudioPageContentProps["isMediaStorageFull"];
   onDetailClose: AiStudioPageContentProps["onDetailClose"];
   onUpdateOutputPrompt: AiStudioPageContentProps["onUpdateOutputPrompt"];
   onDeleteOutput: AiStudioPageContentProps["onDeleteOutput"];
@@ -104,6 +105,7 @@ export const useAiStudioPageContentRuntime = ({
   referenceGridProps,
   studioPreviewProps,
   detailModalOutput,
+  isMediaStorageFull,
   onDetailClose,
   onUpdateOutputPrompt,
   onDeleteOutput,
@@ -165,6 +167,7 @@ export const useAiStudioPageContentRuntime = ({
       referenceGridProps,
       studioPreviewProps,
       detailModalOutput,
+      isMediaStorageFull,
       onDetailClose,
       onUpdateOutputPrompt,
       onDeleteOutput,
@@ -225,6 +228,7 @@ export const useAiStudioPageContentRuntime = ({
       referenceGridProps,
       studioPreviewProps,
       detailModalOutput,
+      isMediaStorageFull,
       onDetailClose,
       onUpdateOutputPrompt,
       onDeleteOutput,

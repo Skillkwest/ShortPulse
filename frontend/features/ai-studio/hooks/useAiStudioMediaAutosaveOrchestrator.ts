@@ -3,6 +3,7 @@
  * Observes outputs and triggers autosave policy decisions without relying on DOM load callbacks.
  */
 import { useEffect, useRef } from "react";
+import { requestMediaStorageQuotaSummaryRefresh } from "../../billing/useMediaStorageQuotaSummary";
 import {
   canAutoSaveOutput,
   type MediaAutosaveSource,
@@ -17,6 +18,7 @@ import type { MediaAutosaveSyncState } from "./useMediaAutosavePreference";
 
 type UseAiStudioMediaAutosaveOrchestratorArgs = {
   enabled: boolean;
+  isMediaStorageFull?: boolean;
   outputs: StudioOutput[];
   mediaAutosaveEnabled: boolean;
   mediaAutosaveSyncState: MediaAutosaveSyncState;
@@ -52,6 +54,7 @@ const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean)
  */
 export const useAiStudioMediaAutosaveOrchestrator = ({
   enabled,
+  isMediaStorageFull = false,
   outputs,
   mediaAutosaveEnabled,
   mediaAutosaveSyncState,
@@ -77,10 +80,17 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
 
     outputs.forEach((output) => {
       if (inFlightOutputIdsRef.current.has(output.id)) return;
+      if (!isMediaStorageFull && output.saveState === "blocked_storage") {
+        attemptCountByOutputIdRef.current.delete(output.id);
+      }
       const attemptCount = attemptCountByOutputIdRef.current.get(output.id) ?? 0;
       if (attemptCount >= AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT) return;
       if (output.mediaSource === "generated" && !hasDurableGenerationIdentity(output)) return;
-      const decision = canAutoSaveOutput(buildDecisionInput(output, mediaAutosaveEnabled));
+      const effectiveOutput =
+        !isMediaStorageFull && output.saveState === "blocked_storage"
+          ? { ...output, saveState: "failed" as const }
+          : output;
+      const decision = canAutoSaveOutput(buildDecisionInput(effectiveOutput, mediaAutosaveEnabled));
       if (!decision.allowed) return;
       inFlightOutputIdsRef.current.add(output.id);
       attemptCountByOutputIdRef.current.set(output.id, attemptCount + 1);
@@ -88,6 +98,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
         .then((result) => {
           if (result.ok) {
             attemptCountByOutputIdRef.current.delete(output.id);
+            requestMediaStorageQuotaSummaryRefresh();
           }
         })
         .catch(() => {
@@ -97,5 +108,12 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
           inFlightOutputIdsRef.current.delete(output.id);
         });
     });
-  }, [enabled, mediaAutosaveEnabled, mediaAutosaveSyncState, outputs, saveReferenceToLibrary]);
+  }, [
+    enabled,
+    isMediaStorageFull,
+    mediaAutosaveEnabled,
+    mediaAutosaveSyncState,
+    outputs,
+    saveReferenceToLibrary,
+  ]);
 };

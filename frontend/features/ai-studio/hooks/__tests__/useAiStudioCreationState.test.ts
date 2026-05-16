@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAiStudioCreationState } from "../useAiStudioCreationState";
 
@@ -35,5 +35,26 @@ describe("useAiStudioCreationState", () => {
     expect(result.current.videoResolution).toBe("1080p");
     expect(result.current.imageResolution).toBe("model_default");
     expect(result.current.hasUserVideoPrefs).toBe(false);
+  });
+
+  it("keeps lane busy state active until the last concurrent submission settles", () => {
+    const { result } = renderHook(() => useAiStudioCreationState());
+
+    act(() => {
+      result.current.beginPanelGeneration("create");
+      result.current.beginPanelGeneration("create");
+    });
+    expect(result.current.createIsGenerating).toBe(true);
+
+    act(() => {
+      result.current.endPanelGeneration("create");
+    });
+    expect(result.current.createIsGenerating).toBe(true);
+
+    act(() => {
+      result.current.endPanelGeneration("create");
+      result.current.endPanelGeneration("create");
+    });
+    expect(result.current.createIsGenerating).toBe(false);
   });
 });

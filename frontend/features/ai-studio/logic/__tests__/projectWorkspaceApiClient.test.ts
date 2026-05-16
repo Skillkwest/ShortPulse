@@ -3,6 +3,7 @@ import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
   getAiStudioProjectWorkspaceSnapshotViaApi,
+  resetAiStudioProjectWorkspaceSnapshotViaApi,
   saveAiStudioProjectWorkspaceSnapshotViaApi,
 } from "../projectWorkspaceApiClient";
 
@@ -168,6 +169,27 @@ describe("projectWorkspaceApiClient", () => {
       method: "GET",
       shortpulseLogScope: "app",
       shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
+    });
+  });
+
+  it("uses DELETE to reset the saved project workspace snapshot", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ workspace: null }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    await resetAiStudioProjectWorkspaceSnapshotViaApi({
+      projectId: "project-1",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
+      method: "DELETE",
+      shortpulseLogScope: "app",
       shortpulseRetryNetworkOnce: true,
     });
   });

@@ -110,7 +110,8 @@ type UseAiStudioTaskSubmissionParams = {
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
-  setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
+  beginPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
+  endPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -162,7 +163,8 @@ export const useAiStudioTaskSubmission = ({
   klingCfgScale,
   klingMultiPrompts,
   klingElements,
-  setPanelGenerating,
+  beginPanelGeneration,
+  endPanelGeneration,
   setUiError,
   setUiNotice,
   setOutputs,
@@ -253,7 +255,7 @@ export const useAiStudioTaskSubmission = ({
           : effectiveTool === "image" || effectiveTool === "edit"
             ? "edit"
             : "create");
-      setPanelGenerating(submissionOwner, true);
+      beginPanelGeneration(submissionOwner);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
@@ -620,12 +622,13 @@ export const useAiStudioTaskSubmission = ({
           notifyGenerationFailure(id, message, message);
         }
       } finally {
-        setPanelGenerating(submissionOwner, false);
+        endPanelGeneration(submissionOwner);
       }
     },
     [
       aspect,
-      setPanelGenerating,
+      beginPanelGeneration,
+      endPanelGeneration,
       setOutputs,
       setSaved,
       setUiError,

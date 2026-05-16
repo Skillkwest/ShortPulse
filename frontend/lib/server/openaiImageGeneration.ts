@@ -22,6 +22,7 @@ import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
   associateGenerationWithProjectForUser,
@@ -67,7 +68,7 @@ export type PersistGeneratedImageResult = {
   storagePath: string;
   signedUrl: string;
   outputRowId: string | null;
-  saveState: "saved" | "idle" | "blocked_storage";
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
   saveError: string | null;
 };
 
@@ -96,17 +97,25 @@ const normalizeOptionalString = (value: unknown): string | null => {
 const resolveAutosaveSaveOutcome = ({
   mediaFileId,
   autosaveDecisionReason,
+  autosavePreferenceLookupMessage,
 }: {
   mediaFileId: string | null;
   autosaveDecisionReason: string;
+  autosavePreferenceLookupMessage: string | null;
 }): {
-  saveState: "saved" | "idle" | "blocked_storage";
+  saveState: "saved" | "idle" | "failed" | "blocked_storage";
   saveError: string | null;
 } => {
   if (mediaFileId) {
     return {
       saveState: "saved",
       saveError: null,
+    };
+  }
+  if (autosavePreferenceLookupMessage) {
+    return {
+      saveState: "failed",
+      saveError: autosavePreferenceLookupMessage,
     };
   }
   const quotaMessage = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
@@ -360,7 +369,10 @@ export const persistGeneratedImageAsset = async ({
     requestId: resolvedRequestId,
   });
   const effectiveHiddenInReferenceGrid = hiddenInReferenceGrid || abandonment.abandoned;
-  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ userId, supabaseAdmin });
+  const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({ userId, supabaseAdmin });
+  const mediaAutosaveEnabled = mediaAutosavePreference.enabled;
+  const autosavePreferenceLookupMessage =
+    resolveMediaAutosavePreferenceLookupUserMessage(mediaAutosavePreference);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
     mediaAutosaveEnabled,
@@ -396,6 +408,7 @@ export const persistGeneratedImageAsset = async ({
       requested_size: requestedSize,
       requested_quality: requestedQuality,
       autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
       user_abandoned: abandonment.abandoned,
       abandoned_no_refund: abandonment.noRefund,
       hidden_in_reference_grid: effectiveHiddenInReferenceGrid,
@@ -490,6 +503,7 @@ export const persistGeneratedImageAsset = async ({
           generation_id: generationId,
           provider_request_id: resolvedProviderRequestId,
           model_id: modelId,
+          autosave_preference_source: mediaAutosavePreference.source,
           autosave_error: autosaveDecisionReason,
         },
       }).catch(() => undefined);
@@ -499,6 +513,7 @@ export const persistGeneratedImageAsset = async ({
   const saveOutcome = resolveAutosaveSaveOutcome({
     mediaFileId,
     autosaveDecisionReason,
+    autosavePreferenceLookupMessage,
   });
   const publicationMetadata = {
     ...generationMetadata,
@@ -540,6 +555,7 @@ export const persistGeneratedImageAsset = async ({
     previewStoragePath: storagePath,
     fullStoragePath: storagePath,
     saveState: saveOutcome.saveState,
+    saveError: saveOutcome.saveError,
     hiddenInReferenceGrid: effectiveHiddenInReferenceGrid,
     referenceGridVisible: !effectiveHiddenInReferenceGrid,
     publicationState: abandonment.abandoned ? "suppressed" : "published",

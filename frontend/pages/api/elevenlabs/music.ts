@@ -45,7 +45,7 @@ type GenerateMusicSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: null;
     modelId: string;
-    saveState: "saved" | "idle" | "blocked_storage";
+    saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
 };

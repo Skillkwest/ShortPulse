@@ -1,5 +1,9 @@
 import React from "react";
 
+const focusKeyboardPanOwner = (element: HTMLDivElement | null) => {
+  element?.focus({ preventScroll: true });
+};
+
 type PrimaryStageShellProps = {
   children: React.ReactNode;
   overlayActions?: React.ReactNode;
@@ -38,6 +42,7 @@ export function PrimaryStageShell({
   const handleBackdropPointerDown = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
     (event) => {
       if (event.target !== event.currentTarget) return;
+      focusKeyboardPanOwner(event.currentTarget);
       onPointerDown?.(event);
     },
     [onPointerDown]
@@ -92,6 +97,8 @@ export function PrimaryStageShell({
       style={{ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" }}
       aria-label={isEmpty ? "Primary edit stage" : undefined}
       aria-busy={isEmpty && isBusy ? true : undefined}
+      data-keyboard-pan-owner="true"
+      tabIndex={isEmpty ? 0 : -1}
       onPointerDownCapture={onPointerDownCapture}
       onPointerMoveCapture={onPointerMoveCapture}
       onPointerUpCapture={onPointerUpCapture}
@@ -156,6 +163,14 @@ export function PrimaryCompositionSurface({
   onClick,
   onDoubleClick,
 }: PrimaryCompositionSurfaceProps) {
+  const handlePointerDown = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
+    (event) => {
+      focusKeyboardPanOwner(event.currentTarget);
+      onPointerDown?.(event);
+    },
+    [onPointerDown]
+  );
+
   return (
     <div
       ref={surfaceRef}
@@ -167,7 +182,7 @@ export function PrimaryCompositionSurface({
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
-      onPointerDown={onPointerDown}
+      onPointerDown={onPointerDown ? handlePointerDown : undefined}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
@@ -180,6 +195,8 @@ export function PrimaryCompositionSurface({
       aria-label={isVisible ? "Primary composition surface" : undefined}
       aria-busy={isVisible && isBusy ? true : undefined}
       aria-hidden={!isVisible}
+      data-keyboard-pan-owner={isVisible ? "true" : undefined}
+      tabIndex={isVisible ? 0 : -1}
     >
       {children}
     </div>

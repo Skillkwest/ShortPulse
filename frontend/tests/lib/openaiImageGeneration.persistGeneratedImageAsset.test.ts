@@ -104,6 +104,7 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateMediaFilesWithProjectForUserMock(...args),
 }));
 
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "../../lib/server/api/mediaAutosavePreference";
 import { persistGeneratedImageAsset } from "../../lib/server/openaiImageGeneration";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -213,7 +214,7 @@ describe("persistGeneratedImageAsset", () => {
       error: { message: "user preference read failed" },
     });
 
-    await persistGeneratedImageAsset({
+    const result = await persistGeneratedImageAsset({
       userId: "user-1",
       promptText: "Cinematic portrait",
       modelId: "gpt-image-2",
@@ -229,11 +230,30 @@ describe("persistGeneratedImageAsset", () => {
       expect.objectContaining({
         metadata: expect.objectContaining({
           autosave_enabled: false,
+          autosave_preference_source: "lookup_error",
           autosave_decision: "autosave_skipped",
           autosave_decision_reason: "autosave_disabled",
         }),
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        saveState: "failed",
+        saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+          enabled: false,
+          source: "lookup_error",
+        }),
+      })
+    );
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      saveState: "failed",
+      saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+        enabled: false,
+        source: "lookup_error",
+      }),
+    });
   });
 
   it("keeps output delivery when media autosave insert fails", async () => {

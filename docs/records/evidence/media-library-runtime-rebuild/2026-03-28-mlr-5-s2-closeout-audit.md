@@ -15,13 +15,13 @@ Audit the rebuilt Media Library runtime against the tracker’s remaining in-pro
 ## Commands Run
 1. `sed -n '1,220p' docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 2. `rg -n "useMediaPreviewRecoveryController|useMediaPreviewSigningController|useMediaSurfacePreviewRuntime|useMediaSurfacePreviewSigning|useMediaTabDataController|useMediaLibraryPanelDataController" frontend -g '!frontend/.next/**'`
-3. Historical route audit searched the former standalone Media Library page together with `frontend/features/ai-studio/components/MediaLibraryModal.tsx` and `frontend/features/media-library/hooks` for observer/runtime churn markers.
+3. Historical route audit searched the historical implementation together with `frontend/features/ai-studio/components/MediaLibraryModal.tsx` and `frontend/features/media-library/hooks` for observer/runtime churn markers.
 4. `cd frontend && PLAYWRIGHT_MODAL_BASE_URL=http://127.0.0.1:3001 npm run test:e2e:media-library-runtime`
 5. `cd frontend && npm run docs:check`
 
 ## Findings
 1. `MLR-1-S2` is substantively complete:
-   - the route read and write path used the retired route runtime adapter
+   - the route read and write path used the historical implementation runtime adapter
    - the normalized store is active in `frontend/features/media-library/runtime/store.ts`
    - the route sync loop fix is validated in the heavy browser packet
 2. `MLR-2-S1` is substantively complete:

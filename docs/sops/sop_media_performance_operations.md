@@ -15,6 +15,8 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - Provider model latency and generation queue incidents (see provider SOPs).
   - Schema/backfill design decisions (see ADRs and planning specs).
 
+Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance_kpi.md) when you need a scored KPI report for the AI Studio media panel or the Elements embedded media panel rather than raw telemetry alone.
+
 ## Key Components
 
 - Client signing/cache:

@@ -35,6 +35,7 @@ type ResolveInternalDropItem = (payload: InternalReferenceDragPayload) => Promis
 type UseMediaLibraryFolderDropControllerArgs = {
   projectId?: string | null;
   folders: MediaFolder[];
+  isStorageQuotaBlocked?: boolean;
   setFolderError: (value: string | null) => void;
   setMembershipMessage: (value: string | null) => void;
   setMembershipPendingMessage: (value: string | null) => void;
@@ -160,6 +161,7 @@ const buildFeedbackArgs = ({
 export const useMediaLibraryFolderDropController = ({
   projectId = null,
   folders,
+  isStorageQuotaBlocked = false,
   setFolderError,
   setMembershipMessage,
   setMembershipPendingMessage,
@@ -213,14 +215,23 @@ export const useMediaLibraryFolderDropController = ({
       if (!transfer) return false;
       const maybeLibraryPayload =
         hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
-      const maybeInternalPayload =
-        hasInternalReferenceTransferHints(transfer) ||
-        extractInternalReferenceDragPayload(transfer);
+      const maybeInternalPayload = extractInternalReferenceDragPayload(transfer);
+      const hasInternalPayloadHints = hasInternalReferenceTransferHints(transfer);
+      const canAcceptInternalPayload = (() => {
+        if (!hasInternalPayloadHints && !maybeInternalPayload) return false;
+        if (!isStorageQuotaBlocked) return true;
+        return (
+          maybeInternalPayload?.mediaKind === "text" ||
+          Boolean(maybeInternalPayload?.mediaId?.trim())
+        );
+      })();
       const maybeDesktopFiles =
-        hasDesktopFileTransferHints(transfer) && Boolean(onDropFilesToFolder);
-      return Boolean(maybeLibraryPayload || maybeInternalPayload || maybeDesktopFiles);
+        hasDesktopFileTransferHints(transfer) &&
+        Boolean(onDropFilesToFolder) &&
+        !isStorageQuotaBlocked;
+      return Boolean(maybeLibraryPayload || canAcceptInternalPayload || maybeDesktopFiles);
     },
-    [onDropFilesToFolder]
+    [isStorageQuotaBlocked, onDropFilesToFolder]
   );
 
   const handleFolderDragOver = useCallback(
@@ -272,8 +283,21 @@ export const useMediaLibraryFolderDropController = ({
       }
     ) => {
       const targetFolderName = folders.find((folder) => folder.id === folderId)?.name ?? null;
+      const internalPayload = extractInternalReferenceDragPayload(transfer);
+      const droppedFiles = transfer.files;
       setFolderError(null);
       setMembershipMessage(null);
+      if (
+        isStorageQuotaBlocked &&
+        internalPayload &&
+        internalPayload.mediaKind !== "text" &&
+        !(internalPayload.mediaId?.trim() ?? "")
+      ) {
+        return;
+      }
+      if (isStorageQuotaBlocked && droppedFiles && droppedFiles.length > 0) {
+        return;
+      }
       setMembershipPendingMessage(
         targetFolderName ? `Adding to ${targetFolderName}...` : "Saving..."
       );
@@ -391,8 +415,11 @@ export const useMediaLibraryFolderDropController = ({
         }
         return;
       }
-      const droppedFiles = transfer.files;
       if (droppedFiles && droppedFiles.length > 0) {
+        if (isStorageQuotaBlocked) {
+          setMembershipPendingMessage(null);
+          return;
+        }
         if (!onDropFilesToFolder) {
           setMembershipPendingMessage(null);
           setFolderError("Unable to resolve dropped reference.");
@@ -415,6 +442,7 @@ export const useMediaLibraryFolderDropController = ({
     },
     [
       folders,
+      isStorageQuotaBlocked,
       onDropFilesToFolder,
       projectId,
       refreshActiveRows,

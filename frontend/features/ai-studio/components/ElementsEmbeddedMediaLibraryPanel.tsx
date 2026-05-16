@@ -344,6 +344,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
   const foldersDropController = useMediaLibraryFolderDropController({
     projectId,
     folders: [],
+    isStorageQuotaBlocked,
     setFolderError,
     setMembershipMessage,
     setMembershipPendingMessage,
@@ -857,7 +858,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
   );
 
   return (
-    <section className="media-library-panel elements-embedded-media-library-panel">
+    <section
+      className="media-library-panel elements-embedded-media-library-panel"
+      aria-label="Elements media library panel"
+      data-surface="elements-media-panel"
+    >
       <input
         key={rootFileInputResetKey}
         ref={fileInputRef}

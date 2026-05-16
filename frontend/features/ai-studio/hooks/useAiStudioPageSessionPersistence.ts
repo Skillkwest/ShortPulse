@@ -128,6 +128,7 @@ export const useAiStudioPageSessionPersistence = ({
     projectBootstrapApplied: true,
     projectBootstrapError: null,
     retryProjectBootstrap: () => undefined,
+    resetProjectWorkspace: async () => undefined,
   };
 
   void sessionTitleOverride;

@@ -51,7 +51,7 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 2. The prior unstable `useMediaTabDataController` lane now terminates cleanly inside the characterization bundle.
 3. `docs:check` passed with docs, semantic drift, migration parity, archive manifest, model catalog parity, naming drift, and operator-map checks green.
 4. The modal test bundle emitted expected unresolved-preview warning logs during stale-refresh scenarios; those logs did not fail the run and are part of the current characterization surface.
-5. The first live repro on the former standalone Media Library page exposed the real browser failure mode:
+5. The first live repro on the historical implementation exposed the real browser failure mode:
    - repeated `Maximum update depth exceeded` warnings in `MediaLibrary`
    - route remained rendered but was in the same overload class reported by the user
 6. After adding a no-op guard for semantically identical ordered row/cache writes in `frontend/features/media-library/runtime/store.ts`, the same live route repro no longer emitted the max-depth warning.

@@ -659,7 +659,7 @@ describe("MediaLibraryModal", () => {
     });
   });
 
-  it("prefers canonical storage path when selecting media", async () => {
+  it("selects a preview-safe url while preserving a full-quality url hint", async () => {
     mockMediaRows.push({
       id: "media-prefer-full-1",
       filename: "portrait.png",
@@ -721,14 +721,11 @@ describe("MediaLibraryModal", () => {
     const selectedPayload = onSelectMedia.mock.calls[0]?.[0];
     expect(selectedPayload).toMatchObject({
       id: "media-prefer-full-1",
-      url: "https://signed.example.com/portrait-full.png",
+      url: "https://signed.example.com/portrait-thumb.png",
+      previewUrl: "https://signed.example.com/portrait-thumb.png",
       fullUrl: "https://signed.example.com/portrait-full.png",
       previewStoragePath: "user-1/upload/portrait-thumb.png",
       fullStoragePath: "user-1/upload/portrait.png",
     });
-    expect([
-      "https://signed.example.com/portrait-thumb.png",
-      "https://signed.example.com/portrait-full.png",
-    ]).toContain(selectedPayload?.previewUrl);
   });
 });

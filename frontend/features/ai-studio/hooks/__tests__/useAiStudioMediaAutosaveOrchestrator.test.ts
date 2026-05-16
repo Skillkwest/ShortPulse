@@ -1,5 +1,14 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const quotaRefreshMocks = vi.hoisted(() => ({
+  requestMediaStorageQuotaSummaryRefresh: vi.fn(),
+}));
+
+vi.mock("../../../billing/useMediaStorageQuotaSummary", () => ({
+  requestMediaStorageQuotaSummaryRefresh: (...args: unknown[]) =>
+    quotaRefreshMocks.requestMediaStorageQuotaSummaryRefresh(...args),
+}));
 import { useAiStudioMediaAutosaveOrchestrator } from "../useAiStudioMediaAutosaveOrchestrator";
 import type { PersistOutputSaveResult } from "../persistenceActionContracts";
 import type { StudioOutput } from "../../types";
@@ -31,6 +40,10 @@ const createPersistResult = (
 });
 
 describe("useAiStudioMediaAutosaveOrchestrator", () => {
+  afterEach(() => {
+    quotaRefreshMocks.requestMediaStorageQuotaSummaryRefresh.mockReset();
+  });
+
   it("does not autosave when media autosave preference is off", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
@@ -157,6 +170,25 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).toHaveBeenCalledWith("library-repair-1", { intent: "auto" });
   });
 
+  it("refreshes quota summary after successful autosave", async () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
+        outputs: [createOutput({ id: "autosave-refresh-1" })],
+        mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
+        saveReferenceToLibrary,
+      })
+    );
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(quotaRefreshMocks.requestMediaStorageQuotaSummaryRefresh).toHaveBeenCalledTimes(1)
+    );
+  });
+
   it("does not autosave outputs that are already saving", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
@@ -197,6 +229,101 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     );
 
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
+  it("retries blocked_storage outputs after quota recovers", async () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    const { rerender } = renderHook(
+      ({ isMediaStorageFull, outputs }: { isMediaStorageFull: boolean; outputs: StudioOutput[] }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
+          isMediaStorageFull,
+          outputs,
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          isMediaStorageFull: true,
+          outputs: [createOutput({ id: "blocked-1", saveState: "blocked_storage" })],
+        },
+      }
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+
+    rerender({
+      isMediaStorageFull: false,
+      outputs: [createOutput({ id: "blocked-1", saveState: "blocked_storage" })],
+    });
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1));
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("blocked-1", { intent: "auto" });
+  });
+
+  it("resets the autosave retry budget when quota recovery clears blocked_storage", async () => {
+    const saveReferenceToLibrary = vi
+      .fn()
+      .mockResolvedValueOnce(createPersistResult({ ok: false, mediaFileIds: [], error: "fail-1" }))
+      .mockResolvedValueOnce(createPersistResult({ ok: false, mediaFileIds: [], error: "fail-2" }))
+      .mockResolvedValueOnce(createPersistResult());
+    const { rerender } = renderHook(
+      ({ isMediaStorageFull, outputs }: { isMediaStorageFull: boolean; outputs: StudioOutput[] }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
+          isMediaStorageFull,
+          outputs,
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          isMediaStorageFull: false,
+          outputs: [createOutput({ id: "budget-reset-1", saveState: "idle" })],
+        },
+      }
+    );
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1));
+
+    rerender({
+      isMediaStorageFull: false,
+      outputs: [createOutput({ id: "budget-reset-1", saveState: "failed", saveError: "fail-1" })],
+    });
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(2));
+
+    rerender({
+      isMediaStorageFull: true,
+      outputs: [
+        createOutput({
+          id: "budget-reset-1",
+          saveState: "blocked_storage",
+          saveError:
+            "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+        }),
+      ],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(2);
+
+    rerender({
+      isMediaStorageFull: false,
+      outputs: [
+        createOutput({
+          id: "budget-reset-1",
+          saveState: "blocked_storage",
+          saveError:
+            "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+        }),
+      ],
+    });
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(3));
+    expect(saveReferenceToLibrary).toHaveBeenLastCalledWith("budget-reset-1", {
+      intent: "auto",
+    });
   });
 
   it("retries a failed autosave once and then stops after the retry budget is exhausted", async () => {

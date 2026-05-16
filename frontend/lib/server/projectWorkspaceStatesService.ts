@@ -554,6 +554,25 @@ export const getProjectWorkspaceStateForUser = async ({
   };
 };
 
+export const deleteProjectWorkspaceStateForUser = async ({
+  userId,
+  projectId,
+}: {
+  userId: string;
+  projectId: string;
+}): Promise<void> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error } = await supabaseAdmin
+    .from("project_workspace_states")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message || "Failed to delete project workspace state");
+  }
+};
+
 export const upsertProjectWorkspaceStateForUser = async ({
   userId,
   projectId,

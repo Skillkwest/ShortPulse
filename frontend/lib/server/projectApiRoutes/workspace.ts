@@ -6,6 +6,7 @@ import { requireApiUser } from "../api/auth";
 import { logApiRouteException } from "../api/appErrorLogs";
 import { getProjectForUser, parseProjectId } from "../projectsService";
 import {
+  deleteProjectWorkspaceStateForUser,
   getProjectWorkspaceStateForUser,
   InvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser,
@@ -53,8 +54,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ProjectWorkspaceSuccessResponse | ProjectWorkspaceErrorResponse>
 ) {
-  if (req.method !== "GET" && req.method !== "PUT") {
-    res.setHeader("Allow", "GET, PUT");
+  if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {
+    res.setHeader("Allow", "GET, PUT, DELETE");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -74,6 +75,14 @@ export default async function handler(
     });
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
+    }
+
+    if (req.method === "DELETE") {
+      await deleteProjectWorkspaceStateForUser({
+        userId: user.id,
+        projectId,
+      });
+      return res.status(200).json({ workspace: null });
     }
 
     const workspace =
@@ -114,14 +123,20 @@ export default async function handler(
       user,
       metadata: {
         source:
-          req.method === "PUT" ? "api.projects.workspace.save" : "api.projects.workspace.read",
+          req.method === "PUT"
+            ? "api.projects.workspace.save"
+            : req.method === "DELETE"
+              ? "api.projects.workspace.delete"
+              : "api.projects.workspace.read",
       },
     });
     return res.status(500).json({
       error:
         req.method === "PUT"
           ? "Failed to save project workspace"
-          : "Failed to load project workspace",
+          : req.method === "DELETE"
+            ? "Failed to reset project workspace"
+            : "Failed to load project workspace",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

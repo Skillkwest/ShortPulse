@@ -111,16 +111,16 @@ export const resolveSignedSelectionUrl = async <TRow extends { storage_path?: st
   currentUserId,
   signStoragePath,
 }: ResolveSelectionUrlArgs<TRow>): Promise<string | null> => {
-  const primaryStoragePath = row.storage_path?.trim() ?? "";
   const previewCandidates = resolveMediaPreviewCandidates(row, currentUserId);
-  const candidates = [primaryStoragePath, ...previewCandidates.storagePaths].filter(
+  if (previewCandidates.directUrl) {
+    return previewCandidates.directUrl;
+  }
+  const candidates = previewCandidates.storagePaths.filter(
     (value, index, all) => Boolean(value) && all.indexOf(value) === index
   );
   for (const storagePath of candidates) {
     const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
     if (signedUrl) return signedUrl;
   }
-  const directUrl = previewCandidates.directUrl;
-  if (directUrl) return directUrl;
   return null;
 };

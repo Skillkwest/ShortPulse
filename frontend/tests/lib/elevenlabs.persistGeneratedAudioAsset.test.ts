@@ -91,6 +91,7 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateMediaFilesWithProjectForUserMock(...args),
 }));
 
+import { resolveMediaAutosavePreferenceLookupUserMessage } from "../../lib/server/api/mediaAutosavePreference";
 import { persistGeneratedAudioAsset } from "../../lib/server/elevenlabs";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -204,7 +205,7 @@ describe("persistGeneratedAudioAsset", () => {
       error: { message: "user preference read failed" },
     });
 
-    await persistGeneratedAudioAsset({
+    const result = await persistGeneratedAudioAsset({
       userId: "user-1",
       promptText: "Rainy city ambience",
       provider: "elevenlabs",
@@ -221,11 +222,30 @@ describe("persistGeneratedAudioAsset", () => {
       expect.objectContaining({
         metadata: expect.objectContaining({
           autosave_enabled: false,
+          autosave_preference_source: "lookup_error",
           autosave_decision: "autosave_skipped",
           autosave_decision_reason: "autosave_disabled",
         }),
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        saveState: "failed",
+        saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+          enabled: false,
+          source: "lookup_error",
+        }),
+      })
+    );
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      saveState: "failed",
+      saveError: resolveMediaAutosavePreferenceLookupUserMessage({
+        enabled: false,
+        source: "lookup_error",
+      }),
+    });
   });
 
   it("keeps audio output records when media autosave insert fails", async () => {

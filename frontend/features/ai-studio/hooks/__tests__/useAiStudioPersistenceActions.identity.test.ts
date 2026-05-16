@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
+import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../../lib/mediaStorageQuota";
 
 const resolveGenerationIdForRequestIdMock = vi.hoisted(() => vi.fn());
 const associateGenerationWithProjectMock = vi.hoisted(() => vi.fn());
@@ -595,6 +596,53 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
           ui_error_message:
             "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
         }),
+      })
+    );
+  });
+
+  it("treats the canonical friendly storage-full message as blocked_storage", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(new Error(MEDIA_STORAGE_FULL_USER_MESSAGE));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(setUiError).toHaveBeenCalledWith(MEDIA_STORAGE_FULL_USER_MESSAGE);
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "blocked_storage",
+        saveError: MEDIA_STORAGE_FULL_USER_MESSAGE,
       })
     );
   });

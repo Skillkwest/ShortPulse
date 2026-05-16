@@ -12,6 +12,8 @@ type PersistedResultsParams = {
 export type PersistedGenerationStatusContext = {
   generationId: string | null;
   resultUrls: string[];
+  saveState?: "idle" | "saving" | "saved" | "failed" | "blocked_storage" | null;
+  saveError?: string | null;
   taskState?: string | null;
   status?: string | null;
   recoveryPending?: boolean;
@@ -44,6 +46,8 @@ export const buildPersistedCompletedPayload = ({
   requestId,
   resultUrls,
   generationId,
+  saveState = null,
+  saveError = null,
   deliveryState = "canonical_owned",
   recoveryPending = false,
   completionState = null,
@@ -52,6 +56,8 @@ export const buildPersistedCompletedPayload = ({
   requestId: string;
   resultUrls: string[];
   generationId?: string | null;
+  saveState?: PersistedGenerationStatusContext["saveState"];
+  saveError?: string | null;
   deliveryState?: "transient_provider" | "canonical_owned";
   recoveryPending?: boolean;
   completionState?: "completed_awaiting_media" | null;
@@ -63,6 +69,8 @@ export const buildPersistedCompletedPayload = ({
     ...(typeof generationId === "string" && generationId.trim().length > 0
       ? { generationId: generationId.trim() }
       : {}),
+    ...(saveState ? { saveState } : {}),
+    ...(saveError ? { saveError } : {}),
     status: "completed",
     state: "completed",
     resultUrls,
@@ -77,6 +85,8 @@ export const buildPersistedCompletedPayload = ({
       taskState: "success",
       isTerminal: true,
       resultUrls,
+      saveState: saveState ?? undefined,
+      saveError,
       providerState,
       recoveryPending,
       ...(completionState ? { completionState } : {}),
@@ -188,6 +198,8 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+        saveError: projectionContext.saveError,
       };
     }
     if (projectionContext?.generationId) {
@@ -212,6 +224,8 @@ export const readPersistedGenerationStatusContext = async ({
             queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
             errorMessageShort: projectionContext.errorMessageShort,
             errorDetail: projectionContext.errorDetail,
+            saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+            saveError: projectionContext.saveError,
           };
         }
       } catch {
@@ -227,6 +241,8 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState),
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+        saveError: projectionContext.saveError,
       };
     }
     if (
@@ -244,6 +260,8 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+        saveError: projectionContext.saveError,
       };
     }
     if (projectionContext?.generationId) {
@@ -255,6 +273,8 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState),
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+        saveError: projectionContext.saveError,
       };
     }
 
@@ -282,6 +302,8 @@ export const readPersistedGenerationStatusContext = async ({
           recoveryPending: false,
           completionState: null,
           queueState: "dispatched",
+          saveState: "saved",
+          saveError: null,
         };
       }
       return {

@@ -31,10 +31,15 @@
   padding-top: 16px;
 }
 
+.sound-effects-properties-top-spacer {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
 .sound-effects-properties-compose-area {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
   flex: 1 1 auto;
   min-height: 0;
   padding-bottom: 22px;
@@ -43,6 +48,7 @@
 .sound-effects-properties-divider-wrap {
   min-height: 24px;
   padding: 8px 0;
+  touch-action: none;
 }
 
 .sound-effects-properties-script-input-shell {

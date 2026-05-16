@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { readMediaAutosaveEnabledForUser } from "../mediaAutosavePreference";
+import {
+  readMediaAutosaveEnabledForUser,
+  resolveMediaAutosavePreferenceLookupUserMessage,
+} from "../mediaAutosavePreference";
 
 const buildSupabaseAdmin = (result: { data: unknown; error: unknown }) => ({
   from: vi.fn(() => ({
@@ -13,16 +16,19 @@ const buildSupabaseAdmin = (result: { data: unknown; error: unknown }) => ({
 
 describe("readMediaAutosaveEnabledForUser", () => {
   it("defaults to enabled when the user has no stored preference row", async () => {
-    const enabled = await readMediaAutosaveEnabledForUser({
+    const preference = await readMediaAutosaveEnabledForUser({
       userId: "user-1",
       supabaseAdmin: buildSupabaseAdmin({ data: null, error: null }) as never,
     });
 
-    expect(enabled).toBe(true);
+    expect(preference).toEqual({
+      enabled: true,
+      source: "default_missing_row",
+    });
   });
 
   it("fails closed when the preference lookup errors", async () => {
-    const enabled = await readMediaAutosaveEnabledForUser({
+    const preference = await readMediaAutosaveEnabledForUser({
       userId: "user-1",
       supabaseAdmin: buildSupabaseAdmin({
         data: null,
@@ -30,6 +36,26 @@ describe("readMediaAutosaveEnabledForUser", () => {
       }) as never,
     });
 
-    expect(enabled).toBe(false);
+    expect(preference).toEqual({
+      enabled: false,
+      source: "lookup_error",
+    });
+  });
+
+  it("returns a user-safe message for lookup failures", () => {
+    expect(
+      resolveMediaAutosavePreferenceLookupUserMessage({
+        enabled: false,
+        source: "lookup_error",
+      })
+    ).toBe(
+      "Media Library autosave was skipped because your autosave preference could not be verified. You can still save manually."
+    );
+    expect(
+      resolveMediaAutosavePreferenceLookupUserMessage({
+        enabled: false,
+        source: "stored",
+      })
+    ).toBeNull();
   });
 });

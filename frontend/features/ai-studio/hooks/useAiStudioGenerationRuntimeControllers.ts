@@ -50,7 +50,8 @@ type UseAiStudioGenerationRuntimeControllersParams = {
   selectedTool: ToolId | null;
   setImageReferenceImageUrl: (value: string | null) => void;
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
-  setPanelGenerating: (panel: "create" | "edit" | "video", isGenerating: boolean) => void;
+  beginPanelGeneration: (panel: "create" | "edit" | "video") => void;
+  endPanelGeneration: (panel: "create" | "edit" | "video") => void;
   setSaved: Dispatch<SetStateAction<boolean>>;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
@@ -105,7 +106,8 @@ export const useAiStudioGenerationRuntimeControllers = ({
   selectedTool,
   setImageReferenceImageUrl,
   setOutputs,
-  setPanelGenerating,
+  beginPanelGeneration,
+  endPanelGeneration,
   setSaved,
   setUiError,
   setUiNotice,
@@ -157,7 +159,8 @@ export const useAiStudioGenerationRuntimeControllers = ({
         klingVoiceIds,
         klingMultiPrompts,
         klingElements,
-        setPanelGenerating,
+        beginPanelGeneration,
+        endPanelGeneration,
         setUiError,
         setUiNotice,
         setOutputs,

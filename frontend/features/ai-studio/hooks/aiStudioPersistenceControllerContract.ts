@@ -19,4 +19,5 @@ export type AiStudioPersistenceController = {
   projectBootstrapApplied: boolean;
   projectBootstrapError: string | null;
   retryProjectBootstrap: () => void;
+  resetProjectWorkspace: () => Promise<void>;
 };

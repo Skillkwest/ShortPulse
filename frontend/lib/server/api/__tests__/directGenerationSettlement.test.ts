@@ -642,6 +642,8 @@ describe("directGenerationSettlement", () => {
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         saveState: "blocked_storage",
+        saveError:
+          "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
         savedMediaIds: [],
       })
     );
@@ -725,9 +727,19 @@ describe("directGenerationSettlement", () => {
       expect.objectContaining({
         mediaFileIds: [],
         metadata: expect.objectContaining({
+          autosave_preference_source: "lookup_error",
           autosave_decision: "autosave_skipped",
           autosave_decision_reason: "autosave_disabled",
         }),
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        saveState: "failed",
+        saveError:
+          "Media Library autosave was skipped because your autosave preference could not be verified. You can still save manually.",
       })
     );
   });

@@ -278,9 +278,12 @@ export const useAiStudioAudioGeneration = ({
   updateOutputById,
   setOutputs,
 }: UseAiStudioAudioGenerationParams) => {
-  const [musicIsGenerating, setMusicIsGenerating] = useState(false);
-  const [voicesIsGenerating, setVoicesIsGenerating] = useState(false);
-  const [soundEffectsIsGenerating, setSoundEffectsIsGenerating] = useState(false);
+  const [musicGenerationCount, setMusicGenerationCount] = useState(0);
+  const [voicesGenerationCount, setVoicesGenerationCount] = useState(0);
+  const [soundEffectsGenerationCount, setSoundEffectsGenerationCount] = useState(0);
+  const musicIsGenerating = musicGenerationCount > 0;
+  const voicesIsGenerating = voicesGenerationCount > 0;
+  const soundEffectsIsGenerating = soundEffectsGenerationCount > 0;
 
   const handleVoicesGenerate = useCallback(
     async (request: VoicesGenerateRequest) => {
@@ -288,7 +291,7 @@ export const useAiStudioAudioGeneration = ({
       if (!promptText) return;
 
       setUiError(null);
-      setVoicesIsGenerating(true);
+      setVoicesGenerationCount((count) => count + 1);
 
       const optimisticOutputId = insertOptimisticGenerationPlaceholder({
         prompt: promptText,
@@ -301,7 +304,7 @@ export const useAiStudioAudioGeneration = ({
       });
 
       if (!optimisticOutputId) {
-        setVoicesIsGenerating(false);
+        setVoicesGenerationCount((count) => Math.max(0, count - 1));
         return;
       }
 
@@ -421,7 +424,7 @@ export const useAiStudioAudioGeneration = ({
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
       } finally {
-        setVoicesIsGenerating(false);
+        setVoicesGenerationCount((count) => Math.max(0, count - 1));
       }
     },
     [
@@ -440,7 +443,7 @@ export const useAiStudioAudioGeneration = ({
       if (!promptText) return false;
 
       setUiError(null);
-      setMusicIsGenerating(true);
+      setMusicGenerationCount((count) => count + 1);
 
       const optimisticOutputId = insertOptimisticGenerationPlaceholder({
         prompt: promptText,
@@ -453,7 +456,7 @@ export const useAiStudioAudioGeneration = ({
       });
 
       if (!optimisticOutputId) {
-        setMusicIsGenerating(false);
+        setMusicGenerationCount((count) => Math.max(0, count - 1));
         return false;
       }
 
@@ -501,7 +504,7 @@ export const useAiStudioAudioGeneration = ({
         setUiError(message);
         return false;
       } finally {
-        setMusicIsGenerating(false);
+        setMusicGenerationCount((count) => Math.max(0, count - 1));
       }
     },
     [
@@ -519,7 +522,7 @@ export const useAiStudioAudioGeneration = ({
       if (!promptText) return;
 
       setUiError(null);
-      setSoundEffectsIsGenerating(true);
+      setSoundEffectsGenerationCount((count) => count + 1);
 
       const optimisticOutputId = insertOptimisticGenerationPlaceholder({
         prompt: promptText,
@@ -532,7 +535,7 @@ export const useAiStudioAudioGeneration = ({
       });
 
       if (!optimisticOutputId) {
-        setSoundEffectsIsGenerating(false);
+        setSoundEffectsGenerationCount((count) => Math.max(0, count - 1));
         return;
       }
 
@@ -578,7 +581,7 @@ export const useAiStudioAudioGeneration = ({
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
       } finally {
-        setSoundEffectsIsGenerating(false);
+        setSoundEffectsGenerationCount((count) => Math.max(0, count - 1));
       }
     },
     [

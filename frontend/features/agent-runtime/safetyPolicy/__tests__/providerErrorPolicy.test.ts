@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  REMOTE_MEDIA_FETCH_FAILURE_MESSAGE,
   resolveProviderErrorHandling,
   resolveProviderErrorNormalizationMode,
 } from "../providerErrorPolicy";
 
-describe("safetyPolicy providerErrorPolicy", () => {
+describe("providerErrorPolicy", () => {
   it("maps transient upstream failures to hard errors with normalized client detail", () => {
     const result = resolveProviderErrorHandling({
       status: 503,
@@ -29,15 +30,38 @@ describe("safetyPolicy providerErrorPolicy", () => {
     expect(result.detailForClient).toBe("invalid api key");
   });
 
-  it("returns verbatim detail for hard errors in development-verbatim mode", () => {
+  it("replaces remote media fetch timeout details with safe client copy", () => {
     const result = resolveProviderErrorHandling({
-      status: 401,
-      detail: "provider stack trace payload",
+      status: 400,
+      detail:
+        "Timeout while downloading https://example.supabase.co/storage/v1/object/sign/media_library/user-1/full.png?token=secret",
+      normalizationMode: "production_normalized",
+    });
+
+    expect(result.detailForClient).toBe(REMOTE_MEDIA_FETCH_FAILURE_MESSAGE);
+  });
+
+  it("redacts signed media urls from other client-visible provider details", () => {
+    const result = resolveProviderErrorHandling({
+      status: 400,
+      detail:
+        "Invalid image URL: https://example.supabase.co/storage/v1/object/sign/media_library/user-1/full.png?token=secret",
+      normalizationMode: "production_normalized",
+    });
+
+    expect(result.detailForClient).toBe("Invalid image URL: [signed media URL]");
+  });
+
+  it("keeps verbatim details in development mode", () => {
+    const detail =
+      "Timeout while downloading https://example.supabase.co/storage/v1/object/sign/media_library/user-1/full.png?token=secret";
+    const result = resolveProviderErrorHandling({
+      status: 400,
+      detail,
       normalizationMode: "development_verbatim",
     });
 
-    expect(result.failureResolution).toBe("hard_error");
-    expect(result.detailForClient).toBe("provider stack trace payload");
+    expect(result.detailForClient).toBe(detail);
   });
 
   it("maps explicit safety refusal inputs to canonical refusal resolution", () => {

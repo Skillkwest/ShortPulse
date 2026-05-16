@@ -542,6 +542,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const foldersDropController = useMediaLibraryFolderDropController({
     projectId,
     folders,
+    isStorageQuotaBlocked,
     setFolderError,
     setMembershipMessage,
     setMembershipPendingMessage,

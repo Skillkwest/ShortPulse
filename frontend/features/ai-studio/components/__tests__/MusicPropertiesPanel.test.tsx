@@ -305,14 +305,14 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue("gabber");
   });
 
-  it("disables generate while generation is running", () => {
+  it("keeps generate enabled while generation is running", () => {
     render(<MusicPropertiesPanel isGenerating onGenerate={vi.fn()} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
       target: { value: "Minimal synth bed with a bright branded tag." },
     });
 
-    expect(screen.getByRole("button", { name: "Generating music" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generating music" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Generating music" })).toHaveTextContent(
       "Generating..."
     );

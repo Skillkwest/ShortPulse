@@ -11,6 +11,9 @@ export const MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF = "/profile?section=storage";
 
 const STORAGE_QUOTA_PATTERNS = [
   /media storage limit exceeded/i,
+  /your media storage is full/i,
+  /before saving more files/i,
+  /before uploading more files/i,
   /quota exceeded/i,
   /limit_bytes=/i,
 ];

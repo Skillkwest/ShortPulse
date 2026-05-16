@@ -395,21 +395,16 @@ function DetailModalContent({
   );
   const isMediaSaved = mediaSaveState === "saved";
   const isMediaSaveDisabled =
-    isMediaStorageFull ||
-    mediaSaveState === "saving" ||
-    mediaSaveState === "saved" ||
-    mediaSaveState === "blocked_storage";
+    isMediaStorageFull || mediaSaveState === "saving" || mediaSaveState === "saved";
   const mediaSaveLabel = isMediaStorageFull
     ? "Storage Full"
     : mediaSaveState === "saving"
       ? "Saving..."
       : mediaSaveState === "saved"
         ? "Saved"
-        : mediaSaveState === "blocked_storage"
-          ? "Storage Full"
-          : mediaSaveState === "failed"
-            ? "Retry Save"
-            : "Save";
+        : mediaSaveState === "blocked_storage" || mediaSaveState === "failed"
+          ? "Retry Save"
+          : "Save";
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();

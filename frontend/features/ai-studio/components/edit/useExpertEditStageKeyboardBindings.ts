@@ -42,20 +42,28 @@ export function useExpertEditStageKeyboardBindings({
     };
     const handleKeyUp = (event: KeyboardEvent) => {
       if (!isSpaceActivationKey(event)) return;
+      setIsMarkupPanSpacePressed(false);
       if (isKeyboardEventFromInteractiveTarget(event)) return;
       event.preventDefault();
-      setIsMarkupPanSpacePressed(false);
     };
     const handleWindowBlur = () => {
       setIsMarkupPanSpacePressed(false);
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown, {
+      capture: true,
+    });
+    window.addEventListener("keyup", handleKeyUp, {
+      capture: true,
+    });
     window.addEventListener("blur", handleWindowBlur);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown, {
+        capture: true,
+      });
+      window.removeEventListener("keyup", handleKeyUp, {
+        capture: true,
+      });
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, [isMarkupExpandSelected, isMorePresetsSurfaceOpen, setIsMarkupPanSpacePressed]);

@@ -280,16 +280,47 @@ describe("upsertGenerationProjection", () => {
       supabaseAdmin: supabaseAdmin as never,
     });
 
+    const [payload, options] = supabaseAdmin.upsert.mock.calls[0] ?? [];
+    expect(payload).toMatchObject({
+      generation_id: "gen-clear",
+      user_id: "user-clear",
+      status: "ready",
+      task_state: "success",
+      publication_state: "published",
+      error_message: null,
+      error_message_short: null,
+      error_detail: null,
+      save_error: null,
+    });
+    expect(options).toMatchObject({
+      onConflict: "generation_id",
+    });
+  });
+
+  it("writes storage-blocked save_error copy onto projection rows", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-storage",
+      userId: "user-storage",
+      status: "ready",
+      taskState: "success",
+      saveState: "blocked_storage",
+      saveError:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
     expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        generation_id: "gen-clear",
-        user_id: "user-clear",
-        status: "ready",
-        task_state: "success",
-        publication_state: "published",
-        error_message: null,
-        error_message_short: null,
-        error_detail: null,
+        generation_id: "gen-storage",
+        user_id: "user-storage",
+        save_state: "blocked_storage",
+        save_error:
+          "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
       }),
       expect.objectContaining({
         onConflict: "generation_id",

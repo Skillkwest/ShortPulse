@@ -20,6 +20,7 @@ type AiStudioPageShellProps = {
   projectsModalOpen: boolean;
   referenceGridPreconnectOrigin: string | null;
   retryProjectBootstrap: () => void;
+  resetProjectWorkspace: () => Promise<void>;
   shouldGateProjectBootstrap: boolean;
   onCloseProjectsModal: () => void;
   onOpenProjectsModal: () => void;
@@ -41,12 +42,19 @@ export const AiStudioPageShell = ({
   projectsModalOpen,
   referenceGridPreconnectOrigin,
   retryProjectBootstrap,
+  resetProjectWorkspace,
   shouldGateProjectBootstrap,
   onCloseProjectsModal,
   onOpenProjectsModal,
   onSelectProjectFromModal,
   onCreateProjectFromModal,
 }: AiStudioPageShellProps) => {
+  const resettableWorkspaceError = Boolean(
+    projectBootstrapError &&
+    /invalid project workspace snapshot|project workspace snapshot is invalid/i.test(
+      projectBootstrapError
+    )
+  );
   if (shouldGateProjectBootstrap) {
     return (
       <AiStudioModalActivityProvider>
@@ -68,15 +76,31 @@ export const AiStudioPageShell = ({
                 : (projectBootstrapError ?? "Failed to load project workspace.")
             }
             primaryActionLabel={
-              projectStatus === "error" ? "Open projects" : "Retry workspace load"
+              projectStatus === "error"
+                ? "Open projects"
+                : resettableWorkspaceError
+                  ? "Reset saved workspace"
+                  : "Retry workspace load"
             }
             onPrimaryAction={
-              projectStatus === "error" ? onOpenProjectsModal : retryProjectBootstrap
+              projectStatus === "error"
+                ? onOpenProjectsModal
+                : resettableWorkspaceError
+                  ? () => {
+                      void resetProjectWorkspace();
+                    }
+                  : retryProjectBootstrap
             }
-            secondaryActionLabel="Back to dashboard"
-            onSecondaryAction={() => {
-              window.location.assign("/dashboard");
-            }}
+            secondaryActionLabel={
+              resettableWorkspaceError ? "Retry workspace load" : "Back to dashboard"
+            }
+            onSecondaryAction={
+              resettableWorkspaceError
+                ? retryProjectBootstrap
+                : () => {
+                    window.location.assign("/dashboard");
+                  }
+            }
           />
         ) : (
           <AiStudioProjectEntryState

@@ -38,6 +38,7 @@ describe("AiStudioPageShell", () => {
         projectsModalOpen={false}
         referenceGridPreconnectOrigin={null}
         retryProjectBootstrap={vi.fn()}
+        resetProjectWorkspace={vi.fn(async () => undefined)}
         shouldGateProjectBootstrap
         onCloseProjectsModal={vi.fn()}
         onOpenProjectsModal={handleOpenProjectsModal}
@@ -65,6 +66,7 @@ describe("AiStudioPageShell", () => {
         projectsModalOpen
         referenceGridPreconnectOrigin={null}
         retryProjectBootstrap={vi.fn()}
+        resetProjectWorkspace={vi.fn(async () => undefined)}
         shouldGateProjectBootstrap
         onCloseProjectsModal={vi.fn()}
         onOpenProjectsModal={vi.fn()}
@@ -75,5 +77,37 @@ describe("AiStudioPageShell", () => {
 
     expect(screen.getByText("Projects modal open")).toBeInTheDocument();
     expect(screen.getByText("Create project enabled")).toBeInTheDocument();
+  });
+
+  it("offers workspace reset when the saved project snapshot is invalid", () => {
+    const handleResetProjectWorkspace = vi.fn(async () => undefined);
+    const handleRetryBootstrap = vi.fn();
+
+    render(
+      <AiStudioPageShell
+        pageContentProps={{} as React.ComponentProps<typeof AiStudioPageShell>["pageContentProps"]}
+        projectBootstrapError="Project workspace snapshot is invalid."
+        projectEntryPhase="loading-workspace"
+        projectError={null}
+        projectId="project-1"
+        projectStatus="ready"
+        projectTitle="Project One"
+        projectsModalOpen={false}
+        referenceGridPreconnectOrigin={null}
+        retryProjectBootstrap={handleRetryBootstrap}
+        resetProjectWorkspace={handleResetProjectWorkspace}
+        shouldGateProjectBootstrap
+        onCloseProjectsModal={vi.fn()}
+        onOpenProjectsModal={vi.fn()}
+        onSelectProjectFromModal={vi.fn()}
+        onCreateProjectFromModal={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset saved workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry workspace load" }));
+
+    expect(handleResetProjectWorkspace).toHaveBeenCalledTimes(1);
+    expect(handleRetryBootstrap).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentRuntimeMode } from "../../../prefabs/agent";
@@ -1280,6 +1278,55 @@ describe("useCreateAgentStateCore", () => {
         content: "temporary upstream saturation",
       })
     );
+  });
+
+  it("surfaces sanitized pulse media-fetch failures without exposing signed urls", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Upstream error",
+          detail:
+            "One attached image could not be fetched by the provider. Try re-adding the preview or using a smaller image.",
+          decision: "error",
+          outcome_class: "upstream_error",
+          reason_code: "UPSTREAM_ERROR",
+          retryable: true,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
+    let sendResult:
+      | {
+          response: unknown;
+          actions: unknown;
+          errorText?: string | null;
+          failureKind?: string;
+        }
+      | undefined;
+
+    await act(async () => {
+      sendResult = await result.current.send({
+        text: "request",
+        payloadText: "request",
+      });
+    });
+
+    expect(sendResult).toEqual(
+      expect.objectContaining({
+        response: null,
+        errorText:
+          "One attached image could not be fetched by the provider. Try re-adding the preview or using a smaller image.",
+        failureKind: "transport_error",
+      })
+    );
+    expect(result.current.error).toBe(
+      "One attached image could not be fetched by the provider. Try re-adding the preview or using a smaller image."
+    );
+    expect(result.current.error).not.toContain("/storage/v1/object/sign/");
   });
 
   it("surfaces structured infra errors in hook state", async () => {

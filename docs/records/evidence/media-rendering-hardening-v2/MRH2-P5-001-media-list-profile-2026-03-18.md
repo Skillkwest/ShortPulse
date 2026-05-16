@@ -21,9 +21,11 @@
 - [api-list-profile-spec](../../../planning/media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md)
 
 ## Compatibility Decision
-- `media-library-route`: `minimal`
 - `media-library-modal`: `expanded`
 - `media-library-panel`: `expanded`
+
+Historical note:
+- The retired standalone Media Library page previously used the `minimal` profile before the page was removed.
 
 This preserves current metadata-dependent UI behavior while removing default metadata overfetch from the route hot path.
 

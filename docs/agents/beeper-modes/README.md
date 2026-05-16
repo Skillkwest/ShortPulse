@@ -11,6 +11,11 @@ These child modes are narrower execution personas:
 - `dumb-average-user`
 - `experienced-alpha-tester`
 
+Preferred long-term mapping:
+
+- standalone `Bopper` agent for the average-user lane
+- parent `Beeper` plus `experienced-alpha-tester` mode for alpha-test depth
+
 ## Dispatch Logic
 
 - Use `dumb-average-user` for discoverability, wording, first-click, and abandonment testing.
@@ -27,3 +32,7 @@ These child modes are narrower execution personas:
 
 - `docs/agents/beeper-modes/dumb-average-user/README.md`
 - `docs/agents/beeper-modes/experienced-alpha-tester/README.md`
+
+## Transition Note
+
+The `dumb-average-user` mode remains as a Beeper-compatible scaffold, but the preferred standalone implementation of that lane is now `docs/agents/bopper/README.md`.

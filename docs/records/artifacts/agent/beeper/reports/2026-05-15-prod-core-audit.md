@@ -64,7 +64,7 @@ Purpose: production core route audit.
   - `frontend/pages/api/media/list.ts:403-491`
   - `frontend/lib/mediaPreviewPathCore.ts:174-213`
   - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts:60-128`
-  - `frontend/features/media-library/components/MediaAssetGallery.tsx:141-214`
+  - retired route gallery grid component
 - Supporting docs or tests inspected:
   - `docs/troubleshooting.md` media preview checklist
   - `docs/systems/catalog.md` entries for `media-library-workflow`, `media-delivery-signing-preview-resolution`, and `media-derivatives-variants`
@@ -90,7 +90,7 @@ Purpose: production core route audit.
   - `frontend/pages/api/media/list.ts`
   - `frontend/lib/mediaPreviewPathCore.ts`
   - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts`
-  - `frontend/features/media-library/components/MediaAssetGallery.tsx`
+  - retired route gallery grid component
 
 ## Self Audit
 

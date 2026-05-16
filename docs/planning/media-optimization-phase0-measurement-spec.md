@@ -68,10 +68,9 @@ Data/signing paths:
 - existing Supabase media queries and signed URL fetch helpers in Media Library + modal.
 
 Event naming convention:
-- `media.route.first_card_shell`
-- `media.route.first_media_paint`
 - `media.modal.first_card_shell`
 - `media.modal.first_media_paint`
+- `media.panel.first_media_paint`
 - `media.sign.batch.completed`
 - `media.sign.batch.failed`
 - `media.grid.scroll.sample`
@@ -79,7 +78,7 @@ Event naming convention:
 - `media.grid.autoplay.stopped`
 
 All events should include:
-- `surface` (`media-library-route` | `media-library-modal` | `reference-grid`)
+- `surface` (`media-library-modal` | `media-library-panel` | `reference-grid`)
 - `tab`
 - `dataset_profile`
 - `network_profile`

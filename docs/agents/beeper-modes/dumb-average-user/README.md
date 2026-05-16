@@ -2,6 +2,8 @@
 
 Purpose: define the Beeper child persona that simulates a distracted, impatient, non-technical signed-in user.
 
+Status: transitional scaffold. The preferred standalone implementation of this lane now lives under `docs/agents/bopper/README.md`.
+
 ## Identity
 
 This mode acts like a user who:

@@ -47,18 +47,18 @@ Historical note: the standalone Media Library page was removed from the product.
 ## Likely Code Surfaces
 
 - empty-state copy resolver:
-  - `frontend/features/media-library/components/MediaGallerySection.tsx:98`
+  - retired route gallery-section shell
 - search input and count surface:
-  - `frontend/features/media-library/components/MediaFiltersPanel.tsx:79`
+  - retired route filter/search panel
 - filtered visible-count wiring:
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - current test coverage:
-  - `frontend/features/media-library/components/__tests__/MediaGallerySection.test.tsx:81`
+  - retired route gallery-section regression test
 
 ## First Debug Read
 
 - `visibleCount` is already query-aware in the former standalone Media Library page
-- the likely mismatch is presentation logic: `MediaGallerySection.tsx` resolves empty copy only from `activeTab`, not from `activeMediaQuery`
+- the likely mismatch is presentation logic in the retired route gallery-section shell: it resolves empty copy only from `activeTab`, not from `activeMediaQuery`
 - likely fix shape:
   - if `activeMediaQuery.trim()` is non-empty and `files.length === 0`, render query-aware no-results copy instead of tab-empty copy
   - add tests for a searched no-match image state and probably a searched no-match prompt state

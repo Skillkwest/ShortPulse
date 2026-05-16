@@ -52,7 +52,7 @@ ShortPulse already has the important media-system behaviors the external reports
 Evidence:
 - [README.md](../../../README.md)
 - [frontend/pages/api/media/list.ts](../../../frontend/pages/api/media/list.ts)
-- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
+- [frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts)
 - [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
 
 Signals already present:
@@ -122,12 +122,12 @@ This is not a new idea from external research. It is a repo-confirmed lane that 
 
 Primary evidence:
 - [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
-- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
+- [frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts)
 
 Why it matters:
 - the design-app reports correctly treat media delivery and preview readiness as their own subsystem
 - ShortPulse already has the right substrate and planning docs
-- the route adapter is explicitly transitional, which implies the main value is follow-through, not strategy change
+- the panel runtime remains an explicit composition adapter, which implies the main value is follow-through, not strategy change
 
 Recommended direction:
 - continue consolidating route/modal/panel media state, preview hydration, aspect metadata, and invalidation into one shared runtime

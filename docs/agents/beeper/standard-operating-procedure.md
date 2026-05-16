@@ -94,7 +94,7 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 
 Use when the lane clearly benefits from a narrower testing persona:
 
-- `dumb-average-user`
+- `Bopper`
 - `experienced-alpha-tester`
 
 ## Required Workflow
@@ -148,7 +148,7 @@ Use when the lane clearly benefits from a narrower testing persona:
 - Use `mixed` when Beeper route-targets or reopens a known saved surface for efficiency, but the in-surface actions remain realistic.
 - Use `targeted probe` when the run is mainly validating one control, one edge state, one direct deep link, or one repro path a normal user would not naturally take end to end.
 - Mode-selection default:
-  - `dumb-average-user` for discoverability, wording, onboarding, and abandonment
+  - `Bopper` for discoverability, wording, onboarding, and abandonment
   - `experienced-alpha-tester` for continuity, persistence, route bundles, and realistic power-user depth
   - parent Beeper only when the lane is cross-cutting, comparative, or administrative
 

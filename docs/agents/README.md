@@ -19,6 +19,8 @@ Use this path when setting up a new agent for a new recurring task:
 
 - `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.
   - `docs/agents/beeper/standard-operating-procedure.md`: standing SOP for Beeper live testing, issue capture, handoff packets, and supervised training records.
+- `docs/agents/bopper/README.md`: Bopper average-user testing, confusion capture, and abandonment-truth contract and memory entrypoint.
+  - `docs/agents/bopper/standard-operating-procedure.md`: standing SOP for Bopper first-impression, CTA trust, and naive-user workflow audits.
 - `docs/agents/beeper-modes/README.md`: Beeper child testing personas and dispatch model.
   - `docs/agents/beeper-modes/dumb-average-user/README.md`: naive-user testing mode for first-click, confusion, abandonment, and wording-trust lanes.
   - `docs/agents/beeper-modes/experienced-alpha-tester/README.md`: deep workflow testing mode for continuity, persistence, and reentry-heavy lanes.

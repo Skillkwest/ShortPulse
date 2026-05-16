@@ -32,10 +32,10 @@ Common fields for both profiles:
 3. No profile can alter access control, folder semantics, or cursor contract.
 
 ## Current Consumer Lock
-1. `media-library-route` uses `minimal`.
-2. `media-library-modal` uses `expanded`.
-3. `media-library-panel` uses `expanded`.
-4. Route fallback queries must honor the same profile split when the list API is unavailable.
+1. `media-library-modal` uses `expanded`.
+2. `media-library-panel` uses `expanded`.
+3. The retired standalone Media Library page historically used `minimal`.
+4. Historical route fallback queries had to honor the same profile split when the list API was unavailable.
 
 ## Required Tests
 1. Profile parity (cursor/hasMore equivalence).

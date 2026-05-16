@@ -37,11 +37,11 @@
 ## Code Follow-Up
 
 - likely ownership:
-  - `frontend/features/media-library/components/MediaGallerySection.tsx:98`
-  - `frontend/features/media-library/components/MediaFiltersPanel.tsx:79`
+  - retired route gallery-section shell
+  - retired route filter/search panel
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - useful test gap:
-  - `frontend/features/media-library/components/__tests__/MediaGallerySection.test.tsx:81`
+  - retired route gallery-section regression test
 
 ## Evidence
 

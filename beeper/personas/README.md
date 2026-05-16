@@ -11,6 +11,11 @@ These child modes exist under Beeper:
 - `dumb-average-user`
 - `experienced-alpha-tester`
 
+Preferred production mapping:
+
+- `Bopper` as the standalone average-user agent
+- Beeper plus `experienced-alpha-tester` for alpha-test depth
+
 Each mode has:
 
 - its own working folder
@@ -35,6 +40,8 @@ Each mode has:
   - dead ends
   - discoverability failures
   - trust-breaking empty states
+
+When a fully standalone average-user lane is preferred, use `Bopper` instead of this child-mode scaffold.
 
 - Use `experienced-alpha-tester` for:
   - chained workflows

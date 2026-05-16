@@ -11,7 +11,7 @@ Current steady-state direction is further defined by:
 - [ADR 0044](./0044-media-rendering-surface-delivery-policy-and-adr-reconciliation.md), which narrows this ADR to Media Library stabilization history and derivative-first surface policy
 
 ## Context
-Media Library route/modal/panel card previews were intermittently failing with repeated `/_next/image` `500` responses when the input URL was a Supabase signed storage URL. This caused slow visual fill, retry churn, and inconsistent behavior across long sessions.
+The former standalone Media Library page plus the current modal/panel card previews were intermittently failing with repeated `/_next/image` `500` responses when the input URL was a Supabase signed storage URL. This caused slow visual fill, retry churn, and inconsistent behavior across long sessions.
 
 We needed a fast stabilization path that:
 - preserves existing media payload contracts,
@@ -23,9 +23,9 @@ Use Supabase signed preview URLs (with per-surface transform profiles for image 
 
 Implementation contract:
 - Surface-aware signing profiles:
-  - `media-library-route-image-card`
   - `media-library-modal-image-card`
   - `media-library-panel-image-card`
+- Historical note: the retired standalone page used its own route-era image-card preview profile during the original stabilization rollout.
 - Signing routes (`/api/media/sign-batch`, `/api/media/list`, `/api/media/resolve-previews`) resolve profile-aware transforms for image paths.
 - Media Library adaptive resolver and panel preview resolver do not route Supabase signed object URLs through `/_next/image`.
 - Detail modal and download paths remain full-quality.

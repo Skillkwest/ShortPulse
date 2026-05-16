@@ -28,9 +28,11 @@ Adopt a split-but-explicit surface policy model.
 
 ### 1. Media Library managed card surfaces
 Surfaces:
-- `media-library-route`
 - `media-library-modal`
 - `media-library-panel`
+
+Historical note:
+- The former standalone Media Library page used the same policy family before that page was retired.
 
 Policy:
 - Image cards target durable stored preview variants/derivatives as the steady-state path.

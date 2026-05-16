@@ -77,7 +77,7 @@ Inspect first:
 - `frontend/pages/api/media/list.ts` around line `403`
 - `frontend/lib/mediaPreviewPathCore.ts` around line `174`
 - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts` around line `60`
-- `frontend/features/media-library/components/MediaAssetGallery.tsx` around line `141`
+- retired route gallery grid component
 - `frontend/lib/server/mediaDerivatives/processMediaDerivative.ts`
 
 ### Questions for D-Bug

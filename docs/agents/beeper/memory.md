@@ -41,7 +41,7 @@ Purpose: concise repo-visible memory for Beeper, the ShortPulse live product tes
 - The route success map lives in `beeper/route-success-map.md`.
 - Retest debt lives in `docs/records/artifacts/agent/beeper/retest-debt.md`.
 - Beeper now has child tester modes under `beeper/personas/` with their own contracts, memory, SOPs, coverage, and retained artifacts.
-- `dumb-average-user` is for first-click, confusion, abandonment, and wording-trust testing.
+- `Bopper` is the preferred standalone lane for first-click, confusion, abandonment, and wording-trust testing.
 - `experienced-alpha-tester` is for chained workflows, persistence, continuity, and reentry testing.
 - The parent Beeper lane should remain the coordinator and use subagents when a narrower mode yields better testing signal.
 - Durable test memory belongs here; larger retained records belong in `docs/records/artifacts/agent/beeper/`.

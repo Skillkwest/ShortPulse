@@ -41,10 +41,10 @@ Each baseline packet must include:
 ## Emitter Coverage Map
 | baseline metric | emitting code path | currently covered surfaces | notes |
 | --- | --- | --- | --- |
-| first card render timing | `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | No parallel first-card emitter exists today for panel/file/detail/character/reference surfaces |
-| first media paint timing | `frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | Tied to image/video load handlers |
-| open-to-first-media | `legacy standalone Media Library page`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-route`, `media-library-modal` | Useful timing companion for route/modal only |
-| sign failure / fallback / transformed counts | `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts` | `media-library-route`, `media-library-modal`, `media-library-panel` | Same controller emits blocked policy-derived fields; only count fields are baseline-safe today |
+| first card render timing | retired standalone Media Library page history, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-modal` | No parallel first-card emitter exists today for panel/file/detail/character/reference surfaces |
+| first media paint timing | `frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-modal`, `media-library-panel` | Tied to image/video load handlers |
+| open-to-first-media | retired standalone Media Library page history, `frontend/features/ai-studio/components/MediaLibraryModal.tsx` | `media-library-modal` | The modal is the only current live surface with this timing pair |
+| sign failure / fallback / transformed counts | `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts` | `media-library-modal`, `media-library-panel` | Same controller emits blocked policy-derived fields; only count fields are baseline-safe today |
 | reference-grid render pressure | `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridTelemetryController.ts`, `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridScrollController.ts` | `reference-grid` | Use as supplemental reference-grid evidence until a direct paint/timing baseline exists |
 
 ## Current Surface Coverage Gaps

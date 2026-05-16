@@ -24,7 +24,7 @@
     - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
     - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
     - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
-    - `frontend/features/media-library/components/MediaAssetGallery.tsx`
+    - retired standalone Media Library page image-grid component
     - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
     - `frontend/lib/adaptive-media/resolver.ts`
     - `frontend/lib/mediaPreviewPath.ts`

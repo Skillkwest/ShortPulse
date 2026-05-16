@@ -850,8 +850,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 
 ## 2026-02-14 (Media Library modularization seam: bulk move controller)
-- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from `legacy standalone Media Library page` into `frontend/features/media-library/hooks/useMediaBulkMoveController.ts`.
-- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaBulkMoveController.test.ts` for selection filtering, success-path cache/state updates, and request-failure error surfacing.
+- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from the former standalone Media Library page into a dedicated hook.
+- Added focused hook coverage for selection filtering, success-path cache/state updates, and request-failure error surfacing.
 - Updated `legacy standalone Media Library page` to consume the new hook and reduced page length to `2634` lines.
 - Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
 

@@ -34,7 +34,7 @@ Acceptance:
 3. Protected adaptive/reference-grid tests and surface smoke are aligned to accepted policy.
 
 Repo seams:
-1. `frontend/features/media-library/components/MediaAssetGallery.tsx`
+1. historical standalone Media Library page image-grid seam
 2. `frontend/features/ai-studio/components/media-library-modal/MediaLibraryMediaGrid.tsx`
 3. `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 4. `frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts`

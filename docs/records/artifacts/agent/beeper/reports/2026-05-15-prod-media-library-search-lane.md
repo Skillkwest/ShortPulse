@@ -54,11 +54,11 @@ Purpose: production media library search lane.
 ## Code Follow-Up
 
 - Probable code surfaces:
-  - `frontend/features/media-library/components/MediaGallerySection.tsx:98`
-  - `frontend/features/media-library/components/MediaFiltersPanel.tsx:79`
+  - retired route gallery-section shell
+  - retired route filter/search panel
   - former route-owned `media-library.tsx` wiring in the removed standalone page
 - Supporting docs or tests inspected:
-  - `frontend/features/media-library/components/__tests__/MediaGallerySection.test.tsx:81`
+  - retired route gallery-section regression test
 - What another agent should inspect first:
   - make the media empty-state copy query-aware when `activeMediaQuery` is non-empty
   - add a regression test for a no-match search on a non-empty uploaded-images dataset
@@ -77,8 +77,8 @@ Purpose: production media library search lane.
   - no page errors
   - no request-failure signal mattered in this lane
 - Local code references:
-  - `frontend/features/media-library/components/MediaGallerySection.tsx`
-  - `frontend/features/media-library/components/MediaFiltersPanel.tsx`
+  - retired route gallery-section shell
+  - retired route filter/search panel
   - `legacy standalone Media Library page`
 
 ## Self Audit

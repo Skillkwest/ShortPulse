@@ -116,7 +116,7 @@ Out of scope:
 
 | Lane | Current entrypoint(s) | Preparation requirement |
 | --- | --- | --- |
-| Media Library upload | `frontend/lib/server/mediaUploadService.ts`, `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/media-library/components/MediaUploadStage.tsx` | Normalize quota copy, add proactive disable/banner behavior, and add UI regression coverage. |
+| Media Library upload | `frontend/lib/server/mediaUploadService.ts`, `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/ai-studio/components/MediaLibraryPanel.tsx` | Normalize quota copy, add proactive disable/banner behavior, and add UI regression coverage. |
 | AI Studio manual save | `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`, `frontend/features/ai-studio/components/DetailModal.tsx`, `frontend/features/ai-studio/components/AiStudioPageContent.tsx` | Preserve actionable server-copy details, add local blocked-save UX, and avoid generic failure-only treatment. |
 | AI Studio server-copy fallback | `frontend/pages/api/media/copy-from-url.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts` | Preserve `details` instead of collapsing to `error` only. |
 | AI Studio autosave orchestrator | `frontend/features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator.ts`, `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts` | Make storage-full autosave outcomes visible and distinguishable from ordinary idle outputs. |

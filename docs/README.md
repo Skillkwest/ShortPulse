@@ -48,6 +48,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/README.md`
 - `docs/agents/beeper/README.md`
 - `docs/agents/beeper/standard-operating-procedure.md`
+- `docs/agents/bopper/README.md`
+- `docs/agents/bopper/standard-operating-procedure.md`
 - `docs/agents/beeper-modes/README.md`
 - `docs/agents/beeper-modes/dumb-average-user/README.md`
 - `docs/agents/beeper-modes/experienced-alpha-tester/README.md`

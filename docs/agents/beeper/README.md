@@ -54,9 +54,9 @@ Beeper's recurring duties are:
 - keep durable testing memory and run records,
 - and escalate when the issue needs engineering, product, billing, or admin authority.
 
-Beeper may also coordinate child testing personas when a narrower tester behavior has better ROI than one general lane:
+Beeper may also coordinate narrower testing personas when a narrower tester behavior has better ROI than one general lane:
 
-- `dumb-average-user`
+- `Bopper`
 - `experienced-alpha-tester`
 
 ## Authority Boundaries
@@ -164,6 +164,6 @@ When the user says `run test` or `run Beeper`, run this workflow:
 
 Additional mode triggers:
 
-- `run average test`: dispatch the `dumb-average-user` mode.
+- `run average test`: prefer the standalone `Bopper` lane.
 - `run alpha test`: dispatch the `experienced-alpha-tester` mode.
 - `run dual test`: dispatch both modes and compare their outputs.

@@ -90,6 +90,13 @@ Use when another agent claims a fix and Beeper needs to confirm behavior in the 
 
 Use when the user wants broad product feel, rough edges, and unexpected friction rather than a narrow bug check.
 
+### 5. Persona-mode run
+
+Use when the lane clearly benefits from a narrower testing persona:
+
+- `dumb-average-user`
+- `experienced-alpha-tester`
+
 ## Required Workflow
 
 ### Step 1. Start with repo rules
@@ -110,12 +117,14 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 - Check `docs/records/artifacts/agent/beeper/retest-debt.md` before choosing a new lane so open fix validations are not skipped.
 - Check `docs/records/artifacts/agent/beeper/trainer-directives-log.md` so the active trainer intent is explicit before the run starts.
 - Bias lane selection toward the lowest-coverage meaningful route unless a retest or blocker has higher ROI.
+- Decide whether the parent Beeper lane should run the surface directly or dispatch a child mode as a subagent.
 
 ### Step 3. Confirm environment and identity
 
 - Identify the environment: local, staging, or production.
 - Align the Beeper audit user for the target environment if needed.
 - Confirm the intended base URL before testing.
+- If a child mode is being used, make sure its report lane and retained artifact lane are the ones that will hold the mode-specific output.
 
 ### Step 4. Choose the smallest real path
 
@@ -138,6 +147,10 @@ Use when the user wants broad product feel, rough edges, and unexpected friction
 - Use `real-user path` only when the entry and navigation are mostly natural for a normal user.
 - Use `mixed` when Beeper route-targets or reopens a known saved surface for efficiency, but the in-surface actions remain realistic.
 - Use `targeted probe` when the run is mainly validating one control, one edge state, one direct deep link, or one repro path a normal user would not naturally take end to end.
+- Mode-selection default:
+  - `dumb-average-user` for discoverability, wording, onboarding, and abandonment
+  - `experienced-alpha-tester` for continuity, persistence, route bundles, and realistic power-user depth
+  - parent Beeper only when the lane is cross-cutting, comparative, or administrative
 
 ### Step 5. Exercise the flow
 
@@ -196,6 +209,12 @@ The retained report should include:
 
 Dense is good. Wordy is not.
 
+If a child mode ran the lane:
+
+- keep the mode-specific detailed report in that mode's workspace
+- keep the retained report in that mode's retained artifact area
+- let the parent Beeper lane synthesize or escalate across modes only when needed
+
 When a finding is a real issue or error rather than a light UX observation:
 
 - write the Beeper report as usual,
@@ -245,6 +264,7 @@ For every substantive supervised run:
 - append the run log when the run is substantive,
 - and update training history when the run taught a durable lesson.
 - If a run was `mixed` or a `targeted probe`, say that plainly in the report instead of implying it was a full natural-user journey.
+- For persona-mode runs, update the child mode's memory/artifacts first and the parent Beeper lane only when the lesson changes orchestration or shared behavior.
 
 After every `3-5` substantive runs, or after a meaningful breadth jump:
 

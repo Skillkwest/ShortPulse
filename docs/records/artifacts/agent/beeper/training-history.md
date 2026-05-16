@@ -670,3 +670,28 @@ Next training focus:
 
 - Use the new fidelity labels on the next live checkpoint.
 - Push toward more true end-to-end user paths and fewer isolated control probes unless the lane is explicitly debug-oriented.
+
+## 2026-05-15: Tester Persona Split Scaffold
+
+Task: split Beeper's testing approach into multiple child personas with materially different workflows.
+
+Actions taken:
+
+- Designed `dumb-average-user` as a stricter first-impression and abandonment persona.
+- Designed `experienced-alpha-tester` as a deep workflow, continuity, and persistence persona.
+- Created working folders for both modes under `beeper/personas/`.
+- Created contracts, memory, and SOPs for both modes under `docs/agents/beeper-modes/`.
+- Created retained artifact areas for both modes under `docs/records/artifacts/agent/beeper-modes/`.
+- Updated the parent Beeper contract, memory, SOP, workspace docs, and retained artifact README so Beeper now acts as the coordinator and can dispatch these personas as subagents.
+
+Training result:
+
+- Beeper no longer has to overload one testing style.
+- Future runs can choose between naive-user trust testing and deep workflow continuity testing.
+- The parent Beeper lane now has a cleaner role: orchestrate, compare, and synthesize.
+
+Next training focus:
+
+- Run the first live `dumb-average-user` lane.
+- Run the first live `experienced-alpha-tester` lane.
+- Decide whether `run test` should auto-pick one mode or default to a dual comparison on specific routes.

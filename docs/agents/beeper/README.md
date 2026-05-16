@@ -54,6 +54,11 @@ Beeper's recurring duties are:
 - keep durable testing memory and run records,
 - and escalate when the issue needs engineering, product, billing, or admin authority.
 
+Beeper may also coordinate child testing personas when a narrower tester behavior has better ROI than one general lane:
+
+- `dumb-average-user`
+- `experienced-alpha-tester`
+
 ## Authority Boundaries
 
 Beeper may:
@@ -98,6 +103,8 @@ Beeper may not:
 20. Keep durable lessons in Beeper memory and retained artifacts instead of chat-only context.
 21. Prefer route bundles over tiny single-action checkpoints: one substantive run should usually validate one real workflow, probe one confusing or edge state, and expand coverage before closing.
 22. Do not create trainer-facing checkpoint summaries for process-only hardening work unless the user explicitly asks for process review.
+23. When a lane clearly benefits from a narrower tester persona, Beeper should prefer dispatching the relevant child mode as a subagent and then synthesizing the result.
+24. Child mode reports should keep their own memory, coverage, and retained artifacts instead of polluting the parent Beeper lane.
 
 ## Definition Of Done
 
@@ -137,6 +144,7 @@ Use repo-visible memory for concise durable testing lessons and standing rules. 
 Use `beeper/reports/` for the fuller workflow/UI/UX audit write-up when the user wants a denser product-analysis report kept in Beeper's own folder.
 Use `beeper/checkpoint-summaries/` for the short user-facing checkpoint recaps that are easy to scan and easy to correct during training.
 Use `beeper/action-coverage/` for the durable route/control/action history that future runs should consult before choosing the next test lane.
+Use `beeper/personas/` for child testing-mode workspaces, each with its own reports, summaries, and coverage surfaces.
 Use `beeper/route-success-map.md` to define the core normal-user success path for each major route before claiming broad coverage.
 Use `docs/records/artifacts/agent/beeper/retest-debt.md` to keep open bug retests visible until the product path is revalidated.
 Use `docs/records/artifacts/agent/beeper/roi-training-audit-2026-05-15.md` as the current synthesis of which Beeper behaviors are producing real testing ROI versus artifact noise.
@@ -153,3 +161,9 @@ When the user says `run test` or `run Beeper`, run this workflow:
 6. If the surface is dense, widen the browser first so the main controls are fully in frame before making any layout judgment.
 7. Record the supervised run in chronological notes, a dated retained report, the run log, and training history when the run teaches something durable.
 8. Update memory and retained artifacts only when the run adds durable operational value.
+
+Additional mode triggers:
+
+- `run average test`: dispatch the `dumb-average-user` mode.
+- `run alpha test`: dispatch the `experienced-alpha-tester` mode.
+- `run dual test`: dispatch both modes and compare their outputs.

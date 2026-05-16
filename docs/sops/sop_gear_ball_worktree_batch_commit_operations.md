@@ -235,6 +235,12 @@ Before staging a high-risk, mixed-lane, or shared-file batch, run the reusable p
 npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <targeted-tests...> --include-suite-hot --print-test-manifest
 ```
 
+For large runs, prefer manifest files over long shell arg lists:
+
+```bash
+npm -C frontend run gear-ball:preflight -- --files-from <file-manifest.txt> --tests-from <test-manifest.txt> --include-suite-hot --print-test-manifest
+```
+
 Use `docs/agents/gear-ball/shared-file-risk-map.md` to decide when a file must be adapted manually, deferred to a reconciliation batch, or re-run as a suite-hot test before the full suite.
 If invoking from repo root, prefer repo-relative frontend test paths or rely on preflight normalization so the emitted Vitest targets are frontend-relative.
 
@@ -252,6 +258,7 @@ Treat these as hard escalation triggers, not optional judgment calls:
 
 - If a batch touches shared editor/runtime hooks, shared page shells, `frontend/pages/`, `frontend/pages/api/`, or `frontend/package.json`, run `npm -C frontend run build` before the final full suite.
 - If a batch includes generated or agent-produced docs/packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/`, run `npm -C frontend run docs:check` before staging or before the first commit for that lane.
+- If a batch materially changes an interaction-heavy admin or frontend route and a local verification target is already available, run one route-level browser smoke before the final push. Verify the changed route loads, the primary control surface renders, and there is no obvious fatal client error.
 - If both triggers fire in the same run, treat `build` and `docs:check` as early gates before the first Git write.
 
 For a large, mixed, or cross-cutting worktree, full test green is the commit-readiness bar:
@@ -370,12 +377,13 @@ After the final requested commit batch:
    ```bash
    npm -C frontend run test
    ```
-3. Verify a clean or intentionally deferred tree:
+3. If a route-level browser smoke was required by batch risk, run it after build/full-suite success and record either `passed`, `blocked`, or `skipped with reason`.
+4. Verify a clean or intentionally deferred tree:
    ```bash
    git status --short
    ```
    Before push-readiness, classify every remaining path. Do not carry unexplained leftovers past this step. If a new adjacent lane is still dirty and belongs to the same user-approved run, commit it before the first push.
-4. Verify branch guard alignment:
+5. Verify branch guard alignment:
    ```bash
    git branch --show-current
    git config --local --get shortpulse.allowedBranch

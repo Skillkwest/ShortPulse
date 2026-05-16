@@ -481,6 +481,44 @@ Capability decision:
 - Existing helper update needed: `no`
 - SOP/doc update needed: `yes`
 
+## 2026-05-16 - File-backed preflight and route-smoke hardening
+
+Task: convert the remaining repeated execution friction from recent scored runs into durable helper and SOP changes before the next full SOP cycle.
+
+Actions taken:
+
+- Added `--files-from` and `--tests-from` support to `scripts/ops/gear_ball_preflight.mjs` so large runs can preflight newline-delimited manifests instead of long shell arg lists.
+- Updated the Gear Ball contract, SOP, retained memory, tools inventory, KPI baseline, and retained report template to treat file-backed preflight manifests as the preferred path for large runs.
+- Added a route-level browser-smoke expectation for interaction-heavy admin or frontend route changes when a local verification target is already available.
+- Recorded the change in retained docs so the next run can execute against the new guardrails instead of relying on thread memory.
+
+Training result:
+
+- The remaining friction was mechanical, not conceptual.
+- Gear Ball now has a lower-friction repo-root preflight path and a stronger explicit gate for route-level regressions that tests/build may miss.
+- The next score increase depends on clean execution against these rules, not more missing documentation.
+
+Synthesized pattern summary:
+
+- Repeated misses across recent runs came from Git serialization, branch drift before first write, leftover adjacent lanes, repo-root Vitest path mismatches, and late build/docs discovery.
+- Those process-shape failures are now directly covered by helper support and SOP gates.
+- The next likely miss surface is real route behavior, so the browser-smoke gate is now explicit.
+
+Self-rating:
+
+- Structural readiness after this hardening pass: `9/10`
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper update needed: `yes`
+- Change made: preflight now accepts file/test manifests and the SOP now requires route-level smoke on qualifying runs
+
+Next training focus:
+
+- Use file-backed preflight manifests on the next substantial SOP run.
+- Execute the new route-level smoke gate on the next interaction-heavy admin/UI lane and record whether it catches anything tests miss.
+
 ## 2026-05-15 - Post-Run Process Tightening
 
 Task: encode the specific changes needed to move Gear Ball closer to a `10/10` run quality after the latest production SOP passes.
@@ -615,3 +653,58 @@ Capability decision:
 - New tool needed: `no`
 - Existing helper update needed: `no`
 - SOP/doc update needed: `no`
+
+## 2026-05-16 - Production AI Studio runtime and packet run
+
+Task: run the full Gear Ball SOP on the temporary prelaunch `production` branch for a mixed AI Studio/runtime hardening lane plus related agent packet updates, then close the run with the retained audit/training loop.
+
+Actions taken:
+
+- Locked the run to `production` and validated the large product lane with file-backed preflight manifests instead of long inline arg lists.
+- Fixed the stale runtime/type seams exposed by early build pressure:
+  - `frontend/features/ai-studio/components/PromptStep.tsx`
+  - `frontend/prefabs/agent/panels/AgentChatPanel.tsx`
+  - `frontend/features/ai-studio/createRuntime/contracts.ts`
+  - `frontend/features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`
+  - `frontend/lib/server/api/createPulseBuiltInControlPlane.ts`
+- Fixed the page-level null-safety gap in `frontend/features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePanelProps.ts` after the first full-suite rerun exposed the `trim()` crash.
+- Re-ran the full validation ladder before any Git write:
+  - `gear_ball_preflight` for the product lane
+  - `gear_ball_preflight` for the Gear Ball lane
+  - `npm -C frontend run build`
+  - `npm -C frontend run docs:check`
+  - `npm -C frontend run test -- tests/pages/ai-studio.character-mode.test.tsx`
+  - `npm -C frontend run test`
+
+Training result:
+
+- The recent helper/SOP hardening is working. File-backed manifests and the early-build rule removed the mechanical friction that used to dominate these mixed runs.
+- The remaining friction is semantic, not mechanical: large AI Studio lanes still surface stale cross-contract assumptions between runtime helpers, panel props, and page-level flows.
+- No new tool or SOP change is needed from this run.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- The build gate caught the stale runtime/type seams before staging.
+- The product lane, agent packet lane, and Gear Ball closeout lane stayed separate.
+- The full suite was green before the first Git write.
+
+What slipped:
+
+- One prompt null-safety issue still escaped targeted checks and only surfaced under full-suite page pressure.
+- The initial status inventory was noisy because the run mixed product code with a broad packet refresh.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`, in this retained history and the run report
+
+Next training focus:
+
+- On the next large AI Studio lane, add one small targeted null/undefined prompt-flow test slice to the first validation pass before the full suite.

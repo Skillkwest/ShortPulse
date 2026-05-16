@@ -21,6 +21,7 @@ Substantive commit/push reports should include:
 - repeated friction vs one-time difficulty
 - tooling decision
 - SOP/training update decision
+- route-level browser smoke result when the run changed an interaction-heavy admin or frontend route
 
 ## Template
 
@@ -28,6 +29,7 @@ Substantive commit/push reports should include:
 
 ## Reports
 
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-16-production-ai-studio-runtime-and-packets-run.md`: retained report for the production AI Studio/runtime hardening run that also published the related agent packet refresh and Gear Ball closeout.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-13-self-audit-loop-first-full-run.md`: first end-to-end retained self-audit report after a full Gear Ball commit/push run.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-14-three-branch-promotion-run.md`: first retained report for a full SOP run promoted across `working-development`, `staging-preview`, and `production`.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-14-d-bug-handoff-stabilization-run.md`: retained report for the first full SOP run executed from a D-Bug handoff packet.

@@ -17,6 +17,7 @@ Purpose: <one sentence describing the operational run>.
 ## Validation Results
 
 - `<command>`: <pass/fail and exact summary>
+- Route-level browser smoke: `<passed | blocked | skipped with reason>`
 
 ## Self Audit
 

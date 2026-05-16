@@ -94,13 +94,15 @@ const SUITE_HOT_RULES = [
 
 function printHelp() {
   console.log(`Usage:
-  node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--tests <tests...>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
-  node scripts/ops/gear_ball_preflight.mjs --staged [--tests <tests...>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
+  node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--files-from <path>] [--tests <tests...>] [--tests-from <path>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
+  node scripts/ops/gear_ball_preflight.mjs --staged [--tests <tests...>] [--tests-from <path>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
 
 Options:
   --files              Repo-relative file paths to preflight.
+  --files-from         Read repo-relative file paths from a newline-delimited manifest file.
   --staged             Use the current staged file list.
   --tests              Additional vitest paths to run. Accepts either frontend-relative or repo-relative frontend test paths.
+  --tests-from         Read additional Vitest paths from a newline-delimited manifest file.
   --include-suite-hot  Add suite-hot targeted tests when touched paths match known risk rules.
   --print-test-manifest  Print the normalized frontend-relative Vitest target list before running checks.
   --dry-run            Print planned checks without executing them.
@@ -145,6 +147,14 @@ function hasFlag(args, flag) {
   return args.includes(flag);
 }
 
+function collectSingleFlagValue(args, flag) {
+  const index = args.indexOf(flag);
+  if (index === -1) return null;
+  return args[index + 1] && !args[index + 1].startsWith("--")
+    ? args[index + 1]
+    : null;
+}
+
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
     cwd: options.cwd ?? repoRoot,
@@ -166,6 +176,27 @@ function getStagedFiles() {
     stdio: "pipe",
   });
   return result.stdout.split(/\r?\n/).map(normalizePath).filter(Boolean);
+}
+
+function readManifestFile(filePath, mapper = normalizePath) {
+  const absolutePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(repoRoot, filePath);
+  const result = run("node", [
+    "-e",
+    `
+const fs = require("node:fs");
+const contents = fs.readFileSync(process.argv[1], "utf8");
+process.stdout.write(contents);
+`,
+    absolutePath,
+  ]);
+
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+#.*$/, "").trim())
+    .filter(Boolean)
+    .map(mapper);
 }
 
 function isGeneratedPath(file) {
@@ -228,11 +259,27 @@ const dryRun = hasFlag(args, "--dry-run");
 const includeSuiteHot = hasFlag(args, "--include-suite-hot");
 const printTestManifest = hasFlag(args, "--print-test-manifest");
 const filesArg = collectFlagValues(args, "--files").map(normalizePath);
-const testsArg = collectFlagValues(args, "--tests").map(toFrontendRelativeTestPath);
-const staged = hasFlag(args, "--staged") || filesArg.length === 0;
+const filesFromArg = collectSingleFlagValue(args, "--files-from");
+const testsArg = collectFlagValues(args, "--tests").map(
+  toFrontendRelativeTestPath,
+);
+const testsFromArg = collectSingleFlagValue(args, "--tests-from");
+const manifestFiles = filesFromArg
+  ? readManifestFile(filesFromArg, normalizePath)
+  : [];
+const manifestTests = testsFromArg
+  ? readManifestFile(testsFromArg, toFrontendRelativeTestPath)
+  : [];
+const staged =
+  hasFlag(args, "--staged") ||
+  (filesArg.length === 0 && manifestFiles.length === 0);
 
 const files = [
-  ...new Set((staged ? getStagedFiles() : filesArg).filter(Boolean)),
+  ...new Set(
+    (staged ? getStagedFiles() : [...filesArg, ...manifestFiles]).filter(
+      Boolean,
+    ),
+  ),
 ];
 if (files.length === 0) fail("no files to preflight");
 
@@ -260,6 +307,7 @@ const prettierFiles = files.filter((file) =>
 const targetedTests = [
   ...new Set([
     ...testsArg,
+    ...manifestTests,
     ...(includeSuiteHot
       ? deriveSuiteHotTests(files).map(toFrontendRelativeTestPath)
       : []),

@@ -91,6 +91,7 @@ Gear Ball's durable operational workflows live in:
   - Run before staging or before committing a high-risk batch.
   - Catches generated files, env-file mistakes, shared-risk files, targeted lint drift, route/doc parity drift, and suite-hot test pressure earlier.
   - Accepts either frontend-relative or repo-root `frontend/...` Vitest paths and can print the normalized frontend-relative test manifest with `--print-test-manifest`.
+  - Also accepts `--files-from <manifest>` and `--tests-from <manifest>` for newline-delimited manifests so large runs do not depend on long shell arg lists.
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
   - Generate a compact markdown batch manifest from the staged index or a supplied file list.
   - Use for substantial worktree runs and durable Gear Ball reports.
@@ -160,14 +161,15 @@ After every full SOP run that ends in commit and push, Gear Ball must:
 9. Validate with targeted checks and direct evidence.
 10. If a batch touches shared frontend hooks/pages/API routes or `frontend/package.json`, run `build` before the final full suite.
 11. If a batch includes generated audit docs or agent packets, run `docs:check` before the first commit for that lane.
-12. After every batch commit, run an inter-batch leftover audit with `git status --short` before staging the next batch.
-13. Use `gear-ball:manifest` for substantial staged batches or durable reports.
-14. Inspect final diff and state.
-15. After commit/push runs, perform a self-audit and assign a score out of 10.
-16. Decide whether new tooling, helper updates, docs, or SOP changes are justified by the run.
-17. Update retained training history and any high-value retained artifacts.
-18. Update memory or reports only for durable, useful operational learning.
-19. Report what changed, what was verified, what remains unverified, and the next recommended step.
+12. If a batch materially changes an interaction-heavy admin or frontend route and a local target is already available, run one route-level browser smoke before push.
+13. After every batch commit, run an inter-batch leftover audit with `git status --short` before staging the next batch.
+14. Use `gear-ball:manifest` for substantial staged batches or durable reports.
+15. Inspect final diff and state.
+16. After commit/push runs, perform a self-audit and assign a score out of 10.
+17. Decide whether new tooling, helper updates, docs, or SOP changes are justified by the run.
+18. Update retained training history and any high-value retained artifacts.
+19. Update memory or reports only for durable, useful operational learning.
+20. Report what changed, what was verified, what remains unverified, and the next recommended step.
 
 ## Stop Rules
 

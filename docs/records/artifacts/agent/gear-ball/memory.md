@@ -12,8 +12,10 @@ Purpose: store retained working memory that supports Gear Ball's repo-visible co
 - On large or mixed runs, lock the batch manifest before the first staging step. Discovering lane boundaries during the first commit is too late.
 - Run an inter-batch leftover audit after every commit. If a small adjacent doc or training tail remains, amend or reassign it immediately instead of letting it survive to the end.
 - When preflighting Vitest targets from repo root, print or consume frontend-relative test paths. Repo-root `frontend/...` test paths are a mechanical friction point, not a real validation signal.
+- For large runs, prefer file-backed preflight manifests (`--files-from`, `--tests-from`) over long inline arg lists so the targeted-check plan survives shell quoting and remains inspectable.
 - Treat shared frontend hooks/pages/API routes and `frontend/package.json` as automatic early-build triggers.
 - Treat generated audit docs and agent packets as automatic early-`docs:check` triggers.
 - For suite-hot admin/UI tests, scope button queries to the owning card or dialog when accessible names are assembled from nested content or repeated action labels. This avoids full-suite-only selector failures.
+- For interaction-heavy admin or frontend route changes, run one route-level browser smoke before push when a local target is already available. Record pass, block, or skip-with-reason in the retained report.
 - If the user wants all three role branches aligned, promote the retained self-audit closeout lane too, not just the feature commit.
 - If a repo-visible agent contract links to `CURRENT-HANDOFF.md`, commit the linked handoff file with the contract change or revert the link.

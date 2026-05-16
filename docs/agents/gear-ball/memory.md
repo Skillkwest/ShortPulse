@@ -36,9 +36,11 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-15: On large or mixed runs, write the batch manifest before the first staging step. Do not wait until the first commit to discover the real lane boundaries.
 - 2026-05-15: Run an inter-batch leftover audit after every commit, not only before the final push. Small adjacent doc or training tails should be amended or reassigned immediately.
 - 2026-05-15: When using `gear-ball:preflight` from repo root, normalize Vitest paths to frontend-relative form or print the normalized test manifest first. This removes an avoidable targeted-test failure mode.
+- 2026-05-16: For large runs, prefer `gear-ball:preflight --files-from ... --tests-from ...` over long inline arg lists. File-backed manifests reduce shell friction and keep the targeted-test plan inspectable.
 - 2026-05-15: Shared frontend hooks/pages/API routes and `frontend/package.json` are compound-risk triggers. For those runs, `npm -C frontend run build` should happen before the final full suite, not as an afterthought.
 - 2026-05-15: Generated audit docs and agent packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/` should trigger an early `docs:check` gate before the first commit for that lane.
 - 2026-05-16: For suite-hot admin/UI tests, do not rely on raw accessible-name strings when a card button's computed name includes nested body text or when a page has repeated action labels. Scope the query to the owning tile or dialog first, then target the specific action inside that container.
+- 2026-05-16: For interaction-heavy admin or frontend route changes, one route-level browser smoke should happen before push when a local verification target is already available. The smoke should prove the changed route loads, the primary control surface renders, and there is no obvious fatal client error.
 
 ## Open Follow-Ups
 

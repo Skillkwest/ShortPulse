@@ -11,6 +11,7 @@ Purpose: define the baseline quality targets Gear Ball should improve against ov
 - Build-only regressions discovered after a green full suite: target `0`
 - Post-commit leftover escapes discovered after the next batch has already started: target `0`
 - Repo-root targeted-test path mistakes: target `0`
+- High-risk admin/frontend route runs that skip browser smoke despite a ready local target: target `0`
 - Post-run self-audit + training update completion: target `100%`
 - Helper/SOP decision recorded after full commit/push runs: target `100%`
 
@@ -21,6 +22,7 @@ Purpose: define the baseline quality targets Gear Ball should improve against ov
 - Too much reliance on final full-suite pressure to expose stale tests
 - Generated audit/docs packets can carry avoidable docs parity breakage
 - Build-only regressions still appear on compound-risk frontend runs when build is delayed too long
+- High-risk UI/admin route changes can still ship without one direct route-level smoke unless the run explicitly calls for it
 
 ## Improvement Rule
 

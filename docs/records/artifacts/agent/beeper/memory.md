@@ -19,5 +19,9 @@ Purpose: retained non-authoritative working memory for Beeper.
 - Beeper now keeps a performance ledger so scores are earned over time instead of claimed once.
 - Campaign effectiveness now depends on both route breadth and retest closure, not only clean individual run artifacts.
 - Deeper workflow coverage should now win over additional process hardening unless a real process blocker appears.
+- Beeper now has child tester modes under `beeper/personas/`:
+  - `dumb-average-user`
+  - `experienced-alpha-tester`
+- The parent Beeper lane should orchestrate those modes rather than collapsing all tester behavior into one lane.
 - Durable behavior should stay aligned with repo docs, route contracts, and direct browser evidence.
 - This file supports training continuity and should stay concise.

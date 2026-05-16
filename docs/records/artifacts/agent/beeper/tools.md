@@ -15,6 +15,8 @@ Purpose: retain Beeper's helper inventory and future tooling needs.
 - `beeper/action-coverage/master-coverage-log.md` for route/control/action coverage planning between runs
 - `beeper/route-success-map.md` for defining major-route success targets
 - `beeper/next-run-queue.md` for ranked lane selection
+- `beeper/personas/README.md` for child-mode dispatch
+- `run average test`, `run alpha test`, and `run dual test` as persona trigger phrases
 - `docs/records/artifacts/agent/beeper/retest-debt.md` for retest prioritization after bug discovery
 - `docs/records/artifacts/agent/beeper/performance-scorecard.md` for run scoring
 - `docs/records/artifacts/agent/beeper/performance-ledger.md` for score trend review

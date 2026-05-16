@@ -1,5 +1,5 @@
 /**
- * Shared fetch-transition rules for Media Library route/modal pagination.
+ * Shared fetch-transition rules for Media Library modal/panel pagination.
  * Encodes when a fetch should reset rows, preserve rows, and block visible loading UI.
  */
 
@@ -25,7 +25,7 @@ const reasonImpliesReset = (reason?: MediaFetchReason): boolean =>
 /**
  * Resolves fetch transition behavior for a media-tab request.
  * Inputs: request reason plus current cache/query state.
- * Output: reset/preserve/loading decisions used by route and modal controllers.
+ * Output: reset/preserve/loading decisions used by modal and panel controllers.
  * Side effects: none.
  */
 export const resolveMediaFetchTransition = ({

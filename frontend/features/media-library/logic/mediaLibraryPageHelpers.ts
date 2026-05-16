@@ -2,10 +2,7 @@
  * Shared Media Library page helpers for tab routing, cache state, and pagination utilities.
  * Keep this module React-free so page orchestration stays focused on UI and side effects.
  */
-import {
-  resolveMediaPreviewSignBudget,
-  type MediaSignBudget,
-} from "../../../lib/mediaPreviewRuntimePolicy";
+import { type MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
   normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
   withMediaSearchFilter as withMediaSearchFilterShared,

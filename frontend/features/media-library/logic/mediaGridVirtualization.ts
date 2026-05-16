@@ -1,5 +1,5 @@
 /**
- * Shared masonry virtualization math for Media Library route + modal grids.
+ * Shared masonry virtualization math for Media Library modal + panel grids.
  * Keeps layout computation deterministic and React-agnostic.
  */
 

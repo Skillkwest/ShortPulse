@@ -41,7 +41,7 @@ type UseMediaMasonryVirtualizationResult<TItem> = {
 };
 
 /**
- * Shared route/modal hook for virtualized masonry rendering.
+ * Shared modal/panel hook for virtualized masonry rendering.
  */
 export const useMediaMasonryVirtualization = <TItem>({
   items,

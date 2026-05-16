@@ -43,7 +43,7 @@ type UseMediaPreviewRecoveryControllerResult<TRow extends PreviewRecoveryRowBase
 };
 
 /**
- * Returns shared media-preview recovery callbacks used by modal and route surfaces.
+ * Returns shared media-preview recovery callbacks used by modal and panel surfaces.
  */
 export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRowBase>({
   applySignedUrlsToTab,

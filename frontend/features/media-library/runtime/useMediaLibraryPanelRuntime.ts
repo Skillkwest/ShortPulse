@@ -1,6 +1,6 @@
 /**
  * Transitional panel adapter for the shared Media Library runtime store.
- * Keeps the AI Studio panel on the same normalized media/prompt substrate as route/modal
+ * Keeps the AI Studio panel on the same normalized media/prompt substrate as modal/panel
  * while its pagination controller is converged in follow-up work.
  */
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";

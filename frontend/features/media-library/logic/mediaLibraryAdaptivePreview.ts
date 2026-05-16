@@ -1,5 +1,5 @@
 /**
- * Shared adaptive preview resolution for Media Library route/modal card grids.
+ * Shared adaptive preview resolution for Media Library modal/panel card grids.
  * Keeps pressure-aware preview URL selection consistent across both surfaces.
  */
 import {

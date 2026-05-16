@@ -91,11 +91,9 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-panel": 36,
 };
 
-const INITIAL_SIGN_BUDGET = 8;
-
 const shouldSeedInitialSignedUrls = ({ countOnly }: { countOnly: boolean }): boolean => {
   if (countOnly) return false;
-  return true;
+  return false;
 };
 
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
@@ -391,7 +389,7 @@ const resolveInitialSignedById = async ({
   surface: MediaListSurface;
 }): Promise<Record<string, string | null>> => {
   const previewProfile = resolvePreviewProfileForSurface(surface);
-  const seedRows = rows.slice(0, INITIAL_SIGN_BUDGET);
+  const seedRows = rows.slice(0, 0);
   if (!seedRows.length) return {};
 
   const primaryCandidateById = new Map<string, string>();

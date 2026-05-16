@@ -46,6 +46,8 @@ export type OpenAiImageSubmitResponse = {
     mimeType: string;
     modelId: string;
     savedMediaIds: string[];
+    saveState: "saved" | "idle" | "blocked_storage";
+    saveError: string | null;
   };
 };
 

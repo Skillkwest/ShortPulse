@@ -13,7 +13,7 @@ import {
 import type { MusicGenerateRequest } from "../components/MusicPropertiesPanel";
 import type { SoundEffectsGenerateRequest } from "../components/SoundEffectsPropertiesPanel";
 import type { VoicesGenerateRequest } from "../components/VoicesPropertiesPanel";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioMode, StudioOutput, StudioOutputSaveState, ToolId } from "../types";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 type VoicesGenerateSuccessResponse = {
@@ -36,6 +36,8 @@ type VoicesGenerateSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+    saveState?: StudioOutputSaveState;
+    saveError?: string | null;
   };
   remuxedVideo?: {
     provider: "elevenlabs";
@@ -49,6 +51,8 @@ type VoicesGenerateSuccessResponse = {
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
     modelId: string;
+    saveState?: StudioOutputSaveState;
+    saveError?: string | null;
   };
 };
 
@@ -71,6 +75,8 @@ type SoundEffectsGenerateSuccessResponse = {
     waveformPeaks: number[] | null;
     modelId: string;
     characterCost: number | null;
+    saveState?: StudioOutputSaveState;
+    saveError?: string | null;
   };
 };
 
@@ -92,6 +98,8 @@ type MusicGenerateSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: number[] | null;
     modelId: string;
+    saveState?: StudioOutputSaveState;
+    saveError?: string | null;
   };
 };
 
@@ -158,6 +166,17 @@ const buildAudioShortpulseContext = ({
 const toSavedMediaIds = (mediaFileId: string | null | undefined): string[] =>
   typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? [mediaFileId] : [];
 
+const resolveGeneratedOutputSaveState = ({
+  mediaFileId,
+  saveState,
+}: {
+  mediaFileId: string | null | undefined;
+  saveState?: StudioOutputSaveState;
+}): StudioOutputSaveState => {
+  if (typeof saveState === "string") return saveState;
+  return typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? "saved" : "idle";
+};
+
 const buildVoiceChangerRemuxedVideoOutput = ({
   request,
   payload,
@@ -189,8 +208,8 @@ const buildVoiceChangerRemuxedVideoOutput = ({
     mimeType: payload.mimeType,
     mediaSource: "generated",
     localObjectUrl: null,
-    saveState: savedMediaIds.length > 0 ? "saved" : "idle",
-    saveError: null,
+    saveState: resolveGeneratedOutputSaveState(payload),
+    saveError: payload.saveError ?? null,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
@@ -240,8 +259,8 @@ const applyAudioOutputToPlaceholder = ({
     waveformPeaks: payload.waveformPeaks,
     mediaSource: "generated",
     localObjectUrl: null,
-    saveState: savedMediaIds.length > 0 ? "saved" : "idle",
-    saveError: null,
+    saveState: resolveGeneratedOutputSaveState(payload),
+    saveError: payload.saveError ?? null,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,

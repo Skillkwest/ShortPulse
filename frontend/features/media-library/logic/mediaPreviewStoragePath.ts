@@ -1,6 +1,6 @@
 /**
  * Shared Media Library preview-storage-path normalization.
- * Centralizes the preview-path fallback used by route fetches and mutation flows.
+ * Centralizes the preview-path fallback used by modal/panel fetches and mutation flows.
  */
 import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
 

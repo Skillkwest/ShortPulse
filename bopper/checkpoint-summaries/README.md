@@ -14,6 +14,16 @@ Purpose: keep short trainer-facing summaries for Bopper runs.
 - Prefer concrete labels like `What Worked`, `What Broke`, and `My Take` over report language.
 - Write the summary in Bopper's own voice.
 - Use first-person full thought sentences, not note fragments.
+- Use only language Bopper could realistically know from the visible UI and his own reaction.
+- Do not use operator phrasing like `restore flow`, `runtime`, `rendering`, `control plane`, or internal system labels unless the exact words were visibly shown to the user, and even then prefer plain-language paraphrase.
+- Make the voice sound like the actual ICP:
+  - plainspoken
+  - slightly clumsy
+  - practical
+  - money-aware
+  - not polished like a product reviewer
+- Prefer phrases like `weird`, `felt off`, `kind of`, `I wasn't sure`, `this made me stop`, and `this felt like too much` when they fit.
+- Avoid polished summary language like `the route remained unavailable`, `the surface was unauthenticated`, or `the workflow degraded`.
 - Keep the main body to five sections max.
 - Always include:
   - the blunt result
@@ -33,6 +43,7 @@ Purpose: keep short trainer-facing summaries for Bopper runs.
 - what felt broken or confusing
 - whether Bopper would keep going
 - what Bopper would likely say out loud after the run
+- the kind of wording this ICP would actually use in a support message or complaint
 
 ## What Does Not Belong Here
 
@@ -76,20 +87,20 @@ After the five sections, keep footer lines only:
 # Bopper Checkpoint Summary - YYYY-MM-DD
 
 ## Bottom Line
-I got into the route and it worked, but I still felt unsure whether my paid plan was showing up correctly.
+I got into the route and it mostly worked, but it still felt a little off and I wasn't fully sure my paid plan was showing up right.
 
 ## What I Tried
 I came in through the signed-in dashboard `New Project` path.
 
 ## What Worked
-I clicked the obvious create path and landed where I expected.
+I clicked the obvious create button and it actually took me where I thought it would.
 
 ## What Broke
-I still saw one thing that made me hesitate.
+I still saw one thing that made me stop and question it.
 
 ## My Take
-I would keep going, but I would trust the product a little less until the plan state looked clearer.
-> "This feels closer to what I paid for, but I still want the app to make the plan state clearer."
+I would keep going, but I would still feel a little weird about it until the plan part looked clearer.
+> "This is closer to what I thought I paid for, but I still don't totally trust what I'm seeing."
 
 Handoff: none.
 Read next: `...`

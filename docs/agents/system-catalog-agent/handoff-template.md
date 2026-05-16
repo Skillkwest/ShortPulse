@@ -83,6 +83,17 @@ Inspect first:
 - docs check
 - build or lint only when relevant
 
+### Mandatory endgame
+
+- After the main implementation or findings pass, audit the touched repo area before stopping.
+- Fix any high-value issue discovered during that self-audit if it stays inside the owned write surface and does not violate stop rules.
+- Do not stop at first success. Stop only after:
+  - implementation or findings are complete
+  - validation is complete
+  - self-audit is complete
+  - high-value in-scope follow-on fixes are handled
+  - closeout is written
+
 ### Done state
 
 - what must be true before the agent stops
@@ -108,9 +119,30 @@ Inspect first:
   - evidence snapshot
   - validation run
   - validation evidence
+  - self-audit findings
+  - issues fixed during self-audit
+  - issues intentionally left out of scope
   - blockers encountered
   - residual risk
   - recommended next step for Catalog Agent review
+
+### Send To Catalog
+
+When the user says `send this to the catalog`, do not stop at a chat summary.
+
+Do all of these:
+
+1. Write the closeout report in:
+   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+2. Use the required filename pattern for this lane.
+3. Follow the required closeout contents exactly.
+4. Then tell the user:
+   - the closeout filename
+   - the files changed
+   - whether the lane is:
+     - `bounded patch complete`
+     - `findings packet complete`
+     - `blocked with evidence`
 
 ### Closeout And Archive
 
@@ -121,6 +153,8 @@ Inspect first:
 - End with:
   - what changed
   - what was verified
+  - what self-audit found
+  - what was fixed during self-audit
   - residual risk
   - exact recommended next step
 - Create the closeout report in the required report path before considering the lane finished.

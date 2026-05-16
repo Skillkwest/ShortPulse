@@ -22,47 +22,60 @@ Purpose: record which handoff packets have already been dispatched to execution 
 - Why completed:
   - highest-priority production-critical runtime lane
 
-### Active external lanes
+### Closeout-received lanes
 
 2. `Reference Grid`
 - Packet:
   - `docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.md`
 - Status:
   - dispatched
-  - no closeout received by `2026-05-16`
-  - treated as still running externally
-- Why active:
-  - active P0 user-visible blocker in the ship path
-
-### Ready next
-
+  - closeout received on `2026-05-16`
+  - awaiting Catalog Agent review before any score move or follow-up split
+- Closeout:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.md`
+- Why tracked here:
+  - active P0 user-visible blocker moved out of open execution and into review-pending state
+ 
 3. `Edit workflow`
 - Packet:
   - `docs/agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.md`
 - Status:
-  - ready
-  - next open execution lane once capacity clears or reprioritization is complete
+  - dispatched on `2026-05-16`
+  - closeout received on `2026-05-16`
+  - awaiting Catalog Agent review before any score move or follow-up split
+- Closeout:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-edit-workflow-hardening-closeout.md`
 
 4. `Billing / credits`
 - Packet:
   - `docs/agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.md`
 - Status:
-  - ready
-  - newly packaged from queue-only into a dispatchable ship-critical lane on `2026-05-16`
+  - dispatched on `2026-05-16`
+  - closeout received on `2026-05-16`
+  - awaiting Catalog Agent review before any score move or follow-up split
+- Closeout:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-billing-credits-runtime-hardening-closeout.md`
 
-5. `Security boundaries`
-- Packet:
-  - `docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.md`
-- Status:
-  - ready
-  - newly packaged from queue-only into a dispatchable ship-critical lane on `2026-05-16`
-
-6. `Generation submission / polling`
+5. `Generation submission / polling`
 - Packet:
   - `docs/agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.md`
 - Status:
-  - ready
-  - newly packaged from queue-only into a dispatchable runtime lane on `2026-05-16`
+  - dispatched on `2026-05-16`
+  - closeout received on `2026-05-16`
+  - awaiting Catalog Agent review before any score move or follow-up split
+- Closeout:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-generation-submission-polling-hardening-closeout.md`
+
+### Active external lanes
+
+6. `Security boundaries`
+- Packet:
+  - `docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.md`
+- Status:
+  - dispatched on `2026-05-16`
+  - treated as running externally
+
+### Ready next
 
 7. `Project / workspace persistence`
 - Packet:
@@ -90,6 +103,11 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - removed reviewed-complete recovery work from exact next-work order
   - packaged `Billing / credits`, `Security boundaries`, and `Generation submission / polling` into new dispatchable handoffs
   - retained `Reference Grid` as the active blocker lane
+  - later the same day, `Edit workflow`, `Billing / credits`, `Security boundaries`, and `Generation submission / polling` were all confirmed dispatched and should no longer be shown as merely ready
+- `2026-05-16` closeout intake review:
+  - received closeouts for `Reference Grid`, `Edit workflow`, `Billing / credits`, and `Generation submission / polling`
+  - kept `Security boundaries` as the only actively running ship-critical lane
+  - decided to wait for the final closeout before doing the next consolidated rerating pass unless the user explicitly requests a mid-batch review
 
 ## Operating Note
 

@@ -276,22 +276,22 @@ const buildCheckpointSummaryTemplate = ({ dateLabel, task, environment }) =>
   `# Bopper Checkpoint Summary - ${dateLabel}
 
 ## Bottom Line
-I should say in one blunt sentence whether the route worked, failed, or stayed mixed.
+I should say in one blunt plain sentence whether this worked, felt off, or made me stop.
 
 ## What I Tried
-I tested:
+I tried:
 I ran this in the ${environment} environment.
 
 ## What Worked
-I could:
+This part worked:
 
 ## What Broke
-I got stuck because:
+This is where it went sideways:
 
 ## My Take
 I would / would not keep going because:
-I felt:
-> "What I would likely say or believe after this run."
+This made me feel:
+> "What I would probably say out loud after this."
 
 Handoff:
 Read next:

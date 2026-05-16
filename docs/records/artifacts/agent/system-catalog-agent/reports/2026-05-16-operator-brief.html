@@ -151,50 +151,63 @@
       <section class="section">
         <h2>What Changed</h2>
         <ul>
-          <li>Three ship-critical lanes that used to be <code>queue-only</code> are now real handoffs.</li>
-          <li><code>Reference Grid</code> is still the active blocker already running.</li>
-          <li><code>Generation recovery / settlement</code> stays reviewed complete, but its score did not move yet.</li>
+          <li>Four external closeouts are now on file.</li>
+          <li><code>Reference Grid</code>, <code>Edit workflow</code>, <code>Billing / credits</code>, and <code>Generation submission / polling</code> moved from running to review-pending.</li>
+          <li><code>Security boundaries</code> is now the only ship-critical lane still actively running without a closeout.</li>
+          <li>No scores moved yet from closeout claims alone.</li>
         </ul>
       </section>
 
       <section class="section">
-        <h2>What You Can Paste Now</h2>
+        <h2>Closeouts Received</h2>
 
-        <h3>Already Running</h3>
         <div class="cards">
           <article class="card">
-            <div class="status running">Already Running</div>
+            <div class="status hold">Closeout Received</div>
             <p><strong>Reference Grid</strong></p>
             <p class="lane">Lane: <code>reference-grid-styles-drop-blocker</code></p>
-            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.html">docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.html</a></p>
+            <p class="small">Strong bounded fix. Still wants narrow live-runtime confirmation before the blocker is treated as fully retired.</p>
+            <p class="path"><a href="external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.html">docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status hold">Closeout Received</div>
+            <p><strong>Edit workflow</strong></p>
+            <p class="lane">Lane: <code>edit-workflow-hardening</code></p>
+            <p class="small">Bounded patch complete. Broader rerate should wait for consolidated review.</p>
+            <p class="path"><a href="external-lane-closeouts/2026-05-16-edit-workflow-hardening-closeout.html">docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-edit-workflow-hardening-closeout.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status hold">Closeout Received</div>
+            <p><strong>Billing / credits</strong></p>
+            <p class="lane">Lane: <code>billing-credits-runtime-hardening</code></p>
+            <p class="small">Best current rerate candidate in the batch, but still waiting for review.</p>
+            <p class="path"><a href="external-lane-closeouts/2026-05-16-billing-credits-runtime-hardening-closeout.html">docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-billing-credits-runtime-hardening-closeout.html</a></p>
+          </article>
+          <article class="card">
+            <div class="status hold">Closeout Received</div>
+            <p><strong>Generation submission / polling</strong></p>
+            <p class="lane">Lane: <code>generation-submission-polling-hardening</code></p>
+            <p class="small">Shared runtime seam looks materially stronger, but still waiting for review.</p>
+            <p class="path"><a href="external-lane-closeouts/2026-05-16-generation-submission-polling-hardening-closeout.html">docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-generation-submission-polling-hardening-closeout.html</a></p>
           </article>
         </div>
 
-        <h3>Ready To Paste Now</h3>
+        <h3>Still Running</h3>
         <div class="cards">
           <article class="card">
-            <div class="status ready">Ready To Paste Now</div>
-            <p><strong>Edit workflow</strong></p>
-            <p class="lane">Lane: <code>edit-workflow-hardening</code></p>
-            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.html">docs/agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.html</a></p>
-          </article>
-          <article class="card">
-            <div class="status ready">Ready To Paste Now</div>
-            <p><strong>Billing / credits</strong></p>
-            <p class="lane">Lane: <code>billing-credits-runtime-hardening</code></p>
-            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.html</a></p>
-          </article>
-          <article class="card">
-            <div class="status ready">Ready To Paste Now</div>
+            <div class="status running">Already Running</div>
             <p><strong>Security boundaries</strong></p>
             <p class="lane">Lane: <code>security-boundaries-release-audit</code></p>
             <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.html</a></p>
           </article>
+        </div>
+
+        <h3>Do Not Paste A New Ship-Critical Lane Yet</h3>
+        <div class="cards">
           <article class="card">
-            <div class="status ready">Ready To Paste Now</div>
-            <p><strong>Generation submission / polling</strong></p>
-            <p class="lane">Lane: <code>generation-submission-polling-hardening</code></p>
-            <p class="path"><a href="../../../../../agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.html">docs/agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.html</a></p>
+            <div class="status hold">Hold</div>
+            <p><strong>None right now</strong></p>
+            <p class="small">One ship-critical lane is still running and four others are waiting for Catalog Agent review.</p>
           </article>
         </div>
 
@@ -224,23 +237,25 @@
       <section class="section">
         <h2>What To Do Next</h2>
         <div class="next-step">
-          <p><strong>Best next product lane:</strong> paste <strong>Edit workflow</strong>.</p>
-          <p><strong>Best parallel platform lanes:</strong> paste <strong>Billing / credits</strong> and <strong>Security boundaries</strong>.</p>
-          <p><strong>After that:</strong> paste <strong>Generation submission / polling</strong>.</p>
+          <p><strong>Immediate next action:</strong> wait for the <strong>Security boundaries</strong> closeout.</p>
+          <p><strong>Then:</strong> run one consolidated rerating pass across the five ship-critical lanes from this batch.</p>
+          <p><strong>Keep held:</strong> <strong>Project / workspace persistence</strong>.</p>
+          <p><strong>Fallback:</strong> if <strong>Security boundaries</strong> stalls materially, do a mid-batch rerate on the four completed lanes already on file.</p>
         </div>
       </section>
 
       <section class="section">
         <h2>Do Not Do Yet</h2>
         <ul>
+          <li>Do not open <code>Project / workspace persistence</code> yet.</li>
+          <li>Do not treat the four new closeouts as automatic score bumps.</li>
           <li>Do not reopen <code>Generation recovery / settlement</code> yet.</li>
-          <li>Do not move <code>Project / workspace persistence</code> ahead of the new runtime lanes yet.</li>
-          <li>Do not treat local template reports as launch truth.</li>
         </ul>
       </section>
 
       <section class="section">
         <h2>Notes</h2>
+        <p class="path">Closeout intake review: <a href="2026-05-16-closeout-intake-review.html">docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-closeout-intake-review.html</a></p>
         <p class="path">Full audit packet: <a href="2026-05-16-production-repo-audit-and-dispatch-output.html">docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-production-repo-audit-and-dispatch-output.html</a></p>
         <p class="path">Live queue: <a href="../../../../../agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.html">docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.html</a></p>
       </section>

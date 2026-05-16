@@ -229,6 +229,7 @@ When creating new handoffs:
 - define a narrow owned write surface
 - name explicit avoid surfaces when conflict risk exists
 - include stop conditions
+- include a mandatory endgame that requires validation, self-audit, and in-scope follow-on cleanup before stop
 - include required report path and report filename pattern
 - avoid overlapping file ownership across concurrently active lanes
 
@@ -323,7 +324,9 @@ Every execution handoff must include:
 - out-of-scope tasks
 - required context
 - required validation
+- mandatory endgame
 - done state
+- send-to-catalog rule
 
 ## Maintenance And Pruning Rule
 
@@ -350,6 +353,12 @@ Every handoff must tell the receiving agent to stop when any of the following be
 - the remaining work becomes architectural and exceeds the handoff boundary
 
 The receiving agent should then return a user-visible closeout and create its closeout report.
+
+Before that stop is considered complete, the handoff should require the receiving agent to:
+
+- audit the touched repo area for adjacent regressions, incomplete acceptance criteria, and obvious missed cleanup
+- fix high-value in-scope issues discovered during that self-audit
+- explicitly name what was left unresolved because it was out of scope, blocked, or too architectural for the lane
 
 ## External Lane Report Standard
 

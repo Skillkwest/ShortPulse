@@ -37,6 +37,9 @@ Purpose: keep repo-visible memory for the System Catalog Agent's catalog steward
 - 2026-05-16: Incomplete template reports should not affect launch-state truth. They are noise until they become real evidence.
 - 2026-05-16: After meaningful runs, produce one ADHD-friendly operator brief. The user should not need to reread the full audit packet to know what to paste next.
 - 2026-05-16: In the Codex editor, Markdown files are often viewed as source, not rendered preview. The operator brief itself should be HTML-first. The Markdown file is only the backing source/traceability artifact.
+- 2026-05-16: If the user has to say `continue to audit` or `fix all issues` after a lane result, the handoff finish contract is too weak. Execution lanes should require validation, self-audit, in-scope follow-on fixes, and explicit unresolved-scope reporting before stop.
+- 2026-05-16: The phrase `send this to the catalog` should map to one exact action: write the required closeout into `external-lane-closeouts/`, then tell the user the filename, files changed, and final lane status.
+- 2026-05-16: `closeout received` is its own real operating state. Do not keep a lane marked `running` once a closeout is on file, and do not open the next ship-critical lane by momentum alone when a rerating batch is already waiting.
 
 ## Open Follow-Ups
 

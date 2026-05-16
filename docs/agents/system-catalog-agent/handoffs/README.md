@@ -61,3 +61,12 @@ At minimum, the closeout should now record:
 - explicit recommended score effect
 
 Those reports are intake artifacts for rerating and queue maintenance. They do not change the catalog on their own.
+
+## Send To Catalog Phrase
+
+If the user tells an execution agent `send this to the catalog`, the intended meaning is:
+
+- write the closeout report into `external-lane-closeouts/`
+- use the required filename pattern
+- follow the required closeout template
+- then tell the user the closeout filename, files changed, and final execution status

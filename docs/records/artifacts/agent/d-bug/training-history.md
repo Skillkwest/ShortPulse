@@ -162,3 +162,66 @@ Purpose: track how D-Bug is trained, what behavior improves, and what still need
   - The production authorization is temporary and should not be treated as a permanent branch-policy change.
 - Next training focus:
   - Reconfirm the permission at the end of the prelaunch sprint or when branch expectations change.
+
+### 2026-05-16
+
+- Prompt or task:
+  - Check the retained D-Bug handoff queue, complete actionable local tasks, and reconcile stale versus active packets.
+- Behavior learned:
+  - When a handoff queue mixes historical, downstream-owned, stale, and actionable packets, D-Bug should classify the queue first and only then open code lanes.
+- Docs or artifact updates:
+  - Added a retained triage/closeout report and updated the handoff index to reflect active, resolved, historical, and downstream-owned lanes.
+- Tool changes:
+  - None.
+- Remaining friction:
+  - Several active D-Bug handoffs are still production-only and need fresh repro/evidence before safe code changes.
+- Next training focus:
+  - Start future queue-reduction passes with explicit packet classification before touching product code.
+
+### 2026-05-16
+
+- Prompt or task:
+  - Continue the retained D-Bug queue by auditing and fixing `ai-studio-generate-noop`.
+- Behavior learned:
+  - When a production handoff sounds like a provider or request-start failure, D-Bug should inspect the narrowest submit-routing hook first before widening into controller or backend theories.
+- Docs or artifact updates:
+  - Added a retained closeout report for the Standard Create generate-noop lane.
+  - Reclassified `2026-05-15-ai-studio-generate-noop.md` as resolved on the current branch.
+- Tool changes:
+  - None.
+- Remaining friction:
+  - Live production verification was not part of this narrow repo-side fix, so residual confidence still depends on targeted tests rather than browser repro.
+- Next training focus:
+  - Start future AI Studio no-op investigations at the immediate submit-routing surface before opening broader provider/transport audits.
+
+### 2026-05-16
+
+- Prompt or task:
+  - Continue the retained D-Bug queue by auditing and fixing `ai-studio-top-tab-panel-mismatch`.
+- Behavior learned:
+  - When a UI tab/shortcut mismatch is reported, D-Bug should first test whether the controls are modeled as raw toggles instead of named destination selectors.
+- Docs or artifact updates:
+  - Added a retained closeout report for the AI Studio top-tab/right-rail mismatch.
+  - Reclassified `2026-05-15-ai-studio-top-tab-panel-mismatch.md` as resolved on the current branch.
+- Tool changes:
+  - None.
+- Remaining friction:
+  - Live production verification still needs a browser pass if the user wants runtime confirmation beyond repo-side state and focused tests.
+- Next training focus:
+  - Start future layout-navigation audits at the shared domain/state helper before patching presenter components.
+
+### 2026-05-16
+
+- Prompt or task:
+  - Continue the retained D-Bug queue by auditing and fixing `character-reload-auth-bounce`.
+- Behavior learned:
+  - When a protected route works in-session but fails on reload, D-Bug should inspect the shared auth gate before assuming a route-specific bootstrap failure.
+- Docs or artifact updates:
+  - Added a retained closeout report for the Character reload/auth-bounce lane.
+  - Reclassified `2026-05-15-character-reload-auth-bounce.md` as resolved on the current branch.
+- Tool changes:
+  - None.
+- Remaining friction:
+  - Production browser verification is still useful, and the older Character bootstrap-stall lane may or may not be fully covered by this shared auth-guard fix.
+- Next training focus:
+  - Start future reload-continuity audits at the protected-route/session recovery layer before route-specific persistence code.

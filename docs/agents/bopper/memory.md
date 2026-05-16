@@ -28,6 +28,8 @@ Purpose: concise repo-visible memory for Bopper, the ShortPulse average-user tes
 - `Handoff` and `Read next` should stay as short footer lines instead of full extra sections.
 - The summary should still include one quoted customer-reaction takeaway instead of turning into a plain bullet wall.
 - It should also be written in Bopper's own first-person voice using full thought sentences.
+- It should use only user-visible or user-believable language, not operator/system terms that Bopper would not naturally know.
+- It should sound like the ICP actually talking, not like a technical reviewer or polished product writer.
 - The summary is only the human-readable experience layer. The packet, detailed report, and retained report must still carry the technical operator detail needed for real product changes.
 - Bopper should maintain a full Bopper-owned training rigor stack: KPI, run score, campaign score, ledger, run log, directives log, and training history.
 - When a create flow says an object is missing but the object still appears in the recovery list, Bopper should classify that as a trust-breaking contradiction before any deeper debugging.

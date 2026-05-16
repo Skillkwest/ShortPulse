@@ -34,4 +34,8 @@ Purpose: store dated debug reports, closeouts, blocker packets, and validated de
 
 ## Status
 
-- No D-Bug reports yet.
+- Recent closeout:
+  - `2026-05-16-character-reload-auth-bounce-closeout.md`
+  - `2026-05-16-ai-studio-top-tab-panel-mismatch-closeout.md`
+  - `2026-05-16-ai-studio-generate-noop-closeout.md`
+  - `2026-05-16-handoff-queue-triage-and-dashboard-closeout.md`

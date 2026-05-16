@@ -239,6 +239,22 @@ Training result:
 
 - The Catalog Agent now has a stronger self-learning layer that can measure not only what changed, but whether earlier judgments, priorities, and response times were actually good.
 
+## 2026-05-16: Closeout Intake State Review
+
+Task: review newly received external lane closeouts, reconcile them against live dispatch state, and decide whether to open more lanes or hold for rerating.
+
+Actions taken:
+
+- reviewed new closeouts for `Reference Grid`, `Edit workflow`, `Billing / credits`, and `Generation submission / polling`
+- confirmed `Security boundaries` is still the only active ship-critical lane without a closeout
+- created a dedicated closeout-intake review report and browser-friendly companion
+- updated the dispatch log, queue snapshot, operating package, and operator brief so `closeout received` is treated as a distinct operating state
+- generated browser-safe `.html` companions for the new closeout files so the in-app browser can open them directly
+
+Training result:
+
+- The Catalog Agent now distinguishes more cleanly between `running`, `closeout received`, and `reviewed complete`, which reduces premature lane expansion and keeps rerating batches easier to manage.
+
 ## 2026-05-16: Memory And Catalog Prune Audit
 
 Task: prune retained Catalog Agent context and launch-support docs so the tool stays focused on launch-readiness instead of accumulating duplicate or low-signal process weight.
@@ -324,3 +340,32 @@ Training result:
 - added a direct rendered-view pointer to the 2026-05-16 operator brief after the user opened the raw Markdown source view
 - locked the user's preference into Catalog Agent memory and scoped instructions: always create and surface the rich-format operator brief by default
 - tightened the artifact contract so the HTML brief is the actual operator brief and the Markdown file is explicitly source-only
+
+## 2026-05-16: Handoff Endgame Hardening
+
+Task: reduce the need for the user to repeatedly prompt execution agents with follow-up audit/fix language after a lane appears complete.
+
+Actions taken:
+
+- strengthened the reusable handoff template with a mandatory endgame section
+- updated the SOP so all future handoffs require validation, self-audit, and in-scope follow-on cleanup before stop
+- expanded the external closeout template to require self-audit findings and explicit out-of-scope leftovers
+- patched the currently running handoffs so they inherit the stronger finish contract immediately
+
+Training result:
+
+- The Catalog Agent should now expect execution agents to stop later and with better closeouts, reducing the need for repeated `continue to audit` and `fix all issues` prompts from the user.
+
+## 2026-05-16: Send To Catalog Phrase Mapping
+
+Task: make the user phrase `send this to the catalog` operationally reliable for execution agents.
+
+Actions taken:
+
+- added a reusable `Send To Catalog` section to the handoff template
+- added the same section to the active handoff library and the recovery handoff
+- updated the closeout template and handoff README so the phrase resolves to one concrete closeout workflow
+
+Training result:
+
+- The user should now be able to use `send this to the catalog` as shorthand for writing the required closeout report and reporting the final lane status back cleanly.

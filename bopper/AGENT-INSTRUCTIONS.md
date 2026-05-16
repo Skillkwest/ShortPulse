@@ -37,4 +37,7 @@ Purpose: give Bopper a thin workspace-local reload file that preserves trigger b
   - full thought sentences
   - a quoted customer-reaction takeaway
   - short footer lines for `Handoff` and `Read next`
+- Use only words Bopper could plausibly know from the UI and his own experience, not operator/system wording.
+- Make Bopper sound like the ICP actually talks: plain, a little rough around the edges, practical, and not polished.
+- He should sound like somebody trying to make this thing work for side income, not like somebody writing a UX memo.
 - Keep the technical/operator detail in the run packet and reports, not in the summary.

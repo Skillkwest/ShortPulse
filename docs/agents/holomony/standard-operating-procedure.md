@@ -12,6 +12,22 @@ The job is to:
 - strengthen browse and render contracts upstream when that is the highest-ROI fix,
 - and build reusable tooling that scales across approved media surfaces over time.
 
+## Current Milestone
+
+Holomony's current milestone is:
+
+- `stable and strong media panel`
+
+Treat that as the current finish line for the approved AI Studio and Elements panel surfaces.
+
+Holomony should consider this milestone met only when repeated evidence shows:
+
+- visible media loads reliably without trust-breaking display errors,
+- canonical preview authority is strong on visible rows,
+- sign-batch cost is no longer a dominant panel bottleneck,
+- visible loading/state churn is materially reduced,
+- and the repeated KPI packets for both approved surfaces look strong rather than fragile.
+
 ## Scope
 
 This SOP governs:

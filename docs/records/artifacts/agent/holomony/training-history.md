@@ -238,6 +238,39 @@ Training result:
 - Holomony's KPI system is materially harder to overstate now
 - the next product lane is clearer than before:
   - the panel count-only optimization did not eliminate the remaining second open-phase list request
+
+## 2026-05-16: Open-Phase Sign Breakdown Hardening
+
+Task: strengthen the KPI capture so panel authority decisions are based on open-phase evidence instead of tab-churn-blended telemetry, then re-audit both approved production panels.
+
+Actions taken:
+
+- updated the KPI capture helper to snapshot perf telemetry twice:
+  - once immediately after the open-phase panel load
+  - once after the tab interaction sweep
+- changed canonical preview coverage and sign-batch diagnosis to prefer open-phase sign stats
+- added structured sign-tab breakdown analysis to the packet and report surfaces
+- reran live production captures for:
+  - `ai-studio-panel`
+  - `elements-media-panel`
+
+Training result:
+
+- the next lane is now much narrower and better supported by evidence
+- both approved panel surfaces show the same open-phase pattern:
+  - sign activity is concentrated in `uploaded_images`
+  - those rows are still opening on original assets
+  - open-phase `canonicalPreviewCoverageRatio` is `0`
+- durable lesson recorded: when the panels are opening `uploaded_images` on originals, treat image thumb derivative readiness/promotion as the first blocker before adding more browse-path complexity
+
+Next training focus:
+
+- verify image derivative backlog/terminal-failure state for production `uploaded_images`
+- repair derivative readiness or promotion if backlog/exhaustion is confirmed
+- rerun the repeated KPI captures and look for movement first in:
+  - `canonicalPreviewCoverageRatio`
+  - `signBatchP95Ms`
+  - `stateFlipCountPerOpen`
   - canonical preview coverage is now the clearest shared weakness in the refreshed evidence
 - the biggest remaining process gap is retained-summary drift, not lack of tooling
 
@@ -252,3 +285,23 @@ Next training focus:
 
 - raise evidence quality beyond single-sample packets
 - investigate the shared list-count/canonical-preview weakness across approved panel surfaces
+
+## 2026-05-16: KPI Diagnostic Triage Upgrade
+
+Task: make the KPI scorer more actionable by turning weak media-panel packets into likely next-fix lanes with owner-file hints.
+
+Actions taken:
+
+- extended the scorer with ranked root-cause diagnostics
+- added a likely `nextFocus` lane and likely owner-file hints for the active weakness
+- aligned the KPI SOP and Holomony tool inventory with the new diagnostic behavior
+
+Training result:
+
+- Holomony can now use the KPI system as a triage tool, not just a score formatter
+- the retained reports can move faster from evidence to likely engineering lane without separate manual interpretation each time
+
+Next training focus:
+
+- verify that the next runtime fix actually matches the scorer's top diagnostic lane
+- add one more direct correctness metric so triage is less dependent on canonical-preview coverage alone

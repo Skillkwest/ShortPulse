@@ -1,0 +1,157 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Next-Agent Handoff: Elements Workflow Hardening</title><style>:root{color-scheme:dark;--bg:#17181b;--panel:#22252a;--panel-2:#2c3036;--text:#f3f4f6;--muted:#c9ced6;--accent:#ffb86b;--border:#3b4048;--link:#cfe7ff;}*{box-sizing:border-box;}body{margin:0;padding:24px;background:linear-gradient(180deg,#15171a 0%,#1c1f24 100%);color:var(--text);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45;}.wrap{max-width:1100px;margin:0 auto;}.hero,.section{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 12px 32px rgba(0,0,0,0.25);}h1{margin:0 0 10px;font-size:30px;line-height:1.1;color:var(--accent);}p{margin:0 0 10px;font-size:15px;}.meta{color:var(--muted);}a{color:var(--link);text-decoration:underline;text-underline-offset:3px;}pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.55;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel-2);border:1px solid var(--border);border-radius:16px;padding:16px;}</style></head><body><div class="wrap"><section class="hero"><h1>Next-Agent Handoff: Elements Workflow Hardening</h1><p class="meta">Browser-friendly view generated for local in-app browsing.</p><p><a href="2026-05-06-elements-workflow.md">Open source Markdown</a></p></section><section class="section"><pre># Next-Agent Handoff: Elements Workflow Hardening
+
+## Lane Id
+
+`elements-workflow-hardening`
+
+Purpose: raise a low-confidence AI Studio workflow to a more explicit and supportable state.
+
+## Copy/Paste Use
+
+- This packet is ready to paste into another agent.
+- Treat it as a bounded execution lane.
+- Do not expand into a broad library redesign unless the stop rules are hit and the evidence demands it.
+
+## Why this task
+
+- System: `Elements workflow`
+- Current score: `5/10`
+- Target score: `6/10`
+- Ship floor: `6/10`
+- The boundary still appears transitional and should not stay vague near production launch.
+- Why the score is currently low:
+  - workflow authority and reuse semantics are still soft
+  - persistence expectations are not explicit enough for a production-adjacent surface
+
+## Recommended agent profile
+
+Workflow modularization agent with strong contract-cleanup and persistence-boundary discipline.
+
+## Scoped task
+
+Investigate the Elements workflow and make one bounded hardening change that clarifies workflow authority, persistence rules, or downstream reuse semantics.
+
+## Owned write surface
+
+- `frontend/features/ai-studio/components/ElementsPanel.tsx`
+- related elements-manager workflow files
+- element persistence paths directly owned by the workflow
+- directly related elements tests
+
+## Avoid surface
+
+- broad asset-management redesign
+- character workflow files except where direct comparison is required for diagnosis
+- unrelated AI Studio panels
+- provider runtime and billing files
+
+## In scope
+
+- element workflow shell/state
+- element persistence shape
+- image/video-backed element reuse semantics
+- targeted characterization and regression tests
+
+## Out of scope
+
+- broad asset-management redesign
+- character workflow changes except where a direct element boundary comparison is required
+- unrelated AI Studio panels
+
+## Required context
+
+Read first:
+
+- `docs/systems/catalog.md`
+- `docs/product/shortpulse_ai_studio.md`
+- `docs/data-dictionary.md` sections for elements tables
+
+Inspect first:
+
+- `frontend/features/ai-studio/components/ElementsPanel.tsx`
+- related elements-manager workflow files
+- element persistence paths and tests
+
+## Questions to answer
+
+1. What part of the Elements workflow still lacks a clean authority boundary?
+2. Which persistence or reuse contract is still too soft?
+3. What one change would raise confidence most efficiently?
+
+## Expected output
+
+- one bounded hardening patch with tests, or
+- one findings packet that sharply reduces the next scope
+
+## Suggested validation
+
+- targeted elements workflow tests
+- `npm -C frontend run docs:check` if docs change
+
+## Done state
+
+- one key element workflow ambiguity is removed or isolated
+
+## Stop rules
+
+- Stop before broadening into a larger library redesign unless the bounded issue cannot be solved in place.
+
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-elements-workflow-hardening-closeout.md`
+- Required contents:
+  - lane id
+  - source handoff path
+  - execution status
+  - systems touched
+  - files changed
+  - summary of what changed
+  - acceptance criteria reached
+  - evidence snapshot
+  - validation run
+  - validation evidence
+  - self-audit findings
+  - issues fixed during self-audit
+  - issues intentionally left out of scope
+  - blockers encountered
+  - residual risk
+  - recommended next step for Catalog Agent review
+
+## Send To Catalog
+
+When the user says `send this to the catalog`, do not stop at a chat summary.
+
+Do all of these:
+
+1. Write the closeout report in:
+   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+2. Use the filename:
+   - `YYYY-MM-DD-elements-workflow-hardening-closeout.md`
+3. Follow the required closeout contents exactly.
+4. Then tell the user:
+   - the closeout filename
+   - the files changed
+   - whether the lane is:
+     - `bounded hardening patch complete`
+     - `findings packet complete`
+     - `blocked with evidence`
+
+## Closeout And Archive
+
+- Return one of:
+  - bounded hardening patch complete
+  - findings packet complete
+  - blocked with evidence
+- End with:
+  - what changed
+  - what was verified
+  - what self-audit found
+  - what was fixed during self-audit
+  - residual risk
+  - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
+- After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.
+</pre></section></div></body></html>

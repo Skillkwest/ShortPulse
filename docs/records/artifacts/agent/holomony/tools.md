@@ -7,7 +7,7 @@ Purpose: list the current retained tools Holomony uses for media optimization an
 - `docs/agents/holomony/AGENTS.md`
   - Holomony-scoped execution overlay for surface scope, scoring, and stop rules
 - `frontend/scripts/media_panel_kpi_score.mjs`
-  - scores media panel KPI packets and compares retained packet runs
+  - scores media panel KPI packets, compares retained packet runs, and emits likely root-cause lanes plus owner-file hints
 - `frontend/scripts/media_panel_kpi_capture.mjs`
   - captures repeated live AI Studio or Elements embedded media panel runs and derives a KPI packet
 - `frontend/tests/e2e/media-library-runtime.audit.js`

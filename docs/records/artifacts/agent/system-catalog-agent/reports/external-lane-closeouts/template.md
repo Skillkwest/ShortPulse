@@ -57,6 +57,21 @@ Purpose: provide one reusable closeout format for execution agents finishing a S
 - relevant test file names or suite names
 - build, lint, or browser/runtime verification notes when used
 
+### Self-audit findings
+
+- what was reviewed after the main implementation or findings pass
+- what adjacent regressions, cleanup gaps, or acceptance-criteria misses were checked
+
+### Issues fixed during self-audit
+
+- list each additional in-scope issue fixed after the initial pass
+- use `none` if nothing new was found worth fixing inside scope
+
+### Issues intentionally left out of scope
+
+- list each issue noticed but intentionally not fixed
+- say whether it belonged to another lane, was blocked, or exceeded lane scope
+
 ### Blockers encountered
 
 - `none`, or
@@ -75,3 +90,14 @@ Purpose: provide one reusable closeout format for execution agents finishing a S
 - why that score effect is justified
 - whether follow-up scope is needed
 - whether the queue should change
+
+## Send To Catalog Completion
+
+After writing this file, tell the user:
+
+- the closeout filename
+- the files changed
+- whether the lane is:
+  - `bounded patch complete`
+  - `findings packet complete`
+  - `blocked with evidence`

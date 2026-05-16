@@ -2,47 +2,50 @@ Source-only file. Open the real operator brief here: `docs/records/artifacts/age
 
 # WHAT CHANGED
 
-- Active ship target is now **July 2, 2026**.
-- The repo-plus-worktree audit is complete.
-- Three ship-critical lanes that used to be `queue-only` are now real handoffs:
-  - `billing-credits-runtime-hardening`
-  - `security-boundaries-release-audit`
-  - `generation-submission-polling-hardening`
-- `Reference Grid` is still the active blocker already running.
-- `Generation recovery / settlement` stays reviewed complete, but its score did **not** move yet.
+- Four external closeouts are now on file.
+- `Reference Grid`, `Edit workflow`, `Billing / credits`, and `Generation submission / polling` moved from `running` to `closeout received / awaiting Catalog Agent review`.
+- `Security boundaries` is now the only ship-critical lane still actively running without a closeout.
+- No scores moved yet from closeout claims alone.
 
-# WHAT YOU CAN PASTE NOW
-
-## ALREADY RUNNING
+# CLOSEOUTS RECEIVED
 
 - `Reference Grid`
   - lane: `reference-grid-styles-drop-blocker`
-  - status: `already running`
-  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.md`
-
-## READY TO PASTE NOW
+  - status: `closeout received`
+  - closeout: `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.md`
+  - note: strong bounded fix, but still wants narrow live-runtime confirmation before treating the blocker as fully retired
 
 - `Edit workflow`
   - lane: `edit-workflow-hardening`
-  - status: `ready to paste now`
-  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.md`
+  - status: `closeout received`
+  - closeout: `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-edit-workflow-hardening-closeout.md`
+  - note: bounded patch complete, but broader rerate should wait for consolidated review
 
 - `Billing / credits`
   - lane: `billing-credits-runtime-hardening`
-  - status: `ready to paste now`
-  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-16-billing-credits-runtime-hardening.md`
-
-- `Security boundaries`
-  - lane: `security-boundaries-release-audit`
-  - status: `ready to paste now`
-  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.md`
+  - status: `closeout received`
+  - closeout: `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-billing-credits-runtime-hardening-closeout.md`
+  - note: best current rerate candidate in the batch, but still waiting for review
 
 - `Generation submission / polling`
   - lane: `generation-submission-polling-hardening`
-  - status: `ready to paste now`
-  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-16-generation-submission-polling-hardening.md`
+  - status: `closeout received`
+  - closeout: `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/2026-05-16-generation-submission-polling-hardening-closeout.md`
+  - note: shared runtime seam looks materially stronger, but still waiting for review
 
-## READY BUT HOLD
+# STILL RUNNING
+
+- `Security boundaries`
+  - lane: `security-boundaries-release-audit`
+  - status: `still running`
+  - handoff: `docs/agents/system-catalog-agent/handoffs/2026-05-16-security-boundaries-release-audit.md`
+
+# DO NOT PASTE A NEW SHIP-CRITICAL LANE YET
+
+- `none right now`
+  - reason: one ship-critical lane is still running and four others are waiting for Catalog Agent review
+
+# READY BUT HOLD
 
 - `Project / workspace persistence`
   - lane: `project-workspace-persistence-hardening`
@@ -68,33 +71,26 @@ Source-only file. Open the real operator brief here: `docs/records/artifacts/age
 
 # WHAT TO DO NEXT
 
-## IF YOU WANT THE NEXT BEST PRODUCT LANE
-
-- Paste `Edit workflow` next.
-
-## IF YOU WANT PARALLEL PLATFORM RISK REDUCTION
-
-- Paste these next:
-  1. `Billing / credits`
-  2. `Security boundaries`
-
-## AFTER THAT
-
-- Paste `Generation submission / polling`.
+- Wait for the `Security boundaries` closeout before dispatching another ship-critical lane.
+- After that closeout lands, run one consolidated rerating pass across the five ship-critical lanes from this batch.
+- Keep `Project / workspace persistence` held for now.
+- If `Security boundaries` stalls materially, the fallback is a mid-batch rerate on the four completed lanes already on file.
 
 # DO NOT DO YET
+
+- Do **not** open `Project / workspace persistence` yet.
+  - reason: the current highest-ROI move is finishing review on the ship-critical batch already in flight
+
+- Do **not** treat the four new closeouts as automatic score bumps.
+  - reason: the Catalog Agent still needs repo-backed rerating, not just lane-owner claims
 
 - Do **not** reopen `Generation recovery / settlement` yet.
   - reason: it is already reviewed complete and should stay out of exact next-work order for now
 
-- Do **not** move `Project / workspace persistence` ahead of the new runtime lanes yet.
-  - reason: the newer evidence is still weaker than the ship-critical runtime/safety gaps
-
-- Do **not** treat local template reports as launch truth.
-  - reason: incomplete artifacts are noise until they become real evidence
-
 # NOTES
 
+- Closeout intake review:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-closeout-intake-review.md`
 - The full audit packet is here:
   - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-production-repo-audit-and-dispatch-output.md`
 - The exact live queue is here:

@@ -118,6 +118,22 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Write checkpoint summaries in Bopper's own voice.
 - Use first-person full thought sentences instead of fragment bullets or operator phrasing.
 
+### 2026-05-16 - Summary knowledge boundary
+
+- Bopper should not talk like an operator in the checkpoint summary.
+- Use only language he could plausibly know from what he saw on the screen and how he felt using it.
+- Avoid terms like `restore flow` unless the exact wording is visible and still sounds natural in plain English.
+
+### 2026-05-16 - Summary tone should sound like the ICP
+
+- Bopper should not sound polished, abstract, or professionally analytical in the trainer-facing summary.
+- He should sound more like the real paying user:
+  - direct
+  - ordinary
+  - a little clunky
+  - focused on whether this feels worth paying for
+- Favor natural complaint language over UX-critic language.
+
 ### 2026-05-16 - Summary vs operator-record split
 
 - The checkpoint summary is just for the trainer to quickly feel the user experience.

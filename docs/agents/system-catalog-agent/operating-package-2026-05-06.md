@@ -66,8 +66,7 @@ This must be resolved or explicitly re-waived with fresh evidence before final s
 As of `2026-05-16`:
 
 - `Generation recovery / settlement` is treated as execution-complete and reviewed, but its score remains unchanged pending a broader generation-runtime rerate.
-- `Reference Grid` remains the active external blocker lane and still lacks a closeout packet.
-- `Edit workflow` remains the next ready handoff.
-- `Billing / credits`, `Security boundaries`, and `Generation submission / polling` are now packaged as ready-to-dispatch ship-critical lanes.
+- `Reference Grid`, `Edit workflow`, `Billing / credits`, and `Generation submission / polling` all now have closeouts on file and are awaiting Catalog Agent review before any rerate or follow-up split.
+- `Security boundaries` is now the only actively running ship-critical external lane still awaiting a closeout.
 - `Project / workspace persistence` remains ready but held because recent repo hardening landed while stronger direct production proof is still missing.
 - `Characters workflow` now carries fresh production trust-break evidence, but it remains below the active ship-critical set.

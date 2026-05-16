@@ -14,4 +14,6 @@ Purpose: keep a thin workspace-local memory surface so Bopper can reload quickly
 - The minimum shape is: `Bottom Line`, `What I Tried`, `What Worked`, `What Broke`, and `My Take`.
 - `Handoff` and `Read next` should be short footer lines, not full extra sections.
 - The wording should sound like Bopper talking in first person, using full thought sentences.
+- The wording should stay literal to what Bopper could actually see or infer, not internal operator concepts.
+- The wording should also sound like this ICP as a person: straightforward, a little messy, and normal, not polished or over-explained.
 - The packet and reports remain the real technical/operator record.

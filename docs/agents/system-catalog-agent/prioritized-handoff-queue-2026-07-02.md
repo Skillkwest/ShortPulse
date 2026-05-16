@@ -71,14 +71,13 @@ As of `2026-05-16`:
 
 - reviewed complete:
   - `Generation recovery / settlement`
-- dispatched and still awaiting closeout:
+- closeout received and awaiting Catalog Agent review:
   - `Reference Grid`
-- next ready:
   - `Edit workflow`
-- packaged and ready but not dispatched:
   - `Billing / credits`
-  - `Security boundaries`
   - `Generation submission / polling`
+- dispatched and still awaiting closeout:
+  - `Security boundaries`
 - ready held:
   - `Project / workspace persistence`
 - secondary workflow follow-up signal with fresh production evidence:

@@ -14,14 +14,18 @@ Purpose: retain inbound debugging packets when another agent or the user wants t
 
 ## Status
 
-- Active retained handoff:
-  - `2026-05-15-character-reload-auth-bounce.md`
+- Still-active retained handoff:
   - `2026-05-15-character-route-bootstrap-stall.md`
-  - `2026-05-15-media-library-search-empty-state-mismatch.md`
-  - `2026-05-15-public-home-dashboard-title-mismatch.md`
+- Resolved on current branch:
+  - `2026-05-15-character-reload-auth-bounce.md`
   - `2026-05-15-ai-studio-top-tab-panel-mismatch.md`
   - `2026-05-15-ai-studio-generate-noop.md`
   - `2026-05-15-dashboard-ai-studio-cta-mismatch.md`
   - `2026-05-15-dashboard-new-project-project-unavailable.md`
+  - `2026-05-15-public-home-dashboard-title-mismatch.md`
+  - `2026-05-16-local-ai-studio-project-reopen-runtime-regression.md`
+- Historical reference only:
+  - `2026-05-15-media-library-search-empty-state-mismatch.md`
   - `2026-05-15-media-library-stale-thumb-variant.md`
+- Downstream owned:
   - `2026-05-14-nuclo-hosted-sql-lint-remediation.md`

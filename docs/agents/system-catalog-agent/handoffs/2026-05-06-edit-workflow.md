@@ -97,6 +97,17 @@ Inspect first:
 - type-check or build only if the touched seam requires it
 - `npm -C frontend run docs:check` if docs change
 
+## Mandatory endgame
+
+- After the main patch or findings work, audit the touched Edit-owned repo area before stopping.
+- Fix any high-value issue found during that self-audit if it stays inside the owned write surface.
+- Do not stop at first success. Stop only after:
+  - the main implementation or findings work is complete
+  - validation is complete
+  - self-audit is complete
+  - high-value in-scope follow-on fixes are handled
+  - closeout is written
+
 ## Done state
 
 - one concrete Edit fragility is removed, isolated, or better defended by tests
@@ -122,9 +133,31 @@ Inspect first:
   - evidence snapshot
   - validation run
   - validation evidence
+  - self-audit findings
+  - issues fixed during self-audit
+  - issues intentionally left out of scope
   - blockers encountered
   - residual risk
   - recommended next step for Catalog Agent review
+
+## Send To Catalog
+
+When the user says `send this to the catalog`, do not stop at a chat summary.
+
+Do all of these:
+
+1. Write the closeout report in:
+   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+2. Use the filename:
+   - `YYYY-MM-DD-edit-workflow-hardening-closeout.md`
+3. Follow the required closeout contents exactly.
+4. Then tell the user:
+   - the closeout filename
+   - the files changed
+   - whether the lane is:
+     - `bounded hardening patch complete`
+     - `findings packet complete`
+     - `blocked with evidence`
 
 ## Closeout And Archive
 
@@ -135,6 +168,8 @@ Inspect first:
 - End with:
   - what changed
   - what was verified
+  - what self-audit found
+  - what was fixed during self-audit
   - residual risk
   - exact next step if unresolved
 - Create the closeout report in the required report path before considering the lane finished.

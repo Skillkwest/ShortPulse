@@ -14,7 +14,11 @@ import type { AspectOption } from "../../types";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
-import type { ExpertEditCustomPresetOverrides, ExpertEditPresetId } from "./expertEditPresets";
+import type {
+  ExpertEditCustomPresetOverrides,
+  ExpertEditPresetId,
+  ExpertEditSystemPresetDefinition,
+} from "./expertEditPresets";
 import type {
   ExpertEditRegenerateWithReferenceInputsHandler,
   ExpertEditVariantCostResolver,
@@ -78,6 +82,7 @@ export type ExpertEditPanelViewProps = {
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
   onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;

@@ -487,7 +487,7 @@ function VoicesSlider({
  * Renders the dedicated Voices workflow panel.
  */
 export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
-  balanceCredits = null,
+  balanceCredits: _balanceCredits = null,
   pricingPolicy = null,
   pricingPolicyReady = true,
   selectedTool = null,
@@ -495,6 +495,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   onActiveVoiceChangerSourceVideoChange,
   resolveVoiceChangerInternalReferenceSource,
 }: VoicesPropertiesPanelProps) {
+  void _balanceCredits;
   const {
     voices: libraryVoices,
     selectedVoice: selectedLibraryVoice,
@@ -594,17 +595,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           pricingPolicy,
           pricingPolicyReady,
         }) ?? null);
-  const isInsufficientCredits =
-    balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
-    pricingPolicyReady &&
-    estimatedCredits != null &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0
-      : voiceChangerSource?.status === "ready") &&
-    !isInsufficientCredits;
+      : voiceChangerSource?.status === "ready");
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&

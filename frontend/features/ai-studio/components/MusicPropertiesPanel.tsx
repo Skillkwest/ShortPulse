@@ -133,12 +133,13 @@ const formatCreditValue = (value: number): string =>
   Number.isInteger(value) ? String(value) : value.toFixed(1);
 
 export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
-  balanceCredits = null,
+  balanceCredits: _balanceCredits = null,
   isGenerating = false,
   onGenerate,
   pricingPolicy = null,
   pricingPolicyReady = true,
 }: MusicPropertiesPanelProps) {
+  void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationDragPointerIdRef = React.useRef<number | null>(null);
@@ -188,8 +189,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     }) ?? null;
   const estimatedCredits =
     estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
-  const isInsufficientCredits =
-    balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
   const promptPlaceholder =
     composerMode === "simple" ? musicPromptPlaceholder : customMusicPromptPlaceholder;
   const buildSubmissionText = React.useCallback((): string => {
@@ -207,12 +206,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const overflowCharacterCount = Math.max(0, submissionLength - maxPromptCharacters);
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
   const isWithinPromptLimit = submissionLength <= maxPromptCharacters;
-  const isGenerateEnabled =
-    Boolean(onGenerate) &&
-    pricingPolicyReady &&
-    submissionLength > 0 &&
-    isWithinPromptLimit &&
-    !isInsufficientCredits;
+  const isGenerateEnabled = Boolean(onGenerate) && submissionLength > 0 && isWithinPromptLimit;
 
   const syncInspirationScrollState = React.useCallback(() => {
     const node = inspirationScrollerRef.current;
@@ -340,7 +334,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     [endInspirationDrag]
   );
 
-  const handleGenerate = React.useCallback(async () => {
+  const handleGenerate = React.useCallback(() => {
     if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
     const request = {
       text: submissionText,
@@ -354,12 +348,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       displayedBilledCredits: estimatedCreditsPerSong,
     } satisfies MusicGenerateRequest;
 
-    for (let index = 0; index < songBatchCount; index += 1) {
-      const didAcceptGeneration = await onGenerate(request);
-      if (didAcceptGeneration === false) {
-        break;
-      }
-    }
+    void Promise.allSettled(Array.from({ length: songBatchCount }, () => onGenerate(request)));
   }, [
     estimatedCreditsPerSong,
     requestedMusicMode,

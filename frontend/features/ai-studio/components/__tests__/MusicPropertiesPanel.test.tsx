@@ -69,7 +69,7 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
   });
 
-  it("fails closed when shared pricing is unavailable", () => {
+  it("keeps generate available when shared pricing is unavailable", () => {
     render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
@@ -78,7 +78,7 @@ describe("MusicPropertiesPanel", () => {
       },
     });
 
-    expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
@@ -215,7 +215,7 @@ describe("MusicPropertiesPanel", () => {
     await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(4));
   });
 
-  it("stops the multi-song run after the first failed generation request", async () => {
+  it("submits the full multi-song run even if one request rejects", async () => {
     const onGenerate = vi.fn().mockResolvedValueOnce(false);
 
     render(<MusicPropertiesPanel onGenerate={onGenerate} />);
@@ -225,7 +225,7 @@ describe("MusicPropertiesPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
 
-    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
   });
 
   it("includes custom lyrics in the submitted music prompt", async () => {

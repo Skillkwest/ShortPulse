@@ -16,7 +16,11 @@ import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
 } from "./expertEditPanelViewContract";
-import type { ExpertEditCustomPresetOverrides, ExpertEditPresetId } from "./expertEditPresets";
+import type {
+  ExpertEditCustomPresetOverrides,
+  ExpertEditPresetId,
+  ExpertEditSystemPresetDefinition,
+} from "./expertEditPresets";
 
 type UseExpertEditPromptComposerRuntimeParams = {
   promptTextValue: string;
@@ -45,6 +49,7 @@ type UseExpertEditPromptComposerRuntimeParams = {
   guardrailReason: string | null;
   layers: Array<{ id: string; imageUrl: string | null }>;
   customPresetOverrides: ExpertEditCustomPresetOverrides;
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
   updateSelectedPresetIds: (
     updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]
   ) => void;
@@ -81,6 +86,7 @@ export const useExpertEditPromptComposerRuntime = ({
   guardrailReason,
   layers,
   customPresetOverrides,
+  systemPresetDefinitions,
   updateSelectedPresetIds,
   updateCustomPresetOverrides,
   showStatusToast,
@@ -250,6 +256,7 @@ export const useExpertEditPromptComposerRuntime = ({
     handlePresetsSurfaceDrop,
   } = useExpertEditPresetRuntime({
     customPresetOverrides,
+    systemPresetDefinitions,
     updateSelectedPresetIds,
     updateCustomPresetOverrides,
     handlePromptTextChange,

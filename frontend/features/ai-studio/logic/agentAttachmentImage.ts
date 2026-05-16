@@ -1,4 +1,4 @@
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import type { AgentAttachment } from "../../../prefabs/agent/types";
 import { normalizeReferenceTransferUrlCandidate } from "../utils/dragDrop";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
@@ -71,6 +71,21 @@ const refreshAttachmentPreviewUrl = async (
   return await refreshSupabaseSignedUrlIfNeeded(normalized).catch(() => normalized);
 };
 
+const signAttachmentStoragePath = async (storagePath: string): Promise<string | null> => {
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: MEDIA_BUCKET,
+    storagePaths: [storagePath],
+    forceRefresh: true,
+  }).catch(() => null);
+  const batchSignedUrl = signedByPath?.get(storagePath) ?? null;
+  if (batchSignedUrl) return batchSignedUrl;
+  return await getSignedMediaUrl({
+    bucket: MEDIA_BUCKET,
+    storagePath,
+    forceRefresh: true,
+  }).catch(() => null);
+};
+
 export const resolveAgentAttachmentPreviewUrl = async (
   attachment: Pick<
     AgentAttachment,
@@ -86,11 +101,7 @@ export const resolveAgentAttachmentPreviewUrl = async (
       const refreshedStorageUrl = await refreshAttachmentPreviewUrl(normalizedStorageUrl);
       if (refreshedStorageUrl) return refreshedStorageUrl;
     } else {
-      const signedUrl = await getSignedMediaUrl({
-        bucket: MEDIA_BUCKET,
-        storagePath,
-        forceRefresh: true,
-      }).catch(() => null);
+      const signedUrl = await signAttachmentStoragePath(storagePath);
       const normalizedSignedUrl = normalizeAttachmentImageUrl(signedUrl);
       if (normalizedSignedUrl) return normalizedSignedUrl;
     }

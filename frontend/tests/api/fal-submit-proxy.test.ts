@@ -664,7 +664,7 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
-  it("returns 429 for inline Fal image submits when admission is saturated", async () => {
+  it("still submits inline Fal image routes when admission is saturated", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -706,17 +706,15 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
-    expect(charge.refund).toHaveBeenCalledWith(
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(charge.refund).not.toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
-      expect.objectContaining({
-        reason: "direct_submit_limited",
-      })
+      expect.anything()
     );
-    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.status).not.toHaveBeenCalledWith(429);
   });
 
-  it("returns 429 and releases reservation when direct submit admission is saturated", async () => {
+  it("still submits direct routes when admission is saturated", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -759,16 +757,15 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(charge.refund).toHaveBeenCalledWith(
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(charge.refund).not.toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
-      expect.objectContaining({
-        reason: "direct_submit_limited",
-      })
+      expect.anything()
     );
-    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.status).not.toHaveBeenCalledWith(429);
   });
 
-  it("returns 429 instead of queue_required when a direct-capable Kie submit is admission-limited and queue is disabled", async () => {
+  it("still submits direct-capable Kie routes when admission is limited and queue is disabled", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -812,20 +809,12 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
-    expect(charge.refund).toHaveBeenCalledWith(
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(charge.refund).not.toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
-      expect.objectContaining({
-        admission_reason: "tier_limit",
-      })
+      expect.anything()
     );
-    expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: "GENERATION_ADMISSION_LIMIT",
-        retryAfterSeconds: 15,
-      })
-    );
+    expect(res.status).not.toHaveBeenCalledWith(429);
   });
 
   it("fails closed before billing on unknown top-level fields", async () => {

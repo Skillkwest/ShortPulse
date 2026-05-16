@@ -11,6 +11,7 @@ import {
   type ExpertEditCustomPresetOverrides,
   type ExpertEditPresetDragPayload,
   type ExpertEditPresetId,
+  type ExpertEditSystemPresetDefinition,
 } from "./expertEditPresets";
 import {
   resolvePresetDragPayload,
@@ -20,6 +21,7 @@ import {
 
 type UseExpertEditPresetRuntimeParams = {
   customPresetOverrides: ExpertEditCustomPresetOverrides;
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
   updateSelectedPresetIds: (
     updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]
   ) => void;
@@ -32,6 +34,7 @@ type UseExpertEditPresetRuntimeParams = {
 
 export const useExpertEditPresetRuntime = ({
   customPresetOverrides,
+  systemPresetDefinitions,
   updateSelectedPresetIds,
   updateCustomPresetOverrides,
   handlePromptTextChange,
@@ -60,10 +63,10 @@ export const useExpertEditPresetRuntime = ({
           showStatusToast(PRESET_PANEL_LIMIT_TOAST, "warning");
           return previous;
         }
-        return sortPresetIdsByCanonicalOrder([...previous, presetId]);
+        return sortPresetIdsByCanonicalOrder([...previous, presetId], systemPresetDefinitions);
       });
     },
-    [showStatusToast, updateSelectedPresetIds]
+    [showStatusToast, systemPresetDefinitions, updateSelectedPresetIds]
   );
 
   const removePresetFromPanel = React.useCallback(
@@ -80,11 +83,15 @@ export const useExpertEditPresetRuntime = ({
 
   const handlePanelPresetApply = React.useCallback(
     (presetId: ExpertEditPresetId) => {
-      const presetPrompt = resolveExpertEditPresetPromptById(presetId, customPresetOverrides);
+      const presetPrompt = resolveExpertEditPresetPromptById(
+        presetId,
+        customPresetOverrides,
+        systemPresetDefinitions
+      );
       if (!presetPrompt) return;
       handlePromptTextChange(presetPrompt);
     },
-    [customPresetOverrides, handlePromptTextChange]
+    [customPresetOverrides, handlePromptTextChange, systemPresetDefinitions]
   );
 
   const handleCustomPresetSave = React.useCallback(
@@ -134,10 +141,10 @@ export const useExpertEditPresetRuntime = ({
       beginPresetDragSession(
         event,
         { presetId, source: "surface" },
-        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
+        resolveExpertEditPresetLabelById(presetId, customPresetOverrides, systemPresetDefinitions)
       );
     },
-    [beginPresetDragSession, customPresetOverrides]
+    [beginPresetDragSession, customPresetOverrides, systemPresetDefinitions]
   );
 
   const handlePanelPresetDragStart = React.useCallback(
@@ -145,10 +152,10 @@ export const useExpertEditPresetRuntime = ({
       beginPresetDragSession(
         event,
         { presetId, source: "panel" },
-        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
+        resolveExpertEditPresetLabelById(presetId, customPresetOverrides, systemPresetDefinitions)
       );
     },
-    [beginPresetDragSession, customPresetOverrides]
+    [beginPresetDragSession, customPresetOverrides, systemPresetDefinitions]
   );
 
   const handlePresetDragEnd = React.useCallback(() => {

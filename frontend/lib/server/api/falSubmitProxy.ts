@@ -102,37 +102,6 @@ const resolveAdmissionScope = ({
     ? "shared_provider"
     : "per_user";
 
-const buildAdmissionLimitPayload = ({
-  retryAfterSeconds,
-  snapshot,
-  admissionScope,
-  admissionReason,
-}: {
-  retryAfterSeconds: number;
-  snapshot: {
-    globalMax: number;
-    globalActive: number;
-    tier: string;
-    tierMax: number;
-    tierActive: number;
-  };
-  admissionScope: "shared_provider" | "per_user";
-  admissionReason: string | null;
-}) => ({
-  error: "Too many active generations. Please retry shortly.",
-  code: "GENERATION_ADMISSION_LIMIT",
-  retryAfterSeconds,
-  admissionScope,
-  admissionReason,
-  limits: {
-    globalMax: snapshot.globalMax,
-    globalActive: snapshot.globalActive,
-    tier: snapshot.tier,
-    tierMax: snapshot.tierMax,
-    tierActive: snapshot.tierActive,
-  },
-});
-
 const buildAdmissionUnavailablePayload = (retryAfterSeconds: number) => ({
   error: "Generation admission is temporarily unavailable. Please retry shortly.",
   code: "GENERATION_ADMISSION_UNAVAILABLE",
@@ -429,28 +398,6 @@ export const createFalSubmitHandler = ({
       skipBilling,
     });
     if (!charge) return;
-    if (runtimeFlags.admission.mode === "enforce" && charge.billingMode !== "reservation") {
-      const retryAfterSeconds = runtimeFlags.admission.retryAfterSeconds;
-      await charge.refund("Auto-refund: admission unavailable without reservation mode.", {
-        billing_mode: charge.billingMode,
-      });
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "api.fal_submit.admission_unavailable",
-        message: "Generation admission unavailable while reservation mode is degraded.",
-        statusCode: 503,
-        userId: charge.userId,
-        metadata: {
-          model_id: modelId,
-          admission_mode: runtimeFlags.admission.mode,
-          billing_mode: charge.billingMode,
-        },
-      });
-      res.setHeader("Retry-After", String(retryAfterSeconds));
-      return res.status(503).json(buildAdmissionUnavailablePayload(retryAfterSeconds));
-    }
-
     try {
       const evaluateAdmissionForScope = async ({
         scopeUserId,
@@ -569,7 +516,7 @@ export const createFalSubmitHandler = ({
       const supportsInlineDirectSubmit =
         inlineSubmitTargets.length > 0 &&
         (providerKey === "kie" || (providerKey === "fal" && generationMode === "image"));
-      const canUseInlineDirectSubmit = supportsInlineDirectSubmit && !admissionDecision.wouldLimit;
+      const canUseInlineDirectSubmit = supportsInlineDirectSubmit;
 
       if (canUseInlineDirectSubmit) {
         const controller = new AbortController();
@@ -967,35 +914,6 @@ export const createFalSubmitHandler = ({
         } finally {
           clearTimeout(timeoutHandle);
         }
-      }
-
-      if (supportsInlineDirectSubmit && admissionDecision.wouldLimit) {
-        const retryAfterSeconds = admissionDecision.retryAfterSeconds;
-        await charge.refund("Auto-release: direct submit admission limit reached.", {
-          reason: "direct_submit_limited",
-          admission_enforced: admissionDecision.enforced,
-          admission_reason: admissionDecision.reason,
-          global_active: admissionDecision.snapshot.globalActive,
-          global_max: admissionDecision.snapshot.globalMax,
-          tier: admissionDecision.snapshot.tier,
-          tier_active: admissionDecision.snapshot.tierActive,
-          tier_max: admissionDecision.snapshot.tierMax,
-        });
-        res.setHeader("Retry-After", String(retryAfterSeconds));
-        return res.status(429).json(
-          buildAdmissionLimitPayload({
-            retryAfterSeconds,
-            admissionScope,
-            admissionReason: admissionDecision.reason,
-            snapshot: {
-              globalMax: admissionDecision.snapshot.globalMax,
-              globalActive: admissionDecision.snapshot.globalActive,
-              tier: admissionDecision.snapshot.tier,
-              tierMax: admissionDecision.snapshot.tierMax,
-              tierActive: admissionDecision.snapshot.tierActive,
-            },
-          })
-        );
       }
 
       const retryAfterSeconds = 20;

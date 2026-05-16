@@ -76,18 +76,18 @@ describe("PresetsLibraryPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Custom 1" }));
 
-    expect(onSelectPreset).toHaveBeenCalledWith("selfie");
-    expect(screen.getByRole("dialog", { name: "Edit Selfie preset" })).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Selfie")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Use a selfie perspective.")).toBeInTheDocument();
+    expect(onSelectPreset).toHaveBeenCalledWith("custom_1");
+    expect(screen.getByRole("dialog", { name: "Edit Custom 1 preset" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Custom 1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Use the custom prompt.")).toBeInTheDocument();
   });
 
   it("opens and closes delete confirmation modal from the tile delete action", () => {
     render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Custom 1" }));
     expect(screen.getByRole("dialog", { name: "Delete this preset?" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -101,17 +101,17 @@ describe("PresetsLibraryPanel", () => {
     render(
       <PresetsLibraryPanel
         presets={PRESETS}
-        selectedPresetId="selfie"
+        selectedPresetId="custom_1"
         onSelectPreset={onSelectPreset}
         onSavePresetOverride={onSavePresetOverride}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Custom 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
-      expect(onSavePresetOverride).toHaveBeenCalledWith("selfie", createDeletedPresetOverride());
+      expect(onSavePresetOverride).toHaveBeenCalledWith("custom_1", createDeletedPresetOverride());
     });
     expect(onSelectPreset).toHaveBeenCalledWith(null);
   });
@@ -158,7 +158,7 @@ describe("PresetsLibraryPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Custom 1" }));
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Selfie Edited" },
     });
@@ -168,13 +168,15 @@ describe("PresetsLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(onSavePresetOverride).toHaveBeenCalledWith("selfie", {
+      expect(onSavePresetOverride).toHaveBeenCalledWith("custom_1", {
         label: "Selfie Edited",
         prompt: "Use the edited preset prompt.",
       });
     });
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Edit Selfie preset" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "Edit Custom 1 preset" })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -187,7 +189,7 @@ describe("PresetsLibraryPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit preset tile: Custom 1" }));
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "   " },
     });

@@ -14,6 +14,7 @@ import { useAiStudioPerfAuditRuntime } from "./useAiStudioPerfAuditRuntime";
 import { useAiStudioState } from "./useAiStudioState";
 import { useCredits } from "./useCredits";
 import { useExpertEditPresetPanelPreference } from "./useExpertEditPresetPanelPreference";
+import { useExpertEditSystemPresetCatalog } from "./useExpertEditSystemPresetCatalog";
 import { useMediaAutosavePreference } from "./useMediaAutosavePreference";
 import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
@@ -42,12 +43,16 @@ export const useAiStudioPageBaseRuntime = () => {
     syncState: mediaAutosaveSyncState,
     error: mediaAutosaveError,
   } = useMediaAutosavePreference();
+  const { systemPresetDefinitions: expertEditSystemPresetDefinitions } =
+    useExpertEditSystemPresetCatalog();
   const {
     presetPanelIds: selectedExpertEditPresetIds,
     customPresetOverrides: expertEditCustomPresetOverrides,
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
-  } = useExpertEditPresetPanelPreference();
+  } = useExpertEditPresetPanelPreference({
+    systemPresetDefinitions: expertEditSystemPresetDefinitions,
+  });
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const {
     modelPricingPolicy,
@@ -460,6 +465,7 @@ export const useAiStudioPageBaseRuntime = () => {
     elementCreateRequestKey,
     expertCreateMode,
     expertEditCustomPresetOverrides,
+    expertEditSystemPresetDefinitions,
     expertEditSessionState,
     expertEditSessionRevision,
     extraImageUrls,

@@ -178,6 +178,13 @@ export const useAiStudioInternalDropResolvers = ({
 
   const resolveComposerInternalImageDropSource = useCallback(
     async (payload: InternalReferenceDragPayload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const referencedOutput = outputId ? getOutputById(outputId) : null;
+      const effectiveMediaKind = payload.mediaKind ?? referencedOutput?.mode ?? null;
+      if (effectiveMediaKind && effectiveMediaKind !== "image") {
+        return null;
+      }
+
       const resolvedSource = await resolveInternalReferenceSource({
         payload,
         getOutputById,
@@ -186,6 +193,13 @@ export const useAiStudioInternalDropResolvers = ({
         resolveSavedMediaIdFromOutput,
       });
       if (!resolvedSource) return null;
+
+      const resolvedOutput = resolvedSource.outputId?.trim()
+        ? getOutputById(resolvedSource.outputId)
+        : null;
+      if (resolvedOutput?.mode && resolvedOutput.mode !== "image") {
+        return null;
+      }
 
       if (canCreateObjectUrl()) {
         try {

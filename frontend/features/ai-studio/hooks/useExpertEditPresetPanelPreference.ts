@@ -8,9 +8,10 @@ import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
   mapLegacyPresetLabelsToIds,
-  normalizeExpertEditCustomPresetOverrides,
+  normalizeExpertEditUserCustomPresetOverrides,
   normalizePresetPanelPresetIds,
   type ExpertEditCustomPresetOverrides,
+  type ExpertEditSystemPresetDefinition,
   type ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
 
@@ -35,6 +36,10 @@ type UseExpertEditPresetPanelPreferenceResult = {
   syncState: ExpertEditPresetPanelSyncState;
   setPresetPanelIds: (presetIds: readonly ExpertEditPresetId[]) => void;
   setCustomPresetOverrides: (overrides: ExpertEditCustomPresetOverrides) => void;
+};
+
+type UseExpertEditPresetPanelPreferenceParams = {
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
 };
 
 const DEFAULT_PRESET_PREFERENCE_VALUE: ExpertEditPresetPreferenceValue = {
@@ -62,24 +67,30 @@ const isMissingPresetPreferenceStorageError = (error: unknown): boolean => {
   );
 };
 
-const normalizePresetPreferenceValue = (value: {
-  presetPanelIds?: unknown;
-  customPresetOverrides?: unknown;
-  legacyPanelLabels?: unknown;
-}): ExpertEditPresetPreferenceValue => {
-  const customPresetOverrides = normalizeExpertEditCustomPresetOverrides(
-    value.customPresetOverrides
+const normalizePresetPreferenceValue = (
+  value: {
+    presetPanelIds?: unknown;
+    customPresetOverrides?: unknown;
+    legacyPanelLabels?: unknown;
+  },
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditPresetPreferenceValue => {
+  const customPresetOverrides = normalizeExpertEditUserCustomPresetOverrides(
+    value.customPresetOverrides,
+    systemPresetDefinitions
   );
   const panelIdsFromNew = Array.isArray(value.presetPanelIds)
     ? normalizePresetPanelPresetIds(
         value.presetPanelIds.filter((entry): entry is string => typeof entry === "string"),
-        customPresetOverrides
+        customPresetOverrides,
+        systemPresetDefinitions
       ).slice(0, EDIT_PRESET_PANEL_MAX)
     : null;
   const panelIdsFromLegacyLabels = Array.isArray(value.legacyPanelLabels)
     ? mapLegacyPresetLabelsToIds(
         value.legacyPanelLabels.filter((entry): entry is string => typeof entry === "string"),
-        customPresetOverrides
+        customPresetOverrides,
+        systemPresetDefinitions
       ).slice(0, EDIT_PRESET_PANEL_MAX)
     : null;
   const presetPanelIds =
@@ -90,7 +101,9 @@ const normalizePresetPreferenceValue = (value: {
   };
 };
 
-const readLocalPresetPreferenceValue = (): ExpertEditPresetPreferenceValue => {
+const readLocalPresetPreferenceValue = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditPresetPreferenceValue => {
   if (typeof window === "undefined") return DEFAULT_PRESET_PREFERENCE_VALUE;
   const storedPresetPanelIds = window.localStorage.getItem(
     EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY
@@ -129,16 +142,22 @@ const readLocalPresetPreferenceValue = (): ExpertEditPresetPreferenceValue => {
     }
   })();
 
-  return normalizePresetPreferenceValue({
-    presetPanelIds: parsedPresetPanelIds ?? undefined,
-    customPresetOverrides: parsedCustomPresetOverrides,
-    legacyPanelLabels: parsedLegacyPresetPanelLabels,
-  });
+  return normalizePresetPreferenceValue(
+    {
+      presetPanelIds: parsedPresetPanelIds ?? undefined,
+      customPresetOverrides: parsedCustomPresetOverrides,
+      legacyPanelLabels: parsedLegacyPresetPanelLabels,
+    },
+    systemPresetDefinitions
+  );
 };
 
-const writeLocalPresetPreferenceValue = (value: ExpertEditPresetPreferenceValue): void => {
+const writeLocalPresetPreferenceValue = (
+  value: ExpertEditPresetPreferenceValue,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): void => {
   if (typeof window === "undefined") return;
-  const normalizedValue = normalizePresetPreferenceValue(value);
+  const normalizedValue = normalizePresetPreferenceValue(value, systemPresetDefinitions);
   window.localStorage.setItem(
     EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY,
     JSON.stringify(normalizedValue.presetPanelIds)
@@ -152,7 +171,9 @@ const writeLocalPresetPreferenceValue = (value: ExpertEditPresetPreferenceValue)
 /**
  * Reads and writes Expert Edit preset panel preferences with local fallback.
  */
-export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPreferenceResult => {
+export const useExpertEditPresetPanelPreference = ({
+  systemPresetDefinitions,
+}: UseExpertEditPresetPanelPreferenceParams = {}): UseExpertEditPresetPanelPreferenceResult => {
   const [preferenceValue, setPreferenceValue] = useState<ExpertEditPresetPreferenceValue>(
     DEFAULT_PRESET_PREFERENCE_VALUE
   );
@@ -165,12 +186,15 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
   const writeVersionRef = useRef<number>(0);
   const hasLocalOverrideRef = useRef<boolean>(false);
 
-  const updateLocalValue = useCallback((nextValue: ExpertEditPresetPreferenceValue) => {
-    const normalizedValue = normalizePresetPreferenceValue(nextValue);
-    latestValueRef.current = normalizedValue;
-    setPreferenceValue(normalizedValue);
-    writeLocalPresetPreferenceValue(normalizedValue);
-  }, []);
+  const updateLocalValue = useCallback(
+    (nextValue: ExpertEditPresetPreferenceValue) => {
+      const normalizedValue = normalizePresetPreferenceValue(nextValue, systemPresetDefinitions);
+      latestValueRef.current = normalizedValue;
+      setPreferenceValue(normalizedValue);
+      writeLocalPresetPreferenceValue(normalizedValue, systemPresetDefinitions);
+    },
+    [systemPresetDefinitions]
+  );
 
   useEffect(() => {
     let active = true;
@@ -178,7 +202,7 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
     setSyncState("loading");
 
     (async () => {
-      updateLocalValue(readLocalPresetPreferenceValue());
+      updateLocalValue(readLocalPresetPreferenceValue(systemPresetDefinitions));
       try {
         const supabase = ensureSupabaseQueryClient();
         const id = await readSupabaseUserId();
@@ -202,11 +226,14 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
         if (preferenceError) throw preferenceError;
         if (!active) return;
 
-        const nextValue = normalizePresetPreferenceValue({
-          presetPanelIds: storedPreference?.expert_edit_preset_panel_ids,
-          customPresetOverrides: storedPreference?.expert_edit_custom_presets,
-          legacyPanelLabels: storedPreference?.expert_edit_preset_panel_labels,
-        });
+        const nextValue = normalizePresetPreferenceValue(
+          {
+            presetPanelIds: storedPreference?.expert_edit_preset_panel_ids,
+            customPresetOverrides: storedPreference?.expert_edit_custom_presets,
+            legacyPanelLabels: storedPreference?.expert_edit_preset_panel_labels,
+          },
+          systemPresetDefinitions
+        );
 
         if (!hasLocalOverrideRef.current) {
           updateLocalValue(nextValue);
@@ -233,7 +260,7 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
     return () => {
       active = false;
     };
-  }, [updateLocalValue]);
+  }, [systemPresetDefinitions, updateLocalValue]);
 
   const persistPreference = useCallback(
     async (nextValue: ExpertEditPresetPreferenceValue) => {
@@ -241,7 +268,10 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
       writeVersionRef.current = requestVersion;
       hasLocalOverrideRef.current = true;
 
-      const normalizedNextValue = normalizePresetPreferenceValue(nextValue);
+      const normalizedNextValue = normalizePresetPreferenceValue(
+        nextValue,
+        systemPresetDefinitions
+      );
       const previousValue = latestValueRef.current;
       updateLocalValue(normalizedNextValue);
       setSyncState("saving");
@@ -282,7 +312,7 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
         setSyncState("error");
       }
     },
-    [updateLocalValue, userId]
+    [systemPresetDefinitions, updateLocalValue, userId]
   );
 
   const setPresetPanelIds = useCallback(
@@ -291,21 +321,25 @@ export const useExpertEditPresetPanelPreference = (): UseExpertEditPresetPanelPr
         ...latestValueRef.current,
         presetPanelIds: normalizePresetPanelPresetIds(
           presetIds,
-          latestValueRef.current.customPresetOverrides
+          latestValueRef.current.customPresetOverrides,
+          systemPresetDefinitions
         ),
       });
     },
-    [persistPreference]
+    [persistPreference, systemPresetDefinitions]
   );
 
   const setCustomPresetOverrides = useCallback(
     (overrides: ExpertEditCustomPresetOverrides) => {
       void persistPreference({
         ...latestValueRef.current,
-        customPresetOverrides: normalizeExpertEditCustomPresetOverrides(overrides),
+        customPresetOverrides: normalizeExpertEditUserCustomPresetOverrides(
+          overrides,
+          systemPresetDefinitions
+        ),
       });
     },
-    [persistPreference]
+    [persistPreference, systemPresetDefinitions]
   );
 
   return {

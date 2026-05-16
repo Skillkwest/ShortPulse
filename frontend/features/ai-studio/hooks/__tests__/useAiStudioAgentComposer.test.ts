@@ -624,6 +624,81 @@ describe("useAiStudioAgentComposer", () => {
     );
   });
 
+  it("rejects internal audio references instead of staging them as image attachments", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Audio note",
+      referenceId: "out-1",
+      fromFile: false,
+      mediaKind: "audio",
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "audio",
+      referenceUrl: "https://example.com/reference-audio.mp3",
+      referenceRenderUrl: "https://example.com/reference-audio-waveform.png",
+      sourceSurface: "curated",
+    });
+    const resolveInternalImageDropSource = vi.fn(
+      async () =>
+        ({
+          kind: "internal",
+          sourceKind: "generated_output",
+          sourceId: "out-1",
+          provenance: {
+            origin: "ai-studio-reference-grid",
+            outputId: "out-1",
+            mediaId: "media-1",
+            imageIndex: 0,
+            sourceSurface: "curated",
+            resolutionReason: "output_storage_path",
+          },
+          outputId: "out-1",
+          mediaId: "media-1",
+          mediaSource: "generated",
+          preview: {
+            url: "blob:audio-waveform-preview",
+          },
+          previewStoragePath: "user-1/generated/audio-poster.png",
+          fullStoragePath: "user-1/generated/audio.mp3",
+          promptText: "Audio note",
+          preparedImageUrl: "blob:audio-waveform-preview",
+          loadBlob: vi.fn(async () => new Blob(["audio"], { type: "audio/mpeg" })),
+        }) satisfies ResolvedInternalReferenceSource
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            mode: "audio",
+            previewText: "Audio note",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "https://example.com/reference-audio-waveform.png",
+        resolveInternalImageDropSource,
+      })
+    );
+
+    await act(async () => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalImageDropSource).toHaveBeenCalledTimes(1);
+    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentAttachmentError).toBe(
+      "This reference is not an image. Try adding an image instead."
+    );
+  });
+
   it("rejects media-library video drags before prompt fallback can attach them", () => {
     readMediaLibraryDragPayloadMock.mockReturnValue({
       kind: "libraryMedia",

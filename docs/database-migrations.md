@@ -244,6 +244,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 122.  `sql/migrations/122_retire_character_sheet_alias_compat.sql`
 123.  `sql/migrations/123_add_audio_companion_art_projection_fields.sql`
 124.  `sql/migrations/124_add_generation_projection_save_error.sql`
+125.  `sql/migrations/125_add_expert_edit_system_preset_control_plane.sql`
 Rollback files:
 
 

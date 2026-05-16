@@ -110,8 +110,6 @@ export const useMediaLibraryPanelDataController = ({
     media: false,
     prompts: false,
   });
-  const libraryCountRequestTokenRef = React.useRef(0);
-  const libraryCountRequestedScopeKeyRef = React.useRef<string | null>(null);
   const mediaRowsRef = React.useRef<MediaFileRow[]>([]);
   const promptRowsRef = React.useRef<PromptRow[]>([]);
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
@@ -160,56 +158,6 @@ export const useMediaLibraryPanelDataController = ({
     promptScopeCacheRef.current = promptScopeCache;
   }, [promptScopeCache]);
 
-  const loadLibraryTotalCount = React.useCallback(
-    async ({ scopeKey }: { scopeKey: string }) => {
-      const requestToken = libraryCountRequestTokenRef.current + 1;
-      libraryCountRequestTokenRef.current = requestToken;
-      libraryCountRequestedScopeKeyRef.current = scopeKey;
-      try {
-        const result = await fetchMediaListPage<MediaFileRow>({
-          tab: null,
-          mediaKind: resolveMediaKind(itemType),
-          query: normalizedSearch,
-          cursor: null,
-          limit: MEDIA_PAGE_SIZE,
-          surface: "media-library-panel",
-          profile: resolveMediaListProfile(itemType),
-          folderId: requestFolderId,
-          projectId,
-          includeLibraryTotalCount: true,
-          countOnly: true,
-        });
-        if (!result) {
-          if (
-            libraryCountRequestTokenRef.current === requestToken &&
-            libraryCountRequestedScopeKeyRef.current === scopeKey
-          ) {
-            libraryCountRequestedScopeKeyRef.current = null;
-          }
-          return;
-        }
-        if (libraryCountRequestTokenRef.current !== requestToken) return;
-        if (mediaScopeCacheRef.current.resolvedScopeKey !== scopeKey) return;
-        if (typeof result.libraryTotalCount !== "number") {
-          if (libraryCountRequestedScopeKeyRef.current === scopeKey) {
-            libraryCountRequestedScopeKeyRef.current = null;
-          }
-          return;
-        }
-        setMediaScopeCache((prev) => ({
-          ...prev,
-          libraryTotalCount: result.libraryTotalCount ?? prev.libraryTotalCount,
-        }));
-      } catch {
-        if (libraryCountRequestedScopeKeyRef.current === scopeKey) {
-          libraryCountRequestedScopeKeyRef.current = null;
-        }
-        // Count refresh is intentionally non-blocking.
-      }
-    },
-    [itemType, normalizedSearch, projectId, requestFolderId, setMediaScopeCache]
-  );
-
   const loadMediaPage = React.useCallback(
     async ({ reset }: { reset: boolean }) => {
       const scopeKey = activeRowsScopeKey;
@@ -245,7 +193,7 @@ export const useMediaLibraryPanelDataController = ({
           profile: resolveMediaListProfile(itemType),
           folderId: requestFolderId,
           projectId,
-          includeLibraryTotalCount: false,
+          includeLibraryTotalCount: reset,
         });
         if (!result) {
           throw new Error("Unable to load media.");
@@ -274,15 +222,6 @@ export const useMediaLibraryPanelDataController = ({
             derivedLibraryTotalCount ??
             prev.libraryTotalCount,
         }));
-        if (
-          reset &&
-          previousLibraryTotalCount === null &&
-          returnedLibraryTotalCount === null &&
-          derivedLibraryTotalCount === null &&
-          libraryCountRequestedScopeKeyRef.current !== scopeKey
-        ) {
-          void loadLibraryTotalCount({ scopeKey });
-        }
       } catch (loadError) {
         if (mediaRequestTokenRef.current !== requestToken) return;
         const nextError = toMediaLibraryErrorText(loadError, "Unable to load media.");
@@ -306,7 +245,6 @@ export const useMediaLibraryPanelDataController = ({
       setMediaRows,
       setMediaScopeCache,
       setSignedUrls,
-      loadLibraryTotalCount,
     ]
   );
 

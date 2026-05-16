@@ -119,6 +119,6 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Maintenance notes
 
-- Standard Create no longer reads local system instructions from `agentPromptsConfig.ts`; `/admin/agent-instructions` is now the operator control plane for the global Create Pulse built-in catalog plus a draft-only Standard scaffold. Pulse built-ins persist through `/api/admin/agent-instructions/pulse-builtins`, runtime reads through `/api/ai/create-pulse-builtins`, and Standard remains unwired to local system-instruction state.
+- Standard Create now resolves its runtime system prompt through the admin control plane. `/admin/agent-instructions` is the operator control plane for the global Standard prompt, the shared Expert Edit system-preset catalog, and the global Create Pulse built-in catalog. Standard prompt writes persist through `/api/admin/agent-instructions/standard-system-prompt` and runtime reads resolve through `runtimeAgentPromptControlPlane`. Expert Edit system presets persist through `/api/admin/agent-instructions/edit-system-presets` and AI Studio reads them through `/api/ai/expert-edit-system-presets`. Pulse built-ins persist through `/api/admin/agent-instructions/pulse-builtins` and runtime reads through `/api/ai/create-pulse-builtins`.
 - Monitor token usage metrics in API logs before enabling streaming by default.
 - Follow ADR 0007 (`docs/adr/0007-ai-studio-agent-tooling-strategy.md`) for phased tooling rollout and MCP adoption gates; do not introduce MCP runtime until gate criteria are met.

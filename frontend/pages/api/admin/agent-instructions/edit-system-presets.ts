@@ -1,0 +1,97 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import { normalizeExpertEditSystemPresetDefinitions } from "../../../../features/ai-studio/components/edit/expertEditPresets";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { requireAdminUser } from "../../../../lib/server/api/auth";
+import {
+  ExpertEditSystemPresetCatalogVersionMismatchError,
+  resolveExpertEditSystemPresetCatalogForAdmin,
+  saveExpertEditSystemPresetCatalog,
+} from "../../../../lib/server/api/expertEditSystemPresetControlPlane";
+
+const validatePresetDefinitions = (
+  value: unknown
+):
+  | { ok: true; presetDefinitions: ReturnType<typeof normalizeExpertEditSystemPresetDefinitions> }
+  | { ok: false; message: string } => {
+  if (!Array.isArray(value)) {
+    return { ok: false, message: "presetDefinitions must be an array." };
+  }
+  const presetDefinitions = normalizeExpertEditSystemPresetDefinitions(value);
+  if (presetDefinitions.length === 0) {
+    return { ok: false, message: "presetDefinitions cannot be empty." };
+  }
+  return { ok: true, presetDefinitions };
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const adminUser = await requireAdminUser(req, res);
+  if (!adminUser) return;
+
+  if (req.method === "GET") {
+    try {
+      const resolvedCatalog = await resolveExpertEditSystemPresetCatalogForAdmin();
+      return res.status(200).json({
+        presetDefinitions: resolvedCatalog.presetDefinitions,
+        updatedAt: resolvedCatalog.updatedAt,
+        updatedByEmail: resolvedCatalog.updatedByEmail,
+        source: resolvedCatalog.source,
+        degraded: resolvedCatalog.degraded,
+      });
+    } catch (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "api/admin/agent-instructions/edit-system-presets",
+        user: adminUser,
+      });
+      return res.status(500).json({ error: "Failed to load global Edit system presets." });
+    }
+  }
+
+  if (req.method === "PUT") {
+    const parsed = validatePresetDefinitions(req.body?.presetDefinitions);
+    if (!parsed.ok) {
+      return res.status(400).json({ error: parsed.message });
+    }
+
+    try {
+      const savedCatalog = await saveExpertEditSystemPresetCatalog({
+        presetDefinitions: parsed.presetDefinitions,
+        expectedUpdatedAt:
+          typeof req.body?.expectedUpdatedAt === "string" || req.body?.expectedUpdatedAt === null
+            ? req.body.expectedUpdatedAt
+            : undefined,
+        actorUserId: adminUser.id,
+        actorEmail: adminUser.email ?? null,
+      });
+      return res.status(200).json({
+        presetDefinitions: savedCatalog.presetDefinitions,
+        updatedAt: savedCatalog.updatedAt,
+        updatedByEmail: savedCatalog.updatedByEmail,
+        source: "control_plane",
+        degraded: false,
+      });
+    } catch (error) {
+      if (
+        error instanceof ExpertEditSystemPresetCatalogVersionMismatchError ||
+        (error instanceof Error &&
+          error.name === "ExpertEditSystemPresetCatalogVersionMismatchError")
+      ) {
+        return res.status(409).json({
+          code: "CATALOG_STALE",
+          error: "The Edit preset catalog changed since you loaded it. Reload and try again.",
+        });
+      }
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "api/admin/agent-instructions/edit-system-presets",
+        user: adminUser,
+      });
+      return res.status(500).json({ error: "Failed to save global Edit system presets." });
+    }
+  }
+
+  res.setHeader("Allow", "GET, PUT");
+  return res.status(405).json({ error: "Method not allowed" });
+}

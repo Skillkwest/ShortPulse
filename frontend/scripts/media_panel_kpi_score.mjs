@@ -302,6 +302,26 @@ export const scoreMetric = (metricDef, value) => {
   };
 };
 
+const compareThresholdForMetric = (metricDef) => {
+  if (metricDef.unit === "ms") {
+    return Math.max(75, (metricDef.fail - metricDef.target) * 0.08);
+  }
+  if (metricDef.unit === "ratio") return 0.03;
+  if (metricDef.unit === "calls/open") return 0.12;
+  if (metricDef.unit === "flips/open") return 0.2;
+  if (metricDef.unit === "errors/open") return 0.5;
+  if (metricDef.unit === "count") return 1;
+  return 0.1;
+};
+
+const roundDelta = (value) => {
+  if (!Number.isFinite(value)) return 0;
+  const absolute = Math.abs(value);
+  if (absolute >= 10) return Number(value.toFixed(1));
+  if (absolute >= 1) return Number(value.toFixed(2));
+  return Number(value.toFixed(4));
+};
+
 const gradeScore = (score10) => {
   if (score10 >= 9.4) return "A+";
   if (score10 >= 9.0) return "A";
@@ -569,7 +589,129 @@ export const scorePacket = (packet) => {
     totalPossibleWeight: TOTAL_POSSIBLE_WEIGHT,
     scoreCapsApplied,
     missingMetrics,
+    metrics: scoredMetrics,
     categories,
+  };
+};
+
+const compareScoredMetric = (metricDef, olderMetric, newerMetric) => {
+  const olderPresent = Boolean(olderMetric?.present);
+  const newerPresent = Boolean(newerMetric?.present);
+  if (!olderPresent || !newerPresent) {
+    return {
+      key: metricDef.key,
+      label: metricDef.label,
+      unit: metricDef.unit,
+      status:
+        olderPresent === newerPresent
+          ? "not-comparable"
+          : olderPresent
+            ? "missing-in-newer"
+            : "missing-in-older",
+      meaningful: false,
+      direction: "none",
+      threshold: compareThresholdForMetric(metricDef),
+      olderValue: olderPresent ? olderMetric.value : null,
+      newerValue: newerPresent ? newerMetric.value : null,
+      delta: null,
+      scoreDelta: null,
+    };
+  }
+
+  const delta = newerMetric.value - olderMetric.value;
+  const threshold = compareThresholdForMetric(metricDef);
+  const meaningful = Math.abs(delta) >= threshold;
+  const improved =
+    meaningful &&
+    (metricDef.direction === "higher" ? delta > 0 : delta < 0);
+  const regressed =
+    meaningful &&
+    (metricDef.direction === "higher" ? delta < 0 : delta > 0);
+
+  return {
+    key: metricDef.key,
+    label: metricDef.label,
+    unit: metricDef.unit,
+    status: meaningful ? (improved ? "improved" : regressed ? "regressed" : "stable") : "stable",
+    meaningful,
+    direction: improved ? "improved" : regressed ? "regressed" : "none",
+    threshold: roundDelta(threshold),
+    olderValue: olderMetric.value,
+    newerValue: newerMetric.value,
+    delta: roundDelta(delta),
+    scoreDelta: roundDelta((newerMetric.score ?? 0) - (olderMetric.score ?? 0)),
+  };
+};
+
+export const comparePackets = (olderPacket, newerPacket) => {
+  const older = scorePacket(olderPacket);
+  const newer = scorePacket(newerPacket);
+
+  if (older.surface !== newer.surface) {
+    throw new Error(
+      `Cannot compare packets from different surfaces: ${older.surface} vs ${newer.surface}.`
+    );
+  }
+
+  const olderMetricMap = new Map(older.metrics.map((metric) => [metric.key, metric]));
+  const newerMetricMap = new Map(newer.metrics.map((metric) => [metric.key, metric]));
+  const metricComparisons = METRIC_DEFS.map((metricDef) =>
+    compareScoredMetric(metricDef, olderMetricMap.get(metricDef.key), newerMetricMap.get(metricDef.key))
+  );
+
+  const meaningfulImprovements = metricComparisons.filter(
+    (metric) => metric.meaningful && metric.direction === "improved"
+  );
+  const meaningfulRegressions = metricComparisons.filter(
+    (metric) => metric.meaningful && metric.direction === "regressed"
+  );
+  const missingInNewer = metricComparisons.filter((metric) => metric.status === "missing-in-newer");
+  const missingInOlder = metricComparisons.filter((metric) => metric.status === "missing-in-older");
+
+  const scoreDelta10 = roundDelta(newer.overallScore10 - older.overallScore10);
+  const rawScoreDelta10 = roundDelta(newer.rawOverallScore10 - older.rawOverallScore10);
+  const coverageDelta = roundDelta(newer.coverage - older.coverage);
+
+  const comparisonFlags = [];
+  if (older.evidence === "insufficient" || newer.evidence === "insufficient") {
+    comparisonFlags.push("one or both packets have insufficient evidence");
+  }
+  if (scoreDelta10 <= -0.5) {
+    comparisonFlags.push("overall score regressed by at least 0.5");
+  }
+  if (coverageDelta <= -0.1) {
+    comparisonFlags.push("coverage dropped by at least 10 percentage points");
+  }
+  if (newer.scoreCapsApplied.length > older.scoreCapsApplied.length) {
+    comparisonFlags.push("newer packet triggered more score caps");
+  }
+
+  let summary = "no meaningful change";
+  if (comparisonFlags.includes("one or both packets have insufficient evidence")) {
+    summary = "insufficient evidence";
+  } else if (meaningfulImprovements.length > 0 && meaningfulRegressions.length > 0) {
+    summary = "mixed";
+  } else if (meaningfulImprovements.length > 0 || scoreDelta10 >= 0.3) {
+    summary = "improved";
+  } else if (meaningfulRegressions.length > 0 || scoreDelta10 <= -0.3) {
+    summary = "regressed";
+  }
+
+  return {
+    surface: newer.surface,
+    surfaceLabel: newer.surfaceLabel,
+    older,
+    newer,
+    summary,
+    scoreDelta10,
+    rawScoreDelta10,
+    coverageDelta,
+    comparisonFlags,
+    meaningfulImprovements,
+    meaningfulRegressions,
+    missingInOlder,
+    missingInNewer,
+    metrics: metricComparisons,
   };
 };
 
@@ -634,6 +776,61 @@ export const buildMarkdownReport = (scored) => {
   return lines.join("\n");
 };
 
+export const buildCompareMarkdownReport = (comparison) => {
+  const lines = [
+    "# Media Panel KPI Comparison",
+    "",
+    `- Surface: ${comparison.surfaceLabel} (\`${comparison.surface}\`)`,
+    `- Summary: ${comparison.summary}`,
+    `- Older score: ${comparison.older.overallScore10} / 10 (${comparison.older.grade})`,
+    `- Newer score: ${comparison.newer.overallScore10} / 10 (${comparison.newer.grade})`,
+    `- Score delta: ${comparison.scoreDelta10}`,
+    `- Coverage delta: ${comparison.coverageDelta}`,
+    "",
+    "## Comparison Flags",
+  ];
+
+  if (comparison.comparisonFlags.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const flag of comparison.comparisonFlags) {
+      lines.push(`- ${flag}`);
+    }
+  }
+
+  lines.push("", "## Meaningful Improvements");
+  if (comparison.meaningfulImprovements.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const metric of comparison.meaningfulImprovements) {
+      lines.push(`- ${metric.label}: ${metric.delta} ${metric.unit}`);
+    }
+  }
+
+  lines.push("", "## Meaningful Regressions");
+  if (comparison.meaningfulRegressions.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const metric of comparison.meaningfulRegressions) {
+      lines.push(`- ${metric.label}: ${metric.delta} ${metric.unit}`);
+    }
+  }
+
+  lines.push("", "## Metric Availability Changes");
+  if (comparison.missingInOlder.length === 0 && comparison.missingInNewer.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const metric of comparison.missingInOlder) {
+      lines.push(`- ${metric.label}: missing in older packet`);
+    }
+    for (const metric of comparison.missingInNewer) {
+      lines.push(`- ${metric.label}: missing in newer packet`);
+    }
+  }
+
+  return lines.join("\n");
+};
+
 export const parseArgs = (argv) => {
   const readValue = (flag) => {
     const prefixed = `${flag}=`;
@@ -645,9 +842,14 @@ export const parseArgs = (argv) => {
     return "";
   };
 
+  const compareIndex = argv.indexOf("--compare");
+
   return {
     help: argv.includes("--help") || argv.includes("-h"),
     template: argv.includes("--template"),
+    compare: compareIndex >= 0,
+    compareOlder: compareIndex >= 0 ? normalizeString(argv[compareIndex + 1]) : "",
+    compareNewer: compareIndex >= 0 ? normalizeString(argv[compareIndex + 2]) : "",
     input: normalizeString(readValue("--input")),
     surface: normalizeString(readValue("--surface")),
     format: normalizeString(readValue("--format")) || "text",
@@ -660,6 +862,7 @@ const usage = () => {
       "Usage:",
       "  node frontend/scripts/media_panel_kpi_score.mjs --input <packet.json> [--format text|json|markdown]",
       "  node frontend/scripts/media_panel_kpi_score.mjs --template --surface <ai-studio-panel|elements-media-panel>",
+      "  node frontend/scripts/media_panel_kpi_score.mjs --compare <older.json> <newer.json> [--format text|json|markdown]",
       "",
       "Notes:",
       "  - Input packets should follow the metrics schema documented in docs/sops/sop_media_panel_performance_kpi.md.",
@@ -683,6 +886,44 @@ const main = () => {
   if (args.template) {
     const surface = args.surface || "ai-studio-panel";
     process.stdout.write(`${JSON.stringify(buildTemplatePacket(surface), null, 2)}\n`);
+    return;
+  }
+  if (args.compare) {
+    if (!args.compareOlder || !args.compareNewer) {
+      throw new Error("Missing compare packet paths. Pass --compare <older.json> <newer.json>.");
+    }
+    const comparison = comparePackets(
+      readPacketFromFile(args.compareOlder),
+      readPacketFromFile(args.compareNewer)
+    );
+    if (args.format === "json") {
+      process.stdout.write(`${JSON.stringify(comparison, null, 2)}\n`);
+      return;
+    }
+    if (args.format === "markdown") {
+      process.stdout.write(`${buildCompareMarkdownReport(comparison)}\n`);
+      return;
+    }
+
+    process.stdout.write(
+      [
+        `Surface: ${comparison.surfaceLabel} (${comparison.surface})`,
+        `Summary: ${comparison.summary}`,
+        `Older score: ${comparison.older.overallScore10} / 10 (${comparison.older.grade})`,
+        `Newer score: ${comparison.newer.overallScore10} / 10 (${comparison.newer.grade})`,
+        `Score delta: ${comparison.scoreDelta10}`,
+        `Coverage delta: ${comparison.coverageDelta}`,
+        comparison.comparisonFlags.length > 0
+          ? `Flags: ${comparison.comparisonFlags.join(", ")}`
+          : "Flags: none",
+        comparison.meaningfulImprovements.length > 0
+          ? `Improvements: ${comparison.meaningfulImprovements.map((metric) => metric.key).join(", ")}`
+          : "Improvements: none",
+        comparison.meaningfulRegressions.length > 0
+          ? `Regressions: ${comparison.meaningfulRegressions.map((metric) => metric.key).join(", ")}`
+          : "Regressions: none",
+      ].join("\n") + "\n"
+    );
     return;
   }
   if (!args.input) {

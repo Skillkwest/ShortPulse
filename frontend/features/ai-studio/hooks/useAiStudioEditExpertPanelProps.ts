@@ -11,6 +11,7 @@ import type { ModelModalContext } from "../components/ModelModal";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
+  ExpertEditSystemPresetDefinition,
 } from "../components/edit/expertEditPresets";
 import type {
   ExpertEditRegenerateOptions,
@@ -70,6 +71,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
   onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   sessionState?: ExpertEditSessionState | null;
   onSessionStateChange?: (state: ExpertEditSessionState) => void;
 };
@@ -120,6 +122,7 @@ export const useAiStudioEditExpertPanelProps = ({
   onSelectedPresetIdsChange,
   customPresetOverrides,
   onCustomPresetOverridesChange,
+  systemPresetDefinitions,
   sessionState,
   onSessionStateChange,
 }: UseAiStudioEditExpertPanelPropsParams): AiStudioEditExpertPanelContract =>
@@ -193,6 +196,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onSelectedPresetIdsChange,
       customPresetOverrides,
       onCustomPresetOverridesChange,
+      systemPresetDefinitions,
       sessionState,
       onSessionStateChange,
     };
@@ -227,6 +231,7 @@ export const useAiStudioEditExpertPanelProps = ({
     resolveOutputPreviewUrl,
     customPresetOverrides,
     onCustomPresetOverridesChange,
+    systemPresetDefinitions,
     sessionState,
     onSessionStateChange,
     onSelectedPresetIdsChange,

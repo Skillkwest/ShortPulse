@@ -143,7 +143,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("disables create text generation when output-generate cost exceeds balance", () => {
+  it("keeps create text generation enabled when output-generate cost exceeds balance", () => {
     const modelId = "fal-ai/nano-banana-2";
     const costParamsForModel = makeCostParamsForModel(modelId);
     const requiredCredits =
@@ -168,11 +168,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(requiredCredits);
-    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("blocks generation when model pricing policy is unavailable", () => {
+  it("keeps generation enabled when model pricing policy is unavailable", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -194,10 +194,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.currentCostCredits).toBeNull();
     expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
-    expect(result.current.generationGuardrail).toBe(
-      "Pricing is temporarily unavailable. Reload and retry."
-    );
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("computes model-picker credits from the candidate model defaults instead of the active model", () => {
@@ -772,17 +770,13 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isCreditGuardrail).toBe(
       (balanceCredits ?? 0) < (inpaintCostCredits ?? 0)
     );
-    expect(result.current.generationGuardrail).toBe(
-      (balanceCredits ?? 0) < (inpaintCostCredits ?? 0)
-        ? "You do not have enough credits for this run."
-        : null
-    );
+    expect(result.current.generationGuardrail).toBeNull();
 
     rerender({ intent: "markup" });
 
     expect(result.current.currentCostCredits).toBe(markupCostCredits);
     expect(result.current.isCreditGuardrail).toBe(true);
-    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+    expect(result.current.generationGuardrail).toBeNull();
   });
 
   it("switches inpaint cost to the reference inpaint model when exactly one linked secondary reference is active", () => {
@@ -865,10 +859,6 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     expect(result.current.currentCostCredits).toBe(markupCostCredits);
     expect(result.current.isCreditGuardrail).toBe((balanceCredits ?? 0) < (markupCostCredits ?? 0));
-    expect(result.current.generationGuardrail).toBe(
-      (balanceCredits ?? 0) < (markupCostCredits ?? 0)
-        ? "You do not have enough credits for this run."
-        : null
-    );
+    expect(result.current.generationGuardrail).toBeNull();
   });
 });

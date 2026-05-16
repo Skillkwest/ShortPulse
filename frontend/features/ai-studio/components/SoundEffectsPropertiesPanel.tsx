@@ -78,12 +78,13 @@ const ClockIcon = () => (
 );
 
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
-  balanceCredits = null,
+  balanceCredits: _balanceCredits = null,
   isGenerating = false,
   onGenerate,
   pricingPolicy = null,
   pricingPolicyReady = true,
 }: SoundEffectsPropertiesPanelProps) {
+  void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationDragPointerIdRef = React.useRef<number | null>(null);
@@ -110,10 +111,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       pricingPolicy,
       pricingPolicyReady,
     }) ?? null;
-  const isInsufficientCredits =
-    balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
-  const isGenerateEnabled =
-    Boolean(onGenerate) && pricingPolicyReady && prompt.trim().length > 0 && !isInsufficientCredits;
+  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,

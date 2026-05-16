@@ -101,6 +101,7 @@ import {
   type PanelVisibilityState,
 } from "../logic/panelVisibility";
 import {
+  isExpertEditCustomPresetId,
   resolveExpertEditPresetCatalog,
   type ExpertEditPresetId,
   type ExpertEditPresetOverride,
@@ -1244,8 +1245,12 @@ export function AiStudioPageContent({
     ]
   );
   const presetsLibraryCatalog = React.useMemo(
-    () => resolveExpertEditPresetCatalog(propertiesEditExpert.customPresetOverrides),
-    [propertiesEditExpert.customPresetOverrides]
+    () =>
+      resolveExpertEditPresetCatalog(
+        propertiesEditExpert.customPresetOverrides,
+        propertiesEditExpert.systemPresetDefinitions
+      ),
+    [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.systemPresetDefinitions]
   );
   const handleSelectedPresetIdChange = React.useCallback((presetId: ExpertEditPresetId | null) => {
     setSelectedPresetId(presetId);
@@ -1254,6 +1259,7 @@ export function AiStudioPageContent({
     (presetId: ExpertEditPresetId, override: ExpertEditPresetOverride): boolean => {
       const onCustomPresetOverridesChange = propertiesEditExpert.onCustomPresetOverridesChange;
       if (!onCustomPresetOverridesChange) return false;
+      if (!isExpertEditCustomPresetId(presetId)) return false;
       const currentOverrides = propertiesEditExpert.customPresetOverrides ?? {};
       onCustomPresetOverridesChange({
         ...currentOverrides,
@@ -1504,6 +1510,7 @@ export function AiStudioPageContent({
       createPropertiesPanelContent,
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,
+      handleToolSelection,
       mediaLibraryPropertiesPanelContent,
       propertiesMusic,
       propertiesSoundEffects,

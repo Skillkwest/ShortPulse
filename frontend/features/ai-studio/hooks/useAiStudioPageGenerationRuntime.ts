@@ -9,10 +9,7 @@ import {
   hasUsableCharacterModeInjectionBundle,
   type CharacterModeInjectionBundle,
 } from "./useAiStudioCharacterModeController";
-import {
-  CHARACTER_LOADING_GENERATION_GUARDRAIL,
-  shouldDisableGenerateWhileCharacterLoading,
-} from "../logic/createGenerationGuards";
+import { shouldDisableGenerateWhileCharacterLoading } from "../logic/createGenerationGuards";
 import { useAiStudioAudioGeneration } from "./useAiStudioAudioGeneration";
 import { useAiStudioGenerationController } from "./useAiStudioGenerationController";
 import { useAiStudioOptimisticDebitReconciliation } from "./useAiStudioOptimisticDebitReconciliation";
@@ -71,7 +68,6 @@ type UseAiStudioPageGenerationRuntimeParams = {
   createSelectedCharacterId: string;
   editReferenceText: string;
   editSubmitIntent: Parameters<typeof useAiStudioViewModel>[0]["editSubmitIntent"];
-  effectiveBalanceCredits: number | null;
   extraImageUrls: [string | null, string | null, string | null];
   generateOutput: (promptOverride?: string | null, options?: AiStudioGenerateOutputOptions) => void;
   getDefaultDurationSeconds: (modelId: string | null) => number;
@@ -98,7 +94,6 @@ type UseAiStudioPageGenerationRuntimeParams = {
   motionReferenceVideoUrl: string | null;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   optimisticDebitEntries: OptimisticDebitEntry[];
-  optimisticUncoveredDebitCredits: number;
   outputs?: StudioOutput[];
   closeModelModal: () => void;
   openModelModal: (
@@ -192,7 +187,6 @@ export const useAiStudioPageGenerationRuntime = ({
   createSelectedCharacterId,
   editReferenceText,
   editSubmitIntent,
-  effectiveBalanceCredits,
   extraImageUrls,
   generateOutput,
   getDefaultDurationSeconds,
@@ -212,7 +206,6 @@ export const useAiStudioPageGenerationRuntime = ({
   motionReferenceVideoUrl,
   notifyGenerationFailure,
   optimisticDebitEntries,
-  optimisticUncoveredDebitCredits,
   outputs,
   closeModelModal,
   openModelModal,
@@ -257,6 +250,9 @@ export const useAiStudioPageGenerationRuntime = ({
   videoReferenceText,
   videoResolution,
 }: UseAiStudioPageGenerationRuntimeParams) => {
+  void createCharacterModeInjectionBundle;
+  void createSelectedCharacterId;
+  void isCreateCharacterBundleLoading;
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
       outputs,
@@ -318,7 +314,7 @@ export const useAiStudioPageGenerationRuntime = ({
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
-    balanceCredits: effectiveBalanceCredits,
+    balanceCredits,
     editSubmitIntent,
     costParamsForModel,
     pricingPolicy: modelPricingPolicy,
@@ -364,7 +360,7 @@ export const useAiStudioPageGenerationRuntime = ({
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
-    balanceCredits: effectiveBalanceCredits,
+    balanceCredits,
     editSubmitIntent,
     costParamsForModel,
     pricingPolicy: modelPricingPolicy,
@@ -383,29 +379,10 @@ export const useAiStudioPageGenerationRuntime = ({
       : null
     : currentCostCredits;
 
-  const isCharacterLoadingGenerateDisabled = useMemo(() => {
-    const hasUsableCreateCharacterBundle = hasUsableCharacterModeInjectionBundle({
-      selectedCharacterId: createSelectedCharacterId,
-      bundle: createCharacterModeInjectionBundle,
-    });
-    return shouldDisableGenerateWhileCharacterLoading({
-      selectedTool,
-      characterModeEnabled: isCreateCharacterModeEnabled,
-      selectedCharacterId: createSelectedCharacterId,
-      isCharacterBundleLoading: isCreateCharacterBundleLoading,
-      hasUsableCharacterBundle: hasUsableCreateCharacterBundle,
-    });
-  }, [
-    createCharacterModeInjectionBundle,
-    createSelectedCharacterId,
-    isCreateCharacterBundleLoading,
-    isCreateCharacterModeEnabled,
-    selectedTool,
-  ]);
+  void shouldDisableGenerateWhileCharacterLoading;
+  void hasUsableCharacterModeInjectionBundle;
 
-  const effectiveGenerationGuardrail =
-    generationGuardrail ??
-    (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);
+  const effectiveGenerationGuardrail = generationGuardrail;
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
 
   const {
@@ -452,9 +429,7 @@ export const useAiStudioPageGenerationRuntime = ({
       isGenerateDisabled: effectiveIsGenerateDisabled,
       isCreditGuardrail,
       generationGuardrail: effectiveGenerationGuardrail,
-      effectiveBalanceCredits,
       balanceCredits,
-      optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
       setUiError,
       setUiNotice,
       setOptimisticDebitEntries,

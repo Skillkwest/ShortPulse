@@ -14,6 +14,7 @@ import {
   resolveExpertEditPresetLabelById,
   type ExpertEditCustomPresetOverrides,
   type ExpertEditPresetId,
+  type ExpertEditSystemPresetDefinition,
 } from "./expertEditPresets";
 
 type UseExpertEditGenerationPresetRuntimeParams = {
@@ -24,6 +25,7 @@ type UseExpertEditGenerationPresetRuntimeParams = {
   onSelectedPresetIdsChange?: ((value: ExpertEditPresetId[]) => void) | null;
   controlledCustomPresetOverrides?: ExpertEditCustomPresetOverrides | null;
   onCustomPresetOverridesChange?: ((value: ExpertEditCustomPresetOverrides) => void) | null;
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
 };
 
 export const useExpertEditGenerationPresetRuntime = ({
@@ -34,6 +36,7 @@ export const useExpertEditGenerationPresetRuntime = ({
   onSelectedPresetIdsChange,
   controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
+  systemPresetDefinitions,
 }: UseExpertEditGenerationPresetRuntimeParams) => {
   const visibleEditGenerationModeOptions = React.useMemo(() => editGenerationModeOptions, []);
   const [selectedGenerationMode, setSelectedGenerationMode] =
@@ -41,7 +44,13 @@ export const useExpertEditGenerationPresetRuntime = ({
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
   const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
     ExpertEditPresetId[]
-  >(() => normalizePresetPanelPresetIds(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS));
+  >(() =>
+    normalizePresetPanelPresetIds(
+      EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
+      undefined,
+      systemPresetDefinitions
+    )
+  );
   const [internalCustomPresetOverrides, setInternalCustomPresetOverrides] =
     React.useState<ExpertEditCustomPresetOverrides>({});
 
@@ -60,8 +69,12 @@ export const useExpertEditGenerationPresetRuntime = ({
     () =>
       controlledPresetIds == null
         ? null
-        : normalizePresetPanelPresetIds(controlledPresetIds, customPresetOverrides),
-    [controlledPresetIds, customPresetOverrides]
+        : normalizePresetPanelPresetIds(
+            controlledPresetIds,
+            customPresetOverrides,
+            systemPresetDefinitions
+          ),
+    [controlledPresetIds, customPresetOverrides, systemPresetDefinitions]
   );
   const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
   const isPresetPanelControlled =
@@ -75,13 +88,18 @@ export const useExpertEditGenerationPresetRuntime = ({
       if (isPresetPanelControlled) {
         const next = normalizePresetPanelPresetIds(
           updater(normalizedControlledPresetIds),
-          customPresetOverrides
+          customPresetOverrides,
+          systemPresetDefinitions
         );
         controlledPresetChangeHandler(next);
         return;
       }
       setInternalSelectedPresetIds((previous) =>
-        normalizePresetPanelPresetIds(updater(previous), customPresetOverrides)
+        normalizePresetPanelPresetIds(
+          updater(previous),
+          customPresetOverrides,
+          systemPresetDefinitions
+        )
       );
     },
     [
@@ -89,6 +107,7 @@ export const useExpertEditGenerationPresetRuntime = ({
       customPresetOverrides,
       isPresetPanelControlled,
       normalizedControlledPresetIds,
+      systemPresetDefinitions,
     ]
   );
 
@@ -108,18 +127,22 @@ export const useExpertEditGenerationPresetRuntime = ({
 
   const availablePresets = React.useMemo(() => {
     const selectedPresetIdSet = new Set(selectedPresetIds);
-    return resolveExpertEditPresetCatalog(customPresetOverrides).filter(
+    return resolveExpertEditPresetCatalog(customPresetOverrides, systemPresetDefinitions).filter(
       (preset) => !selectedPresetIdSet.has(preset.presetId)
     );
-  }, [customPresetOverrides, selectedPresetIds]);
+  }, [customPresetOverrides, selectedPresetIds, systemPresetDefinitions]);
 
   const selectedPanelPresets = React.useMemo(
     () =>
       selectedPresetIds.map((presetId) => ({
         presetId,
-        label: resolveExpertEditPresetLabelById(presetId, customPresetOverrides),
+        label: resolveExpertEditPresetLabelById(
+          presetId,
+          customPresetOverrides,
+          systemPresetDefinitions
+        ),
       })),
-    [customPresetOverrides, selectedPresetIds]
+    [customPresetOverrides, selectedPresetIds, systemPresetDefinitions]
   );
 
   const railSelectionSubmitIntent = React.useMemo(

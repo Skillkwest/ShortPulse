@@ -27,10 +27,14 @@ import {
   isPulseCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
-import { extractStudioAgentCompletionText } from "../studioAgentResponseNormalization";
+import {
+  extractStudioAgentCompletionText,
+  parseStudioAgentSemanticOutput,
+} from "../studioAgentResponseNormalization";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
+import { resolveRuntimeAgentPrompt } from "../../../lib/server/api/runtimeAgentPromptControlPlane";
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
@@ -54,9 +58,11 @@ const resolveStandardFlow = (
 const buildStandardOpenAiMessages = ({
   messages,
   context,
+  systemPrompt,
 }: {
   messages: AgentMessage[];
   context: AgentContext;
+  systemPrompt?: string | null;
 }): OpenAiChatMessage[] => {
   const imageParts =
     context.media
@@ -73,7 +79,7 @@ const buildStandardOpenAiMessages = ({
     -1
   );
 
-  return messages.map((message, index): OpenAiChatMessage => {
+  const conversationMessages = messages.map((message, index): OpenAiChatMessage => {
     const role = message.role === "assistant" ? "assistant" : "user";
     if (index !== latestUserIndex || !imageParts.length || role !== "user") {
       return {
@@ -89,12 +95,20 @@ const buildStandardOpenAiMessages = ({
         : imageParts,
     };
   });
+  const normalizedSystemPrompt = typeof systemPrompt === "string" ? systemPrompt.trim() : "";
+  return normalizedSystemPrompt.length > 0
+    ? [{ role: "system", content: normalizedSystemPrompt }, ...conversationMessages]
+    : conversationMessages;
 };
 
 const extractStandardOpenAiResponse = (payload: unknown): string | null => {
   if (!payload || typeof payload !== "object") return null;
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
+  const semanticOutput = parseStudioAgentSemanticOutput(raw);
+  if (semanticOutput) {
+    return semanticOutput.promptText.trim().length > 0 ? semanticOutput.promptText.trim() : null;
+  }
   const directMessage = extractStudioAgentCompletionText(raw);
   return typeof directMessage === "string" && directMessage.trim().length > 0
     ? directMessage.trim()
@@ -189,6 +203,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const messages = requestEnvelope.value.messages;
   const context = requestEnvelope.value.context;
   const flow = resolveStandardFlow(context);
+  const resolvedSystemPrompt = await resolveRuntimeAgentPrompt({
+    promptId: "STUDIO_AGENT_SYSTEM",
+  });
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const standardModel = openAiConfig.openAiModel;
@@ -198,7 +215,11 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       apiKey,
       openAiUrl: openAiConfig.openAiUrl,
       model: standardModel,
-      messages: buildStandardOpenAiMessages({ messages, context }),
+      messages: buildStandardOpenAiMessages({
+        messages,
+        context,
+        systemPrompt: resolvedSystemPrompt.promptBody,
+      }),
       timeoutMs: openAiConfig.turnTimeoutMs,
     });
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);

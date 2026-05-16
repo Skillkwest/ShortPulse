@@ -26,9 +26,9 @@ export default function AdminAgentInstructionsPage() {
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
       documentTitle="ShortPulse · Admin Agent Instructions"
-      metaDescription="Admin workspace for editing the built-in Create Pulse agent instructions."
+      metaDescription="Admin workspace for editing the shared Standard prompt, Style Extraction prompt, Edit system preset catalog, and Create Pulse built-ins."
       pageTitle="Agent instructions"
-      pageDescription="Review and edit the built-in Create Pulse agents with simplified name, description, and system-instructions fields."
+      pageDescription="Review the shared Standard prompt, Style Extraction prompt, Edit system preset catalog, and Create Pulse built-ins."
       userEmail={user?.email}
       currentPath="/admin/agent-instructions"
       mainClassName={styles.adminAgentInstructionsPage}

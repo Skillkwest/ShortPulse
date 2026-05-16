@@ -5,6 +5,7 @@ import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../features/ai-studio/components/create/createPulsePresets";
+import { SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS } from "../../features/ai-studio/components/edit/expertEditPresets";
 import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
@@ -47,6 +48,7 @@ const buildCatalogResponse = (
     source: "control_plane" as const,
     updatedAt: "2026-05-05T18:00:00.000Z",
     updatedByEmail: "admin@example.com",
+    degraded: false,
   }),
 });
 
@@ -60,13 +62,44 @@ const buildStyleExtractPromptResponse = (promptBody = "Photographic, moody light
   }),
 });
 
+const buildStandardPromptResponse = (
+  promptBody = "You are the ShortPulse AI Studio prompt editor."
+) => ({
+  ok: true,
+  json: async () => ({
+    promptBody,
+    source: "control_plane" as const,
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+  }),
+});
+
+const buildEditSystemPresetResponse = (
+  presetDefinitions = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
+) => ({
+  ok: true,
+  json: async () => ({
+    presetDefinitions,
+    source: "control_plane" as const,
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+    degraded: false,
+  }),
+});
+
 describe("Admin agent instructions page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockImplementation(async (input: string) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        return buildStandardPromptResponse();
+      }
       if (input === "/api/admin/agent-instructions/style-extract-prompt") {
         return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         return buildCatalogResponse();
@@ -117,8 +150,17 @@ describe("Admin agent instructions page", () => {
     ];
 
     fetchMock.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        if (init?.method === "PUT") {
+          return buildStandardPromptResponse("Future standard instructions.");
+        }
+        return buildStandardPromptResponse();
+      }
       if (input === "/api/admin/agent-instructions/style-extract-prompt") {
         return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         if (init?.method === "PUT") {
@@ -135,15 +177,31 @@ describe("Admin agent instructions page", () => {
     const standardCard = screen.getByText("Standard Create Agent").closest("article");
     if (!standardCard) throw new Error("Expected Standard Create Agent card.");
     fireEvent.click(within(standardCard).getByRole("button", { name: "Expand" }));
-    fireEvent.change(
-      within(standardCard).getByRole("textbox", { name: "System instructions draft" }),
-      {
-        target: { value: "Future standard instructions." },
-      }
-    );
+    fireEvent.change(within(standardCard).getByRole("textbox", { name: "Runtime system prompt" }), {
+      target: { value: "Future standard instructions." },
+    });
     expect(
-      within(standardCard).getByRole("textbox", { name: "System instructions draft" })
+      within(standardCard).getByRole("textbox", { name: "Runtime system prompt" })
     ).toHaveValue("Future standard instructions.");
+    fireEvent.click(within(standardCard).getByRole("button", { name: "Save prompt" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/standard-system-prompt",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const standardSaveRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/standard-system-prompt" && init?.method === "PUT"
+    );
+    expect(JSON.parse(String(standardSaveRequest?.[1]?.body))).toEqual({
+      promptBody: "Future standard instructions.",
+      expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
+    });
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
@@ -174,10 +232,18 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Pulse set" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/pulse-builtins",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
     });
 
-    const saveRequest = fetchMock.mock.calls[2];
+    const saveRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
+    );
     expect(saveRequest?.[0]).toBe("/api/admin/agent-instructions/pulse-builtins");
     expect(saveRequest?.[1]).toMatchObject({
       method: "PUT",
@@ -211,14 +277,102 @@ describe("Admin agent instructions page", () => {
     );
   }, 10_000);
 
+  it("saves one Pulse card without publishing other unsaved Pulse edits", async () => {
+    const storedDefinitions = [
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1],
+    ];
+    const savedDefinitions = [
+      {
+        ...storedDefinitions[0],
+        label: "Global Prompt Director",
+      },
+      storedDefinitions[1],
+    ];
+
+    fetchMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          if (init?.method === "PUT") {
+            return buildCatalogResponse(savedDefinitions);
+          }
+          return buildCatalogResponse(storedDefinitions);
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    const firstCard = screen.getByText("Video Prompt Magic").closest("article");
+    const secondCard = screen.getByText("Multi Sequence Video Prompt").closest("article");
+    if (!firstCard || !secondCard) throw new Error("Expected Pulse cards.");
+
+    fireEvent.click(within(firstCard).getByRole("button", { name: "Expand" }));
+    fireEvent.click(within(secondCard).getByRole("button", { name: "Expand" }));
+
+    fireEvent.change(within(firstCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Global Prompt Director" },
+    });
+    fireEvent.change(within(secondCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Do Not Publish Yet" },
+    });
+
+    fireEvent.click(within(firstCard).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/pulse-builtins",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const saveRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
+    );
+    const payload = JSON.parse(String(saveRequest?.[1]?.body)) as {
+      builtInDefinitions: Array<Record<string, unknown>>;
+      expectedUpdatedAt: string;
+    };
+
+    expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
+    expect(payload.builtInDefinitions[0]?.label).toBe("Global Prompt Director");
+    expect(payload.builtInDefinitions[1]?.label).toBe("Multi Sequence Video Prompt");
+
+    expect(within(firstCard).getByText("Stored")).toBeInTheDocument();
+    expect(within(secondCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(secondCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
+      "Do Not Publish Yet"
+    );
+  });
+
   it("edits and saves the live style-extraction prompt", async () => {
     fetchMock.mockImplementation(
       async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
         if (input === "/api/admin/agent-instructions/style-extract-prompt") {
           if (init?.method === "PUT") {
             return buildStyleExtractPromptResponse("Digital Illustration, soft bloom");
           }
           return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
         }
         if (input === "/api/admin/agent-instructions/pulse-builtins") {
           return buildCatalogResponse();
@@ -266,8 +420,84 @@ describe("Admin agent instructions page", () => {
     expect(within(styleCard).getByText("Live override")).toBeInTheDocument();
   });
 
+  it("edits and saves the global Edit system preset catalog", async () => {
+    fetchMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          if (init?.method === "PUT") {
+            return buildEditSystemPresetResponse([
+              {
+                ...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS[0],
+                label: "Front Camera Selfie",
+                prompt: "Use a realistic front-camera selfie perspective.",
+              },
+              ...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS.slice(1),
+            ]);
+          }
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          return buildCatalogResponse();
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Edit Mode System Presets");
+
+    const editCard = screen.getByText("Edit Mode System Presets").closest("article");
+    if (!editCard) throw new Error("Expected Edit system presets card.");
+
+    fireEvent.click(within(editCard).getByRole("button", { name: "Expand" }));
+    const presetGrid = within(editCard).getByRole("list", { name: "Edit mode system presets" });
+    const selfieTile = within(presetGrid).getByText("Selfie").closest("article");
+    if (!selfieTile) throw new Error("Expected Selfie preset tile.");
+    const selfiePresetButton = within(selfieTile)
+      .getAllByRole("button")
+      .find((button) => !button.getAttribute("aria-label")?.startsWith("Delete "));
+    if (!selfiePresetButton) throw new Error("Expected Selfie preset button.");
+    fireEvent.click(selfiePresetButton);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Preset Name" }), {
+      target: { value: "Front Camera Selfie" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Preset Prompt" }), {
+      target: { value: "Use a realistic front-camera selfie perspective." },
+    });
+    const editPresetDialog = screen.getByRole("dialog", { name: "Edit Selfie preset" });
+    fireEvent.click(within(editPresetDialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/edit-system-presets",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const editSaveRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/edit-system-presets" && init?.method === "PUT"
+    );
+    expect(JSON.parse(String(editSaveRequest?.[1]?.body))).toMatchObject({
+      expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
+    });
+    expect(within(editCard).getByText("Front Camera Selfie")).toBeInTheDocument();
+  });
+
   it("surfaces degraded control-plane reads on the style-extraction prompt card", async () => {
     fetchMock.mockImplementation(async (input: string) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        return buildStandardPromptResponse();
+      }
       if (input === "/api/admin/agent-instructions/style-extract-prompt") {
         return {
           ok: true,
@@ -279,6 +509,9 @@ describe("Admin agent instructions page", () => {
             degraded: true,
           }),
         };
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         return buildCatalogResponse();
@@ -292,6 +525,51 @@ describe("Admin agent instructions page", () => {
     );
 
     expect(degradedMessage).toBeInTheDocument();
-    expect(screen.getByText("Seeded local copy")).toBeInTheDocument();
+    const styleCard = screen.getByText("Style Extraction System Prompt").closest("article");
+    if (!styleCard) throw new Error("Expected style extraction prompt card.");
+    expect(within(styleCard).getByText("Seeded local copy")).toBeInTheDocument();
+  });
+
+  it("blocks Pulse saves while the built-in catalog is degraded", async () => {
+    fetchMock.mockImplementation(async (input: string) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        return buildStandardPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        return {
+          ok: true,
+          json: async () => ({
+            builtInDefinitions: [CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0]],
+            source: "seed" as const,
+            updatedAt: null,
+            updatedByEmail: null,
+            degraded: true,
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
+
+    render(<AdminAgentInstructionsPage />);
+    const degradedMessage = await screen.findByText(
+      "Live Pulse catalog lookup failed. Showing seeded fallback content until the admin route recovers."
+    );
+
+    expect(degradedMessage).toBeInTheDocument();
+
+    const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
+    if (!pulseCard) throw new Error("Expected Pulse card.");
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Global Prompt Director" },
+    });
+
+    expect(within(pulseCard).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 });

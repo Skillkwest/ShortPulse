@@ -57,9 +57,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
   generationGuardrail: string | null;
-  effectiveBalanceCredits: number | null;
   balanceCredits: number | null;
-  optimisticUncoveredDebitTotal: number;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setOptimisticDebitEntries: Dispatch<
@@ -123,9 +121,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   isGenerateDisabled,
   isCreditGuardrail,
   generationGuardrail,
-  effectiveBalanceCredits,
   balanceCredits,
-  optimisticUncoveredDebitTotal,
   setUiError,
   setUiNotice,
   setOptimisticDebitEntries,
@@ -150,22 +146,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const ensureFreshCreditsForRun = useCallback(
     async (requiredCredits: number | null | undefined): Promise<boolean> => {
       if (requiredCredits == null) return true;
-      let refreshSource: "snapshot" | "fallback" | null = null;
-      const latestBalance = await refreshBalance({
-        silent: true,
-        beforeCommit: (snapshot) => {
-          refreshSource = snapshot.source ?? null;
-        },
-      });
+      const latestBalance = await refreshBalance({ silent: true });
       const resolvedBalance = latestBalance ?? balanceCredits;
       if (resolvedBalance == null) return true;
-      const shouldApplyOptimisticAdjustment = refreshSource !== "snapshot";
-      const adjustedBalance = shouldApplyOptimisticAdjustment
-        ? Math.max(0, resolvedBalance - optimisticUncoveredDebitTotal)
-        : Math.max(0, resolvedBalance);
-      return adjustedBalance >= requiredCredits;
+      return Math.max(0, resolvedBalance) >= requiredCredits;
     },
-    [balanceCredits, optimisticUncoveredDebitTotal, refreshBalance]
+    [balanceCredits, refreshBalance]
   );
 
   const enqueueOptimisticDebit = useCallback(
@@ -244,7 +230,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const canProceedWithCredits = await runGenerationCreditGuardrail({
         requiredCredits,
         upfrontRunCredits: options?.costOverrideCredits,
-        effectiveBalanceCredits,
+        availableBalanceCredits: balanceCredits,
         isGenerateDisabled,
         isCreditGuardrail,
         alwaysCheckCreditGuardrailWhenEnabled: false,
@@ -322,7 +308,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [
       currentCostCredits,
-      effectiveBalanceCredits,
+      balanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       generateOutput,
@@ -393,7 +379,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const canProceedWithCredits = await runGenerationCreditGuardrail({
         requiredCredits,
         upfrontRunCredits: resolvedRunCostCredits,
-        effectiveBalanceCredits,
+        availableBalanceCredits: balanceCredits,
         isGenerateDisabled,
         isCreditGuardrail,
         alwaysCheckCreditGuardrailWhenEnabled: true,
@@ -496,7 +482,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     [
       activeOutputId,
       currentCostCredits,
-      effectiveBalanceCredits,
+      balanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       isCreditGuardrail,

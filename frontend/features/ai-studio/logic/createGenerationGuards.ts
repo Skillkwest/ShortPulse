@@ -66,14 +66,14 @@ export const shouldDisableCreatePanelOutputGenerate = ({
   selectedCharacterId,
 }: CreatePanelDisableParams): boolean => {
   void mode;
+  void hasSufficientCreditsForOutputGenerate;
   return (
     isGenerateDisabled ||
     hasMissingCreateGenerationTarget({
       modelId,
       characterModeEnabled,
       selectedCharacterId,
-    }) ||
-    !hasSufficientCreditsForOutputGenerate
+    })
   );
 };
 
@@ -98,7 +98,8 @@ export const shouldDisableAgentOutputGenerate = ({
       })
     : false;
   void mode;
-  return isGenerateDisabled || missingGenerationTarget || !hasSufficientCreditsForOutputGenerate;
+  void hasSufficientCreditsForOutputGenerate;
+  return isGenerateDisabled || missingGenerationTarget;
 };
 
 /**

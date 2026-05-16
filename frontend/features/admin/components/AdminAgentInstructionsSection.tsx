@@ -1,6 +1,6 @@
 /**
  * Admin agent-instruction workspace.
- * Standard remains a local scaffold. Pulse built-ins load from and persist to the shared control plane.
+ * Standard, Style Extraction, Edit system presets, and Pulse built-ins all persist to shared global control planes.
  */
 import React from "react";
 import { CaretDown } from "phosphor-react";
@@ -14,7 +14,12 @@ import {
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../ai-studio/components/create/createPulsePresets";
-import { resolveExpertEditPresetCatalog } from "../../ai-studio/components/edit/expertEditPresets";
+import {
+  normalizeExpertEditSystemPresetDefinitions,
+  resolveExpertEditPresetCatalog,
+  SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
+  type ExpertEditSystemPresetDefinition,
+} from "../../ai-studio/components/edit/expertEditPresets";
 import styles from "../../../styles/admin.module.css";
 
 type CopyFeedbackMap = Record<string, string | null>;
@@ -40,6 +45,13 @@ type PendingEditSystemPresetState = {
   label: string;
   prompt: string;
 };
+type StandardPromptDraft = {
+  promptBody: string;
+  source: "control_plane" | "seed";
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  degraded: boolean;
+};
 type StyleExtractPromptDraft = {
   promptBody: string;
   source: "control_plane" | "seed";
@@ -47,8 +59,23 @@ type StyleExtractPromptDraft = {
   updatedByEmail: string | null;
   degraded: boolean;
 };
+type EditSystemPresetCatalogDraft = {
+  presetDefinitions: ExpertEditSystemPresetDefinition[];
+  source: "control_plane" | "seed";
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  degraded: boolean;
+};
+type PulseBuiltInCatalogDraft = {
+  drafts: AdminPulseDraft[];
+  source: "control_plane" | "seed";
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  degraded: boolean;
+};
 
 const STANDARD_AGENT_ENTRY_ID = "standard-create-agent";
+const SEEDED_STANDARD_SYSTEM_PROMPT = agentPrompts.STUDIO_AGENT_SYSTEM;
 const SEEDED_STYLE_EXTRACT_PROMPT = agentPrompts.OPENAI_PROMPT_STYLE_EXTRACT;
 const PULSE_ARTIFACT_TARGET_OPTIONS: Array<{
   value: CreatePulseArtifactTarget;
@@ -62,9 +89,10 @@ const PULSE_ARTIFACT_TARGET_OPTIONS: Array<{
 
 const buildPulseDraftFromDefinition = (
   definition: CreatePulseBuiltInPresetDefinition,
-  index: number
+  index: number,
+  localId = `seed-${index}-${definition.presetId}`
 ): AdminPulseDraft => ({
-  localId: `seed-${index}-${definition.presetId}`,
+  localId,
   presetId: definition.presetId,
   label: definition.label,
   description: definition.description,
@@ -75,8 +103,18 @@ const buildPulseDraftFromDefinition = (
 });
 
 const buildPulseDraftsFromDefinitions = (
-  definitions: readonly CreatePulseBuiltInPresetDefinition[]
-): AdminPulseDraft[] => definitions.map(buildPulseDraftFromDefinition);
+  definitions: readonly CreatePulseBuiltInPresetDefinition[],
+  options?: {
+    templateDrafts?: readonly Pick<AdminPulseDraft, "localId">[];
+  }
+): AdminPulseDraft[] =>
+  definitions.map((definition, index) =>
+    buildPulseDraftFromDefinition(
+      definition,
+      index,
+      options?.templateDrafts?.[index]?.localId ?? `seed-${index}-${definition.presetId}`
+    )
+  );
 
 const buildPulseDefinitionFromDraft = (
   draft: AdminPulseDraft
@@ -110,6 +148,12 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   systemInstructions: "",
 });
 
+const isPulseDraftPersistable = (draft: AdminPulseDraft): boolean =>
+  draft.presetId.trim().length > 0 &&
+  draft.label.trim().length > 0 &&
+  draft.description.trim().length > 0 &&
+  draft.systemInstructions.trim().length > 0;
+
 const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boolean =>
   left.presetId === right.presetId &&
   left.label === right.label &&
@@ -138,8 +182,10 @@ const isPulseDraftBlank = (draft: AdminPulseDraft): boolean =>
   draft.systemInstructions.trim().length === 0 &&
   draft.artifactTarget === "text_artifact";
 
-const buildAdminEditPresetDrafts = (): AdminEditPresetDraft[] =>
-  resolveExpertEditPresetCatalog()
+const buildAdminEditPresetDrafts = (
+  presetDefinitions: readonly ExpertEditSystemPresetDefinition[] = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
+): AdminEditPresetDraft[] =>
+  resolveExpertEditPresetCatalog(undefined, presetDefinitions)
     .filter((preset) => !preset.isCustom)
     .map((preset) => ({
       presetId: preset.presetId,
@@ -148,11 +194,35 @@ const buildAdminEditPresetDrafts = (): AdminEditPresetDraft[] =>
     }));
 
 const buildEmptyAdminEditPresetDraft = (counter: number): PendingEditSystemPresetState => ({
-  presetId: `local_custom_${counter}`,
+  presetId: `admin_global_${counter}`,
   originalLabel: "",
   label: "",
   prompt: "",
 });
+
+const loadStandardPromptDraft = async (): Promise<StandardPromptDraft> => {
+  const response = await fetch("/api/admin/agent-instructions/standard-system-prompt", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error("Unable to load the Standard system prompt.");
+  }
+  const payload = (await response.json()) as {
+    promptBody?: unknown;
+    source?: "control_plane" | "seed";
+    updatedAt?: string | null;
+    updatedByEmail?: string | null;
+    degraded?: boolean;
+  };
+  return {
+    promptBody: typeof payload.promptBody === "string" ? payload.promptBody : "",
+    source: payload.source === "control_plane" ? "control_plane" : "seed",
+    updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+    updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+    degraded: payload.degraded === true,
+  };
+};
 
 const loadStyleExtractPromptDraft = async (): Promise<StyleExtractPromptDraft> => {
   const response = await fetch("/api/admin/agent-instructions/style-extract-prompt", {
@@ -178,12 +248,7 @@ const loadStyleExtractPromptDraft = async (): Promise<StyleExtractPromptDraft> =
   };
 };
 
-const loadPulseBuiltInCatalog = async (): Promise<{
-  drafts: AdminPulseDraft[];
-  source: "control_plane" | "seed";
-  updatedAt: string | null;
-  updatedByEmail: string | null;
-}> => {
+const loadPulseBuiltInCatalog = async (): Promise<PulseBuiltInCatalogDraft> => {
   const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -196,6 +261,7 @@ const loadPulseBuiltInCatalog = async (): Promise<{
     source?: "control_plane" | "seed";
     updatedAt?: string | null;
     updatedByEmail?: string | null;
+    degraded?: boolean;
   };
   const definitions = normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions);
   return {
@@ -207,6 +273,31 @@ const loadPulseBuiltInCatalog = async (): Promise<{
     source: payload.source === "control_plane" ? "control_plane" : "seed",
     updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
     updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+    degraded: payload.degraded === true,
+  };
+};
+
+const loadEditSystemPresetCatalog = async (): Promise<EditSystemPresetCatalogDraft> => {
+  const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error("Unable to load global Edit system presets.");
+  }
+  const payload = (await response.json()) as {
+    presetDefinitions?: unknown;
+    source?: "control_plane" | "seed";
+    updatedAt?: string | null;
+    updatedByEmail?: string | null;
+    degraded?: boolean;
+  };
+  return {
+    presetDefinitions: normalizeExpertEditSystemPresetDefinitions(payload.presetDefinitions),
+    source: payload.source === "control_plane" ? "control_plane" : "seed",
+    updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+    updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+    degraded: payload.degraded === true,
   };
 };
 
@@ -214,8 +305,23 @@ const loadPulseBuiltInCatalog = async (): Promise<{
  * Renders the admin draft-edit surface for Standard and built-in Pulse agent instructions.
  */
 export function AdminAgentInstructionsSection() {
-  const [standardInstructions, setStandardInstructions] = React.useState("");
+  const [standardInstructions, setStandardInstructions] = React.useState<string>(
+    SEEDED_STANDARD_SYSTEM_PROMPT
+  );
+  const [storedStandardInstructions, setStoredStandardInstructions] = React.useState<string>(
+    SEEDED_STANDARD_SYSTEM_PROMPT
+  );
   const [standardCardCollapsed, setStandardCardCollapsed] = React.useState(true);
+  const [standardPromptSource, setStandardPromptSource] = React.useState<"control_plane" | "seed">(
+    "seed"
+  );
+  const [standardPromptUpdatedAt, setStandardPromptUpdatedAt] = React.useState<string | null>(null);
+  const [standardPromptUpdatedByEmail, setStandardPromptUpdatedByEmail] = React.useState<
+    string | null
+  >(null);
+  const [standardPromptLoading, setStandardPromptLoading] = React.useState(true);
+  const [standardPromptSaveState, setStandardPromptSaveState] = React.useState<SaveState>("idle");
+  const [standardPromptLoadIssue, setStandardPromptLoadIssue] = React.useState<string | null>(null);
   const [styleExtractPromptCardCollapsed, setStyleExtractPromptCardCollapsed] =
     React.useState(true);
   const [styleExtractPrompt, setStyleExtractPrompt] = React.useState<string>(
@@ -243,6 +349,21 @@ export function AdminAgentInstructionsSection() {
   const [editSystemPresetDrafts, setEditSystemPresetDrafts] = React.useState<
     AdminEditPresetDraft[]
   >(() => buildAdminEditPresetDrafts());
+  const [editSystemPresetSource, setEditSystemPresetSource] = React.useState<
+    "control_plane" | "seed"
+  >("seed");
+  const [editSystemPresetUpdatedAt, setEditSystemPresetUpdatedAt] = React.useState<string | null>(
+    null
+  );
+  const [editSystemPresetUpdatedByEmail, setEditSystemPresetUpdatedByEmail] = React.useState<
+    string | null
+  >(null);
+  const [editSystemPresetLoading, setEditSystemPresetLoading] = React.useState(true);
+  const [editSystemPresetSaveState, setEditSystemPresetSaveState] =
+    React.useState<SaveState>("idle");
+  const [editSystemPresetLoadIssue, setEditSystemPresetLoadIssue] = React.useState<string | null>(
+    null
+  );
   const [nextEditPresetDraftIndex, setNextEditPresetDraftIndex] = React.useState(
     () => buildAdminEditPresetDrafts().length + 1
   );
@@ -256,6 +377,16 @@ export function AdminAgentInstructionsSection() {
   const [nextPulseDraftIndex, setNextPulseDraftIndex] = React.useState(1);
   const [pulseLoading, setPulseLoading] = React.useState(true);
   const [pulseSaveState, setPulseSaveState] = React.useState<SaveState>("idle");
+  const [pulseCatalogSource, setPulseCatalogSource] = React.useState<"control_plane" | "seed">(
+    "seed"
+  );
+  const [pulseCatalogUpdatedAt, setPulseCatalogUpdatedAt] = React.useState<string | null>(null);
+  const [pulseCatalogUpdatedByEmail, setPulseCatalogUpdatedByEmail] = React.useState<string | null>(
+    null
+  );
+  const [pulseCatalogDegraded, setPulseCatalogDegraded] = React.useState(false);
+  const [pulseCatalogLoadIssue, setPulseCatalogLoadIssue] = React.useState<string | null>(null);
+  const [pulseSaveIssue, setPulseSaveIssue] = React.useState<string | null>(null);
 
   const storedPulseDraftsById = React.useMemo(
     () =>
@@ -269,7 +400,27 @@ export function AdminAgentInstructionsSection() {
     () => !arePulseDraftListsEqual(pulseDrafts, storedPulseDrafts),
     [pulseDrafts, storedPulseDrafts]
   );
+  const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
   const hasStyleExtractPromptUnsavedChanges = styleExtractPrompt !== storedStyleExtractPrompt;
+  const pulseCatalogHasBlockingIssue = pulseCatalogDegraded || pulseCatalogLoadIssue !== null;
+  const standardPromptUpdatedLabel = React.useMemo(() => {
+    if (!standardPromptUpdatedAt) return null;
+    const timestamp = new Date(standardPromptUpdatedAt);
+    if (Number.isNaN(timestamp.getTime())) return null;
+    return timestamp.toLocaleString();
+  }, [standardPromptUpdatedAt]);
+  const pulseCatalogUpdatedLabel = React.useMemo(() => {
+    if (!pulseCatalogUpdatedAt) return null;
+    const timestamp = new Date(pulseCatalogUpdatedAt);
+    if (Number.isNaN(timestamp.getTime())) return null;
+    return timestamp.toLocaleString();
+  }, [pulseCatalogUpdatedAt]);
+  const editSystemPresetUpdatedLabel = React.useMemo(() => {
+    if (!editSystemPresetUpdatedAt) return null;
+    const timestamp = new Date(editSystemPresetUpdatedAt);
+    if (Number.isNaN(timestamp.getTime())) return null;
+    return timestamp.toLocaleString();
+  }, [editSystemPresetUpdatedAt]);
   const styleExtractPromptUpdatedLabel = React.useMemo(() => {
     if (!styleExtractPromptUpdatedAt) return null;
     const timestamp = new Date(styleExtractPromptUpdatedAt);
@@ -292,10 +443,34 @@ export function AdminAgentInstructionsSection() {
     [setTimedCopyFeedback]
   );
 
-  const hydratePulseDrafts = React.useCallback((drafts: AdminPulseDraft[]) => {
-    setPulseDrafts(drafts);
-    setStoredPulseDrafts(drafts);
-    setNextPulseDraftIndex(drafts.length + 1);
+  const hydrateStandardPrompt = React.useCallback((draft: StandardPromptDraft) => {
+    setStandardInstructions(draft.promptBody);
+    setStoredStandardInstructions(draft.promptBody);
+    setStandardPromptSource(draft.source);
+    setStandardPromptUpdatedAt(draft.updatedAt);
+    setStandardPromptUpdatedByEmail(draft.updatedByEmail);
+  }, []);
+
+  const hydrateEditSystemPresetCatalog = React.useCallback(
+    (catalog: EditSystemPresetCatalogDraft) => {
+      const drafts = buildAdminEditPresetDrafts(catalog.presetDefinitions);
+      setEditSystemPresetDrafts(drafts);
+      setNextEditPresetDraftIndex(drafts.length + 1);
+      setEditSystemPresetSource(catalog.source);
+      setEditSystemPresetUpdatedAt(catalog.updatedAt);
+      setEditSystemPresetUpdatedByEmail(catalog.updatedByEmail);
+    },
+    []
+  );
+
+  const hydratePulseDrafts = React.useCallback((catalog: PulseBuiltInCatalogDraft) => {
+    setPulseDrafts(catalog.drafts);
+    setStoredPulseDrafts(catalog.drafts);
+    setNextPulseDraftIndex(catalog.drafts.length + 1);
+    setPulseCatalogSource(catalog.source);
+    setPulseCatalogUpdatedAt(catalog.updatedAt);
+    setPulseCatalogUpdatedByEmail(catalog.updatedByEmail);
+    setPulseCatalogDegraded(catalog.degraded);
   }, []);
 
   const hydrateStyleExtractPrompt = React.useCallback((draft: StyleExtractPromptDraft) => {
@@ -305,6 +480,34 @@ export function AdminAgentInstructionsSection() {
     setStyleExtractPromptUpdatedAt(draft.updatedAt);
     setStyleExtractPromptUpdatedByEmail(draft.updatedByEmail);
   }, []);
+
+  const refreshStandardPrompt = React.useCallback(async () => {
+    setStandardPromptLoading(true);
+    try {
+      const draft = await loadStandardPromptDraft();
+      hydrateStandardPrompt(draft);
+      setStandardPromptLoadIssue(
+        draft.degraded
+          ? "Live control-plane lookup failed. Showing the seeded Standard system prompt until the admin route recovers."
+          : null
+      );
+      setStandardPromptSaveState("idle");
+    } catch {
+      hydrateStandardPrompt({
+        promptBody: SEEDED_STANDARD_SYSTEM_PROMPT,
+        source: "seed",
+        updatedAt: null,
+        updatedByEmail: null,
+        degraded: false,
+      });
+      setStandardPromptLoadIssue(
+        "Showing the seeded Standard system prompt because the live admin route could not be reached."
+      );
+      setStandardPromptSaveState("error");
+    } finally {
+      setStandardPromptLoading(false);
+    }
+  }, [hydrateStandardPrompt]);
 
   const refreshStyleExtractPrompt = React.useCallback(async () => {
     setStyleExtractPromptLoading(true);
@@ -317,7 +520,7 @@ export function AdminAgentInstructionsSection() {
           : null
       );
       setStyleExtractPromptSaveState("idle");
-    } catch (error) {
+    } catch {
       hydrateStyleExtractPrompt({
         promptBody: SEEDED_STYLE_EXTRACT_PROMPT,
         source: "seed",
@@ -338,22 +541,71 @@ export function AdminAgentInstructionsSection() {
     setPulseLoading(true);
     try {
       const catalog = await loadPulseBuiltInCatalog();
-      hydratePulseDrafts(catalog.drafts);
-      setPulseSaveState("idle");
-    } catch (error) {
-      const fallbackDrafts = buildPulseDraftsFromDefinitions(
-        resolveCreatePulseBuiltInPresetDefinitions()
+      hydratePulseDrafts(catalog);
+      setPulseCatalogLoadIssue(
+        catalog.degraded
+          ? "Live Pulse catalog lookup failed. Showing seeded fallback content until the admin route recovers."
+          : null
       );
-      hydratePulseDrafts(fallbackDrafts);
+      setPulseSaveIssue(null);
+      setPulseSaveState("idle");
+    } catch {
+      hydratePulseDrafts({
+        drafts: buildPulseDraftsFromDefinitions(resolveCreatePulseBuiltInPresetDefinitions()),
+        source: "seed",
+        updatedAt: null,
+        updatedByEmail: null,
+        degraded: true,
+      });
+      setPulseCatalogLoadIssue(
+        "Showing seeded fallback Pulse content because the live admin route could not be reached."
+      );
+      setPulseSaveIssue(null);
       setPulseSaveState("error");
     } finally {
       setPulseLoading(false);
     }
   }, [hydratePulseDrafts]);
 
+  const refreshEditSystemPresetCatalog = React.useCallback(async () => {
+    setEditSystemPresetLoading(true);
+    try {
+      const catalog = await loadEditSystemPresetCatalog();
+      hydrateEditSystemPresetCatalog(catalog);
+      setEditSystemPresetLoadIssue(
+        catalog.degraded
+          ? "Live Edit preset catalog lookup failed. Showing the seeded fallback set until the admin route recovers."
+          : null
+      );
+      setEditSystemPresetSaveState("idle");
+    } catch {
+      hydrateEditSystemPresetCatalog({
+        presetDefinitions: [...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS],
+        source: "seed",
+        updatedAt: null,
+        updatedByEmail: null,
+        degraded: false,
+      });
+      setEditSystemPresetLoadIssue(
+        "Showing the seeded Edit preset catalog because the live admin route could not be reached."
+      );
+      setEditSystemPresetSaveState("error");
+    } finally {
+      setEditSystemPresetLoading(false);
+    }
+  }, [hydrateEditSystemPresetCatalog]);
+
+  React.useEffect(() => {
+    void refreshStandardPrompt();
+  }, [refreshStandardPrompt]);
+
   React.useEffect(() => {
     void refreshStyleExtractPrompt();
   }, [refreshStyleExtractPrompt]);
+
+  React.useEffect(() => {
+    void refreshEditSystemPresetCatalog();
+  }, [refreshEditSystemPresetCatalog]);
 
   React.useEffect(() => {
     void refreshPulseBuiltIns();
@@ -375,6 +627,7 @@ export function AdminAgentInstructionsSection() {
         current.map((draft) => (draft.localId === localId ? { ...draft, [field]: value } : draft))
       );
       setPulseSaveState("idle");
+      setPulseSaveIssue(null);
     },
     []
   );
@@ -383,6 +636,45 @@ export function AdminAgentInstructionsSection() {
     setPendingEditSystemPreset(buildEmptyAdminEditPresetDraft(nextEditPresetDraftIndex));
     setNextEditPresetDraftIndex((current) => current + 1);
   }, [nextEditPresetDraftIndex]);
+
+  const handleSaveStandardPrompt = React.useCallback(async () => {
+    setStandardPromptSaveState("saving");
+    try {
+      const response = await fetch("/api/admin/agent-instructions/standard-system-prompt", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          promptBody: standardInstructions,
+          expectedUpdatedAt: standardPromptUpdatedAt,
+        }),
+      });
+      const payload = (await response.json()) as {
+        promptBody?: unknown;
+        source?: "control_plane" | "seed";
+        updatedAt?: string | null;
+        updatedByEmail?: string | null;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to save the Standard system prompt.");
+      }
+      hydrateStandardPrompt({
+        promptBody:
+          typeof payload.promptBody === "string" ? payload.promptBody : standardInstructions,
+        source: payload.source === "control_plane" ? "control_plane" : "seed",
+        updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+        updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+        degraded: false,
+      });
+      setStandardPromptLoadIssue(null);
+      setStandardPromptSaveState("saved");
+    } catch {
+      setStandardPromptSaveState("error");
+    }
+  }, [hydrateStandardPrompt, standardInstructions, standardPromptUpdatedAt]);
 
   const handleSaveStyleExtractPrompt = React.useCallback(async () => {
     setStyleExtractPromptSaveState("saving");
@@ -415,23 +707,23 @@ export function AdminAgentInstructionsSection() {
       });
       setStyleExtractPromptLoadIssue(null);
       setStyleExtractPromptSaveState("saved");
-    } catch (error) {
+    } catch {
       setStyleExtractPromptSaveState("error");
     }
   }, [hydrateStyleExtractPrompt, styleExtractPrompt]);
 
-  const handleSaveEditSystemPreset = React.useCallback(() => {
+  const handleSaveEditSystemPreset = React.useCallback(async () => {
     if (!pendingEditSystemPreset) return;
     const nextLabel = pendingEditSystemPreset.label.trim();
     const nextPrompt = pendingEditSystemPreset.prompt.trim();
     if (!nextLabel || !nextPrompt) return;
-    setEditSystemPresetDrafts((current) => {
-      const existingIndex = current.findIndex(
+    const nextDrafts = (() => {
+      const existingIndex = editSystemPresetDrafts.findIndex(
         (draft) => draft.presetId === pendingEditSystemPreset.presetId
       );
       if (existingIndex === -1) {
         return [
-          ...current,
+          ...editSystemPresetDrafts,
           {
             presetId: pendingEditSystemPreset.presetId,
             label: nextLabel,
@@ -439,7 +731,7 @@ export function AdminAgentInstructionsSection() {
           },
         ];
       }
-      return current.map((draft) =>
+      return editSystemPresetDrafts.map((draft) =>
         draft.presetId === pendingEditSystemPreset.presetId
           ? {
               ...draft,
@@ -448,14 +740,104 @@ export function AdminAgentInstructionsSection() {
             }
           : draft
       );
-    });
-    setPendingEditSystemPreset(null);
-  }, [pendingEditSystemPreset]);
+    })();
 
-  const handleDeleteEditSystemPreset = React.useCallback((presetId: string) => {
-    setEditSystemPresetDrafts((current) => current.filter((draft) => draft.presetId !== presetId));
-    setPendingEditSystemPreset((current) => (current?.presetId === presetId ? null : current));
-  }, []);
+    setEditSystemPresetSaveState("saving");
+    try {
+      const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          presetDefinitions: nextDrafts.map((draft) => ({
+            presetId: draft.presetId.trim(),
+            label: draft.label.trim(),
+            prompt: draft.prompt.trim(),
+          })),
+          expectedUpdatedAt: editSystemPresetUpdatedAt,
+        }),
+      });
+      const payload = (await response.json()) as {
+        presetDefinitions?: unknown;
+        updatedAt?: string | null;
+        updatedByEmail?: string | null;
+        source?: "control_plane" | "seed";
+        degraded?: boolean;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to save global Edit system presets.");
+      }
+      hydrateEditSystemPresetCatalog({
+        presetDefinitions: normalizeExpertEditSystemPresetDefinitions(payload.presetDefinitions),
+        source: payload.source === "control_plane" ? "control_plane" : "seed",
+        updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+        updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+        degraded: payload.degraded === true,
+      });
+      setEditSystemPresetLoadIssue(null);
+      setEditSystemPresetSaveState("saved");
+      setPendingEditSystemPreset(null);
+    } catch {
+      setEditSystemPresetSaveState("error");
+    }
+  }, [
+    editSystemPresetDrafts,
+    editSystemPresetUpdatedAt,
+    hydrateEditSystemPresetCatalog,
+    pendingEditSystemPreset,
+  ]);
+
+  const handleDeleteEditSystemPreset = React.useCallback(
+    async (presetId: string) => {
+      const nextDrafts = editSystemPresetDrafts.filter((draft) => draft.presetId !== presetId);
+      setEditSystemPresetSaveState("saving");
+      try {
+        const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            presetDefinitions: nextDrafts.map((draft) => ({
+              presetId: draft.presetId.trim(),
+              label: draft.label.trim(),
+              prompt: draft.prompt.trim(),
+            })),
+            expectedUpdatedAt: editSystemPresetUpdatedAt,
+          }),
+        });
+        const payload = (await response.json()) as {
+          presetDefinitions?: unknown;
+          updatedAt?: string | null;
+          updatedByEmail?: string | null;
+          source?: "control_plane" | "seed";
+          degraded?: boolean;
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save global Edit system presets.");
+        }
+        hydrateEditSystemPresetCatalog({
+          presetDefinitions: normalizeExpertEditSystemPresetDefinitions(payload.presetDefinitions),
+          source: payload.source === "control_plane" ? "control_plane" : "seed",
+          updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+          updatedByEmail:
+            typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+          degraded: payload.degraded === true,
+        });
+        setEditSystemPresetLoadIssue(null);
+        setEditSystemPresetSaveState("saved");
+        setPendingEditSystemPreset((current) => (current?.presetId === presetId ? null : current));
+      } catch {
+        setEditSystemPresetSaveState("error");
+      }
+    },
+    [editSystemPresetDrafts, editSystemPresetUpdatedAt, hydrateEditSystemPresetCatalog]
+  );
 
   const handleResetPulseDraft = React.useCallback(
     (localId: string) => {
@@ -469,6 +851,7 @@ export function AdminAgentInstructionsSection() {
         })
       );
       setPulseSaveState("idle");
+      setPulseSaveIssue(null);
     },
     [storedPulseDraftsById]
   );
@@ -481,6 +864,7 @@ export function AdminAgentInstructionsSection() {
       return next;
     });
     setPulseSaveState("idle");
+    setPulseSaveIssue(null);
   }, []);
 
   const handleAddPulseDraft = React.useCallback(() => {
@@ -490,16 +874,26 @@ export function AdminAgentInstructionsSection() {
     setPulseSectionCollapsed(false);
     setNextPulseDraftIndex((current) => current + 1);
     setPulseSaveState("idle");
+    setPulseSaveIssue(null);
   }, [nextPulseDraftIndex]);
 
   const handleResetAllPulseDrafts = React.useCallback(() => {
     setPulseDrafts(storedPulseDrafts);
     setNextPulseDraftIndex(storedPulseDrafts.length + 1);
     setPulseSaveState("idle");
+    setPulseSaveIssue(null);
   }, [storedPulseDrafts]);
 
   const handleSavePulseDrafts = React.useCallback(async () => {
+    if (pulseCatalogHasBlockingIssue) {
+      setPulseSaveState("error");
+      setPulseSaveIssue(
+        "Unable to save while the live Pulse catalog is unavailable. Reload the page after the admin route recovers."
+      );
+      return;
+    }
     setPulseSaveState("saving");
+    setPulseSaveIssue(null);
     try {
       const builtInDefinitions = pulseDrafts.map(buildPulseDefinitionFromDraft);
       const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
@@ -508,12 +902,18 @@ export function AdminAgentInstructionsSection() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ builtInDefinitions }),
+        body: JSON.stringify({
+          builtInDefinitions,
+          expectedUpdatedAt: pulseCatalogUpdatedAt,
+        }),
       });
       const payload = (await response.json()) as {
         builtInDefinitions?: unknown;
         updatedAt?: string | null;
         updatedByEmail?: string | null;
+        source?: "control_plane" | "seed";
+        degraded?: boolean;
+        code?: string;
         error?: string;
       };
       if (!response.ok) {
@@ -522,13 +922,117 @@ export function AdminAgentInstructionsSection() {
       const normalizedDefinitions = normalizeCreatePulseBuiltInPresetDefinitions(
         payload.builtInDefinitions
       );
-      const nextDrafts = buildPulseDraftsFromDefinitions(normalizedDefinitions);
-      hydratePulseDrafts(nextDrafts);
+      hydratePulseDrafts({
+        drafts: buildPulseDraftsFromDefinitions(normalizedDefinitions, {
+          templateDrafts: pulseDrafts,
+        }),
+        source: payload.source === "control_plane" ? "control_plane" : "seed",
+        updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+        updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+        degraded: payload.degraded === true,
+      });
+      setPulseCatalogLoadIssue(null);
       setPulseSaveState("saved");
     } catch (error) {
       setPulseSaveState("error");
+      setPulseSaveIssue(
+        error instanceof Error ? error.message : "Unable to save the global Pulse built-in set."
+      );
     }
-  }, [hydratePulseDrafts, pulseDrafts]);
+  }, [hydratePulseDrafts, pulseCatalogHasBlockingIssue, pulseCatalogUpdatedAt, pulseDrafts]);
+
+  const handleSavePulseDraft = React.useCallback(
+    async (localId: string) => {
+      if (pulseCatalogHasBlockingIssue) {
+        setPulseSaveState("error");
+        setPulseSaveIssue(
+          "Unable to save while the live Pulse catalog is unavailable. Reload the page after the admin route recovers."
+        );
+        return;
+      }
+      const targetDraft = pulseDrafts.find((draft) => draft.localId === localId);
+      if (!targetDraft) return;
+      const payloadDrafts = storedPulseDraftsById[localId]
+        ? storedPulseDrafts.map((draft) => (draft.localId === localId ? targetDraft : draft))
+        : [...storedPulseDrafts, targetDraft];
+
+      setPulseSaveState("saving");
+      setPulseSaveIssue(null);
+      try {
+        const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            builtInDefinitions: payloadDrafts.map(buildPulseDefinitionFromDraft),
+            expectedUpdatedAt: pulseCatalogUpdatedAt,
+          }),
+        });
+        const payload = (await response.json()) as {
+          builtInDefinitions?: unknown;
+          updatedAt?: string | null;
+          updatedByEmail?: string | null;
+          source?: "control_plane" | "seed";
+          degraded?: boolean;
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save this Pulse card.");
+        }
+
+        const nextStoredDrafts = buildPulseDraftsFromDefinitions(
+          normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions),
+          { templateDrafts: payloadDrafts }
+        );
+        const storedDraftsById = Object.fromEntries(
+          storedPulseDrafts.map((draft) => [draft.localId, draft])
+        ) satisfies Record<string, AdminPulseDraft>;
+        const payloadDraftIds = new Set(payloadDrafts.map((draft) => draft.localId));
+
+        setStoredPulseDrafts(nextStoredDrafts);
+        setPulseDrafts((current) => {
+          const unsavedExtras = current.filter((draft) => !payloadDraftIds.has(draft.localId));
+          const nextVisibleDrafts = nextStoredDrafts.map((savedDraft) => {
+            if (savedDraft.localId === localId) return savedDraft;
+            const currentDraft = current.find((draft) => draft.localId === savedDraft.localId);
+            const previousStoredDraft = storedDraftsById[savedDraft.localId];
+            if (
+              currentDraft &&
+              previousStoredDraft &&
+              !arePulseDraftsEqual(currentDraft, previousStoredDraft)
+            ) {
+              return currentDraft;
+            }
+            return savedDraft;
+          });
+          return [...nextVisibleDrafts, ...unsavedExtras];
+        });
+        setNextPulseDraftIndex((current) => Math.max(current, nextStoredDrafts.length + 1));
+        setPulseCatalogSource(payload.source === "control_plane" ? "control_plane" : "seed");
+        setPulseCatalogUpdatedAt(typeof payload.updatedAt === "string" ? payload.updatedAt : null);
+        setPulseCatalogUpdatedByEmail(
+          typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null
+        );
+        setPulseCatalogDegraded(payload.degraded === true);
+        setPulseCatalogLoadIssue(null);
+        setPulseSaveState("saved");
+      } catch (error) {
+        setPulseSaveState("error");
+        setPulseSaveIssue(
+          error instanceof Error ? error.message : "Unable to save this Pulse card."
+        );
+      }
+    },
+    [
+      pulseCatalogHasBlockingIssue,
+      pulseCatalogUpdatedAt,
+      pulseDrafts,
+      storedPulseDrafts,
+      storedPulseDraftsById,
+    ]
+  );
 
   return (
     <section className={`${styles.adminSection} ${styles.adminAgentInstructionsSection}`}>
@@ -554,11 +1058,21 @@ export function AdminAgentInstructionsSection() {
                   <span>{standardCardCollapsed ? "Expand" : "Collapse"}</span>
                 </button>
                 <h3 className={styles.agentInstructionTitle}>Standard Create Agent</h3>
-                <span className={`${styles.pill} ${styles.pillWarn}`}>Draft only</span>
+                <span
+                  className={`${styles.pill} ${hasStandardPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
+                >
+                  {standardPromptLoadIssue
+                    ? "Seeded local copy"
+                    : hasStandardPromptUnsavedChanges
+                      ? "Unsaved edits"
+                      : standardPromptSource === "control_plane"
+                        ? "Live override"
+                        : "Seed fallback"}
+                </span>
               </div>
               <p className={styles.agentInstructionDescription}>
-                Reserved for future Standard-mode system instructions. This field is intentionally
-                not connected to runtime execution yet.
+                Controls the Standard Create agent system prompt used by
+                <code> /api/ai/studio-agent-standard</code> for all users.
               </p>
             </div>
             <div className={styles.agentInstructionActions}>
@@ -573,10 +1087,23 @@ export function AdminAgentInstructionsSection() {
               <button
                 type="button"
                 className="ghost-btn mini"
-                onClick={() => setStandardInstructions("")}
-                disabled={standardInstructions.length === 0}
+                onClick={() => setStandardInstructions(storedStandardInstructions)}
+                disabled={!hasStandardPromptUnsavedChanges || standardPromptLoading}
               >
-                Clear
+                Reset to stored
+              </button>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void handleSaveStandardPrompt()}
+                disabled={
+                  standardPromptLoading ||
+                  standardPromptSaveState === "saving" ||
+                  standardInstructions.trim().length === 0 ||
+                  !hasStandardPromptUnsavedChanges
+                }
+              >
+                {standardPromptSaveState === "saving" ? "Saving..." : "Save prompt"}
               </button>
             </div>
           </div>
@@ -590,25 +1117,36 @@ export function AdminAgentInstructionsSection() {
               className={styles.agentInstructionLabel}
               htmlFor="admin-standard-agent-instructions"
             >
-              System instructions draft
+              Runtime system prompt
             </label>
             <textarea
               id="admin-standard-agent-instructions"
               className={styles.agentInstructionTextarea}
               value={standardInstructions}
-              onChange={(event) => setStandardInstructions(event.target.value)}
-              placeholder="Standard mode is raw pass-through today. Draft future system instructions here."
+              onChange={(event) => {
+                setStandardInstructions(event.target.value);
+                setStandardPromptSaveState("idle");
+              }}
+              placeholder="Paste the runtime Standard Create system prompt here."
               spellCheck={false}
               rows={14}
             />
             <p className={styles.agentInstructionNote}>
               {copyFeedback[STANDARD_AGENT_ENTRY_ID] ??
-                "Local draft only. Editing this field does not affect the Standard route today."}
+                (standardPromptLoadIssue
+                  ? standardPromptLoadIssue
+                  : standardPromptSaveState === "error"
+                    ? "Unable to save the live Standard system prompt."
+                    : standardPromptSource === "control_plane"
+                      ? `Live runtime override${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
+                      : "No runtime override yet. The Standard agent is currently using the seeded code prompt fallback.")}
             </p>
           </div>
           {standardCardCollapsed ? (
             <p className={styles.agentInstructionCollapsedSummary}>
-              Draft-only local instructions. Expand this card to view or edit the Standard scaffold.
+              {standardPromptSource === "control_plane"
+                ? "Live override active for the Standard Create system prompt."
+                : "Seed fallback active for the Standard Create system prompt."}
             </p>
           ) : null}
         </article>
@@ -743,11 +1281,28 @@ export function AdminAgentInstructionsSection() {
                   <span>{editSystemPresetCardCollapsed ? "Expand" : "Collapse"}</span>
                 </button>
                 <h3 className={styles.agentInstructionTitle}>Edit Mode System Presets</h3>
-                <span className={`${styles.pill} ${styles.pillWarn}`}>Local draft</span>
+                <span
+                  className={`${styles.pill} ${editSystemPresetSaveState === "error" || editSystemPresetLoadIssue ? styles.pillWarn : styles.pillOk}`}
+                >
+                  {editSystemPresetLoadIssue
+                    ? "Seeded fallback"
+                    : editSystemPresetSource === "control_plane"
+                      ? "Live catalog"
+                      : "Seed fallback"}
+                </span>
               </div>
               <p className={styles.agentInstructionDescription}>
-                Seeded from the canonical Expert Edit system preset catalog. This admin card is UI
-                only for now and does not persist to a shared control plane yet.
+                Controls the shared Expert Edit system preset catalog shown in AI Studio for all
+                users.
+              </p>
+              <p className={styles.agentInstructionNote}>
+                {editSystemPresetLoadIssue
+                  ? editSystemPresetLoadIssue
+                  : editSystemPresetSaveState === "error"
+                    ? "Unable to save the live Edit preset catalog."
+                    : editSystemPresetSource === "control_plane"
+                      ? `Live global Edit preset catalog${editSystemPresetUpdatedByEmail ? ` last updated by ${editSystemPresetUpdatedByEmail}` : ""}${editSystemPresetUpdatedLabel ? ` on ${editSystemPresetUpdatedLabel}` : ""}.`
+                      : "Showing the seeded Edit preset catalog. Saving here creates or replaces the shared preset set for all users."}
               </p>
             </div>
           </div>
@@ -773,6 +1328,7 @@ export function AdminAgentInstructionsSection() {
                     className={styles.agentEditPresetTileDelete}
                     onClick={() => handleDeleteEditSystemPreset(preset.presetId)}
                     aria-label={`Delete ${preset.label} preset`}
+                    disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
                   >
                     Delete
                   </button>
@@ -787,6 +1343,7 @@ export function AdminAgentInstructionsSection() {
                         prompt: preset.prompt,
                       })
                     }
+                    disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
                   >
                     <span className={styles.agentEditPresetTileTitle}>{preset.label}</span>
                     <span className={styles.agentEditPresetTilePrompt}>{preset.prompt}</span>
@@ -797,11 +1354,12 @@ export function AdminAgentInstructionsSection() {
                 type="button"
                 className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
                 onClick={handleAddEditSystemPreset}
+                disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
               >
                 <span className={styles.agentEditPresetTileAddIcon}>+</span>
                 <span className={styles.agentEditPresetTileTitle}>Add preset</span>
                 <span className={styles.agentEditPresetTilePrompt}>
-                  Create another local draft system preset for Edit mode.
+                  Create another global system preset for Edit mode.
                 </span>
               </button>
             </div>
@@ -809,7 +1367,7 @@ export function AdminAgentInstructionsSection() {
           {editSystemPresetCardCollapsed ? (
             <p className={styles.agentInstructionCollapsedSummary}>
               {editSystemPresetDrafts.length} system presets available for Edit mode. Expand this
-              card to browse and edit the local draft set.
+              card to browse and edit the shared global set.
             </p>
           ) : null}
         </article>
@@ -827,6 +1385,15 @@ export function AdminAgentInstructionsSection() {
             <p className={styles.agentInstructionModeDescription}>
               These entries are the shared built-in Pulse catalog. Seeded content is just a starting
               point. Save applies the current set for all Create users.
+            </p>
+            <p className={styles.agentInstructionNote}>
+              {pulseCatalogLoadIssue
+                ? pulseCatalogLoadIssue
+                : pulseSaveIssue
+                  ? pulseSaveIssue
+                  : pulseCatalogSource === "control_plane"
+                    ? `Live global Pulse catalog${pulseCatalogUpdatedByEmail ? ` last updated by ${pulseCatalogUpdatedByEmail}` : ""}${pulseCatalogUpdatedLabel ? ` on ${pulseCatalogUpdatedLabel}` : ""}.`
+                    : "Showing the seeded Pulse catalog. Saving here creates or replaces the shared built-in set for all users."}
             </p>
             <div className={styles.agentInstructionModeMetaRow}>
               <button
@@ -866,6 +1433,12 @@ export function AdminAgentInstructionsSection() {
                   ? "This slot differs from the stored global Pulse set."
                   : "Matches the stored global Pulse set."
                 : "New slot. Save applies it to the shared built-in Pulse catalog.";
+              const canSaveCard =
+                !pulseLoading &&
+                pulseSaveState !== "saving" &&
+                !pulseCatalogHasBlockingIssue &&
+                isDirty &&
+                isPulseDraftPersistable(draft);
               const copyValue = [
                 `Preset ID: ${draft.presetId}`,
                 `Label: ${draft.label}`,
@@ -928,6 +1501,14 @@ export function AdminAgentInstructionsSection() {
                         disabled={!isDirty}
                       >
                         {stored ? "Reset to stored" : "Clear slot"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => void handleSavePulseDraft(draft.localId)}
+                        disabled={!canSaveCard}
+                      >
+                        {pulseSaveState === "saving" ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"
@@ -1180,24 +1761,35 @@ export function AdminAgentInstructionsSection() {
                 )
               }
             />
+            {editSystemPresetSaveState === "error" ? (
+              <p className={styles.agentInstructionNote}>
+                Unable to save the live Edit preset catalog.
+              </p>
+            ) : null}
             <div className={styles.agentEditPresetModalActions}>
               <button
                 type="button"
                 className="ghost-btn mini"
                 onClick={() => setPendingEditSystemPreset(null)}
+                disabled={editSystemPresetSaveState === "saving"}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="ghost-btn mini"
-                onClick={handleSaveEditSystemPreset}
+                onClick={() => void handleSaveEditSystemPreset()}
                 disabled={
+                  editSystemPresetSaveState === "saving" ||
                   pendingEditSystemPreset.label.trim().length === 0 ||
                   pendingEditSystemPreset.prompt.trim().length === 0
                 }
               >
-                {pendingEditSystemPreset.originalLabel.trim().length > 0 ? "Save" : "Create"}
+                {editSystemPresetSaveState === "saving"
+                  ? "Saving..."
+                  : pendingEditSystemPreset.originalLabel.trim().length > 0
+                    ? "Save"
+                    : "Create"}
               </button>
             </div>
           </div>

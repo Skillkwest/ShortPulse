@@ -253,22 +253,14 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("requests library total count only when the first page does not prove the total", async () => {
-    fetchMediaListPageMock
-      .mockResolvedValueOnce({
-        rows: [],
-        nextCursor: "cursor-1",
-        hasMore: true,
-        signedById: new Map(),
-        libraryTotalCount: null,
-      })
-      .mockResolvedValueOnce({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-        signedById: new Map(),
-        libraryTotalCount: 5,
-      });
+  it("requests library total count in the reset page load and skips a follow-up count-only request", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [],
+      nextCursor: "cursor-1",
+      hasMore: true,
+      signedById: new Map(),
+      libraryTotalCount: 5,
+    });
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
@@ -286,19 +278,17 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          includeLibraryTotalCount: false,
+          includeLibraryTotalCount: true,
         })
       );
     });
 
-    await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          includeLibraryTotalCount: true,
-          countOnly: true,
-        })
-      );
-    });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaListPageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        countOnly: true,
+      })
+    );
 
     fetchMediaListPageMock.mockClear();
 
@@ -309,7 +299,7 @@ describe("useMediaLibraryPanelDataController", () => {
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        includeLibraryTotalCount: false,
+        includeLibraryTotalCount: true,
       })
     );
   });

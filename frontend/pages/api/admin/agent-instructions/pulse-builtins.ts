@@ -2,8 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import {
-  fetchActiveCreatePulseBuiltInCatalog,
-  getSeededCreatePulseBuiltInDefinitions,
+  CreatePulseBuiltInCatalogVersionMismatchError,
+  resolveCreatePulseBuiltInCatalogForAdmin,
   saveCreatePulseBuiltInCatalog,
 } from "../../../../lib/server/api/createPulseBuiltInControlPlane";
 import { normalizeCreatePulseBuiltInPresetDefinitions } from "../../../../lib/model-runtime/createPulseBuiltIns";
@@ -30,19 +30,35 @@ const validateBuiltInDefinitionsPayload = (
   return { ok: true, builtInDefinitions: normalized };
 };
 
+const validateExpectedUpdatedAt = (
+  value: unknown
+): { ok: true; expectedUpdatedAt: string | null | undefined } | { ok: false; message: string } => {
+  if (value === undefined) {
+    return { ok: true, expectedUpdatedAt: undefined };
+  }
+  if (value === null) {
+    return { ok: true, expectedUpdatedAt: null };
+  }
+  if (typeof value !== "string") {
+    return { ok: false, message: "expectedUpdatedAt must be a string or null." };
+  }
+  const normalized = value.trim();
+  return { ok: true, expectedUpdatedAt: normalized.length > 0 ? normalized : null };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const adminUser = await requireAdminUser(req, res);
   if (!adminUser) return;
 
   if (req.method === "GET") {
     try {
-      const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog();
+      const activeCatalog = await resolveCreatePulseBuiltInCatalogForAdmin();
       return res.status(200).json({
-        builtInDefinitions:
-          activeCatalog?.builtInDefinitions ?? getSeededCreatePulseBuiltInDefinitions(),
-        updatedAt: activeCatalog?.updatedAt ?? null,
-        updatedByEmail: activeCatalog?.updatedByEmail ?? null,
-        source: activeCatalog ? "control_plane" : "seed",
+        builtInDefinitions: activeCatalog.builtInDefinitions,
+        updatedAt: activeCatalog.updatedAt,
+        updatedByEmail: activeCatalog.updatedByEmail,
+        source: activeCatalog.source,
+        degraded: activeCatalog.degraded,
       });
     } catch (error) {
       await logApiRouteException({
@@ -60,10 +76,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!parsed.ok) {
       return res.status(400).json({ error: parsed.message });
     }
+    const expectedUpdatedAt = validateExpectedUpdatedAt(req.body?.expectedUpdatedAt);
+    if (!expectedUpdatedAt.ok) {
+      return res.status(400).json({ error: expectedUpdatedAt.message });
+    }
 
     try {
       const savedCatalog = await saveCreatePulseBuiltInCatalog({
         builtInDefinitions: parsed.builtInDefinitions,
+        expectedUpdatedAt: expectedUpdatedAt.expectedUpdatedAt,
         actorUserId: adminUser.id,
         actorEmail: adminUser.email ?? null,
       });
@@ -72,8 +93,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         updatedAt: savedCatalog.updatedAt,
         updatedByEmail: savedCatalog.updatedByEmail,
         source: "control_plane",
+        degraded: false,
       });
     } catch (error) {
+      if (error instanceof CreatePulseBuiltInCatalogVersionMismatchError) {
+        return res.status(409).json({
+          error: "The global Pulse catalog changed. Reload the latest stored set and try again.",
+          code: "CATALOG_STALE",
+        });
+      }
       await logApiRouteException({
         req,
         error,

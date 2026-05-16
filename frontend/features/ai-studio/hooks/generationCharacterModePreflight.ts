@@ -1,4 +1,3 @@
-import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioOutput, ToolId } from "../types";
 
 export type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -65,47 +64,33 @@ export async function runCharacterModePreflight<TBundle, TFallbackCode extends s
 }: RunCharacterModePreflightParams<TBundle, TFallbackCode>): Promise<
   CharacterModePreflightResult<TFallbackCode>
 > {
-  try {
-    trackCharacterModeEvent?.("generation_preflight_started", {
+  void trigger;
+  void effectiveModelId;
+  void isCharacterModeEnabledForTool;
+  void timeoutMs;
+  void timeoutMessage;
+  trackCharacterModeEvent?.("generation_preflight_bypassed", {
+    trigger,
+    tool,
+    model_id: effectiveModelId,
+    is_character_mode: isCharacterModeEnabledForTool,
+  });
+  void refreshCharacterModeInjectionBundleForSubmission(tool).catch((error) => {
+    trackCharacterModeEvent?.("generation_preflight_refresh_failed", {
       trigger,
       tool,
       model_id: effectiveModelId,
       is_character_mode: isCharacterModeEnabledForTool,
+      detail: error instanceof Error ? error.message : String(error),
     });
-    const characterModeBundleForSubmit = await withDeadline({
-      timeoutMs,
-      timeoutMessage,
-      run: () => refreshCharacterModeInjectionBundleForSubmission(tool),
-    });
-    return {
-      ok: true,
-      overrides: resolveCharacterModeSubmissionOverrides(
-        promptToUse,
-        tool,
-        characterModeBundleForSubmit,
-        userReferenceInputs
-      ),
-    };
-  } catch (error) {
-    if (error instanceof DeadlineExceededError) {
-      trackCharacterModeEvent?.("generation_preflight_timeout", {
-        trigger,
-        tool,
-        model_id: effectiveModelId,
-        is_character_mode: isCharacterModeEnabledForTool,
-        duration_ms: error.timeoutMs,
-        reason_code: "PREFLIGHT_TIMEOUT",
-      });
-    }
-    return {
-      ok: false,
-      error,
-      errorMessage:
-        error instanceof DeadlineExceededError
-          ? timeoutMessage
-          : error instanceof Error
-            ? error.message
-            : "Unable to start generation.",
-    };
-  }
+  });
+  return {
+    ok: true,
+    overrides: resolveCharacterModeSubmissionOverrides(
+      promptToUse,
+      tool,
+      null,
+      userReferenceInputs
+    ),
+  };
 }

@@ -117,6 +117,7 @@ export function ExpertEditPanelView({
   onSelectedPresetIdsChange,
   customPresetOverrides: controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
+  systemPresetDefinitions,
   isStylesPanelOpen = false,
   onStylesPanelToggle,
   selectedStyleId: controlledSelectedStyleId,
@@ -184,6 +185,7 @@ export function ExpertEditPanelView({
     onSelectedPresetIdsChange,
     controlledCustomPresetOverrides,
     onCustomPresetOverridesChange,
+    systemPresetDefinitions,
   });
   const {
     toastVisibleTimerRef,
@@ -390,6 +392,7 @@ export function ExpertEditPanelView({
     guardrailReason,
     layers,
     customPresetOverrides,
+    systemPresetDefinitions,
     updateSelectedPresetIds,
     updateCustomPresetOverrides,
     showStatusToast,

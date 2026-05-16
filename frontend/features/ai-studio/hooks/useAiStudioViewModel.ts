@@ -100,6 +100,8 @@ export const useAiStudioViewModel = ({
   pricingPolicyLoading = false,
   pricingPolicyError = null,
 }: ViewModelInput) => {
+  void pricingPolicyLoading;
+  void pricingPolicyError;
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
   const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
@@ -383,13 +385,6 @@ export const useAiStudioViewModel = ({
   const generationGuardrail = useMemo(() => {
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
-    if (isPricingPolicyUnavailable) {
-      return pricingPolicyLoading
-        ? "Pricing is loading. Please wait before generating."
-        : pricingPolicyError
-          ? "Pricing is temporarily unavailable. Reload and retry."
-          : "Pricing is unavailable. Reload and retry.";
-    }
     if (isEditWorkflowSelected) {
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
@@ -460,30 +455,17 @@ export const useAiStudioViewModel = ({
         return "Add both first and last frame images before generating with Seedance 2.0.";
       }
     }
-    if (isCreditGuardrail) return "You do not have enough credits for this run.";
-    if (
-      isCreateWorkflowSelected &&
-      mode === "text" &&
-      !hasSufficientCreditsForPromptReferenceGenerate
-    ) {
-      return "You do not have enough credits for this run.";
-    }
     return null;
   }, [
     extraImageUrls,
     hasDescribeImage,
-    hasSufficientCreditsForPromptReferenceGenerate,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
-    isPricingPolicyUnavailable,
     isVideoTool,
-    isCreditGuardrail,
     isDescribeMode,
     isModelSelected,
     model,
     motionReferenceVideoUrl,
-    pricingPolicyError,
-    pricingPolicyLoading,
     referenceImageUrl,
     requiresModelSelection,
     klingMultiPrompts,

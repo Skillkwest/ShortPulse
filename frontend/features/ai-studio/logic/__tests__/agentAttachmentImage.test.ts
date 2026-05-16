@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: vi.fn(async () => null),
+  getSignedMediaUrlsBatch: vi.fn(async () => new Map()),
 }));
 
 vi.mock("../../utils/imageUpload", () => ({
@@ -12,8 +13,34 @@ import {
   normalizeAttachmentImageUrl,
   resolveAgentAttachmentPreviewUrl,
 } from "../agentAttachmentImage";
+import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+
+const getSignedMediaUrlMock = vi.mocked(getSignedMediaUrl);
+const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 
 describe("agentAttachmentImage", () => {
+  it("uses api-first batch signing for storage-backed attachment previews", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValueOnce(
+      new Map([["user-1/generated/preview.png", "https://signed.test/preview.png"]])
+    );
+
+    const resolvedUrl = await resolveAgentAttachmentPreviewUrl({
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceRenderUrl: null,
+      referenceUrl: null,
+      imageUrl: null,
+    });
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user-1/generated/preview.png"],
+      forceRefresh: true,
+    });
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+    expect(resolvedUrl).toBe("https://signed.test/preview.png");
+  });
+
   it("prefers the staged imageUrl before a weaker referenceUrl", async () => {
     const resolvedUrl = await resolveAgentAttachmentPreviewUrl({
       previewStoragePath: null,

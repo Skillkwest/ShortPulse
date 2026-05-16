@@ -22,9 +22,7 @@ const createParams = (
     isGenerateDisabled: false,
     isCreditGuardrail: false,
     generationGuardrail: null,
-    effectiveBalanceCredits: 100,
     balanceCredits: 100,
-    optimisticUncoveredDebitTotal: 0,
     setUiError: asDispatch<string | null>(vi.fn()),
     setUiNotice: asDispatch<string | null>(vi.fn()),
     setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
@@ -250,13 +248,13 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt");
     });
 
-    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
-    expect(setUiError).toHaveBeenCalledWith("Character context unavailable");
-    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalledWith("Character context unavailable");
+    expect(setOptimisticDebitEntries).toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("fails fast and removes optimistic placeholder when preflight times out", async () => {
+  it("does not wait on unresolved preflight refresh before generating", async () => {
     vi.useFakeTimers();
     try {
       const setUiError = vi.fn();
@@ -281,19 +279,16 @@ describe("useAiStudioGenerationController", () => {
       const { result } = renderHook(() => useAiStudioGenerationController(params));
 
       await act(async () => {
-        const pending = result.current.handleGenerate("prompt");
-        await vi.advanceTimersByTimeAsync(10_000);
-        await Promise.resolve();
-        await pending;
+        await result.current.handleGenerate("prompt");
       });
 
-      expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
-      expect(setUiError).toHaveBeenCalledWith(
+      expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+      expect(setUiError).not.toHaveBeenCalledWith(
         "Preparation timed out before generation started. Please retry."
       );
-      expect(generateOutput).not.toHaveBeenCalled();
+      expect(generateOutput).toHaveBeenCalledTimes(1);
       expect(trackCharacterModeEvent).toHaveBeenCalledWith(
-        "generation_preflight_started",
+        "generation_preflight_bypassed",
         expect.objectContaining({ trigger: "generate" })
       );
     } finally {
@@ -301,12 +296,11 @@ describe("useAiStudioGenerationController", () => {
     }
   });
 
-  it("fails generate when override cost cannot be covered after refresh", async () => {
+  it("does not block generate when override cost cannot be covered after refresh", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 1);
     const generateOutput = vi.fn();
     const params = createParams({
-      effectiveBalanceCredits: 1,
       balanceCredits: 1,
       refreshBalance,
       setUiError: asDispatch<string | null>(setUiError),
@@ -318,105 +312,17 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
     });
 
-    expect(refreshBalance).toHaveBeenCalledWith(
-      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
-    );
-    expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
-    expect(generateOutput).not.toHaveBeenCalled();
-  });
-
-  it("accounts for uncovered optimistic debits after refresh", async () => {
-    const setUiError = vi.fn();
-    const refreshBalance = vi.fn(async () => 6);
-    const generateOutput = vi.fn();
-    const params = createParams({
-      effectiveBalanceCredits: 4,
-      balanceCredits: 6,
-      optimisticUncoveredDebitTotal: 2,
-      refreshBalance,
-      setUiError: asDispatch<string | null>(setUiError),
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    await act(async () => {
-      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
-    });
-
-    expect(refreshBalance).toHaveBeenCalledWith(
-      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
-    );
-    expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
-    expect(generateOutput).not.toHaveBeenCalled();
-  });
-
-  it("uses authoritative snapshot refresh without re-subtracting optimistic holds", async () => {
-    const setUiError = vi.fn();
-    const generateOutput = vi.fn();
-    const refreshBalance = vi.fn(
-      async (options?: {
-        beforeCommit?: (snapshot: {
-          cents: number;
-          updatedAt: string | null;
-          reservedCents?: number | null;
-          source?: "snapshot" | "fallback";
-        }) => void;
-      }) => {
-        options?.beforeCommit?.({
-          cents: 6,
-          updatedAt: "2026-02-15T21:00:00.000Z",
-          reservedCents: 2,
-          source: "snapshot",
-        });
-        return 6;
-      }
-    );
-    const params = createParams({
-      effectiveBalanceCredits: 4,
-      balanceCredits: 6,
-      optimisticUncoveredDebitTotal: 2,
-      refreshBalance,
-      setUiError: asDispatch<string | null>(setUiError),
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    await act(async () => {
-      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
-    });
-
-    expect(refreshBalance).toHaveBeenCalledWith(
-      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
-    );
+    expect(refreshBalance).not.toHaveBeenCalled();
     expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("applies optimistic subtraction when refresh reports fallback source", async () => {
+  it("does not self-throttle generate when current balance already covers the run", async () => {
     const setUiError = vi.fn();
+    const refreshBalance = vi.fn(async () => 6);
     const generateOutput = vi.fn();
-    const refreshBalance = vi.fn(
-      async (options?: {
-        beforeCommit?: (snapshot: {
-          cents: number;
-          updatedAt: string | null;
-          reservedCents?: number | null;
-          source?: "snapshot" | "fallback";
-        }) => void;
-      }) => {
-        options?.beforeCommit?.({
-          cents: 6,
-          updatedAt: "2026-02-15T21:05:00.000Z",
-          reservedCents: null,
-          source: "fallback",
-        });
-        return 6;
-      }
-    );
     const params = createParams({
-      effectiveBalanceCredits: 4,
       balanceCredits: 6,
-      optimisticUncoveredDebitTotal: 2,
       refreshBalance,
       setUiError: asDispatch<string | null>(setUiError),
       generateOutput,
@@ -427,11 +333,51 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
     });
 
-    expect(refreshBalance).toHaveBeenCalledWith(
-      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
-    );
-    expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(refreshBalance).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not refresh balance for generate guardrail checks once credit locking is removed", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(async () => 6);
+    const params = createParams({
+      balanceCredits: 4,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reapply optimistic hold subtraction when refresh falls back to local balance", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(async () => null);
+    const params = createParams({
+      balanceCredits: 6,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
   it("regenerates with optimistic debit and submission overrides", async () => {
@@ -665,7 +611,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "edit",
       model: "fal-ai/nano-banana-pro/edit",
       currentCostCredits: 15,
-      effectiveBalanceCredits: 2,
       balanceCredits: 2,
       isGenerateDisabled: true,
       isCreditGuardrail: true,
@@ -718,7 +663,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "edit",
       model: "fal-ai/nano-banana-pro/edit",
       currentCostCredits: 15,
-      effectiveBalanceCredits: 2,
       balanceCredits: 2,
       isGenerateDisabled: true,
       isCreditGuardrail: true,
@@ -891,7 +835,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("blocks create character-mode generate when no character references are available", async () => {
+  it("allows create character-mode generate when no character references are available", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -916,17 +860,15 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiError).toHaveBeenCalledWith(
-      "Character Mode requires at least one character image before generating."
-    );
-    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+    expect(generateOutput).toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",
-      expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+      expect.anything()
     );
   });
 
-  it("blocks create character-mode generate when the selected bundle cannot be loaded", async () => {
+  it("allows create character-mode generate when the selected bundle cannot be loaded", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -953,17 +895,15 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalled();
     expect(trackCharacterModeFallback).toHaveBeenCalledWith(
       expect.objectContaining({ fallbackCode: "bundle_unavailable" }),
       "create"
     );
-    expect(setUiError).toHaveBeenCalledWith(
-      "Selected character context could not be loaded. Please reselect the character and retry."
-    );
-    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
       "character_mode_submit_blocked_fallback",
-      expect.objectContaining({ fallback_code: "bundle_unavailable", tool: "create" })
+      expect.anything()
     );
   });
 
@@ -1009,7 +949,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("blocks create character-mode generate when no character is selected", async () => {
+  it("allows create character-mode generate when no character is selected", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -1034,13 +974,11 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiError).toHaveBeenCalledWith(
-      "Select a character before generating with Character Mode."
-    );
-    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+    expect(generateOutput).toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
       "character_mode_submit_blocked_fallback",
-      expect.objectContaining({ fallback_code: "no_character_selected", tool: "create" })
+      expect.anything()
     );
   });
 

@@ -1,7 +1,7 @@
 type RunGenerationCreditGuardrailParams = {
   requiredCredits: number | null | undefined;
   upfrontRunCredits: number | null | undefined;
-  effectiveBalanceCredits: number | null;
+  availableBalanceCredits: number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
   alwaysCheckCreditGuardrailWhenEnabled: boolean;
@@ -14,7 +14,7 @@ type RunGenerationCreditGuardrailParams = {
 export async function runGenerationCreditGuardrail({
   requiredCredits,
   upfrontRunCredits,
-  effectiveBalanceCredits,
+  availableBalanceCredits,
   isGenerateDisabled,
   isCreditGuardrail,
   alwaysCheckCreditGuardrailWhenEnabled,
@@ -23,45 +23,20 @@ export async function runGenerationCreditGuardrail({
   handleInsufficientCredits,
   handleGuardrailBlock,
 }: RunGenerationCreditGuardrailParams): Promise<boolean> {
-  let checkedFreshCredits = false;
-
-  if (
-    upfrontRunCredits != null &&
-    effectiveBalanceCredits != null &&
-    effectiveBalanceCredits < upfrontRunCredits
-  ) {
-    const hasFreshCredits = await ensureFreshCreditsForRun(upfrontRunCredits);
-    checkedFreshCredits = true;
-    if (!hasFreshCredits) {
-      handleInsufficientCredits();
-      return false;
-    }
-  }
+  void requiredCredits;
+  void upfrontRunCredits;
+  void availableBalanceCredits;
+  void alwaysCheckCreditGuardrailWhenEnabled;
+  void ensureFreshCreditsForRun;
+  void handleInsufficientCredits;
 
   if (isGenerateDisabled) {
     if (isCreditGuardrail) {
-      const hasFreshCredits = checkedFreshCredits
-        ? true
-        : await ensureFreshCreditsForRun(requiredCredits);
-      if (!hasFreshCredits) {
-        handleGuardrailBlock(resolveGuardrailBlockMessage());
-        return false;
-      }
       return true;
     }
 
     handleGuardrailBlock(resolveGuardrailBlockMessage());
     return false;
-  }
-
-  if (alwaysCheckCreditGuardrailWhenEnabled && isCreditGuardrail) {
-    const hasFreshCredits = checkedFreshCredits
-      ? true
-      : await ensureFreshCreditsForRun(requiredCredits);
-    if (!hasFreshCredits) {
-      handleGuardrailBlock(resolveGuardrailBlockMessage());
-      return false;
-    }
   }
 
   return true;

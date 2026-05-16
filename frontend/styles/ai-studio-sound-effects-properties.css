@@ -67,8 +67,8 @@
 
 .sound-effects-properties-script-input {
   width: 100%;
-  height: 100%;
-  min-height: 520px;
+  height: auto;
+  min-height: 0;
   padding: 12px 16px;
   border: 0;
   background: transparent;
@@ -81,6 +81,11 @@
   scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
+}
+
+.sound-effects-properties-script-input-shell--with-inspiration
+  .sound-effects-properties-script-input {
+  flex: 1 1 auto;
 }
 
 .sound-effects-properties-script-input::placeholder {
@@ -121,7 +126,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 16px 16px;
+  padding: 14px 16px 20px;
 }
 
 .sound-effects-properties-inspiration-header {
@@ -428,19 +433,9 @@
   color: rgba(174, 184, 196, 0.8);
 }
 
-@media (max-width: 1180px) {
-  .sound-effects-properties-script-input {
-    min-height: 460px;
-  }
-}
-
 @media (max-width: 720px) {
   .sound-effects-properties-shell {
     padding: 12px 12px 16px;
-  }
-
-  .sound-effects-properties-script-input {
-    min-height: 380px;
   }
 
   .sound-effects-properties-inspiration-track {

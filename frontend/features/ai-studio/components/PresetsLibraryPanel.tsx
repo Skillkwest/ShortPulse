@@ -181,7 +181,7 @@ export function PresetsLibraryPanel({
       <header className="presets-library-header">
         <p className="eyebrow">Prompt Presets Library</p>
         <p className="tiny subdued helper-text">
-          Click a preset card to rename it or edit the prompt text.
+          System presets are shared globally. Only custom presets can be renamed or edited here.
         </p>
       </header>
       <div className="presets-library-scroll">
@@ -200,10 +200,15 @@ export function PresetsLibraryPanel({
                   type="button"
                   className="presets-library-tile-select"
                   aria-pressed={isSelected}
-                  aria-label={`Edit preset tile: ${preset.label}`}
+                  aria-label={
+                    preset.isCustom
+                      ? `Edit preset tile: ${preset.label}`
+                      : `Select preset tile: ${preset.label}`
+                  }
                   onClick={() => {
                     onSelectPreset?.(preset.presetId);
                     setLocalSaveError(null);
+                    if (!preset.isCustom) return;
                     setPendingPresetEdit({
                       presetId: preset.presetId,
                       presetLabel: preset.label,
@@ -223,20 +228,22 @@ export function PresetsLibraryPanel({
                   </span>
                   <span className="presets-library-tile-prompt">{preset.prompt}</span>
                 </button>
-                <button
-                  type="button"
-                  className="presets-library-tile-delete"
-                  aria-label={`Delete preset: ${preset.label}`}
-                  onClick={() => {
-                    setLocalSaveError(null);
-                    setPendingPresetDelete({
-                      presetId: preset.presetId,
-                      presetLabel: preset.label,
-                    });
-                  }}
-                >
-                  <TrashSimple size={11} weight="bold" aria-hidden="true" />
-                </button>
+                {preset.isCustom ? (
+                  <button
+                    type="button"
+                    className="presets-library-tile-delete"
+                    aria-label={`Delete preset: ${preset.label}`}
+                    onClick={() => {
+                      setLocalSaveError(null);
+                      setPendingPresetDelete({
+                        presetId: preset.presetId,
+                        presetLabel: preset.label,
+                      });
+                    }}
+                  >
+                    <TrashSimple size={11} weight="bold" aria-hidden="true" />
+                  </button>
+                ) : null}
               </article>
             );
           })}

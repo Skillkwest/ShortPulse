@@ -163,6 +163,16 @@ Current set:
 - `113_add_admin_kanban_review_status.sql`
 - `114_add_dashboard_offers.sql`
 - `115_remove_global_model_pricing_rounding.sql`
+- `116_add_atomic_admin_pricing_offer_activation_rpcs.sql`
+- `117_add_create_pulse_builtin_control_plane.sql`
+- `118_canonicalize_character_metadata_media_ids.sql`
+- `119_require_character_media_id_on_character_links.sql`
+- `120_remove_legacy_onboarding_user_preference.sql`
+- `121_add_agent_prompt_runtime_control_plane.sql`
+- `122_retire_character_sheet_alias_compat.sql`
+- `123_add_audio_companion_art_projection_fields.sql`
+- `124_add_generation_projection_save_error.sql`
+- `125_add_expert_edit_system_preset_control_plane.sql`
 - `118_canonicalize_character_metadata_media_ids.sql`
 - `119_require_character_media_id_on_character_links.sql`
 - `120_remove_legacy_onboarding_user_preference.sql`

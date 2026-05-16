@@ -1,11 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/agent-instructions/pulse-builtins";
+import {
+  CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+  type CreatePulseBuiltInPresetDefinition,
+} from "../../features/ai-studio/components/create/createPulsePresets";
 
-const requireAdminUserMock = vi.fn();
-const logApiRouteExceptionMock = vi.fn();
-const fetchActiveCreatePulseBuiltInCatalogMock = vi.fn();
-const getSeededCreatePulseBuiltInDefinitionsMock = vi.fn();
-const saveCreatePulseBuiltInCatalogMock = vi.fn();
+const requireAdminUserMock = vi.hoisted(() => vi.fn());
+const logApiRouteExceptionMock = vi.hoisted(() => vi.fn());
+const resolveCreatePulseBuiltInCatalogForAdminMock = vi.hoisted(() => vi.fn());
+const saveCreatePulseBuiltInCatalogMock = vi.hoisted(() => vi.fn());
+const CreatePulseBuiltInCatalogVersionMismatchErrorMock = vi.hoisted(
+  () =>
+    class CreatePulseBuiltInCatalogVersionMismatchError extends Error {
+      constructor() {
+        super("Create Pulse built-in catalog changed since it was loaded.");
+        this.name = "CreatePulseBuiltInCatalogVersionMismatchError";
+      }
+    }
+);
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -16,10 +28,9 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
-  fetchActiveCreatePulseBuiltInCatalog: (...args: unknown[]) =>
-    fetchActiveCreatePulseBuiltInCatalogMock(...args),
-  getSeededCreatePulseBuiltInDefinitions: (...args: unknown[]) =>
-    getSeededCreatePulseBuiltInDefinitionsMock(...args),
+  CreatePulseBuiltInCatalogVersionMismatchError: CreatePulseBuiltInCatalogVersionMismatchErrorMock,
+  resolveCreatePulseBuiltInCatalogForAdmin: (...args: unknown[]) =>
+    resolveCreatePulseBuiltInCatalogForAdminMock(...args),
   saveCreatePulseBuiltInCatalog: (...args: unknown[]) => saveCreatePulseBuiltInCatalogMock(...args),
 }));
 
@@ -29,67 +40,68 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
-describe("admin Pulse built-ins API", () => {
+describe("admin pulse built-ins API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
-    getSeededCreatePulseBuiltInDefinitionsMock.mockReturnValue([
-      {
-        presetId: "image",
-        label: "Video Prompt Magic",
-        description: "Seed description",
-        starterAssistantMessage: "Upload",
-        workflowStageHints: ["Image Gate"],
-        artifactTarget: "video_prompt",
-        systemInstructions: "Seed system",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        outputMode: "chat_reply",
-        memoryPolicy: "session",
-      },
-    ]);
   });
 
-  it("rejects unsupported methods", async () => {
-    const req = { method: "DELETE" };
-    const res = createMockResponse();
-    await handler(req as never, res as never);
-    expect(res.setHeader).toHaveBeenCalledWith("Allow", "GET, PUT");
-    expect(res.status).toHaveBeenCalledWith(405);
-  });
+  it("returns the resolved Pulse catalog", async () => {
+    resolveCreatePulseBuiltInCatalogForAdminMock.mockResolvedValue({
+      builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      updatedAt: "2026-05-08T17:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+      degraded: false,
+    });
 
-  it("returns seeded fallback when no stored row exists", async () => {
-    fetchActiveCreatePulseBuiltInCatalogMock.mockResolvedValue(null);
     const req = { method: "GET" };
     const res = createMockResponse();
     await handler(req as never, res as never);
+
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      builtInDefinitions: expect.any(Array),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
+      builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      updatedAt: "2026-05-08T17:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+      degraded: false,
     });
   });
 
-  it("persists the shared Pulse catalog", async () => {
+  it("surfaces degraded seeded fallback state on reads", async () => {
+    resolveCreatePulseBuiltInCatalogForAdminMock.mockResolvedValue({
+      builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      updatedAt: null,
+      updatedByEmail: null,
+      source: "seed",
+      degraded: true,
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      updatedAt: null,
+      updatedByEmail: null,
+      source: "seed",
+      degraded: true,
+    });
+  });
+
+  it("persists the edited global Pulse catalog with an expected updatedAt token", async () => {
+    const nextDefinitions: readonly CreatePulseBuiltInPresetDefinition[] = [
+      {
+        ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+        label: "Global Prompt Director",
+      },
+    ];
     saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
-      builtInDefinitions: [
-        {
-          presetId: "image",
-          label: "Global Prompt Director",
-          description: "New description",
-          starterAssistantMessage: "Upload",
-          workflowStageHints: ["Image Gate"],
-          artifactTarget: "video_prompt",
-          systemInstructions: "New system",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-          outputMode: "chat_reply",
-          memoryPolicy: "session",
-        },
-      ],
-      updatedAt: "2026-05-05T18:05:00.000Z",
+      builtInDefinitions: nextDefinitions,
+      updatedAt: "2026-05-08T17:05:00.000Z",
       updatedByUserId: "admin-1",
       updatedByEmail: "admin@example.com",
     });
@@ -97,46 +109,48 @@ describe("admin Pulse built-ins API", () => {
     const req = {
       method: "PUT",
       body: {
-        builtInDefinitions: [
-          {
-            presetId: "image",
-            label: "Global Prompt Director",
-            description: "New description",
-            starterAssistantMessage: "Upload",
-            workflowStageHints: ["Image Gate"],
-            artifactTarget: "video_prompt",
-            systemInstructions: "New system",
-          },
-        ],
+        builtInDefinitions: nextDefinitions,
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
       },
     };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
     expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
-      builtInDefinitions: [
-        expect.objectContaining({
-          presetId: "image",
-          label: "Global Prompt Director",
-        }),
-      ],
+      builtInDefinitions: nextDefinitions,
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
       actorUserId: "admin-1",
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      builtInDefinitions: nextDefinitions,
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+      degraded: false,
+    });
   });
 
-  it("rejects malformed Pulse built-in payloads", async () => {
+  it("returns 409 when the stored catalog changed before save", async () => {
+    saveCreatePulseBuiltInCatalogMock.mockRejectedValue(
+      new CreatePulseBuiltInCatalogVersionMismatchErrorMock()
+    );
+
     const req = {
       method: "PUT",
       body: {
-        builtInDefinitions: [
-          { presetId: "", label: "Bad", description: "", systemInstructions: "" },
-        ],
+        builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
       },
     };
     const res = createMockResponse();
     await handler(req as never, res as never);
-    expect(res.status).toHaveBeenCalledWith(400);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "The global Pulse catalog changed. Reload the latest stored set and try again.",
+      code: "CATALOG_STALE",
+    });
   });
 });

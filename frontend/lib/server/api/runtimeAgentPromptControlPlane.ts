@@ -27,6 +27,13 @@ export type RuntimeAgentPromptAdminResolution = RuntimeAgentPromptResolution & {
   degraded: boolean;
 };
 
+export class RuntimeAgentPromptVersionMismatchError extends Error {
+  constructor(promptId: AgentPromptId) {
+    super(`Runtime agent prompt ${promptId} changed since it was loaded.`);
+    this.name = "RuntimeAgentPromptVersionMismatchError";
+  }
+}
+
 const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
 const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
 const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
@@ -225,12 +232,14 @@ export const resolveRuntimeAgentPromptForAdmin = async ({
 export const saveRuntimeAgentPrompt = async ({
   promptId,
   promptBody,
+  expectedUpdatedAt,
   actorUserId,
   actorEmail,
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   promptId: AgentPromptId;
   promptBody: string;
+  expectedUpdatedAt?: string | null;
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
@@ -238,6 +247,18 @@ export const saveRuntimeAgentPrompt = async ({
   const normalizedPromptBody = promptBody.trim();
   if (!normalizedPromptBody) {
     throw new Error(`Runtime agent prompt ${promptId} cannot be empty.`);
+  }
+
+  if (expectedUpdatedAt !== undefined) {
+    const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({
+      promptId,
+      supabaseAdmin,
+    });
+    const normalizedExpectedUpdatedAt = asNullableString(expectedUpdatedAt);
+    const activeUpdatedAt = activePromptRecord?.updatedAt ?? null;
+    if (activeUpdatedAt !== normalizedExpectedUpdatedAt) {
+      throw new RuntimeAgentPromptVersionMismatchError(promptId);
+    }
   }
 
   const { error } = await supabaseAdmin.from("agent_prompt_runtime").upsert(

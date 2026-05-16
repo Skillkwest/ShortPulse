@@ -473,7 +473,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
-  it("keeps voice changer generate disabled when the source is ready but priced credits are unresolved", async () => {
+  it("keeps voice changer generate available when the source is ready but priced credits are unresolved", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -517,7 +517,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
-    expect(generateButton).toBeDisabled();
+    expect(generateButton).toBeEnabled();
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 

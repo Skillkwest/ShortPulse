@@ -14,6 +14,7 @@ import {
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   REFERENCE_TRANSFER_RENDER_URL_TYPE,
+  looksLikeAudioUrl,
   looksLikeImageUrl,
   looksLikeVideoUrl,
   normalizeReferenceTransferUrlCandidate,
@@ -29,6 +30,8 @@ import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../pr
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
 const VIDEO_ATTACHMENT_REJECTION_MESSAGE = "This is a video. Try adding an image instead.";
+const NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE =
+  "This reference is not an image. Try adding an image instead.";
 const INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE =
   "Could not attach that image. Try dragging it again or add it from Media Library.";
 
@@ -182,13 +185,14 @@ export const useAiStudioAgentComposer = ({
   }, []);
 
   useEffect(() => {
+    const ownedObjectUrls = ownedObjectUrlsRef.current;
     return () => {
-      ownedObjectUrlsRef.current.forEach((objectUrl) => {
+      ownedObjectUrls.forEach((objectUrl) => {
         if (typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
           URL.revokeObjectURL(objectUrl);
         }
       });
-      ownedObjectUrlsRef.current.clear();
+      ownedObjectUrls.clear();
     };
   }, []);
 
@@ -402,8 +406,14 @@ export const useAiStudioAgentComposer = ({
 
           const hasInternalVideoReference =
             internalPayload?.mediaKind === "video" || matchedOutput?.mode === "video";
+          const hasInternalAudioReference =
+            internalPayload?.mediaKind === "audio" || matchedOutput?.mode === "audio";
           if (hasInternalVideoReference) {
             setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+            return;
+          }
+          if (hasInternalAudioReference) {
+            setAgentAttachmentError(NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
 
@@ -574,9 +584,17 @@ export const useAiStudioAgentComposer = ({
             payload.mediaKind === "video" ||
             internalPayload.mediaKind === "video" ||
             matchedOutput?.mode === "video";
+          const hasInternalAudioReference =
+            payload.mediaKind === "audio" ||
+            internalPayload.mediaKind === "audio" ||
+            matchedOutput?.mode === "audio";
 
           if (hasInternalVideoReference) {
             setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+            return;
+          }
+          if (hasInternalAudioReference) {
+            setAgentAttachmentError(NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
 
@@ -693,9 +711,26 @@ export const useAiStudioAgentComposer = ({
           looksLikeVideoUrl(mediaLibraryImagePayload?.fullUrl ?? undefined) ||
           looksLikeVideoUrl(matchedOutputImageUrl ?? undefined) ||
           looksLikeVideoUrl(resolvedPreviewUrl ?? undefined);
+        const hasAudioReference =
+          payload.mediaKind === "audio" ||
+          mediaLibraryImagePayload?.fileType === "audio" ||
+          matchedOutput?.mode === "audio" ||
+          looksLikeAudioUrl(transferReferenceUrl ?? undefined) ||
+          looksLikeAudioUrl(transferRenderUrl ?? undefined) ||
+          looksLikeAudioUrl(payload.imageUrl ?? undefined) ||
+          looksLikeAudioUrl(mediaLibraryImagePayload?.previewUrl ?? undefined) ||
+          looksLikeAudioUrl(mediaLibraryImagePayload?.previewPosterUrl ?? undefined) ||
+          looksLikeAudioUrl(mediaLibraryImagePayload?.url ?? undefined) ||
+          looksLikeAudioUrl(mediaLibraryImagePayload?.fullUrl ?? undefined) ||
+          looksLikeAudioUrl(matchedOutputImageUrl ?? undefined) ||
+          looksLikeAudioUrl(resolvedPreviewUrl ?? undefined);
 
         if (hasVideoReference) {
           setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+          return;
+        }
+        if (hasAudioReference) {
+          setAgentAttachmentError(NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE);
           return;
         }
 

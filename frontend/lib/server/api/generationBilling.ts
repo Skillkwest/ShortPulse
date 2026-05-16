@@ -219,6 +219,42 @@ export const chargeGenerationRequest = async ({
     debited_credits: breakdown.credits,
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
+  const buildBypassCharge = (reason: string): ChargeResult => {
+    console.warn("[generationBilling] bypassing reservation gate", {
+      modelId,
+      route: req.url ?? null,
+      sourceRef,
+      reason,
+    });
+    return {
+      userId: user.id,
+      modelId,
+      credits: breakdown.credits,
+      sourceRef,
+      billingMode: "bypass",
+      chargeMetadata: {
+        ...chargeMetadata,
+        reservation_bypass_reason: reason,
+      },
+      pricingBreakdown: {
+        billedCredits: breakdown.credits,
+        billedUsd: breakdown.usd,
+        pricingPolicySource: runtimePricingPolicy.source,
+        pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
+        rawCredits: breakdown.rawCredits,
+        usdRaw: breakdown.usdRaw,
+      },
+      pricingParams,
+      markSubmitted: async () => ({
+        ok: true,
+        status: "bypass",
+        sourceRef,
+        message: reason,
+        code: null,
+      }),
+      refund: async () => undefined,
+    };
+  };
   const pricingBreakdown = {
     usdRaw: breakdown.usdRaw,
     rawCredits: breakdown.rawCredits,
@@ -272,88 +308,22 @@ export const chargeGenerationRequest = async ({
   });
   if (reserveResult.status === "failed") {
     if (reserveResult.message === "insufficient_credits") {
-      return respondChargeFailure(402, "Insufficient credits for this generation.", {
-        reservation_mode: true,
-        reservation_status: reserveResult.status,
-        reservation_message: reserveResult.message ?? null,
-        reservation_code: reserveResult.code ?? null,
-      });
+      return buildBypassCharge("insufficient_credits");
     }
-    if (!isRecoverableReservationFailure(reserveResult)) {
-      console.error("[generationBilling] admit_and_reserve_generation_credits failed", {
-        modelId,
-        route: req.url ?? null,
-        sourceRef,
-        code: reserveResult.code ?? null,
-        message: reserveResult.message ?? null,
-      });
-      return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-        reservation_mode: true,
-        reservation_status: reserveResult.status,
-        reservation_message: reserveResult.message ?? null,
-        reservation_code: reserveResult.code ?? null,
-      });
-    }
-    console.error("[generationBilling] reservation RPC unavailable", {
+    const reservationFailureReason = isRecoverableReservationFailure(reserveResult)
+      ? "reservation_rpc_unavailable"
+      : "reservation_failed";
+    console.error("[generationBilling] reservation gate bypassed", {
       modelId,
       route: req.url ?? null,
       sourceRef,
       code: reserveResult.code ?? null,
       message: reserveResult.message ?? null,
     });
-    return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-      reservation_mode: true,
-      reservation_status: reserveResult.status,
-      reservation_message: reserveResult.message ?? null,
-      reservation_code: reserveResult.code ?? null,
-    });
+    return buildBypassCharge(reservationFailureReason);
   }
   if (reserveResult.status === "admission_limited") {
-    const retryAfterSeconds =
-      reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds;
-    const limits =
-      reserveResult.admission &&
-      typeof reserveResult.admission.tier === "string" &&
-      reserveResult.admission.tier.length > 0
-        ? {
-            globalMax: reserveResult.admission.globalMax,
-            globalActive: reserveResult.admission.globalActive,
-            tier: reserveResult.admission.tier,
-            tierMax: reserveResult.admission.tierMax,
-            tierActive: reserveResult.admission.tierActive,
-          }
-        : null;
-    await logGenerationFailure({
-      req,
-      routeLabel,
-      source: "telemetry.api.generation_submit.admission_limited",
-      message: "Generation admission limit reached.",
-      statusCode: 429,
-      userId: user.id,
-      metadata: {
-        model_id: modelId,
-        mode: runtimeFlags.admission.mode,
-        reason: reserveResult.admission?.reason ?? "admission_limited",
-        global_active: reserveResult.admission?.globalActive ?? null,
-        global_max: reserveResult.admission?.globalMax ?? runtimeFlags.admission.globalMax,
-        tier: reserveResult.admission?.tier ?? admissionTier,
-        tier_active: reserveResult.admission?.tierActive ?? null,
-        tier_max:
-          reserveResult.admission?.tierMax ?? runtimeFlags.admission.tierLimits[admissionTier],
-        admission_scope: "per_user",
-        admission_source: "atomic_reservation_rpc",
-      },
-    });
-    res.setHeader("Retry-After", String(retryAfterSeconds));
-    res.status(429).json({
-      error: "Too many active generations. Please retry shortly.",
-      code: "GENERATION_ADMISSION_LIMIT",
-      retryAfterSeconds,
-      admissionScope: "per_user",
-      admissionReason: reserveResult.admission?.reason ?? "admission_limited",
-      ...(limits ? { limits } : {}),
-    });
-    return null;
+    return buildBypassCharge("admission_limited");
   }
   if (reserveResult.status === "already_captured" || reserveResult.status === "already_released") {
     return respondChargeFailure(409, "Duplicate submit request id. Retry with a new request id.", {

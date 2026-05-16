@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCompareMarkdownReport,
   buildMarkdownReport,
   buildTemplatePacket,
+  comparePackets,
   parseArgs,
   scorePacket,
 } from "../media_panel_kpi_score.mjs";
@@ -238,5 +240,143 @@ describe("media_panel_kpi_score", () => {
 
     expect(args.template).toBe(true);
     expect(args.surface).toBe("elements-media-panel");
+  });
+
+  it("compares packets and reports meaningful improvements", () => {
+    const comparison = comparePackets(
+      {
+        packetVersion: 2,
+        sampleCount: 8,
+        surface: "ai-studio-panel",
+        metrics: {
+          firstMediaPaintP95Ms: 1400,
+          loadingStateVisibleMsP95: 2200,
+          openToFirstMediaP95Ms: 2400,
+          signBatchP95Ms: 320,
+          resolveCallsPerOpen: 0.8,
+          fallbackCallsPerOpen: 0.2,
+          stateFlipCountPerOpen: 1.2,
+          extraListCallsPerOpen: 0.6,
+          signFailedRatio: 0.03,
+          resolveFailedRatio: 0.05,
+          fallbackFailedRatio: 0.02,
+          consoleErrorsPerOpen: 0,
+          visualRegressionCount: 0,
+          missingPreviewRatio: 0.1,
+          canonicalPreviewCoverageRatio: 0.7,
+          emptyStateMismatchCount: 0,
+        },
+      },
+      {
+        packetVersion: 2,
+        sampleCount: 8,
+        surface: "ai-studio-panel",
+        metrics: {
+          firstMediaPaintP95Ms: 820,
+          loadingStateVisibleMsP95: 1100,
+          openToFirstMediaP95Ms: 1250,
+          signBatchP95Ms: 180,
+          resolveCallsPerOpen: 0.15,
+          fallbackCallsPerOpen: 0.05,
+          stateFlipCountPerOpen: 0.2,
+          extraListCallsPerOpen: 0.1,
+          signFailedRatio: 0.01,
+          resolveFailedRatio: 0.01,
+          fallbackFailedRatio: 0.01,
+          consoleErrorsPerOpen: 0,
+          visualRegressionCount: 0,
+          missingPreviewRatio: 0.02,
+          canonicalPreviewCoverageRatio: 0.98,
+          emptyStateMismatchCount: 0,
+        },
+      }
+    );
+
+    expect(comparison.summary).toBe("improved");
+    expect(comparison.scoreDelta10).toBeGreaterThan(0);
+    expect(
+      comparison.meaningfulImprovements.some((metric) => metric.key === "firstMediaPaintP95Ms")
+    ).toBe(true);
+    expect(buildCompareMarkdownReport(comparison)).toContain("# Media Panel KPI Comparison");
+  });
+
+  it("flags regressions and insufficient evidence during comparison", () => {
+    const comparison = comparePackets(
+      {
+        packetVersion: 2,
+        sampleCount: 5,
+        surface: "elements-media-panel",
+        metrics: {
+          firstMediaPaintP95Ms: 700,
+          loadingStateVisibleMsP95: 900,
+          openToFirstMediaP95Ms: 1000,
+          stableContentSettleMsP95: 1500,
+          signBatchP95Ms: 180,
+          resolveCallsPerOpen: 0.15,
+          fallbackCallsPerOpen: 0.05,
+          stateFlipCountPerOpen: 0.2,
+          extraListCallsPerOpen: 0.1,
+          signFailedRatio: 0.01,
+          resolveFailedRatio: 0.01,
+          fallbackFailedRatio: 0.01,
+          consoleErrorsPerOpen: 0,
+          visualRegressionCount: 0,
+          missingPreviewRatio: 0.01,
+          canonicalPreviewCoverageRatio: 0.98,
+          emptyStateMismatchCount: 0,
+        },
+      },
+      {
+        packetVersion: 2,
+        sampleCount: 1,
+        surface: "elements-media-panel",
+        metrics: {
+          firstMediaPaintP95Ms: 1900,
+          loadingStateVisibleMsP95: 2600,
+          openToFirstMediaP95Ms: 2800,
+          signBatchP95Ms: 450,
+          resolveCallsPerOpen: 0.9,
+          fallbackCallsPerOpen: 0.4,
+          signFailedRatio: 0.08,
+          consoleErrorsPerOpen: 1,
+        },
+      }
+    );
+
+    expect(comparison.summary).toBe("insufficient evidence");
+    expect(comparison.comparisonFlags).toContain("one or both packets have insufficient evidence");
+    expect(comparison.meaningfulRegressions.length).toBeGreaterThan(0);
+  });
+
+  it("rejects packet comparison across surfaces", () => {
+    expect(() =>
+      comparePackets(
+        {
+          packetVersion: 2,
+          surface: "ai-studio-panel",
+          metrics: {},
+        },
+        {
+          packetVersion: 2,
+          surface: "elements-media-panel",
+          metrics: {},
+        }
+      )
+    ).toThrow(/different surfaces/);
+  });
+
+  it("parses compare args", () => {
+    const args = parseArgs([
+      "--compare",
+      "/tmp/older.json",
+      "/tmp/newer.json",
+      "--format",
+      "markdown",
+    ]);
+
+    expect(args.compare).toBe(true);
+    expect(args.compareOlder).toBe("/tmp/older.json");
+    expect(args.compareNewer).toBe("/tmp/newer.json");
+    expect(args.format).toBe("markdown");
   });
 });

@@ -65,14 +65,14 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
-  it("fails closed when shared pricing is unavailable", () => {
+  it("keeps generate available when shared pricing is unavailable", () => {
     render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
       target: { value: "Layered whoosh with a clean sparkle tail." },
     });
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 

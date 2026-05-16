@@ -1,38 +1,38 @@
 /**
- * Server-side helper seam for global Create Pulse built-in catalog access.
- * The runtime and admin surface both read through this control plane so built-ins do not depend on browser state.
+ * Server-side helper seam for the global Expert Edit system preset catalog.
+ * Admin writes here and AI Studio reads here so system presets are shared across all users.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
-  normalizeCreatePulseBuiltInPresetDefinitions,
-  type CreatePulseBuiltInPresetDefinition,
-} from "../../model-runtime/createPulseBuiltIns";
+  normalizeExpertEditSystemPresetDefinitions,
+  SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
+  type ExpertEditSystemPresetDefinition,
+} from "../../../features/ai-studio/components/edit/expertEditPresets";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
-export type ActiveCreatePulseBuiltInCatalog = {
-  builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
+export type ActiveExpertEditSystemPresetCatalog = {
+  presetDefinitions: ExpertEditSystemPresetDefinition[];
   updatedAt: string | null;
   updatedByUserId: string | null;
   updatedByEmail: string | null;
 };
 
-export type RuntimeCreatePulseBuiltInCatalogResolution = {
-  builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
+export type RuntimeExpertEditSystemPresetCatalogResolution = {
+  presetDefinitions: ExpertEditSystemPresetDefinition[];
   updatedAt: string | null;
   updatedByEmail: string | null;
   source: "control_plane" | "seed";
 };
 
-export type RuntimeCreatePulseBuiltInCatalogAdminResolution =
-  RuntimeCreatePulseBuiltInCatalogResolution & {
+export type RuntimeExpertEditSystemPresetCatalogAdminResolution =
+  RuntimeExpertEditSystemPresetCatalogResolution & {
     degraded: boolean;
   };
 
-export class CreatePulseBuiltInCatalogVersionMismatchError extends Error {
+export class ExpertEditSystemPresetCatalogVersionMismatchError extends Error {
   constructor() {
-    super("Create Pulse built-in catalog changed since it was loaded.");
-    this.name = "CreatePulseBuiltInCatalogVersionMismatchError";
+    super("Expert Edit system preset catalog changed since it was loaded.");
+    this.name = "ExpertEditSystemPresetCatalogVersionMismatchError";
   }
 }
 
@@ -40,9 +40,9 @@ const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
 const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
 const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
 
-let runtimeBuiltInCatalogCache: {
+let runtimeExpertEditSystemPresetCatalogCache: {
   expiresAtMs: number;
-  value: ActiveCreatePulseBuiltInCatalog | null;
+  value: ActiveExpertEditSystemPresetCatalog | null;
 } | null = null;
 
 const asNullableString = (value: unknown): string | null => {
@@ -66,48 +66,47 @@ const hasSupabaseAdminConfig = (): boolean =>
   typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
   process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
 
-export const clearCreatePulseBuiltInControlPlaneCacheForTests = (): void => {
-  runtimeBuiltInCatalogCache = null;
+export const clearExpertEditSystemPresetControlPlaneCacheForTests = (): void => {
+  runtimeExpertEditSystemPresetCatalogCache = null;
 };
 
-export const getSeededCreatePulseBuiltInDefinitions = (): CreatePulseBuiltInPresetDefinition[] => [
-  ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
-];
+export const getSeededExpertEditSystemPresetDefinitions =
+  (): ExpertEditSystemPresetDefinition[] => [...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS];
 
-export const fetchActiveCreatePulseBuiltInCatalog = async ({
+export const fetchActiveExpertEditSystemPresetCatalog = async ({
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   supabaseAdmin?: SupabaseClient;
-} = {}): Promise<ActiveCreatePulseBuiltInCatalog | null> => {
+} = {}): Promise<ActiveExpertEditSystemPresetCatalog | null> => {
   const { data, error } = await supabaseAdmin
-    .from("create_pulse_builtin_runtime")
-    .select("pulse_definitions, updated_at, updated_by_user_id, updated_by_email")
+    .from("expert_edit_system_preset_runtime")
+    .select("preset_definitions, updated_at, updated_by_user_id, updated_by_email")
     .eq("singleton", true)
     .maybeSingle();
 
   if (error) {
-    throw new Error(error.message || "Failed to load Create Pulse built-in catalog.");
+    throw new Error(error.message || "Failed to load Expert Edit system preset catalog.");
   }
   if (!data) return null;
 
   return {
-    builtInDefinitions: normalizeCreatePulseBuiltInPresetDefinitions(data.pulse_definitions),
+    presetDefinitions: normalizeExpertEditSystemPresetDefinitions(data.preset_definitions),
     updatedAt: asNullableString(data.updated_at),
     updatedByUserId: asNullableString(data.updated_by_user_id),
     updatedByEmail: asNullableString(data.updated_by_email),
   };
 };
 
-export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
-  controlPlaneCacheTtlMs = process.env.CREATE_PULSE_BUILTIN_CONTROL_PLANE_CACHE_TTL_MS,
+export const resolveRuntimeExpertEditSystemPresetCatalog = async ({
+  controlPlaneCacheTtlMs = process.env.EXPERT_EDIT_SYSTEM_PRESET_CONTROL_PLANE_CACHE_TTL_MS,
   bypassCache = false,
 }: {
   controlPlaneCacheTtlMs?: string | null;
   bypassCache?: boolean;
-} = {}): Promise<RuntimeCreatePulseBuiltInCatalogResolution> => {
+} = {}): Promise<RuntimeExpertEditSystemPresetCatalogResolution> => {
   if (!hasSupabaseAdminConfig()) {
     return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -117,20 +116,20 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
   const nowMs = Date.now();
   if (
     !bypassCache &&
-    runtimeBuiltInCatalogCache &&
-    runtimeBuiltInCatalogCache.expiresAtMs > nowMs
+    runtimeExpertEditSystemPresetCatalogCache &&
+    runtimeExpertEditSystemPresetCatalogCache.expiresAtMs > nowMs
   ) {
-    const cached = runtimeBuiltInCatalogCache.value;
+    const cached = runtimeExpertEditSystemPresetCatalogCache.value;
     if (cached) {
       return {
-        builtInDefinitions: cached.builtInDefinitions,
+        presetDefinitions: cached.presetDefinitions,
         updatedAt: cached.updatedAt,
         updatedByEmail: cached.updatedByEmail,
         source: "control_plane",
       };
     }
     return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -138,42 +137,42 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
   }
 
   try {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog();
-    runtimeBuiltInCatalogCache = {
+    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog();
+    runtimeExpertEditSystemPresetCatalogCache = {
       expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
       value: activeCatalog,
     };
     if (activeCatalog) {
       return {
-        builtInDefinitions: activeCatalog.builtInDefinitions,
+        presetDefinitions: activeCatalog.presetDefinitions,
         updatedAt: activeCatalog.updatedAt,
         updatedByEmail: activeCatalog.updatedByEmail,
         source: "control_plane",
       };
     }
   } catch {
-    runtimeBuiltInCatalogCache = {
+    runtimeExpertEditSystemPresetCatalogCache = {
       expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
       value: null,
     };
   }
 
   return {
-    builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+    presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
     updatedAt: null,
     updatedByEmail: null,
     source: "seed",
   };
 };
 
-export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
+export const resolveExpertEditSystemPresetCatalogForAdmin = async ({
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   supabaseAdmin?: SupabaseClient;
-} = {}): Promise<RuntimeCreatePulseBuiltInCatalogAdminResolution> => {
+} = {}): Promise<RuntimeExpertEditSystemPresetCatalogAdminResolution> => {
   if (!hasSupabaseAdminConfig()) {
     return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -182,10 +181,10 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
   }
 
   try {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
+    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
     if (activeCatalog) {
       return {
-        builtInDefinitions: activeCatalog.builtInDefinitions,
+        presetDefinitions: activeCatalog.presetDefinitions,
         updatedAt: activeCatalog.updatedAt,
         updatedByEmail: activeCatalog.updatedByEmail,
         source: "control_plane",
@@ -193,7 +192,7 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
       };
     }
     return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -201,7 +200,7 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
     };
   } catch {
     return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -210,32 +209,32 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
   }
 };
 
-export const saveCreatePulseBuiltInCatalog = async ({
-  builtInDefinitions,
+export const saveExpertEditSystemPresetCatalog = async ({
+  presetDefinitions,
   expectedUpdatedAt,
   actorUserId,
   actorEmail,
   supabaseAdmin = getSupabaseAdmin(),
 }: {
-  builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[];
+  presetDefinitions: readonly ExpertEditSystemPresetDefinition[];
   expectedUpdatedAt?: string | null;
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveCreatePulseBuiltInCatalog> => {
-  const normalizedDefinitions = normalizeCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
+}): Promise<ActiveExpertEditSystemPresetCatalog> => {
+  const normalizedDefinitions = normalizeExpertEditSystemPresetDefinitions(presetDefinitions);
   if (expectedUpdatedAt !== undefined) {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
+    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
     const normalizedExpectedUpdatedAt = asNullableString(expectedUpdatedAt);
     const activeUpdatedAt = activeCatalog?.updatedAt ?? null;
     if (activeUpdatedAt !== normalizedExpectedUpdatedAt) {
-      throw new CreatePulseBuiltInCatalogVersionMismatchError();
+      throw new ExpertEditSystemPresetCatalogVersionMismatchError();
     }
   }
-  const { error } = await supabaseAdmin.from("create_pulse_builtin_runtime").upsert(
+  const { error } = await supabaseAdmin.from("expert_edit_system_preset_runtime").upsert(
     {
       singleton: true,
-      pulse_definitions: normalizedDefinitions,
+      preset_definitions: normalizedDefinitions,
       updated_by_user_id: actorUserId ?? null,
       updated_by_email: actorEmail ?? null,
       updated_at: new Date().toISOString(),
@@ -244,13 +243,13 @@ export const saveCreatePulseBuiltInCatalog = async ({
   );
 
   if (error) {
-    throw new Error(error.message || "Failed to save Create Pulse built-in catalog.");
+    throw new Error(error.message || "Failed to save Expert Edit system preset catalog.");
   }
 
-  clearCreatePulseBuiltInControlPlaneCacheForTests();
-  const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
+  clearExpertEditSystemPresetControlPlaneCacheForTests();
+  const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
   if (!activeCatalog) {
-    throw new Error("Create Pulse built-in catalog save did not produce a runtime row.");
+    throw new Error("Expert Edit system preset save did not produce a runtime row.");
   }
   return activeCatalog;
 };

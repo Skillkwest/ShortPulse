@@ -10,6 +10,7 @@ import { buildMarkdownReport, scorePacket } from "./media_panel_kpi_score.mjs";
 const SCRIPT_FILE = fileURLToPath(import.meta.url);
 const DEFAULT_BASE_URL = "http://localhost:3000";
 const DEFAULT_SURFACE = "ai-studio-panel";
+const DEFAULT_RUNS = 5;
 const PANEL_TELEMETRY_SURFACE = "media-library-panel";
 
 const CAPTURE_SURFACES = {
@@ -30,6 +31,33 @@ const toFiniteNumber = (value) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return value;
 };
+const percentile = (values, ratio) => {
+  const normalized = values
+    .map((value) => toFiniteNumber(value))
+    .filter((value) => value != null)
+    .sort((left, right) => left - right);
+  if (!normalized.length) return null;
+  if (normalized.length === 1) return normalized[0];
+  const index = (normalized.length - 1) * ratio;
+  const lowerIndex = Math.floor(index);
+  const upperIndex = Math.ceil(index);
+  const lower = normalized[lowerIndex];
+  const upper = normalized[upperIndex];
+  if (lower == null || upper == null) return normalized[normalized.length - 1] ?? null;
+  if (lowerIndex === upperIndex) return lower;
+  return lower + (upper - lower) * (index - lowerIndex);
+};
+const average = (values) => {
+  const normalized = values.map((value) => toFiniteNumber(value)).filter((value) => value != null);
+  if (!normalized.length) return null;
+  return normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
+};
+const getCaptureSamples = (capture) =>
+  Array.isArray(capture?.captures)
+    ? capture.captures.filter((entry) => entry && typeof entry === "object")
+    : capture && typeof capture === "object"
+      ? [capture]
+      : [];
 
 const loadEnvFromFileIfNeeded = (filePath) => {
   if (!fs.existsSync(filePath)) return;
@@ -72,6 +100,7 @@ const usage = () => {
       "Options:",
       "  --surface <ai-studio-panel|elements-media-panel>   Default ai-studio-panel",
       "  --base-url <url>                                   Default PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL or http://localhost:3000",
+      "  --runs <count>                                     Default 5 repeated panel opens",
       "  --format <json|packet|markdown|text>              Default json",
       "  --headless <true|false>                            Default env PLAYWRIGHT_HEADLESS or true",
       "  --write-packet <path>                              Optional output file for the derived KPI packet",
@@ -101,10 +130,21 @@ export const parseArgs = (argv) => {
     help: argv.includes("--help") || argv.includes("-h"),
     surface: normalizeString(readValue("--surface")) || DEFAULT_SURFACE,
     baseUrl: normalizeString(readValue("--base-url")),
+    runs: normalizeString(readValue("--runs")),
     format: normalizeString(readValue("--format")) || "json",
     headless: normalizeString(readValue("--headless")),
     writePacket: normalizeString(readValue("--write-packet")),
   };
+};
+
+const resolveRuns = (value) => {
+  const normalized = normalizeString(value);
+  if (!normalized) return DEFAULT_RUNS;
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new Error("Invalid --runs value. Expected an integer >= 1.");
+  }
+  return parsed;
 };
 
 const resolveHeadless = (value) => {
@@ -119,7 +159,8 @@ const shouldIgnoreConsole = (text) =>
   );
 
 const buildCaptureModeLabel = (capture) => {
-  return capture.perfHandle?.available
+  const hasPerfHandle = getCaptureSamples(capture).some((sample) => sample?.perfHandle?.available);
+  return hasPerfHandle
     ? "playwright-panel-audit+live-perf-handle"
     : "playwright-panel-audit";
 };
@@ -131,11 +172,13 @@ const countConsoleErrors = (entries) =>
     : 0;
 
 const aggregateSignStats = (capture) => {
-  const buckets = Array.isArray(capture?.perfHandle?.signStats)
-    ? capture.perfHandle.signStats.filter(
-        (bucket) => bucket?.surface === (capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
-      )
-    : [];
+  const buckets = getCaptureSamples(capture).flatMap((sample) =>
+    Array.isArray(sample?.perfHandle?.signStats)
+      ? sample.perfHandle.signStats.filter(
+          (bucket) => bucket?.surface === (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+        )
+      : []
+  );
   if (!buckets.length) return null;
 
   const totals = buckets.reduce(
@@ -185,21 +228,40 @@ const aggregateSignStats = (capture) => {
 };
 
 const aggregateResolveStats = (capture) => {
-  const buckets = Array.isArray(capture?.perfHandle?.resolveStats)
-    ? capture.perfHandle.resolveStats.filter(
-        (bucket) => bucket?.surface === (capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
-      )
-    : [];
+  const samples = getCaptureSamples(capture);
+  const bucketsBySample = samples.map((sample) =>
+    Array.isArray(sample?.perfHandle?.resolveStats)
+      ? sample.perfHandle.resolveStats.filter(
+          (bucket) => bucket?.surface === (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+        )
+      : []
+  );
+  const buckets = bucketsBySample.flatMap((entry) => entry);
   if (!buckets.length) {
+    const averageInitialResolveRequests = average(
+      samples.map((sample) =>
+        Math.max(
+          0,
+          Math.round(
+            toFiniteNumber(sample?.initialResolveRequestCount ?? sample?.resolveRequestCount) ?? 0
+          )
+        )
+      )
+    );
     return {
-      resolveCallsPerOpen: Number(
-        Math.max(0, Math.round(toFiniteNumber(capture?.resolveRequestCount) ?? 0)).toFixed(4)
-      ),
+      resolveCallsPerOpen:
+        averageInitialResolveRequests == null
+          ? null
+          : Number(averageInitialResolveRequests.toFixed(4)),
       resolveFailedRatio: null,
     };
   }
 
-  const samples = buckets.reduce((sum, bucket) => sum + (toFiniteNumber(bucket.samples) ?? 0), 0);
+  const callsPerOpen = average(
+    bucketsBySample.map((entry) =>
+      entry.reduce((sum, bucket) => sum + (toFiniteNumber(bucket.samples) ?? 0), 0)
+    )
+  );
   const totalResolved = buckets.reduce(
     (sum, bucket) => sum + (toFiniteNumber(bucket.total_resolved) ?? 0),
     0
@@ -210,7 +272,7 @@ const aggregateResolveStats = (capture) => {
   );
 
   return {
-    resolveCallsPerOpen: Number(samples.toFixed(4)),
+    resolveCallsPerOpen: callsPerOpen == null ? null : Number(callsPerOpen.toFixed(4)),
     resolveFailedRatio:
       totalResolved + totalFailed > 0
         ? Number((totalFailed / (totalResolved + totalFailed)).toFixed(4))
@@ -219,21 +281,26 @@ const aggregateResolveStats = (capture) => {
 };
 
 const aggregateFallbackStats = (capture) => {
-  const buckets = Array.isArray(capture?.perfHandle?.fallbackStats)
-    ? capture.perfHandle.fallbackStats.filter(
-        (bucket) => bucket?.surface === (capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
-      )
-    : [];
+  const bucketsBySample = getCaptureSamples(capture).map((sample) =>
+    Array.isArray(sample?.perfHandle?.fallbackStats)
+      ? sample.perfHandle.fallbackStats.filter(
+          (bucket) => bucket?.surface === (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+        )
+      : []
+  );
+  const buckets = bucketsBySample.flatMap((entry) => entry);
   if (!buckets.length) {
     return {
-      fallbackCallsPerOpen: Number(
-        Math.max(0, Math.round(toFiniteNumber(capture?.fallbackRequestCount) ?? 0)).toFixed(4)
-      ),
+      fallbackCallsPerOpen: null,
       fallbackFailedRatio: null,
     };
   }
 
-  const samples = buckets.reduce((sum, bucket) => sum + (toFiniteNumber(bucket.samples) ?? 0), 0);
+  const callsPerOpen = average(
+    bucketsBySample.map((entry) =>
+      entry.reduce((sum, bucket) => sum + (toFiniteNumber(bucket.samples) ?? 0), 0)
+    )
+  );
   const totalSucceeded = buckets.reduce(
     (sum, bucket) => sum + (toFiniteNumber(bucket.total_succeeded) ?? 0),
     0
@@ -244,7 +311,7 @@ const aggregateFallbackStats = (capture) => {
   );
 
   return {
-    fallbackCallsPerOpen: Number(samples.toFixed(4)),
+    fallbackCallsPerOpen: callsPerOpen == null ? null : Number(callsPerOpen.toFixed(4)),
     fallbackFailedRatio:
       totalSucceeded + totalFailed > 0
         ? Number((totalFailed / (totalSucceeded + totalFailed)).toFixed(4))
@@ -253,13 +320,35 @@ const aggregateFallbackStats = (capture) => {
 };
 
 export const buildPacketFromPanelCapture = (capture, options = {}) => {
-  const firstVisibleMs = toFiniteNumber(capture?.firstVisibleMs);
-  const stateFlipCount = toFiniteNumber(capture?.stateFlipCount);
-  const loadingStateVisibleMs = toFiniteNumber(capture?.loadingStateVisibleMs);
-  const listRequestCount = Math.max(0, Math.round(toFiniteNumber(capture?.listRequestCount) ?? 0));
+  const captureSamples = getCaptureSamples(capture);
+  const sampleCount = captureSamples.length;
+  const minimumRunsForDerivedP95 = 5;
+  const firstVisibleMediaSamples = captureSamples
+    .filter((sample) => sample?.firstVisibleKind === "media")
+    .map((sample) => sample?.firstVisibleMs);
+  const loadingStateSamples = captureSamples.map((sample) => sample?.loadingStateVisibleMs);
+  const stateFlipCount = average(captureSamples.map((sample) => sample?.stateFlipCount));
+  const extraListCallsPerOpen = average(
+    captureSamples.map((sample) =>
+      Math.max(
+        0,
+        Math.round(
+          toFiniteNumber(sample?.initialListRequestCount ?? sample?.listRequestCount) ?? 0
+        ) - 1
+      )
+    )
+  );
   const signAggregate = aggregateSignStats(capture);
   const resolveAggregate = aggregateResolveStats(capture);
   const fallbackAggregate = aggregateFallbackStats(capture);
+  const firstMediaPaintP95Ms =
+    firstVisibleMediaSamples.length >= minimumRunsForDerivedP95
+      ? percentile(firstVisibleMediaSamples, 0.95)
+      : null;
+  const loadingStateVisibleMsP95 =
+    loadingStateSamples.filter((value) => toFiniteNumber(value) != null).length >= minimumRunsForDerivedP95
+      ? percentile(loadingStateSamples, 0.95)
+      : null;
 
   const surfaceSpec = getCaptureSurfaceSpec(options.surface ?? DEFAULT_SURFACE);
   const surfaceLabel = surfaceSpec?.label ?? "media panel";
@@ -269,32 +358,48 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
     measuredAt: options.measuredAt ?? new Date().toISOString(),
     environment: options.environment ?? "unknown",
     captureMode: options.captureMode ?? buildCaptureModeLabel(capture),
-    sampleCount: 1,
+    sampleCount,
     surface: options.surface ?? DEFAULT_SURFACE,
     notes: [
       `Derived automatically from the ${surfaceLabel} KPI capture helper.`,
-      "Single-run browser capture. Repeat runs are recommended before treating this as sprint-level evidence.",
-      capture?.firstVisibleKind === "media"
-        ? "firstMediaPaintP95Ms and openToFirstMediaP95Ms were both populated from the first visible media moment in this run."
-        : "first visible content was not a media card, so first-media metrics were left incomplete where appropriate.",
+      sampleCount >= minimumRunsForDerivedP95
+        ? `${sampleCount} repeated browser captures were aggregated, so direct panel timing p95 fields are derived from repeated-run evidence.`
+        : `${sampleCount} repeated browser capture${sampleCount === 1 ? "" : "s"} collected. Direct panel timing p95 fields stay null until at least ${minimumRunsForDerivedP95} runs are captured.`,
+      firstVisibleMediaSamples.length > 0
+        ? `${firstVisibleMediaSamples.length} of ${sampleCount} capture runs reached a visible media card during the open-phase measurement.`
+        : "No capture run reached a visible media card during the open-phase measurement.",
       signAggregate?.canonicalPreviewCoverageRatio == null
         ? "Canonical preview coverage was not derivable from the live sign stats in this run."
         : "Canonical preview coverage was derived from panel sign stats using resolved durable vs resolved original counts when available.",
     ],
     metrics: {
-      firstMediaPaintP95Ms: capture?.firstVisibleKind === "media" ? firstVisibleMs : null,
-      loadingStateVisibleMsP95: loadingStateVisibleMs,
-      openToFirstMediaP95Ms: capture?.firstVisibleKind === "media" ? firstVisibleMs : null,
+      firstMediaPaintP95Ms:
+        firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
+      loadingStateVisibleMsP95:
+        loadingStateVisibleMsP95 == null ? null : Math.round(loadingStateVisibleMsP95),
+      openToFirstMediaP95Ms:
+        firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       stableContentSettleMsP95: null,
       signBatchP95Ms: signAggregate?.signBatchP95Ms ?? null,
       resolveCallsPerOpen: resolveAggregate.resolveCallsPerOpen,
       fallbackCallsPerOpen: fallbackAggregate.fallbackCallsPerOpen,
-      stateFlipCountPerOpen: stateFlipCount,
-      extraListCallsPerOpen: Number(Math.max(0, listRequestCount - 1).toFixed(4)),
+      stateFlipCountPerOpen: stateFlipCount == null ? null : Number(stateFlipCount.toFixed(4)),
+      extraListCallsPerOpen:
+        extraListCallsPerOpen == null ? null : Number(extraListCallsPerOpen.toFixed(4)),
       signFailedRatio: signAggregate?.signFailedRatio ?? null,
       resolveFailedRatio: resolveAggregate.resolveFailedRatio,
       fallbackFailedRatio: fallbackAggregate.fallbackFailedRatio,
-      consoleErrorsPerOpen: countConsoleErrors(capture?.consoleEntries),
+      consoleErrorsPerOpen:
+        sampleCount > 0
+          ? Number(
+              (
+                captureSamples.reduce(
+                  (sum, sample) => sum + countConsoleErrors(sample?.consoleEntries),
+                  0
+                ) / sampleCount
+              ).toFixed(4)
+            )
+          : null,
       visualRegressionCount: null,
       missingPreviewRatio: null,
       canonicalPreviewCoverageRatio: signAggregate?.canonicalPreviewCoverageRatio ?? null,
@@ -537,7 +642,7 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
   const consoleEntries = [];
   const listRequests = [];
   const resolveRequests = [];
-  const fallbackRequests = [];
+  let capturePhase = "open";
   page.on("console", (message) => {
     const text = message.text();
     if (shouldIgnoreConsole(text)) return;
@@ -545,15 +650,11 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
   });
   page.on("request", (request) => {
     const url = request.url();
-    if (url.includes("/api/media/list")) listRequests.push({ url, method: request.method() });
-    if (url.includes("/api/media/resolve-previews")) {
-      resolveRequests.push({ url, method: request.method() });
+    if (url.includes("/api/media/list")) {
+      listRequests.push({ url, method: request.method(), phase: capturePhase });
     }
-    if (
-      url.includes("/storage/v1/object/sign/media_library") ||
-      url.includes("/storage/v1/render/image")
-    ) {
-      fallbackRequests.push({ url, method: request.method() });
+    if (url.includes("/api/media/resolve-previews")) {
+      resolveRequests.push({ url, method: request.method(), phase: capturePhase });
     }
   });
 
@@ -565,7 +666,9 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
         : await openAiStudioMediaPanel(page);
     const openState = await measurePanelOpenState(page, surfaceSpec.panelSelector);
     await waitForDelay(1_200);
+    capturePhase = "tabs";
     const tabResults = await captureTabResults(page, panel);
+    capturePhase = "post-tabs";
     const perfHandle = await page.evaluate(() => {
       const handle = window.__shortpulseMediaPerf;
       if (!handle) return { available: false };
@@ -589,8 +692,9 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
       stateFlipCount: openState.stateFlipCount,
       tabResults,
       listRequestCount: listRequests.length,
+      initialListRequestCount: listRequests.filter((entry) => entry.phase === "open").length,
       resolveRequestCount: resolveRequests.length,
-      fallbackRequestCount: fallbackRequests.length,
+      initialResolveRequestCount: resolveRequests.filter((entry) => entry.phase === "open").length,
       consoleEntries,
       perfHandle,
     };
@@ -599,6 +703,21 @@ async function runPanelCapture({ baseUrl, headless, surface }) {
     await browser.close();
   }
 }
+
+const collectPanelCaptures = async ({ baseUrl, headless, surface, runs }) => {
+  const captures = [];
+  for (let runIndex = 0; runIndex < runs; runIndex += 1) {
+    captures.push(await runPanelCapture({ baseUrl, headless, surface }));
+  }
+  return {
+    baseUrl,
+    surface,
+    telemetrySurface:
+      getCaptureSurfaceSpec(surface)?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE,
+    finalUrl: captures[captures.length - 1]?.finalUrl ?? null,
+    captures,
+  };
+};
 
 const writeJsonFile = (outputPath, value) => {
   const absolutePath = path.resolve(process.cwd(), outputPath);
@@ -615,10 +734,12 @@ const main = async () => {
 
   const baseUrl = args.baseUrl || (process.env.PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL || DEFAULT_BASE_URL).trim();
   const headless = resolveHeadless(args.headless);
-  const capture = await runPanelCapture({
+  const runs = resolveRuns(args.runs);
+  const capture = await collectPanelCaptures({
     baseUrl,
     headless,
     surface: args.surface,
+    runs,
   });
   const packet = buildPacketFromPanelCapture(capture, {
     environment: /localhost|127\.0\.0\.1/i.test(baseUrl) ? "development" : "production",

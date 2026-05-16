@@ -11,7 +11,13 @@ export const EDIT_PRESET_DELETED_OVERRIDE_PROMPT = "__shortpulse_preset_deleted_
 export const EDIT_PRESET_COMPOSITE_GENERATE_PROMPT =
   "Using the flattened composite from the primary staging viewport (all visible layers) as reference, regenerate one cohesive final image where every subject and element naturally belongs in the same scene. Preserve core identities and intended placement, but remove collage/cutout artifacts, mismatched edges, and layering seams. Unify perspective, scale, color temperature, lighting direction, exposure, and shadow behavior so the result reads as one realistic photograph. Add believable depth, contact shadows, and natural character-to-character/environment interaction for a seamless, photoreal final composition.";
 
-const EDIT_PRESET_NON_CUSTOM_DEFINITIONS = [
+export type ExpertEditSystemPresetDefinition = {
+  presetId: string;
+  label: string;
+  prompt: string;
+};
+
+export const SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS = [
   {
     presetId: "selfie",
     label: "Selfie",
@@ -66,7 +72,7 @@ const EDIT_PRESET_NON_CUSTOM_DEFINITIONS = [
     prompt:
       "Increase photographic realism with natural skin texture, believable lighting falloff, accurate shadows, subtle lens behavior, and physically plausible detail.",
   },
-] as const;
+] as const satisfies readonly ExpertEditSystemPresetDefinition[];
 
 const EDIT_PRESET_CUSTOM_PROMPT_PLACEHOLDER =
   "Edit this custom preset text to create your own reusable prompt.";
@@ -86,13 +92,8 @@ const EDIT_PRESET_CUSTOM_DEFINITIONS = EDIT_PRESET_CUSTOM_PROMPTS.map((prompt, i
   } as const;
 });
 
-const EDIT_PRESET_BASE_DEFINITIONS = [
-  ...EDIT_PRESET_NON_CUSTOM_DEFINITIONS,
-  ...EDIT_PRESET_CUSTOM_DEFINITIONS,
-] as const;
-
-export type ExpertEditPresetId = (typeof EDIT_PRESET_BASE_DEFINITIONS)[number]["presetId"];
-export type ExpertEditCustomPresetId = Extract<ExpertEditPresetId, `custom_${number}`>;
+export type ExpertEditPresetId = string;
+export type ExpertEditCustomPresetId = `custom_${number}`;
 
 export type ExpertEditPresetOverride = {
   label: string;
@@ -127,20 +128,76 @@ export type ExpertEditPresetDragPayload = {
   source: ExpertEditPresetDragSource;
 };
 
-const EDIT_PRESET_BASE_BY_ID = new Map(
-  EDIT_PRESET_BASE_DEFINITIONS.map((definition) => [definition.presetId, definition] as const)
-);
+const asNormalizedNonEmptyString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
 
-const EDIT_PRESET_ID_INDEX = new Map(
-  EDIT_PRESET_BASE_DEFINITIONS.map((definition, index) => [definition.presetId, index] as const)
-);
+const resolveExpertEditSystemPresetDefinitions = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditSystemPresetDefinition[] => {
+  const candidateDefinitions =
+    systemPresetDefinitions && systemPresetDefinitions.length > 0
+      ? systemPresetDefinitions
+      : SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS;
+  const dedupedDefinitions = new Map<string, ExpertEditSystemPresetDefinition>();
+  candidateDefinitions.forEach((definition) => {
+    const presetId = asNormalizedNonEmptyString(definition?.presetId);
+    const label = asNormalizedNonEmptyString(definition?.label);
+    const prompt = asNormalizedNonEmptyString(definition?.prompt);
+    if (!presetId || !label || !prompt) return;
+    if (presetId.startsWith("custom_")) return;
+    dedupedDefinitions.set(presetId, { presetId, label, prompt });
+  });
+  return Array.from(dedupedDefinitions.values());
+};
 
-const LEGACY_LABEL_TO_ID = new Map(
-  EDIT_PRESET_BASE_DEFINITIONS.map((definition) => [
-    definition.label.trim().toLowerCase(),
-    definition.presetId,
-  ])
-);
+export const normalizeExpertEditSystemPresetDefinitions = (
+  value: unknown
+): ExpertEditSystemPresetDefinition[] => {
+  if (!Array.isArray(value)) {
+    return resolveExpertEditSystemPresetDefinitions();
+  }
+  return resolveExpertEditSystemPresetDefinitions(
+    value.filter((entry): entry is ExpertEditSystemPresetDefinition => Boolean(entry))
+  );
+};
+
+const buildResolvedPresetDefinitions = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+) =>
+  [
+    ...resolveExpertEditSystemPresetDefinitions(systemPresetDefinitions),
+    ...EDIT_PRESET_CUSTOM_DEFINITIONS,
+  ] as const;
+
+const buildPresetDefinitionById = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+) =>
+  new Map(
+    buildResolvedPresetDefinitions(systemPresetDefinitions).map(
+      (definition) => [definition.presetId, definition] as const
+    )
+  );
+
+const buildPresetIdIndex = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+) =>
+  new Map(
+    buildResolvedPresetDefinitions(systemPresetDefinitions).map(
+      (definition, index) => [definition.presetId, index] as const
+    )
+  );
+
+const buildLegacyLabelToIdMap = (
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+) =>
+  new Map(
+    buildResolvedPresetDefinitions(systemPresetDefinitions).map(
+      (definition) => [definition.label.trim().toLowerCase(), definition.presetId] as const
+    )
+  );
 
 const isValidPresetDragSource = (value: string): value is ExpertEditPresetDragSource =>
   value === "surface" || value === "panel";
@@ -161,8 +218,11 @@ export const createDeletedPresetOverride = (): ExpertEditPresetOverride => ({
 
 const isPresetVisibleInUi = (
   presetId: ExpertEditPresetId,
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): boolean => {
+  const presetDefinitionById = buildPresetDefinitionById(systemPresetDefinitions);
+  if (!presetDefinitionById.has(presetId)) return false;
   const override = customOverrides?.[presetId];
   if (isDeletedPresetOverride(override)) return false;
   if (!presetId.startsWith("custom_")) return true;
@@ -175,11 +235,14 @@ const isPresetVisibleInUi = (
   return Boolean(override);
 };
 const resolveVisibleSurfacePresetIds = (
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditPresetId[] =>
-  EDIT_PRESET_BASE_DEFINITIONS.map((definition) => definition.presetId).filter((presetId) =>
-    isPresetVisibleInUi(presetId, customOverrides)
-  ) as ExpertEditPresetId[];
+  buildResolvedPresetDefinitions(systemPresetDefinitions)
+    .map((definition) => definition.presetId)
+    .filter((presetId) =>
+      isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions)
+    ) as ExpertEditPresetId[];
 
 /**
  * Ordered canonical list of all Expert Edit preset IDs.
@@ -206,21 +269,23 @@ export const EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS = [
  * Legacy label constants kept for fallback/migration helpers.
  */
 export const EDIT_PRESET_SURFACE_LABELS = EDIT_PRESET_SURFACE_PRESET_IDS.map(
-  (presetId) => EDIT_PRESET_BASE_BY_ID.get(presetId)?.label ?? presetId
+  (presetId) => buildPresetDefinitionById().get(presetId)?.label ?? presetId
 );
 
 /**
  * Legacy seeded labels kept for fallback/migration helpers.
  */
 export const EDIT_PRESET_DEFAULT_PANEL_LABELS = EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS.map(
-  (presetId) => EDIT_PRESET_BASE_BY_ID.get(presetId)?.label ?? presetId
+  (presetId) => buildPresetDefinitionById().get(presetId)?.label ?? presetId
 );
 
 /**
  * Returns true when a string is a known Expert Edit preset ID.
  */
-export const isExpertEditPresetId = (value: string): value is ExpertEditPresetId =>
-  EDIT_PRESET_BASE_BY_ID.has(value as ExpertEditPresetId);
+export const isExpertEditPresetId = (
+  value: string,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): value is ExpertEditPresetId => buildPresetDefinitionById(systemPresetDefinitions).has(value);
 
 /**
  * Returns true when a string is an editable custom preset ID.
@@ -232,10 +297,13 @@ export const isExpertEditCustomPresetId = (value: string): value is ExpertEditCu
 /**
  * Maps a legacy label (for migration/fallback paths) to a canonical preset ID.
  */
-export const mapLegacyPresetLabelToId = (label: string): ExpertEditPresetId | null => {
+export const mapLegacyPresetLabelToId = (
+  label: string,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditPresetId | null => {
   const normalizedLabel = label.trim().toLowerCase();
   if (!normalizedLabel) return null;
-  return LEGACY_LABEL_TO_ID.get(normalizedLabel) ?? null;
+  return buildLegacyLabelToIdMap(systemPresetDefinitions).get(normalizedLabel) ?? null;
 };
 
 /**
@@ -243,30 +311,34 @@ export const mapLegacyPresetLabelToId = (label: string): ExpertEditPresetId | nu
  */
 export const mapLegacyPresetLabelsToIds = (
   labels: readonly string[],
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditPresetId[] => {
   const resolvedPresetIds = labels
-    .map((label) => mapLegacyPresetLabelToId(label))
+    .map((label) => mapLegacyPresetLabelToId(label, systemPresetDefinitions))
     .filter(
       (presetId): presetId is ExpertEditPresetId =>
-        presetId != null && isPresetVisibleInUi(presetId, customOverrides)
+        presetId != null && isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions)
     );
-  return sortPresetIdsByCanonicalOrder(resolvedPresetIds);
+  return sortPresetIdsByCanonicalOrder(resolvedPresetIds, systemPresetDefinitions);
 };
 
 /**
  * Converts any preset ID list into deduped canonical order.
  */
 export const sortPresetIdsByCanonicalOrder = (
-  presetIds: readonly string[]
+  presetIds: readonly string[],
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditPresetId[] => {
+  const presetIdIndex = buildPresetIdIndex(systemPresetDefinitions);
   const deduped = Array.from(new Set(presetIds)).filter(
-    (presetId): presetId is ExpertEditPresetId => isExpertEditPresetId(presetId)
+    (presetId): presetId is ExpertEditPresetId =>
+      isExpertEditPresetId(presetId, systemPresetDefinitions)
   );
   deduped.sort(
     (left, right) =>
-      (EDIT_PRESET_ID_INDEX.get(left) ?? Number.MAX_SAFE_INTEGER) -
-      (EDIT_PRESET_ID_INDEX.get(right) ?? Number.MAX_SAFE_INTEGER)
+      (presetIdIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (presetIdIndex.get(right) ?? Number.MAX_SAFE_INTEGER)
   );
   return deduped;
 };
@@ -276,10 +348,11 @@ export const sortPresetIdsByCanonicalOrder = (
  */
 export const normalizePresetPanelPresetIds = (
   presetIds: readonly string[],
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditPresetId[] =>
-  sortPresetIdsByCanonicalOrder(presetIds)
-    .filter((presetId) => isPresetVisibleInUi(presetId, customOverrides))
+  sortPresetIdsByCanonicalOrder(presetIds, systemPresetDefinitions)
+    .filter((presetId) => isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions))
     .slice(0, EDIT_PRESET_PANEL_MAX);
 
 /**
@@ -287,23 +360,26 @@ export const normalizePresetPanelPresetIds = (
  */
 export const sortPresetLabelsByCanonicalOrder = (
   labels: readonly string[],
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ) =>
-  mapLegacyPresetLabelsToIds(labels, customOverrides).map(
-    (presetId) => EDIT_PRESET_BASE_BY_ID.get(presetId)?.label ?? presetId
+  mapLegacyPresetLabelsToIds(labels, customOverrides, systemPresetDefinitions).map(
+    (presetId) =>
+      buildPresetDefinitionById(systemPresetDefinitions).get(presetId)?.label ?? presetId
   );
 
 /**
  * Normalizes preset overrides to known preset IDs with non-empty label/prompt.
  */
 export const normalizeExpertEditCustomPresetOverrides = (
-  value: unknown
+  value: unknown,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditCustomPresetOverrides => {
   if (!value || typeof value !== "object") return {};
   const entries = Object.entries(value as Record<string, unknown>);
   const normalized: ExpertEditCustomPresetOverrides = {};
   entries.forEach(([rawPresetId, rawOverride]) => {
-    if (!isExpertEditPresetId(rawPresetId)) return;
+    if (!isExpertEditPresetId(rawPresetId, systemPresetDefinitions)) return;
     if (!rawOverride || typeof rawOverride !== "object") return;
     const candidateLabel =
       typeof (rawOverride as { label?: unknown }).label === "string"
@@ -322,14 +398,28 @@ export const normalizeExpertEditCustomPresetOverrides = (
   return normalized;
 };
 
+export const normalizeExpertEditUserCustomPresetOverrides = (
+  value: unknown,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditCustomPresetOverrides => {
+  const normalizedOverrides = normalizeExpertEditCustomPresetOverrides(
+    value,
+    systemPresetDefinitions
+  );
+  return Object.fromEntries(
+    Object.entries(normalizedOverrides).filter(([presetId]) => isExpertEditCustomPresetId(presetId))
+  );
+};
+
 /**
  * Resolves a preset definition by ID with optional custom overrides applied.
  */
 export const resolveExpertEditPresetById = (
   presetId: ExpertEditPresetId,
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditResolvedPreset => {
-  const baseDefinition = EDIT_PRESET_BASE_BY_ID.get(presetId);
+  const baseDefinition = buildPresetDefinitionById(systemPresetDefinitions).get(presetId);
   if (!baseDefinition) {
     return {
       presetId,
@@ -356,17 +446,23 @@ export const resolveExpertEditPresetById = (
  */
 export const resolveExpertEditPresetLabelById = (
   presetId: ExpertEditPresetId,
-  customOverrides?: ExpertEditCustomPresetOverrides | null
-): string => resolveExpertEditPresetById(presetId, customOverrides).label;
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): string => resolveExpertEditPresetById(presetId, customOverrides, systemPresetDefinitions).label;
 
 /**
  * Resolves a preset prompt by ID with optional custom overrides applied.
  */
 export const resolveExpertEditPresetPromptById = (
   presetId: ExpertEditPresetId,
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): string | null => {
-  const prompt = resolveExpertEditPresetById(presetId, customOverrides).prompt;
+  const prompt = resolveExpertEditPresetById(
+    presetId,
+    customOverrides,
+    systemPresetDefinitions
+  ).prompt;
   return prompt.trim().length > 0 ? prompt : null;
 };
 
@@ -375,26 +471,32 @@ export const resolveExpertEditPresetPromptById = (
  */
 export const resolveExpertEditPresetPrompt = (
   preset: string,
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): string | null => {
   const normalizedPreset = preset.trim();
   if (!normalizedPreset) return null;
-  if (isExpertEditPresetId(normalizedPreset)) {
-    return resolveExpertEditPresetPromptById(normalizedPreset, customOverrides);
+  if (isExpertEditPresetId(normalizedPreset, systemPresetDefinitions)) {
+    return resolveExpertEditPresetPromptById(
+      normalizedPreset,
+      customOverrides,
+      systemPresetDefinitions
+    );
   }
-  const presetId = mapLegacyPresetLabelToId(normalizedPreset);
+  const presetId = mapLegacyPresetLabelToId(normalizedPreset, systemPresetDefinitions);
   if (!presetId) return null;
-  return resolveExpertEditPresetPromptById(presetId, customOverrides);
+  return resolveExpertEditPresetPromptById(presetId, customOverrides, systemPresetDefinitions);
 };
 
 /**
  * Resolves all presets with optional custom overrides applied.
  */
 export const resolveExpertEditPresetCatalog = (
-  customOverrides?: ExpertEditCustomPresetOverrides | null
+  customOverrides?: ExpertEditCustomPresetOverrides | null,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
 ): ExpertEditResolvedPreset[] =>
-  resolveVisibleSurfacePresetIds(customOverrides).map((presetId) =>
-    resolveExpertEditPresetById(presetId, customOverrides)
+  resolveVisibleSurfacePresetIds(customOverrides, systemPresetDefinitions).map((presetId) =>
+    resolveExpertEditPresetById(presetId, customOverrides, systemPresetDefinitions)
   );
 
 /**
@@ -417,7 +519,7 @@ export const parseExpertEditPresetDragPayload = (
     const source = typeof parsed.source === "string" ? parsed.source.trim() : "";
     if (!isValidPresetDragSource(source)) return null;
     const presetIdFromPayload = typeof parsed.presetId === "string" ? parsed.presetId.trim() : "";
-    if (isExpertEditPresetId(presetIdFromPayload)) {
+    if (presetIdFromPayload.length > 0) {
       return { presetId: presetIdFromPayload, source };
     }
     const legacyLabel = typeof parsed.label === "string" ? parsed.label.trim() : "";

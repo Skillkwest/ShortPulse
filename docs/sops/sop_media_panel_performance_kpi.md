@@ -228,6 +228,13 @@ cd frontend
 npm run media:kpi:capture -- --base-url https://www.shortpulse.ai --write-packet /absolute/path/to/panel-kpi.packet.json
 ```
 
+Change the repeated-run count explicitly when needed:
+
+```bash
+cd frontend
+npm run media:kpi:capture -- --base-url https://www.shortpulse.ai --runs 5 --format markdown
+```
+
 Markdown report:
 
 ```bash
@@ -242,6 +249,13 @@ cd frontend
 npm run media:kpi:score -- --input /absolute/path/to/panel-kpi.packet.json --format json
 ```
 
+Compare two retained packets:
+
+```bash
+cd frontend
+npm run media:kpi:score -- --compare /absolute/path/to/older.packet.json /absolute/path/to/newer.packet.json --format markdown
+```
+
 ## How To Collect Metrics
 
 ### Local telemetry path
@@ -251,6 +265,13 @@ When the debug handle is available:
 ```js
 window.__shortpulseMediaPerf?.clear();
 ```
+
+## Capture Integrity Rules
+
+- `media:kpi:capture` now defaults to `5` repeated panel-open captures.
+- Direct timing `p95` fields from the capture helper are only populated when at least `5` repeated runs were collected.
+- If fewer than `5` runs are captured, the helper leaves those direct timing `p95` fields `null` instead of pretending one observation is a percentile.
+- `signBatchP95Ms` may still be populated from runtime sign telemetry because that value comes from the live telemetry bucket itself, not from a single open-time observation.
 
 Exercise one panel flow, then inspect:
 
@@ -342,6 +363,26 @@ npm run media:kpi:capture -- --surface elements-media-panel --base-url https://w
 
 It still leaves some metrics null when the live session cannot support a trustworthy derivation. That is intentional; the scorer should mark evidence as partial rather than invent data.
 
+### Regression / comparison path
+
+When retained packets already exist for the same surface, use compare mode instead of eyeballing two separate score reports:
+
+```bash
+cd frontend
+npm run media:kpi:score -- --compare /absolute/path/to/older.packet.json /absolute/path/to/newer.packet.json --format text
+```
+
+The comparison report provides:
+
+- overall score delta
+- coverage delta
+- meaningful improvements
+- meaningful regressions
+- packet availability drift
+- explicit comparison flags when evidence or coverage weakens
+
+Only compare packets from the same surface id. Cross-surface comparisons are intentionally rejected.
+
 ### Network trace path
 
 Use browser devtools or packet capture for:
@@ -392,6 +433,12 @@ Critical trust failures also matter:
 - save-roundtrip failure spikes
 
 These cap the score even when raw latency is strong.
+
+Comparison matters too:
+
+- treat `summary: improved` as trustworthy only when neither packet has insufficient evidence
+- treat `summary: mixed` as a prompt to inspect the meaningful regression list before celebrating net score gains
+- treat coverage drops of `>= 10` percentage points as a regression even when the raw score looks flat
 
 ## Minimum Good Packet For This Sprint
 

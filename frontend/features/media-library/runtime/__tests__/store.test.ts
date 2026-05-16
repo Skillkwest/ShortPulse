@@ -35,14 +35,14 @@ const makePromptRow = (id: string) => ({
 describe("media runtime store", () => {
   it("normalizes shared media rows while keeping per-surface ordering separate", () => {
     const shared = makeMediaRow("shared");
-    const routeOnly = makeMediaRow("route-only");
+    const panelOnly = makeMediaRow("panel-only");
     const modalOnly = makeMediaRow("modal-only");
 
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "panel",
       tab: "uploaded_images",
-      rows: [shared, routeOnly],
+      rows: [shared, panelOnly],
     });
     state = replaceSurfaceMediaTabRows(state, {
       surface: "modal",
@@ -50,12 +50,12 @@ describe("media runtime store", () => {
       rows: [modalOnly, shared],
     });
 
-    expect(Object.keys(state.mediaById).sort()).toEqual(["modal-only", "route-only", "shared"]);
+    expect(Object.keys(state.mediaById).sort()).toEqual(["modal-only", "panel-only", "shared"]);
     expect(
-      selectSurfaceMediaRows(state, { surface: "route", tab: "uploaded_images" }).map(
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "uploaded_images" }).map(
         (row) => row.id
       )
-    ).toEqual(["shared", "route-only"]);
+    ).toEqual(["shared", "panel-only"]);
     expect(
       selectSurfaceMediaRows(state, { surface: "modal", tab: "uploaded_images" }).map(
         (row) => row.id
@@ -66,7 +66,7 @@ describe("media runtime store", () => {
   it("applies signed urls once and exposes them through every surface view", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_images",
       rows: [makeMediaRow("shared")],
     });
@@ -80,7 +80,7 @@ describe("media runtime store", () => {
 
     expect(state.mediaById.shared?.signedUrl).toBe("https://signed/shared.png");
     expect(
-      selectSurfaceMediaRows(state, { surface: "route", tab: "uploaded_images" })[0]?.signedUrl
+      selectSurfaceMediaRows(state, { surface: "modal", tab: "uploaded_images" })[0]?.signedUrl
     ).toBe("https://signed/shared.png");
     expect(
       selectSurfaceMediaRows(state, { surface: "panel", tab: "uploaded_images" })[0]?.signedUrl
@@ -90,7 +90,7 @@ describe("media runtime store", () => {
   it("can update preview signed urls for a single surface without mutating shared entities", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "panel",
       tab: "uploaded_images",
       rows: [makeMediaRow("shared")],
     });
@@ -101,14 +101,14 @@ describe("media runtime store", () => {
     });
 
     state = setSurfaceSignedUrls(state, {
-      surface: "route",
-      signedUrlById: new Map([["shared", "https://signed/route.png"]]),
+      surface: "panel",
+      signedUrlById: new Map([["shared", "https://signed/panel.png"]]),
     });
 
     expect(state.mediaById.shared?.signedUrl).toBeUndefined();
     expect(
-      selectSurfaceMediaRows(state, { surface: "route", tab: "uploaded_images" })[0]?.signedUrl
-    ).toBe("https://signed/route.png");
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "uploaded_images" })[0]?.signedUrl
+    ).toBe("https://signed/panel.png");
     expect(
       selectSurfaceMediaRows(state, { surface: "modal", tab: "uploaded_images" })[0]?.signedUrl
     ).toBeUndefined();
@@ -122,7 +122,7 @@ describe("media runtime store", () => {
 
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_images",
       rows: [initialRow],
       cache: {
@@ -134,7 +134,7 @@ describe("media runtime store", () => {
     });
 
     const nextState = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_images",
       rows: [
         {
@@ -155,7 +155,7 @@ describe("media runtime store", () => {
   it("reconstructs surface media-tab cache records from normalized rows and tab metadata", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_images",
       rows: [makeMediaRow("image-1")],
       cache: {
@@ -167,7 +167,7 @@ describe("media runtime store", () => {
       },
     });
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_videos",
       rows: [makeMediaRow("video-1", { file_type: "video/mp4" })],
       cache: {
@@ -179,16 +179,16 @@ describe("media runtime store", () => {
       },
     });
 
-    const routeCache = selectSurfaceMediaTabCacheRecord(state, "route");
+    const modalCache = selectSurfaceMediaTabCacheRecord(state, "modal");
 
-    expect(routeCache.uploaded_images.rows.map((row) => row.id)).toEqual(["image-1"]);
-    expect(routeCache.uploaded_images.pagesLoaded).toBe(2);
-    expect(routeCache.uploaded_images.query).toBe("portrait");
-    expect(routeCache.uploaded_images.hasMore).toBe(true);
-    expect(routeCache.uploaded_videos.rows.map((row) => row.id)).toEqual(["video-1"]);
-    expect(routeCache.uploaded_videos.pagesLoaded).toBe(1);
-    expect(routeCache.private.rows).toEqual([]);
-    expect(routeCache.ai_generations.rows).toEqual([]);
+    expect(modalCache.uploaded_images.rows.map((row) => row.id)).toEqual(["image-1"]);
+    expect(modalCache.uploaded_images.pagesLoaded).toBe(2);
+    expect(modalCache.uploaded_images.query).toBe("portrait");
+    expect(modalCache.uploaded_images.hasMore).toBe(true);
+    expect(modalCache.uploaded_videos.rows.map((row) => row.id)).toEqual(["video-1"]);
+    expect(modalCache.uploaded_videos.pagesLoaded).toBe(1);
+    expect(modalCache.private.rows).toEqual([]);
+    expect(modalCache.ai_generations.rows).toEqual([]);
   });
 
   it("replaces multiple surface media tabs in one batched write", () => {
@@ -256,11 +256,11 @@ describe("media runtime store", () => {
   it("tracks prompts, selection, aspect ratio, and deduped byte totals per surface", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {
-      surface: "route",
+      surface: "modal",
       tab: "uploaded_images",
       rows: [
         makeMediaRow("shared", { file_size: 512 }),
-        makeMediaRow("route-only", { file_size: 64 }),
+        makeMediaRow("modal-only", { file_size: 64 }),
       ],
     });
     state = replaceSurfaceMediaTabRows(state, {
@@ -269,27 +269,27 @@ describe("media runtime store", () => {
       rows: [makeMediaRow("shared", { file_size: 512 })],
     });
     state = replaceSurfacePromptRows(state, {
-      surface: "route",
+      surface: "modal",
       rows: [makePromptRow("prompt-1"), makePromptRow("prompt-2")],
       promptsLoaded: true,
     });
     state = setSurfaceSelectedIds(state, {
-      surface: "route",
+      surface: "modal",
       selectedIds: ["shared", "prompt-2"],
     });
     state = setSurfaceAspectRatio(state, {
-      surface: "route",
+      surface: "modal",
       mediaId: "shared",
       aspectRatio: 16 / 9,
     });
 
-    expect(selectSurfacePromptRows(state, "route").map((row) => row.id)).toEqual([
+    expect(selectSurfacePromptRows(state, "modal").map((row) => row.id)).toEqual([
       "prompt-1",
       "prompt-2",
     ]);
-    expect(selectSurfaceSelectedIds(state, "route")).toEqual(["shared", "prompt-2"]);
-    expect(state.surfaceStateByKind.route.preview.aspectRatioById.shared).toBe(16 / 9);
+    expect(selectSurfaceSelectedIds(state, "modal")).toEqual(["shared", "prompt-2"]);
+    expect(state.surfaceStateByKind.modal.preview.aspectRatioById.shared).toBe(16 / 9);
     expect(selectTotalCachedMediaBytes(state)).toBe(576);
-    expect(state.surfaceStateByKind.route.promptsLoaded).toBe(true);
+    expect(state.surfaceStateByKind.modal.promptsLoaded).toBe(true);
   });
 });

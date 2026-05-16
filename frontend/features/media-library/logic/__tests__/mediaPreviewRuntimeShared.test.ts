@@ -260,7 +260,7 @@ describe("mediaPreviewRuntimeShared", () => {
       const result = await hydrateMediaPreviewViaStorageDownload({
         row: { id: "media-2", storage_path: "path/first.png", file_type: "image/png" },
         currentUserId: "user-1",
-        surface: "media-library-route",
+        surface: "media-library-modal",
         downloadFromStoragePath,
         applyObjectUrlForRow,
       });

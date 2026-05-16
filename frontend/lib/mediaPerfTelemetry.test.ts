@@ -88,14 +88,14 @@ describe("mediaPerfTelemetry sampling policy", () => {
 
   it("aggregates storage-download fallback stats by surface", () => {
     logMediaPerf("media.storage_download_fallback.completed", {
-      surface: "media-library-route",
+      surface: "media-library-modal",
       candidate_count: 2,
       succeeded_count: 1,
       failed_count: 0,
       duration_ms: 14,
     });
     logMediaPerf("media.storage_download_fallback.failed", {
-      surface: "media-library-route",
+      surface: "media-library-modal",
       candidate_count: 3,
       succeeded_count: 0,
       failed_count: 1,
@@ -104,7 +104,7 @@ describe("mediaPerfTelemetry sampling policy", () => {
 
     expect(getMediaPerfFallbackStats()).toEqual([
       {
-        surface: "media-library-route",
+        surface: "media-library-modal",
         samples: 2,
         avg_duration_ms: 17,
         p50_duration_ms: 14,

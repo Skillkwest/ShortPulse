@@ -291,7 +291,7 @@ describe("POST /api/media/resolve-previews", () => {
       method: "POST",
       body: {
         ids: [row.id],
-        surface: "media-library-route",
+        surface: "media-library-modal",
       },
     };
     const res = createMockResponse();
@@ -422,7 +422,7 @@ describe("POST /api/media/resolve-previews", () => {
       method: "POST",
       body: {
         ids: [row.id],
-        surface: "media-library-route",
+        surface: "media-library-modal",
       },
     };
     const res = createMockResponse();
@@ -499,7 +499,7 @@ describe("POST /api/media/resolve-previews", () => {
       method: "POST",
       body: {
         ids: [row.id],
-        surface: "media-library-route",
+        surface: "media-library-modal",
       },
     };
     const res = createMockResponse();

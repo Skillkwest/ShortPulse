@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Copperknot Operator Brief - 2026-05-16</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #17181b;
+        --panel: #22252a;
+        --panel-2: #2c3036;
+        --text: #f3f4f6;
+        --muted: #c9ced6;
+        --accent: #ffb86b;
+        --good: #7ee787;
+        --warn: #ffd866;
+        --hold: #8ab4ff;
+        --border: #3b4048;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: linear-gradient(180deg, #15171a 0%, #1c1f24 100%);
+        color: var(--text);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.35;
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      .hero, .section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+      }
+
+      h1, h2 {
+        margin: 0 0 12px;
+        line-height: 1.05;
+      }
+
+      h1 {
+        font-size: 30px;
+        color: var(--accent);
+      }
+
+      h2 {
+        font-size: 22px;
+        color: #fff3df;
+      }
+
+      p, li {
+        font-size: 15px;
+        color: var(--text);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      .status {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 5px 9px;
+        margin-bottom: 10px;
+      }
+
+      .ready { background: rgba(126, 231, 135, 0.14); color: var(--good); }
+      .second { background: rgba(255, 216, 102, 0.14); color: var(--warn); }
+      .hold { background: rgba(138, 180, 255, 0.14); color: var(--hold); }
+
+      .lane {
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .path {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: #d9d0e3;
+        word-break: break-word;
+      }
+
+      .path a {
+        color: #cfe7ff;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .path a:hover {
+        color: #ffffff;
+      }
+
+      .next-step {
+        border-left: 4px solid var(--accent);
+        padding-left: 12px;
+        margin-top: 8px;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .list-tight li {
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <h1>Operator Brief</h1>
+        <p><strong>Run:</strong> Managed lane review + rerun on <code>production</code></p>
+        <p><strong>Ship target:</strong> <strong>July 2, 2026</strong></p>
+      </section>
+
+      <section class="section">
+        <h2>What Changed</h2>
+        <ul class="list-tight">
+          <li><code>Reference Grid</code> reached ship floor and the active blocker is cleared.</li>
+          <li>The next open user-facing lanes are now <code>Characters workflow</code> and <code>Elements workflow</code>.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>Ready To Paste Now</h2>
+        <div class="cards">
+          <article class="card">
+            <div class="status ready">Paste This Next</div>
+            <p><strong>Characters workflow</strong></p>
+            <p class="lane">Lane: <code>characters-workflow-hardening</code></p>
+            <p class="small">Fresh production continuity-trust evidence exists on <code>/character</code>.</p>
+            <p class="path"><a href="../../../../../agents/copperknot/handoffs/2026-05-06-characters-workflow.html">docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.html</a></p>
+          </article>
+
+          <article class="card">
+            <div class="status second">Second Lane</div>
+            <p><strong>Elements workflow</strong></p>
+            <p class="lane">Lane: <code>elements-workflow-hardening</code></p>
+            <p class="small">This is the cleanest second open workflow lane after Characters.</p>
+            <p class="path"><a href="../../../../../agents/copperknot/handoffs/2026-05-06-elements-workflow.html">docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.html</a></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>What To Do Next</h2>
+        <div class="next-step">
+          <p><strong>Immediate next action:</strong> paste <strong>Characters workflow</strong>.</p>
+          <p><strong>If you want a second lane:</strong> paste <strong>Elements workflow</strong>.</p>
+          <p><strong>Keep closed:</strong> leave recently closed lanes alone unless Copperknot opens a new follow-up lane.</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Do Not Do Yet</h2>
+        <ul class="list-tight">
+          <li>Do not reopen <code>Reference Grid runtime verification</code>. The product blocker is cleared and the remaining gap is tooling-only harness cleanup.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>Notes</h2>
+        <p class="path">Managed lane review: <a href="2026-05-16-managed-lane-review-and-reference-grid-clear.html">docs/records/artifacts/agent/copperknot/reports/2026-05-16-managed-lane-review-and-reference-grid-clear.html</a></p>
+        <p class="path">Updated launch checklist: <a href="2026-05-16-launch-ready-checklist.html">docs/records/artifacts/agent/copperknot/reports/2026-05-16-launch-ready-checklist.html</a></p>
+        <p class="path">Live queue: <a href="../../../../../agents/copperknot/prioritized-handoff-queue-2026-07-02.html">docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.html</a></p>
+      </section>
+    </div>
+  </body>
+</html>

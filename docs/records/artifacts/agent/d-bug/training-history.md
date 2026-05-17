@@ -225,3 +225,19 @@ Purpose: track how D-Bug is trained, what behavior improves, and what still need
   - Production browser verification is still useful, and the older Character bootstrap-stall lane may or may not be fully covered by this shared auth-guard fix.
 - Next training focus:
   - Start future reload-continuity audits at the protected-route/session recovery layer before route-specific persistence code.
+
+### 2026-05-16
+
+- Prompt or task:
+  - Re-audit the remaining `character-route-bootstrap-stall` packet after the protected-route recovery fix.
+- Behavior learned:
+  - When a remaining retained packet may just be a second view of a newly fixed shared defect, D-Bug should re-audit the downstream route surfaces and close the packet as stale instead of forcing a speculative patch.
+- Docs or artifact updates:
+  - Added a retained re-audit report for the Character bootstrap-stall lane.
+  - Reclassified `2026-05-15-character-route-bootstrap-stall.md` as resolved on the current branch pending fresh post-fix repro.
+- Tool changes:
+  - None.
+- Remaining friction:
+  - Full confidence still depends on a new production/browser repro after deployment of the auth-guard fix.
+- Next training focus:
+  - Explicitly test whether old packets are subsumed by newer shared fixes before carrying them forward as separate active lanes.

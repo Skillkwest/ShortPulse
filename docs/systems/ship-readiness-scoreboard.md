@@ -9,11 +9,13 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 - Freshness reason:
   - launch-state fields were refreshed against the full repo-plus-worktree audit on `production`
   - the active target window, exact queue, and dispatch-ready handoff set were reconciled together
+  - the managed subagent rerun and review packet cleared the remaining active ship-path blocker later the same day
 - Primary sources:
   - `docs/systems/catalog.md`
-  - `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-07-02.md`
-  - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-16-production-repo-audit-and-dispatch-output.md`
+  - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-16-production-repo-audit-and-dispatch-output.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-16-managed-lane-review-and-reference-grid-clear.md`
 
 ## Freshness Rule
 
@@ -35,76 +37,73 @@ For exact sequencing inside a priority band, the handoff queue remains the autho
 
 ## Release-Control Summary
 
-| Signal | Current value |
-| --- | --- |
-| `P0` systems below floor | `6` |
-| Active ship-path blockers | `1` |
-| External lanes still running | `1` |
-| Reviewed-complete lanes awaiting broader rerate | `1` |
-| Undispatched below-floor lanes with handoffs ready | `4` |
-| Non-blocking production findings tracked | `3` |
-| Score changes made in this refresh | `0` |
+| Signal                                             | Current value |
+| -------------------------------------------------- | ------------- |
+| `P0` systems below floor                           | `3`           |
+| Active ship-path blockers                          | `0`           |
+| External lanes still running                       | `0`           |
+| Reviewed-complete lanes awaiting broader rerate    | `1`           |
+| Undispatched below-floor lanes with handoffs ready | `2`           |
+| Non-blocking production findings tracked           | `3`           |
+| Score changes made in this refresh                 | `5`           |
 
 Catalog-tool health metrics:
 
-- `docs/agents/system-catalog-agent/catalog-tool-health-metrics.md`
+- `docs/agents/copperknot/catalog-tool-health-metrics.md`
 
 ## Active Ship-Path Blocker
 
-- `KI-AI-RG-STYLES-001`
-  - System: `Reference Grid`
-  - Lane: `reference-grid-styles-drop-blocker`
-  - Status: active external lane
+- none
 
 ## Below-Floor Systems
 
-| System | Current | Ship floor | Priority band | Active lane |
-| --- | ---: | ---: | --- | --- |
-| `Generation recovery / settlement` | 4 | 7 | `P0 ship-critical` | `generation-recovery-settlement-hardening` |
-| `Edit workflow` | 5 | 7 | `P0 ship-critical` | `edit-workflow-hardening` |
-| `Reference Grid` | 6 | 7 | `P0 ship-critical` | `reference-grid-styles-drop-blocker` |
-| `Project / workspace persistence` | 6 | 7 | `P0 ship-critical` | `project-workspace-persistence-hardening` |
-| `Billing / credits` | 6 | 7 | `P0 ship-critical` | `billing-credits-runtime-hardening` |
-| `Security boundaries` | 6 | 7 | `P0 ship-critical` | `security-boundaries-release-audit` |
-| `Characters workflow` | 5 | 6 | `P1 ship-relevant` | `characters-workflow-hardening` |
-| `Elements workflow` | 5 | 6 | `P1 ship-relevant` | `elements-workflow-hardening` |
-| `Generation submission / polling` | 6 | 7 | `P1 ship-relevant` | `generation-submission-polling-hardening` |
-| `Media ingest / save` | 6 | 7 | `P1 ship-relevant` | `queue-only` |
-| `Core data persistence` | 6 | 7 | `P1 ship-relevant` | `queue-only` |
-| `Storage / file delivery` | 6 | 7 | `P1 ship-relevant` | `queue-only` |
-| `Create workflow` | 6 | 7 | `P2 validation` | `queue-only` |
-| `Provider integrations` | 6 | 7 | `P2 validation` | `queue-only` |
+| System                             | Current | Ship floor | Priority band      | Active lane                                |
+| ---------------------------------- | ------: | ---------: | ------------------ | ------------------------------------------ |
+| `Generation recovery / settlement` |       4 |          7 | `P0 ship-critical` | `generation-recovery-settlement-hardening` |
+| `Edit workflow`                    |       6 |          7 | `P0 ship-critical` | `edit-workflow-hardening`                  |
+| `Project / workspace persistence`  |       6 |          7 | `P0 ship-critical` | `project-workspace-persistence-hardening`  |
+| `Characters workflow`              |       5 |          6 | `P1 ship-relevant` | `characters-workflow-hardening`            |
+| `Elements workflow`                |       5 |          6 | `P1 ship-relevant` | `elements-workflow-hardening`              |
+| `Media ingest / save`              |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
+| `Core data persistence`            |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
+| `Storage / file delivery`          |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
+| `Create workflow`                  |       6 |          7 | `P2 validation`    | `queue-only`                               |
+| `Provider integrations`            |       6 |          7 | `P2 validation`    | `queue-only`                               |
 
 ## At-Floor Systems
 
-| System | Current | Ship floor | Priority band |
-| --- | ---: | ---: | --- |
-| `Video workflow` | 6 | 6 | `P2 validation` |
-| `Sound workflow` | 6 | 6 | `P2 validation` |
-| `Media Library workflow` | 6 | 6 | `P2 validation` |
-| `Media delivery / signing / preview resolution` | 6 | 6 | `P2 validation` |
-| `Media derivatives / variants` | 6 | 6 | `P2 validation` |
-| `Admin operations` | 6 | 6 | `P2 validation` |
-| `Observability / incident triage` | 6 | 6 | `P2 validation` |
-| `Pricing / entitlements` | 7 | 7 | `P2 validation` |
-| `Auth / identity` | 7 | 7 | `P2 validation` |
+| System                                          | Current | Ship floor | Priority band      |
+| ----------------------------------------------- | ------: | ---------: | ------------------ |
+| `Video workflow`                                |       6 |          6 | `P2 validation`    |
+| `Sound workflow`                                |       6 |          6 | `P2 validation`    |
+| `Media Library workflow`                        |       6 |          6 | `P2 validation`    |
+| `Media delivery / signing / preview resolution` |       6 |          6 | `P2 validation`    |
+| `Media derivatives / variants`                  |       6 |          6 | `P2 validation`    |
+| `Admin operations`                              |       6 |          6 | `P2 validation`    |
+| `Observability / incident triage`               |       6 |          6 | `P2 validation`    |
+| `Reference Grid`                                |       7 |          7 | `P2 validation`    |
+| `Pricing / entitlements`                        |       7 |          7 | `P2 validation`    |
+| `Auth / identity`                               |       7 |          7 | `P2 validation`    |
+| `Billing / credits`                             |       7 |          7 | `P2 validation`    |
+| `Security boundaries`                           |       7 |          7 | `P1 ship-relevant` |
+| `Generation submission / polling`               |       7 |          7 | `P1 ship-relevant` |
 
 ## Active Lanes
 
 - reviewed complete, score unchanged pending broader runtime rerate:
   - `generation-recovery-settlement-hardening`
-- dispatched and still awaiting closeout:
-  - `reference-grid-styles-drop-blocker`
-- next ready:
+- closeout received and score held after bounded hardening:
+  - `project-workspace-persistence-hardening`
   - `edit-workflow-hardening`
-- packaged and ready but not dispatched:
+- rerated to at-floor validation:
+  - `reference-grid-styles-runtime-verification`
   - `billing-credits-runtime-hardening`
   - `security-boundaries-release-audit`
   - `generation-submission-polling-hardening`
-- ready held:
-  - `project-workspace-persistence-hardening`
-- secondary workflow follow-up signal with fresh production evidence:
+- ready next:
   - `characters-workflow-hardening`
+- second lane:
+  - `elements-workflow-hardening`
 
 ## Non-Blocking Production Findings
 

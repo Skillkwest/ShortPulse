@@ -151,7 +151,7 @@ Do not keep expanding from recovery into adjacent systems by momentum alone.
 ## Required closeout report
 
 - Path:
-  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+  - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 - Filename:
   - `YYYY-MM-DD-generation-recovery-settlement-hardening-closeout.md`
 - Required contents:
@@ -171,7 +171,7 @@ Do not keep expanding from recovery into adjacent systems by momentum alone.
   - blockers encountered
   - residual risk
   - recommended score effect
-  - recommended next step for Catalog Agent review
+  - recommended next step for Copperknot review
 
 ## Send To Catalog
 
@@ -180,7 +180,7 @@ When the user says `send this to the catalog`, do not stop at a chat summary.
 Do all of these:
 
 1. Write the closeout report in:
-   - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 2. Use the filename:
    - `YYYY-MM-DD-generation-recovery-settlement-hardening-closeout.md`
 3. Follow the required closeout contents exactly.

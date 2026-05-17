@@ -69,9 +69,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
 - `docs/agents/pulse/README.md`
-- `docs/agents/system-catalog-agent/README.md`
-- `docs/agents/system-catalog-agent/catalog-tool-health-metrics.md`
-- `docs/agents/system-catalog-agent/measurement-and-learning.md`
+- `docs/agents/copperknot/README.md`
+- `docs/agents/copperknot/catalog-tool-health-metrics.md`
+- `docs/agents/copperknot/measurement-and-learning.md`
 - `docs/agents/ophestivus.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`

@@ -31,8 +31,8 @@ Representative repo audit commands used for this rewrite:
 6. `sed -n ... frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
 7. `sed -n ... frontend/features/ai-studio/hooks/useMediaVideoBrowsePreviewUrls.ts`
 8. `sed -n ... frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-9. `sed -n ... docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-10-media-library-speed-and-lean-roadmap.md`
-10. `sed -n ... docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-10-media-library-phase0-execution-checklist.md`
+9. `sed -n ... docs/records/artifacts/agent/copperknot/reports/2026-05-10-media-library-speed-and-lean-roadmap.md`
+10. `sed -n ... docs/records/artifacts/agent/copperknot/reports/2026-05-10-media-library-phase0-execution-checklist.md`
 
 External research already incorporated into this plan family:
 

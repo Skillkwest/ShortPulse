@@ -207,7 +207,6 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `CRON_SECRET` (optional fallback bearer secret)
   - `SHORTPULSE_INTERNAL_BILLING_RENEWAL_BATCH_SIZE`
 - Admin allowlist (optional): `SHORTPULSE_ADMIN_EMAILS`.
-- Emergency auth fallback (default `false`): `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS`.
 - Admin event alert thresholds (optional): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`, `SHORTPULSE_ADMIN_ALERT_PROVIDER_RUNNING_TIMEOUT_15M`.
 - Admin user-health fleet thresholds (optional): `SHORTPULSE_ADMIN_ALERT_USER_HEALTH_FLEET_CRITICAL_RISK`, `SHORTPULSE_ADMIN_ALERT_USER_HEALTH_FLEET_WARNING_COST_WITHOUT_SUCCESS_CENTS`.
 - Admin user-health fleet runtime flags:

@@ -77,6 +77,25 @@ Correction:
 
 - prove live reachability in the target surface before relying on it
 
+### 6. Why-gap drift
+
+Definition:
+
+- continuing a lane with correct local momentum but without re-stating why that lane is still the highest-ROI real product move after the evidence changed
+
+Why it matters:
+
+- users experience this as KPI theater, instrumentation drift, or optimization detached from the actual panel
+- trust drops even if the code changes are technically reasonable
+
+Correction:
+
+- when the user asks `why are we doing this next?`, pause and restate:
+  - what changed in the evidence,
+  - which prior diagnosis was invalidated or narrowed,
+  - what real runtime/product behavior this lane is trying to improve,
+  - and why this is better ROI than stopping or pivoting elsewhere
+
 ## P2: Moderate-Impact Failures
 
 - shallow doc retention

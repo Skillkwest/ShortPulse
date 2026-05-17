@@ -1,0 +1,117 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>security boundaries release audit closeout</title><style>:root{color-scheme:dark;--bg:#17181b;--panel:#23262b;--panel2:#2a2d33;--text:#ece9e4;--muted:#b9b4ad;--accent:#f2b76b;--border:#3a3f48;--code:#d7dce5}*{box-sizing:border-box}body{margin:0;padding:28px;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(180deg,#141518 0%,#1b1d21 100%);color:var(--text)}.wrap{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:22px 24px}h1{margin:0 0 10px;font-size:34px;color:var(--accent)}.meta{margin:0 0 18px;color:var(--muted);font-size:14px}.source{margin:0 0 18px;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;font-size:14px}.source a{color:#d9e8ff}pre{margin:0;white-space:pre-wrap;word-break:break-word;background:#1c1f24;color:var(--code);border:1px solid var(--border);border-radius:14px;padding:16px;font-size:14px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}</style></head><body><div class="wrap"><h1>security boundaries release audit closeout</h1><p class="meta">Browser-friendly rendered companion for the Copperknot.</p><p class="source">Source markdown: <a href="2026-05-16-security-boundaries-release-audit-closeout.md">docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-security-boundaries-release-audit-closeout.md</a></p><pre># Security Boundaries Release Audit Closeout
+
+## lane id
+
+`security-boundaries-release-audit`
+
+## source handoff path
+
+Current-thread handoff packet from the user: `Next-Agent Handoff: Security Boundaries Release Audit` (no repo file path was provided).
+
+## execution status
+
+`bounded hardening patch complete`
+
+## systems touched
+
+- `security-boundaries`
+- `auth-identity`
+
+## files changed
+
+- `frontend/lib/server/api/protectedApiPaths.ts`
+- `frontend/lib/server/api/authProxyContext.ts`
+- `frontend/tests/api/proxy-internal-utils.test.ts`
+- `frontend/tests/api/protected-api-paths.parity.test.ts`
+- `frontend/tests/api/internal-route-inventory-regression.test.ts`
+- `frontend/tests/api/internal-billing-contract-renewals-run.test.ts`
+- `docs/security-checklist.md`
+- `docs/api/api-internal-routes.md`
+- `docs/operator-map.md`
+- `frontend/.env.example`
+
+## summary of what changed
+
+The bounded hardening patch closed a proxy-manifest drift seam in the launch-critical API auth boundary. `frontend/lib/server/api/protectedApiPaths.ts` now treats `/api/openai/*` and `/api/kie/*` as protected prefixes, so middleware fails closed before the request reaches direct OpenAI image routes or the Kie upload helper. The patch also added regression coverage that scans `pages/api/*` for handlers using `requireApiUser` or `requireAdminUser` and fails if any such route is missing from the protected manifest or webhook exceptions. The security checklist was updated so the documented API auth boundary matches the runtime contract.
+
+Follow-up audit fixes also removed the dead `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` fallback from live docs and `.env.example`, dropped the unused helper in `authProxyContext.ts`, added `/api/internal/billing-contract-renewals/run` to the central internal-route inventory gate, and added method/disabled/auth regression coverage for that billing renewals worker so its carve-out now matches the other cron-secret internal routes.
+
+## acceptance criteria reached
+
+- Reduced one major security-boundary ambiguity: authenticated provider/upload routes are no longer partially protected only by route-level auth.
+- Added targeted validation so future manifest drift on auth-enforced API routes fails in tests instead of waiting for manual release review.
+- Removed a misleading live ops contract for a retired emergency auth fallback.
+- Brought the internal billing renewals worker up to the same regression-coverage level as the other internal secret-protected routes.
+- Kept the work inside the owned write surface with no schema or platform-wide auth redesign.
+
+## evidence snapshot
+
+- Route-classification drift was concrete and local:
+  - `/api/openai/image-generate`
+  - `/api/openai/image-edit`
+  - `/api/kie/upload-url`
+- Each of those handlers already enforced `requireApiUser`, but the shared proxy manifest did not classify them as protected.
+- Repo docs and route inventory already described the intended stronger posture:
+  - `docs/security-checklist.md` requires authenticated bearer tokens for provider/upload/admin/media/billing surfaces.
+  - `docs/routes.md` marks `/api/kie/upload-url` as `Bearer (proxy + route)`.
+  - `README.md` documents authenticated direct OpenAI image routes under AI Studio.
+- Follow-up audit evidence showed adjacent drift:
+  - live docs still advertised `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` even though auth tests prove the flag no longer enables proxy-header trust
+  - the repo’s internal-route inventory gate omitted `/api/internal/billing-contract-renewals/run`
+  - the billing renewals worker lacked the same `405` / `404` / `401` auth-path tests already present on the other internal secret-protected routes
+
+## validation run
+
+- `npm -C frontend test -- tests/api/proxy-internal-utils.test.ts tests/api/protected-api-paths.parity.test.ts tests/api/auth-helper.test.ts tests/lib/runtime-sql-security-audit-script.test.ts`
+- `npm -C frontend test -- tests/api/proxy-internal-utils.test.ts tests/api/protected-api-paths.parity.test.ts tests/api/auth-helper.test.ts tests/api/internal-route-inventory-regression.test.ts tests/api/internal-billing-contract-renewals-run.test.ts tests/lib/runtime-sql-security-audit-script.test.ts`
+- `npm -C frontend run docs:check`
+
+## validation evidence
+
+- Targeted test suite passed:
+  - `6` files passed
+  - `29` tests passed
+- `docs:check` passed:
+  - documentation links
+  - semantic drift
+  - migration/doc parity
+  - archive manifest
+  - model catalog parity
+  - naming canonical drift
+  - operator map drift
+
+## self-audit findings
+
+- The main risk was route-classification drift rather than SQL audit posture drift.
+- The missing coverage was broader than one route; three authenticated routes sat outside the proxy manifest.
+- After the patch, the new parity test found no remaining `requireApiUser` / `requireAdminUser` handlers outside the protected manifest or webhook carve-outs.
+
+## issues fixed during self-audit
+
+- Added the parity regression test after confirming the initial route-manifest patch alone would still leave future drift easy to reintroduce.
+- Updated the security checklist wording so `/api/openai/*` and `/api/kie/*` are explicitly named in the documented API auth boundary.
+- Removed the retired proxy-fallback contract from live docs and config examples after confirming the env flag no longer changes auth behavior.
+- Extended the internal-route inventory/test guardrails to include the billing renewals worker.
+
+## issues intentionally left out of scope
+
+- No change to `sql/check_runtime_sql_security_audit.sql`; this lane did not surface a concrete local SQL-posture gap stronger than the route drift.
+- No redesign of internal or webhook secret-handling flows; current explicit carve-outs remained unchanged because no local evidence showed them violating the intended fail-closed contract.
+- No broad audit of custom auth patterns outside handlers that already use `requireApiUser` / `requireAdminUser`.
+
+## blockers encountered
+
+- `npm -C frontend run vitest -- ...` was not available because the repo exposes Vitest through `npm test`. The targeted suite was rerun successfully through the supported script.
+
+## residual risk
+
+The new parity test protects handlers that call `requireApiUser` or `requireAdminUser`, and the internal-route inventory/auth tests now cover the billing renewals worker alongside the other secret-protected internal routes. Residual risk remains for any future sensitive route that uses a materially different auth pattern without joining the manifest or parity conventions, and for secret-protected webhook/internal seams that still rely on route-specific invariants outside bearer-auth enforcement.
+
+## recommended score effect
+
+Recommend moving `security-boundaries` from `6/10` to `7/10` for Copperknot review, contingent on accepting this bounded hardening patch as sufficient evidence that the proxy/route auth contract is now fail-closed for the previously uncovered authenticated provider/upload routes.
+
+## recommended next step for Copperknot review
+
+Review the security-boundaries row against this closeout and, if accepted, refresh the catalog note to record that protected API manifest parity is now test-enforced for auth-guarded handlers. If the row still stays below floor, the next bounded lane should target explicit validation of internal/webhook carve-out posture rather than reopening broad auth or SQL redesign work.
+</pre></div></body></html>

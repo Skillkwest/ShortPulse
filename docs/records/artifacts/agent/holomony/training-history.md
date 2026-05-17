@@ -219,6 +219,143 @@ Training result:
   - Elements still showed slightly worse visible state churn
 - the initial fallback-storm diagnosis was a measurement bug, not a product truth
 
+## 2026-05-16: Persistence Proof Audit Path
+
+Task: close the media-panel persistence-proof gap without reopening runtime tuning by creating a dedicated save/reopen browse-readiness audit.
+
+Actions taken:
+
+- audited the existing AI Studio media save path, autosave orchestration, and project persistence audits
+- chose a bounded proof path: upload through the real AI Studio Media panel, verify browse-ready visibility, reload and reopen, repeat the check in a fresh signed-in context, then delete the audit fixture
+- created `frontend/tests/e2e/media-panel-persistence.audit.js`
+- wired it into `frontend/package.json` as `npm run test:e2e:media-panel-persistence`
+- documented the audit in `docs/testing-guide.md` and `docs/sops/sop_media_panel_performance_kpi.md`
+
+Training result:
+
+- Holomony now has a direct persistence-proof tool for the AI Studio media panel instead of treating persistence metrics as a theoretical KPI gap
+- Durable lesson recorded: when runtime health is good and the remaining question is browse/save trust, add a bounded audit path before inventing another runtime optimization lane
+
+Next training focus:
+
+- run the new persistence audit against the approved audit account and retain the result
+- use that retained evidence to populate `saveRoundtripFailureRate`, `saveRoundtripMismatchRate`, and `saveBrowseReadyRatio`
+- only reopen runtime tuning if the persistence audit exposes a real product regression
+
+## 2026-05-16: Production AI Studio Panel Persistence Proof
+
+Task: run the new media-panel persistence audit against production and retain a direct save/reopen browse-readiness result.
+
+Actions taken:
+
+- ran `npm run test:e2e:media-panel-persistence` against `https://www.shortpulse.ai`
+- corrected two audit-harness issues that the first live attempts exposed:
+  - opening the panel before trying to upload
+  - matching the image-grid action labels instead of the all-items-grid labels
+- verified:
+  - upload browse-ready visibility
+  - reload + reopen browse-ready visibility
+  - fresh signed-in context browse-ready visibility
+  - cleanup of the audit fixture
+- retained the result in `docs/records/artifacts/agent/holomony/reports/2026-05-16-production-media-panel-persistence-audit.md`
+
+Training result:
+
+- the AI Studio media panel now has direct retained persistence proof:
+  - `saveRoundtripFailureRate: 0`
+  - `saveRoundtripMismatchRate: 0`
+  - `saveBrowseReadyRatio: 1`
+- durable lesson recorded: real browser audits are still valuable even after tooling is in place because they expose sequencing and selector-contract mistakes before those mistakes contaminate product diagnosis
+
+Next training focus:
+
+- keep the AI Studio runtime lane closed unless fresh evidence regresses
+- decide whether Elements needs the same persistence proof path or whether current AI Studio proof is sufficient for this milestone stage
+
+## 2026-05-16: Open-Phase KPI Honesty Correction
+
+Task: harden the panel KPI capture so mixed `All Media` opens do not get mis-scored as preview-authority failures.
+
+Actions taken:
+
+- added open-phase `/api/media/list` payload summaries to the KPI capture helper
+- added representative first-row sampling so retained evidence shows what actually sits at the top of the default panel open
+- changed canonical preview coverage scoring so it only evaluates rows that had durable preview candidates available
+- reran the live production AI Studio panel KPI capture after the tool correction
+
+Training result:
+
+- Holomony now distinguishes `mixed row set with audio-heavy top cards` from `durable-capable image rows lost to originals`
+- the current strongest proven blocker for the default AI Studio panel open is now high sign-batch cost, not blanket preview-authority failure
+- Holomony learned a durable rule:
+  - never let a synthetic sign lane such as `uploaded_images` stand in for real row-class evidence on the default `All Media` surface
+
+Follow-on result:
+
+- root-tab-scoped capture is now live in the KPI helper
+- the `Images` root tab proved healthy in production:
+  - image-only row mix
+  - durable thumb coverage across visible rows
+  - `canonicalPreviewCoverageRatio: 1`
+  - `signBatchP95Ms: 558`
+- the `Audio` root tab did not reproduce the default-open slowdown on its own
+- Holomony should now treat the default mixed `All Media` open path, not generic image browse, as the primary remaining product lane
+
+Second follow-on result:
+
+- a shared runtime cut now excludes audio rows from eager signing on the mixed `All Media` open for both AI Studio and Elements
+- audio cards now render a lightweight on-demand shell instead of forcing immediate signed playback URLs
+- the next repeated production captures on the default mixed open no longer reported open-phase sign batch telemetry on either approved panel
+- Holomony should now treat settle quality and perceived mixed-open stability as the next likely weakness, not raw sign churn alone
+
+Third follow-on result:
+
+- Holomony added a real `stableContentSettleMsP95` capture path and reran repeated production `All Media` captures
+- that made the next blocker more precise:
+  - the mixed open can settle reasonably under the `2/3/2` mixed-open budget
+  - but AI Studio still shows meaningful sign-cost pressure
+- Holomony then tested a tighter `1/2/1` mixed-open sign budget
+- that experiment reduced signed-row count, but it materially worsened first paint and settle on both approved surfaces
+- the experiment was reverted immediately
+
+Durable lesson recorded:
+
+- do not equate fewer signed rows with a better mixed-open experience
+- for the default mixed open, first paint and stable settle outrank signed-row minimization once list churn and audio eager-signing pressure are already under control
+- keep the mixed-open budget at `2/3/2` unless future evidence shows a better tradeoff
+
+Fourth follow-on result:
+
+- a bounded audit found that the remaining mixed-open leak was not the main sign-budget path but the separate video browse-preview signing lane
+- `MediaLibraryAllItemsGrid` already supported visibility-scoped browse-preview signing, but the AI Studio and Elements mixed-grid callers were not passing `visibleMediaIdsRef`
+- after wiring that through, the repeated production `All Media` captures on both approved surfaces converged to the same open-phase signed-row count:
+  - `uploaded_images`
+  - `signed=6`
+- the old cross-surface sign-count mismatch was therefore largely a side-channel signing leak, not a budget mismatch
+
+Durable lesson recorded:
+
+- always audit side-channel signing lanes such as poster/hover-video preview signing before retuning the main preview-sign budget
+- if two surfaces share the same budget but differ in cost, check whether one surface is bypassing visibility scoping in an adjacent signing path
+- once cross-surface sign counts converge, shift the next lane to the remaining surface-specific bottleneck instead of continuing to retune shared sign budgets
+
+Third follow-on result:
+
+- the user interrupted the lane to ask why this was the next step, whether the work was real, and whether a pivot was needed
+- that interruption should be treated as a training signal, not just a request for reassurance
+- inferred user meaning:
+  - they were checking whether Holomony was still anchored to real product improvement rather than KPI/tooling momentum
+  - they wanted proof that the diagnosis had actually changed because of evidence, not because of arbitrary agent preference
+  - they were verifying that AI Studio media and Elements media were both still in view
+- durable rule recorded:
+  - when the user challenges the lane's purpose, Holomony must re-justify the lane from fresh evidence before doing more work
+  - this is part of good media-performance behavior, not a pause from it
+
+Next training focus:
+
+- add row-class-aware preview correctness evidence for the mixed `All Media` open path
+- audit whether open-phase signing can safely deprioritize audio/original-heavy top rows without harming visible correctness
+
 ## 2026-05-16: KPI Honesty Hardening And Repeated Production Panel Capture
 
 Task: repair the main KPI integrity gap, then refresh retained production evidence for both approved panel surfaces.
@@ -305,3 +442,73 @@ Next training focus:
 
 - verify that the next runtime fix actually matches the scorer's top diagnostic lane
 - add one more direct correctness metric so triage is less dependent on canonical-preview coverage alone
+
+## 2026-05-16: Mixed-Open Shell and Elements Visibility-Scoping Follow-Through
+
+Task: continue the real runtime lane after the mixed-open audio-shell cut, reduce AI Studio shell churn, and verify Elements did not retain a separate visible-card signing leak.
+
+Actions taken:
+
+- memoized `MediaLibraryPanelFoldersSection` so AI Studio-only folder chrome no longer rerenders on unrelated media churn
+- stabilized root-content props in both approved panel surfaces by memoizing bulk actions and replacing inline root render lambdas with stable callbacks
+- reran repeated production KPI capture for `ai-studio-panel`
+- identified a real Elements regression: `ElementsEmbeddedMediaLibraryPanel` was not passing `visibleMediaIdsRef` into `MediaLibraryAllItemsGrid`
+- restored that prop and reran repeated production KPI capture for `elements-media-panel`
+
+Training result:
+
+- the mixed default-open runtime is materially healthier on both approved surfaces
+- latest repeated production KPI:
+  - AI Studio: `842ms` first paint / `1255ms` settle / `567ms` sign p95
+  - Elements: `518ms` first paint / `936ms` settle / `485ms` sign p95
+- the next blocker is no longer obvious browse/sign churn
+- the stronger remaining gap is evidence depth on correctness and persistence, not a clear hot-path runtime leak
+
+Durable lesson:
+
+- if AI Studio and Elements drift again after a shared runtime fix, verify both surfaces are still passing `visibleMediaIdsRef` through the mixed `All Media` grid before retuning sign budgets or reopening shell theory
+
+## 2026-05-16: Visible-Card Preview Presence Probe
+
+Task: keep proving panel strength without reopening runtime tuning by adding one honest correctness metric to the KPI capture path.
+
+Actions taken:
+
+- added an open-phase visible-card DOM probe to the KPI capture helper
+- derived `missingPreviewRatio` only from visible settled media cards
+- counted audio shell cards as preview-present when their on-demand audio shell/player rendered
+- added/updated packet tests for the new weighted visible-card summary
+- added an explicit regression test covering `visibleMediaIdsRef` on the embedded Elements `All Media` grid
+- reran repeated production captures for both approved surfaces
+
+Training result:
+
+- both approved production surfaces now show `missingPreviewRatio: 0` on the mixed settled open
+- the next blind spot is no longer visible preview absence; it is persistence/save-reopen trust plus the remaining missing reliability/correctness depth
+- Holomony should prefer persistence-oriented evidence next instead of reopening hot-path tuning that is currently healthy
+
+Durable lesson:
+
+- only score correctness from browser evidence the panel actually exposes
+- when the DOM cannot prove wrong-asset or save-trust behavior, leave those metrics unset rather than inferring them from adjacent runtime stats
+
+## 2026-05-17: Elements Persistence Parity Proof
+
+Task: close the last approved-surface persistence gap by proving the Elements embedded media panel survives save, reload, reopen, and fresh signed-in reopen.
+
+Actions taken:
+
+- extended the retained media-panel persistence audit so the same harness can target `ai-studio-panel` or `elements-media-panel`
+- validated the CLI and surface selection path
+- ran the production Elements persistence audit against `https://www.shortpulse.ai`
+- retained the production Elements persistence report and updated Holomony memory and surface inventory
+
+Training result:
+
+- both approved media panels now have direct production save/reopen browse-readiness proof
+- cross-surface persistence parity is no longer the weakest open gap in the current lane
+- the lane now cleanly qualifies as `done enough for now`
+
+Durable lesson:
+
+- once both runtime health and persistence proof exist on the approved surfaces, stop by default and wait for regression evidence or an explicitly approved new surface rather than continuing to optimize by habit

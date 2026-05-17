@@ -5,6 +5,7 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
 ## Commands
 
 For default closeout selection by planning program, see:
+
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
 - Unit tests (Vitest):
@@ -33,6 +34,11 @@ For default closeout selection by planning program, see:
   - Project workspace persistence audit:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:project-persistence`
     - Uses the real project create/save/read/delete APIs plus an authenticated `/ai-studio?projectId=...` reopen to verify legacy orphan output payloads are stripped before persistence and do not leak back into the UI.
+  - Media panel save/reopen browse-readiness audit:
+    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`
+    - Uploads a real image through the target media panel, verifies the row is browse-ready in the panel, reloads and reopens the panel in the same context, repeats the check in a fresh signed-in context, then deletes the audit fixture.
+    - Defaults to the AI Studio Media panel.
+    - Add `-- --surface elements-media-panel` to run the same audit against the Elements embedded media panel.
   - Lane C style-drop characterization capture:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:style-drop`
     - Uses the authenticated AI Studio runtime plus audit-only `window.__shortpulseAiStudioPerf` helpers to print one passing and one failing Reference Grid -> Styles packet summary.

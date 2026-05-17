@@ -15,8 +15,9 @@ Purpose: retain inbound debugging packets when another agent or the user wants t
 ## Status
 
 - Still-active retained handoff:
-  - `2026-05-15-character-route-bootstrap-stall.md`
+  - none currently
 - Resolved on current branch:
+  - `2026-05-15-character-route-bootstrap-stall.md`
   - `2026-05-15-character-reload-auth-bounce.md`
   - `2026-05-15-ai-studio-top-tab-panel-mismatch.md`
   - `2026-05-15-ai-studio-generate-noop.md`

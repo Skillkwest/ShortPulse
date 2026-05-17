@@ -11,11 +11,11 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. In Standard Create, generation uses only the text currently visible in the composer.
 - Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`. Its raw-pass runtime contract is intentionally frozen until a future dedicated change.
-- Standard chat response color semantics: Standard is now a raw assistant-text lane. Ordinary replies remain in the neutral chat text treatment and stay in outbound Standard history. Prompt application must happen through explicit UI actions, not hidden Standard route shaping.
+- Standard chat response color semantics: Standard is now a raw assistant-text lane. Ordinary replies remain in the neutral chat text treatment and stay in outbound Standard history. Prompt movement must happen through explicit UI actions such as dragging assistant prompt text into the composer, not hidden Standard route shaping.
 - Retired expanded column: the right-side Agent Chat rail is removed. Agent conversation UI now stays inside the active Create composer so Standard/Pulse runtime state does not leave the mode-owned Create surface.
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
-- Primary Generate controls: Expert Standard uses the composer-row `Generate` button. Beginner Standard uses the `ComposeSendCard` primary Generate control. Both use the visible composer-owned prompt, and the agent is only involved if the user explicitly applies assistant output into that composer.
-- Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
+- Primary Generate controls: Expert Standard uses the composer-row `Generate` button. Beginner Standard uses the `ComposeSendCard` primary Generate control. Both use the visible composer-owned prompt, and assistant responses become generation input by being dragged into the composer.
+- Prompt save: Save buttons persist the current prompt (including text dragged from agent responses into the composer) to the reference grid.
 - Reference Grid prompt cards: no per-card Generate CTA; cards are for selection/drag/save/remove while generation runs from primary Generate controls.
 - Describe & Text actions: “Describe” on a reference and “Refine prompt” use the runtime-specific studio-agent transport. Standard uses `/api/ai/studio-agent-standard` as a raw model pass-through; Pulse uses `/api/ai/studio-agent-pulse` as the guided/runtime-owned lane.
 
@@ -50,21 +50,21 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Standard resolves to plain assistant `message`.
 - Pulse may return `message`, structured actions, and/or workflow-session updates.
 
-12. UI applies prompt text only when a feature explicitly chooses to use the returned content. Clicking a message or “Add to grid” writes a prompt reference card.
+12. UI uses returned prompt text only when a feature explicitly chooses to use it. In Standard Create, assistant prompt bubbles are drag sources only and can be dragged into the composer.
 
 Prompt ownership rule:
 
 - Standard no longer relies on hidden prompt derivation from the route.
-- Prompt state should move only through explicit prompt-application UI behavior, not through hidden Standard route shaping.
+- Prompt state should move only through explicit UI behavior such as dragging assistant prompt text into the composer, not through hidden Standard route shaping.
 
 ## User workflows & expected outcomes
 
 - **Iterate in Chat mode (Create tool):**
-  - Send → Standard returns raw assistant text or Pulse returns guided output. “Generate” only changes when the UI explicitly applies returned prompt text.
-  - Message click → adds a prompt card to Reference Grid and closes chat.
+  - Send → Standard returns raw assistant text or Pulse returns guided output. “Generate” only changes when the user drags returned prompt text into the composer.
+  - Assistant bubbles stay action-free; prompt transfer happens by dragging into the composer.
 - **Refine prompt path (Prompt tab):**
   - Uses `/api/ai/studio-agent-standard` with isolated history and `modeHint="text"`.
-  - Uses returned assistant text as the prompt candidate and saves a “Refined prompt” card when explicitly applied.
+  - Uses returned assistant text as the prompt candidate and saves a “Refined prompt” card when dragged into the composer or saved to the grid.
 - **Expert Create Pulse mode:**
   - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
@@ -76,7 +76,7 @@ Prompt ownership rule:
   - Switching back to `Standard` clears the active hidden Pulse runtime. Returning to `Pulse` starts with no active Pulse until the user starts one.
 - **Describe a reference:**
   - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.
-  - Result is raw assistant text that can be applied/saved as a prompt card.
+  - Result is raw assistant text that can be dragged into the composer or saved as a prompt card.
 - **Retired expanded Agent Chat column:**
   - The right-column chat surface is intentionally removed.
   - Prompt-card save/add behavior belongs in the active Create composer or explicit prompt-reference actions, not a global right rail.
@@ -100,8 +100,8 @@ Prompt ownership rule:
 
 - ✅ Agent on/off: flip `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` false → chat hides; API still guarded by `STUDIO_AGENT_ENABLED`.
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
-- ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be applied/saved explicitly.
-- ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be applied/saved explicitly.
+- ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be dragged into the composer or saved explicitly.
+- ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be dragged into the composer or saved explicitly.
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: in Standard, confirm the second turn includes prior assistant text in outbound history with no hidden canonical rewrite. In Pulse, confirm guided continuity still behaves as expected.
 - ✅ Refusal path: validate on Pulse/guided lanes; Standard no longer injects the local refusal path.

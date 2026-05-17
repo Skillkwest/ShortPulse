@@ -104,14 +104,14 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 ## UX behaviors
 
 - Chat panel sits where prompt boxes were; shows reference chips and current model badge.
-- Inline chat keeps generation authority in the visible composer. Standard Create generation runs only from the surface-owned primary Generate control, and assistant output must be applied explicitly before it can become the active generation prompt.
-- Quick actions: “Apply prompt”, “Summarize grid”, “Describe latest image”.
+- Inline chat keeps generation authority in the visible composer. Standard Create generation runs only from the surface-owned primary Generate control, and assistant output must be dragged into the composer before it can become the active generation prompt.
+- Quick actions: “Summarize grid”, “Describe latest image”.
 - Variation/describe chips remain supported in UI for compatibility, but canonical runtime turns are prompt-only and typically leave these chips empty.
 - Detail modal: agent chat focuses on the selected card and preloads its prompt/preview.
 
 ## Tests / verification
 
-- Agent enabled: start chat, receive a prompt, apply it, and successfully generate image/video.
+- Agent enabled: start chat, receive a prompt, drag it into the composer, and successfully generate image/video.
 - Agent disabled (flag off or missing key): legacy prompt textarea renders; generation still works.
 - Large image drop: agent call omits media and reports omission without crashing.
 - Video reference: first frame captured and sent (<= guardrail size); agent response acknowledges video context.

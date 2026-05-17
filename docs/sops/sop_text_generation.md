@@ -5,6 +5,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 For Create properties panel, model-selector, and submission wiring details, see `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`.
 
 ## Audit (strengths, gaps, decisions)
+
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
 - Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); keep Create prompt enhancement and describe actions on the mode-owned studio-agent routes; keep SOP + TS config as the only config artifacts to minimize files.
@@ -12,8 +13,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
 
-
 ## Scope
+
 - Text refinement inside `/api/ai/studio-agent-standard` or `/api/ai/studio-agent-pulse`
 - Image description/reverse prompt inside `/api/ai/studio-agent-standard` or `/api/ai/studio-agent-pulse`
 - Style descriptor extraction inside `/api/ai/extract-style` (Styles Library create flow)
@@ -24,16 +25,16 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Key components
 
-| Component | Role |
-| --- | --- |
-| `frontend/lib/agentPromptsConfig.ts` | Source of truth for system prompts; the main place to edit instructions, so all references and docs should defer to it. |
-| `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
-| `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that accepts a base64 image data URL, sends it through the style-extractor system instructions to the structured OpenAI vision lane, and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
-| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts` | AI Studio prompt-agent routes with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), prompt-only canonical behavior (`actions.applyPrompt` on success), and lane-owned continuity. |
+| Component                                                                                        | Role                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `frontend/lib/agentPromptsConfig.ts`                                                             | Source of truth for system prompts; the main place to edit instructions, so all references and docs should defer to it.                                                                                                                                      |
+| `frontend/lib/agentPromptLoader.ts`                                                              | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage.                                                                                                                                         |
+| `frontend/pages/api/ai/extract-style.ts`                                                         | HTTP POST handler that accepts a base64 image data URL, sends it through the style-extractor system instructions to the structured OpenAI vision lane, and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
+| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts` | AI Studio prompt-agent routes with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and lane-owned continuity. Standard Create treats returned assistant text as explicit user-directed input, not an auto-applied prompt mutation.                         |
 
 ## Studio agent hardening alignment
 
-1. Chat turns return one enhanced prompt (`actions.applyPrompt`) on success and never emit question actions.
+1. Chat turns return one assistant response payload and never emit question actions into the Standard Create UX.
 2. Clarifying-question behavior is disabled in prompt contracts and UI action surfaces.
 3. Canonical prompt continuity is durable via Supabase (`ai_agent_conversation_state`) with TTL/cap retention.
 4. Chat image attachments are prepared client-side and summarized server-side inside the active mode-owned studio-agent route.
@@ -51,13 +52,13 @@ For Create properties panel, model-selector, and submission wiring details, see 
 1. UI sends the request through the Standard Create runtime hook to `/api/ai/studio-agent-standard`.
 2. Refine actions use isolated history so the request behaves like a specialized one-shot refinement, not a full chat continuation.
 3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`, keeping prompt instructions in one canonical source.
-4. The route returns `message` plus `actions.applyPrompt`; the UI applies that prompt to shared state and saves the corresponding prompt card.
-5. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`), so the textarea and Reference Grid update immediately without copy/paste.
+4. The route returns raw assistant text for the refinement turn. Standard Create treats that text as advisory output and does not auto-apply it into the live generation composer.
+5. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`). Users move assistant text into that prompt surface explicitly, for example by dragging a returned prompt into the composer.
 
 ## Standard agent workflow
 
 1. The Create chat surface posts through `/api/ai/studio-agent-standard` for Standard mode.
-2. The route uses the Standard-owned OpenAI runtime and returns the same `message` plus `actions.applyPrompt` contract used by the UI apply/save/generate flow.
+2. The route uses the Standard-owned OpenAI runtime and returns raw assistant text for the UI chat surface; Standard Create does not rely on hidden `applyPrompt` promotion to mutate the live generation composer.
 3. Provider and contract failures return explicit error payloads, so Create does not silently continue on synthetic assistant recovery text.
 4. The system prompt is always loaded directly from `frontend/lib/agentPromptsConfig.ts` via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")` to enforce one canonical source; avoid duplicating text in markdown files and keep the config keys aligned with the exported `AgentPromptId` type so the TS compiler can help you find the right entry.
 
@@ -66,8 +67,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 1. Manual describe actions and attachment-driven describe requests route through the active mode-owned studio-agent route. Standard uses `/api/ai/studio-agent-standard`; Pulse uses `/api/ai/studio-agent-pulse`.
 2. The client prepares a safe HTTPS image URL first, then stages it as an image attachment on the request context.
 3. Describe actions also use isolated history so they remain one-shot transforms and do not contaminate the main chat transcript.
-4. The studio-agent route classifies the turn as `IMAGE_ONLY` or `MIXED`, runs retained image safety preflight, and returns `message` plus `actions.applyPrompt`.
-5. The same state update strategy runs here, so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without manual copy/paste.
+4. The studio-agent route classifies the turn as `IMAGE_ONLY` or `MIXED`, runs retained image safety preflight, and returns raw assistant text.
+5. That text can then be reused explicitly through the Create composer and other prompt surfaces instead of being auto-applied into shared generation state.
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)
 

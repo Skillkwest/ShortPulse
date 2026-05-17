@@ -130,6 +130,12 @@ Metrics:
 - `canonicalPreviewCoverageRatio`
 - `emptyStateMismatchCount`
 
+Current capture note:
+
+- `missingPreviewRatio` is now derived from the settled open-phase DOM for visible media cards only.
+- Audio shell cards count as preview-present when their on-demand audio shell/player is rendered.
+- Do not treat this metric as a proxy for save/reopen trust or deeper wrong-asset detection; it only answers whether visible cards rendered some preview representation.
+
 Interpretation:
 
 - Strong: cards render, previews are present, and empty-state copy matches reality.
@@ -144,6 +150,9 @@ Metrics:
 - `saveRoundtripFailureRate`
 - `saveRoundtripMismatchRate`
 - `saveBrowseReadyRatio`
+- Preferred evidence source: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`
+- The dedicated persistence audit uploads a real image fixture through the target panel surface, verifies browse-ready visibility, reloads and reopens the panel, repeats the check in a fresh signed-in context, then deletes the audit fixture. Use its JSON output to populate persistence metrics instead of inferring them from open-path browse telemetry.
+- Default surface is AI Studio. Add `-- --surface elements-media-panel` for the Elements embedded panel.
 
 Interpretation:
 

@@ -37,6 +37,45 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     vi.useRealTimers();
   });
 
+  it("rejects unsupported methods", async () => {
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Allow", "POST");
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
+  });
+
+  it("returns not found when renewals are disabled", async () => {
+    process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED = "false";
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Not found" });
+  });
+
+  it("requires cron-secret auth", async () => {
+    const req = { method: "POST", headers: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+  });
+
   it("renews a due internal comp contract and advances the period", async () => {
     const contractUpdate = vi.fn();
     contractUpdate.mockReturnValue({

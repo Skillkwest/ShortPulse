@@ -110,7 +110,6 @@ export type VideoPropertiesPanelProps = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
-  onSave: () => void;
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
@@ -166,7 +165,6 @@ export function VideoPropertiesPanel({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
-  onSave,
   onRegenerate,
   resolvePreviewUrlById,
   costCredits,
@@ -1525,7 +1523,6 @@ export function VideoPropertiesPanel({
                                   promptOrder={promptOrder}
                                   referenceText={primaryPromptValue}
                                   onPromptTextChange={handlePrimaryPromptChange}
-                                  onSave={onSave}
                                   collapsed={collapsedSteps.prompt}
                                   onToggleCollapse={() => toggleStep("prompt")}
                                   onDrop={handlePromptDropWithKlingTokenInsert}

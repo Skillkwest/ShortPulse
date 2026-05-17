@@ -380,4 +380,37 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     expect(props.onMediaDoubleClick).not.toHaveBeenCalled();
   });
+
+  it("renders an on-demand audio shell when no signed audio url is present", async () => {
+    const props = baseProps();
+    props.onRequestSignedUrl = vi
+      .fn()
+      .mockResolvedValue("https://cdn.example.com/voice-note-1.mp3");
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: null,
+        metadata: { durationMs: 15000 },
+      },
+    ];
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(container.querySelector(".reference-card-audio")).toBeNull();
+    expect(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" })).toBeInTheDocument();
+    expect(screen.getByText("0:15")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" }));
+
+    await waitFor(() => {
+      expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "audio-1" })
+      );
+    });
+  });
 });

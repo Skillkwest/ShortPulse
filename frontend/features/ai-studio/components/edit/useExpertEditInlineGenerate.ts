@@ -104,6 +104,7 @@ export const useExpertEditInlineGenerate = ({
   notifyGenerationFailure,
 }: UseExpertEditInlineGenerateParams) => {
   const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
+  const scheduledRunTimeoutIdsRef = React.useRef<number[]>([]);
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
       editSubmitIntent === "inpaint"
@@ -114,47 +115,57 @@ export const useExpertEditInlineGenerate = ({
         : null,
     [editSubmitIntent, extraImageUrls, promptText]
   );
-  const handleInlineGenerate = React.useCallback(() => {
-    const run = async () => {
-      const allowSecondaryReferenceTokens =
-        editSubmitIntent === "inpaint"
-          ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
-          : true;
-      const maxSecondaryReferenceTokens =
-        editSubmitIntent === "inpaint"
-          ? inpaintPromptReferencePolicy?.maxSecondaryReferenceTokens
-          : undefined;
-      if (populatedLayerCount <= 0) {
-        showStatusToast("Add at least one layer image before generating.");
-        return;
-      }
-      const promptValidation = validateExpertEditSubmissionPrompt({
-        promptText,
-        extraImageUrls,
-        allowSecondaryReferenceTokens,
-        maxSecondaryReferenceTokens,
+  React.useEffect(
+    () => () => {
+      scheduledRunTimeoutIdsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
       });
-      if (promptValidation.status === "invalid_tokens") {
-        onInvalidPromptReferenceToken?.(promptValidation.message);
-        return;
-      }
+      scheduledRunTimeoutIdsRef.current = [];
+    },
+    []
+  );
+  const handleInlineGenerate = React.useCallback(() => {
+    const allowSecondaryReferenceTokens =
+      editSubmitIntent === "inpaint"
+        ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
+        : true;
+    const maxSecondaryReferenceTokens =
+      editSubmitIntent === "inpaint"
+        ? inpaintPromptReferencePolicy?.maxSecondaryReferenceTokens
+        : undefined;
+    if (populatedLayerCount <= 0) {
+      showStatusToast("Add at least one layer image before generating.");
+      return;
+    }
+    const promptValidation = validateExpertEditSubmissionPrompt({
+      promptText,
+      extraImageUrls,
+      allowSecondaryReferenceTokens,
+      maxSecondaryReferenceTokens,
+    });
+    if (promptValidation.status === "invalid_tokens") {
+      onInvalidPromptReferenceToken?.(promptValidation.message);
+      return;
+    }
 
-      setInlineGeneratePendingCount((currentCount) => currentCount + 1);
-      let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
-      const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
-        if (!optimisticOutputId) return;
-        if (notifyGenerationFailure) {
-          notifyGenerationFailure(optimisticOutputId, message, detail);
-        } else {
-          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-        }
-        optimisticOutputId = null;
-      };
-      const objectUrls = {
-        flattenedUrl: null,
-        flattenedMarkupReferenceUrl: null,
-        inpaintMaskUrl: null,
-      };
+    setInlineGeneratePendingCount((currentCount) => currentCount + 1);
+    let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
+    const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
+      if (!optimisticOutputId) return;
+      if (notifyGenerationFailure) {
+        notifyGenerationFailure(optimisticOutputId, message, detail);
+      } else {
+        removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+      }
+      optimisticOutputId = null;
+    };
+    const objectUrls = {
+      flattenedUrl: null,
+      flattenedMarkupReferenceUrl: null,
+      inpaintMaskUrl: null,
+    };
+
+    const run = async () => {
       try {
         let submitDispatch: ReturnType<typeof resolveExpertEditSubmissionDispatch> | null = null;
         let exportArtifacts: Awaited<ReturnType<typeof exportExpertEditStageArtifacts>> | null =
@@ -275,7 +286,17 @@ export const useExpertEditInlineGenerate = ({
         });
       }
     };
-    void run();
+
+    // Yield one task before the expensive stage export so rapid repeated clicks
+    // can queue multiple submissions from the live UI instead of being starved
+    // by synchronous canvas/export work on the main thread.
+    const kickoffTimeoutId = window.setTimeout(() => {
+      scheduledRunTimeoutIdsRef.current = scheduledRunTimeoutIdsRef.current.filter(
+        (timeoutId) => timeoutId !== kickoffTimeoutId
+      );
+      void run();
+    }, 0);
+    scheduledRunTimeoutIdsRef.current.push(kickoffTimeoutId);
   }, [
     extraImageUrls,
     exportSelectedLayerMaskBlob,

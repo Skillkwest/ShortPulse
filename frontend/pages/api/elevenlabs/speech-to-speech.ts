@@ -3,6 +3,7 @@ import formidable from "formidable";
 import { resolveRequiredAudioVoiceChangerModelId } from "../../../lib/model-runtime/modelCatalog";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -474,7 +475,7 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to convert voice",
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: toErrorMessage(error, "Unknown error"),
     });
   }
 }

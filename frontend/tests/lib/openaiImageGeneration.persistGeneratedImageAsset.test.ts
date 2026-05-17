@@ -321,6 +321,56 @@ describe("persistGeneratedImageAsset", () => {
     });
   });
 
+  it("keeps the saved image result when projection persistence fails", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const result = await persistGeneratedImageAsset({
+      userId: "user-1",
+      promptText: "Cinematic portrait",
+      modelId: "gpt-image-2",
+      projectId: "project-1",
+      providerRequestId: "provider-image-1",
+      requestId: "request-1",
+      requestedSize: "1024x1024",
+      requestedQuality: "medium",
+      outputBuffer: Buffer.from("image"),
+      outputContentType: "image/png",
+    });
+
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      mediaFileId: "media-1",
+      requestId: "request-1",
+      saveState: "saved",
+      saveError: null,
+    });
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "generation-1",
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.openai_image.projection_write_failed",
+        requestId: "request-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "generation-1",
+          media_file_id: "media-1",
+          project_id: "project-1",
+          projection_error: "save_error missing from schema cache",
+        }),
+      })
+    );
+  });
+
   it("marks storage-blocked autosave results with blocked_storage", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

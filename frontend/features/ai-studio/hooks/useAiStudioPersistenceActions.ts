@@ -2,8 +2,7 @@
  * Persistence and save-action callbacks for AI Studio outputs and prompts.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { randomId } from "../logic/ids";
-import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
+import { isVideoUrl, type Provider } from "../logic/stateParsers";
 import type { StudioOutput, StudioOutputSaveState } from "../types";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
@@ -69,6 +68,8 @@ export const useAiStudioPersistenceActions = ({
   aspect,
   prompt,
 }: UseAiStudioPersistenceActionsArgs) => {
+  void setOutputs;
+  void aspect;
   const markOutputSaved = useCallback(
     (
       outputId: string,
@@ -341,30 +342,6 @@ export const useAiStudioPersistenceActions = ({
     [persistOutputSave]
   );
 
-  const savePromptReference = useCallback(
-    (customPrompt?: string) => {
-      const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
-      if (!cleanedPrompt) return;
-      const id = `prompt-ref-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const promptReference: StudioOutput = {
-        id,
-        prompt: cleanedPrompt,
-        mode: "text",
-        aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
-        status: "ready",
-        timestamp: "Pinned",
-        previewText: cleanedPrompt,
-        saveState: "idle",
-        saveError: null,
-      };
-      setOutputs((previous) => [promptReference, ...previous]);
-    },
-    [aspect, model, prompt, setOutputs]
-  );
-
   const savePromptToLibrary = useCallback(
     (customPrompt?: string) => {
       const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
@@ -387,7 +364,6 @@ export const useAiStudioPersistenceActions = ({
     persistOutputSave,
     saveActiveOutput,
     saveReferenceToLibrary,
-    savePromptReference,
     savePromptToLibrary,
   };
 };

@@ -3,7 +3,7 @@
  * Renders prompt textarea plus enhance/save actions.
  */
 import React from "react";
-import { AgentEnhanceButton, AgentSaveButton } from "../../../../prefabs/agent";
+import { AgentEnhanceButton } from "../../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
 import { syncTextareaMirrorScroll } from "../edit/expertEditInteractionUtils";
 
@@ -19,10 +19,6 @@ type PromptStepEnhancedSurfaceProps = {
   onAgentSend?: () => void;
   agentIsSending: boolean;
   agentBootstrapPending: boolean;
-  onSavePrompt?: (customPrompt?: string) => void;
-  shouldDisableSave: boolean;
-  promptSaveButtonClassName: string;
-  promptSaveButtonUnstyled: boolean;
   autoResize: boolean;
   autoResizeLayoutKey?: string | number;
   inlineAction?: React.ReactNode;
@@ -48,10 +44,6 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   onAgentSend,
   agentIsSending,
   agentBootstrapPending,
-  onSavePrompt,
-  shouldDisableSave,
-  promptSaveButtonClassName,
-  promptSaveButtonUnstyled,
   autoResize,
   autoResizeLayoutKey,
   inlineAction,
@@ -231,15 +223,6 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
               disabled={agentBootstrapPending || agentIsSending}
               ariaLabel="Enhance prompt"
               className="prompt-fab-send"
-            />
-          ) : null}
-          {onSavePrompt ? (
-            <AgentSaveButton
-              onClick={onSavePrompt}
-              disabled={shouldDisableSave}
-              ariaLabel={enhanceOnly ? "Pin prompt" : "Save prompt"}
-              className={promptSaveButtonClassName}
-              unstyled={promptSaveButtonUnstyled}
             />
           ) : null}
         </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 
 const listMediaFoldersMock = vi.fn();
@@ -898,9 +899,23 @@ describe("MediaLibraryPanel", () => {
     const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps).toBeTruthy();
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
+    expect(latestProps.visibleMediaIdsRef).toBeTruthy();
+    expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
   });
 
-  it("uses a panel-specific signing budget instead of the modal budget", async () => {
+  it("passes visible-card signing scope through the embedded Elements all-media grid", async () => {
+    render(<ElementsEmbeddedMediaLibraryPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps).toBeTruthy();
+    expect(latestProps.visibleMediaIdsRef).toBeTruthy();
+    expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
+  });
+
+  it("downshifts the panel signing budget on the mixed all-media root tab", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -911,9 +926,9 @@ describe("MediaLibraryPanel", () => {
     expect(latestArgs).toBeTruthy();
     expect(latestArgs.surface).toBe("media-library-panel");
     expect(latestArgs.signBudget).toEqual({
-      initialSignLimit: 8,
-      prefetchWindow: 12,
-      signBatchSize: 6,
+      initialSignLimit: 2,
+      prefetchWindow: 3,
+      signBatchSize: 2,
     });
   });
 

@@ -7,6 +7,7 @@ import {
 
 const projectMaybeSingleMock = vi.fn();
 let ownedMediaQueryResult: { data: unknown; error: unknown } = { data: [], error: null };
+let ownedGenerationQueryResult: { data: unknown; error: unknown } = { data: [], error: null };
 const ownedMediaSelectBuilder = {
   eq: vi.fn(),
   in: vi.fn(),
@@ -20,7 +21,10 @@ const ownedMediaSelectBuilder = {
 ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
 ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
 const mediaOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
-  (_columns: string) => ownedMediaSelectBuilder
+  () => ownedMediaSelectBuilder
+);
+const generationOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
+  () => ownedMediaSelectBuilder
 );
 const associationUpsertMock = vi.fn();
 const mediaAssociationUpsertMock = vi.fn();
@@ -83,6 +87,11 @@ vi.mock("../api/supabaseAdmin", () => ({
           select: mediaOwnershipSelectMock,
         };
       }
+      if (table === "ai_generations") {
+        return {
+          select: generationOwnershipSelectMock,
+        };
+      }
       if (table === "generation_projection") {
         return {
           select: generationProjectionSelectMock,
@@ -102,8 +111,14 @@ describe("associateGenerationWithProjectForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ownedMediaQueryResult = { data: [], error: null };
+    ownedGenerationQueryResult = { data: [], error: null };
     ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
     ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
+    generationOwnershipSelectMock.mockImplementation(() => ({
+      eq: vi.fn(() => ({
+        in: vi.fn(async () => ownedGenerationQueryResult),
+      })),
+    }));
     generationPublicationsSelectMock.mockReturnValue(
       createAwaitableSelectBuilder({
         data: [],
@@ -117,6 +132,10 @@ describe("associateGenerationWithProjectForUser", () => {
       data: { id: "project-1" },
       error: null,
     });
+    ownedGenerationQueryResult = {
+      data: [{ id: "gen-1" }],
+      error: null,
+    };
     associationUpsertMock.mockResolvedValue({ error: null });
 
     const associated = await associateGenerationWithProjectForUser({
@@ -193,6 +212,26 @@ describe("associateGenerationWithProjectForUser", () => {
 
     expect(associated).toBe(false);
     expect(mediaAssociationUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("skips generation association for ids not owned by the user", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedGenerationQueryResult = {
+      data: [],
+      error: null,
+    };
+
+    const associated = await associateGenerationWithProjectForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "foreign-generation-1",
+    });
+
+    expect(associated).toBe(false);
+    expect(associationUpsertMock).not.toHaveBeenCalled();
   });
 
   it("skips the association when the project is not owned by the user", async () => {

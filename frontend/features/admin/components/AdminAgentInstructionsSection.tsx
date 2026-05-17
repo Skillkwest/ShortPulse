@@ -5,7 +5,6 @@
 import React from "react";
 import { CaretDown } from "phosphor-react";
 import { agentPrompts } from "../../../lib/agentPromptsConfig";
-import { copyToClipboard } from "../logic/copyToClipboard";
 import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
@@ -13,13 +12,14 @@ import {
   resolveCreatePulseBuiltInPresetDefinitions,
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetDefinition,
-} from "../../ai-studio/components/create/createPulsePresets";
+} from "../../../lib/model-runtime/createPulseBuiltIns";
+import { copyToClipboard } from "../logic/copyToClipboard";
 import {
   normalizeExpertEditSystemPresetDefinitions,
   resolveExpertEditPresetCatalog,
   SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
   type ExpertEditSystemPresetDefinition,
-} from "../../ai-studio/components/edit/expertEditPresets";
+} from "../../../lib/model-runtime/expertEditPresetDomain";
 import styles from "../../../styles/admin.module.css";
 
 type CopyFeedbackMap = Record<string, string | null>;

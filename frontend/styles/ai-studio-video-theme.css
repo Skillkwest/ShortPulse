@@ -98,7 +98,6 @@
 .video-properties-panel .reference-swap-control,
 .video-properties-panel .audio-toggle,
 .video-properties-panel .agent-send-prefab,
-.video-properties-panel .agent-save-prefab,
 .video-properties-panel .agent-generate-prefab,
 .video-properties-panel .video-secondary-generate-btn,
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {
@@ -2106,9 +2105,7 @@
 }
 
 .video-properties-panel .agent-send-prefab,
-.video-properties-panel .agent-save-prefab,
-.video-properties-panel .prompt-actions-compact .agent-send-prefab,
-.video-properties-panel .prompt-actions-compact .agent-save-prefab {
+.video-properties-panel .prompt-actions-compact .agent-send-prefab {
   border-color: rgba(170, 101, 239, 0.58);
   background: linear-gradient(135deg, rgba(46, 33, 69, 0.92), rgba(61, 46, 97, 0.55));
   color: rgba(219, 193, 255, 0.96);

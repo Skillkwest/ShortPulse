@@ -8,6 +8,16 @@ import {
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../model-runtime/createPulseBuiltIns";
+import {
+  asNullableString,
+  clearControlPlaneCatalogCacheState,
+  createControlPlaneCatalogCacheState,
+  hasSupabaseAdminConfig,
+  resolveCachedControlPlaneCatalog,
+  resolveControlPlaneCatalogForAdmin,
+  saveControlPlaneCatalog,
+  type ControlPlaneCatalogSupabaseParams,
+} from "./controlPlaneCatalogCore";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type ActiveCreatePulseBuiltInCatalog = {
@@ -35,38 +45,11 @@ export class CreatePulseBuiltInCatalogVersionMismatchError extends Error {
   }
 }
 
-const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
-const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
-const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
-
-let runtimeBuiltInCatalogCache: {
-  expiresAtMs: number;
-  resolution: RuntimeCreatePulseBuiltInCatalogResolution;
-} | null = null;
-
-const asNullableString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
-};
-
-const resolveControlPlaneCacheTtlMs = (rawValue?: string | null): number => {
-  const parsed = Number(rawValue ?? String(DEFAULT_CONTROL_PLANE_CACHE_TTL_MS));
-  if (!Number.isFinite(parsed)) return DEFAULT_CONTROL_PLANE_CACHE_TTL_MS;
-  return Math.max(
-    MIN_CONTROL_PLANE_CACHE_TTL_MS,
-    Math.min(MAX_CONTROL_PLANE_CACHE_TTL_MS, Math.floor(parsed))
-  );
-};
-
-const hasSupabaseAdminConfig = (): boolean =>
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.trim().length > 0 &&
-  typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
+const runtimeBuiltInCatalogCache =
+  createControlPlaneCatalogCacheState<RuntimeCreatePulseBuiltInCatalogResolution>();
 
 export const clearCreatePulseBuiltInControlPlaneCacheForTests = (): void => {
-  runtimeBuiltInCatalogCache = null;
+  clearControlPlaneCatalogCacheState(runtimeBuiltInCatalogCache);
 };
 
 export const getSeededCreatePulseBuiltInDefinitions = (): CreatePulseBuiltInPresetDefinition[] => [
@@ -75,9 +58,7 @@ export const getSeededCreatePulseBuiltInDefinitions = (): CreatePulseBuiltInPres
 
 export const fetchActiveCreatePulseBuiltInCatalog = async ({
   supabaseAdmin = getSupabaseAdmin(),
-}: {
-  supabaseAdmin?: SupabaseClient;
-} = {}): Promise<ActiveCreatePulseBuiltInCatalog | null> => {
+}: ControlPlaneCatalogSupabaseParams = {}): Promise<ActiveCreatePulseBuiltInCatalog | null> => {
   const { data, error } = await supabaseAdmin
     .from("create_pulse_builtin_runtime")
     .select("pulse_definitions, updated_at, updated_by_user_id, updated_by_email")
@@ -105,104 +86,31 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
   bypassCache?: boolean;
 } = {}): Promise<RuntimeCreatePulseBuiltInCatalogResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
+    return buildSeedCreatePulseBuiltInCatalogResolution(false);
   }
 
-  const nowMs = Date.now();
-  if (
-    !bypassCache &&
-    runtimeBuiltInCatalogCache &&
-    runtimeBuiltInCatalogCache.expiresAtMs > nowMs
-  ) {
-    return runtimeBuiltInCatalogCache.resolution;
-  }
-
-  try {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog();
-    const resolution: RuntimeCreatePulseBuiltInCatalogResolution = activeCatalog
-      ? {
-          builtInDefinitions: activeCatalog.builtInDefinitions,
-          updatedAt: activeCatalog.updatedAt,
-          updatedByEmail: activeCatalog.updatedByEmail,
-          source: "control_plane",
-          degraded: false,
-        }
-      : {
-          builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-          updatedAt: null,
-          updatedByEmail: null,
-          source: "seed",
-          degraded: false,
-        };
-    runtimeBuiltInCatalogCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      resolution,
-    };
-    return resolution;
-  } catch {
-    const resolution = {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed" as const,
-      degraded: true,
-    };
-    runtimeBuiltInCatalogCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      resolution,
-    };
-    return resolution;
-  }
+  return resolveCachedControlPlaneCatalog({
+    cacheState: runtimeBuiltInCatalogCache,
+    bypassCache,
+    controlPlaneCacheTtlMs,
+    fetchActiveCatalog: fetchActiveCreatePulseBuiltInCatalog,
+    buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogResolution,
+    buildSeedResolution: buildSeedCreatePulseBuiltInCatalogResolution,
+  });
 };
 
 export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
   supabaseAdmin = getSupabaseAdmin(),
-}: {
-  supabaseAdmin?: SupabaseClient;
-} = {}): Promise<RuntimeCreatePulseBuiltInCatalogAdminResolution> => {
+}: ControlPlaneCatalogSupabaseParams = {}): Promise<RuntimeCreatePulseBuiltInCatalogAdminResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
+    return buildSeedCreatePulseBuiltInCatalogResolution(false);
   }
 
-  try {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
-    if (activeCatalog) {
-      return {
-        builtInDefinitions: activeCatalog.builtInDefinitions,
-        updatedAt: activeCatalog.updatedAt,
-        updatedByEmail: activeCatalog.updatedByEmail,
-        source: "control_plane",
-        degraded: false,
-      };
-    }
-    return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
-  } catch {
-    return {
-      builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: true,
-    };
-  }
+  return resolveControlPlaneCatalogForAdmin({
+    fetchActiveCatalog: () => fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin }),
+    buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogResolution,
+    buildSeedResolution: buildSeedCreatePulseBuiltInCatalogResolution,
+  });
 };
 
 export const saveCreatePulseBuiltInCatalog = async ({
@@ -217,35 +125,52 @@ export const saveCreatePulseBuiltInCatalog = async ({
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveCreatePulseBuiltInCatalog> => {
-  const normalizedDefinitions = normalizeCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
-  if (expectedUpdatedAt !== undefined) {
-    const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
-    const normalizedExpectedUpdatedAt = asNullableString(expectedUpdatedAt);
-    const activeUpdatedAt = activeCatalog?.updatedAt ?? null;
-    if (activeUpdatedAt !== normalizedExpectedUpdatedAt) {
-      throw new CreatePulseBuiltInCatalogVersionMismatchError();
-    }
-  }
-  const { error } = await supabaseAdmin.from("create_pulse_builtin_runtime").upsert(
-    {
-      singleton: true,
-      pulse_definitions: normalizedDefinitions,
-      updated_by_user_id: actorUserId ?? null,
-      updated_by_email: actorEmail ?? null,
-      updated_at: new Date().toISOString(),
+}): Promise<ActiveCreatePulseBuiltInCatalog> =>
+  saveControlPlaneCatalog({
+    definitions: builtInDefinitions,
+    normalizeDefinitions: normalizeCreatePulseBuiltInPresetDefinitions,
+    expectedUpdatedAt,
+    fetchActiveCatalog: () => fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin }),
+    getActiveUpdatedAt: (activeCatalog) => activeCatalog.updatedAt,
+    createVersionMismatchError: () => new CreatePulseBuiltInCatalogVersionMismatchError(),
+    persistDefinitions: async (normalizedDefinitions) => {
+      const { error } = await supabaseAdmin.from("create_pulse_builtin_runtime").upsert(
+        {
+          singleton: true,
+          pulse_definitions: normalizedDefinitions,
+          updated_by_user_id: actorUserId ?? null,
+          updated_by_email: actorEmail ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "singleton" }
+      );
+
+      if (error) {
+        throw new Error(error.message || "Failed to save Create Pulse built-in catalog.");
+      }
     },
-    { onConflict: "singleton" }
-  );
+    clearCache: clearCreatePulseBuiltInControlPlaneCacheForTests,
+    reReadActiveCatalog: () => fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin }),
+    missingActiveCatalogMessage:
+      "Create Pulse built-in catalog save did not produce a runtime row.",
+  });
 
-  if (error) {
-    throw new Error(error.message || "Failed to save Create Pulse built-in catalog.");
-  }
+const buildControlPlaneCreatePulseBuiltInCatalogResolution = (
+  activeCatalog: ActiveCreatePulseBuiltInCatalog
+): RuntimeCreatePulseBuiltInCatalogResolution => ({
+  builtInDefinitions: activeCatalog.builtInDefinitions,
+  updatedAt: activeCatalog.updatedAt,
+  updatedByEmail: activeCatalog.updatedByEmail,
+  source: "control_plane",
+  degraded: false,
+});
 
-  clearCreatePulseBuiltInControlPlaneCacheForTests();
-  const activeCatalog = await fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin });
-  if (!activeCatalog) {
-    throw new Error("Create Pulse built-in catalog save did not produce a runtime row.");
-  }
-  return activeCatalog;
-};
+const buildSeedCreatePulseBuiltInCatalogResolution = (
+  degraded: boolean
+): RuntimeCreatePulseBuiltInCatalogResolution => ({
+  builtInDefinitions: getSeededCreatePulseBuiltInDefinitions(),
+  updatedAt: null,
+  updatedByEmail: null,
+  source: "seed",
+  degraded,
+});

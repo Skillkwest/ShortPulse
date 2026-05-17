@@ -6,8 +6,7 @@
   gap: 8px;
 }
 
-.prompt-actions-compact .agent-send-prefab,
-.prompt-actions-compact .agent-save-prefab {
+.prompt-actions-compact .agent-send-prefab {
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -29,8 +28,7 @@
   min-width: 90px;
   padding: 0 14px;
 }
-.prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
-.prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
+.prompt-actions-compact .agent-send-prefab:hover:not(:disabled) {
   transform: translateY(-2px);
   border-color: #25a9bf;
   background: #2ec0ff21;
@@ -38,8 +36,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 10px 22px rgba(0, 0, 0, 0.38);
 }
-.prompt-actions-compact .agent-send-prefab:disabled,
-.prompt-actions-compact .agent-save-prefab:disabled {
+.prompt-actions-compact .agent-send-prefab:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
@@ -52,13 +49,6 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 18px rgba(0, 0, 0, 0.3);
-}
-
-.prompt-actions-compact .agent-save-prefab:disabled {
-  opacity: 1;
-  border-color: rgba(151, 159, 171, 0.55);
-  background: linear-gradient(135deg, rgba(34, 39, 47, 0.92), rgba(26, 30, 37, 0.92));
-  color: rgba(151, 159, 171, 0.9);
 }
 
 .agent-chat-panel .agent-send-prefab {
@@ -701,36 +691,6 @@
   border-color: rgba(116, 116, 116, 0.133);
   background: linear-gradient(135deg, rgba(128, 128, 128, 0.109), rgba(96, 96, 96, 0.071));
   color: #484848;
-}
-
-.agent-message .agent-output-apply-btn {
-  min-width: 84px;
-  min-height: 34px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(87, 196, 225, 0.38);
-  background: rgba(12, 27, 40, 0.84);
-  color: rgba(226, 244, 250, 0.96);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
-  transition:
-    transform 0.12s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
-}
-
-.agent-message .agent-output-apply-btn:hover {
-  transform: translateY(1px);
-  border-color: rgba(115, 228, 255, 0.5);
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
-}
-
-.agent-message .agent-output-apply-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  box-shadow: none;
 }
 
 .agent-message .agent-output-generate-pill.agent-generate-prefab:disabled .agent-generate-label,

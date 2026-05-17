@@ -293,7 +293,6 @@ const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   onPrimaryImageChange: vi.fn(),
   onExtraImageChange: vi.fn(),
   onPromptTextChange: vi.fn(),
-  onSave: vi.fn(),
   onRegenerate: vi.fn(),
 };
 

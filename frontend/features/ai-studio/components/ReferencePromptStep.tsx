@@ -10,7 +10,6 @@ type ReferencePromptStepProps = {
   promptOrder: number;
   referenceText: string | null;
   onPromptTextChange: (value: string) => void;
-  onSave?: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
@@ -19,8 +18,6 @@ type ReferencePromptStepProps = {
   onAgentEnhanceSend?: () => void;
   showEnhanceButton?: boolean;
   promptHelperText?: string;
-  promptSaveButtonClassName?: string;
-  promptSaveButtonUnstyled?: boolean;
   hideHeader?: boolean;
   autoResize?: boolean;
   autoResizeLayoutKey?: string | number;
@@ -43,7 +40,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   promptOrder,
   referenceText,
   onPromptTextChange,
-  onSave,
   collapsed,
   onToggleCollapse,
   onDrop,
@@ -52,8 +48,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   onAgentEnhanceSend,
   showEnhanceButton = true,
   promptHelperText,
-  promptSaveButtonClassName,
-  promptSaveButtonUnstyled = false,
   hideHeader = false,
   autoResize = false,
   autoResizeLayoutKey,
@@ -80,7 +74,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         agentIsSending={agentIsSending}
         agentError={agentError}
         onAgentEnhanceSend={onAgentEnhanceSend}
-        onSavePrompt={onSave}
         isCollapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
         isGenerating={false}
@@ -95,8 +88,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
           promptHelperText ??
           "Start typing your prompt or drag & drop a prompt from the reference grid."
         }
-        promptSaveButtonClassName={promptSaveButtonClassName}
-        promptSaveButtonUnstyled={promptSaveButtonUnstyled}
         hideHeader={hideHeader}
         autoResize={autoResize}
         autoResizeLayoutKey={autoResizeLayoutKey}

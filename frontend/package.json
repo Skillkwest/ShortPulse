@@ -46,6 +46,7 @@
     "test:e2e:pulse-custom-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-custom-contract.audit.js",
     "test:pulse-custom-contract:release-check": "node ./scripts/pulse-custom-contract-release-check.mjs",
     "test:e2e:media-library-runtime": "NODE_PATH=./node_modules node ./tests/e2e/media-library-runtime.audit.js",
+    "test:e2e:media-panel-persistence": "NODE_PATH=./node_modules node ./tests/e2e/media-panel-persistence.audit.js",
     "test:e2e:audio-exclusivity": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-audio-exclusivity.audit.js",
     "test:e2e:elements-panel-layout": "NODE_PATH=./node_modules node ./tests/e2e/elements-panel-layout.audit.js",
     "test:e2e:project-persistence": "NODE_PATH=./node_modules node ./tests/e2e/project-persistence.audit.js",

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
   type CreatePulseBuiltInPresetDefinition,
-} from "../../features/ai-studio/components/create/createPulsePresets";
+} from "../../lib/model-runtime/createPulseBuiltIns";
 import { SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS } from "../../features/ai-studio/components/edit/expertEditPresets";
 import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 

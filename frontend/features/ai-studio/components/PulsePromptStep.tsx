@@ -10,7 +10,10 @@ import type {
   AgentMessage,
 } from "../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
-import { resolveAgentComposerDrop } from "./promptStep/agentComposerDrop";
+import {
+  insertDroppedPromptTextAtSelection,
+  resolveAgentComposerDrop,
+} from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
@@ -41,12 +44,10 @@ export type PulsePromptStepProps = {
   onClearAgentAttachments?: () => void;
   onClearAgentChat?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onSavePrompt?: (customPrompt?: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isGenerating?: boolean;
   showGenerationThinkingInChat?: boolean;
-  shouldDisableSave?: boolean;
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   className?: string;
@@ -55,12 +56,8 @@ export type PulsePromptStepProps = {
   enhanceOnly?: boolean;
   hideEnhanceButton?: boolean;
   promptPlaceholder?: string;
-  promptSaveButtonClassName?: string;
-  promptSaveButtonUnstyled?: boolean;
   promptInlineAction?: React.ReactNode;
   promptInlineActionClassName?: string;
-  chatPromptSaveButtonClassName?: string;
-  chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;
   hideAgentIntroMessage?: boolean;
   agentAttachmentDropTarget?: "history" | "input";
@@ -92,7 +89,7 @@ export type PulsePromptStepProps = {
 };
 
 export function PulsePromptStep({
-  stepNumber: _stepNumber,
+  stepNumber,
   title = "Choose Prompt Mode",
   subtitle = "Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.",
   prompt,
@@ -116,12 +113,10 @@ export function PulsePromptStep({
   onClearAgentAttachments,
   onClearAgentChat,
   onAssistantMessageEdit,
-  onSavePrompt,
   isCollapsed,
   onToggleCollapse,
   isGenerating = false,
   showGenerationThinkingInChat = true,
-  shouldDisableSave = false,
   onDrop,
   onDragOver,
   className = "",
@@ -130,12 +125,8 @@ export function PulsePromptStep({
   enhanceOnly = false,
   hideEnhanceButton = false,
   promptPlaceholder = "Describe what you want, then refine it.",
-  promptSaveButtonClassName = "prompt-fab-save",
-  promptSaveButtonUnstyled = false,
   promptInlineAction = null,
   promptInlineActionClassName = "",
-  chatPromptSaveButtonClassName = "",
-  chatPromptSaveButtonUnstyled = false,
   embedSendButtonInInput = false,
   hideAgentIntroMessage = false,
   agentAttachmentDropTarget = "history",
@@ -165,6 +156,7 @@ export function PulsePromptStep({
   onPromptSelect,
   onPromptKeyDown,
 }: PulsePromptStepProps) {
+  void stepNumber;
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
   );
@@ -200,8 +192,6 @@ export function PulsePromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = subtitle;
-  const canPinAgentInput = effectiveComposerInput.trim().length > 0;
-  const shouldDisableChatPin = shouldDisableSave || !canPinAgentInput;
   const canSendAgentInput =
     effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0;
   const markAgentInputFocusForRestore = React.useCallback(() => {
@@ -262,8 +252,20 @@ export function PulsePromptStep({
       event.preventDefault();
       // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
       onAgentAttachmentDragLeave?.(event);
-      effectiveAgentInputChange?.(droppedPromptText);
-      requestAnimationFrame(() => agentInputRef.current?.focus());
+      const textarea = agentInputRef.current;
+      const selectionStart = textarea?.selectionStart ?? effectiveComposerInput.length;
+      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+      const insertedPrompt = insertDroppedPromptTextAtSelection({
+        composerText: effectiveComposerInput,
+        droppedPromptText,
+        selectionStart,
+        selectionEnd,
+      });
+      effectiveAgentInputChange?.(insertedPrompt.prompt);
+      requestAnimationFrame(() => {
+        agentInputRef.current?.focus();
+        agentInputRef.current?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+      });
       return;
     }
     onAgentAttachmentDrop?.(event);
@@ -271,10 +273,10 @@ export function PulsePromptStep({
   };
   const historyDropHandlers = dropToInputComposer
     ? {
-        onDrop: handleComposerAttachmentDrop,
-        onDragOver: handleComposerAttachmentDragOver,
-        onDragEnter: handleComposerAttachmentDragEnter,
-        onDragLeave: handleComposerAttachmentDragLeave,
+        onDrop: undefined,
+        onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
       }
     : {
         onDrop: onAgentAttachmentDrop,
@@ -297,10 +299,10 @@ export function PulsePromptStep({
       };
   const rootDropHandlers = dropToInputComposer
     ? {
-        onDrop: handleComposerAttachmentDrop,
-        onDragOver: handleComposerAttachmentDragOver,
-        onDragEnter: handleComposerAttachmentDragEnter,
-        onDragLeave: handleComposerAttachmentDragLeave,
+        onDrop: undefined,
+        onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
       }
     : {
         onDrop,
@@ -426,10 +428,6 @@ export function PulsePromptStep({
                 embedSendButtonInInput={embedSendButtonInInput}
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}
-                onSavePrompt={onSavePrompt}
-                shouldDisableChatPin={shouldDisableChatPin}
-                chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
-                chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
@@ -445,10 +443,6 @@ export function PulsePromptStep({
                 onAgentSend={onAgentSend}
                 agentIsSending={agentIsSending}
                 agentBootstrapPending={agentBootstrapPending}
-                onSavePrompt={onSavePrompt}
-                shouldDisableSave={shouldDisableSave}
-                promptSaveButtonClassName={promptSaveButtonClassName}
-                promptSaveButtonUnstyled={promptSaveButtonUnstyled}
                 autoResize={autoResize}
                 autoResizeLayoutKey={autoResizeLayoutKey}
                 inlineAction={promptInlineAction}

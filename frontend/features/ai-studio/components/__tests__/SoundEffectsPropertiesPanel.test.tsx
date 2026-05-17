@@ -12,7 +12,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     const { container } = render(<SoundEffectsPropertiesPanel />);
 
     expect(container.querySelector('[aria-label="Available sound effects"]')).toBeNull();
-    expect(screen.queryByText("Sound Effects")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
     expect(screen.queryByText("No sound effects yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Generated sound effects will appear here.")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect prompt")).toHaveAttribute(
@@ -123,7 +123,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     );
   });
 
-  it("locks the action controls while generation is running", () => {
+  it("keeps generate enabled while generation is running", () => {
     render(<SoundEffectsPropertiesPanel isGenerating onGenerate={vi.fn()} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
@@ -133,7 +133,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveAttribute(
       "readonly"
     );
-    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generating...");
     expect(screen.getByRole("switch", { name: "Loop sound effect" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "cinematic boom" })).toBeDisabled();

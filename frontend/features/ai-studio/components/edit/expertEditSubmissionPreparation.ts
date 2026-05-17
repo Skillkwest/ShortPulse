@@ -1,7 +1,12 @@
+/**
+ * Expert Edit submission-preparation helpers.
+ * Centralizes prompt-token validation and reference-input planning before the edit submit path dispatches.
+ */
 import {
   analyzeExpertEditPromptTokens,
   buildExpertEditSubmissionReferencePlan,
   compileExpertEditSubmissionPrompt,
+  type ExpertEditPromptTokenAnalysisOptions,
 } from "../../logic/expertEditPromptReferences";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ExpertEditCompiledPromptOverrides } from "./expertEditSubmissionContract";
@@ -25,6 +30,18 @@ export type PrepareExpertEditSubmissionResult =
       referenceInputs: string[];
       linkedSecondaryReferenceInputs: string[];
       promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
+    };
+
+type ResolveExpertEditSubmissionPromptStateResult =
+  | {
+      status: "invalid_tokens";
+      message: string;
+    }
+  | {
+      status: "ready";
+      linkedSecondaryReferenceInputs: string[];
+      resolvedSecondarySlotIndexes: number[];
+      tokenAnalysisOptions: ExpertEditPromptTokenAnalysisOptions;
     };
 
 const resolvePopulatedSecondarySlotIndexes = (
@@ -55,6 +72,51 @@ const resolveSubmissionSecondarySlotIndexes = ({
   return resolvePopulatedSecondarySlotIndexes(extraImageUrls);
 };
 
+const resolveExpertEditSubmissionPromptState = ({
+  promptText,
+  extraImageUrls,
+  editSubmitIntent = "standard",
+  allowSecondaryReferenceTokens = true,
+  maxSecondaryReferenceTokens,
+}: {
+  promptText: string;
+  extraImageUrls: [string | null, string | null, string | null];
+  editSubmitIntent?: EditSubmitIntent;
+  allowSecondaryReferenceTokens?: boolean;
+  maxSecondaryReferenceTokens?: number;
+}): ResolveExpertEditSubmissionPromptStateResult => {
+  const tokenAnalysisOptions: ExpertEditPromptTokenAnalysisOptions = {
+    allowSecondaryTokens: allowSecondaryReferenceTokens,
+    ...(typeof maxSecondaryReferenceTokens === "number"
+      ? { maxSecondaryReferences: maxSecondaryReferenceTokens }
+      : {}),
+  };
+  const tokenAnalysis = analyzeExpertEditPromptTokens(
+    promptText,
+    extraImageUrls,
+    tokenAnalysisOptions
+  );
+  if (tokenAnalysis.hasInvalidTokens) {
+    return {
+      status: "invalid_tokens",
+      message: tokenAnalysis.inlineError ?? "Use supported prompt references for this edit mode.",
+    };
+  }
+
+  return {
+    status: "ready",
+    linkedSecondaryReferenceInputs: tokenAnalysis.referencedSlotIndexes
+      .map((slotIndex) => extraImageUrls[slotIndex]?.trim() ?? "")
+      .filter((value) => value.length > 0),
+    resolvedSecondarySlotIndexes: resolveSubmissionSecondarySlotIndexes({
+      editSubmitIntent,
+      linkedSecondarySlotIndexes: tokenAnalysis.referencedSlotIndexes,
+      extraImageUrls,
+    }),
+    tokenAnalysisOptions,
+  };
+};
+
 export const validateExpertEditSubmissionPrompt = ({
   promptText,
   extraImageUrls,
@@ -66,18 +128,13 @@ export const validateExpertEditSubmissionPrompt = ({
   allowSecondaryReferenceTokens?: boolean;
   maxSecondaryReferenceTokens?: number;
 }): ValidateExpertEditSubmissionPromptResult => {
-  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
-    allowSecondaryTokens: allowSecondaryReferenceTokens,
-    maxSecondaryReferences: maxSecondaryReferenceTokens,
+  const promptState = resolveExpertEditSubmissionPromptState({
+    promptText,
+    extraImageUrls,
+    allowSecondaryReferenceTokens,
+    maxSecondaryReferenceTokens,
   });
-  if (tokenAnalysis.hasInvalidTokens) {
-    return {
-      status: "invalid_tokens",
-      message: tokenAnalysis.inlineError ?? "Use supported prompt references for this edit mode.",
-    };
-  }
-
-  return { status: "ready" };
+  return promptState.status === "invalid_tokens" ? promptState : { status: "ready" };
 };
 
 export const prepareExpertEditSubmission = ({
@@ -97,50 +154,36 @@ export const prepareExpertEditSubmission = ({
   allowSecondaryReferenceTokens?: boolean;
   maxSecondaryReferenceTokens?: number;
 }): PrepareExpertEditSubmissionResult => {
-  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
-    allowSecondaryTokens: allowSecondaryReferenceTokens,
-    maxSecondaryReferences: maxSecondaryReferenceTokens,
-  });
-  const validation = validateExpertEditSubmissionPrompt({
+  const promptState = resolveExpertEditSubmissionPromptState({
     promptText,
     extraImageUrls,
+    editSubmitIntent,
     allowSecondaryReferenceTokens,
     maxSecondaryReferenceTokens,
   });
-  if (validation.status === "invalid_tokens") {
-    return validation;
+  if (promptState.status === "invalid_tokens") {
+    return promptState;
   }
 
-  const resolvedSecondarySlotIndexes = resolveSubmissionSecondarySlotIndexes({
-    editSubmitIntent,
-    linkedSecondarySlotIndexes: tokenAnalysis.referencedSlotIndexes,
-    extraImageUrls,
-  });
   const referencePlan = buildExpertEditSubmissionReferencePlan({
     flattenedPrimaryUrl,
     flattenedMarkupReferenceUrl,
     secondarySlots: extraImageUrls,
-    referencedSlotIndexes: resolvedSecondarySlotIndexes,
+    referencedSlotIndexes: promptState.resolvedSecondarySlotIndexes,
   });
   const referenceInputs = referencePlan.referenceInputs;
-  const linkedSecondaryReferenceInputs = tokenAnalysis.referencedSlotIndexes
-    .map((slotIndex) => extraImageUrls[slotIndex]?.trim() ?? "")
-    .filter((value) => value.length > 0);
   const compiledPrompt = compileExpertEditSubmissionPrompt({
     displayPrompt: promptText,
     secondarySlots: extraImageUrls,
     referenceInputs,
     secondaryFigureNumbersBySlotIndex: referencePlan.secondaryFigureNumbersBySlotIndex,
-    options: {
-      allowSecondaryTokens: allowSecondaryReferenceTokens,
-      maxSecondaryReferences: maxSecondaryReferenceTokens,
-    },
+    options: promptState.tokenAnalysisOptions,
   });
 
   return {
     status: "ready",
     referenceInputs,
-    linkedSecondaryReferenceInputs,
+    linkedSecondaryReferenceInputs: promptState.linkedSecondaryReferenceInputs,
     promptOverrideOptions: compiledPrompt.hasTokenReferences
       ? {
           displayPromptOverride: promptText,

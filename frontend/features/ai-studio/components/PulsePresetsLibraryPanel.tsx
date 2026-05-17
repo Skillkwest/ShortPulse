@@ -251,7 +251,7 @@ export function PulsePresetsLibraryPanel({
                       ) : null}
                     </span>
                     <span className="pulse-presets-library-tile-prompt">
-                      {preset.description?.trim() || preset.systemInstructions}
+                      {preset.description?.trim() || ""}
                     </span>
                   </button>
                   <button

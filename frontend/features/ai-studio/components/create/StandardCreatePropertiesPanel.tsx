@@ -86,8 +86,6 @@ export type StandardCreatePropertiesPanelProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onApplyAgentOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onGenerate: () => void;
-  onSavePrompt: (customPrompt?: string) => void;
-  shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
   beginnerMode?: boolean;
   expertCreateUiEligible?: boolean;
@@ -574,8 +572,6 @@ export function StandardCreatePropertiesPanel({
   onClearAgentAttachments,
   onAssistantMessageEdit,
   onApplyAgentOutputPrompt,
-  onSavePrompt,
-  shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
   outputGenerateCostCredits = null,
@@ -771,17 +767,13 @@ export function StandardCreatePropertiesPanel({
     onClearAgentChat,
     onAssistantMessageEdit,
     onApplyOutputPrompt: onApplyAgentOutputPrompt,
-    onSavePrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
-    shouldDisableSave,
     disableOutputGenerate,
     outputGenerateCostCredits,
     outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
     hideOutputGenerateControls: false,
     chatOnly: true,
-    chatPromptSaveButtonClassName: "create-chat-pin-btn",
-    chatPromptSaveButtonUnstyled: true,
   } satisfies Omit<
     React.ComponentProps<typeof PromptStep>,
     "stepNumber" | "isCollapsed" | "onToggleCollapse"
@@ -794,7 +786,6 @@ export function StandardCreatePropertiesPanel({
     subtitle: "Describe what you want to make. Enter to send, Shift+Enter for a new line.",
     beginnerSubtitle:
       "Send simple prompts to the agent to be refined into a high quality text prompt.",
-    beginnerPinHelperText: "Click this button to pin your prompt to the reference grid.",
     isCollapsed: collapsedSteps.prompt,
     onToggleCollapse: () => toggleStep("prompt"),
     beginnerMode,
@@ -804,7 +795,6 @@ export function StandardCreatePropertiesPanel({
     stepNumber: "1",
     title: "Ask anything",
     subtitle: "",
-    beginnerPinHelperText: "",
     isCollapsed: false,
     onToggleCollapse: () => {
       // Expert mode keeps chat composer always open.

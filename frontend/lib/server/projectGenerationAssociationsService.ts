@@ -718,6 +718,11 @@ export const associateGenerationWithProjectForUser = async ({
     projectId: normalizedProjectId,
   });
   if (!projectOwned) return false;
+  const ownedGenerationIds = await resolveOwnedGenerationIds({
+    userId,
+    generationIds: [normalizedGenerationId],
+  });
+  if (!ownedGenerationIds.includes(normalizedGenerationId)) return false;
 
   const nowIso = new Date().toISOString();
   const supabaseAdmin = getSupabaseAdmin();

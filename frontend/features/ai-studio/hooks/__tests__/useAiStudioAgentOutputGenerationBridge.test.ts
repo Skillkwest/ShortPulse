@@ -143,7 +143,7 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
     expect(result.current.assistantBubbleMedia).toBe(assistantBubbleMediaMock);
   });
 
-  it("computes the disable guard for agent-output generation", () => {
+  it("keeps agent-output generation enabled when only create target selection is incomplete", () => {
     const { result } = renderHook(() =>
       useAiStudioAgentOutputGenerationBridge(
         createParams({
@@ -155,7 +155,7 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
       )
     );
 
-    expect(result.current.disableAgentOutputGenerate).toBe(true);
+    expect(result.current.disableAgentOutputGenerate).toBe(false);
   });
 
   it("fails closed when the Standard output-generation bridge is disabled", () => {

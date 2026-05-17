@@ -2,8 +2,8 @@
  * Hook for storing Expert Edit preset panel selection and custom preset overrides in Supabase.
  * Keeps local fallback values while synchronizing per-user preferences when remote columns exist.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { useCallback } from "react";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -14,6 +14,7 @@ import {
   type ExpertEditSystemPresetDefinition,
   type ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
+import { useUserPreferenceSync } from "./useUserPreferenceSync";
 
 const EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY =
   "shortpulse.ai_studio.expert_edit_preset_panel_ids";
@@ -21,7 +22,7 @@ const EXPERT_EDIT_CUSTOM_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.expert_edit
 const LEGACY_EXPERT_EDIT_PRESET_PANEL_LABELS_STORAGE_KEY =
   "shortpulse.ai_studio.expert_edit_preset_panel_labels";
 
-export type ExpertEditPresetPanelSyncState = "loading" | "ready" | "saving" | "error";
+type ExpertEditPresetPanelSyncState = "loading" | "ready" | "saving" | "error";
 
 type ExpertEditPresetPreferenceValue = {
   presetPanelIds: ExpertEditPresetId[];
@@ -174,150 +175,88 @@ const writeLocalPresetPreferenceValue = (
 export const useExpertEditPresetPanelPreference = ({
   systemPresetDefinitions,
 }: UseExpertEditPresetPanelPreferenceParams = {}): UseExpertEditPresetPanelPreferenceResult => {
-  const [preferenceValue, setPreferenceValue] = useState<ExpertEditPresetPreferenceValue>(
-    DEFAULT_PRESET_PREFERENCE_VALUE
-  );
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [syncState, setSyncState] = useState<ExpertEditPresetPanelSyncState>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
-  const latestValueRef = useRef<ExpertEditPresetPreferenceValue>(DEFAULT_PRESET_PREFERENCE_VALUE);
-  const remoteSyncEnabledRef = useRef<boolean>(true);
-  const writeVersionRef = useRef<number>(0);
-  const hasLocalOverrideRef = useRef<boolean>(false);
-
-  const updateLocalValue = useCallback(
-    (nextValue: ExpertEditPresetPreferenceValue) => {
-      const normalizedValue = normalizePresetPreferenceValue(nextValue, systemPresetDefinitions);
-      latestValueRef.current = normalizedValue;
-      setPreferenceValue(normalizedValue);
-      writeLocalPresetPreferenceValue(normalizedValue, systemPresetDefinitions);
-    },
+  const normalizePreferenceValue = useCallback(
+    (value: ExpertEditPresetPreferenceValue) =>
+      normalizePresetPreferenceValue(value, systemPresetDefinitions),
     [systemPresetDefinitions]
   );
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setSyncState("loading");
-
-    (async () => {
-      updateLocalValue(readLocalPresetPreferenceValue(systemPresetDefinitions));
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        const id = await readSupabaseUserId();
-        if (!id) {
-          if (!active) return;
-          setUserId(null);
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        if (!active) return;
-        setUserId(id);
-
-        const { data: storedPreference, error: preferenceError } = await supabase
-          .from("user_preferences")
-          .select(
-            "expert_edit_preset_panel_ids, expert_edit_custom_presets, expert_edit_preset_panel_labels"
-          )
-          .eq("user_id", id)
-          .maybeSingle();
-        if (preferenceError) throw preferenceError;
-        if (!active) return;
-
-        const nextValue = normalizePresetPreferenceValue(
+  const readLocalPreferenceValue = useCallback(
+    () => readLocalPresetPreferenceValue(systemPresetDefinitions),
+    [systemPresetDefinitions]
+  );
+  const writeLocalPreferenceValue = useCallback(
+    (value: ExpertEditPresetPreferenceValue) =>
+      writeLocalPresetPreferenceValue(value, systemPresetDefinitions),
+    [systemPresetDefinitions]
+  );
+  const loadRemotePreferenceValue = useCallback(
+    async (userId: string) => {
+      const supabase = ensureSupabaseQueryClient();
+      const { data: storedPreference, error: preferenceError } = await supabase
+        .from("user_preferences")
+        .select(
+          "expert_edit_preset_panel_ids, expert_edit_custom_presets, expert_edit_preset_panel_labels"
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (preferenceError) throw preferenceError;
+      return {
+        value: normalizePresetPreferenceValue(
           {
             presetPanelIds: storedPreference?.expert_edit_preset_panel_ids,
             customPresetOverrides: storedPreference?.expert_edit_custom_presets,
             legacyPanelLabels: storedPreference?.expert_edit_preset_panel_labels,
           },
           systemPresetDefinitions
-        );
-
-        if (!hasLocalOverrideRef.current) {
-          updateLocalValue(nextValue);
-        }
-
-        if (!active) return;
-        setError(null);
-        setSyncState("ready");
-      } catch (err) {
-        if (!active) return;
-        if (isMissingPresetPreferenceStorageError(err)) {
-          remoteSyncEnabledRef.current = false;
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        setError(err instanceof Error ? err.message : "Unable to load Expert Edit preset panel.");
-        setSyncState("error");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [systemPresetDefinitions, updateLocalValue]);
-
-  const persistPreference = useCallback(
-    async (nextValue: ExpertEditPresetPreferenceValue) => {
-      const requestVersion = writeVersionRef.current + 1;
-      writeVersionRef.current = requestVersion;
-      hasLocalOverrideRef.current = true;
-
-      const normalizedNextValue = normalizePresetPreferenceValue(
-        nextValue,
-        systemPresetDefinitions
-      );
-      const previousValue = latestValueRef.current;
-      updateLocalValue(normalizedNextValue);
-      setSyncState("saving");
-      setError(null);
-
-      if (!userId || !remoteSyncEnabledRef.current) {
-        if (requestVersion === writeVersionRef.current) {
-          setSyncState("ready");
-        }
-        return;
-      }
-
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        const { error: upsertError } = await supabase.from("user_preferences").upsert(
-          {
-            user_id: userId,
-            expert_edit_preset_panel_ids: normalizedNextValue.presetPanelIds,
-            expert_edit_custom_presets: normalizedNextValue.customPresetOverrides,
-          },
-          { onConflict: "user_id" }
-        );
-        if (upsertError) throw upsertError;
-
-        if (requestVersion !== writeVersionRef.current) return;
-        setError(null);
-        setSyncState("ready");
-      } catch (err) {
-        if (requestVersion !== writeVersionRef.current) return;
-        if (isMissingPresetPreferenceStorageError(err)) {
-          remoteSyncEnabledRef.current = false;
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        updateLocalValue(previousValue);
-        setError(err instanceof Error ? err.message : "Unable to update Expert Edit preset panel.");
-        setSyncState("error");
-      }
+        ),
+        hasRemoteValue:
+          storedPreference != null &&
+          (storedPreference.expert_edit_preset_panel_ids != null ||
+            storedPreference.expert_edit_custom_presets != null ||
+            storedPreference.expert_edit_preset_panel_labels != null),
+      };
     },
-    [systemPresetDefinitions, updateLocalValue, userId]
+    [systemPresetDefinitions]
   );
+  const persistRemotePreferenceValue = useCallback(
+    async (userId: string, nextValue: ExpertEditPresetPreferenceValue) => {
+      const supabase = ensureSupabaseQueryClient();
+      const { error: upsertError } = await supabase.from("user_preferences").upsert(
+        {
+          user_id: userId,
+          expert_edit_preset_panel_ids: nextValue.presetPanelIds,
+          expert_edit_custom_presets: nextValue.customPresetOverrides,
+        },
+        { onConflict: "user_id" }
+      );
+      if (upsertError) throw upsertError;
+    },
+    []
+  );
+
+  const {
+    value: preferenceValue,
+    loading,
+    error,
+    syncState,
+    latestValueRef,
+    persistValue,
+  } = useUserPreferenceSync<ExpertEditPresetPreferenceValue>({
+    defaultValue: DEFAULT_PRESET_PREFERENCE_VALUE,
+    normalizeValue: normalizePreferenceValue,
+    readLocal: readLocalPreferenceValue,
+    writeLocal: writeLocalPreferenceValue,
+    loadRemote: loadRemotePreferenceValue,
+    persistRemote: persistRemotePreferenceValue,
+    isMissingRemoteError: isMissingPresetPreferenceStorageError,
+    loadErrorMessage: "Unable to load Expert Edit preset panel.",
+    saveErrorMessage: "Unable to update Expert Edit preset panel.",
+    treatMissingPersistErrorAsDisableRemote: true,
+  });
 
   const setPresetPanelIds = useCallback(
     (presetIds: readonly ExpertEditPresetId[]) => {
-      void persistPreference({
+      void persistValue({
         ...latestValueRef.current,
         presetPanelIds: normalizePresetPanelPresetIds(
           presetIds,
@@ -326,12 +265,12 @@ export const useExpertEditPresetPanelPreference = ({
         ),
       });
     },
-    [persistPreference, systemPresetDefinitions]
+    [persistValue, systemPresetDefinitions, latestValueRef]
   );
 
   const setCustomPresetOverrides = useCallback(
     (overrides: ExpertEditCustomPresetOverrides) => {
-      void persistPreference({
+      void persistValue({
         ...latestValueRef.current,
         customPresetOverrides: normalizeExpertEditUserCustomPresetOverrides(
           overrides,
@@ -339,7 +278,7 @@ export const useExpertEditPresetPanelPreference = ({
         ),
       });
     },
-    [persistPreference, systemPresetDefinitions]
+    [persistValue, systemPresetDefinitions, latestValueRef]
   );
 
   return {

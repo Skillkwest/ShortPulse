@@ -423,12 +423,6 @@
   white-space: nowrap;
 }
 
-/* Temporarily hide the blue Pin/Save button in Expert mode. */
-.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-save-prefab,
-.create-expert-panel .create-expert-prompt-step .agent-composer-row .create-chat-pin-btn {
-  display: none;
-}
-
 .create-expert-panel .step2-input-row .agent-send-btn,
 .create-expert-panel .step2-input-row .step2-send-btn {
   border: 1px solid rgba(201, 205, 214, 0.22);

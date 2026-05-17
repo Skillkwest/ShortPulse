@@ -67,14 +67,10 @@ export const shouldDisableCreatePanelOutputGenerate = ({
 }: CreatePanelDisableParams): boolean => {
   void mode;
   void hasSufficientCreditsForOutputGenerate;
-  return (
-    isGenerateDisabled ||
-    hasMissingCreateGenerationTarget({
-      modelId,
-      characterModeEnabled,
-      selectedCharacterId,
-    })
-  );
+  void modelId;
+  void characterModeEnabled;
+  void selectedCharacterId;
+  return isGenerateDisabled;
 };
 
 /**
@@ -89,17 +85,13 @@ export const shouldDisableAgentOutputGenerate = ({
   characterModeEnabled,
   selectedCharacterId,
 }: AgentOutputDisableParams): boolean => {
-  const isCreateTool = isCreatePromptTool(selectedTool);
-  const missingGenerationTarget = isCreateTool
-    ? hasMissingCreateGenerationTarget({
-        modelId,
-        characterModeEnabled,
-        selectedCharacterId,
-      })
-    : false;
   void mode;
+  void selectedTool;
   void hasSufficientCreditsForOutputGenerate;
-  return isGenerateDisabled || missingGenerationTarget;
+  void modelId;
+  void characterModeEnabled;
+  void selectedCharacterId;
+  return isGenerateDisabled;
 };
 
 /**

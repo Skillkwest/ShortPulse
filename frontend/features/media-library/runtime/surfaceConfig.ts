@@ -5,25 +5,26 @@
 import { resolveModalSignBudget } from "../../ai-studio/logic/mediaLibraryModalModel";
 import { resolveMediaPreviewSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 import type { MediaLibrarySurfaceConfig, MediaLibrarySurfaceKind } from "./types";
+import type { MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 
 const PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 
 const PANEL_SIGN_BUDGET_DESKTOP = {
-  initialSignLimit: 8,
-  prefetchWindow: 12,
-  signBatchSize: 6,
-};
-
-const PANEL_SIGN_BUDGET_SMALL_SCREEN = {
   initialSignLimit: 6,
-  prefetchWindow: 9,
+  prefetchWindow: 8,
   signBatchSize: 4,
 };
 
-const PANEL_SIGN_BUDGET_CONSTRAINED = {
-  initialSignLimit: 4,
+const PANEL_SIGN_BUDGET_SMALL_SCREEN = {
+  initialSignLimit: 5,
   prefetchWindow: 6,
   signBatchSize: 3,
+};
+
+const PANEL_SIGN_BUDGET_CONSTRAINED = {
+  initialSignLimit: 3,
+  prefetchWindow: 4,
+  signBatchSize: 2,
 };
 
 /**
@@ -36,6 +37,16 @@ export const resolvePanelSignBudget = () =>
     constrained: PANEL_SIGN_BUDGET_CONSTRAINED,
     smallScreenQuery: PANEL_SIGN_SMALL_SCREEN_QUERY,
   });
+
+/**
+ * Downshifts the eager sign budget for the mixed `All Media` root tab without weakening
+ * the dedicated image/video tabs that already measure well.
+ */
+export const resolvePanelMixedAllMediaSignBudget = (budget: MediaSignBudget): MediaSignBudget => ({
+  initialSignLimit: Math.max(1, Math.min(budget.initialSignLimit, 2)),
+  prefetchWindow: Math.max(1, Math.min(budget.prefetchWindow, 3)),
+  signBatchSize: Math.max(1, Math.min(budget.signBatchSize, 2)),
+});
 
 export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
   MediaLibrarySurfaceKind,

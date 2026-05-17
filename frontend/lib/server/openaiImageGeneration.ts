@@ -21,6 +21,7 @@ import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
 import { writeAppErrorLog } from "./api/appErrorLogs";
+import { toErrorMessage } from "./api/errorMessage";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -265,6 +266,44 @@ const associateGeneratedOpenAiImageWithProject = async ({
       },
     }).catch(() => undefined);
   }
+};
+
+const logBestEffortProjectionFailure = async ({
+  generationId,
+  mediaFileId,
+  modelId,
+  projectId,
+  providerRequestId,
+  requestId,
+  userId,
+  error,
+}: {
+  generationId: string;
+  mediaFileId: string | null;
+  modelId: string;
+  projectId: string | null;
+  providerRequestId: string | null;
+  requestId: string;
+  userId: string;
+  error: unknown;
+}): Promise<void> => {
+  await writeAppErrorLog({
+    source: "telemetry.openai_image.projection_write_failed",
+    message:
+      "OpenAI image generation projection write failed after canonical persistence succeeded.",
+    requestId,
+    userId,
+    statusCode: 200,
+    metadata: {
+      generation_id: generationId,
+      media_file_id: mediaFileId,
+      project_id: projectId,
+      provider: "openai",
+      provider_request_id: providerRequestId,
+      model_id: modelId,
+      projection_error: toErrorMessage(error, "Unknown error"),
+    },
+  }).catch(() => undefined);
 };
 
 /**
@@ -538,35 +577,48 @@ export const persistGeneratedImageAsset = async ({
     });
   }
 
-  await upsertGenerationProjection({
-    generationId,
-    userId,
-    projectId: resolvedProjectId,
-    sourceRef: resolvedRequestId,
-    requestId: resolvedRequestId,
-    provider: "openai",
-    providerRequestId: resolvedProviderRequestId,
-    status: "success",
-    taskState: "success",
-    queueState: "dispatched",
-    displayPrompt: promptText,
-    modelId,
-    previewUrl: signedResult.data.signedUrl,
-    previewStoragePath: storagePath,
-    fullStoragePath: storagePath,
-    saveState: saveOutcome.saveState,
-    saveError: saveOutcome.saveError,
-    hiddenInReferenceGrid: effectiveHiddenInReferenceGrid,
-    referenceGridVisible: !effectiveHiddenInReferenceGrid,
-    publicationState: abandonment.abandoned ? "suppressed" : "published",
-    resultUrls: [signedResult.data.signedUrl],
-    savedMediaIds: mediaFileId ? [mediaFileId] : [],
-    generationReplay,
-    characterContext,
-    styleContext,
-    startedAt: createdAtIso,
-    completedAt: createdAtIso,
-  });
+  try {
+    await upsertGenerationProjection({
+      generationId,
+      userId,
+      projectId: resolvedProjectId,
+      sourceRef: resolvedRequestId,
+      requestId: resolvedRequestId,
+      provider: "openai",
+      providerRequestId: resolvedProviderRequestId,
+      status: "success",
+      taskState: "success",
+      queueState: "dispatched",
+      displayPrompt: promptText,
+      modelId,
+      previewUrl: signedResult.data.signedUrl,
+      previewStoragePath: storagePath,
+      fullStoragePath: storagePath,
+      saveState: saveOutcome.saveState,
+      saveError: saveOutcome.saveError,
+      hiddenInReferenceGrid: effectiveHiddenInReferenceGrid,
+      referenceGridVisible: !effectiveHiddenInReferenceGrid,
+      publicationState: abandonment.abandoned ? "suppressed" : "published",
+      resultUrls: [signedResult.data.signedUrl],
+      savedMediaIds: mediaFileId ? [mediaFileId] : [],
+      generationReplay,
+      characterContext,
+      styleContext,
+      startedAt: createdAtIso,
+      completedAt: createdAtIso,
+    });
+  } catch (error) {
+    await logBestEffortProjectionFailure({
+      generationId,
+      mediaFileId,
+      modelId,
+      projectId: resolvedProjectId,
+      providerRequestId: resolvedProviderRequestId,
+      requestId: resolvedRequestId,
+      userId,
+      error,
+    });
+  }
 
   await associateGeneratedOpenAiImageWithProject({
     generationId,

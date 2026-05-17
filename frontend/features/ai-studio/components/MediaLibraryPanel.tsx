@@ -26,7 +26,10 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
-import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
+import {
+  getMediaLibrarySurfaceConfig,
+  resolvePanelMixedAllMediaSignBudget,
+} from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
@@ -280,6 +283,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
   );
+  const signableMediaRows = useMemo(
+    () => (itemType === "all" ? mediaRows.filter((row) => !isAudioFile(row.file_type)) : mediaRows),
+    [itemType, mediaRows]
+  );
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
@@ -325,6 +332,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     signedUrlRetryRef,
     visibleMediaIdsRef,
   } = previewRuntime;
+  const signBudgetOverride = useMemo(
+    () =>
+      itemType === "all"
+        ? resolvePanelMixedAllMediaSignBudget(previewRuntime.signBudget)
+        : undefined,
+    [itemType, previewRuntime.signBudget]
+  );
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -525,7 +539,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     activeMediaCacheLoading: mediaLoading,
     activeMediaCachePagesLoaded: 1,
     activeMediaQuery: normalizedSearch,
-    filteredMedia: mediaRows,
+    filteredMedia: signableMediaRows,
+    signBudgetOverride,
     isSigningPassEnabled: shouldShowMedia,
     surface: "media-library-panel",
     unresolvedWarningPrefix: "[media-library-panel]",
@@ -797,6 +812,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
+      visibleMediaIdsRef,
     ]
   );
 
@@ -827,6 +843,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onMediaDragEnd={handleCardDragEnd}
         onPromptDragEnd={handleCardDragEnd}
         onMediaContextMenu={handleMediaCardContextMenu}
+        onRequestSignedUrl={refreshSignedUrl}
         showRemoveAction={canShowFolderItemRemoveAction}
         onRemoveMediaFromFolder={(file) => {
           void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
@@ -853,6 +870,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
+        visibleMediaIdsRef={visibleMediaIdsRef}
       />
     ),
     [
@@ -875,6 +893,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       panelBodyRef,
+      refreshSignedUrl,
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
@@ -1095,20 +1114,32 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     if (!removed) return;
     setSelectedIds(new Set());
   }, [handleRemoveItemsFromActiveFolder, isRootFolderSelected, selectedVisibleMediaRows]);
-  const bulkActions = (
-    <MediaLibraryPanelBulkActions
-      canDeleteFromLibrary={isRootFolderSelected}
-      canMoveToFolder={canMoveSelectedMediaToFolder}
-      canRemoveFromFolder={!isRootFolderSelected}
-      disabled={deleteConfirmSubmitting}
-      onClearSelection={clearSelections}
-      onMoveToFolder={handleOpenBulkMoveDialog}
-      onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
-      onRemoveFromFolder={() => {
-        void handleRemoveSelectedMediaFromFolder();
-      }}
-      selectedCount={selectedVisibleMediaRows.length}
-    />
+  const bulkActions = useMemo(
+    () => (
+      <MediaLibraryPanelBulkActions
+        canDeleteFromLibrary={isRootFolderSelected}
+        canMoveToFolder={canMoveSelectedMediaToFolder}
+        canRemoveFromFolder={!isRootFolderSelected}
+        disabled={deleteConfirmSubmitting}
+        onClearSelection={clearSelections}
+        onMoveToFolder={handleOpenBulkMoveDialog}
+        onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
+        onRemoveFromFolder={() => {
+          void handleRemoveSelectedMediaFromFolder();
+        }}
+        selectedCount={selectedVisibleMediaRows.length}
+      />
+    ),
+    [
+      canMoveSelectedMediaToFolder,
+      clearSelections,
+      deleteConfirmSubmitting,
+      handleOpenBulkDeleteConfirm,
+      handleOpenBulkMoveDialog,
+      handleRemoveSelectedMediaFromFolder,
+      isRootFolderSelected,
+      selectedVisibleMediaRows.length,
+    ]
   );
   const isActiveFolderDropHover =
     !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
@@ -1138,6 +1169,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
       }
     : null;
+  const renderRootAllItemsGrid = useCallback(() => renderAllItemsGrid(), [renderAllItemsGrid]);
+  const renderRootImageGrid = useCallback(
+    () => renderMediaGrid(visibleImageRows),
+    [renderMediaGrid, visibleImageRows]
+  );
+  const renderRootVideoGrid = useCallback(
+    () => renderMediaGrid(visibleVideoRows),
+    [renderMediaGrid, visibleVideoRows]
+  );
+  const renderRootPromptsGrid = useCallback(
+    () => renderPromptsSection({ showHeading: false }),
+    [renderPromptsSection]
+  );
   useEffect(() => {
     if (!selectedIds.size) return;
     const visibleIdSet = new Set(bulkVisibleMediaRows.map((row) => row.id));
@@ -1268,11 +1312,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   visibleImageRowsLength={visibleImageRows.length}
                   visibleVideoRowsLength={visibleVideoRows.length}
                   visibleAudioRowsLength={visibleAudioRows.length}
-                  renderAllItemsGrid={() => renderAllItemsGrid()}
-                  renderImageGrid={() => renderMediaGrid(visibleImageRows)}
-                  renderVideoGrid={() => renderMediaGrid(visibleVideoRows)}
+                  renderAllItemsGrid={renderRootAllItemsGrid}
+                  renderImageGrid={renderRootImageGrid}
+                  renderVideoGrid={renderRootVideoGrid}
                   renderAudioGrid={renderAudioGrid}
-                  renderPromptsSection={() => renderPromptsSection({ showHeading: false })}
+                  renderPromptsSection={renderRootPromptsGrid}
                   mediaHasMore={mediaHasMore}
                   loadMediaPage={loadMediaPage}
                 />

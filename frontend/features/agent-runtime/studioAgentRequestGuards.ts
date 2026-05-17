@@ -244,7 +244,9 @@ const sanitizeStudioAgentPulseContext = (
               : null,
         } satisfies AgentPulseWorkflowSession)
       : null;
-  if (!presetId || !label || !instructions) return undefined;
+  const source = pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined;
+  const hasInstructionPayload = (instructions?.length ?? 0) > 0;
+  if (!presetId || !label || (!hasInstructionPayload && source !== "builtin")) return undefined;
   const pulseKind = normalizePulseKind(pulse);
   if (!pulseKind) return undefined;
   const presetBoundWorkflowSession =
@@ -272,13 +274,12 @@ const sanitizeStudioAgentPulseContext = (
     pulse.schemaVersion > 0
       ? Math.trunc(pulse.schemaVersion)
       : DEFAULT_PULSE_SCHEMA_VERSION;
-  const source = pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined;
   if (pulseKind === CUSTOM_PULSE_KIND) {
     return {
       presetId,
       label,
       description,
-      instructions,
+      instructions: instructions ?? "",
       pulseKind,
       ...(source ? { source } : {}),
       schemaVersion,
@@ -288,7 +289,7 @@ const sanitizeStudioAgentPulseContext = (
     presetId,
     label,
     description,
-    instructions,
+    ...(hasInstructionPayload ? { instructions } : {}),
     pulseKind,
     runtimeMode,
     activationMode,

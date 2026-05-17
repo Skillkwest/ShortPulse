@@ -189,9 +189,7 @@
 }
 
 .edit-properties-panel .agent-send-prefab,
-.edit-properties-panel .agent-save-prefab,
-.edit-properties-panel .prompt-actions-compact .agent-send-prefab,
-.edit-properties-panel .prompt-actions-compact .agent-save-prefab {
+.edit-properties-panel .prompt-actions-compact .agent-send-prefab {
   border-color: var(--edit-accent-border-hover);
   background: linear-gradient(
     135deg,
@@ -203,9 +201,7 @@
 }
 
 .edit-properties-panel .agent-send-prefab:hover:not(:disabled),
-.edit-properties-panel .agent-save-prefab:hover:not(:disabled),
-.edit-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
-.edit-properties-panel .prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
+.edit-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled) {
   border-color: var(--edit-accent-border-emphasis);
   background: var(--edit-accent-surface-medium);
   box-shadow:

@@ -8,7 +8,10 @@ import {
   clampImageResolutionForModel,
   getImageResolutionOptions,
 } from "./imageResolution";
-import { shouldDisableCreatePanelOutputGenerate } from "./createGenerationGuards";
+import {
+  hasMissingCreateGenerationTarget,
+  shouldDisableCreatePanelOutputGenerate,
+} from "./createGenerationGuards";
 
 type DeriveCreateSelectorStateParams = {
   mode: StudioMode;
@@ -52,14 +55,20 @@ export const deriveCreateSelectorViewState = ({
     imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
   const isModelSelectionEmpty = !modelId;
   const isCreateModelPickerOpen = isModelModalOpen && modelModalAnchor === "create-model";
-  const disableOutputGenerate = shouldDisableCreatePanelOutputGenerate({
-    mode,
-    isGenerateDisabled,
-    hasSufficientCreditsForOutputGenerate,
-    modelId,
-    characterModeEnabled,
-    selectedCharacterId,
-  });
+  const disableOutputGenerate =
+    hasMissingCreateGenerationTarget({
+      modelId,
+      characterModeEnabled,
+      selectedCharacterId,
+    }) ||
+    shouldDisableCreatePanelOutputGenerate({
+      mode,
+      isGenerateDisabled,
+      hasSufficientCreditsForOutputGenerate,
+      modelId,
+      characterModeEnabled,
+      selectedCharacterId,
+    });
 
   return {
     imageResolutionOptions,

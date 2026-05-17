@@ -8,8 +8,8 @@ import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
-  type CreatePulsePreferenceRuntimeValue,
 } from "./CreatePulsePreferenceProvider";
+import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,

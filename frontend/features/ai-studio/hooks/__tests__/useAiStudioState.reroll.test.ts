@@ -72,7 +72,6 @@ vi.mock("../useAiStudioPersistenceActions", () => ({
     persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
     saveActiveOutput: vi.fn(),
     saveReferenceToLibrary: vi.fn(),
-    savePromptReference: vi.fn(),
     savePromptToLibrary: vi.fn(),
   }),
 }));

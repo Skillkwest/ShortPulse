@@ -6,7 +6,6 @@ export * from "./types";
 export * from "./outcomeContract";
 export * from "./buttons/AgentSendButton";
 export * from "./buttons/AgentEnhanceButton";
-export * from "./buttons/AgentSaveButton";
 export * from "./buttons/AgentGenerateButton";
 export * from "./buttons/AgentResponseInlineGenerateButton";
 export * from "./buttons/MiniGenerateButton";

@@ -8,7 +8,6 @@ import {
   AgentChatPanel,
   type AgentChatPanelProps,
   AgentInputBar,
-  AgentSaveButton,
   AgentSendButton,
 } from "../../../../prefabs/agent";
 import type {
@@ -83,10 +82,6 @@ type StandardPromptStepChatSurfaceProps = {
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
   agentIsSending: boolean;
-  onSavePrompt?: (customPrompt?: string) => void;
-  shouldDisableChatPin: boolean;
-  chatPromptSaveButtonClassName: string;
-  chatPromptSaveButtonUnstyled: boolean;
   imageAttachmentCounts: {
     total: number;
     preparing: number;
@@ -148,10 +143,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   embedSendButtonInInput,
   handleAgentSendClick,
   agentIsSending,
-  onSavePrompt,
-  shouldDisableChatPin,
-  chatPromptSaveButtonClassName,
-  chatPromptSaveButtonUnstyled,
   imageAttachmentCounts,
   onAssistantMessageEdit,
 }) => {
@@ -341,18 +332,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
     ) : null;
 
   const chatModeActionsContent = (
-    <div className="agent-inline-actions">
-      {chatModeToggleContent}
-      {onSavePrompt ? (
-        <AgentSaveButton
-          onClick={() => onSavePrompt(agentInput)}
-          disabled={shouldDisableChatPin}
-          ariaLabel="Pin prompt"
-          className={chatPromptSaveButtonClassName}
-          unstyled={chatPromptSaveButtonUnstyled}
-        />
-      ) : null}
-    </div>
+    <div className="agent-inline-actions">{chatModeToggleContent}</div>
   );
 
   const composerMiddleControlContent = composerMiddleContent ? (

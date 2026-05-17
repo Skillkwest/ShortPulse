@@ -245,4 +245,40 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       },
     });
   });
+
+  it("surfaces plain-object backend messages instead of Unknown error", async () => {
+    generateElevenLabsVoiceoverMock.mockResolvedValue({
+      buffer: Buffer.from("voice"),
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-tts-1",
+    });
+    persistGeneratedAudioAssetMock.mockRejectedValue({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "voice-1",
+        voiceName: "Darian",
+        text: "Voiceover billing path verification script.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_multilingual_v2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate speech",
+      details: "save_error missing from schema cache",
+    });
+  });
 });

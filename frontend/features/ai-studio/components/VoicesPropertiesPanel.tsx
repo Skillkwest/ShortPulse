@@ -1905,6 +1905,45 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             </div>
 
             <div className="voices-properties-compose-area" style={bottomSectionStyle}>
+              <div className="voices-properties-compose-mode-switcher">
+                <div className="voices-properties-mode-switcher">
+                  <span className="voices-properties-field-label">Voice mode</span>
+                  <div
+                    className="voices-properties-mode-tabs"
+                    role="tablist"
+                    aria-label="Voice mode"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={surfaceMode === "create"}
+                      data-voice-mode="voiceover"
+                      className={`voices-properties-mode-tab ${
+                        surfaceMode === "create" ? "is-active" : ""
+                      }`}
+                      onClick={() => handleSurfaceModeChange("create")}
+                    >
+                      Voiceover
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={surfaceMode === "edit"}
+                      data-voice-mode="voice-changer"
+                      className={`voices-properties-mode-tab ${
+                        surfaceMode === "edit" ? "is-active" : ""
+                      }`}
+                      onClick={() => {
+                        handleSurfaceModeChange("edit");
+                        setIsCreatePanelOpen(false);
+                      }}
+                    >
+                      Voice Changer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {surfaceMode === "create" ? (
                 <div className="voices-properties-script-input-shell">
                   <textarea
@@ -1965,39 +2004,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         <div className="voices-properties-column-shell voices-properties-column-shell--aside">
           <aside className="voices-properties-aside">
             <section className="voices-properties-rail-section">
-              <div className="voices-properties-mode-switcher">
-                <span className="voices-properties-field-label">Voice mode</span>
-                <div className="voices-properties-mode-tabs" role="tablist" aria-label="Voice mode">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={surfaceMode === "create"}
-                    data-voice-mode="voiceover"
-                    className={`voices-properties-mode-tab ${
-                      surfaceMode === "create" ? "is-active" : ""
-                    }`}
-                    onClick={() => handleSurfaceModeChange("create")}
-                  >
-                    Voiceover
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={surfaceMode === "edit"}
-                    data-voice-mode="voice-changer"
-                    className={`voices-properties-mode-tab ${
-                      surfaceMode === "edit" ? "is-active" : ""
-                    }`}
-                    onClick={() => {
-                      handleSurfaceModeChange("edit");
-                      setIsCreatePanelOpen(false);
-                    }}
-                  >
-                    Voice Changer
-                  </button>
-                </div>
-              </div>
-
               {isVideoDerivedVoiceChangerSource ? null : (
                 <section
                   className={`voices-properties-shaping-card ${

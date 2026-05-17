@@ -2,8 +2,8 @@
  * Hook for storing per-user Pulse records and Create Pulse rail selection in Supabase.
  * Keeps local values while synchronizing per-user Pulse preferences when remote columns exist.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { useCallback } from "react";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
   CREATE_PULSE_SURFACE_PRESET_IDS,
@@ -15,17 +15,24 @@ import {
   type CreatePulsePresetId,
   type CreatePulseSavedPreset,
 } from "../components/create/createPulsePresets";
+import { useUserPreferenceSync } from "./useUserPreferenceSync";
 
 const CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY =
   "shortpulse.ai_studio.create_pulse_preset_panel_ids";
 const CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.saved_pulses";
 const CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY = "shortpulse.ai_studio.hidden_builtin_pulses";
 
-export type CreatePulsePresetPanelSyncState = "loading" | "ready" | "saving" | "error";
+type CreatePulsePresetPanelSyncState = "loading" | "ready" | "saving" | "error";
 
 type CreatePulsePresetPreferenceValue = {
   presetPanelIds: CreatePulsePresetId[];
   savedPresets: CreatePulseSavedPreset[];
+};
+
+type CreatePulsePresetPreferenceStorageValue = {
+  presetPanelIds: CreatePulsePresetId[];
+  customSavedPresets: CreatePulseSavedPreset[];
+  hiddenBuiltInPresetIds: CreatePulsePresetId[];
 };
 
 export type UseCreatePulsePresetPanelPreferenceResult = {
@@ -54,8 +61,20 @@ const createDefaultCreatePulsePresetPreferenceValue = (
   savedPresets: [],
 });
 
-const DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE =
-  createDefaultCreatePulsePresetPreferenceValue();
+const createDefaultCreatePulsePresetPreferenceStorageValue = (
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulsePresetPreferenceStorageValue => ({
+  presetPanelIds: normalizeCreatePulsePanelPresetIds(
+    resolveCreatePulseDefaultPanelPresetIds(builtInDefinitions),
+    [],
+    builtInDefinitions
+  ),
+  customSavedPresets: [],
+  hiddenBuiltInPresetIds: [],
+});
+
+const DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE =
+  createDefaultCreatePulsePresetPreferenceStorageValue();
 
 const isLegacyDefaultCreatePulsePanelPresetIds = (presetIds: readonly string[]): boolean =>
   presetIds.length === CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS.length &&
@@ -107,43 +126,6 @@ const isMissingCreatePulsePreferenceStorageError = (error: unknown): boolean => 
   );
 };
 
-const normalizeCreatePulsePresetPreferenceValue = (
-  value: {
-    presetPanelIds?: unknown;
-    savedPresets?: unknown;
-  },
-  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
-): CreatePulsePresetPreferenceValue => {
-  const normalizedSavedPresets = normalizeCreatePulseSavedPresets(
-    value.savedPresets,
-    builtInDefinitions
-  );
-  const defaultPreferenceValue = createDefaultCreatePulsePresetPreferenceValue(builtInDefinitions);
-  const defaultPresetPanelIds = normalizeCreatePulsePanelPresetIds(
-    defaultPreferenceValue.presetPanelIds,
-    normalizedSavedPresets,
-    builtInDefinitions
-  );
-  const presetPanelIds = Array.isArray(value.presetPanelIds)
-    ? normalizeCreatePulsePanelPresetIds(
-        (() => {
-          const normalizedPresetIds = value.presetPanelIds.filter(
-            (entry): entry is string => typeof entry === "string"
-          );
-          return isLegacyDefaultCreatePulsePanelPresetIds(normalizedPresetIds)
-            ? defaultPreferenceValue.presetPanelIds
-            : normalizedPresetIds;
-        })(),
-        normalizedSavedPresets,
-        builtInDefinitions
-      )
-    : defaultPresetPanelIds;
-  return {
-    presetPanelIds,
-    savedPresets: normalizedSavedPresets,
-  };
-};
-
 const normalizeCreatePulseHiddenBuiltInPresetIds = (
   value: unknown,
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
@@ -183,7 +165,7 @@ const buildHiddenBuiltInSavedPresets = (
       presetId: definition.presetId,
       label: definition.label,
       description: definition.description,
-      systemInstructions: definition.systemInstructions,
+      systemInstructions: "",
       pulseKind: definition.pulseKind,
       runtimeMode: definition.runtimeMode,
       activationMode: definition.activationMode,
@@ -197,6 +179,15 @@ const buildHiddenBuiltInSavedPresets = (
       isHidden: true,
     }));
 };
+
+const mergeCreatePulseSavedPresets = (
+  customSavedPresets: readonly CreatePulseSavedPreset[],
+  hiddenBuiltInPresetIds: readonly CreatePulsePresetId[],
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulseSavedPreset[] => [
+  ...customSavedPresets,
+  ...buildHiddenBuiltInSavedPresets(hiddenBuiltInPresetIds, builtInDefinitions),
+];
 
 const splitCreatePulseSavedPresetPersistence = (
   presets: unknown,
@@ -218,11 +209,81 @@ const splitCreatePulseSavedPresetPersistence = (
   };
 };
 
+const normalizeCreatePulsePresetPreferenceStorageValue = (
+  value: {
+    presetPanelIds?: unknown;
+    customSavedPresets?: unknown;
+    hiddenBuiltInPresetIds?: unknown;
+  },
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null,
+  options?: {
+    preserveHiddenBuiltInPresetIds?: readonly CreatePulsePresetId[];
+  }
+): CreatePulsePresetPreferenceStorageValue => {
+  const { customSavedPresets, hiddenBuiltInPresetIds } = splitCreatePulseSavedPresetPersistence(
+    value.customSavedPresets ?? [],
+    builtInDefinitions
+  );
+  const normalizedHiddenBuiltInPresetIds = normalizeCreatePulseHiddenBuiltInPresetIds(
+    [
+      ...hiddenBuiltInPresetIds,
+      ...normalizeCreatePulseHiddenBuiltInPresetIds(
+        value.hiddenBuiltInPresetIds,
+        builtInDefinitions
+      ),
+      ...(options?.preserveHiddenBuiltInPresetIds ?? []),
+    ],
+    builtInDefinitions
+  );
+  const mergedSavedPresets = mergeCreatePulseSavedPresets(
+    customSavedPresets,
+    normalizedHiddenBuiltInPresetIds,
+    builtInDefinitions
+  );
+  const defaultPreferenceValue = createDefaultCreatePulsePresetPreferenceValue(builtInDefinitions);
+  const defaultPresetPanelIds = normalizeCreatePulsePanelPresetIds(
+    defaultPreferenceValue.presetPanelIds,
+    mergedSavedPresets,
+    builtInDefinitions
+  );
+  const presetPanelIds = Array.isArray(value.presetPanelIds)
+    ? normalizeCreatePulsePanelPresetIds(
+        (() => {
+          const normalizedPresetIds = value.presetPanelIds.filter(
+            (entry): entry is string => typeof entry === "string"
+          );
+          return isLegacyDefaultCreatePulsePanelPresetIds(normalizedPresetIds)
+            ? defaultPreferenceValue.presetPanelIds
+            : normalizedPresetIds;
+        })(),
+        mergedSavedPresets,
+        builtInDefinitions
+      )
+    : defaultPresetPanelIds;
+  return {
+    presetPanelIds,
+    customSavedPresets,
+    hiddenBuiltInPresetIds: normalizedHiddenBuiltInPresetIds,
+  };
+};
+
+const resolveCreatePulsePresetPreferenceValue = (
+  value: CreatePulsePresetPreferenceStorageValue,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulsePresetPreferenceValue => ({
+  presetPanelIds: value.presetPanelIds,
+  savedPresets: mergeCreatePulseSavedPresets(
+    value.customSavedPresets,
+    value.hiddenBuiltInPresetIds,
+    builtInDefinitions
+  ),
+});
+
 const readLocalCreatePulsePresetPreferenceValue = (
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null,
   userId?: string | null
-): CreatePulsePresetPreferenceValue => {
-  if (typeof window === "undefined") return DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE;
+): CreatePulsePresetPreferenceStorageValue => {
+  if (typeof window === "undefined") return DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE;
   const storedPresetPanelIds = window.localStorage.getItem(
     buildCreatePulsePresetPanelIdsStorageKey(userId)
   );
@@ -232,7 +293,6 @@ const readLocalCreatePulsePresetPreferenceValue = (
   const storedHiddenBuiltIns = window.localStorage.getItem(
     buildCreatePulseHiddenBuiltInsStorageKey(userId)
   );
-
   const parsedPresetPanelIds = (() => {
     if (!storedPresetPanelIds) return null;
     try {
@@ -261,20 +321,13 @@ const readLocalCreatePulsePresetPreferenceValue = (
 
   const { customSavedPresets, hiddenBuiltInPresetIds: legacyHiddenBuiltInPresetIds } =
     splitCreatePulseSavedPresetPersistence(parsedSavedPresets ?? [], builtInDefinitions);
-  const hiddenBuiltInPresetIds = normalizeCreatePulseHiddenBuiltInPresetIds(
-    [
-      ...legacyHiddenBuiltInPresetIds,
-      ...normalizeCreatePulseHiddenBuiltInPresetIds(parsedHiddenBuiltIns, builtInDefinitions),
-    ],
-    builtInDefinitions
-  );
-
-  return normalizeCreatePulsePresetPreferenceValue(
+  return normalizeCreatePulsePresetPreferenceStorageValue(
     {
       presetPanelIds: parsedPresetPanelIds ?? undefined,
-      savedPresets: [
-        ...customSavedPresets,
-        ...buildHiddenBuiltInSavedPresets(hiddenBuiltInPresetIds, builtInDefinitions),
+      customSavedPresets,
+      hiddenBuiltInPresetIds: [
+        ...legacyHiddenBuiltInPresetIds,
+        ...normalizeCreatePulseHiddenBuiltInPresetIds(parsedHiddenBuiltIns, builtInDefinitions),
       ],
     },
     builtInDefinitions
@@ -282,14 +335,13 @@ const readLocalCreatePulsePresetPreferenceValue = (
 };
 
 const writeLocalCreatePulsePresetPreferenceValue = (
-  value: CreatePulsePresetPreferenceValue,
+  value: CreatePulsePresetPreferenceStorageValue,
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null,
   userId?: string | null
 ): void => {
   if (typeof window === "undefined") return;
-  const normalizedValue = normalizeCreatePulsePresetPreferenceValue(value, builtInDefinitions);
-  const { customSavedPresets, hiddenBuiltInPresetIds } = splitCreatePulseSavedPresetPersistence(
-    normalizedValue.savedPresets,
+  const normalizedValue = normalizeCreatePulsePresetPreferenceStorageValue(
+    value,
     builtInDefinitions
   );
   window.localStorage.setItem(
@@ -298,11 +350,11 @@ const writeLocalCreatePulsePresetPreferenceValue = (
   );
   window.localStorage.setItem(
     buildCreatePulseSavedPresetsStorageKey(userId),
-    JSON.stringify(customSavedPresets)
+    JSON.stringify(normalizedValue.customSavedPresets)
   );
   window.localStorage.setItem(
     buildCreatePulseHiddenBuiltInsStorageKey(userId),
-    JSON.stringify(hiddenBuiltInPresetIds)
+    JSON.stringify(normalizedValue.hiddenBuiltInPresetIds)
   );
 };
 
@@ -313,220 +365,138 @@ export const useCreatePulsePresetPanelPreference = ({
   enabled = true,
   builtInDefinitions = null,
 }: UseCreatePulsePresetPanelPreferenceOptions = {}): UseCreatePulsePresetPanelPreferenceResult => {
-  const [preferenceValue, setPreferenceValue] = useState<CreatePulsePresetPreferenceValue>(
-    DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE
+  const normalizePreferenceValue = useCallback(
+    (value: CreatePulsePresetPreferenceStorageValue) =>
+      normalizeCreatePulsePresetPreferenceStorageValue(value, builtInDefinitions),
+    [builtInDefinitions]
   );
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [syncState, setSyncState] = useState<CreatePulsePresetPanelSyncState>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
-  const latestValueRef = useRef<CreatePulsePresetPreferenceValue>(
-    DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE
+  const readLocalPreferenceValue = useCallback(
+    (userId?: string | null) =>
+      readLocalCreatePulsePresetPreferenceValue(builtInDefinitions, userId),
+    [builtInDefinitions]
   );
-  const remoteSyncEnabledRef = useRef<boolean>(true);
-  const writeVersionRef = useRef<number>(0);
-  const hasLocalOverrideRef = useRef<boolean>(false);
-
-  const updatePreferenceValue = useCallback(
-    (
-      nextValue: CreatePulsePresetPreferenceValue,
-      options?: {
-        storageUserId?: string | null;
-        persistLocal?: boolean;
-      }
-    ) => {
-      const normalizedValue = normalizeCreatePulsePresetPreferenceValue(
-        nextValue,
-        builtInDefinitions
-      );
-      latestValueRef.current = normalizedValue;
-      setPreferenceValue(normalizedValue);
-      if (options?.persistLocal !== false) {
-        writeLocalCreatePulsePresetPreferenceValue(
-          normalizedValue,
-          builtInDefinitions,
-          options?.storageUserId ?? userId
-        );
-      }
-    },
-    [builtInDefinitions, userId]
+  const writeLocalPreferenceValue = useCallback(
+    (value: CreatePulsePresetPreferenceStorageValue, userId?: string | null) =>
+      writeLocalCreatePulsePresetPreferenceValue(value, builtInDefinitions, userId),
+    [builtInDefinitions]
   );
+  const loadRemotePreferenceValue = useCallback(
+    async (userId: string, localValue: CreatePulsePresetPreferenceStorageValue) => {
+      const supabase = ensureSupabaseQueryClient();
+      const { data: storedPreference, error: preferenceError } = await supabase
+        .from("user_preferences")
+        .select("ai_studio_create_pulse_panel_ids, ai_studio_saved_pulses")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (preferenceError) throw preferenceError;
 
-  useEffect(() => {
-    let active = true;
-    if (!enabled) {
-      remoteSyncEnabledRef.current = true;
-      hasLocalOverrideRef.current = false;
-      latestValueRef.current = DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE;
-      setPreferenceValue(DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_VALUE);
-      setLoading(false);
-      setError(null);
-      setSyncState("ready");
-      setUserId(null);
-      return () => {
-        active = false;
-      };
-    }
-    remoteSyncEnabledRef.current = true;
-    hasLocalOverrideRef.current = false;
-    setLoading(true);
-    setSyncState("loading");
-
-    (async () => {
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        const id = await readSupabaseUserId();
-        if (!id) {
-          if (!active) return;
-          setUserId(null);
-          updatePreferenceValue(readLocalCreatePulsePresetPreferenceValue(builtInDefinitions), {
-            persistLocal: false,
-          });
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        if (!active) return;
-        setUserId(id);
-        updatePreferenceValue(readLocalCreatePulsePresetPreferenceValue(builtInDefinitions, id), {
-          storageUserId: id,
-          persistLocal: false,
-        });
-
-        const { data: storedPreference, error: preferenceError } = await supabase
-          .from("user_preferences")
-          .select("ai_studio_create_pulse_panel_ids, ai_studio_saved_pulses")
-          .eq("user_id", id)
-          .maybeSingle();
-        if (preferenceError) throw preferenceError;
-        if (!active) return;
-
-        const nextValue = normalizeCreatePulsePresetPreferenceValue(
+      return {
+        value: normalizeCreatePulsePresetPreferenceStorageValue(
           {
             presetPanelIds: storedPreference?.ai_studio_create_pulse_panel_ids,
-            savedPresets: storedPreference?.ai_studio_saved_pulses,
+            customSavedPresets: storedPreference?.ai_studio_saved_pulses,
           },
-          builtInDefinitions
-        );
-        const hasRemotePulsePreference =
+          builtInDefinitions,
+          {
+            preserveHiddenBuiltInPresetIds: localValue.hiddenBuiltInPresetIds,
+          }
+        ),
+        hasRemoteValue:
           storedPreference != null &&
           (storedPreference.ai_studio_create_pulse_panel_ids != null ||
-            storedPreference.ai_studio_saved_pulses != null);
-
-        if (!hasLocalOverrideRef.current && hasRemotePulsePreference) {
-          updatePreferenceValue(nextValue, {
-            storageUserId: id,
-            persistLocal: false,
-          });
-        }
-
-        if (!active) return;
-        setError(null);
-        setSyncState("ready");
-      } catch (err) {
-        if (!active) return;
-        if (isMissingCreatePulsePreferenceStorageError(err)) {
-          remoteSyncEnabledRef.current = false;
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        setError(err instanceof Error ? err.message : "Unable to load Pulse presets.");
-        setSyncState("error");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [builtInDefinitions, enabled, updatePreferenceValue]);
-
-  const persistPreference = useCallback(
-    async (nextValue: CreatePulsePresetPreferenceValue) => {
-      if (!enabled) return false;
-      const requestVersion = writeVersionRef.current + 1;
-      writeVersionRef.current = requestVersion;
-      hasLocalOverrideRef.current = true;
-
-      const normalizedNextValue = normalizeCreatePulsePresetPreferenceValue(
-        nextValue,
-        builtInDefinitions
-      );
-      const previousValue = latestValueRef.current;
-      updatePreferenceValue(normalizedNextValue, { persistLocal: true });
-      setSyncState("saving");
-      setError(null);
-
-      if (!userId || !remoteSyncEnabledRef.current) {
-        if (requestVersion === writeVersionRef.current) {
-          setSyncState("ready");
-        }
-        return true;
-      }
-
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        const { customSavedPresets } = splitCreatePulseSavedPresetPersistence(
-          normalizedNextValue.savedPresets,
-          builtInDefinitions
-        );
-        const { error: upsertError } = await supabase.from("user_preferences").upsert(
-          {
-            user_id: userId,
-            ai_studio_create_pulse_panel_ids: normalizedNextValue.presetPanelIds,
-            ai_studio_saved_pulses: customSavedPresets,
-          },
-          { onConflict: "user_id" }
-        );
-        if (upsertError) throw upsertError;
-        if (requestVersion !== writeVersionRef.current) return true;
-        setSyncState("ready");
-        return true;
-      } catch (err) {
-        if (requestVersion !== writeVersionRef.current) return false;
-        updatePreferenceValue(previousValue);
-        setError(err instanceof Error ? err.message : "Unable to save Pulse presets.");
-        setSyncState("error");
-        return false;
-      }
+            storedPreference.ai_studio_saved_pulses != null),
+      };
     },
-    [builtInDefinitions, enabled, updatePreferenceValue, userId]
+    [builtInDefinitions]
   );
+  const persistRemotePreferenceValue = useCallback(
+    async (userId: string, nextValue: CreatePulsePresetPreferenceStorageValue) => {
+      const supabase = ensureSupabaseQueryClient();
+      const { error: upsertError } = await supabase.from("user_preferences").upsert(
+        {
+          user_id: userId,
+          ai_studio_create_pulse_panel_ids: nextValue.presetPanelIds,
+          ai_studio_saved_pulses: nextValue.customSavedPresets,
+        },
+        { onConflict: "user_id" }
+      );
+      if (upsertError) throw upsertError;
+    },
+    []
+  );
+
+  const {
+    value: preferenceValue,
+    loading,
+    error,
+    syncState,
+    latestValueRef,
+    persistValue,
+  } = useUserPreferenceSync<CreatePulsePresetPreferenceStorageValue>({
+    enabled,
+    defaultValue: DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE,
+    normalizeValue: normalizePreferenceValue,
+    readLocal: readLocalPreferenceValue,
+    writeLocal: writeLocalPreferenceValue,
+    loadRemote: loadRemotePreferenceValue,
+    persistRemote: persistRemotePreferenceValue,
+    isMissingRemoteError: isMissingCreatePulsePreferenceStorageError,
+    loadErrorMessage: "Unable to load Pulse presets.",
+    saveErrorMessage: "Unable to save Pulse presets.",
+  });
 
   const setPresetPanelIds = useCallback(
     (presetIds: readonly CreatePulsePresetId[]) => {
-      return persistPreference({
-        ...latestValueRef.current,
+      const savedPresets = mergeCreatePulseSavedPresets(
+        latestValueRef.current.customSavedPresets,
+        latestValueRef.current.hiddenBuiltInPresetIds,
+        builtInDefinitions
+      );
+      return persistValue({
+        customSavedPresets: latestValueRef.current.customSavedPresets,
+        hiddenBuiltInPresetIds: latestValueRef.current.hiddenBuiltInPresetIds,
         presetPanelIds: normalizeCreatePulsePanelPresetIds(
           presetIds,
-          latestValueRef.current.savedPresets,
+          savedPresets,
           builtInDefinitions
         ),
       });
     },
-    [builtInDefinitions, persistPreference]
+    [builtInDefinitions, latestValueRef, persistValue]
   );
 
   const setSavedPresets = useCallback(
     (presets: readonly CreatePulseSavedPreset[]) => {
-      const normalizedSavedPresets = normalizeCreatePulseSavedPresets(presets, builtInDefinitions);
-      return persistPreference({
+      const { customSavedPresets, hiddenBuiltInPresetIds } = splitCreatePulseSavedPresetPersistence(
+        presets,
+        builtInDefinitions
+      );
+      const normalizedSavedPresets = mergeCreatePulseSavedPresets(
+        customSavedPresets,
+        hiddenBuiltInPresetIds,
+        builtInDefinitions
+      );
+      return persistValue({
         presetPanelIds: normalizeCreatePulsePanelPresetIds(
           latestValueRef.current.presetPanelIds,
           normalizedSavedPresets,
           builtInDefinitions
         ),
-        savedPresets: normalizedSavedPresets,
+        customSavedPresets,
+        hiddenBuiltInPresetIds,
       });
     },
-    [builtInDefinitions, persistPreference]
+    [builtInDefinitions, latestValueRef, persistValue]
+  );
+
+  const resolvedPreferenceValue = resolveCreatePulsePresetPreferenceValue(
+    preferenceValue,
+    builtInDefinitions
   );
 
   return {
-    presetPanelIds: preferenceValue.presetPanelIds,
-    savedPresets: preferenceValue.savedPresets,
+    presetPanelIds: resolvedPreferenceValue.presetPanelIds,
+    savedPresets: resolvedPreferenceValue.savedPresets,
     loading,
     error,
     syncState,

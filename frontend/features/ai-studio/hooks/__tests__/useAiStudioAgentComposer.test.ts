@@ -237,7 +237,7 @@ describe("useAiStudioAgentComposer", () => {
         kind: "image",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: "blob:materialized-composer-preview",
+        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
         submissionImageUrl: expect.stringMatching(/^blob:/),
         imageFallbackUrls: [],
         previewStoragePath: "user-1/generated/preview.png",
@@ -330,7 +330,7 @@ describe("useAiStudioAgentComposer", () => {
         kind: "image",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: expect.stringMatching(/^blob:/),
+        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
         submissionImageUrl: expect.stringMatching(/^blob:/),
         imageFallbackUrls: ["blob:composer-owned-preview"],
         previewStoragePath: "user-1/generated/preview.png",
@@ -495,7 +495,7 @@ describe("useAiStudioAgentComposer", () => {
       expect(result.current.agentAttachments).toEqual([
         expect.objectContaining({
           kind: "image",
-          imageUrl: "blob:one.png",
+          imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
           submissionImageUrl: "blob:one.png",
         }),
       ]);
@@ -532,11 +532,11 @@ describe("useAiStudioAgentComposer", () => {
 
     await waitFor(() => {
       expect(ensureAgentSession).toHaveBeenCalledTimes(1);
-      expect(result.current.agentAttachments.map((attachment) => attachment.imageUrl)).toEqual([
-        "blob:one.png",
-        "blob:two.png",
-        "blob:three.png",
-      ]);
+      expect(
+        result.current.agentAttachments.every((attachment) =>
+          /^(blob:|data:image\/)/.test(attachment.imageUrl ?? "")
+        )
+      ).toBe(true);
       expect(
         result.current.agentAttachments.map((attachment) => attachment.submissionImageUrl)
       ).toEqual(["blob:one.png", "blob:two.png", "blob:three.png"]);
@@ -863,7 +863,7 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       mediaId: "media-1",
-      imageUrl: expect.stringMatching(/^blob:/),
+      imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
       submissionImageUrl: expect.stringMatching(/^blob:/),
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",

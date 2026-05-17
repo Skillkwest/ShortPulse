@@ -426,29 +426,33 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             style={isStandardMode ? topSectionStyle : undefined}
             aria-label="Music composition mode"
           >
-            <div className="music-properties-toggle-shell">
-              <div
-                className="music-properties-toggle-tabs"
-                role="tablist"
-                aria-label="Music composition modes"
-                style={composerModeToggleStyle}
-              >
-                <span className="music-properties-toggle-indicator" aria-hidden="true" />
-                {(["simple", "custom"] as const).map((mode) => {
-                  const isSelected = composerMode === mode;
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      role="tab"
-                      aria-selected={isSelected}
-                      className={`music-properties-toggle-button ${isSelected ? "is-active" : ""}`}
-                      onClick={() => setComposerMode(mode)}
-                    >
-                      {mode === "simple" ? "Standard" : "Custom"}
-                    </button>
-                  );
-                })}
+            <h2 className="panel-title music-properties-title">Music</h2>
+
+            <div className="music-properties-topbar-center">
+              <div className="music-properties-toggle-shell">
+                <div
+                  className="music-properties-toggle-tabs"
+                  role="tablist"
+                  aria-label="Music composition modes"
+                  style={composerModeToggleStyle}
+                >
+                  <span className="music-properties-toggle-indicator" aria-hidden="true" />
+                  {(["simple", "custom"] as const).map((mode) => {
+                    const isSelected = composerMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="tab"
+                        aria-selected={isSelected}
+                        className={`music-properties-toggle-button ${isSelected ? "is-active" : ""}`}
+                        onClick={() => setComposerMode(mode)}
+                      >
+                        {mode === "simple" ? "Standard" : "Custom"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </section>

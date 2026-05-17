@@ -18,7 +18,7 @@ import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
 } from "../components/create/createPulsePresets";
-import type { CreatePulsePreferenceRuntimeValue } from "../components/create/CreatePulsePreferenceProvider";
+import type { CreatePulsePreferenceRuntimeValue } from "../components/create/createPulsePreferenceRuntime";
 import type {
   CreateCharacterLookOption,
   CreateCharacterOption,
@@ -115,7 +115,6 @@ export type StandardCreateRuntimeProps = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
-  onSavePromptReference: (customPrompt?: string) => void;
   onSelectedCharacterChange: (characterId: string, lookId: string) => void;
   onOpenCharacterLibrary?: () => void;
   onCharacterModeChange: Dispatch<SetStateAction<boolean>>;
@@ -219,7 +218,6 @@ export type PulseCreateRuntimeProps = {
     nextPresetId: string | null,
     options?: AiStudioPulsePresetChangeOptions
   ) => string | null | void;
-  onSavePromptReference: (customPrompt?: string) => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
   generationServices: NeutralCreateGenerationServices;
 };

@@ -4,7 +4,10 @@
  */
 import React from "react";
 import type { AgentMessage } from "../../../prefabs/agent";
-import { resolveAgentComposerDrop } from "./promptStep/agentComposerDrop";
+import {
+  insertDroppedPromptTextAtSelection,
+  resolveAgentComposerDrop,
+} from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { StandardPromptStepChatSurface } from "./promptStep/StandardPromptStepChatSurface";
@@ -43,14 +46,10 @@ export function PromptStep({
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   onApplyOutputPrompt,
-  chatModeInlineGenerate,
-  useAgentResponseInlineGeneratePrefab = false,
-  onSavePrompt,
   isCollapsed,
   onToggleCollapse,
   isGenerating = false,
   showGenerationThinkingInChat = true,
-  shouldDisableSave = false,
   onDrop,
   onDragOver,
   className = "",
@@ -59,12 +58,8 @@ export function PromptStep({
   enhanceOnly = false,
   hideEnhanceButton = false,
   promptPlaceholder = "Describe what you want, then refine it.",
-  promptSaveButtonClassName = "prompt-fab-save",
-  promptSaveButtonUnstyled = false,
   promptInlineAction = null,
   promptInlineActionClassName = "",
-  chatPromptSaveButtonClassName = "",
-  chatPromptSaveButtonUnstyled = false,
   embedSendButtonInInput = false,
   hideAgentIntroMessage = false,
   agentAttachmentDropTarget = "history",
@@ -149,8 +144,6 @@ export function PromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = subtitle;
-  const canPinAgentInput = effectiveComposerInput.trim().length > 0;
-  const shouldDisableChatPin = shouldDisableSave || !canPinAgentInput;
   const canSendAgentInput =
     chatModeEnabled && (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
   const markAgentInputFocusForRestore = React.useCallback(() => {
@@ -211,8 +204,20 @@ export function PromptStep({
       event.preventDefault();
       // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
       onAgentAttachmentDragLeave?.(event);
-      effectiveAgentInputChange?.(droppedPromptText);
-      requestAnimationFrame(() => agentInputRef.current?.focus());
+      const textarea = agentInputRef.current;
+      const selectionStart = textarea?.selectionStart ?? effectiveComposerInput.length;
+      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+      const insertedPrompt = insertDroppedPromptTextAtSelection({
+        composerText: effectiveComposerInput,
+        droppedPromptText,
+        selectionStart,
+        selectionEnd,
+      });
+      effectiveAgentInputChange?.(insertedPrompt.prompt);
+      requestAnimationFrame(() => {
+        agentInputRef.current?.focus();
+        agentInputRef.current?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+      });
       return;
     }
     onAgentAttachmentDrop?.(event);
@@ -220,10 +225,10 @@ export function PromptStep({
   };
   const historyDropHandlers = dropToInputComposer
     ? {
-        onDrop: handleComposerAttachmentDrop,
-        onDragOver: handleComposerAttachmentDragOver,
-        onDragEnter: handleComposerAttachmentDragEnter,
-        onDragLeave: handleComposerAttachmentDragLeave,
+        onDrop: undefined,
+        onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
       }
     : {
         onDrop: onAgentAttachmentDrop,
@@ -246,10 +251,10 @@ export function PromptStep({
       };
   const rootDropHandlers = dropToInputComposer
     ? {
-        onDrop: handleComposerAttachmentDrop,
-        onDragOver: handleComposerAttachmentDragOver,
-        onDragEnter: handleComposerAttachmentDragEnter,
-        onDragLeave: handleComposerAttachmentDragLeave,
+        onDrop: undefined,
+        onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
       }
     : {
         onDrop,
@@ -384,10 +389,6 @@ export function PromptStep({
                 embedSendButtonInInput={embedSendButtonInInput}
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}
-                onSavePrompt={onSavePrompt}
-                shouldDisableChatPin={shouldDisableChatPin}
-                chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
-                chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
@@ -404,10 +405,6 @@ export function PromptStep({
                 onAgentSend={onAgentSend}
                 agentIsSending={agentIsSending}
                 agentBootstrapPending={agentBootstrapPending}
-                onSavePrompt={onSavePrompt}
-                shouldDisableSave={shouldDisableSave}
-                promptSaveButtonClassName={promptSaveButtonClassName}
-                promptSaveButtonUnstyled={promptSaveButtonUnstyled}
                 autoResize={autoResize}
                 autoResizeLayoutKey={autoResizeLayoutKey}
                 inlineAction={promptInlineAction}

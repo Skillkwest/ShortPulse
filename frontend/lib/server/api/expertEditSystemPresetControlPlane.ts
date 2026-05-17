@@ -7,7 +7,17 @@ import {
   normalizeExpertEditSystemPresetDefinitions,
   SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
   type ExpertEditSystemPresetDefinition,
-} from "../../../features/ai-studio/components/edit/expertEditPresets";
+} from "../../model-runtime/expertEditPresetDomain";
+import {
+  asNullableString,
+  clearControlPlaneCatalogCacheState,
+  createControlPlaneCatalogCacheState,
+  hasSupabaseAdminConfig,
+  resolveCachedControlPlaneCatalog,
+  resolveControlPlaneCatalogForAdmin,
+  saveControlPlaneCatalog,
+  type ControlPlaneCatalogSupabaseParams,
+} from "./controlPlaneCatalogCore";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type ActiveExpertEditSystemPresetCatalog = {
@@ -22,12 +32,11 @@ export type RuntimeExpertEditSystemPresetCatalogResolution = {
   updatedAt: string | null;
   updatedByEmail: string | null;
   source: "control_plane" | "seed";
+  degraded: boolean;
 };
 
 export type RuntimeExpertEditSystemPresetCatalogAdminResolution =
-  RuntimeExpertEditSystemPresetCatalogResolution & {
-    degraded: boolean;
-  };
+  RuntimeExpertEditSystemPresetCatalogResolution;
 
 export class ExpertEditSystemPresetCatalogVersionMismatchError extends Error {
   constructor() {
@@ -36,38 +45,11 @@ export class ExpertEditSystemPresetCatalogVersionMismatchError extends Error {
   }
 }
 
-const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
-const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
-const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
-
-let runtimeExpertEditSystemPresetCatalogCache: {
-  expiresAtMs: number;
-  value: ActiveExpertEditSystemPresetCatalog | null;
-} | null = null;
-
-const asNullableString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
-};
-
-const resolveControlPlaneCacheTtlMs = (rawValue?: string | null): number => {
-  const parsed = Number(rawValue ?? String(DEFAULT_CONTROL_PLANE_CACHE_TTL_MS));
-  if (!Number.isFinite(parsed)) return DEFAULT_CONTROL_PLANE_CACHE_TTL_MS;
-  return Math.max(
-    MIN_CONTROL_PLANE_CACHE_TTL_MS,
-    Math.min(MAX_CONTROL_PLANE_CACHE_TTL_MS, Math.floor(parsed))
-  );
-};
-
-const hasSupabaseAdminConfig = (): boolean =>
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.trim().length > 0 &&
-  typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
+const runtimeExpertEditSystemPresetCatalogCache =
+  createControlPlaneCatalogCacheState<RuntimeExpertEditSystemPresetCatalogResolution>();
 
 export const clearExpertEditSystemPresetControlPlaneCacheForTests = (): void => {
-  runtimeExpertEditSystemPresetCatalogCache = null;
+  clearControlPlaneCatalogCacheState(runtimeExpertEditSystemPresetCatalogCache);
 };
 
 export const getSeededExpertEditSystemPresetDefinitions =
@@ -75,9 +57,7 @@ export const getSeededExpertEditSystemPresetDefinitions =
 
 export const fetchActiveExpertEditSystemPresetCatalog = async ({
   supabaseAdmin = getSupabaseAdmin(),
-}: {
-  supabaseAdmin?: SupabaseClient;
-} = {}): Promise<ActiveExpertEditSystemPresetCatalog | null> => {
+}: ControlPlaneCatalogSupabaseParams = {}): Promise<ActiveExpertEditSystemPresetCatalog | null> => {
   const { data, error } = await supabaseAdmin
     .from("expert_edit_system_preset_runtime")
     .select("preset_definitions, updated_at, updated_by_user_id, updated_by_email")
@@ -105,108 +85,31 @@ export const resolveRuntimeExpertEditSystemPresetCatalog = async ({
   bypassCache?: boolean;
 } = {}): Promise<RuntimeExpertEditSystemPresetCatalogResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-    };
+    return buildSeedExpertEditSystemPresetCatalogResolution(false);
   }
 
-  const nowMs = Date.now();
-  if (
-    !bypassCache &&
-    runtimeExpertEditSystemPresetCatalogCache &&
-    runtimeExpertEditSystemPresetCatalogCache.expiresAtMs > nowMs
-  ) {
-    const cached = runtimeExpertEditSystemPresetCatalogCache.value;
-    if (cached) {
-      return {
-        presetDefinitions: cached.presetDefinitions,
-        updatedAt: cached.updatedAt,
-        updatedByEmail: cached.updatedByEmail,
-        source: "control_plane",
-      };
-    }
-    return {
-      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-    };
-  }
-
-  try {
-    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog();
-    runtimeExpertEditSystemPresetCatalogCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: activeCatalog,
-    };
-    if (activeCatalog) {
-      return {
-        presetDefinitions: activeCatalog.presetDefinitions,
-        updatedAt: activeCatalog.updatedAt,
-        updatedByEmail: activeCatalog.updatedByEmail,
-        source: "control_plane",
-      };
-    }
-  } catch {
-    runtimeExpertEditSystemPresetCatalogCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: null,
-    };
-  }
-
-  return {
-    presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-    updatedAt: null,
-    updatedByEmail: null,
-    source: "seed",
-  };
+  return resolveCachedControlPlaneCatalog({
+    cacheState: runtimeExpertEditSystemPresetCatalogCache,
+    bypassCache,
+    controlPlaneCacheTtlMs,
+    fetchActiveCatalog: fetchActiveExpertEditSystemPresetCatalog,
+    buildControlPlaneResolution: buildControlPlaneExpertEditSystemPresetCatalogResolution,
+    buildSeedResolution: buildSeedExpertEditSystemPresetCatalogResolution,
+  });
 };
 
 export const resolveExpertEditSystemPresetCatalogForAdmin = async ({
   supabaseAdmin = getSupabaseAdmin(),
-}: {
-  supabaseAdmin?: SupabaseClient;
-} = {}): Promise<RuntimeExpertEditSystemPresetCatalogAdminResolution> => {
+}: ControlPlaneCatalogSupabaseParams = {}): Promise<RuntimeExpertEditSystemPresetCatalogAdminResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
+    return buildSeedExpertEditSystemPresetCatalogResolution(false);
   }
 
-  try {
-    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
-    if (activeCatalog) {
-      return {
-        presetDefinitions: activeCatalog.presetDefinitions,
-        updatedAt: activeCatalog.updatedAt,
-        updatedByEmail: activeCatalog.updatedByEmail,
-        source: "control_plane",
-        degraded: false,
-      };
-    }
-    return {
-      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
-  } catch {
-    return {
-      presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: true,
-    };
-  }
+  return resolveControlPlaneCatalogForAdmin({
+    fetchActiveCatalog: () => fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin }),
+    buildControlPlaneResolution: buildControlPlaneExpertEditSystemPresetCatalogResolution,
+    buildSeedResolution: buildSeedExpertEditSystemPresetCatalogResolution,
+  });
 };
 
 export const saveExpertEditSystemPresetCatalog = async ({
@@ -221,35 +124,51 @@ export const saveExpertEditSystemPresetCatalog = async ({
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveExpertEditSystemPresetCatalog> => {
-  const normalizedDefinitions = normalizeExpertEditSystemPresetDefinitions(presetDefinitions);
-  if (expectedUpdatedAt !== undefined) {
-    const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
-    const normalizedExpectedUpdatedAt = asNullableString(expectedUpdatedAt);
-    const activeUpdatedAt = activeCatalog?.updatedAt ?? null;
-    if (activeUpdatedAt !== normalizedExpectedUpdatedAt) {
-      throw new ExpertEditSystemPresetCatalogVersionMismatchError();
-    }
-  }
-  const { error } = await supabaseAdmin.from("expert_edit_system_preset_runtime").upsert(
-    {
-      singleton: true,
-      preset_definitions: normalizedDefinitions,
-      updated_by_user_id: actorUserId ?? null,
-      updated_by_email: actorEmail ?? null,
-      updated_at: new Date().toISOString(),
+}): Promise<ActiveExpertEditSystemPresetCatalog> =>
+  saveControlPlaneCatalog({
+    definitions: presetDefinitions,
+    normalizeDefinitions: normalizeExpertEditSystemPresetDefinitions,
+    expectedUpdatedAt,
+    fetchActiveCatalog: () => fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin }),
+    getActiveUpdatedAt: (activeCatalog) => activeCatalog.updatedAt,
+    createVersionMismatchError: () => new ExpertEditSystemPresetCatalogVersionMismatchError(),
+    persistDefinitions: async (normalizedDefinitions) => {
+      const { error } = await supabaseAdmin.from("expert_edit_system_preset_runtime").upsert(
+        {
+          singleton: true,
+          preset_definitions: normalizedDefinitions,
+          updated_by_user_id: actorUserId ?? null,
+          updated_by_email: actorEmail ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "singleton" }
+      );
+
+      if (error) {
+        throw new Error(error.message || "Failed to save Expert Edit system preset catalog.");
+      }
     },
-    { onConflict: "singleton" }
-  );
+    clearCache: clearExpertEditSystemPresetControlPlaneCacheForTests,
+    reReadActiveCatalog: () => fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin }),
+    missingActiveCatalogMessage: "Expert Edit system preset save did not produce a runtime row.",
+  });
 
-  if (error) {
-    throw new Error(error.message || "Failed to save Expert Edit system preset catalog.");
-  }
+const buildControlPlaneExpertEditSystemPresetCatalogResolution = (
+  activeCatalog: ActiveExpertEditSystemPresetCatalog
+): RuntimeExpertEditSystemPresetCatalogResolution => ({
+  presetDefinitions: activeCatalog.presetDefinitions,
+  updatedAt: activeCatalog.updatedAt,
+  updatedByEmail: activeCatalog.updatedByEmail,
+  source: "control_plane",
+  degraded: false,
+});
 
-  clearExpertEditSystemPresetControlPlaneCacheForTests();
-  const activeCatalog = await fetchActiveExpertEditSystemPresetCatalog({ supabaseAdmin });
-  if (!activeCatalog) {
-    throw new Error("Expert Edit system preset save did not produce a runtime row.");
-  }
-  return activeCatalog;
-};
+const buildSeedExpertEditSystemPresetCatalogResolution = (
+  degraded: boolean
+): RuntimeExpertEditSystemPresetCatalogResolution => ({
+  presetDefinitions: getSeededExpertEditSystemPresetDefinitions(),
+  updatedAt: null,
+  updatedByEmail: null,
+  source: "seed",
+  degraded,
+});

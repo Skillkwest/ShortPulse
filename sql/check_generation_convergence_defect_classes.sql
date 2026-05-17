@@ -78,12 +78,15 @@ defect_rows as (
         then 'outputs_without_publications'
       when sg.output_count > 0 and sg.publication_count < sg.output_count
         then 'partial_publication_coverage'
-      when sg.published_count > 0 and sg.projection_task_state = ''
+      when sg.published_count > 0 and sg.projection_task_state is null
         then 'published_without_projection'
       when sg.published_count > 0 and sg.projection_task_state <> 'success'
         then 'published_with_nonterminal_projection'
       when sg.terminal_observation_count > 0
-        and (sg.projection_task_state = '' or sg.projection_task_state not in ('success', 'fail'))
+        and (
+          sg.projection_task_state is null
+          or sg.projection_task_state not in ('success', 'fail')
+        )
         then 'terminal_observation_with_nonterminal_projection'
       else null
     end as defect_class

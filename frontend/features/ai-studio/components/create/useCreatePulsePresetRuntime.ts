@@ -11,7 +11,6 @@ import {
   resolveCreatePulsePresetLabelById,
   sortCreatePulsePresetIdsByCanonicalOrder,
   upsertCreatePulseSavedPreset,
-  type CreatePulsePresetDragPayload,
   type CreatePulsePresetId,
   type CreatePulsePresetStartResult,
   type CreatePulseResolvedPreset,
@@ -22,6 +21,7 @@ import {
   setOpaqueCreatePulsePresetDragImage,
   writeCreatePulsePresetDragTransfer,
 } from "./createPulsePresetUtilities";
+import { usePresetDragDropRuntime } from "../shared/usePresetDragDropRuntime";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { createPulseSessionInstanceId } from "../../logic/pulseSessionIdentity";
 
@@ -72,20 +72,6 @@ export const useCreatePulsePresetRuntime = ({
   clearStatusMessage,
   isActivationBusy = false,
 }: UseCreatePulsePresetRuntimeParams) => {
-  const activePresetDragPayloadRef = React.useRef<CreatePulsePresetDragPayload | null>(null);
-  const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
-  const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
-  const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
-
-  React.useEffect(() => {
-    return () => {
-      if (presetDragPreviewCleanupRef.current) {
-        presetDragPreviewCleanupRef.current();
-        presetDragPreviewCleanupRef.current = null;
-      }
-    };
-  }, []);
-
   const addPresetToPanel = React.useCallback(
     async (presetId: CreatePulsePresetId | null | undefined): Promise<AddPresetToPanelResult> => {
       if (!presetId) return "already_present" as const;
@@ -264,128 +250,29 @@ export const useCreatePulsePresetRuntime = ({
     [clearStatusMessage, showPersistentStatus, updateSavedPresets]
   );
 
-  const beginPresetDragSession = React.useCallback(
-    (
-      event: React.DragEvent<HTMLButtonElement>,
-      payload: CreatePulsePresetDragPayload,
-      label: string
-    ) => {
-      event.stopPropagation();
-      activePresetDragPayloadRef.current = payload;
-      event.dataTransfer.effectAllowed = "move";
-      writeCreatePulsePresetDragTransfer(event.dataTransfer, payload, label);
-      if (presetDragPreviewCleanupRef.current) {
-        presetDragPreviewCleanupRef.current();
-        presetDragPreviewCleanupRef.current = null;
-      }
-      presetDragPreviewCleanupRef.current = setOpaqueCreatePulsePresetDragImage(
-        event.dataTransfer,
-        event.currentTarget
-      );
-      if (!presetDragPreviewCleanupRef.current) return;
-      window.setTimeout(() => {
-        if (presetDragPreviewCleanupRef.current) {
-          presetDragPreviewCleanupRef.current();
-          presetDragPreviewCleanupRef.current = null;
-        }
-      }, 0);
-    },
-    []
-  );
-
-  const handleSurfacePresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, presetId: CreatePulsePresetId) => {
-      beginPresetDragSession(
-        event,
-        { presetId, source: "surface" },
-        resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions)
-      );
-    },
-    [beginPresetDragSession, builtInDefinitions, savedPresets]
-  );
-
-  const handlePanelPresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, presetId: CreatePulsePresetId) => {
-      beginPresetDragSession(
-        event,
-        { presetId, source: "panel" },
-        resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions)
-      );
-    },
-    [beginPresetDragSession, builtInDefinitions, savedPresets]
-  );
-
-  const handlePresetDragEnd = React.useCallback(() => {
-    setIsPresetPanelDropActive(false);
-    setIsPresetsSurfaceDropActive(false);
-    activePresetDragPayloadRef.current = null;
-    if (presetDragPreviewCleanupRef.current) {
-      presetDragPreviewCleanupRef.current();
-      presetDragPreviewCleanupRef.current = null;
-    }
-  }, []);
-
-  const handlePresetPanelDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const payload = resolveCreatePulsePresetDragPayload(
-      event.dataTransfer,
-      activePresetDragPayloadRef.current
-    );
-    if (!payload || payload.source !== "surface") return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
-    setIsPresetPanelDropActive(true);
-  }, []);
-
-  const handlePresetPanelDragLeave = React.useCallback(() => {
-    setIsPresetPanelDropActive(false);
-  }, []);
-
-  const handlePresetPanelDrop = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      const payload = resolveCreatePulsePresetDragPayload(
-        event.dataTransfer,
-        activePresetDragPayloadRef.current
-      );
-      if (!payload || payload.source !== "surface") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPresetPanelDropActive(false);
-      void addPresetToPanel(payload.presetId);
-    },
-    [addPresetToPanel]
-  );
-
-  const handlePresetsSurfaceDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const payload = resolveCreatePulsePresetDragPayload(
-      event.dataTransfer,
-      activePresetDragPayloadRef.current
-    );
-    if (!payload || payload.source !== "panel") return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
-    setIsPresetsSurfaceDropActive(true);
-  }, []);
-
-  const handlePresetsSurfaceDragLeave = React.useCallback(() => {
-    setIsPresetsSurfaceDropActive(false);
-  }, []);
-
-  const handlePresetsSurfaceDrop = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      const payload = resolveCreatePulsePresetDragPayload(
-        event.dataTransfer,
-        activePresetDragPayloadRef.current
-      );
-      if (!payload || payload.source !== "panel") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPresetsSurfaceDropActive(false);
-      void removePresetFromPanel(payload.presetId);
-    },
-    [removePresetFromPanel]
-  );
+  const {
+    isPresetPanelDropActive,
+    isPresetsSurfaceDropActive,
+    handleSurfacePresetDragStart,
+    handlePanelPresetDragStart,
+    handlePresetDragEnd,
+    handlePresetPanelDragOver,
+    handlePresetPanelDragLeave,
+    handlePresetPanelDrop,
+    handlePresetsSurfaceDragOver,
+    handlePresetsSurfaceDragLeave,
+    handlePresetsSurfaceDrop,
+  } = usePresetDragDropRuntime<CreatePulsePresetId>({
+    resolvePayload: resolveCreatePulsePresetDragPayload,
+    writeDragTransfer: writeCreatePulsePresetDragTransfer,
+    setOpaqueDragImage: setOpaqueCreatePulsePresetDragImage,
+    resolveSurfacePresetLabel: (presetId) =>
+      resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions),
+    resolvePanelPresetLabel: (presetId) =>
+      resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions),
+    addPresetToPanel,
+    removePresetFromPanel,
+  });
 
   return {
     handleCustomPresetSave,

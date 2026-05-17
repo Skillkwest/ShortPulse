@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { normalizeExpertEditSystemPresetDefinitions } from "../../../../features/ai-studio/components/edit/expertEditPresets";
+import { normalizeExpertEditSystemPresetDefinitions } from "../../../../lib/model-runtime/expertEditPresetDomain";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import {

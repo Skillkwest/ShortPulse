@@ -44,7 +44,7 @@ describe("createGenerationGuards", () => {
     ).toBe(false);
   });
 
-  it("disables create-panel output generate when selectors are incomplete", () => {
+  it("keeps create-panel output generate available when only create selectors are incomplete", () => {
     expect(
       shouldDisableCreatePanelOutputGenerate({
         mode: "image",
@@ -54,7 +54,7 @@ describe("createGenerationGuards", () => {
         characterModeEnabled: true,
         selectedCharacterId: "",
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldDisableCreatePanelOutputGenerate({
         mode: "image",
@@ -77,7 +77,7 @@ describe("createGenerationGuards", () => {
     ).toBe(false);
   });
 
-  it("disables agent-output generate only for create/text when create selectors are incomplete", () => {
+  it("keeps agent-output generate available when only create selectors are incomplete", () => {
     expect(
       shouldDisableAgentOutputGenerate({
         mode: "image",
@@ -88,7 +88,7 @@ describe("createGenerationGuards", () => {
         characterModeEnabled: false,
         selectedCharacterId: "",
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldDisableAgentOutputGenerate({
         mode: "image",

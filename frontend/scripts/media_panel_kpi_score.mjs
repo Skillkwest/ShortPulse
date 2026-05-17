@@ -912,6 +912,43 @@ export const buildMarkdownReport = (scored) => {
   }
 
   if (scored.analysis && typeof scored.analysis === "object") {
+    if (typeof scored.analysis.requestedRootTab === "string" && scored.analysis.requestedRootTab) {
+      lines.push("", "## Capture Scope");
+      lines.push(`- Requested root tab: ${scored.analysis.requestedRootTab}`);
+    }
+    const openPhaseListSummary =
+      scored.analysis.openPhaseListSummary &&
+      typeof scored.analysis.openPhaseListSummary === "object"
+        ? scored.analysis.openPhaseListSummary
+        : null;
+    if (openPhaseListSummary) {
+      lines.push("", "## Open-Phase List Summary");
+      lines.push(`- Samples: ${openPhaseListSummary.samples ?? "n/a"}`);
+      lines.push(
+        `- Request shape: mediaKind=${openPhaseListSummary.dominantMediaKind ?? "unknown"}, profile=${openPhaseListSummary.dominantProfile ?? "unknown"}, includeLibraryTotalCount=${openPhaseListSummary.includeLibraryTotalCount === true ? "true" : "false"}`
+      );
+      lines.push(`- Average row count: ${openPhaseListSummary.averageRowCount ?? "n/a"}`);
+      lines.push(
+        `- Average row mix: image=${openPhaseListSummary.averageCountsByKind?.image ?? "n/a"}, video=${openPhaseListSummary.averageCountsByKind?.video ?? "n/a"}, audio=${openPhaseListSummary.averageCountsByKind?.audio ?? "n/a"}, other=${openPhaseListSummary.averageCountsByKind?.other ?? "n/a"}`
+      );
+      lines.push(
+        `- Average durable field coverage: thumb=${openPhaseListSummary.averageWithThumbVariantCount ?? "n/a"}, poster=${openPhaseListSummary.averageWithPosterVariantCount ?? "n/a"}, preview=${openPhaseListSummary.averageWithPreviewVariantCount ?? "n/a"}, any=${openPhaseListSummary.averageWithAnyDurablePreviewCount ?? "n/a"}`
+      );
+      lines.push(
+        `- Average seeded signed rows: ${openPhaseListSummary.averageSignedSeedCount ?? "n/a"}`
+      );
+      const representativeFirstRows = Array.isArray(openPhaseListSummary.representativeFirstRows)
+        ? openPhaseListSummary.representativeFirstRows
+        : [];
+      if (representativeFirstRows.length > 0) {
+        lines.push("- Representative first rows:");
+        for (const row of representativeFirstRows) {
+          lines.push(
+            `  - ${row.fileType ?? "unknown"} / ${row.source ?? "unknown"} (thumb=${row.hasThumbVariant === true ? "y" : "n"}, poster=${row.hasPosterVariant === true ? "y" : "n"}, preview=${row.hasPreviewVariant === true ? "y" : "n"})`
+          );
+        }
+      }
+    }
     const openPhaseSignTabBreakdown = Array.isArray(scored.analysis.openPhaseSignTabBreakdown)
       ? scored.analysis.openPhaseSignTabBreakdown
       : [];

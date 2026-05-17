@@ -160,22 +160,6 @@
   font-size: 9px;
 }
 
-/* Shared response-generate CTA style for bubble controls and expert chat-off inline generate. */
-.create-expert-panel
-  .create-expert-prompt-step
-  .agent-message.agent-assistant.agent-message--with-output-generate
-  .agent-output-bubble-controls
-  .agent-output-apply-btn {
-  width: var(--create-expert-output-column-width, 94px);
-  min-width: var(--create-expert-output-column-width, 94px);
-  max-width: var(--create-expert-output-column-width, 94px);
-  min-height: 38px;
-  padding: 10px 6px;
-  border-radius: 10px;
-  font-size: 12px;
-  line-height: 1.1;
-}
-
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate

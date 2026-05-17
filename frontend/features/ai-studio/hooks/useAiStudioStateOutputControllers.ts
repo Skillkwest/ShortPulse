@@ -79,7 +79,6 @@ export const useAiStudioStateOutputControllers = ({
     ensureOutputPersisted,
     saveActiveOutput,
     saveReferenceToLibrary,
-    savePromptReference,
     savePromptToLibrary,
   } = useAiStudioPersistenceActions({
     projectId,
@@ -102,7 +101,6 @@ export const useAiStudioStateOutputControllers = ({
     forceDeleteOutput,
     notifyGenerationFailure,
     saveActiveOutput,
-    savePromptReference,
     savePromptToLibrary,
     saveReferenceToLibrary,
     updateOutputById,

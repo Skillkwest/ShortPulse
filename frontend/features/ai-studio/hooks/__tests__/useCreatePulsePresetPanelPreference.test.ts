@@ -13,6 +13,8 @@ const scopedCreatePulsePresetPanelIdsStorageKey = (userId: string) =>
   `${CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY}:${userId}`;
 const scopedCreatePulseSavedPresetsStorageKey = (userId: string) =>
   `${CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY}:${userId}`;
+const scopedCreatePulseHiddenBuiltInsStorageKey = (userId: string) =>
+  `${CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY}:${userId}`;
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
@@ -332,6 +334,67 @@ describe("useCreatePulsePresetPanelPreference", () => {
         systemInstructions:
           "Treat the product like a premium hero with one decisive benefit frame.",
         createdAt: null,
+      }),
+    ]);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("preserves local hidden built-ins when signed-in remote Pulse preferences load", async () => {
+    window.localStorage.setItem(
+      scopedCreatePulseHiddenBuiltInsStorageKey("user-hidden-local"),
+      JSON.stringify(["image"])
+    );
+
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ai_studio_create_pulse_panel_ids: ["image", "multi_shot"],
+        ai_studio_saved_pulses: [
+          {
+            presetId: "pulse_custom",
+            label: "Hook Builder",
+            systemInstructions: "Lead with one fast product hook and a clean payoff.",
+            createdAt: null,
+          },
+        ],
+      },
+      error: null,
+    });
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-hidden-local");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["multi_shot"]);
+    expect(result.current.savedPresets).toEqual([
+      buildExpectedSavedPulse({
+        presetId: "pulse_custom",
+        label: "Hook Builder",
+        systemInstructions: "Lead with one fast product hook and a clean payoff.",
+        createdAt: null,
+      }),
+      expect.objectContaining({
+        presetId: "image",
+        label: "Video Prompt Magic",
+        isHidden: true,
       }),
     ]);
     expect(upsert).not.toHaveBeenCalled();

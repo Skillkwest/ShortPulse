@@ -205,7 +205,6 @@ const useAiStudioCreatePanelRuntime = ({
     pulsePrompt,
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,
-    savePromptReference,
     selectedCreateCharacterLookLabel,
     selectedTool,
     setAspect,
@@ -322,7 +321,6 @@ const useAiStudioCreatePanelRuntime = ({
           expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
           onPulsePromptChange: handlePulseCreatePromptChange,
           onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-          onSavePromptReference: savePromptReference,
           pulsePreferenceRuntime,
           generationServices: { handleGenerate },
         },
@@ -404,7 +402,6 @@ const useAiStudioCreatePanelRuntime = ({
         onPromptChange: handleStandardCreatePromptChange,
         onAspectChange: setAspect,
         onModelPickerOpen: handleOpenModelModal,
-        onSavePromptReference: savePromptReference,
         onSelectedCharacterChange: handleCreateCharacterSelection,
         onOpenCharacterLibrary: handleOpenCharacterLibrary,
         onCharacterModeChange: setIsCreateCharacterModeEnabled,
@@ -489,8 +486,8 @@ const useAiStudioCreatePanelRuntime = ({
     handleAgentAttachmentDrop,
     handleAgentInputChange,
     handleAgentSend,
-    handleAssistantMessageEdit,
     handleApplyAgentOutputPrompt,
+    handleAssistantMessageEdit,
     handleClearAgentAttachments,
     handleClearAgentChat,
     handleCreateCharacterSelection,
@@ -523,7 +520,6 @@ const useAiStudioCreatePanelRuntime = ({
     pulsePrompt,
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,
-    savePromptReference,
     selectedCreateCharacterLookLabel,
     selectedTool,
     setAspect,
@@ -613,9 +609,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     },
     [base]
   );
-  const handleVideoPromptSave = useCallback(() => {
-    base.savePromptReference(base.videoReferenceText ?? "");
-  }, [base]);
   const videoPanelProps = useAiStudioVideoPanelProps({
     aspect: base.aspect,
     model: base.model,
@@ -670,7 +663,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     setExtraImageUrl: base.setVideoExtraImageUrl,
     setMotionReferenceVideoUrl: base.setMotionReferenceVideoUrl,
     handleVideoPromptTextChange,
-    handleVideoPromptSave,
     handleRegenerateWithDebit,
     currentCostCredits,
     referenceImageWarning,

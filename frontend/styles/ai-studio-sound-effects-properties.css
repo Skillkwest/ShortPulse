@@ -32,8 +32,19 @@
 }
 
 .sound-effects-properties-top-spacer {
+  display: flex;
+  align-items: flex-start;
+  padding: 18px 20px 12px;
   flex: 0 0 auto;
   min-height: 0;
+}
+
+.sound-effects-properties-title {
+  margin: 0;
+  color: rgba(242, 247, 255, 0.95);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .sound-effects-properties-compose-area {
@@ -172,14 +183,14 @@
 
 .sound-effects-properties-inspiration-chip {
   flex: 0 0 auto;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid rgba(201, 205, 214, 0.12);
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(201, 205, 214, 0.1);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(242, 247, 255, 0.9);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 247, 255, 0.88);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -189,8 +200,8 @@
 }
 
 .sound-effects-properties-inspiration-chip:hover {
-  border-color: rgba(201, 205, 214, 0.2);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(144, 212, 255, 0.2);
+  background: rgba(144, 212, 255, 0.08);
 }
 
 .sound-effects-properties-inspiration-controls {

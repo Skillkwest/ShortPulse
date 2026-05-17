@@ -5,20 +5,7 @@
 import React, { createContext, useContext } from "react";
 import { useCreatePulsePresetPanelPreference } from "../../hooks/useCreatePulsePresetPanelPreference";
 import { useCreatePulseBuiltInCatalog } from "../../hooks/useCreatePulseBuiltInCatalog";
-import type {
-  CreatePulseBuiltInPresetDefinition,
-  CreatePulsePresetId,
-  CreatePulseSavedPreset,
-} from "./createPulsePresets";
-
-export type CreatePulsePreferenceRuntimeValue = {
-  presetPanelIds: readonly CreatePulsePresetId[];
-  savedPresets: readonly CreatePulseSavedPreset[];
-  builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[];
-  builtInDefinitionsLoading: boolean;
-  setPresetPanelIds: (value: CreatePulsePresetId[]) => Promise<boolean>;
-  setSavedPresets: (value: CreatePulseSavedPreset[]) => Promise<boolean>;
-};
+import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 
 const CreatePulsePreferenceContext = createContext<CreatePulsePreferenceRuntimeValue | null>(null);
 

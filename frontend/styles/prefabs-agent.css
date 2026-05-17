@@ -570,30 +570,11 @@
 }
 
 .agent-send-prefab,
-.agent-save-prefab {
-  width: 60px;
-  height: 60px;
-  border-radius: 14px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #25a8bf7c;
-  background: #6e818d2f;
-  color: #25a8bf;
-  transition:
-    box-shadow 0.16s ease,
-    transform 0.12s ease;
-}
-.agent-send-prefab:not(:disabled),
-.agent-save-prefab:not(:disabled) {
+.agent-send-prefab:not(:disabled) {
   cursor: pointer;
 }
 .agent-send-prefab {
   box-shadow: var(--agent-send-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
-}
-.agent-save-prefab {
-  box-shadow: var(--agent-save-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
 }
 .agent-enhance-prefab {
   flex-direction: row;
@@ -606,19 +587,14 @@
 .agent-enhance-label {
   line-height: 1;
 }
-.agent-send-prefab:hover:not(:disabled),
-.agent-save-prefab:hover:not(:disabled) {
+.agent-send-prefab:hover:not(:disabled) {
   transform: translateY(1px);
   cursor: pointer;
 }
 .agent-send-prefab:hover:not(:disabled) {
   box-shadow: var(--agent-send-hover-shadow, 0 5px 12px rgba(4, 234, 255, 0.088));
 }
-.agent-save-prefab:hover:not(:disabled) {
-  box-shadow: var(--agent-save-hover-shadow, 0 5px 12px rgba(4, 234, 255, 0.088));
-}
-.agent-send-prefab:disabled,
-.agent-save-prefab:disabled {
+.agent-send-prefab:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
@@ -652,12 +628,6 @@
   }
 }
 
-.agent-save-prefab:disabled {
-  opacity: 1;
-  border-color: rgba(151, 159, 171, 0.55);
-  background: rgba(64, 70, 80, 0.18);
-  color: rgba(151, 159, 171, 0.9);
-}
 .prompt-fab-send {
   margin-left: auto;
 }

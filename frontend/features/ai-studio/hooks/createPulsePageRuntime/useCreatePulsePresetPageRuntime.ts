@@ -6,7 +6,7 @@ import {
   type CreatePulseResolvedPreset,
   type CreatePulseSavedPreset,
 } from "../../components/create/createPulsePresets";
-import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/CreatePulsePreferenceProvider";
+import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { StudioOutput, ToolId } from "../../types";
 import { useCreatePulseBuiltInCatalog } from "../useCreatePulseBuiltInCatalog";
 import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
@@ -213,7 +213,9 @@ export const useCreatePulsePresetPageRuntime = ({
           ? activeCreatePulsePresetSnapshot
           : null;
       const instructions = resolvedPulsePreset?.systemInstructions?.trim() ?? "";
-      if (!resolvedPulsePreset || !instructions) return baseContext;
+      if (!resolvedPulsePreset || (!instructions && resolvedPulsePreset.isBuiltIn !== true)) {
+        return baseContext;
+      }
       return {
         ...baseContext,
         pulse: {

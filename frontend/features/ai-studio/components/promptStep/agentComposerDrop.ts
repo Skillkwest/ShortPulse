@@ -11,6 +11,29 @@ type AgentComposerDropResolution = {
   isVideoReference: boolean;
 };
 
+export const insertDroppedPromptTextAtSelection = ({
+  composerText,
+  droppedPromptText,
+  selectionStart,
+  selectionEnd,
+}: {
+  composerText: string;
+  droppedPromptText: string;
+  selectionStart: number;
+  selectionEnd: number;
+}): { prompt: string; caret: number } => {
+  const currentText = typeof composerText === "string" ? composerText : "";
+  const insertedText = droppedPromptText.trim();
+  const start = Math.max(0, Math.min(currentText.length, selectionStart));
+  const end = Math.max(start, Math.min(currentText.length, selectionEnd));
+  const nextPrompt = `${currentText.slice(0, start)}${insertedText}${currentText.slice(end)}`;
+
+  return {
+    prompt: nextPrompt,
+    caret: start + insertedText.length,
+  };
+};
+
 export const resolveAgentComposerDrop = (
   transfer: DataTransfer | null | undefined
 ): AgentComposerDropResolution => {

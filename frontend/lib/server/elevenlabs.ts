@@ -6,6 +6,7 @@ import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaStorageQuotaUserMessage } from "../mediaStorageQuota";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
+import { toErrorMessage } from "./api/errorMessage";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
@@ -247,6 +248,49 @@ const associateGeneratedElevenLabsAssetWithProject = async ({
       },
     }).catch(() => undefined);
   }
+};
+
+const logBestEffortProjectionFailure = async ({
+  generationId,
+  mediaFileId,
+  mediaKind,
+  modelId,
+  projectId,
+  providerRequestId,
+  requestId,
+  sourceMode,
+  userId,
+  error,
+}: {
+  generationId: string;
+  mediaFileId: string | null;
+  mediaKind: "audio" | "video";
+  modelId: string;
+  projectId: string | null;
+  providerRequestId: string | null;
+  requestId: string;
+  sourceMode: string;
+  userId: string;
+  error: unknown;
+}): Promise<void> => {
+  await writeAppErrorLog({
+    source: "telemetry.elevenlabs.projection_write_failed",
+    message: "ElevenLabs generation projection write failed after canonical persistence succeeded.",
+    requestId,
+    userId,
+    statusCode: 200,
+    metadata: {
+      generation_id: generationId,
+      media_file_id: mediaFileId,
+      project_id: projectId,
+      provider: "elevenlabs",
+      provider_request_id: providerRequestId,
+      model_id: modelId,
+      media_kind: mediaKind,
+      source_mode: sourceMode,
+      projection_error: toErrorMessage(error, "Unknown error"),
+    },
+  }).catch(() => undefined);
 };
 
 const normalizeVoiceLookupKey = (value: string): string => value.trim().toLowerCase();
@@ -1091,31 +1135,46 @@ export const persistGeneratedAudioAsset = async ({
     });
   }
 
-  await upsertGenerationProjection({
-    generationId,
-    userId,
-    projectId: resolvedProjectId,
-    sourceRef: resolvedRequestId,
-    requestId: resolvedRequestId,
-    provider,
-    providerRequestId: resolvedProviderRequestId,
-    status: "success",
-    taskState: "success",
-    displayPrompt: promptText,
-    modelId,
-    previewUrl: signedResult.data.signedUrl,
-    previewStoragePath: storagePath,
-    fullStoragePath: storagePath,
-    saveState: saveOutcome.saveState,
-    saveError: saveOutcome.saveError,
-    hiddenInReferenceGrid: false,
-    referenceGridVisible: true,
-    publicationState: "published",
-    resultUrls: [signedResult.data.signedUrl],
-    savedMediaIds: mediaFileId ? [mediaFileId] : [],
-    startedAt: createdAtIso,
-    completedAt: createdAtIso,
-  });
+  try {
+    await upsertGenerationProjection({
+      generationId,
+      userId,
+      projectId: resolvedProjectId,
+      sourceRef: resolvedRequestId,
+      requestId: resolvedRequestId,
+      provider,
+      providerRequestId: resolvedProviderRequestId,
+      status: "success",
+      taskState: "success",
+      displayPrompt: promptText,
+      modelId,
+      previewUrl: signedResult.data.signedUrl,
+      previewStoragePath: storagePath,
+      fullStoragePath: storagePath,
+      saveState: saveOutcome.saveState,
+      saveError: saveOutcome.saveError,
+      hiddenInReferenceGrid: false,
+      referenceGridVisible: true,
+      publicationState: "published",
+      resultUrls: [signedResult.data.signedUrl],
+      savedMediaIds: mediaFileId ? [mediaFileId] : [],
+      startedAt: createdAtIso,
+      completedAt: createdAtIso,
+    });
+  } catch (error) {
+    await logBestEffortProjectionFailure({
+      generationId,
+      mediaFileId,
+      mediaKind: "audio",
+      modelId,
+      projectId: resolvedProjectId,
+      providerRequestId: resolvedProviderRequestId,
+      requestId: resolvedRequestId,
+      sourceMode,
+      userId,
+      error,
+    });
+  }
 
   await associateGeneratedElevenLabsAssetWithProject({
     generationId,
@@ -1395,32 +1454,47 @@ export const persistGeneratedVideoAsset = async ({
     });
   }
 
-  await upsertGenerationProjection({
-    generationId,
-    userId,
-    projectId: resolvedProjectId,
-    sourceRef: resolvedRequestId,
-    requestId: resolvedRequestId,
-    provider,
-    providerRequestId: resolvedProviderRequestId,
-    status: "success",
-    taskState: "success",
-    displayPrompt: promptText,
-    modelId,
-    previewUrl: signedResult.data.signedUrl,
-    previewStoragePath,
-    fullStoragePath: storagePath,
-    saveState: saveOutcome.saveState,
-    saveError: saveOutcome.saveError,
-    hiddenInReferenceGrid: false,
-    referenceGridVisible: true,
-    publicationState: "published",
-    resultUrls: [signedResult.data.signedUrl],
-    savedMediaIds: mediaFileId ? [mediaFileId] : [],
-    generationReplay,
-    startedAt: createdAtIso,
-    completedAt: createdAtIso,
-  });
+  try {
+    await upsertGenerationProjection({
+      generationId,
+      userId,
+      projectId: resolvedProjectId,
+      sourceRef: resolvedRequestId,
+      requestId: resolvedRequestId,
+      provider,
+      providerRequestId: resolvedProviderRequestId,
+      status: "success",
+      taskState: "success",
+      displayPrompt: promptText,
+      modelId,
+      previewUrl: signedResult.data.signedUrl,
+      previewStoragePath,
+      fullStoragePath: storagePath,
+      saveState: saveOutcome.saveState,
+      saveError: saveOutcome.saveError,
+      hiddenInReferenceGrid: false,
+      referenceGridVisible: true,
+      publicationState: "published",
+      resultUrls: [signedResult.data.signedUrl],
+      savedMediaIds: mediaFileId ? [mediaFileId] : [],
+      generationReplay,
+      startedAt: createdAtIso,
+      completedAt: createdAtIso,
+    });
+  } catch (error) {
+    await logBestEffortProjectionFailure({
+      generationId,
+      mediaFileId,
+      mediaKind: "video",
+      modelId,
+      projectId: resolvedProjectId,
+      providerRequestId: resolvedProviderRequestId,
+      requestId: resolvedRequestId,
+      sourceMode,
+      userId,
+      error,
+    });
+  }
 
   await associateGeneratedElevenLabsAssetWithProject({
     generationId,

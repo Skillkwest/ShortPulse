@@ -158,6 +158,16 @@ const downscaleBlobToComposerPreviewUrl = async (
     canvas.height = targetHeight;
     context.drawImage(image, 0, 0, targetWidth, targetHeight);
 
+    try {
+      const previewDataUrl = canvas.toDataURL("image/jpeg", COMPOSER_PREVIEW_JPEG_QUALITY);
+      if (typeof previewDataUrl === "string" && previewDataUrl.startsWith("data:image/")) {
+        URL.revokeObjectURL(directObjectUrl);
+        return { url: previewDataUrl, owned: false };
+      }
+    } catch {
+      // Fall back to blob-backed thumbnail creation below.
+    }
+
     const previewBlob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(resolve, "image/jpeg", COMPOSER_PREVIEW_JPEG_QUALITY);
     });

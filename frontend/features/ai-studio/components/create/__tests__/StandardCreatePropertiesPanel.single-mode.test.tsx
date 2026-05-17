@@ -103,7 +103,6 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     onModelPickerOpen: vi.fn(),
     onPromptChange: vi.fn(),
     onGenerate: vi.fn(),
-    onSavePrompt: vi.fn(),
     characterModeEnabled: false,
   };
 

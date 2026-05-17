@@ -58,7 +58,7 @@ type MediaLibraryPanelFoldersSectionProps = {
   onContextDelete: () => Promise<void>;
 };
 
-export function MediaLibraryPanelFoldersSection({
+export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryPanelFoldersSection({
   ancestorFolders,
   folders,
   canNavigateUp,
@@ -380,4 +380,4 @@ export function MediaLibraryPanelFoldersSection({
       ) : null}
     </>
   );
-}
+});

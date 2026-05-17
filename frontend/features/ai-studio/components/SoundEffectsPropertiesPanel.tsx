@@ -111,7 +111,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       pricingPolicy,
       pricingPolicyReady,
     }) ?? null;
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating;
+  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,
@@ -251,11 +251,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     <section className="sound-effects-properties-panel tool-properties" aria-busy={isGenerating}>
       <div className="sound-effects-properties-shell">
         <div ref={splitContainerRef} className="sound-effects-properties-main">
-          <section
-            className="sound-effects-properties-top-spacer"
-            style={topSectionStyle}
-            aria-hidden="true"
-          />
+          <section className="sound-effects-properties-top-spacer" style={topSectionStyle}>
+            <h2 className="panel-title sound-effects-properties-title">Sound Effects</h2>
+          </section>
 
           <div
             className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"

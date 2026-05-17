@@ -219,8 +219,7 @@
 }
 
 .ai-properties.ai-properties--motion-flat .model-picker-btn.is-empty,
-.ai-properties.ai-properties--motion-flat .model-picker-btn:hover,
-.ai-properties.ai-properties--motion-flat .create-chat-pin-btn:hover {
+.ai-properties.ai-properties--motion-flat .model-picker-btn:hover {
   transform: none !important;
 }
 

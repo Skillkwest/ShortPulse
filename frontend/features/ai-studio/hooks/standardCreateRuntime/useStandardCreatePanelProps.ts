@@ -43,7 +43,7 @@ type UseStandardCreatePanelPropsParams = {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  handleApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
+  handleApplyAgentOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   setAspect: (value: string) => void;
@@ -62,9 +62,7 @@ type UseStandardCreatePanelPropsParams = {
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
-  useReferenceImageIndicator: boolean;
   handleStandardCreatePrimarySubmit: () => void;
-  savePromptReference: (customPrompt?: string) => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   selectedCharacterLookId?: string;
@@ -137,9 +135,7 @@ export const buildStandardCreatePanelProps = ({
   isGenerateDisabled,
   generationGuardrail,
   handleClearAgentChat,
-  useReferenceImageIndicator,
   handleStandardCreatePrimarySubmit,
-  savePromptReference,
   characterOptions,
   selectedCharacterId,
   selectedCharacterLookId,
@@ -211,9 +207,7 @@ export const buildStandardCreatePanelProps = ({
     isGenerateDisabled: isPrimaryGenerateDisabled,
     guardrailReason: primaryGenerateGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
-    shouldDisableSave: useReferenceImageIndicator && mode === "text",
     onGenerate: handleStandardCreatePrimarySubmit,
-    onSavePrompt: savePromptReference,
     characterOptions,
     selectedCharacterId,
     selectedCharacterLookId,

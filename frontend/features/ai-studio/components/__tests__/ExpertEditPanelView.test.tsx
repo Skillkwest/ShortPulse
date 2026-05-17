@@ -6792,7 +6792,9 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    });
     const composeCalls = composePrimaryStageLayersToBlobMock.mock.calls as unknown as Array<
       [
         Array<{
@@ -6809,6 +6811,49 @@ describe("ExpertEditPanelView", () => {
     expect(composedImageUrls[0]).toContain("layer-2.png");
     expect(composedImageUrls[1]).toContain("layer-1.png");
     expect(composedImageUrls[2]).toContain("layer-3.png");
+  });
+
+  it("accepts repeated inline generate clicks before stage flattening completes", async () => {
+    const flattenResolvers: Array<(value: Blob) => void> = [];
+    const createPendingFlatten = () =>
+      new Promise<Blob>((resolve) => {
+        flattenResolvers.push(resolve);
+      });
+    composePrimaryStageLayersToBlobMock
+      .mockImplementationOnce(createPendingFlatten)
+      .mockImplementationOnce(createPendingFlatten);
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => undefined);
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+
+    const generateButton = screen.getByRole("button", { name: /^generate$/i });
+
+    await act(async () => {
+      fireEvent.click(generateButton);
+      fireEvent.click(generateButton);
+      await Promise.resolve();
+    });
+
+    expect(generateButton).toBeEnabled();
+    await waitFor(() => {
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      flattenResolvers.splice(0).forEach((resolve, index) => {
+        resolve(new Blob([`flattened-stage-${index}`], { type: "image/png" }));
+      });
+    });
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(0);
   });
 
   it("promotes the sole remaining populated layer to layer 1 after clearing foundation", () => {

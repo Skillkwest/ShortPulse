@@ -1,3 +1,7 @@
+/**
+ * Unit coverage for Expert Edit submission preparation.
+ * Uses focused mocks to lock the preparation seam's validation and planning responsibilities.
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -246,5 +250,16 @@ describe("prepareExpertEditSubmission", () => {
       ["https://example.com/ref-1.png", null, null],
       { allowSecondaryTokens: true, maxSecondaryReferences: 1 }
     );
+  });
+
+  it("reuses a single prompt analysis pass during submission preparation", () => {
+    prepareExpertEditSubmission({
+      promptText: "Use @img1",
+      extraImageUrls: ["https://example.com/ref-1.png", null, null],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+    });
+
+    expect(analyzeExpertEditPromptTokensMock).toHaveBeenCalledTimes(1);
   });
 });

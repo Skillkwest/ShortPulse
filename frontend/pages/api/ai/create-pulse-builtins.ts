@@ -15,7 +15,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const builtInCatalog = await resolveRuntimeCreatePulseBuiltInCatalog();
     return res.status(200).json({
-      builtInDefinitions: builtInCatalog.builtInDefinitions,
+      builtInDefinitions: builtInCatalog.builtInDefinitions.map((definition) => {
+        const { systemInstructions, ...publicDefinition } = definition;
+        void systemInstructions;
+        return publicDefinition;
+      }),
       source: builtInCatalog.source,
       updatedAt: builtInCatalog.updatedAt,
       updatedByEmail: builtInCatalog.updatedByEmail,

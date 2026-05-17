@@ -417,7 +417,6 @@ export const useStandardCreateAgentRuntime = ({
     },
     [setAgentInput, setPromptOrigin, setStandardCreatePrompt, trackAgentUiEvent]
   );
-
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
     () => ({
       messages: agentMessages.map(serializeMessageForSnapshot),

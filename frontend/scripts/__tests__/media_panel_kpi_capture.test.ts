@@ -7,6 +7,7 @@ describe("media_panel_kpi_capture", () => {
     firstVisibleKind: "media",
     firstVisibleMs: 1420,
     loadingStateVisibleMs: 980,
+    stableContentSettleMs: 1680,
     stateFlipCount: 2,
     initialListRequestCount: 3,
     listRequestCount: 3,
@@ -43,6 +44,37 @@ describe("media_panel_kpi_capture", () => {
         },
       ],
     },
+    openPhaseListSummary: {
+      mediaKind: "all",
+      profile: "expanded",
+      rowCount: 36,
+      includeLibraryTotalCount: true,
+      countsByKind: {
+        image: 20,
+        video: 10,
+        audio: 6,
+        other: 0,
+      },
+      withThumbVariantCount: 20,
+      withPosterVariantCount: 10,
+      withPreviewVariantCount: 8,
+      withAnyDurablePreviewCount: 28,
+      signedSeedCount: 0,
+      firstRowsSample: [
+        {
+          fileType: "image/png",
+          source: "upload",
+          hasThumbVariant: true,
+          hasPosterVariant: false,
+          hasPreviewVariant: false,
+        },
+      ],
+    },
+    openPhaseVisiblePreviewSummary: {
+      visibleMediaCardCount: 6,
+      visiblePreviewReadyCount: 5,
+      visibleMissingPreviewCount: 1,
+    },
     ...overrides,
   });
 
@@ -50,11 +82,31 @@ describe("media_panel_kpi_capture", () => {
     const packet = buildPacketFromPanelCapture(
       {
         captures: [
-          createCaptureSample({ firstVisibleMs: 1200, loadingStateVisibleMs: 800 }),
-          createCaptureSample({ firstVisibleMs: 1300, loadingStateVisibleMs: 860 }),
-          createCaptureSample({ firstVisibleMs: 1420, loadingStateVisibleMs: 980 }),
-          createCaptureSample({ firstVisibleMs: 1500, loadingStateVisibleMs: 1010 }),
-          createCaptureSample({ firstVisibleMs: 1710, loadingStateVisibleMs: 1200 }),
+          createCaptureSample({
+            firstVisibleMs: 1200,
+            loadingStateVisibleMs: 800,
+            stableContentSettleMs: 1500,
+          }),
+          createCaptureSample({
+            firstVisibleMs: 1300,
+            loadingStateVisibleMs: 860,
+            stableContentSettleMs: 1600,
+          }),
+          createCaptureSample({
+            firstVisibleMs: 1420,
+            loadingStateVisibleMs: 980,
+            stableContentSettleMs: 1680,
+          }),
+          createCaptureSample({
+            firstVisibleMs: 1500,
+            loadingStateVisibleMs: 1010,
+            stableContentSettleMs: 1760,
+          }),
+          createCaptureSample({
+            firstVisibleMs: 1710,
+            loadingStateVisibleMs: 1200,
+            stableContentSettleMs: 1900,
+          }),
         ],
       },
       {
@@ -68,6 +120,7 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1668);
     expect(packet.metrics.openToFirstMediaP95Ms).toBe(1668);
     expect(packet.metrics.loadingStateVisibleMsP95).toBe(1162);
+    expect(packet.metrics.stableContentSettleMsP95).toBe(1872);
     expect(packet.metrics.stateFlipCountPerOpen).toBe(2);
     expect(packet.metrics.extraListCallsPerOpen).toBe(2);
     expect(packet.metrics.signBatchP95Ms).toBe(280);
@@ -76,10 +129,46 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.resolveFailedRatio).toBe(0);
     expect(packet.metrics.fallbackCallsPerOpen).toBe(1);
     expect(packet.metrics.fallbackFailedRatio).toBe(0);
-    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(0.6667);
+    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
+    expect(packet.metrics.missingPreviewRatio).toBe(0.1667);
     expect(packet.metrics.visualRegressionCount).toBeNull();
     expect(packet.metrics.emptyStateMismatchCount).toBeNull();
+    expect(packet.analysis.requestedRootTab).toBe("all");
     expect(packet.analysis.signStatsPhaseUsed).toBe("open");
+    expect(packet.analysis.openPhaseListSummary).toEqual({
+      samples: 5,
+      dominantMediaKind: "all",
+      dominantProfile: "expanded",
+      includeLibraryTotalCount: true,
+      averageRowCount: 36,
+      averageSignedSeedCount: 0,
+      averageWithThumbVariantCount: 20,
+      averageWithPosterVariantCount: 10,
+      averageWithPreviewVariantCount: 8,
+      averageWithAnyDurablePreviewCount: 28,
+      averageCountsByKind: {
+        image: 20,
+        video: 10,
+        audio: 6,
+        other: 0,
+      },
+      representativeFirstRows: [
+        {
+          fileType: "image/png",
+          source: "upload",
+          hasThumbVariant: true,
+          hasPosterVariant: false,
+          hasPreviewVariant: false,
+        },
+      ],
+    });
+    expect(packet.analysis.openPhaseVisiblePreviewSummary).toEqual({
+      samples: 5,
+      visibleMediaCardCount: 30,
+      visiblePreviewReadyCount: 25,
+      visibleMissingPreviewCount: 5,
+      missingPreviewRatio: 0.1667,
+    });
     expect(packet.analysis.openPhaseSignTabBreakdown).toEqual([
       {
         tab: "unknown",
@@ -87,9 +176,11 @@ describe("media_panel_kpi_capture", () => {
         signBatchP95Ms: 280,
         totalSigned: 60,
         totalFailed: 0,
+        totalPrimaryDurable: 40,
+        totalPrimaryOriginal: 20,
         totalResolvedDurable: 40,
         totalResolvedOriginal: 20,
-        canonicalPreviewCoverageRatio: 0.6667,
+        canonicalPreviewCoverageRatio: 1,
       },
     ]);
   });
@@ -97,14 +188,18 @@ describe("media_panel_kpi_capture", () => {
   it("keeps direct timing p95 fields null when fewer than five runs were captured", () => {
     const packet = buildPacketFromPanelCapture(createCaptureSample(), {
       environment: "production",
+      rootTab: "images",
     });
 
     expect(packet.sampleCount).toBe(1);
+    expect(packet.analysis.requestedRootTab).toBe("images");
     expect(packet.metrics.firstMediaPaintP95Ms).toBeNull();
     expect(packet.metrics.loadingStateVisibleMsP95).toBeNull();
     expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
+    expect(packet.metrics.stableContentSettleMsP95).toBeNull();
     expect(packet.metrics.signBatchP95Ms).toBe(280);
-    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(0.6667);
+    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
+    expect(packet.metrics.missingPreviewRatio).toBe(0.1667);
   });
 
   it("prefers open-phase sign stats over post-tab churn when deriving coverage", () => {
@@ -180,6 +275,40 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.signBatchP95Ms).toBe(210);
     expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
     expect(packet.analysis.signStatsPhaseUsed).toBe("open");
+    expect(packet.analysis.openPhaseListSummary).toEqual({
+      samples: 5,
+      dominantMediaKind: "all",
+      dominantProfile: "expanded",
+      includeLibraryTotalCount: true,
+      averageRowCount: 36,
+      averageSignedSeedCount: 0,
+      averageWithThumbVariantCount: 20,
+      averageWithPosterVariantCount: 10,
+      averageWithPreviewVariantCount: 8,
+      averageWithAnyDurablePreviewCount: 28,
+      averageCountsByKind: {
+        image: 20,
+        video: 10,
+        audio: 6,
+        other: 0,
+      },
+      representativeFirstRows: [
+        {
+          fileType: "image/png",
+          source: "upload",
+          hasThumbVariant: true,
+          hasPosterVariant: false,
+          hasPreviewVariant: false,
+        },
+      ],
+    });
+    expect(packet.analysis.openPhaseVisiblePreviewSummary).toEqual({
+      samples: 5,
+      visibleMediaCardCount: 30,
+      visiblePreviewReadyCount: 25,
+      visibleMissingPreviewCount: 5,
+      missingPreviewRatio: 0.1667,
+    });
     expect(packet.analysis.openPhaseSignTabBreakdown).toEqual([
       {
         tab: "uploaded_images",
@@ -187,6 +316,8 @@ describe("media_panel_kpi_capture", () => {
         signBatchP95Ms: 210,
         totalSigned: 30,
         totalFailed: 0,
+        totalPrimaryDurable: 30,
+        totalPrimaryOriginal: 0,
         totalResolvedDurable: 30,
         totalResolvedOriginal: 0,
         canonicalPreviewCoverageRatio: 1,
@@ -199,9 +330,11 @@ describe("media_panel_kpi_capture", () => {
         signBatchP95Ms: 510,
         totalSigned: 30,
         totalFailed: 0,
+        totalPrimaryDurable: 0,
+        totalPrimaryOriginal: 30,
         totalResolvedDurable: 0,
         totalResolvedOriginal: 30,
-        canonicalPreviewCoverageRatio: 0,
+        canonicalPreviewCoverageRatio: null,
       },
     ]);
   });
@@ -247,7 +380,93 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.surface).toBe("elements-media-panel");
     expect(packet.notes[0]).toContain("Elements embedded media panel");
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1186);
-    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(0.7);
+    expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
+  });
+
+  it("aggregates mixed open-phase list payloads into retained analysis", () => {
+    const packet = buildPacketFromPanelCapture(
+      {
+        captures: [
+          createCaptureSample({
+            openPhaseListSummary: {
+              mediaKind: "all",
+              profile: "expanded",
+              rowCount: 36,
+              includeLibraryTotalCount: true,
+              countsByKind: { image: 18, video: 12, audio: 6, other: 0 },
+              withThumbVariantCount: 18,
+              withPosterVariantCount: 12,
+              withPreviewVariantCount: 9,
+              withAnyDurablePreviewCount: 30,
+              signedSeedCount: 0,
+              firstRowsSample: [
+                {
+                  fileType: "audio/mpeg",
+                  source: "upload",
+                  hasThumbVariant: false,
+                  hasPosterVariant: false,
+                  hasPreviewVariant: false,
+                },
+              ],
+            },
+          }),
+          createCaptureSample({
+            openPhaseListSummary: {
+              mediaKind: "all",
+              profile: "expanded",
+              rowCount: 36,
+              includeLibraryTotalCount: true,
+              countsByKind: { image: 16, video: 14, audio: 6, other: 0 },
+              withThumbVariantCount: 16,
+              withPosterVariantCount: 14,
+              withPreviewVariantCount: 10,
+              withAnyDurablePreviewCount: 30,
+              signedSeedCount: 0,
+              firstRowsSample: [
+                {
+                  fileType: "audio/mpeg",
+                  source: "upload",
+                  hasThumbVariant: false,
+                  hasPosterVariant: false,
+                  hasPreviewVariant: false,
+                },
+              ],
+            },
+          }),
+        ],
+      },
+      {
+        environment: "production",
+      }
+    );
+
+    expect(packet.analysis.openPhaseListSummary).toEqual({
+      samples: 2,
+      dominantMediaKind: "all",
+      dominantProfile: "expanded",
+      includeLibraryTotalCount: true,
+      averageRowCount: 36,
+      averageSignedSeedCount: 0,
+      averageWithThumbVariantCount: 17,
+      averageWithPosterVariantCount: 13,
+      averageWithPreviewVariantCount: 9.5,
+      averageWithAnyDurablePreviewCount: 30,
+      averageCountsByKind: {
+        image: 17,
+        video: 13,
+        audio: 6,
+        other: 0,
+      },
+      representativeFirstRows: [
+        {
+          fileType: "audio/mpeg",
+          source: "upload",
+          hasThumbVariant: false,
+          hasPosterVariant: false,
+          hasPreviewVariant: false,
+        },
+      ],
+    });
   });
 
   it("keeps unsupported measurements null instead of inventing them", () => {
@@ -290,6 +509,8 @@ describe("media_panel_kpi_capture", () => {
       "ai-studio-panel",
       "--base-url",
       "https://www.shortpulse.ai",
+      "--root-tab",
+      "audio",
       "--runs",
       "7",
       "--format",
@@ -301,6 +522,7 @@ describe("media_panel_kpi_capture", () => {
     ]);
 
     expect(args.surface).toBe("ai-studio-panel");
+    expect(args.rootTab).toBe("audio");
     expect(args.baseUrl).toBe("https://www.shortpulse.ai");
     expect(args.runs).toBe("7");
     expect(args.format).toBe("markdown");

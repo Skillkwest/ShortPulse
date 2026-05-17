@@ -179,7 +179,6 @@ const {
         generateOutput: generateOutputMock,
         regenerateOutput: regenerateOutputMock,
         saveReferenceToLibrary: vi.fn(),
-        savePromptReference: vi.fn(),
         savePromptToLibrary: vi.fn(),
         addOutputsFromFiles: vi.fn(),
         addLibraryMediaReference: vi.fn(),

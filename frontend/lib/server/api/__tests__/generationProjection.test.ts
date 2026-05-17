@@ -8,15 +8,20 @@ const createSupabaseAdmin = ({
   projectionRows,
   generationRows,
   outputRows = [],
+  upsertImpl,
 }: {
   projectionRows: Record<string, unknown>[];
   generationRows: Record<string, unknown>[];
   outputRows?: Record<string, unknown>[];
+  upsertImpl?: (payload: Record<string, unknown>) => Promise<{ data?: unknown; error: unknown }>;
 }) => {
-  const upsert = vi.fn(async (payload: Record<string, unknown>) => ({
-    data: payload,
-    error: null,
-  }));
+  const upsert = vi.fn(
+    upsertImpl ??
+      (async (payload: Record<string, unknown>) => ({
+        data: payload,
+        error: null,
+      }))
+  );
 
   const from = vi.fn((table: string) => {
     if (table === "generation_projection") {
@@ -353,5 +358,49 @@ describe("upsertGenerationProjection", () => {
         onConflict: "generation_id",
       })
     );
+  });
+
+  it("retries without save_error when hosted schema is missing that column", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+      upsertImpl: async (payload) => {
+        if ("save_error" in payload) {
+          return {
+            data: null,
+            error: {
+              code: "PGRST204",
+              message:
+                "Could not find the 'save_error' column of 'generation_projection' in the schema cache",
+            },
+          };
+        }
+        return {
+          data: payload,
+          error: null,
+        };
+      },
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-compat",
+      userId: "user-compat",
+      taskState: "success",
+      saveState: "idle",
+      saveError: null,
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledTimes(2);
+    expect(supabaseAdmin.upsert.mock.calls[0]?.[0]).toMatchObject({
+      generation_id: "gen-compat",
+      user_id: "user-compat",
+      save_error: null,
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).toMatchObject({
+      generation_id: "gen-compat",
+      user_id: "user-compat",
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).not.toHaveProperty("save_error");
   });
 });

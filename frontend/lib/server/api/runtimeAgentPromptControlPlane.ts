@@ -5,6 +5,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadAgentPrompt } from "../../agentPromptLoader";
 import type { AgentPromptId } from "../../agentPromptsConfig";
+import {
+  asNullableString,
+  clearControlPlaneCatalogCacheState,
+  createControlPlaneCatalogCacheState,
+  hasSupabaseAdminConfig,
+  resolveCachedControlPlaneCatalog,
+  resolveControlPlaneCatalogForAdmin,
+  saveControlPlaneCatalog,
+  type ControlPlaneCatalogCacheState,
+  type ControlPlaneCatalogSupabaseParams,
+} from "./controlPlaneCatalogCore";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type ActiveRuntimeAgentPromptRecord = {
@@ -34,42 +45,14 @@ export class RuntimeAgentPromptVersionMismatchError extends Error {
   }
 }
 
-const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
-const MIN_CONTROL_PLANE_CACHE_TTL_MS = 1000;
-const MAX_CONTROL_PLANE_CACHE_TTL_MS = 60000;
-
 let runtimeAgentPromptCache: Partial<
-  Record<
-    AgentPromptId,
-    {
-      expiresAtMs: number;
-      value: ActiveRuntimeAgentPromptRecord | null;
-    }
-  >
+  Record<AgentPromptId, ControlPlaneCatalogCacheState<RuntimeAgentPromptResolution>>
 > = {};
 
-const asNullableString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
-};
-
-const resolveControlPlaneCacheTtlMs = (rawValue?: string | null): number => {
-  const parsed = Number(rawValue ?? String(DEFAULT_CONTROL_PLANE_CACHE_TTL_MS));
-  if (!Number.isFinite(parsed)) return DEFAULT_CONTROL_PLANE_CACHE_TTL_MS;
-  return Math.max(
-    MIN_CONTROL_PLANE_CACHE_TTL_MS,
-    Math.min(MAX_CONTROL_PLANE_CACHE_TTL_MS, Math.floor(parsed))
-  );
-};
-
-const hasSupabaseAdminConfig = (): boolean =>
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.trim().length > 0 &&
-  typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
-
 export const clearRuntimeAgentPromptControlPlaneCacheForTests = (): void => {
+  Object.values(runtimeAgentPromptCache).forEach((cacheState) => {
+    if (cacheState) clearControlPlaneCatalogCacheState(cacheState);
+  });
   runtimeAgentPromptCache = {};
 };
 
@@ -81,8 +64,7 @@ export const fetchActiveRuntimeAgentPromptRecord = async ({
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   promptId: AgentPromptId;
-  supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveRuntimeAgentPromptRecord | null> => {
+} & ControlPlaneCatalogSupabaseParams): Promise<ActiveRuntimeAgentPromptRecord | null> => {
   const { data, error } = await supabaseAdmin
     .from("agent_prompt_runtime")
     .select("prompt_id, prompt_body, updated_at, updated_by_user_id, updated_by_email")
@@ -114,65 +96,24 @@ export const resolveRuntimeAgentPrompt = async ({
   bypassCache?: boolean;
 }): Promise<RuntimeAgentPromptResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      promptId,
-      promptBody: getSeededRuntimeAgentPrompt(promptId),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-    };
+    return buildSeedRuntimeAgentPromptResolution(promptId);
   }
 
-  const nowMs = Date.now();
-  const cached = runtimeAgentPromptCache[promptId];
-  if (!bypassCache && cached && cached.expiresAtMs > nowMs) {
-    if (cached.value) {
-      return {
-        promptId,
-        promptBody: cached.value.promptBody,
-        updatedAt: cached.value.updatedAt,
-        updatedByEmail: cached.value.updatedByEmail,
-        source: "control_plane",
-      };
-    }
-    return {
-      promptId,
-      promptBody: getSeededRuntimeAgentPrompt(promptId),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-    };
+  if (!runtimeAgentPromptCache[promptId]) {
+    runtimeAgentPromptCache[promptId] =
+      createControlPlaneCatalogCacheState<RuntimeAgentPromptResolution>();
   }
 
-  try {
-    const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({ promptId });
-    runtimeAgentPromptCache[promptId] = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: activePromptRecord,
-    };
-    if (activePromptRecord) {
-      return {
-        promptId,
-        promptBody: activePromptRecord.promptBody,
-        updatedAt: activePromptRecord.updatedAt,
-        updatedByEmail: activePromptRecord.updatedByEmail,
-        source: "control_plane",
-      };
-    }
-  } catch {
-    runtimeAgentPromptCache[promptId] = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: null,
-    };
-  }
-
-  return {
-    promptId,
-    promptBody: getSeededRuntimeAgentPrompt(promptId),
-    updatedAt: null,
-    updatedByEmail: null,
-    source: "seed",
-  };
+  return resolveCachedControlPlaneCatalog({
+    cacheState: runtimeAgentPromptCache[
+      promptId
+    ] as ControlPlaneCatalogCacheState<RuntimeAgentPromptResolution>,
+    bypassCache,
+    controlPlaneCacheTtlMs,
+    fetchActiveCatalog: () => fetchActiveRuntimeAgentPromptRecord({ promptId }),
+    buildControlPlaneResolution: buildControlPlaneRuntimeAgentPromptResolution,
+    buildSeedResolution: () => buildSeedRuntimeAgentPromptResolution(promptId),
+  });
 };
 
 export const resolveRuntimeAgentPromptForAdmin = async ({
@@ -183,50 +124,26 @@ export const resolveRuntimeAgentPromptForAdmin = async ({
   supabaseAdmin?: SupabaseClient;
 }): Promise<RuntimeAgentPromptAdminResolution> => {
   if (!hasSupabaseAdminConfig()) {
-    return {
-      promptId,
-      promptBody: getSeededRuntimeAgentPrompt(promptId),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: false,
-    };
+    return buildSeedRuntimeAgentPromptAdminResolution(promptId, false);
   }
 
-  try {
-    const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({
-      promptId,
-      supabaseAdmin,
-    });
-    if (activePromptRecord) {
-      return {
+  return resolveControlPlaneCatalogForAdmin({
+    fetchActiveCatalog: () =>
+      fetchActiveRuntimeAgentPromptRecord({
         promptId,
-        promptBody: activePromptRecord.promptBody,
-        updatedAt: activePromptRecord.updatedAt,
-        updatedByEmail: activePromptRecord.updatedByEmail,
-        source: "control_plane",
-        degraded: false,
-      };
-    }
-
-    return {
+        supabaseAdmin,
+      }),
+    buildControlPlaneResolution: (activePromptRecord) => ({
       promptId,
-      promptBody: getSeededRuntimeAgentPrompt(promptId),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
+      promptBody: activePromptRecord.promptBody,
+      updatedAt: activePromptRecord.updatedAt,
+      updatedByEmail: activePromptRecord.updatedByEmail,
+      source: "control_plane" as const,
       degraded: false,
-    };
-  } catch {
-    return {
-      promptId,
-      promptBody: getSeededRuntimeAgentPrompt(promptId),
-      updatedAt: null,
-      updatedByEmail: null,
-      source: "seed",
-      degraded: true,
-    };
-  }
+    }),
+    buildSeedResolution: (degraded) =>
+      buildSeedRuntimeAgentPromptAdminResolution(promptId, degraded),
+  });
 };
 
 export const saveRuntimeAgentPrompt = async ({
@@ -243,46 +160,67 @@ export const saveRuntimeAgentPrompt = async ({
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveRuntimeAgentPromptRecord> => {
-  const normalizedPromptBody = promptBody.trim();
-  if (!normalizedPromptBody) {
-    throw new Error(`Runtime agent prompt ${promptId} cannot be empty.`);
-  }
-
-  if (expectedUpdatedAt !== undefined) {
-    const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({
-      promptId,
-      supabaseAdmin,
-    });
-    const normalizedExpectedUpdatedAt = asNullableString(expectedUpdatedAt);
-    const activeUpdatedAt = activePromptRecord?.updatedAt ?? null;
-    if (activeUpdatedAt !== normalizedExpectedUpdatedAt) {
-      throw new RuntimeAgentPromptVersionMismatchError(promptId);
-    }
-  }
-
-  const { error } = await supabaseAdmin.from("agent_prompt_runtime").upsert(
-    {
-      prompt_id: promptId,
-      prompt_body: normalizedPromptBody,
-      updated_by_user_id: actorUserId ?? null,
-      updated_by_email: actorEmail ?? null,
-      updated_at: new Date().toISOString(),
+}): Promise<ActiveRuntimeAgentPromptRecord> =>
+  saveControlPlaneCatalog({
+    definitions: [{ promptId, promptBody }],
+    normalizeDefinitions: (definitions) => {
+      const [entry] = definitions;
+      const normalizedPromptBody = entry.promptBody.trim();
+      if (!normalizedPromptBody) {
+        throw new Error(`Runtime agent prompt ${promptId} cannot be empty.`);
+      }
+      return [{ promptId, promptBody: normalizedPromptBody }];
     },
-    { onConflict: "prompt_id" }
-  );
+    expectedUpdatedAt,
+    fetchActiveCatalog: () => fetchActiveRuntimeAgentPromptRecord({ promptId, supabaseAdmin }),
+    getActiveUpdatedAt: (activePromptRecord) => activePromptRecord.updatedAt,
+    createVersionMismatchError: () => new RuntimeAgentPromptVersionMismatchError(promptId),
+    persistDefinitions: async (normalizedDefinitions) => {
+      const [{ promptBody: normalizedPromptBody }] = normalizedDefinitions;
+      const { error } = await supabaseAdmin.from("agent_prompt_runtime").upsert(
+        {
+          prompt_id: promptId,
+          prompt_body: normalizedPromptBody,
+          updated_by_user_id: actorUserId ?? null,
+          updated_by_email: actorEmail ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "prompt_id" }
+      );
 
-  if (error) {
-    throw new Error(error.message || `Failed to save runtime agent prompt ${promptId}.`);
-  }
-
-  clearRuntimeAgentPromptControlPlaneCacheForTests();
-  const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({
-    promptId,
-    supabaseAdmin,
+      if (error) {
+        throw new Error(error.message || `Failed to save runtime agent prompt ${promptId}.`);
+      }
+    },
+    clearCache: clearRuntimeAgentPromptControlPlaneCacheForTests,
+    reReadActiveCatalog: () => fetchActiveRuntimeAgentPromptRecord({ promptId, supabaseAdmin }),
+    missingActiveCatalogMessage: `Runtime agent prompt save did not produce a row for ${promptId}.`,
   });
-  if (!activePromptRecord) {
-    throw new Error(`Runtime agent prompt save did not produce a row for ${promptId}.`);
-  }
-  return activePromptRecord;
-};
+
+const buildControlPlaneRuntimeAgentPromptResolution = (
+  activePromptRecord: ActiveRuntimeAgentPromptRecord
+): RuntimeAgentPromptResolution => ({
+  promptId: activePromptRecord.promptId,
+  promptBody: activePromptRecord.promptBody,
+  updatedAt: activePromptRecord.updatedAt,
+  updatedByEmail: activePromptRecord.updatedByEmail,
+  source: "control_plane",
+});
+
+const buildSeedRuntimeAgentPromptResolution = (
+  promptId: AgentPromptId
+): RuntimeAgentPromptResolution => ({
+  promptId,
+  promptBody: getSeededRuntimeAgentPrompt(promptId),
+  updatedAt: null,
+  updatedByEmail: null,
+  source: "seed",
+});
+
+const buildSeedRuntimeAgentPromptAdminResolution = (
+  promptId: AgentPromptId,
+  degraded: boolean
+): RuntimeAgentPromptAdminResolution => ({
+  ...buildSeedRuntimeAgentPromptResolution(promptId),
+  degraded,
+});

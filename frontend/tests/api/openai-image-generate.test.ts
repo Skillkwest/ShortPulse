@@ -240,6 +240,39 @@ describe("POST /api/openai/image-generate", () => {
     });
   });
 
+  it("surfaces plain-object backend messages instead of Unknown error", async () => {
+    generateOpenAiImageMock.mockResolvedValue({
+      buffer: Buffer.from("image-data"),
+      contentType: "image/png",
+      providerRequestId: "provider-image-1",
+      revisedPrompt: "a more cinematic portrait",
+    });
+    persistGeneratedImageAssetMock.mockRejectedValue({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait",
+        size: "1024x1024",
+        quality: "medium",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate image",
+      details: "save_error missing from schema cache",
+    });
+  });
+
   it("refunds the user when provider generation fails", async () => {
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     generateOpenAiImageMock.mockRejectedValue(new Error("provider down"));

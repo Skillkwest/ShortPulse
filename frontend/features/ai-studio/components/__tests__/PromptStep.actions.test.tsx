@@ -11,7 +11,6 @@ const baseProps = {
   stepNumber: 1,
   prompt: "base prompt",
   onPromptChange: vi.fn(),
-  onSavePrompt: vi.fn(),
   isCollapsed: false,
   onToggleCollapse: vi.fn(),
   chatOnly: true as const,
@@ -23,48 +22,6 @@ const baseProps = {
 };
 
 describe("PromptStep agent actions", () => {
-  it("disables pin prompt in chat mode when composer input is empty", () => {
-    render(<PromptStep {...baseProps} agentInput="" />);
-
-    expect(screen.getByRole("button", { name: "Pin prompt" })).toBeDisabled();
-  });
-
-  it("shows a pin prompt button in chat mode and routes clicks to save", () => {
-    const onSavePrompt = vi.fn();
-
-    render(<PromptStep {...baseProps} agentInput="a dog in a park" onSavePrompt={onSavePrompt} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Pin prompt" }));
-    expect(onSavePrompt).toHaveBeenCalledWith("a dog in a park");
-  });
-
-  it("routes chat-off composer edits and pin actions through the authored prompt lane", () => {
-    const onPromptChange = vi.fn();
-    const onAgentInputChange = vi.fn();
-    const onSavePrompt = vi.fn();
-
-    render(
-      <PromptStep
-        {...baseProps}
-        prompt="persisted standard prompt"
-        agentInput="transient chat input"
-        chatModeEnabled={false}
-        onPromptChange={onPromptChange}
-        onAgentInputChange={onAgentInputChange}
-        onSavePrompt={onSavePrompt}
-      />
-    );
-
-    const composer = screen.getByPlaceholderText("Write your prompt...");
-    fireEvent.change(composer, { target: { value: "Updated authored prompt" } });
-
-    expect(onPromptChange).toHaveBeenCalledWith("Updated authored prompt");
-    expect(onAgentInputChange).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Pin prompt" }));
-    expect(onSavePrompt).toHaveBeenCalledWith("persisted standard prompt");
-  });
-
   it("renders chat mode toggle as enabled by default and forwards toggle intent", () => {
     const onChatModeEnabledChange = vi.fn();
 
@@ -113,39 +70,23 @@ describe("PromptStep agent actions", () => {
   });
 
   it("does not render inline generate in chat-off mode", () => {
-    const onInlineGenerate = vi.fn();
     render(
-      <PromptStep
-        {...baseProps}
-        chatModeEnabled={false}
-        agentInput="a clear product prompt"
-        chatModeInlineGenerate={{ onGenerate: onInlineGenerate }}
-      />
+      <PromptStep {...baseProps} chatModeEnabled={false} agentInput="a clear product prompt" />
     );
 
     expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
-    expect(onInlineGenerate).not.toHaveBeenCalled();
   });
 
   it("does not render prefab-backed inline generate in chat-off mode", () => {
-    const onInlineGenerate = vi.fn();
     render(
-      <PromptStep
-        {...baseProps}
-        chatModeEnabled={false}
-        agentInput="a clear product prompt"
-        chatModeInlineGenerate={{ onGenerate: onInlineGenerate }}
-        useAgentResponseInlineGeneratePrefab
-      />
+      <PromptStep {...baseProps} chatModeEnabled={false} agentInput="a clear product prompt" />
     );
 
     expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
-    expect(onInlineGenerate).not.toHaveBeenCalled();
   });
 
   it("hides inline generate while chat mode is enabled", () => {
-    const onInlineGenerate = vi.fn();
-    render(<PromptStep {...baseProps} chatModeInlineGenerate={{ onGenerate: onInlineGenerate }} />);
+    render(<PromptStep {...baseProps} />);
 
     expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
@@ -215,15 +156,7 @@ describe("PromptStep agent actions", () => {
   });
 
   it("does not render inline generate in chat-off mode when input is empty", () => {
-    render(
-      <PromptStep
-        {...baseProps}
-        prompt=""
-        chatModeEnabled={false}
-        agentInput=""
-        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
-      />
-    );
+    render(<PromptStep {...baseProps} prompt="" chatModeEnabled={false} agentInput="" />);
 
     expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
@@ -235,7 +168,6 @@ describe("PromptStep agent actions", () => {
         prompt="shared fallback prompt"
         chatModeEnabled={false}
         agentInput=""
-        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
       />
     );
 
@@ -248,7 +180,6 @@ describe("PromptStep agent actions", () => {
         {...baseProps}
         chatModeEnabled={false}
         agentInput="a clear product prompt"
-        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
         disableOutputGenerate
         outputGenerateGuardrailReason="Select a model before generating."
       />
@@ -264,11 +195,12 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
   });
 
-  it("routes attachment drop handlers across the visible input-mode composer surface", () => {
+  it("limits Standard prompt-text drops to the visible composer shell", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragOver = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
     const { container } = render(
       <PromptStep
         {...baseProps}
@@ -277,6 +209,7 @@ describe("PromptStep agent actions", () => {
         onAgentAttachmentDragOver={onAgentAttachmentDragOver}
         onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
         onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={onAgentInputChange}
       />
     );
 
@@ -290,11 +223,17 @@ describe("PromptStep agent actions", () => {
     fireEvent.dragEnter(chatSurface as Element);
     fireEvent.dragOver(chatSurface as Element);
     fireEvent.dragLeave(chatSurface as Element);
-    fireEvent.drop(chatSurface as Element);
-    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+    fireEvent.drop(chatSurface as Element, {
+      dataTransfer: {
+        types: ["text/plain"],
+        getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+      },
+    });
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
 
@@ -312,18 +251,25 @@ describe("PromptStep agent actions", () => {
     fireEvent.dragEnter(promptStep as Element);
     fireEvent.dragOver(promptStep as Element);
     fireEvent.dragLeave(promptStep as Element);
-    fireEvent.drop(promptStep as Element);
-    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+    fireEvent.drop(promptStep as Element, {
+      dataTransfer: {
+        types: ["text/plain"],
+        getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+      },
+    });
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).not.toHaveBeenCalled();
   });
 
-  it("routes Pulse attachment drops across the visible input-mode composer surface", () => {
+  it("limits Pulse prompt-text drops to the visible composer shell", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragOver = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
     const { container } = render(
       <PulsePromptStep
         stepNumber="1"
@@ -338,6 +284,7 @@ describe("PromptStep agent actions", () => {
         onAgentAttachmentDragOver={onAgentAttachmentDragOver}
         onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
         onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={onAgentInputChange}
       />
     );
 
@@ -351,11 +298,17 @@ describe("PromptStep agent actions", () => {
     fireEvent.dragEnter(chatSurface as Element);
     fireEvent.dragOver(chatSurface as Element);
     fireEvent.dragLeave(chatSurface as Element);
-    fireEvent.drop(chatSurface as Element);
-    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+    fireEvent.drop(chatSurface as Element, {
+      dataTransfer: {
+        types: ["text/plain"],
+        getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+      },
+    });
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
 
@@ -373,14 +326,20 @@ describe("PromptStep agent actions", () => {
     fireEvent.dragEnter(promptStep as Element);
     fireEvent.dragOver(promptStep as Element);
     fireEvent.dragLeave(promptStep as Element);
-    fireEvent.drop(promptStep as Element);
-    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+    fireEvent.drop(promptStep as Element, {
+      dataTransfer: {
+        types: ["text/plain"],
+        getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+      },
+    });
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).not.toHaveBeenCalled();
   });
 
-  it("focuses the composer after a prompt-text drop into the input shell", () => {
+  it("inserts dropped prompt text at the Standard composer caret and restores focus", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();
     const onAgentInputChange = vi.fn();
@@ -395,6 +354,7 @@ describe("PromptStep agent actions", () => {
       const { container } = render(
         <PromptStep
           {...baseProps}
+          agentInput="Existing draft "
           agentAttachmentDropTarget="input"
           onAgentAttachmentDrop={onAgentAttachmentDrop}
           onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
@@ -403,19 +363,25 @@ describe("PromptStep agent actions", () => {
       );
 
       const inputShell = container.querySelector(".agent-composer-input-shell");
-      const composerInput = screen.getByRole("textbox");
+      const composerInput = screen.getByRole("textbox") as HTMLTextAreaElement;
       expect(inputShell).toBeTruthy();
+      act(() => {
+        composerInput.focus();
+        composerInput.setSelectionRange("Existing draft ".length, "Existing draft ".length);
+      });
 
-      fireEvent.drop(inputShell as Element, {
-        dataTransfer: {
-          types: ["text/plain"],
-          getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
-        },
+      act(() => {
+        fireEvent.drop(inputShell as Element, {
+          dataTransfer: {
+            types: ["text/plain"],
+            getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+          },
+        });
       });
 
       expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
       expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-      expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
+      expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
       expect(composerInput).toHaveFocus();
     } finally {
       requestAnimationFrameSpy.mockRestore();

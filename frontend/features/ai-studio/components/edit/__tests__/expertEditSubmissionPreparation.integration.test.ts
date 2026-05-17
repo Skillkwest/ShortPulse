@@ -1,0 +1,114 @@
+/**
+ * Integration coverage for Expert Edit submission preparation.
+ * Verifies real prompt-token planning and reference ordering without depending on the full panel runtime.
+ */
+import { describe, expect, it } from "vitest";
+
+import { prepareExpertEditSubmission } from "../expertEditSubmissionPreparation";
+
+describe("prepareExpertEditSubmission integration", () => {
+  it("keeps linked-only secondary references and compiles prompt overrides for tokenized standard submits", () => {
+    const result = prepareExpertEditSubmission({
+      promptText: "Put @img1 in the background.",
+      extraImageUrls: [
+        "https://example.com/linked-extra.png",
+        "https://example.com/unlinked-extra.png",
+        null,
+      ],
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-primary", "https://example.com/linked-extra.png"],
+      linkedSecondaryReferenceInputs: ["https://example.com/linked-extra.png"],
+      promptOverrideOptions: {
+        displayPromptOverride: "Put @img1 in the background.",
+        submissionPromptOverride: expect.stringContaining("Put Figure 2 in the background."),
+      },
+    });
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.referenceInputs).not.toContain("https://example.com/unlinked-extra.png");
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain("Reference map:");
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 2 = @img1 secondary reference."
+    );
+  });
+
+  it("falls back to all populated secondary references when no secondary tokens are linked", () => {
+    const result = prepareExpertEditSubmission({
+      promptText: "Refine the background and styling.",
+      extraImageUrls: [
+        "https://example.com/extra-one.png",
+        "https://example.com/extra-two.png",
+        null,
+      ],
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: [
+        "blob:flatten-primary",
+        "https://example.com/extra-one.png",
+        "https://example.com/extra-two.png",
+      ],
+      linkedSecondaryReferenceInputs: [],
+      promptOverrideOptions: undefined,
+    });
+  });
+
+  it("keeps the primary image first and markup composite second for markup submissions", () => {
+    const result = prepareExpertEditSubmission({
+      promptText: "Apply @main with @img1, @img2, and @img3.",
+      extraImageUrls: [
+        "https://example.com/ref-1.png",
+        "https://example.com/ref-2.png",
+        "https://example.com/ref-3.png",
+      ],
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: "blob:flatten-markup",
+      editSubmitIntent: "markup",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: [
+        "blob:flatten-primary",
+        "blob:flatten-markup",
+        "https://example.com/ref-1.png",
+        "https://example.com/ref-2.png",
+        "https://example.com/ref-3.png",
+      ],
+      linkedSecondaryReferenceInputs: [
+        "https://example.com/ref-1.png",
+        "https://example.com/ref-2.png",
+        "https://example.com/ref-3.png",
+      ],
+      promptOverrideOptions: {
+        displayPromptOverride: "Apply @main with @img1, @img2, and @img3.",
+        submissionPromptOverride: expect.stringContaining(
+          "Apply Figure 1 with Figure 3, Figure 4, and Figure 5."
+        ),
+      },
+    });
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 3 = @img1 secondary reference."
+    );
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 4 = @img2 secondary reference."
+    );
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 5 = @img3 secondary reference."
+    );
+  });
+});

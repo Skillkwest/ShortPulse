@@ -326,6 +326,57 @@ describe("persistGeneratedAudioAsset", () => {
     });
   });
 
+  it("keeps the saved audio result when projection persistence fails", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const result = await persistGeneratedAudioAsset({
+      userId: "user-1",
+      promptText: "Rainy city ambience",
+      provider: "elevenlabs",
+      modelId: "music_v1",
+      projectId: "project-1",
+      sourceMode: "music",
+      providerRequestId: "provider-1",
+      requestId: "request-1",
+      outputBuffer: Buffer.from("audio"),
+      outputContentType: "audio/mpeg",
+      outputFormat: "mp3_44100_128",
+    });
+
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      mediaFileId: "media-1",
+      requestId: "request-1",
+      saveState: "saved",
+      saveError: null,
+    });
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "generation-1",
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.elevenlabs.projection_write_failed",
+        requestId: "request-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "generation-1",
+          media_file_id: "media-1",
+          project_id: "project-1",
+          projection_error: "save_error missing from schema cache",
+        }),
+      })
+    );
+  });
+
   it("marks storage-blocked audio autosave results with blocked_storage", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: true },

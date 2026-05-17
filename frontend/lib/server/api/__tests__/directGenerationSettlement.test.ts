@@ -283,6 +283,15 @@ describe("directGenerationSettlement", () => {
     expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[1]).toBeLessThan(
       applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
     );
+    expect(applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      settleGenerationOutcomeMock.mock.invocationCallOrder[0]
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
   });
 
   it("uses video preview-loop variants for direct terminal preview storage", async () => {
@@ -464,8 +473,8 @@ describe("directGenerationSettlement", () => {
     expect(associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       upsertGenerationProjectionMock.mock.invocationCallOrder[0]
     );
-    expect(associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]).toBeLessThan(
-      applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
+    expect(associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      settleGenerationOutcomeMock.mock.invocationCallOrder[0]
     );
   });
 
@@ -520,6 +529,45 @@ describe("directGenerationSettlement", () => {
         providerRequestId: "req-project",
         outcome: "success",
       })
+    );
+  });
+
+  it("does not fail direct terminal success when publication persistence fails after settlement", async () => {
+    upsertGenerationPublicationMock.mockRejectedValueOnce(new Error("publication failed"));
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-publication",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        outcome: "success",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.direct_generation_settlement.publication_write_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          publication_error: "publication failed",
+        }),
+      })
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
     );
   });
 
@@ -806,6 +854,46 @@ describe("directGenerationSettlement", () => {
     });
   });
 
+  it("keeps direct terminal success settled when projection persistence fails", async () => {
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-projection-fail",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.direct_generation_settlement.projection_write_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          route_label: "test/direct-success-projection-fail",
+          projection_stage: "success",
+          projection_error: "save_error missing from schema cache",
+        }),
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+  });
+
   it("suppresses publications and projection output on direct terminal failure", async () => {
     const result = await settleDirectGenerationFailure({
       generationId: "gen-1",
@@ -882,6 +970,46 @@ describe("directGenerationSettlement", () => {
       expect.objectContaining({
         outcome: "fail",
         abandonedNoRefund: true,
+      })
+    );
+  });
+
+  it("keeps direct terminal failures settled when projection persistence fails", async () => {
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const result = await settleDirectGenerationFailure({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-failure-projection-fail",
+      providerState: "FAILED",
+      errorMessage: "Provider rejected request",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.direct_generation_settlement.projection_write_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          route_label: "test/direct-failure-projection-fail",
+          projection_stage: "fail",
+          projection_error: "save_error missing from schema cache",
+        }),
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
       })
     );
   });

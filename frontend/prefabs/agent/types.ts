@@ -102,7 +102,7 @@ export type AgentPulseWorkflowSession = {
 export type AgentPulseRuntimeContext = {
   presetId: string;
   label: string;
-  instructions: string;
+  instructions?: string | null;
   description?: string | null;
   // Legacy persisted values may still arrive from older snapshots or saved presets.
   // Runtime boundaries normalize active Pulses into explicit guided/custom Pulse contracts.

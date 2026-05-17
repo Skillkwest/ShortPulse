@@ -67,6 +67,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
         }),
       ])
     );
+    expect(result.current.builtInDefinitions[0]).not.toHaveProperty("systemInstructions");
   });
 
   it("keeps the last loaded catalog when a later refresh fails", async () => {

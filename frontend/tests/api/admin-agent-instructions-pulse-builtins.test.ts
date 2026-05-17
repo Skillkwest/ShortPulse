@@ -3,7 +3,7 @@ import handler from "../../pages/api/admin/agent-instructions/pulse-builtins";
 import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
   type CreatePulseBuiltInPresetDefinition,
-} from "../../features/ai-studio/components/create/createPulsePresets";
+} from "../../lib/model-runtime/createPulseBuiltIns";
 
 const requireAdminUserMock = vi.hoisted(() => vi.fn());
 const logApiRouteExceptionMock = vi.hoisted(() => vi.fn());

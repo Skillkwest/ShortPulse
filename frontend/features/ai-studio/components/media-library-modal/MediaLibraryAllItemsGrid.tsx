@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, DownloadSimple, X } from "phosphor-react";
+import { Check, DownloadSimple, Play, X } from "phosphor-react";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
@@ -67,6 +67,7 @@ type MediaLibraryAllItemsGridProps = {
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
+  onRequestSignedUrl?: (file: MediaFileRow) => Promise<string | null>;
   currentUserId?: string | null;
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   signedPosterUrlById?: Record<string, string>;
@@ -111,6 +112,14 @@ const readAudioWaveformPeaks = (file: MediaFileRow): number[] | null => {
   return null;
 };
 
+const formatAudioDurationLabel = (valueMs: number | null): string => {
+  if (!Number.isFinite(valueMs) || valueMs == null || valueMs <= 0) return "0:00";
+  const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
 type MediaCardShellProps = {
   file: MediaFileRow;
   isSelected: boolean;
@@ -133,6 +142,7 @@ type MediaCardShellProps = {
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
+  onRequestSignedUrl?: (file: MediaFileRow) => Promise<string | null>;
   cacheAspectRatio: (id: string, ratio: number) => void;
   showCardActions: boolean;
   canShowDownloadAction: boolean;
@@ -484,6 +494,7 @@ function MediaLibraryAllItemsAudioCard({
   onMediaContextMenu,
   onMediaPreviewError,
   onSignedUrlLoaded,
+  onRequestSignedUrl,
   showCardActions,
   canShowDownloadAction,
   canShowRemoveAction,
@@ -494,12 +505,42 @@ function MediaLibraryAllItemsAudioCard({
 }: MediaCardShellProps) {
   const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
   const signedUrlLoadedRef = React.useRef(false);
+  const [isRequestingAudioUrl, setIsRequestingAudioUrl] = React.useState(false);
 
   const markSignedUrlLoaded = React.useCallback(() => {
     if (signedUrlLoadedRef.current) return;
     signedUrlLoadedRef.current = true;
     onSignedUrlLoaded(file.id);
   }, [file.id, onSignedUrlLoaded]);
+
+  const audioShellStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    const normalizedBackgroundImageUrl = file.companion_art_url?.trim();
+    if (!normalizedBackgroundImageUrl) return undefined;
+    return {
+      backgroundImage: [
+        "linear-gradient(180deg, rgba(9, 13, 18, 0.48), rgba(9, 13, 18, 0.82))",
+        "radial-gradient(circle at top, rgba(108, 205, 255, 0.2), transparent 58%)",
+        `url("${normalizedBackgroundImageUrl}")`,
+      ].join(", "),
+      backgroundSize: "auto, auto, cover",
+      backgroundPosition: "center center, center top, center center",
+    };
+  }, [file.companion_art_url]);
+
+  const handleRequestAudioUrl = React.useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!onRequestSignedUrl || isRequestingAudioUrl || audioUrl) return;
+      setIsRequestingAudioUrl(true);
+      try {
+        await onRequestSignedUrl(file);
+      } finally {
+        setIsRequestingAudioUrl(false);
+      }
+    },
+    [audioUrl, file, isRequestingAudioUrl, onRequestSignedUrl]
+  );
 
   return (
     <div
@@ -567,7 +608,62 @@ function MediaLibraryAllItemsAudioCard({
             onError={() => onMediaPreviewError(file, audioUrl)}
             eagerWaveformDecode={false}
           />
-        ) : null}
+        ) : (
+          <div className="reference-card-audio-shell" style={audioShellStyle}>
+            <div className="reference-card-audio-player">
+              <div className="reference-card-audio-player-row">
+                <button
+                  type="button"
+                  className="reference-card-audio-play"
+                  aria-label={
+                    isRequestingAudioUrl
+                      ? `Loading audio ${file.filename}`
+                      : `Load audio ${file.filename}`
+                  }
+                  aria-pressed={false}
+                  disabled={!onRequestSignedUrl || isRequestingAudioUrl}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    void handleRequestAudioUrl(event);
+                  }}
+                >
+                  <Play size={24} weight="fill" aria-hidden="true" />
+                </button>
+                <div className="reference-card-audio-waveform-shell">
+                  <div className="reference-card-audio-waveform" aria-hidden="true">
+                    {Array.from({ length: 28 }, (_, index) => (
+                      <span
+                        key={`${file.id}-wavebar-placeholder-${index}`}
+                        className="reference-card-audio-wavebar"
+                        data-progress-state="pending"
+                        style={
+                          {
+                            "--audio-waveform-height": "0.42",
+                            "--audio-waveform-progress": "0",
+                          } as React.CSSProperties
+                        }
+                      >
+                        <span className="reference-card-audio-wavebar-track" />
+                        <span className="reference-card-audio-wavebar-fill" />
+                      </span>
+                    ))}
+                  </div>
+                  <div className="reference-card-audio-time-row">
+                    <span className="reference-card-audio-time-current">
+                      {isRequestingAudioUrl ? "Loading…" : "Ready"}
+                    </span>
+                    <span className="reference-card-audio-time-total">
+                      {formatAudioDurationLabel(readAudioDurationMs(file))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {showCardActions ? (
         <MediaLibraryAllItemsCardActions
@@ -613,6 +709,7 @@ export function MediaLibraryAllItemsGrid({
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
+  onRequestSignedUrl,
   currentUserId = null,
   visibleMediaIdsRef,
   signedPosterUrlById: signedPosterUrlOverrides = {},
@@ -819,6 +916,7 @@ export function MediaLibraryAllItemsGrid({
                 onMediaPreviewError={onMediaPreviewError}
                 onMediaPaint={onMediaPaint}
                 onSignedUrlLoaded={onSignedUrlLoaded}
+                onRequestSignedUrl={onRequestSignedUrl}
                 cacheAspectRatio={cacheAspectRatio}
                 showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowDownloadAction}

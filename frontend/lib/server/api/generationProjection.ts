@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
 import { upsertGenerationPublication } from "./generationPublications";
+import { toErrorMessage } from "./errorMessage";
 
 type JsonObject = Record<string, unknown>;
 
@@ -132,6 +133,17 @@ export type TerminalGenerationProjectionRepairMetrics = {
   scanned: number;
   repaired: number;
   skipped: number;
+};
+
+const isMissingProjectionSaveErrorSchemaError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const code =
+    typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : null;
+  if (code !== "42703" && code !== "PGRST204") return false;
+  const message = toErrorMessage(error, "").toLowerCase();
+  return message.includes("save_error") && message.includes("generation_projection");
 };
 
 const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow | null => {
@@ -322,10 +334,23 @@ export const upsertGenerationProjection = async ({
   }
 
   const adminClient = supabaseAdmin ?? getSupabaseAdmin();
-  const { error } = await adminClient.from("generation_projection").upsert(payload, {
-    onConflict: "generation_id",
-  });
-  if (error) throw error;
+  const runUpsert = async (nextPayload: Record<string, unknown>) => {
+    const { error } = await adminClient.from("generation_projection").upsert(nextPayload, {
+      onConflict: "generation_id",
+    });
+    if (error) throw error;
+  };
+
+  try {
+    await runUpsert(payload);
+  } catch (error) {
+    if (!("save_error" in payload) || !isMissingProjectionSaveErrorSchemaError(error)) {
+      throw error;
+    }
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.save_error;
+    await runUpsert(fallbackPayload);
+  }
 };
 
 export const readGenerationProjectionStatusContext = async ({

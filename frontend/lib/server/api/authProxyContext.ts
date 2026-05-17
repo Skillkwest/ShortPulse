@@ -86,9 +86,3 @@ export const mergeVerifiedUserWithProxyContext = (
     user_metadata: verifiedUser.user_metadata ?? proxyUser.user_metadata,
   };
 };
-
-/**
- * Reads emergency override for trusting proxy headers when bearer auth is absent.
- */
-export const shouldTrustProxyAuthHeaders = (): boolean =>
-  String(process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS || "").toLowerCase() === "true";

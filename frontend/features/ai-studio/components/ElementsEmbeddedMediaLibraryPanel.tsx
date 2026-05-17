@@ -24,7 +24,10 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
-import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
+import {
+  getMediaLibrarySurfaceConfig,
+  resolvePanelMixedAllMediaSignBudget,
+} from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
@@ -163,6 +166,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
     () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
   );
+  const signableMediaRows = React.useMemo(
+    () => (itemType === "all" ? mediaRows.filter((row) => !isAudioFile(row.file_type)) : mediaRows),
+    [itemType, mediaRows]
+  );
   const activeMediaTab = React.useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return itemType === "videos" ? "uploaded_videos" : "uploaded_images";
@@ -210,6 +217,13 @@ export function ElementsEmbeddedMediaLibraryPanel({
     signStoragePath,
     signedUrlRetryRef,
   } = previewRuntime;
+  const signBudgetOverride = React.useMemo(
+    () =>
+      itemType === "all"
+        ? resolvePanelMixedAllMediaSignBudget(previewRuntime.signBudget)
+        : undefined,
+    [itemType, previewRuntime.signBudget]
+  );
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.elements_media_library_error",
@@ -332,7 +346,8 @@ export function ElementsEmbeddedMediaLibraryPanel({
     activeMediaCacheLoading: mediaLoading,
     activeMediaCachePagesLoaded: 1,
     activeMediaQuery: normalizedSearch,
-    filteredMedia: mediaRows,
+    filteredMedia: signableMediaRows,
+    signBudgetOverride,
     isSigningPassEnabled: shouldShowMedia,
     surface: "media-library-panel",
     unresolvedWarningPrefix: "[elements-media-library]",
@@ -585,6 +600,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
+        visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
       />
     ),
     [
@@ -603,6 +619,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
       selectedIds,
       setPendingLibraryDelete,
       signedUrlRetryRef,
+      previewRuntime.visibleMediaIdsRef,
     ]
   );
 
@@ -633,6 +650,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         onMediaDragEnd={handleCardDragEnd}
         onPromptDragEnd={handleCardDragEnd}
         onMediaContextMenu={handleMediaCardContextMenu}
+        onRequestSignedUrl={refreshSignedUrl}
         showDeleteAction
         onDeleteMediaFromLibrary={(file) => {
           setPendingLibraryDelete({
@@ -652,6 +670,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
+        visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
       />
     ),
     [
@@ -670,10 +689,12 @@ export function ElementsEmbeddedMediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       mediaRows,
       optimizerFallbackMediaIds,
+      refreshSignedUrl,
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
       visiblePromptRows,
+      previewRuntime.visibleMediaIdsRef,
     ]
   );
 
@@ -802,22 +823,32 @@ export function ElementsEmbeddedMediaLibraryPanel({
     });
   }, [deleteMediaRowsFromLibrary, mediaRows, pendingBulkDeleteIds]);
 
-  const bulkActions = (
-    <MediaLibraryPanelBulkActions
-      canDeleteFromLibrary
-      canMoveToFolder={false}
-      canRemoveFromFolder={false}
-      disabled={deleteConfirmSubmitting}
-      onClearSelection={() => {
-        setPendingBulkDeleteIds(null);
-        setSelectedIds(new Set());
-        setSelectedPromptIds(new Set());
-      }}
-      onMoveToFolder={() => undefined}
-      onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
-      onRemoveFromFolder={() => undefined}
-      selectedCount={selectedVisibleMediaRows.length}
-    />
+  const clearSelections = React.useCallback(() => {
+    setPendingBulkDeleteIds(null);
+    setSelectedIds(new Set());
+    setSelectedPromptIds(new Set());
+  }, []);
+
+  const bulkActions = React.useMemo(
+    () => (
+      <MediaLibraryPanelBulkActions
+        canDeleteFromLibrary
+        canMoveToFolder={false}
+        canRemoveFromFolder={false}
+        disabled={deleteConfirmSubmitting}
+        onClearSelection={clearSelections}
+        onMoveToFolder={() => undefined}
+        onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
+        onRemoveFromFolder={() => undefined}
+        selectedCount={selectedVisibleMediaRows.length}
+      />
+    ),
+    [
+      clearSelections,
+      deleteConfirmSubmitting,
+      handleOpenBulkDeleteConfirm,
+      selectedVisibleMediaRows.length,
+    ]
   );
 
   const isRootFolderDropHover =
@@ -855,6 +886,18 @@ export function ElementsEmbeddedMediaLibraryPanel({
       setRootFileInputResetKey((current) => current + 1);
     },
     [uploadDroppedFilesToFolder]
+  );
+  const renderRootAllItemsGrid = React.useCallback(
+    () => renderAllItemsGrid(),
+    [renderAllItemsGrid]
+  );
+  const renderRootImageGrid = React.useCallback(
+    () => renderMediaGrid(visibleImageRows),
+    [renderMediaGrid, visibleImageRows]
+  );
+  const renderRootVideoGrid = React.useCallback(
+    () => renderMediaGrid(visibleVideoRows),
+    [renderMediaGrid, visibleVideoRows]
   );
 
   return (
@@ -905,11 +948,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
             visibleImageRowsLength={visibleImageRows.length}
             visibleVideoRowsLength={visibleVideoRows.length}
             visibleAudioRowsLength={visibleAudioRows.length}
-            renderAllItemsGrid={() => renderAllItemsGrid()}
-            renderImageGrid={() => renderMediaGrid(visibleImageRows)}
-            renderVideoGrid={() => renderMediaGrid(visibleVideoRows)}
+            renderAllItemsGrid={renderRootAllItemsGrid}
+            renderImageGrid={renderRootImageGrid}
+            renderVideoGrid={renderRootVideoGrid}
             renderAudioGrid={renderAudioGrid}
-            renderPromptsSection={() => renderPromptsSection()}
+            renderPromptsSection={renderPromptsSection}
             mediaHasMore={mediaHasMore}
             loadMediaPage={loadMediaPage}
           />

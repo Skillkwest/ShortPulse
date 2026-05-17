@@ -1033,12 +1033,22 @@
 
 .voices-properties-compose-area {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   flex: 1 1 auto;
   gap: 12px;
   min-height: 0;
   overflow: hidden;
   padding-bottom: 22px;
+}
+
+.voices-properties-compose-mode-switcher {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
+  width: min(320px, 100%);
 }
 
 .voices-properties-main.is-mode-transitioning .voices-properties-voice-library,

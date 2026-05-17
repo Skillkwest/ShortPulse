@@ -11,6 +11,7 @@ describe("MusicPropertiesPanel", () => {
   it("renders the music mode toggle instead of the retired preview area", () => {
     render(<MusicPropertiesPanel />);
 
+    expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Music composition modes" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Custom" })).toHaveAttribute("aria-selected", "false");

@@ -13,12 +13,6 @@ import type {
 } from "../../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
 
-export type PromptStepInlineGenerateConfig = {
-  onGenerate: () => void;
-  disabled?: boolean;
-  ariaLabel?: string;
-};
-
 export type PromptStepPulseLoadingState = {
   phase: "starting_pulse" | "generating_step";
   title: string;
@@ -60,16 +54,11 @@ export type PromptStepProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
-  chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
-  useAgentResponseInlineGeneratePrefab?: boolean;
-  // Actions
-  onSavePrompt?: (customPrompt?: string) => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isGenerating?: boolean;
   showGenerationThinkingInChat?: boolean;
-  shouldDisableSave?: boolean;
   // Drag and Drop support
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
@@ -82,13 +71,8 @@ export type PromptStepProps = {
   promptPlaceholder?: string;
   beginnerSubtitle?: string;
   beginnerTitle?: string;
-  promptSaveButtonClassName?: string;
-  promptSaveButtonUnstyled?: boolean;
-  beginnerPinHelperText?: string;
   promptInlineAction?: React.ReactNode;
   promptInlineActionClassName?: string;
-  chatPromptSaveButtonClassName?: string;
-  chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;
   hideAgentIntroMessage?: boolean;
   agentAttachmentDropTarget?: "history" | "input";

@@ -23,6 +23,8 @@ export const PROTECTED_API_PREFIXES = [
   "/api/pricing/",
   "/api/announcements/",
   "/api/fal/",
+  "/api/openai/",
+  "/api/kie/",
   "/api/generation/",
   "/api/elevenlabs/",
   "/api/ai/",

@@ -14,7 +14,7 @@ import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
-import type { CreatePulsePreferenceRuntimeValue } from "./CreatePulsePreferenceProvider";
+import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 import type {
   CreatePulsePresetKind,
   CreatePulsePresetId,
@@ -54,8 +54,6 @@ export type PulseCreatePropertiesPanelProps = {
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGeneratePulseArtifact: () => void;
-  onSavePrompt: (customPrompt?: string) => void;
-  shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
   expertCreateUiEligible?: boolean;
   createModeToggle?: React.ReactNode;
@@ -103,8 +101,6 @@ export function PulseCreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
-  onSavePrompt,
-  shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
   onClearAgentChat,
@@ -167,6 +163,7 @@ export function PulseCreatePropertiesPanel({
     agentIsSending,
     agentTransportSending,
     agentUiBusy,
+    isGuidedWorkflowPulse,
     pulseWorkflowSession?.currentStepLabel,
     pulseWorkflowSession?.status,
   ]);
@@ -193,14 +190,10 @@ export function PulseCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
-    onSavePrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
-    shouldDisableSave,
     pulseLoadingState,
     chatOnly: true,
-    chatPromptSaveButtonClassName: "create-chat-pin-btn",
-    chatPromptSaveButtonUnstyled: true,
     stepNumber: "1",
     title: "Ask anything",
     subtitle: "",

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -199,6 +200,10 @@ process.stdout.write(contents);
     .map(mapper);
 }
 
+function repoFileExists(file) {
+  return fs.existsSync(path.join(repoRoot, file));
+}
+
 function isGeneratedPath(file) {
   return GENERATED_PATH_PATTERNS.some((pattern) => pattern.test(file));
 }
@@ -283,25 +288,28 @@ const files = [
 ];
 if (files.length === 0) fail("no files to preflight");
 
-const generatedFiles = files.filter(isGeneratedPath);
+const existingFiles = files.filter(repoFileExists);
+const deletedOnlyFiles = files.filter((file) => !repoFileExists(file));
+
+const generatedFiles = existingFiles.filter(isGeneratedPath);
 if (generatedFiles.length > 0) {
   fail(
     `generated/build artifacts are not allowed in a batch:\n- ${generatedFiles.join("\n- ")}`,
   );
 }
 
-const secretFiles = files.filter(isSecretPath);
+const secretFiles = existingFiles.filter(isSecretPath);
 if (secretFiles.length > 0) {
   fail(
     `secret-bearing env files are not allowed in a batch:\n- ${secretFiles.join("\n- ")}`,
   );
 }
 
-const sharedRiskWarnings = getSharedRiskWarnings(files);
-const frontendLintFiles = files
+const sharedRiskWarnings = getSharedRiskWarnings(existingFiles);
+const frontendLintFiles = existingFiles
   .filter((file) => /^frontend\/.+\.(?:[jt]sx?)$/.test(file))
   .map((file) => path.relative(frontendRoot, path.join(repoRoot, file)));
-const prettierFiles = files.filter((file) =>
+const prettierFiles = existingFiles.filter((file) =>
   /\.(?:[jt]sx?|json|md|css|mjs)$/.test(file),
 );
 const targetedTests = [
@@ -309,7 +317,7 @@ const targetedTests = [
     ...testsArg,
     ...manifestTests,
     ...(includeSuiteHot
-      ? deriveSuiteHotTests(files).map(toFrontendRelativeTestPath)
+      ? deriveSuiteHotTests(existingFiles).map(toFrontendRelativeTestPath)
       : []),
   ]),
 ];
@@ -357,6 +365,9 @@ if (targetedTests.length > 0) {
 
 console.log("gear-ball preflight");
 console.log(`files: ${files.length}`);
+if (deletedOnlyFiles.length > 0) {
+  console.log(`deleted/absent paths skipped for direct file checks: ${deletedOnlyFiles.length}`);
+}
 if (sharedRiskWarnings.length > 0) {
   console.log("shared-risk warnings:");
   for (const warning of sharedRiskWarnings) {

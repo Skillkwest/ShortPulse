@@ -708,3 +708,47 @@ Capability decision:
 Next training focus:
 
 - On the next large AI Studio lane, add one small targeted null/undefined prompt-flow test slice to the first validation pass before the full suite.
+
+## 2026-05-16 - Production Copperknot and AI Studio preset/control-plane run
+
+Task: publish the broad Copperknot/Holomony docs rename lane, then the remaining AI Studio preset/media/control-plane lane, then close the run with retained Gear Ball updates on `production`.
+
+Actions taken:
+
+- Committed the docs/agent packet lane first on `production` as `501d3bbb1` after docs preflight and `npm -C frontend run docs:check`.
+- Validated the remaining product lane with targeted selector/guard tests, `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test` pass (`714` files passed, `4813` tests passed, `42` skipped).
+- Committed the product/runtime lane on `production` as `70dc5f16c`.
+- Hardened `scripts/ops/gear_ball_preflight.mjs` so file-backed runs skip deleted/absent manifest entries instead of failing direct file checks on them.
+- Rebuilt the final product staging manifest from live `git status` before the product `git add` so newer untracked files were not missed by an older saved manifest.
+
+Training result:
+
+- The docs-first split worked. The broad initial status inventory collapsed into a clean product seam after the first commit.
+- File-backed manifests remain the right approach, but they need a final live rebuild before staging on long runs.
+- The preflight helper should treat deleted manifest entries as informational, not as a false failure source.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- Validation was green before the product commit.
+- The leftover audit after the docs commit was clean and useful.
+- The product batch landed as one coherent lane instead of being polluted by the docs rename work.
+
+What slipped:
+
+- The earlier saved product manifest drifted and missed newer untracked files.
+- The helper hardening happened during the run instead of already being in place.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `yes`
+- Change made: preflight now skips deleted manifest entries; final staging should rebuild from current `git status`
+
+Next training focus:
+
+- Promote the manifest-rebuild rule from this run into the main Gear Ball SOP/memory if it is not already explicit enough.
+- Watch whether one more large repo-root production run completes without any manifest drift or helper patching.

@@ -1,6 +1,6 @@
 # Gear Ball Run Report - 2026-05-16
 
-Purpose: publish the production AI Studio/runtime hardening lane, the related agent packet updates, and the Gear Ball SOP hardening follow-up on `production`.
+Purpose: publish the production Copperknot docs rename lane, the AI Studio preset/media/control-plane lane, and the Gear Ball closeout updates on `production`.
 
 ## Task
 
@@ -10,38 +10,40 @@ Purpose: publish the production AI Studio/runtime hardening lane, the related ag
 
 ## Batch Manifest
 
-| Commit      | Batch              | Files/Scope                                                                                                            | Risk   | Validation                                                                                              |
-| ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| `3723ff313` | Product/runtime    | `frontend/features/ai-studio/**`, `frontend/features/dashboard/**`, `frontend/features/media-library/**`, related APIs | High   | `gear_ball_preflight`, targeted tests, `npm -C frontend run build`, `npm -C frontend run docs:check`    |
-| `e1ca312ef` | Agent packets      | `bopper/**`, `docs/agents/bopper/**`, `docs/agents/holomony/**`, `docs/agents/system-catalog-agent/**`, retained docs  | Medium | `gear_ball_preflight`, `npm -C frontend run docs:check`                                                 |
-| `<this commit>` | Gear Ball closeout | Gear Ball SOP/README/memory/tooling, retained training updates, this report                                         | Medium | `gear_ball_preflight`, `npm -C frontend run docs:check`, final `npm -C frontend run test` already green |
+| Commit          | Batch              | Files/Scope                                                                                                                                           | Risk   | Validation                                                                                               |
+| --------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| `501d3bbb1`     | Docs/agent packets | `docs/agents/copperknot/**`, `docs/records/artifacts/agent/copperknot/**`, `docs/agents/holomony/**`, retained docs, archive/index work            | Medium | `gear_ball_preflight`, `npm -C frontend run docs:check`                                                  |
+| `70dc5f16c`     | Product/runtime    | `frontend/features/ai-studio/**`, related runtime/admin/API/model files, tests, styles, KPI scripts, `sql/check_generation_convergence_defect_classes.sql` | High   | `gear_ball_preflight`, targeted tests, `npm -C frontend run build`, `npm -C frontend run docs:check`, full suite |
+| `<this commit>` | Gear Ball closeout | `scripts/ops/gear_ball_preflight.mjs`, retained Gear Ball report/log/training updates                                                                | Medium | `npm -C frontend run docs:check`, prior build/full-suite already green                                   |
 
 ## Validation Results
 
-- `node scripts/ops/gear_ball_preflight.mjs --files-from /tmp/gear-ball-run.pujLUe/prod-files.txt --tests-from /tmp/gear-ball-run.pujLUe/prod-tests.txt --include-suite-hot`: passed
-- `node scripts/ops/gear_ball_preflight.mjs --files-from /tmp/gear-ball-run.pujLUe/gear-files.txt`: passed
+- `node scripts/ops/gear_ball_preflight.mjs --files-from /tmp/gear-ball-run-2026-05-16/docs-files.txt`: passed
+- `node scripts/ops/gear_ball_preflight.mjs --files-from /tmp/gear-ball-run-2026-05-16/prod-files.txt --tests-from /tmp/gear-ball-run-2026-05-16/prod-tests.txt --include-suite-hot`: passed
 - `npm -C frontend run build`: passed
 - `npm -C frontend run docs:check`: passed
-- `npm -C frontend run test -- tests/pages/ai-studio.character-mode.test.tsx`: passed (`1` file passed, `6` skipped)
-- `npm -C frontend run test`: passed (`710` files passed; `4784` tests passed; `42` skipped)
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/createSelectorState.test.ts`: passed
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/createGenerationGuards.test.ts`: passed
+- `npm -C frontend run test`: passed (`714` files passed; `4813` tests passed; `42` skipped)
 - Route-level browser smoke: skipped, no local dev target was running during this repo-root SOP pass
 
 ## Self Audit
 
 - Score out of 10: `9/10`
 - What went well:
-  - The early-build rule caught the stale runtime/type seams before staging.
-  - File-backed preflight manifests kept the large product lane inspectable and shell-safe.
-  - The full suite was green before the first Git write, and the run closed with scoped batches instead of one blob.
+  - The docs lane and the product lane were separated before the main product commit.
+  - The full build, docs check, and full suite were green before the product Git write.
+  - The leftover audit after the docs commit kept the closeout lane small and explicit.
 - What slipped:
-  - The initial product lane still carried a few stale contract mismatches that only surfaced once build and full-suite pressure were applied.
-  - One page-level null-safety issue (`visibleComposerPrompt.trim()`) still escaped targeted checks and needed a full-suite rerun.
+  - The saved product manifest had drifted and missed newer untracked product files.
+  - `gear_ball_preflight` initially treated deleted manifest entries as hard file-check failures instead of skipping them cleanly.
 - What evidence proves the run was complete:
+  - Docs preflight passed.
   - Product preflight passed.
-  - Gear Ball preflight passed.
   - Build passed.
   - Docs check passed.
   - Full suite passed.
+  - Leftover audit passed after each commit.
   - Worktree was clean before push.
 - What was assumed but not verified:
   - No direct browser smoke was run because no local route target was active.
@@ -50,18 +52,18 @@ Purpose: publish the production AI Studio/runtime hardening lane, the related ag
 ## Friction Review
 
 - Repeated friction:
-  - Shared AI Studio contracts still drift across runtime helpers, panel props, and page-level tests during larger product lanes.
-  - Mixed product-plus-agent-doc runs still need explicit early separation.
+  - Large repo-root runs can outgrow an earlier saved manifest if new files are created later in the lane.
+  - Deleted paths inside manifest-driven preflight runs were still noisy until the helper was hardened.
 - One-time difficulty:
-  - The current lane included both product/runtime work and a wide agent packet refresh, which made the initial status inventory look broader than the actual commit seams.
+  - The initial docs lane carried a broad agent rename/archive surface, but the post-doc leftover audit reduced the real product seam cleanly.
 - Smallest improvement for the next run:
-  - When a large AI Studio lane touches prompt or agent-input flow, include one small targeted null/undefined prompt-handling test slice before the first full-suite run.
+  - Rebuild the final staging manifest from current `git status` immediately before the first product `git add` on long runs.
 
 ## Capability Decision
 
 - New tool/helper needed?: no
-- Existing helper update needed?: no
-- SOP/doc update needed?: no
+- Existing helper update needed?: yes
+- SOP/doc update needed?: yes, durable training/log updates for the manifest-rebuild rule
 
 ## Final State
 

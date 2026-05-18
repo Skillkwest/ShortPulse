@@ -840,3 +840,47 @@ Next training focus:
 
 - Promote the manifest-rebuild rule from this run into the main Gear Ball SOP/memory if it is not already explicit enough.
 - Watch whether one more large repo-root production run completes without any manifest drift or helper patching.
+
+## 2026-05-18 - Production project foundation and prompt-bridge run
+
+Task: publish the production AI Studio project-foundation, prompt-bridge, and billing follow-up lanes, then close the run with the related docs reconciliation and retained Gear Ball closeout on `production`.
+
+Actions taken:
+
+- Committed the initial AI Studio project/workspace lane as `9f8034bc4`, then used repeated inter-batch leftover audits to surface and commit the adjacent runtime/product follow-up commits `81c171037`, `2f9c0f2fb`, `b6e548fa5`, `2b94cce5c`, `0d5d48d5d`, `3ba5f9cc2`, `c88db8e41`, `e65084165`, and `edc726df9`.
+- Re-ran focused validation where the leftover chain touched riskier billing logic: `npm -C frontend run test -- tests/api/stripe-webhook.test.ts`.
+- Landed the final docs reconciliation batch as `ede601d9e` after the product tail was fully zeroed out.
+- Kept the retained closeout as a separate final lane.
+
+Training result:
+
+- The inter-batch leftover audit rule is doing real work. It prevented code from leaking into the final docs commit even when hook side effects kept revealing adjacent product files.
+- Large AI Studio seams still tend to hide contract cleanup outside the first manifest, especially when removed props, selector seams, or layout CSS sit behind the first product slice.
+- No new tooling was required; the friction was execution discipline, not missing capability.
+
+Self-rating:
+
+- Run quality: `7.5/10`
+
+What went well:
+
+- The final product/document boundary stayed clean.
+- Full validation was green before the push.
+- The Stripe webhook follow-up got its own targeted proof instead of riding only on the earlier full suite.
+
+What slipped:
+
+- Too many small cleanup commits were needed after the first product batch because leftover product files kept surfacing after hook-driven commit passes.
+- A build-only type issue still escaped the first targeted pass.
+- A malformed JSX restructure in `VoicesPropertiesPanel.tsx` slipped into the staged batch and was only caught at pre-commit lint time.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`, in this retained history and the run report
+
+Next training focus:
+
+- On the next large product run, rebuild the live manifest from `git status --short` after every commit boundary until the lane goes clean, not only after the first leftover audit.
+- When a late UI/layout sub-lane appears, run its owning component test immediately before retrying the commit instead of relying on the broader lane slice alone.

@@ -682,7 +682,6 @@ export function StandardCreatePropertiesPanel({
     shouldShowImageResolutionCard,
     isModelSelectionEmpty,
     isCreateModelPickerOpen,
-    disableOutputGenerate,
   } = selectorViewState;
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 
@@ -176,6 +177,7 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       signedUrl?: string | null;
       storage_path?: string;
     }) => void;
+    densityConfig?: unknown;
   }) => {
     mediaGridPropsSpy(props);
     return (
@@ -277,6 +279,7 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       event: React.MouseEvent<HTMLButtonElement>,
       row: { id: string; filename: string; signedUrl?: string | null }
     ) => void;
+    densityConfig?: unknown;
   }) => {
     allItemsGridPropsSpy(props);
     return (
@@ -571,6 +574,18 @@ describe("MediaLibraryPanel", () => {
     );
 
     expect(stickyChromeZIndex).toBeGreaterThan(selectedCardShellZIndex);
+  });
+
+  it("keeps panel density CSS scoped to packed media-library panel grids", () => {
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid/
+    );
+    expect(mediaLibraryPanelStylesheet).toContain(
+      "column-count: var(--media-library-panel-density-max-columns);"
+    );
+    expect(mediaLibraryPanelStylesheet).toContain(
+      "column-width: var(--media-library-modal-preview-width);"
+    );
   });
 
   it.skip("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {
@@ -923,6 +938,7 @@ describe("MediaLibraryPanel", () => {
     expect(typeof latestProps.resolveCardPreviewUrl).toBe("function");
     expect(latestProps.visibleMediaIdsRef).toBeTruthy();
     expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
+    expect(latestProps.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
   });
 
   it("passes visible-card signing scope through the embedded Elements all-media grid", async () => {
@@ -935,6 +951,23 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps).toBeTruthy();
     expect(latestProps.visibleMediaIdsRef).toBeTruthy();
     expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
+    expect(latestProps.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
+  });
+
+  it("passes panel density config to media-only grids", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+
+    await waitFor(() => {
+      expect(mediaGridPropsSpy).toHaveBeenCalled();
+    });
+    const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
   });
 
   it("downshifts the panel signing budget on the mixed all-media root tab", async () => {

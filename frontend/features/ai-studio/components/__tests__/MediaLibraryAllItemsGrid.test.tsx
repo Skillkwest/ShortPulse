@@ -1,6 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 import { MediaLibraryAllItemsGrid } from "../media-library-modal/MediaLibraryAllItemsGrid";
 
@@ -158,6 +159,31 @@ describe("MediaLibraryAllItemsGrid", () => {
       width: "188px",
       height: "132px",
     });
+  });
+
+  it("applies panel density config to mixed grids and adaptive preview sizing", () => {
+    const props = baseProps();
+    const { container } = render(
+      <MediaLibraryAllItemsGrid {...props} densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG} />
+    );
+    const grid = container.querySelector(".media-library-panel-all-items-grid");
+
+    expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        targetColumnWidth: 188,
+        maxColumnCount: 5,
+      })
+    );
+    expect(grid).toHaveClass("media-library-panel-density-grid");
+    expect(grid).toHaveStyle({
+      "--media-library-modal-preview-width": "188px",
+      "--media-library-panel-density-max-columns": "5",
+    });
+    expect(props.resolveCardPreviewUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cardLongEdgePx: 188,
+      })
+    );
   });
 
   it("applies virtualized layout styles to prompt cards in the mixed feed", () => {

@@ -7,7 +7,10 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
 import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
-import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryRuntimeConfig";
+import {
+  MEDIA_LIBRARY_PANEL_DENSITY_CONFIG,
+  MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
+} from "../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   BUCKET,
@@ -614,6 +617,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
+        densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),
     [
@@ -688,6 +692,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
+        densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),
     [

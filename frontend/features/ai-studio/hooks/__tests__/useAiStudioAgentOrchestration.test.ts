@@ -889,6 +889,59 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledTimes(1);
   });
 
+  it("sends ephemeral local image data URLs without durable preparation", async () => {
+    const modelDataUrl = "data:image/jpeg;base64,bW9kZWw=";
+    const appendUserMessage = vi.fn(() => "msg-1");
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const params = createParams({
+      agentInput: "analyze this",
+      appendUserMessage,
+      sendToAgent,
+      agentAttachments: [
+        {
+          id: "local-img-1",
+          kind: "image",
+          source: "ephemeral_local",
+          imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+          modelDataUrl,
+          text: null,
+          aspect: null,
+          deliveryStatus: "ready",
+        },
+      ],
+      getAgentContext: vi.fn(() => ({ mode: "image" as const })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(prepareImageUrlForSubmissionMock).not.toHaveBeenCalled();
+    expect(appendUserMessage).toHaveBeenCalledWith("analyze this", [
+      expect.objectContaining({
+        id: "local-img-1",
+        source: "ephemeral_local",
+        imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+        modelDataUrl: null,
+      }),
+    ]);
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          media: [
+            {
+              id: "local-img-1",
+              kind: "image",
+              url: modelDataUrl,
+              thumbnailAlt: null,
+            },
+          ],
+        }),
+      })
+    );
+  });
+
   it("primes authoritative workflow session state immediately when a workflow pulse starts", async () => {
     const setPulseWorkflowSession = vi.fn();
     const workflowSession: AgentPulseWorkflowSession = {

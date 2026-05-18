@@ -21,14 +21,14 @@ describe("splitAgentImageAttachmentsForSend", () => {
         id: "ephemeral-1",
         kind: "image",
         source: "ephemeral_local",
-        imageUrl: "data:image/png;base64,preview",
-        modelDataUrl: "data:image/png;base64,model",
+        imageUrl: "data:image/png;base64,cHJldmlldw==",
+        modelDataUrl: "data:image/png;base64,bW9kZWw=",
       },
     ]);
 
     expect(result.imageAttachmentIds).toEqual(["durable-1", "ephemeral-1"]);
     expect(result.durableImageAttachmentIds).toEqual(["durable-1"]);
-    expect(result.ephemeralImageUrls.get("ephemeral-1")).toBe("data:image/png;base64,model");
+    expect(result.ephemeralImageUrls.get("ephemeral-1")).toBe("data:image/png;base64,bW9kZWw=");
     expect(result.failedEphemeralImageIds).toEqual([]);
   });
 
@@ -38,7 +38,7 @@ describe("splitAgentImageAttachmentsForSend", () => {
         id: "ephemeral-1",
         kind: "image",
         source: "ephemeral_local",
-        imageUrl: "data:image/png;base64,preview",
+        imageUrl: "data:image/png;base64,cHJldmlldw==",
         modelDataUrl: null,
       },
     ]);

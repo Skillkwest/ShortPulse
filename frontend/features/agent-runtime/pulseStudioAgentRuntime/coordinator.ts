@@ -43,7 +43,6 @@ import {
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "../studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome } from "../agentMachineOutcome";
-import { resolveStudioAgentTurnResponse } from "../studioAgentTurnResponse";
 import {
   buildStudioAgentPulseTurnStateMessage,
   buildStudioAgentWorkflowSessionUpdate,
@@ -150,8 +149,6 @@ export const executeStudioAgentCoordinator = async ({
   orchestration,
   context,
   messages,
-  selectedReferences,
-  visionSummaryMap,
   effectiveCanonical,
   normalizedConversationId,
   userId,

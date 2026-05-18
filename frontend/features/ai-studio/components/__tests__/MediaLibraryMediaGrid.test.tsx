@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaGrid";
 
 const useMediaMasonryVirtualizationMock = vi.fn();
@@ -78,6 +79,41 @@ describe("MediaLibraryMediaGrid", () => {
 
     expect(screen.getByAltText("clip-1.mp4")).toBeInTheDocument();
     expect(document.querySelector("video.media-thumb")).toBeNull();
+  });
+
+  it("applies panel density config without changing the default grid path", () => {
+    const props = baseProps();
+    const { container, rerender } = render(<MediaLibraryMediaGrid {...props} />);
+
+    expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        targetColumnWidth: 220,
+        maxColumnCount: undefined,
+      })
+    );
+    expect(container.querySelector(".media-library-panel-density-grid")).toBeNull();
+
+    rerender(
+      <MediaLibraryMediaGrid {...props} densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG} />
+    );
+
+    const grid = container.querySelector(".media-library-modal-grid");
+    expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        targetColumnWidth: 188,
+        maxColumnCount: 5,
+      })
+    );
+    expect(grid).toHaveClass("media-library-panel-density-grid");
+    expect(grid).toHaveStyle({
+      "--media-library-modal-preview-width": "188px",
+      "--media-library-panel-density-max-columns": "5",
+    });
+    expect(props.resolveCardPreviewUrl).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cardLongEdgePx: 188,
+      })
+    );
   });
 
   it("keeps real video previews mounted when a durable video preview path exists", () => {

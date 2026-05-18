@@ -23,4 +23,4 @@ export const MEDIA_LIBRARY_PANEL_DENSITY_CONFIG: MediaLibraryGridDensityConfig =
   maxColumnCount: MEDIA_LIBRARY_PANEL_MAX_COLUMNS,
   targetColumnWidth: MEDIA_LIBRARY_PANEL_MIN_COLUMN_WIDTH,
   previewLongEdgePx: MEDIA_LIBRARY_PANEL_MIN_COLUMN_WIDTH,
-};
+} as const;

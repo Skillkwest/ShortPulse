@@ -61,6 +61,52 @@ describe("mediaGridVirtualization", () => {
     expect(narrow.columnWidth).toBeGreaterThan(0);
   });
 
+  it("caps wide panel layouts when a max column count is provided", () => {
+    const layout = computeMediaVirtualLayout({
+      items: makeItems(new Array(24).fill(1)),
+      containerWidth: 1600,
+      viewportTop: 0,
+      viewportHeight: 800,
+      targetColumnWidth: 188,
+      maxColumnCount: 5,
+      gap: 1,
+      overscanPx: 0,
+    });
+
+    expect(layout.columnCount).toBe(5);
+    expect(layout.columnWidth).toBeCloseTo((1600 - 4) / 5);
+  });
+
+  it("keeps fewer columns when the panel is below the five-column width threshold", () => {
+    const layout = computeMediaVirtualLayout({
+      items: makeItems(new Array(24).fill(1)),
+      containerWidth: 800,
+      viewportTop: 0,
+      viewportHeight: 800,
+      targetColumnWidth: 188,
+      maxColumnCount: 5,
+      gap: 1,
+      overscanPx: 0,
+    });
+
+    expect(layout.columnCount).toBe(4);
+  });
+
+  it("reaches five columns at the current panel minimum width threshold", () => {
+    const layout = computeMediaVirtualLayout({
+      items: makeItems(new Array(24).fill(1)),
+      containerWidth: 944,
+      viewportTop: 0,
+      viewportHeight: 800,
+      targetColumnWidth: 188,
+      maxColumnCount: 5,
+      gap: 1,
+      overscanPx: 0,
+    });
+
+    expect(layout.columnCount).toBe(5);
+  });
+
   it("applies overscan bounds to visible windows", () => {
     const layoutNoOverscan = computeMediaVirtualLayout({
       items: makeItems(new Array(40).fill(1)),

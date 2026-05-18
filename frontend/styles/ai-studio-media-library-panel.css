@@ -897,6 +897,13 @@
 }
 
 .media-library-panel
+  .media-library-modal-grid.media-library-modal-grid-packed.media-library-panel-density-grid {
+  --media-library-panel-density-max-columns: 5;
+  column-count: var(--media-library-panel-density-max-columns);
+  column-width: var(--media-library-modal-preview-width);
+}
+
+.media-library-panel
   .media-library-panel-all-items-grid.media-library-modal-grid.media-library-modal-grid-packed {
   --media-library-modal-preview-width: 188px;
 }

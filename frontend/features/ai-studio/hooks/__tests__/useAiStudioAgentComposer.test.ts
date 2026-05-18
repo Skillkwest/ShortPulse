@@ -6,7 +6,6 @@ import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
 import { getCreateWorkflowDebugSnapshot } from "../../logic/createWorkflowDebug";
 import {
   createEphemeralComposerImageData,
-  EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE,
   EPHEMERAL_IMAGE_UNREADABLE_MESSAGE,
 } from "../../logic/ephemeralComposerImage";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
@@ -250,7 +249,7 @@ describe("useAiStudioAgentComposer", () => {
     global.fetch = vi.fn(async () => ({
       ok: true,
       blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
     extractComposerImageDropPayloadMock.mockReturnValue({
       version: 1,
       origin: "ai-studio-reference-grid",

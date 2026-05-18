@@ -2,7 +2,10 @@ import React, { type MutableRefObject } from "react";
 import { Check, DownloadSimple, Play, X } from "phosphor-react";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
-import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
+import {
+  MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
+  type MediaLibraryGridDensityConfig,
+} from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
 import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
@@ -72,6 +75,7 @@ type MediaLibraryAllItemsGridProps = {
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   signedPosterUrlById?: Record<string, string>;
   signedVideoUrlById?: Record<string, string>;
+  densityConfig?: MediaLibraryGridDensityConfig;
 };
 
 type MediaLibraryAllItem =
@@ -714,8 +718,11 @@ export function MediaLibraryAllItemsGrid({
   visibleMediaIdsRef,
   signedPosterUrlById: signedPosterUrlOverrides = {},
   signedVideoUrlById: signedVideoUrlOverrides = {},
+  densityConfig,
 }: MediaLibraryAllItemsGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
+  const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
+  const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
   const {
     signedPosterUrlById: signedPosterUrlByIdFromHook,
     signedVideoUrlById: signedVideoUrlByIdFromHook,
@@ -780,11 +787,26 @@ export function MediaLibraryAllItemsGrid({
     },
     enabled: MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
     scrollContainerRef,
-    targetColumnWidth: 188,
+    targetColumnWidth,
+    maxColumnCount: densityConfig?.maxColumnCount,
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: 24,
   });
+
+  const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    const densityStyle = densityConfig
+      ? ({
+          "--media-library-modal-preview-width": `${densityConfig.targetColumnWidth}px`,
+          "--media-library-panel-density-max-columns": densityConfig.maxColumnCount,
+        } as React.CSSProperties)
+      : undefined;
+    if (!isVirtualized) return densityStyle;
+    return {
+      ...densityStyle,
+      height: `${virtualTotalHeight}px`,
+    };
+  }, [densityConfig, isVirtualized, virtualTotalHeight]);
 
   if (combinedItems.length === 0) {
     return <p className="tiny subdued">No saved items yet.</p>;
@@ -795,8 +817,8 @@ export function MediaLibraryAllItemsGrid({
       ref={virtualContainerRef}
       className={`media-grid media-library-modal-grid media-library-modal-grid-packed media-library-panel-all-items-grid${
         isVirtualized ? " media-library-modal-grid-virtualized" : ""
-      }`}
-      style={isVirtualized ? { height: `${virtualTotalHeight}px` } : undefined}
+      }${densityConfig ? " media-library-panel-density-grid" : ""}`}
+      style={gridStyle}
     >
       {virtualRenderItems.map((renderItem) => {
         const item = renderItem.item;
@@ -846,7 +868,7 @@ export function MediaLibraryAllItemsGrid({
               pressureLevel: adaptivePressureLevel,
               adaptivePreviewQualityEnabled,
               shouldBypassAdaptivePreview,
-              cardLongEdgePx: 320,
+              cardLongEdgePx: cardPreviewLongEdgePx,
               devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
             })
           : resolveMediaLibraryAdaptiveCardPreviewUrl({
@@ -856,7 +878,7 @@ export function MediaLibraryAllItemsGrid({
               pressureLevel: adaptivePressureLevel,
               adaptivePreviewQualityEnabled,
               shouldBypassAdaptivePreview,
-              cardLongEdgePx: 320,
+              cardLongEdgePx: cardPreviewLongEdgePx,
               devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
             });
         const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
@@ -879,7 +901,7 @@ export function MediaLibraryAllItemsGrid({
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
-                cardLongEdgePx: 320,
+                cardLongEdgePx: cardPreviewLongEdgePx,
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               })
             : resolveMediaLibraryAdaptiveCardPreviewUrl({
@@ -889,7 +911,7 @@ export function MediaLibraryAllItemsGrid({
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
-                cardLongEdgePx: 320,
+                cardLongEdgePx: cardPreviewLongEdgePx,
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               })
           : null;

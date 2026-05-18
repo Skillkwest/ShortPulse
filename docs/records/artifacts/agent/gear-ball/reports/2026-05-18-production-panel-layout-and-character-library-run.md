@@ -13,6 +13,7 @@ Purpose: publish the production AI Studio panel-layout and character-library flo
 | Commit                   | Batch                              | Files/Scope                                                                                                       | Risk                                                                  | Validation                                                                                                                             |
 | ------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `7f8a2e83d`              | `ai-studio-panel-layout-hardening` | AI Studio media/music/sound/voices panel shells, embedded character library workspace, matching CSS, owning tests | shared panel layout, context-menu positioning, modalized library flow | `gear-ball:preflight`, targeted panel tests, `npm -C frontend run build`, `npm -C frontend run docs:check`, `npm -C frontend run test` |
+| `b6cfa0263`              | `music-panel-spacing-tail`         | final `ai-studio-music-properties.css` spacing delta caught by leftover audit                                     | low                                                                   | targeted `MusicPropertiesPanel` test                                                                                                   |
 | `pending at report time` | `gear-ball-closeout`               | retained report, training-history, run-log, memory/index updates                                                  | low                                                                   | docs sanity + clean tree review                                                                                                        |
 
 ## Validation Results
@@ -22,21 +23,23 @@ Purpose: publish the production AI Studio panel-layout and character-library flo
 - `npm -C frontend run build`: passed
 - `npm -C frontend run docs:check`: passed
 - `npm -C frontend run test`: passed; `724` files passed, `4883` tests passed, `42` skipped
+- `npm -C frontend run test -- features/ai-studio/components/__tests__/MusicPropertiesPanel.test.tsx`: passed; `1` file passed, `15` tests passed
 - Route-level browser smoke: skipped; no local verification target was already active for this run
 
 ## Self Audit
 
-- Score out of 10: `9/10`
+- Score out of 10: `8.5/10`
 - What went well:
   - The lane was coherent before the first Git write, so one manifest covered the full product change safely.
   - Preflight/build/docs/full-suite all went green before staging.
-  - The post-commit leftover audit was clean.
+  - The final leftover audit caught a real tail before push.
 - What slipped:
   - One avoidable Prettier issue still made it into the first preflight pass.
+  - The first closeout draft assumed the leftover audit was clean before the final `git status` recheck.
 - What evidence proves the run was complete:
-  - the product commit landed cleanly on `production`
+  - the product commit and the small follow-up fix both landed cleanly on `production`
   - targeted, build, docs, and full-suite validation were all green
-  - the worktree was clean before the retained closeout staging pass
+  - the worktree was clean before the final retained closeout staging pass
 - What was assumed but not verified:
   - no manual browser smoke was performed
 
@@ -44,10 +47,11 @@ Purpose: publish the production AI Studio panel-layout and character-library flo
 
 - Repeated friction:
   - minor formatter drift can still be the first failing signal if it is not cleared before preflight
+  - layout lanes can leave a small CSS tail unless the final leftover audit is treated as a real gate
 - One-time difficulty:
   - none beyond the formatter-only preflight miss
 - Smallest improvement for the next run:
-  - when a lane is clearly one UI shell, keep the TSX/CSS/tests locked together from the start and run Prettier before preflight if any file was heavily hand-edited
+  - when a lane is clearly one UI shell, keep the TSX/CSS/tests locked together from the start, run Prettier before preflight if any file was heavily hand-edited, and do not draft the closeout before the last `git status --short` check
 
 ## Capability Decision
 

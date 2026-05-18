@@ -247,27 +247,29 @@ Actions taken:
 - Locked one file-backed manifest under `/tmp/gear-ball-run-2026-05-18b/` before the first staging step.
 - Ran `gear-ball:preflight` with the file-backed manifest, fixed one formatter-only issue in `MediaLibraryPanel.tsx`, and reran preflight green.
 - Ran `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test` before the first Git write.
-- Committed the product lane on `production` as `7f8a2e83d`.
+- Committed the main product lane on `production` as `7f8a2e83d`.
+- The final leftover audit caught one real unstaged tail in `frontend/styles/ai-studio-music-properties.css`; validated it with `npm -C frontend run test -- features/ai-studio/components/__tests__/MusicPropertiesPanel.test.tsx` and committed the fix as `b6cfa0263`.
 
 Training result:
 
-- The single-lane manifest was the right shape: component TSX, layout CSS, and owning tests stayed coupled and validated together.
+- The single-lane manifest was the right shape for the bulk of the work: component TSX, layout CSS, and owning tests stayed coupled and validated together.
 - The current helper/tooling stack was sufficient; the only issue caught before staging was formatter drift.
-- No inter-batch cleanup was needed after the product commit.
+- The final leftover audit did its job and prevented a dirty push by catching a real two-line CSS tail.
 
 Self-rating:
 
-- Run quality: `9/10`
+- Run quality: `8.5/10`
 
 What went well:
 
 - The worktree was already one coherent lane, so batching stayed simple.
 - Preflight/build/docs/full-suite all completed before the first Git write.
-- The leftover audit after the product commit was clean.
+- The leftover audit prevented a dirty push.
 
 What slipped:
 
 - One avoidable Prettier issue still made it into the first preflight pass.
+- The first retained closeout draft assumed the leftover audit was clean before the final `git status` recheck.
 
 Capability decision:
 

@@ -20,6 +20,7 @@ type UseMediaMasonryVirtualizationArgs<TItem> = {
   enabled: boolean;
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   targetColumnWidth: number;
+  maxColumnCount?: number;
   gap: number;
   overscanPx: number;
   minItemsToVirtualize?: number;
@@ -37,6 +38,7 @@ type UseMediaMasonryVirtualizationResult<TItem> = {
   isVirtualized: boolean;
   totalHeight: number;
   columnCount: number;
+  columnWidth: number;
   renderItems: VirtualizedRenderItem<TItem>[];
 };
 
@@ -50,6 +52,7 @@ export const useMediaMasonryVirtualization = <TItem>({
   enabled,
   scrollContainerRef,
   targetColumnWidth,
+  maxColumnCount,
   gap,
   overscanPx,
   minItemsToVirtualize = 24,
@@ -151,9 +154,10 @@ export const useMediaMasonryVirtualization = <TItem>({
       items: sourceItems,
       containerWidth,
       targetColumnWidth,
+      maxColumnCount,
       gap,
     });
-  }, [containerWidth, gap, shouldVirtualize, sourceItems, targetColumnWidth]);
+  }, [containerWidth, gap, maxColumnCount, shouldVirtualize, sourceItems, targetColumnWidth]);
 
   const layout = useMemo(() => {
     if (!shouldVirtualize || !layoutFrame) return null;
@@ -203,6 +207,7 @@ export const useMediaMasonryVirtualization = <TItem>({
     isVirtualized: shouldVirtualize && Boolean(layout),
     totalHeight: layout?.totalHeight ?? 0,
     columnCount: layout?.columnCount ?? 1,
+    columnWidth: layout?.columnWidth ?? targetColumnWidth,
     renderItems,
   };
 };

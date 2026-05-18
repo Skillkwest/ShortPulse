@@ -39,6 +39,7 @@ export type ComputeMediaVirtualLayoutArgs = {
   viewportTop: number;
   viewportHeight: number;
   targetColumnWidth: number;
+  maxColumnCount?: number;
   gap: number;
   overscanPx: number;
 };
@@ -66,10 +67,12 @@ const clampAspectRatio = (value: number): number => {
 const resolveColumnCount = ({
   containerWidth,
   targetColumnWidth,
+  maxColumnCount,
   gap,
 }: {
   containerWidth: number;
   targetColumnWidth: number;
+  maxColumnCount?: number;
   gap: number;
 }): number => {
   const safeWidth = toFinitePositive(containerWidth, 0);
@@ -77,7 +80,11 @@ const resolveColumnCount = ({
   const safeTargetWidth = Math.max(120, Math.floor(toFinitePositive(targetColumnWidth, 240)));
   const safeGap = Math.max(0, Math.floor(toFinitePositive(gap, 0)));
   const count = Math.floor((safeWidth + safeGap) / (safeTargetWidth + safeGap));
-  return Math.max(1, count);
+  const uncappedCount = Math.max(1, count);
+  if (!Number.isFinite(maxColumnCount) || maxColumnCount == null || maxColumnCount <= 0) {
+    return uncappedCount;
+  }
+  return Math.min(uncappedCount, Math.max(1, Math.floor(maxColumnCount)));
 };
 
 /**
@@ -87,6 +94,7 @@ export const computeMediaVirtualLayoutFrame = ({
   items,
   containerWidth,
   targetColumnWidth,
+  maxColumnCount,
   gap,
 }: Omit<
   ComputeMediaVirtualLayoutArgs,
@@ -95,6 +103,7 @@ export const computeMediaVirtualLayoutFrame = ({
   const columnCount = resolveColumnCount({
     containerWidth,
     targetColumnWidth,
+    maxColumnCount,
     gap,
   });
   const safeGap = Math.max(0, toFinitePositive(gap, 0));
@@ -173,6 +182,7 @@ export const computeMediaVirtualLayout = ({
   viewportTop,
   viewportHeight,
   targetColumnWidth,
+  maxColumnCount,
   gap,
   overscanPx,
 }: ComputeMediaVirtualLayoutArgs): MediaVirtualLayoutResult => {
@@ -180,6 +190,7 @@ export const computeMediaVirtualLayout = ({
     items,
     containerWidth,
     targetColumnWidth,
+    maxColumnCount,
     gap,
   });
 

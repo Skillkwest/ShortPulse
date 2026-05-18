@@ -9,7 +9,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import type { ModelModalContext } from "../components/ModelModal";
@@ -91,7 +90,6 @@ export type StandardCreateRuntimeProps = {
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
-  disableAgentOutputGenerate?: boolean;
   generationGuardrail: string | null;
   useReferenceImageIndicator: boolean;
   isModelModalOpen: boolean;
@@ -107,7 +105,6 @@ export type StandardCreateRuntimeProps = {
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
   onPromptChange: (value: string) => void;
-  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (
     anchorId: string,

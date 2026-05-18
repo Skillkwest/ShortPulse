@@ -29,6 +29,7 @@ Substantive commit/push reports should include:
 
 ## Reports
 
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-17-production-create-workflow-and-ai-studio-run.md`: retained report for the production Create Workflow packet and AI Studio/runtime hardening run, including the manifest-miss lesson caught by the inter-batch leftover audit.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-16-production-ai-studio-runtime-and-packets-run.md`: retained report for the production AI Studio/runtime hardening run that also published the related agent packet refresh and Gear Ball closeout.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-13-self-audit-loop-first-full-run.md`: first end-to-end retained self-audit report after a full Gear Ball commit/push run.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-14-three-branch-promotion-run.md`: first retained report for a full SOP run promoted across `working-development`, `staging-preview`, and `production`.

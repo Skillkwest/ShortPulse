@@ -218,6 +218,50 @@ What slipped:
 
 Capability decision:
 
+## 2026-05-17: Production Create Workflow And AI Studio Run
+
+Task: run the full Gear Ball SOP on `production` for a mixed Create Workflow agent-packet lane, a large AI Studio/runtime lane, and the matching docs reconciliation lane.
+
+Actions taken:
+
+- Locked three disjoint manifests under `/tmp/gear-ball-run-2026-05-17/` before the first staging step.
+- Validated the docs lane with `gear-ball:preflight` and `npm -C frontend run docs:check`.
+- Validated the product lane with `gear-ball:preflight`, a targeted Vitest slice, `npm -C frontend run build`, and a full `npm -C frontend run test`.
+- Committed three logical batches on `production`:
+  - `c88a5c1ea` `docs(agents): add create workflow training packet`
+  - `84684b88d` `feat(ai-studio): harden create workflow and media surfaces`
+  - `bcd47fc7a` `docs: reconcile create workflow and ai-studio indexes`
+
+Training result:
+
+- The stronger preflight/build/docs sequence worked; there were no late build or full-suite surprises after the final rerun.
+- The inter-batch leftover audit proved its value by catching two test files that had slipped outside the product manifest.
+- No new tool was required; the current guardrails were sufficient when actually followed.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- The batch manifests were clean and disjoint.
+- The full suite stayed green after the targeted fixes.
+- The leftover audit caught the only scope miss before push.
+
+What slipped:
+
+- Two isolated test-only fixes were not added back into the active product manifest before the first staging pass.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`
+
+Next training focus:
+
+- On the next long mixed run, append any file touched during isolated rerun fixes back into the active manifest immediately instead of relying on the leftover audit to catch it.
+
 - New tool needed: `no`
 - Existing helper or SOP update needed: `no`
 - Durable lesson added: `yes`

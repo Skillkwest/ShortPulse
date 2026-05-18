@@ -41,6 +41,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-15: Generated audit docs and agent packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/` should trigger an early `docs:check` gate before the first commit for that lane.
 - 2026-05-16: For suite-hot admin/UI tests, do not rely on raw accessible-name strings when a card button's computed name includes nested body text or when a page has repeated action labels. Scope the query to the owning tile or dialog first, then target the specific action inside that container.
 - 2026-05-16: For interaction-heavy admin or frontend route changes, one route-level browser smoke should happen before push when a local verification target is already available. The smoke should prove the changed route loads, the primary control surface renders, and there is no obvious fatal client error.
+- 2026-05-17: When isolated rerun fixes touch tests or helpers outside the original changed-file lane, append those files back into the active manifest immediately. The inter-batch leftover audit can save the run, but it should not be the first place those files are rediscovered.
 
 ## Open Follow-Ups
 

@@ -19,3 +19,4 @@ Purpose: store retained working memory that supports Gear Ball's repo-visible co
 - For interaction-heavy admin or frontend route changes, run one route-level browser smoke before push when a local target is already available. Record pass, block, or skip-with-reason in the retained report.
 - If the user wants all three role branches aligned, promote the retained self-audit closeout lane too, not just the feature commit.
 - If a repo-visible agent contract links to `CURRENT-HANDOFF.md`, commit the linked handoff file with the contract change or revert the link.
+- If isolated rerun fixes touch files outside the original changed-file lane, append those files back into the active batch manifest immediately. Do not rely on memory to pick them up during the first `git add`.

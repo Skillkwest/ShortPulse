@@ -14,6 +14,14 @@ The plan is useful only if it protects three things at the same time:
 
 The highest-risk failure mode is a global shared-grid change that unintentionally changes the full modal. The second-highest risk is shrinking audio or prompt cards until their controls and text become harder to use. The third risk is improving density while quietly increasing preview bandwidth.
 
+Latest audit update:
+
+- the virtualized media-only grid currently uses `targetColumnWidth: 220`
+- the virtualized All Media grid currently uses `targetColumnWidth: 188`
+- panel CSS already overrides packed panel grids toward `--media-library-modal-preview-width: 188px`
+- the implementation must reconcile virtual and non-virtual density behavior instead of changing only one path
+- dense preview work must account for the current static `cardLongEdgePx: 320` calls in both grid components
+
 ## Approved Scope
 
 Apply the five-column density contract only to approved media-library browse surfaces:
@@ -37,6 +45,18 @@ Do not change these surfaces in the first implementation:
 
 The modal is a real runtime surface, but it is not the current target. Character QuickSwap and Reference Grid have their own layout contracts and should not inherit media-library density work.
 
+## Current Code Facts
+
+Use these facts as the implementation baseline:
+
+- `MediaLibraryMediaGrid` is shared by the full modal and panel surfaces.
+- `MediaLibraryAllItemsGrid` is shared by panel surfaces and embedded panel surfaces.
+- `MediaLibraryModal` uses `MediaLibraryMediaGrid` and must not receive the panel density prop.
+- `MediaLibraryPanel` and `ElementsEmbeddedMediaLibraryPanel` are the intended density prop sources.
+- `CharacterPanelSplitHost` inherits the bottom browser through `ElementsEmbeddedMediaLibraryPanel`.
+- Virtualization starts only after the configured item threshold, so small libraries depend on CSS layout.
+- Panel preview signing and video browse preview signing are already visibility-scoped through `visibleMediaIdsRef`; this must remain true after the density change.
+
 ## Layout Contract
 
 Use this rule:
@@ -52,50 +72,79 @@ Practical behavior:
 
 Keep masonry behavior for images and videos so media ratios remain useful. Do not switch to fixed equal-height thumbnails in the first pass.
 
+Minimum card-size rule:
+
+- do not reduce All Media below the current practical `188px` target without a visual pass
+- do not reduce media-only cards below `188px` in the first pass
+- if five columns cannot fit while preserving readable card width, show fewer than five columns
+
 ## Implementation Plan
 
-1. Add an optional max-column control to the shared virtualizer.
+0. Capture or record a pre-change baseline.
+   - Use existing retained KPI packets if a fresh run is not possible.
+   - Prefer a fresh same-environment baseline before implementation when credentials/runtime allow it.
+   - Record whether the baseline is direct, retained, or unavailable.
+
+1. Add named density constants.
+   - Add a single panel constant such as `MEDIA_LIBRARY_PANEL_MAX_COLUMNS = 5`.
+   - Add a panel minimum target width constant instead of scattering `188` or `220`.
+   - Keep modal defaults unchanged.
+
+2. Add an optional max-column control to the shared virtualizer.
    - Add `maxColumnCount?: number` or equivalent to `mediaGridVirtualization.ts`.
    - Thread it through `useMediaMasonryVirtualization.ts`.
    - Default must preserve current behavior when omitted.
 
-2. Add a panel-only density prop to the shared grid components.
+3. Add a panel-only density prop to the shared grid components.
    - `MediaLibraryMediaGrid`
    - `MediaLibraryAllItemsGrid`
    - Use a named prop or config, not an implicit global default.
 
-3. Pass the density prop only from panel surfaces.
+4. Pass the density prop only from panel surfaces.
    - `MediaLibraryPanel.tsx`
    - `ElementsEmbeddedMediaLibraryPanel.tsx`
    - Do not pass it from `MediaLibraryModal.tsx`.
 
-4. Match the non-virtual CSS path.
+5. Match the non-virtual CSS path.
    - Under the current virtualization threshold, CSS controls layout.
    - Add panel-only CSS so small item counts follow the same five-column contract.
    - Avoid changing modal CSS defaults.
+   - Ensure the CSS path and virtualizer path use the same practical card-width target.
 
-5. Make preview sizing follow dense card size.
+6. Make preview sizing follow dense card size.
    - Avoid treating dense cards as if every card still needs a `320px` long-edge preview.
    - Use measured or estimated card width when selecting adaptive preview variants.
    - Keep current behavior when no density config is supplied.
 
-6. Preserve runtime budgets.
+7. Preserve runtime budgets.
    - Do not raise video autoplay/attach budgets.
    - Do not make audio eager-load by default.
    - Do not increase sign budgets just because more cards are visible.
+   - Keep `visibleMediaIdsRef` wired through AI Studio and Elements/Character embedded panel paths.
+
+8. Add a rollback path in the same diff.
+   - One constant or prop removal should disable the density behavior.
+   - Do not require reverting unrelated preview or runtime code to roll back layout density.
 
 ## Performance Safeguards
 
 Before accepting the change:
 
-- first paint must not materially regress
-- settle time must not materially regress
+- first paint must not materially regress against the same-environment baseline
+- settle time must not materially regress against the same-environment baseline
 - missing preview ratio should remain healthy
 - sign p95 and extra list calls should remain within the current healthy range
 - video attach budget must remain capped
 - audio should remain on-demand
+- visible-row signing must remain scoped to visible ids
+- no added count-only/list churn should appear
 
 If density increases visible-card count enough to stress preview work, prefer smaller preview variants and tighter visible-row prioritization before reducing correctness.
+
+Stop condition:
+
+- if visual readability requires cards smaller than the minimum target, stop and keep fewer columns
+- if KPI evidence regresses materially and smaller previews do not recover it, roll back density rather than tuning around a bad layout
 
 ## Test Plan
 
@@ -108,12 +157,15 @@ Required unit coverage:
 - `ElementsEmbeddedMediaLibraryPanel` passes the density prop to media and all-items grids
 - `MediaLibraryModal` does not pass the density prop
 - All Media audio cards still render controls correctly in component tests
+- the panel paths still pass `visibleMediaIdsRef` into the mixed grid
+- the panel paths do not alter video autoplay budget constants
+- non-virtual panel CSS contains a panel-scoped density rule and does not alter modal packed-grid defaults
 
 Recommended commands:
 
 ```bash
 cd frontend
-npm test -- features/media-library/logic/__tests__/mediaGridVirtualization.test.ts features/ai-studio/components/__tests__/MediaLibraryMediaGrid.test.tsx features/ai-studio/components/__tests__/MediaLibraryAllItemsGrid.test.tsx features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx features/character-manager/components/__tests__/CharacterPanelSplitHost.test.tsx
+npm test -- features/media-library/logic/__tests__/mediaGridVirtualization.test.ts features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts features/ai-studio/hooks/__tests__/useMediaVideoBrowsePreviewUrls.test.ts features/ai-studio/components/__tests__/MediaLibraryMediaGrid.test.tsx features/ai-studio/components/__tests__/MediaLibraryAllItemsGrid.test.tsx features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx features/character-manager/components/__tests__/CharacterPanelSplitHost.test.tsx
 ```
 
 ## Visual Proof Plan
@@ -134,8 +186,15 @@ The visual pass must check:
 - prompt cards remain understandable
 - masonry ratios still feel useful
 - no unrelated modal layout changed
+- normal-width panels do not force five columns when that would make cards too small
+- expanded panels show up to five columns when the container is wide enough
 
 ## KPI Proof Plan
+
+Before implementation:
+
+- capture a fresh baseline if credentials/runtime allow it
+- otherwise state that retained packets are the available baseline
 
 Run existing media panel KPI capture after the change for approved surfaces:
 
@@ -143,6 +202,17 @@ Run existing media panel KPI capture after the change for approved surfaces:
 - `elements-media-panel`
 
 Use the retained report only if credentials and runtime state allow a real proof run. If a direct proof run is not available, clearly mark the gap rather than claiming performance success.
+
+Record these fields in the implementation closeout:
+
+- first paint
+- settle time
+- sign p95
+- extra list call count
+- resolver churn
+- missing preview ratio
+- visible state flips
+- whether the evidence is fresh or retained
 
 ## Rollback Strategy
 
@@ -152,6 +222,7 @@ Keep the change easy to unwind:
 - keep modal behavior as the default path
 - avoid scattered magic numbers
 - isolate CSS under panel-specific selectors
+- keep adaptive preview-size changes guarded by the same panel density config
 
 If performance or readability regresses, remove the panel density prop or lower the constant without unwinding unrelated runtime work.
 
@@ -166,3 +237,4 @@ The lane is done when:
 - tests cover scoped propagation and virtualizer math
 - visual proof shows acceptable display ratios and controls
 - KPI proof shows no material speed regression, or the result is explicitly recorded as a blocker
+- retained Holomony memory/inventory is updated with the result, not just the plan

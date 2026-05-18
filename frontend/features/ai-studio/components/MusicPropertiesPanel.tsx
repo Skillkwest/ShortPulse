@@ -363,7 +363,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       className={`music-properties-inspiration music-properties-inspiration--${variant}`}
       aria-label="Music inspiration"
     >
-      <p className="music-properties-inspiration-label">Inspiration</p>
+      <div className="music-properties-inspiration-header">
+        <p className="music-properties-inspiration-label">Inspiration</p>
+        <p className="music-properties-script-count" aria-live="polite">
+          {`${displayedCharacterCount.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
+        </p>
+      </div>
       <div className="music-properties-inspiration-rail">
         <div
           ref={inspirationScrollerRef}
@@ -552,11 +557,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             <div className="music-properties-script-divider" aria-hidden="true" />
 
             <div className="music-properties-script-actions">
-              <div className="music-properties-script-meta">
-                <p className="music-properties-script-count" aria-live="polite">
-                  {`${displayedCharacterCount.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
-                </p>
-              </div>
               <div className="music-properties-script-actions-right">
                 <div className="music-properties-script-actions-top">
                   <div

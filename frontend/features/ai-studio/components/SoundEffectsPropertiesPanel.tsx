@@ -278,6 +278,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
               <div className="sound-effects-properties-inspiration-rail">
                 <div className="sound-effects-properties-inspiration-header">
                   <p className="sound-effects-properties-inspiration-label">Inspiration</p>
+                  <p className="sound-effects-properties-script-count" aria-live="polite">
+                    {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
+                  </p>
                 </div>
 
                 <div className="sound-effects-properties-inspiration-track">
@@ -331,10 +334,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
             </div>
 
             <div className="sound-effects-properties-script-actions">
-              <p className="sound-effects-properties-script-count" aria-live="polite">
-                {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
-              </p>
-
               <div className="sound-effects-properties-script-actions-right">
                 <div className="sound-effects-properties-footer-controls">
                   <button

@@ -161,7 +161,7 @@ describe("VoicesPropertiesPanel", () => {
   });
 
   it("renders the dedicated voices workflow surface", () => {
-    render(<VoicesPropertiesPanel />);
+    const { container } = render(<VoicesPropertiesPanel />);
 
     expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
@@ -210,6 +210,18 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: "Voice Design" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Instant Voice Clone" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Voice Remixing" })).not.toBeInTheDocument();
+    expect(container.querySelector(".voices-properties-script-divider")).not.toBeNull();
+    expect(screen.getByText("0 / 5,000")).toBeInTheDocument();
+    expect(
+      container
+        .querySelector(".voices-properties-script-meta-row")
+        ?.contains(screen.getByText("0 / 5,000"))
+    ).toBe(true);
+    expect(
+      container
+        .querySelector(".voices-properties-panel-header")
+        ?.contains(screen.getByRole("tablist", { name: "Voice mode" }))
+    ).toBe(true);
   });
 
   it("opens the voices library modal from the header action and restores focus on close", async () => {

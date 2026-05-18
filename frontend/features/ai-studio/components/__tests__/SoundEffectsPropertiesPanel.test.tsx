@@ -39,6 +39,11 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByText("0 / 450")).toBeInTheDocument();
+    expect(
+      container
+        .querySelector(".sound-effects-properties-inspiration-header")
+        ?.contains(screen.getByText("0 / 450"))
+    ).toBe(true);
   }, 20000);
 
   it("keeps the composer empty by default", () => {

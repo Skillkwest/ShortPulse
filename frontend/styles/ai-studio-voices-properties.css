@@ -59,7 +59,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 22px;
+  gap: 0;
   min-height: 0;
   padding-bottom: 18px;
 }
@@ -771,10 +771,10 @@
 }
 
 .voices-properties-panel-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 16px;
 }
 
 .voices-properties-library-actions {
@@ -783,15 +783,17 @@
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+  grid-column: 3;
+  justify-self: end;
 }
 
 .voices-properties-library-title {
   display: flex;
   align-items: center;
   margin: 0;
-  flex: 1 1 auto;
   min-width: 0;
   min-height: 44px;
+  justify-self: start;
 }
 
 .voices-properties-library-open-btn,
@@ -1148,14 +1150,39 @@
   display: flex;
   justify-content: center;
   min-width: 0;
+  grid-column: 2;
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
-  width: min(320px, 100%);
+  width: min(360px, 100%);
+}
+
+@media (max-width: 900px) {
+  .voices-properties-panel-header {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .voices-properties-library-title,
+  .voices-properties-compose-mode-switcher,
+  .voices-properties-library-actions {
+    grid-column: auto;
+    justify-self: stretch;
+  }
+
+  .voices-properties-compose-mode-switcher {
+    order: 2;
+  }
+
+  .voices-properties-library-actions {
+    order: 3;
+    justify-content: flex-start;
+  }
 }
 
 .voices-properties-script-input-shell {
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   position: relative;
   width: 100%;
@@ -1177,8 +1204,9 @@
 
 .voices-properties-script-input {
   width: 100%;
+  flex: 1 1 auto;
   height: auto;
-  min-height: 100%;
+  min-height: 0;
   padding: 16px 18px;
   border: 0;
   background: transparent;
@@ -1198,6 +1226,12 @@
   overscroll-behavior: contain;
   transition: none;
   cursor: text;
+}
+
+.voices-properties-script-meta-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 18px 14px;
 }
 
 .voices-properties-script-input:focus,
@@ -1900,6 +1934,20 @@
   justify-content: space-between;
   gap: 12px;
   margin-top: auto;
+}
+
+.voices-properties-script-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0 0 12px;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.12),
+    rgba(201, 205, 214, 0.12) 72%,
+    rgba(201, 205, 214, 0)
+  );
+  opacity: 0.72;
 }
 
 .voices-properties-generate-context {

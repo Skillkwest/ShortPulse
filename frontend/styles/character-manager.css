@@ -295,10 +295,12 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-tab-rail {
+  display: block;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
+  min-height: 52px;
 }
 
 .character-sheet-preset-tab-row {
@@ -312,11 +314,12 @@ body.character-manager-body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  min-height: 52px;
   margin: 0;
-  padding: 6px 8px 0;
+  padding: 8px 10px 2px;
   border-radius: 14px 14px 0 0;
-  border: 0;
-  background: #0e0f13b8;
+  border: 1px solid rgba(201, 205, 214, 0.08);
+  background: rgba(14, 15, 19, 0.72);
   overflow: hidden;
 }
 
@@ -384,8 +387,8 @@ body.character-manager-body {
   border: 1px solid rgba(201, 205, 214, 0);
   border-bottom-color: rgba(201, 205, 214, 0);
   border-radius: 12px 12px 0 0;
-  background: #27282b2c;
-  color: rgba(87, 93, 101, 0.86);
+  background: rgba(39, 40, 43, 0.5);
+  color: rgba(182, 195, 208, 0.92);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
   font-size: 13px;
   font-weight: 700;
@@ -490,7 +493,7 @@ body.character-manager-body {
 
 .character-sheet-preset-tab:hover:not(:disabled) {
   color: rgba(227, 242, 255, 0.96);
-  background: #1f2127a2;
+  background: rgba(31, 33, 39, 0.82);
   cursor: pointer;
 }
 
@@ -538,6 +541,13 @@ body.character-manager-body {
     color 0.16s ease,
     transform 0.16s ease,
     box-shadow 0.16s ease;
+}
+
+.character-sheet-looks-block {
+  display: grid;
+  gap: 6px;
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .character-sheet-preset-add-btn:hover:not(:disabled) {

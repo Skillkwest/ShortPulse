@@ -1532,6 +1532,43 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             <section className="voices-properties-topbar" style={topSectionStyle}>
               <div className="voices-properties-panel-header">
                 <h2 className="panel-title voices-properties-library-title">Voices</h2>
+                <div className="voices-properties-compose-mode-switcher">
+                  <div className="voices-properties-mode-switcher">
+                    <div
+                      className="voices-properties-mode-tabs"
+                      role="tablist"
+                      aria-label="Voice mode"
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={surfaceMode === "create"}
+                        data-voice-mode="voiceover"
+                        className={`voices-properties-mode-tab ${
+                          surfaceMode === "create" ? "is-active" : ""
+                        }`}
+                        onClick={() => handleSurfaceModeChange("create")}
+                      >
+                        Voiceover
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={surfaceMode === "edit"}
+                        data-voice-mode="voice-changer"
+                        className={`voices-properties-mode-tab ${
+                          surfaceMode === "edit" ? "is-active" : ""
+                        }`}
+                        onClick={() => {
+                          handleSurfaceModeChange("edit");
+                          setIsCreatePanelOpen(false);
+                        }}
+                      >
+                        Voice Changer
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div className="voices-properties-library-actions">
                   <button
                     ref={voicesLibraryTriggerRef}
@@ -1542,43 +1579,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   >
                     <span>Voices</span>
                   </button>
-                </div>
-              </div>
-              <div className="voices-properties-compose-mode-switcher">
-                <div className="voices-properties-mode-switcher">
-                  <div
-                    className="voices-properties-mode-tabs"
-                    role="tablist"
-                    aria-label="Voice mode"
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={surfaceMode === "create"}
-                      data-voice-mode="voiceover"
-                      className={`voices-properties-mode-tab ${
-                        surfaceMode === "create" ? "is-active" : ""
-                      }`}
-                      onClick={() => handleSurfaceModeChange("create")}
-                    >
-                      Voiceover
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={surfaceMode === "edit"}
-                      data-voice-mode="voice-changer"
-                      className={`voices-properties-mode-tab ${
-                        surfaceMode === "edit" ? "is-active" : ""
-                      }`}
-                      onClick={() => {
-                        handleSurfaceModeChange("edit");
-                        setIsCreatePanelOpen(false);
-                      }}
-                    >
-                      Voice Changer
-                    </button>
-                  </div>
                 </div>
               </div>
             </section>
@@ -1607,6 +1607,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     placeholder={voiceScriptPlaceholder}
                     aria-label="Voice script"
                   />
+                  <div className="voices-properties-script-meta-row">
+                    <p className="voices-properties-script-count" aria-live="polite">
+                      {`${voiceScript.length.toLocaleString()} / ${maxVoiceScriptCharacters.toLocaleString()}`}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <VoiceChangerSourceDropzone
@@ -1616,12 +1621,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 />
               )}
 
+              <div className="voices-properties-script-divider" aria-hidden="true" />
+
               <div className="voices-properties-script-actions">
-                {surfaceMode === "create" ? (
-                  <p className="voices-properties-script-count" aria-live="polite">
-                    {`${voiceScript.length.toLocaleString()} / ${maxVoiceScriptCharacters.toLocaleString()}`}
-                  </p>
-                ) : null}
                 <div className="voices-properties-generate-context is-align-end" aria-live="polite">
                   <span className="voices-properties-generate-context-label">Selected voice</span>
                   <span className="voices-properties-generate-context-value">

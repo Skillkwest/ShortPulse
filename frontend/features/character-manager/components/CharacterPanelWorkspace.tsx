@@ -21,6 +21,13 @@ import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkelet
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import type { CharacterSheetDropZoneKey, CharacterSheetPresetId } from "../types";
 import type { MediaLibrarySelectionPayload } from "../../ai-studio/hooks/useMediaLibraryPanelSelectionController";
+import {
+  AiStudioPickerCard,
+  AiStudioPickerFeedback,
+  AiStudioPickerGrid,
+  AiStudioPickerModalFrame,
+  AiStudioPickerSection,
+} from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 
 type CharacterPanelWorkspaceProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -123,6 +130,7 @@ export function CharacterPanelWorkspace({
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
+  const [isCharacterLibraryModalOpen, setIsCharacterLibraryModalOpen] = React.useState(false);
   const [deleteTargetCharacter, setDeleteTargetCharacter] = React.useState<{
     characterId: string;
     characterName: string;
@@ -152,6 +160,21 @@ export function CharacterPanelWorkspace({
   const deleteTargetCharacterSheetPresetLabel = deleteTargetCharacterSheetPresetId
     ? characterSheetPresetLabels[deleteTargetCharacterSheetPresetId]
     : null;
+  const selectedCharacter = React.useMemo(
+    () => characters.find((entry) => entry.characterId === selectedCharacterId) ?? null,
+    [characters, selectedCharacterId]
+  );
+  const selectedCharacterSummaryName = React.useMemo(() => {
+    const draftName = characterName.trim();
+    if (draftName.length > 0) {
+      return draftName;
+    }
+    const savedName = selectedCharacter?.characterName?.trim() ?? "";
+    if (savedName.length > 0) {
+      return savedName;
+    }
+    return "Character library ready";
+  }, [characterName, selectedCharacter]);
 
   const { refreshCardPreviewSignedUrl, resolveCharacterCardPreviewUrl } =
     useCharacterCardPreviewUrls({
@@ -257,6 +280,7 @@ export function CharacterPanelWorkspace({
   const handleCreateNewCharacter = React.useCallback(async () => {
     clearMessages();
     setArmedSlotKey(null);
+    setIsCharacterLibraryModalOpen(false);
     await createCharacter();
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => {
@@ -340,6 +364,7 @@ export function CharacterPanelWorkspace({
       if (pageBusy) return;
       clearMessages();
       resetActiveSlotAssignment();
+      setIsCharacterLibraryModalOpen(false);
       await selectCharacter(characterId);
     },
     [clearMessages, pageBusy, resetActiveSlotAssignment, selectCharacter]
@@ -407,10 +432,18 @@ export function CharacterPanelWorkspace({
               <div className="character-panel-library-title-stack">
                 <h2>Characters Library</h2>
                 <p className="tiny subdued">
-                  Select a character to edit its active profile and looks.
+                  Open Characters to browse saved profiles and load one into the editor.
                 </p>
               </div>
               <div className="character-panel-library-header-actions">
+                <button
+                  type="button"
+                  className="character-panel-action-btn"
+                  onClick={() => setIsCharacterLibraryModalOpen(true)}
+                  disabled={pageBusy}
+                >
+                  Characters
+                </button>
                 <button
                   type="button"
                   className="character-panel-action-btn character-panel-action-btn--danger"
@@ -465,68 +498,13 @@ export function CharacterPanelWorkspace({
               <p className="tiny subdued">Create a character to start building your library.</p>
             </div>
           ) : (
-            <div className="character-panel-library-list" role="list" aria-label="Character list">
-              {characters.map((character) => {
-                const isSelected = character.characterId === selectedCharacterId;
-                const chipName = character.characterName || "Untitled character";
-                const chipInitials = getCharacterInitials(chipName);
-                return (
-                  <article
-                    key={character.characterId}
-                    role="listitem"
-                    className={`character-list-card ${isSelected ? "is-active" : ""} ${
-                      pageBusy ? "is-disabled" : ""
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className="character-list-select-btn"
-                      onClick={() => {
-                        void handleCharacterSelection(character.characterId);
-                      }}
-                      disabled={pageBusy}
-                    >
-                      <div className="character-list-main">
-                        <span className="character-list-avatar" aria-hidden="true">
-                          {character.profileImageUrl ? (
-                            <Image
-                              src={
-                                resolveCharacterCardPreviewUrl({
-                                  previewUrl: character.profileImageUrl,
-                                  storagePath:
-                                    character.profileImagePreviewStoragePath ??
-                                    character.profileImageStoragePath,
-                                  cardLongEdgePx: 44,
-                                }) ?? character.profileImageUrl
-                              }
-                              alt=""
-                              className="character-list-avatar-image"
-                              width={44}
-                              height={44}
-                              onError={(event) => {
-                                refreshCardPreviewSignedUrl(
-                                  character.profileImagePreviewStoragePath ??
-                                    character.profileImageStoragePath,
-                                  event.currentTarget.currentSrc || event.currentTarget.src
-                                );
-                              }}
-                              unoptimized
-                            />
-                          ) : (
-                            <span className="character-list-avatar-initials">{chipInitials}</span>
-                          )}
-                        </span>
-                        <div className="character-list-copy">
-                          <p className="metric-label tiny">
-                            {isSelected ? "Selected" : "Character"}
-                          </p>
-                          <p className="character-list-name">{chipName}</p>
-                        </div>
-                      </div>
-                    </button>
-                  </article>
-                );
-              })}
+            <div className="character-panel-library-summary" role="status" aria-live="polite">
+              <p className="character-panel-library-empty-title">{selectedCharacterSummaryName}</p>
+              <p className="tiny subdued">
+                {selectedCharacterId
+                  ? "Use Characters to browse saved profiles and switch the active character."
+                  : "Open Characters to browse your saved library and load a profile."}
+              </p>
             </div>
           )}
         </section>
@@ -591,32 +569,34 @@ export function CharacterPanelWorkspace({
                 <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
                   <p className="input-label">Looks:</p>
                 </div>
-              </div>
 
-              <CharacterSheetPresetTabs
-                presetIds={visibleCharacterSheetPresetIds}
-                activePresetId={activeCharacterSheetPresetId}
-                presetLabels={characterSheetPresetLabels}
-                onSelectPreset={(presetId) => {
-                  resetActiveSlotAssignment();
-                  void setActiveCharacterSheetPreset(presetId);
-                }}
-                onAddPreset={() => {
-                  resetActiveSlotAssignment();
-                  void addCharacterSheetPreset();
-                }}
-                onRenamePreset={(presetId, nextLabel) => {
-                  void renameCharacterSheetPreset(presetId, nextLabel);
-                }}
-                onDeletePreset={(presetId) => {
-                  if (pageBusy || isSavingCharacterSheetPreset) return;
-                  clearMessages();
-                  setDeleteTargetCharacterSheetPresetId(presetId);
-                }}
-                panelId="character-panel-preset-panel"
-                disabled={pageBusy}
-                idBase="character-panel-preset"
-              />
+                <div className="character-sheet-looks-block">
+                  <CharacterSheetPresetTabs
+                    presetIds={visibleCharacterSheetPresetIds}
+                    activePresetId={activeCharacterSheetPresetId}
+                    presetLabels={characterSheetPresetLabels}
+                    onSelectPreset={(presetId) => {
+                      resetActiveSlotAssignment();
+                      void setActiveCharacterSheetPreset(presetId);
+                    }}
+                    onAddPreset={() => {
+                      resetActiveSlotAssignment();
+                      void addCharacterSheetPreset();
+                    }}
+                    onRenamePreset={(presetId, nextLabel) => {
+                      void renameCharacterSheetPreset(presetId, nextLabel);
+                    }}
+                    onDeletePreset={(presetId) => {
+                      if (pageBusy || isSavingCharacterSheetPreset) return;
+                      clearMessages();
+                      setDeleteTargetCharacterSheetPresetId(presetId);
+                    }}
+                    panelId="character-panel-preset-panel"
+                    disabled={pageBusy}
+                    idBase="character-panel-preset"
+                  />
+                </div>
+              </div>
 
               <div
                 className="character-sheet-preset-panel"
@@ -811,6 +791,75 @@ export function CharacterPanelWorkspace({
           }}
         />
       ) : null}
+
+      <AiStudioPickerModalFrame
+        isOpen={isCharacterLibraryModalOpen}
+        activityId="character-panel-character-picker"
+        ariaLabel="Character library"
+        title="Characters"
+        subtitle="Browse saved characters and load a profile into the editor."
+        onClose={() => setIsCharacterLibraryModalOpen(false)}
+      >
+        <AiStudioPickerSection>
+          {characters.length > 0 ? (
+            <AiStudioPickerGrid ariaLabel="Saved characters">
+              {characters.map((character) => {
+                const isSelected = character.characterId === selectedCharacterId;
+                const chipName = character.characterName || "Untitled character";
+                const chipInitials = getCharacterInitials(chipName);
+                return (
+                  <AiStudioPickerCard
+                    key={character.characterId}
+                    isActive={isSelected}
+                    className="ai-character-picker-card--character"
+                    onSelect={() => {
+                      void handleCharacterSelection(character.characterId);
+                    }}
+                    avatar={
+                      character.profileImageUrl ? (
+                        <Image
+                          src={
+                            resolveCharacterCardPreviewUrl({
+                              previewUrl: character.profileImageUrl,
+                              storagePath:
+                                character.profileImagePreviewStoragePath ??
+                                character.profileImageStoragePath,
+                              cardLongEdgePx: 44,
+                            }) ?? character.profileImageUrl
+                          }
+                          alt=""
+                          className="ai-character-list-avatar-image"
+                          width={44}
+                          height={44}
+                          onError={(event) => {
+                            refreshCardPreviewSignedUrl(
+                              character.profileImagePreviewStoragePath ??
+                                character.profileImageStoragePath,
+                              event.currentTarget.currentSrc || event.currentTarget.src
+                            );
+                          }}
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="ai-character-list-avatar-initials">{chipInitials}</span>
+                      )
+                    }
+                    label={isSelected ? "Selected" : "Character"}
+                    name={chipName}
+                  />
+                );
+              })}
+            </AiStudioPickerGrid>
+          ) : (
+            <AiStudioPickerFeedback
+              isLoading={loading}
+              loadingMessage="Loading characters..."
+              errorMessage={null}
+              emptyMessage="No saved characters yet. Create one to start building your library."
+            />
+          )}
+        </AiStudioPickerSection>
+      </AiStudioPickerModalFrame>
 
       <input
         ref={characterSheetFileInputRef}

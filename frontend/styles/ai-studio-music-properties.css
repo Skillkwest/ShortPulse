@@ -299,6 +299,13 @@
   gap: 10px;
 }
 
+.music-properties-inspiration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .music-properties-inspiration-rail {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -502,9 +509,9 @@
 }
 
 .music-properties-script-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -520,13 +527,6 @@
   display: inline-flex;
   align-items: center;
   gap: 14px;
-}
-
-.music-properties-script-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
 }
 
 .music-properties-custom-footer-controls {

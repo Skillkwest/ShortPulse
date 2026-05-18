@@ -261,9 +261,9 @@
 }
 
 .sound-effects-properties-script-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: end;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -271,6 +271,7 @@
   margin: 0;
   color: rgba(185, 191, 201, 0.68);
   font-size: 12px;
+  text-align: right;
 }
 
 .sound-effects-properties-script-actions-right {

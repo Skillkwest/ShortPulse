@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -24,6 +25,16 @@ const isAdaptiveSurfaceEnabledMock = vi.fn();
 const useMediaPreviewSigningControllerMock = vi.fn();
 const useMediaStorageQuotaSummaryMock = vi.fn();
 const requestMediaStorageQuotaSummaryRefreshMock = vi.fn();
+const mediaLibraryPanelStylesheet = readFileSync(
+  "styles/ai-studio-media-library-panel.css",
+  "utf8"
+);
+
+const readCssZIndex = (pattern: RegExp): number => {
+  const match = mediaLibraryPanelStylesheet.match(pattern);
+  expect(match?.[1]).toBeTruthy();
+  return Number(match?.[1]);
+};
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -549,6 +560,17 @@ describe("MediaLibraryPanel", () => {
         promptIds,
       })
     );
+  });
+
+  it("keeps sticky root chrome above selected card shells in the stylesheet", () => {
+    const stickyChromeZIndex = readCssZIndex(
+      /\.media-library-panel-root-sticky-chrome\s*{[^}]*z-index:\s*(\d+)/s
+    );
+    const selectedCardShellZIndex = readCssZIndex(
+      /\.media-library-panel-media-card-shell\.is-active,\s*\.media-library-panel-prompt-reference-shell\.is-active\s*{[^}]*z-index:\s*(\d+)/s
+    );
+
+    expect(stickyChromeZIndex).toBeGreaterThan(selectedCardShellZIndex);
   });
 
   it.skip("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {
@@ -2599,6 +2621,54 @@ describe("MediaLibraryPanel", () => {
 
     expect(screen.getByDisplayValue("Campaign")).toBeInTheDocument();
     expect(screen.queryByRole("menu", { name: "Campaign folder actions" })).not.toBeInTheDocument();
+  });
+
+  it("repositions the folder context menu upward when its measured height would overflow the viewport", async () => {
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function () {
+        if (this.classList.contains("media-library-panel-folder-context-menu")) {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 156,
+            bottom: 160,
+            width: 156,
+            height: 160,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return originalGetBoundingClientRect.call(this);
+      });
+
+    try {
+      render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.contextMenu(screen.getByRole("button", { name: "Campaign folder" }), {
+          clientX: 120,
+          clientY: window.innerHeight - 8,
+        });
+      });
+
+      const menu = screen.getByRole("menu", { name: "Campaign folder actions" });
+
+      await waitFor(() => {
+        expect(menu).toHaveStyle({
+          top: `${window.innerHeight - 160 - 10}px`,
+          left: "120px",
+        });
+      });
+    } finally {
+      rectSpy.mockRestore();
+    }
   });
 
   it("deletes a custom folder from the right-click folder menu", async () => {

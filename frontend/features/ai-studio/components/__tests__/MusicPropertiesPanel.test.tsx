@@ -9,7 +9,7 @@ import { MusicPropertiesPanel } from "../MusicPropertiesPanel";
 
 describe("MusicPropertiesPanel", () => {
   it("renders the music mode toggle instead of the retired preview area", () => {
-    render(<MusicPropertiesPanel />);
+    const { container } = render(<MusicPropertiesPanel />);
 
     expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Music composition modes" })).toBeInTheDocument();
@@ -35,6 +35,12 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: "boastful" })).toBeNull();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
+    expect(screen.getByText("0 / 2,000")).toBeInTheDocument();
+    expect(
+      container
+        .querySelector(".music-properties-inspiration-header")
+        ?.contains(screen.getByText("0 / 2,000"))
+    ).toBe(true);
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
     expect(screen.getByRole("note", { name: "Duration auto" })).toHaveTextContent("Auto");

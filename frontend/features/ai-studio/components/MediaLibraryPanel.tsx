@@ -2,7 +2,7 @@
  * AI Studio Media Library left-panel surface.
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
@@ -95,14 +95,13 @@ type MediaLibraryPanelProps = {
   } | null>;
 };
 
-const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
-const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
 const MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO = 0.3;
 const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
 const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
   if (itemType === "videos") return "uploaded_videos";
@@ -439,6 +438,44 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     };
   }, [folderContextMenu]);
 
+  useIsomorphicLayoutEffect(() => {
+    if (!folderContextMenu) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const menuNode = folderContextMenuRef.current;
+      if (!menuNode) return;
+      const { height, width } = menuNode.getBoundingClientRect();
+      if (!(height > 0) || !(width > 0)) return;
+      const nextX = Math.min(
+        Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, folderContextMenu.x),
+        Math.max(
+          FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX,
+          window.innerWidth - width - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+        )
+      );
+      const nextY = Math.min(
+        Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, folderContextMenu.y),
+        Math.max(
+          FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX,
+          window.innerHeight - height - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+        )
+      );
+      if (nextX === folderContextMenu.x && nextY === folderContextMenu.y) return;
+      setFolderContextMenu((previous) => {
+        if (!previous) return previous;
+        if (previous.x === nextX && previous.y === nextY) return previous;
+        return {
+          ...previous,
+          x: nextX,
+          y: nextY,
+        };
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [folderContextMenu]);
+
   const {
     previewModalFile,
     previewModalUrl,
@@ -592,19 +629,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setFolderContextMenu(null);
         return;
       }
-      const boundedX = Math.min(
-        event.clientX,
-        window.innerWidth - FOLDER_CONTEXT_MENU_WIDTH_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
-      );
-      const boundedY = Math.min(
-        event.clientY,
-        window.innerHeight - FOLDER_CONTEXT_MENU_HEIGHT_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
-      );
       setFolderContextMenu({
         folderId: folder.id,
         folderName: folder.name,
-        x: Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, boundedX),
-        y: Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, boundedY),
+        x: Math.min(
+          Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, event.clientX),
+          window.innerWidth - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+        ),
+        y: Math.min(
+          Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, event.clientY),
+          window.innerHeight - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
+        ),
       });
     },
     []

@@ -22,6 +22,14 @@ Latest audit update:
 - the implementation must reconcile virtual and non-virtual density behavior instead of changing only one path
 - dense preview work must account for the current static `cardLongEdgePx: 320` calls in both grid components
 
+Second audit update:
+
+- this is a five-column masonry-column goal, not a strict equal-row grid goal
+- with the current practical minimum width of `188px` and `1px` gaps, a surface needs about `944px` of usable grid width to show five columns
+- narrower panels should intentionally render fewer columns instead of shrinking cards until controls, prompts, or ratios degrade
+- the Character panel bottom embedded browser can inherit the five-column contract, but it should only reach five when the split/expanded state gives it enough width
+- the repo does not have a `frontend/app` path; implementation and tests should stay under `frontend/features` and `frontend/styles`
+
 ## Approved Scope
 
 Apply the five-column density contract only to approved media-library browse surfaces:
@@ -62,6 +70,7 @@ Use these facts as the implementation baseline:
 Use this rule:
 
 - five columns is a maximum for wide panel media browsing, not a forced count everywhere
+- "five media to a row" means five masonry columns on wide enough media-library browse panels; masonry rows can look staggered because images and videos keep their real aspect ratios
 
 Practical behavior:
 
@@ -76,7 +85,15 @@ Minimum card-size rule:
 
 - do not reduce All Media below the current practical `188px` target without a visual pass
 - do not reduce media-only cards below `188px` in the first pass
+- treat `944px` usable grid width as the rough threshold for five columns at the current minimum
 - if five columns cannot fit while preserving readable card width, show fewer than five columns
+
+Surface-specific implications:
+
+- AI Studio main Media Library panel is the most likely surface to hit five columns at normal or expanded width.
+- Elements embedded Media Library panel may hit five columns only when its panel width is large enough; otherwise four or fewer is correct.
+- Character panel bottom embedded Media Library browser should use the same density config through `ElementsEmbeddedMediaLibraryPanel`, but normal split height/width may make four or fewer columns the right result.
+- Full Media Library modal must remain unchanged unless a later task explicitly expands scope to the modal.
 
 ## Implementation Plan
 
@@ -87,7 +104,8 @@ Minimum card-size rule:
 
 1. Add named density constants.
    - Add a single panel constant such as `MEDIA_LIBRARY_PANEL_MAX_COLUMNS = 5`.
-   - Add a panel minimum target width constant instead of scattering `188` or `220`.
+   - Add a panel minimum target width constant such as `MEDIA_LIBRARY_PANEL_MIN_COLUMN_WIDTH = 188` instead of scattering `188` or `220`.
+   - Add a derived minimum five-column width check or comment so future agents understand why five columns need about `944px`.
    - Keep modal defaults unchanged.
 
 2. Add an optional max-column control to the shared virtualizer.
@@ -110,11 +128,14 @@ Minimum card-size rule:
    - Add panel-only CSS so small item counts follow the same five-column contract.
    - Avoid changing modal CSS defaults.
    - Ensure the CSS path and virtualizer path use the same practical card-width target.
+   - Prefer a panel-scoped CSS custom property over hard-coded duplicate width values.
+   - Confirm the CSS change applies to both media-only and All Media packed grids.
 
 6. Make preview sizing follow dense card size.
    - Avoid treating dense cards as if every card still needs a `320px` long-edge preview.
    - Use measured or estimated card width when selecting adaptive preview variants.
    - Keep current behavior when no density config is supplied.
+   - Do not increase `fetchpriority="high"` count just because more cards fit in a row; if anything, reconsider whether the first `8` eager-priority cards are still appropriate after the density change.
 
 7. Preserve runtime budgets.
    - Do not raise video autoplay/attach budgets.
@@ -138,6 +159,7 @@ Before accepting the change:
 - audio should remain on-demand
 - visible-row signing must remain scoped to visible ids
 - no added count-only/list churn should appear
+- higher visual density must not increase initial eager media work beyond the existing budgeted behavior
 
 If density increases visible-card count enough to stress preview work, prefer smaller preview variants and tighter visible-row prioritization before reducing correctness.
 
@@ -152,6 +174,7 @@ Required unit coverage:
 
 - virtualizer caps wide layouts at 5 when `maxColumnCount` is provided
 - virtualizer still falls below 5 on narrow containers
+- virtualizer produces exactly 5 columns around the `944px` threshold with `188px` target width and `1px` gap
 - virtualizer behavior is unchanged when `maxColumnCount` is omitted
 - `MediaLibraryPanel` passes the density prop to media and all-items grids
 - `ElementsEmbeddedMediaLibraryPanel` passes the density prop to media and all-items grids
@@ -160,6 +183,7 @@ Required unit coverage:
 - the panel paths still pass `visibleMediaIdsRef` into the mixed grid
 - the panel paths do not alter video autoplay budget constants
 - non-virtual panel CSS contains a panel-scoped density rule and does not alter modal packed-grid defaults
+- tests or assertions cover the Character panel inheritance path through `ElementsEmbeddedMediaLibraryPanel` without changing character workspace grids
 
 Recommended commands:
 
@@ -175,7 +199,9 @@ After implementation, verify screenshots or direct visual inspection for:
 - AI Studio Media Library panel, normal width
 - AI Studio Media Library panel, expanded width
 - Elements embedded Media Library panel
+- Elements embedded Media Library panel, expanded or widest available state if normal width cannot fit five columns
 - Character panel bottom embedded Media Library browser
+- Character panel bottom embedded Media Library browser, expanded or widest available state if normal split width cannot fit five columns
 - All Media with mixed images, videos, audio, and prompts
 - Images-only and videos-only tabs
 
@@ -188,6 +214,7 @@ The visual pass must check:
 - no unrelated modal layout changed
 - normal-width panels do not force five columns when that would make cards too small
 - expanded panels show up to five columns when the container is wide enough
+- if a surface cannot show five columns at current width, record the measured width and expected fallback column count instead of treating it as a failure
 
 ## KPI Proof Plan
 

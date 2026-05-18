@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCreateWorkflowDebugDiagnosis,
   buildCreateWorkflowDebugReport,
   readSnapshotFromText,
 } from "../create_workflow_debug_report.mjs";
@@ -29,13 +30,13 @@ describe("create_workflow_debug_report", () => {
           referenceId: "reference-1",
           mediaId: "media-1",
           imageUrl: "data:image/jpeg;base64,preview",
-          submissionImageUrl: "blob:submission",
+          submissionImageUrl: "https://storage.example.com/full.png?token=secret",
           previewStoragePath: "previews/path",
           fullStoragePath: "full/path",
           referenceUrl: "https://example.com/reference.png",
           referenceRenderUrl: null,
           imageFallbackUrls: ["https://example.com/fallback.png"],
-          deliveryStatus: "pending",
+          deliveryStatus: "ready",
           deliveryError: null,
         },
       ],
@@ -50,13 +51,39 @@ describe("create_workflow_debug_report", () => {
           at: "2026-05-16T00:00:01.000Z",
           payload: { attachmentId: "attachment-1" },
         },
+        {
+          type: "agent_send_payload_ready",
+          at: "2026-05-16T00:00:02.000Z",
+          payload: { imageAttachmentIds: ["attachment-1"] },
+        },
       ],
     });
 
     expect(report).toContain("# Create Workflow Debug Report");
     expect(report).toContain("- Attachment count: 1");
     expect(report).toContain("- drop_received: 1");
-    expect(report).toContain("- submissionImageUrl: blob:submission");
+    expect(report).toContain("- Likely failure class: ready_for_model_send");
+    expect(report).toContain("- submissionImageUrl: https:storage.example.com/full.png");
     expect(report).toContain("attachment_inserted");
+  });
+
+  it("diagnoses delivery failures", () => {
+    const diagnosis = buildCreateWorkflowDebugDiagnosis({
+      enabled: true,
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "image",
+          deliveryStatus: "failed",
+          deliveryError: "Upload failed.",
+          imageUrl: "blob:preview",
+          submissionImageUrl: null,
+        },
+      ],
+      events: [],
+    });
+
+    expect(diagnosis.likelyFailureClass).toBe("delivery_failed");
+    expect(diagnosis.blockers).toContain("delivery_failed");
   });
 });

@@ -4,8 +4,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildCreateWorkflowDebugDiagnosis,
   buildCreateWorkflowDebugReport,
   readSnapshotFromText,
+  summarizeCreateWorkflowDebugUrl,
 } from "./create_workflow_debug_report.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +21,7 @@ export const DEFAULT_CAPTURE_OUTPUT_DIR = path.resolve(
 const timestampSlug = () => new Date().toISOString().replace(/[:]/g, "-").replace(/\..+$/, "Z");
 
 export const analyzeCreateWorkflowSnapshot = (snapshot, incidentId = "unknown-incident") => {
+  const diagnosis = buildCreateWorkflowDebugDiagnosis(snapshot);
   const eventCounts = Object.create(null);
   const previewEvents = [];
 
@@ -53,6 +56,24 @@ export const analyzeCreateWorkflowSnapshot = (snapshot, incidentId = "unknown-in
         typeof attachment.submissionImageUrl === "string" &&
         attachment.submissionImageUrl.length > 0
     ),
+    durableSubmissionImageUrlPresentAtEnd: snapshot.attachments.some(
+      (attachment) =>
+        summarizeCreateWorkflowDebugUrl(attachment.submissionImageUrl).kind === "https"
+    ),
+    readyImageAttachmentCount: snapshot.attachments.filter(
+      (attachment) => attachment.kind === "image" && attachment.deliveryStatus === "ready"
+    ).length,
+    failedImageAttachmentCount: snapshot.attachments.filter(
+      (attachment) => attachment.kind === "image" && attachment.deliveryStatus === "failed"
+    ).length,
+    preparingImageAttachmentCount: snapshot.attachments.filter(
+      (attachment) =>
+        attachment.kind === "image" &&
+        ((attachment.deliveryStatus ?? "pending") === "preparing" ||
+          (attachment.deliveryStatus ?? "pending") === "pending")
+    ).length,
+    sendPayloadReadyCount: eventCounts.agent_send_payload_ready ?? 0,
+    diagnosis,
     previewErrorCount: eventCounts.preview_img_error ?? 0,
     previewRepairAttemptCount: eventCounts.preview_repair_attempted ?? 0,
     previewRepairResolvedCount: eventCounts.preview_repair_resolved ?? 0,
@@ -69,6 +90,7 @@ export const analyzeCreateWorkflowSnapshot = (snapshot, incidentId = "unknown-in
       ...((eventCounts.attachment_replaced ?? 0) > 0 ? ["attachment_replaced"] : []),
       ...((eventCounts.preview_img_error ?? 0) > 0 ? ["preview_img_error"] : []),
       ...((eventCounts.attachments_reset ?? 0) > 0 ? ["attachments_reset"] : []),
+      ...(diagnosis.blockers ?? []),
     ],
   };
 };
@@ -83,6 +105,17 @@ export const buildCreateWorkflowCaptureReport = (analysis, snapshot) => {
     `- Attachment ids: ${analysis.attachmentIds.length ? analysis.attachmentIds.join(", ") : "none"}`,
     `- imageUrl present at end: ${analysis.imageUrlPresentAtEnd ? "yes" : "no"}`,
     `- submissionImageUrl present at end: ${analysis.submissionImageUrlPresentAtEnd ? "yes" : "no"}`,
+    `- durable submissionImageUrl present at end: ${
+      analysis.durableSubmissionImageUrlPresentAtEnd ? "yes" : "no"
+    }`,
+    `- Ready image attachments: ${analysis.readyImageAttachmentCount}`,
+    `- Preparing/pending image attachments: ${analysis.preparingImageAttachmentCount}`,
+    `- Failed image attachments: ${analysis.failedImageAttachmentCount}`,
+    `- Send payload ready events: ${analysis.sendPayloadReadyCount}`,
+    `- Likely failure class: ${analysis.diagnosis.likelyFailureClass}`,
+    `- Diagnosis blockers: ${
+      analysis.diagnosis.blockers.length ? analysis.diagnosis.blockers.join(", ") : "none"
+    }`,
     `- Preview error count: ${analysis.previewErrorCount}`,
     `- Preview repair attempt count: ${analysis.previewRepairAttemptCount}`,
     `- Preview repair resolved count: ${analysis.previewRepairResolvedCount}`,

@@ -51,16 +51,19 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
   gap: 12px;
+  overflow: hidden;
 }
 
 .character-panel-library-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1.1fr);
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .character-panel-library-column,
@@ -73,6 +76,7 @@
 .character-panel-library-column {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   padding: 18px 18px 0;
   overflow: hidden;
 }
@@ -80,7 +84,9 @@
 .character-panel-editor-column {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   padding: 10px;
+  overflow: hidden;
 }
 
 .character-panel-editor-column-panel {
@@ -93,6 +99,8 @@
   border: 1px solid rgba(201, 205, 214, 0.05);
   border-radius: var(--character-panel-card-radius);
   background: rgba(201, 205, 214, 0.05);
+  overflow: auto;
+  overscroll-behavior-y: contain;
 }
 
 .character-panel-library-header,
@@ -180,16 +188,18 @@
   gap: 14px;
   margin-top: 14px;
   overflow-y: auto;
+  max-height: min(240px, 30vh);
   padding-bottom: 18px;
 }
 
 .character-panel-library-empty-state {
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: start;
   gap: 6px;
-  flex: 1 1 auto;
-  min-height: 160px;
+  flex: 0 0 auto;
+  min-height: 88px;
+  padding: 18px 0 22px;
 }
 
 .character-panel-library-empty-title {
@@ -256,10 +266,6 @@
 }
 
 @media (max-width: 1260px) {
-  .character-panel-library-workspace {
-    grid-template-columns: 1fr;
-  }
-
   .character-panel-library-column,
   .character-panel-editor-column {
     min-height: auto;

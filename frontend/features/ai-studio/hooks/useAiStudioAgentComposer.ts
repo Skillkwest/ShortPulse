@@ -10,6 +10,7 @@ import {
   recordCreateWorkflowEvent,
   setCreateWorkflowAttachmentSnapshot,
   summarizeCreateWorkflowAttachment,
+  summarizeCreateWorkflowUrl,
 } from "../logic/createWorkflowDebug";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
@@ -408,6 +409,13 @@ export const useAiStudioAgentComposer = ({
       referenceUrl?: string | null;
       sourceBlob?: Blob | null;
     }) => {
+      recordCreateWorkflowEvent("attachment_delivery_started", {
+        attachmentId,
+        hasSourceBlob: sourceBlob instanceof Blob && sourceBlob.size > 0,
+        previewStoragePath: previewStoragePath ?? null,
+        fullStoragePath: fullStoragePath ?? null,
+        referenceUrl: summarizeCreateWorkflowUrl(referenceUrl),
+      });
       try {
         const durableReferenceUrl = await resolveAgentAttachmentPreviewUrl({
           previewStoragePath: null,
@@ -458,6 +466,9 @@ export const useAiStudioAgentComposer = ({
           recordCreateWorkflowEvent("attachment_delivery_ready", {
             attachmentId,
             source: "durable_identity",
+            submissionImageUrl: summarizeCreateWorkflowUrl(durableSubmissionUrl),
+            previewStoragePath: previewStoragePath ?? null,
+            fullStoragePath: fullStoragePath ?? null,
           });
           return;
         }
@@ -479,6 +490,8 @@ export const useAiStudioAgentComposer = ({
         recordCreateWorkflowEvent("attachment_delivery_ready", {
           attachmentId,
           source: "uploaded_storage",
+          submissionImageUrl: summarizeCreateWorkflowUrl(uploaded.url),
+          fullStoragePath: uploaded.path ?? fullStoragePath ?? null,
         });
       } catch (error) {
         const message =

@@ -45,3 +45,23 @@ Purpose: track how Create Workflow is trained, what behavior improves, and what 
   - Added the capture-ingest CLI.
 - Next focus:
   - Capture one failing production snapshot and run the ingest loop end to end.
+
+### 2026-05-18 (workspace refresh)
+
+- Lesson:
+  - Stale hot-path context can degrade debugging by making the agent optimize for an old failure model.
+- Artifact change:
+  - Reorganized the Create Workflow workspace around the current drop-time durable image contract and moved older capture-only context to lookup status.
+- Next focus:
+  - Verify production with delivery state, durable `submissionImageUrl`, visible chip render, and model-send payload evidence in the same capture.
+
+### 2026-05-18 (flight-recorder pass)
+
+- Lesson:
+  - The Create image issue needs a deterministic diagnosis surface, not another screenshot-derived UI patch.
+- Tool change:
+  - Added diagnosis output and send-payload instrumentation to the Create Workflow debug path.
+- Artifact change:
+  - Pruned hot memory away from stale preview-only hypotheses and made `getDiagnosis()` the first triage step.
+- Next focus:
+  - Capture production once and let the diagnosis pick the next failing lane.

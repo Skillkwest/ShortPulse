@@ -3,7 +3,10 @@
  * Resolves image attachment URLs into safe HTTPS URLs with bounded caching.
  */
 import type { AgentAttachment } from "../../../../prefabs/agent";
-import { recordCreateWorkflowEvent } from "../../logic/createWorkflowDebug";
+import {
+  recordCreateWorkflowEvent,
+  summarizeCreateWorkflowUrl,
+} from "../../logic/createWorkflowDebug";
 import { resolveAgentAttachmentSubmissionCandidates } from "../../logic/agentAttachmentImage";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 
@@ -112,6 +115,11 @@ export const prepareAgentImageAttachments = async ({
   const preparedResults = await Promise.allSettled(
     imageAttachments.map(async (attachment) => {
       const sourceUrls = await resolveAgentAttachmentSubmissionCandidates(attachment);
+      recordCreateWorkflowEvent("attachment_send_prepare_started", {
+        attachmentId: attachment.id,
+        candidateCount: sourceUrls.length,
+        candidates: sourceUrls.map((sourceUrl) => summarizeCreateWorkflowUrl(sourceUrl)),
+      });
       if (!sourceUrls.length) {
         return {
           attachmentId: attachment.id,
@@ -127,9 +135,19 @@ export const prepareAgentImageAttachments = async ({
         const prepared = await resolvePreparedImageUrl(sourceUrl);
         if (prepared.safeUrl?.startsWith("https://")) {
           safeUrl = prepared.safeUrl;
+          recordCreateWorkflowEvent("attachment_send_prepare_candidate_ready", {
+            attachmentId: attachment.id,
+            source: summarizeCreateWorkflowUrl(sourceUrl),
+            prepared: summarizeCreateWorkflowUrl(prepared.safeUrl),
+          });
           break;
         }
         errors.push(summarizeCandidateFailure(prepared.error));
+        recordCreateWorkflowEvent("attachment_send_prepare_candidate_failed", {
+          attachmentId: attachment.id,
+          source: summarizeCreateWorkflowUrl(sourceUrl),
+          message: summarizeCandidateFailure(prepared.error),
+        });
       }
 
       return {
@@ -188,6 +206,14 @@ export const prepareAgentImageAttachments = async ({
       failureMessages,
     };
   }
+
+  recordCreateWorkflowEvent("attachment_send_prepare_ready", {
+    imageAttachmentIds,
+    preparedImageUrls: Array.from(preparedImageUrls.entries()).map(([attachmentId, safeUrl]) => ({
+      attachmentId,
+      safeUrl: summarizeCreateWorkflowUrl(safeUrl),
+    })),
+  });
 
   return {
     ok: true,

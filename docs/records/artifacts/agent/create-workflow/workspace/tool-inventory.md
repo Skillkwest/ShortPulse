@@ -20,7 +20,25 @@ localStorage.setItem("shortpulse.create_workflow.debug", "1");
 Use for:
 
 - attachment lifecycle event capture
-- proving whether the chip goes dark because of replacement, cleanup, repair failure, or source overwrite
+- proving whether a failing attachment is blocked by delivery state, preview projection, storage URL renderability, or send-payload preparation
+
+Primary commands:
+
+```js
+window.__shortpulseCreateWorkflowDebug.getSnapshot();
+window.__shortpulseCreateWorkflowDebug.getDiagnosis();
+```
+
+The diagnosis is the first-pass triage surface. It classifies the current capture as one of:
+
+- `delivery_failed`
+- `delivery_not_ready`
+- `missing_durable_submission_url`
+- `send_preparation_failed`
+- `send_payload_missing_image`
+- `preview_render_failed`
+- `preview_source_missing`
+- `ready_for_model_send`
 
 ## Capture Ingest CLI
 

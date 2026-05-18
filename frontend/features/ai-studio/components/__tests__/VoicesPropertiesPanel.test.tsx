@@ -190,6 +190,9 @@ describe("VoicesPropertiesPanel", () => {
       "aria-selected",
       "false"
     );
+    expect(
+      screen.getByRole("separator", { name: "Resize voices mode and composition sections" })
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
     expect(screen.queryByText("Voice shaping")).not.toBeInTheDocument();
     expect(screen.queryByText("Language")).not.toBeInTheDocument();

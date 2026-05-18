@@ -49,10 +49,38 @@ copy(
 );
 ```
 
+Also capture the diagnosis:
+
+```js
+copy(
+  JSON.stringify(
+    window.__shortpulseCreateWorkflowDebug?.getDiagnosis(),
+    null,
+    2,
+  ),
+);
+```
+
 ## Required Retained Fields
 
 - `attachments`
 - `events`
+- attachment `id`
+- attachment `kind`
+- attachment `deliveryStatus`
+- attachment `deliveryError`
+- attachment `imageUrl` source kind only:
+  - `blob`
+  - `data`
+  - durable URL
+  - empty
+- attachment `submissionImageUrl` source kind and hostname/path summary
+- attachment `previewStoragePath`
+- attachment `fullStoragePath`
+- upload request/response status for storage materialization
+- model-send request/response status if the repro reaches send
+- diagnosis `likelyFailureClass`
+- diagnosis `blockers`
 - screenshot of visible failure state
 - final rendered `img.src` if inspectable
 - console errors if any
@@ -60,10 +88,12 @@ copy(
 ## Questions The Capture Must Answer
 
 1. Was the attachment inserted correctly?
-2. Did a later event replace it?
-3. Did `imageUrl` disappear while `submissionImageUrl` survived?
-4. Did preview repair run?
-5. Did the chip source change immediately before darkening?
+2. Did `deliveryStatus` reach `ready`?
+3. Did `submissionImageUrl` become a durable storage URL?
+4. Was Generate/chat-send blocked while `preparing` or `failed`?
+5. Did the chip render from a valid preview source?
+6. Did the model-send payload use `submissionImageUrl` instead of `imageUrl`?
+7. Did any later event replace, null, or downgrade the attachment?
 
 ## Post-Capture Report
 
@@ -89,4 +119,4 @@ Store:
 
 Recommended retained location:
 
-- `docs/records/artifacts/agent/create-workflow/reports/`
+- `docs/records/artifacts/agent/create-workflow/workspace/captures/`

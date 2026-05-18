@@ -1,6 +1,10 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
+import {
+  recordCreateWorkflowEvent,
+  summarizeCreateWorkflowUrl,
+} from "../../logic/createWorkflowDebug";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
@@ -239,6 +243,19 @@ export const runStandardCreateAgentSend = async ({
       attachments: outboundAttachments,
       preparedImageUrls,
     });
+    if (imageAttachmentIds.length > 0) {
+      recordCreateWorkflowEvent("agent_send_payload_ready", {
+        mode: "standard",
+        imageAttachmentIds,
+        mediaCount: requestContext.media?.filter((media) => media.kind === "image").length ?? 0,
+        media: (requestContext.media ?? [])
+          .filter((media) => media.kind === "image")
+          .map((media) => ({
+            id: media.id,
+            url: summarizeCreateWorkflowUrl(media.url),
+          })),
+      });
+    }
 
     const { response, actions, discarded } = await sendToAgent({
       text: outboundText,

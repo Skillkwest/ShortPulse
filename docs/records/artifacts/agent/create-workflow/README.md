@@ -27,11 +27,13 @@ For a substantive Create Workflow run, the shortest high-signal path is:
 
 1. `docs/agents/Create Workflow/README.md`
 2. `docs/agents/Create Workflow/memory.md`
-3. `workspace/current-state.md`
-4. `workspace/session-hand-off.md`
-5. `training-data/README.md`
-6. the most recent report in `reports/`
-7. `training-history.md`
+3. `docs/agents/Create Workflow/standard-operating-procedure.md`
+4. `workspace/current-state.md`
+5. `workspace/session-hand-off.md`
+6. `workspace/production-capture-template.md`
+7. `workspace/tool-inventory.md`
+
+Use `training-data/`, `reports/`, and `training-history.md` as lookup-only context unless the hot path is insufficient.
 
 ## Authority
 

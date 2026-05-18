@@ -10,8 +10,10 @@ const snapshot = {
   attachments: [
     {
       id: "attachment-1",
-      imageUrl: null,
-      submissionImageUrl: "blob:submission",
+      kind: "image",
+      imageUrl: "blob:preview",
+      submissionImageUrl: "https://storage.example.com/full.png",
+      deliveryStatus: "ready",
     },
   ],
   events: [
@@ -31,8 +33,13 @@ const snapshot = {
       payload: { resolvedSrc: "data:image/jpeg;base64,abc" },
     },
     {
+      type: "agent_send_payload_ready",
+      at: "2026-05-16T00:00:04.000Z",
+      payload: { imageAttachmentIds: ["attachment-1"] },
+    },
+    {
       type: "preview_resolved_source_changed",
-      at: "2026-05-16T00:00:03.000Z",
+      at: "2026-05-16T00:00:05.000Z",
       payload: { resolvedSrc: null },
     },
   ],
@@ -54,8 +61,10 @@ describe("create_workflow_capture_ingest", () => {
 
     expect(analysis.incidentId).toBe("incident-1");
     expect(analysis.attachmentCount).toBe(1);
-    expect(analysis.imageUrlPresentAtEnd).toBe(false);
+    expect(analysis.imageUrlPresentAtEnd).toBe(true);
     expect(analysis.submissionImageUrlPresentAtEnd).toBe(true);
+    expect(analysis.durableSubmissionImageUrlPresentAtEnd).toBe(true);
+    expect(analysis.sendPayloadReadyCount).toBe(1);
     expect(analysis.previewErrorCount).toBe(1);
     expect(analysis.previewResolvedToNullCount).toBe(1);
     expect(analysis.likelySignals).toContain("preview_resolved_to_null");
@@ -67,7 +76,8 @@ describe("create_workflow_capture_ingest", () => {
 
     expect(report).toContain("# Create Workflow Capture Analysis");
     expect(report).toContain("- Incident: incident-1");
-    expect(report).toContain("- imageUrl present at end: no");
+    expect(report).toContain("- durable submissionImageUrl present at end: yes");
+    expect(report).toContain("- Send payload ready events: 1");
     expect(report).toContain("Embedded Debug Report");
   });
 });

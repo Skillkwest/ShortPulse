@@ -90,7 +90,12 @@ describe("prepareAgentImageAttachments", () => {
       preparedImageUrls: new Map([["img-1", "https://cdn.test/prepared.png"]]),
     });
     expect(resolveAgentAttachmentSubmissionCandidatesMock).toHaveBeenCalledTimes(1);
-    expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledWith("https://cdn.test/resolved.png");
+    expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledWith(
+      "https://cdn.test/resolved.png",
+      expect.objectContaining({
+        onStage: expect.any(Function),
+      })
+    );
   });
 
   it("prefers the dedicated submission image source over preview resolution", async () => {
@@ -119,7 +124,12 @@ describe("prepareAgentImageAttachments", () => {
       imageAttachmentIds: ["img-1"],
       preparedImageUrls: new Map([["img-1", "https://cdn.test/prepared-uploaded.png"]]),
     });
-    expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledWith("blob:full-upload-source");
+    expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledWith(
+      "blob:full-upload-source",
+      expect.objectContaining({
+        onStage: expect.any(Function),
+      })
+    );
   });
 
   it("falls back to durable identity when the dedicated submission source can no longer prepare", async () => {
@@ -152,10 +162,19 @@ describe("prepareAgentImageAttachments", () => {
       imageAttachmentIds: ["img-1"],
       preparedImageUrls: new Map([["img-1", "https://cdn.test/prepared.png"]]),
     });
-    expect(prepareImageUrlForSubmissionMock).toHaveBeenNthCalledWith(1, "blob:full-upload-source");
+    expect(prepareImageUrlForSubmissionMock).toHaveBeenNthCalledWith(
+      1,
+      "blob:full-upload-source",
+      expect.objectContaining({
+        onStage: expect.any(Function),
+      })
+    );
     expect(prepareImageUrlForSubmissionMock).toHaveBeenNthCalledWith(
       2,
-      "https://cdn.test/resolved.png"
+      "https://cdn.test/resolved.png",
+      expect.objectContaining({
+        onStage: expect.any(Function),
+      })
     );
   });
 
@@ -182,7 +201,10 @@ describe("prepareAgentImageAttachments", () => {
       preparedImageUrls: new Map([["img-legacy-1", "https://cdn.test/prepared-legacy.png"]]),
     });
     expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledWith(
-      "https://cdn.test/legacy-preview.png"
+      "https://cdn.test/legacy-preview.png",
+      expect.objectContaining({
+        onStage: expect.any(Function),
+      })
     );
   });
 

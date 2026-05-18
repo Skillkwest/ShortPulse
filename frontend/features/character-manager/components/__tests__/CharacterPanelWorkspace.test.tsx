@@ -132,10 +132,25 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("button", { name: "Characters" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Description:" })).toBeInTheDocument();
-    expect(
-      screen.getByText("Open Characters to browse saved profiles and load one into the editor.")
-    ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Saved characters" })).not.toBeInTheDocument();
+    expect(screen.queryByText("No saved characters yet.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Create a character to start building your library.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Open Characters to browse saved profiles and load one into the editor.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Build the active look and assign references from the media library below."
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Click a slot, then click media below to assign it.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Drag media into a slot or arm a slot and click media below to assign it.")
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("QuickSwap Deck")).not.toBeInTheDocument();
     expect(screen.queryByText("Manage Characters")).not.toBeInTheDocument();
     expect(
@@ -153,18 +168,6 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("dialog", { name: "Character library" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
-  });
-
-  it("shows the live draft name in the top character summary before save", () => {
-    currentDraftState = {
-      ...createDraftState(),
-      characterName: "Taylor Revised",
-    };
-
-    render(<CharacterPanelWorkspace />);
-
-    expect(screen.getByText("Taylor Revised")).toBeInTheDocument();
-    expect(screen.queryByText("Character library ready")).not.toBeInTheDocument();
   });
 
   it("assigns media-library selections to the armed slot", async () => {

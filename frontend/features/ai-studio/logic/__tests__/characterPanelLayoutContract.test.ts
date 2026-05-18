@@ -57,4 +57,23 @@ describe("character panel layout contract", () => {
     expect(css).toContain(".character-panel-editor-column {");
     expect(css).toContain("flex: 1 1 auto;");
   });
+
+  it("places the profile description beside the name field before the looks rail", () => {
+    const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+
+    expect(css).toContain(".character-panel-workspace .character-panel-profile-header-grid {");
+    expect(css).toContain("grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);");
+    expect(css).toContain(
+      ".character-panel-workspace .character-panel-profile-description-field {"
+    );
+  });
+
+  it("matches the name and description surfaces to the tab tray fill color", () => {
+    const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+
+    expect(css).toContain("--character-panel-tab-tray-bg: rgba(14, 15, 19, 0.72);");
+    expect(css).toContain(".character-panel-workspace .character-name-input {");
+    expect(css).toContain("background: var(--character-panel-tab-tray-bg);");
+    expect(css).toContain(".character-panel-workspace .character-description-text-container {");
+  });
 });

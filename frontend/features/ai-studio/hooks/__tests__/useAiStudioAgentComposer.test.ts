@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
+import { getCreateWorkflowDebugSnapshot } from "../../logic/createWorkflowDebug";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractComposerImageDropPayload,
@@ -62,6 +63,7 @@ const createFindOutputById = (outputs: StudioOutput[]) => {
 const originalCreateObjectURL = URL.createObjectURL;
 const originalRevokeObjectURL = URL.revokeObjectURL;
 const originalFetch = global.fetch;
+const CREATE_WORKFLOW_DEBUG_STORAGE_KEY = "shortpulse.create_workflow.debug";
 
 const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
   ({
@@ -77,6 +79,9 @@ const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
 describe("useAiStudioAgentComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.removeItem(CREATE_WORKFLOW_DEBUG_STORAGE_KEY);
+    window.__shortpulseCreateWorkflowDebug?.reset();
+    window.__shortpulseCreateWorkflowDebug?.setEnabled(false);
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,
       promptText: null,
@@ -92,6 +97,7 @@ describe("useAiStudioAgentComposer", () => {
       return {
         url: `https://uploaded.example.com/reference-${uploadCount}.png`,
         path: `uploads/reference-${uploadCount}.png`,
+        size: 1,
       };
     });
   });
@@ -614,6 +620,68 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachmentError).toBe(
       "One or more attached images failed to prepare. Remove failed images and try again."
     );
+  });
+
+  it("records upload delivery stage events when create workflow debug is enabled", async () => {
+    window.localStorage.setItem(CREATE_WORKFLOW_DEBUG_STORAGE_KEY, "1");
+    uploadImageAssetToStorageMock.mockImplementationOnce(async (_localUrl, options) => {
+      options?.onStage?.({
+        stage: "fetch_local_image",
+        status: "start",
+        sourceKind: "blob",
+        elapsedMs: 0,
+        timeoutMs: 12000,
+      });
+      options?.onStage?.({
+        stage: "upload_image_route",
+        status: "success",
+        sourceKind: "blob",
+        elapsedMs: 25,
+        timeoutMs: 45000,
+      });
+      return {
+        url: "https://uploaded.example.com/reference-debug.png",
+        path: "uploads/reference-debug.png",
+        size: 1,
+      };
+    });
+    const createObjectURLMock = vi.fn((file: File | Blob) =>
+      file instanceof File ? `blob:${file.name}` : "blob:temporary-upload"
+    );
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURLMock,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({}, [new File(["one"], "one.png", { type: "image/png" })])
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]?.deliveryStatus).toBe("ready");
+    });
+
+    const snapshot = getCreateWorkflowDebugSnapshot();
+    expect(snapshot?.events.some((event) => event.type === "attachment_delivery_stage")).toBe(true);
+    expect(
+      snapshot?.events.some(
+        (event) =>
+          event.type === "attachment_delivery_stage" &&
+          event.payload?.stage === "upload_image_route" &&
+          event.payload?.status === "success"
+      )
+    ).toBe(true);
   });
 
   it("revokes owned blob urls when an attachment is removed", async () => {

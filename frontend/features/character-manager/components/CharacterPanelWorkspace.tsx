@@ -160,21 +160,6 @@ export function CharacterPanelWorkspace({
   const deleteTargetCharacterSheetPresetLabel = deleteTargetCharacterSheetPresetId
     ? characterSheetPresetLabels[deleteTargetCharacterSheetPresetId]
     : null;
-  const selectedCharacter = React.useMemo(
-    () => characters.find((entry) => entry.characterId === selectedCharacterId) ?? null,
-    [characters, selectedCharacterId]
-  );
-  const selectedCharacterSummaryName = React.useMemo(() => {
-    const draftName = characterName.trim();
-    if (draftName.length > 0) {
-      return draftName;
-    }
-    const savedName = selectedCharacter?.characterName?.trim() ?? "";
-    if (savedName.length > 0) {
-      return savedName;
-    }
-    return "Character library ready";
-  }, [characterName, selectedCharacter]);
 
   const { refreshCardPreviewSignedUrl, resolveCharacterCardPreviewUrl } =
     useCharacterCardPreviewUrls({
@@ -431,9 +416,6 @@ export function CharacterPanelWorkspace({
             <div className="character-panel-library-header-main">
               <div className="character-panel-library-title-stack">
                 <h2>Characters Library</h2>
-                <p className="tiny subdued">
-                  Open Characters to browse saved profiles and load one into the editor.
-                </p>
               </div>
               <div className="character-panel-library-header-actions">
                 <button
@@ -486,27 +468,6 @@ export function CharacterPanelWorkspace({
               </div>
             </div>
           </div>
-
-          {loading ? (
-            <div className="character-panel-library-empty-state" role="status" aria-live="polite">
-              <p className="character-panel-library-empty-title">Loading characters...</p>
-              <p className="tiny subdued">Pulling your saved character library into view.</p>
-            </div>
-          ) : characters.length === 0 ? (
-            <div className="character-panel-library-empty-state" role="status" aria-live="polite">
-              <p className="character-panel-library-empty-title">No saved characters yet.</p>
-              <p className="tiny subdued">Create a character to start building your library.</p>
-            </div>
-          ) : (
-            <div className="character-panel-library-summary" role="status" aria-live="polite">
-              <p className="character-panel-library-empty-title">{selectedCharacterSummaryName}</p>
-              <p className="tiny subdued">
-                {selectedCharacterId
-                  ? "Use Characters to browse saved profiles and switch the active character."
-                  : "Open Characters to browse your saved library and load a profile."}
-              </p>
-            </div>
-          )}
         </section>
 
         <section className="character-panel-editor-column">
@@ -519,9 +480,6 @@ export function CharacterPanelWorkspace({
               <div className="character-panel-editor-column-head">
                 <div className="character-panel-library-title-stack">
                   <h2>Character Profile</h2>
-                  <p className="tiny subdued">
-                    Build the active look and assign references from the media library below.
-                  </p>
                 </div>
                 <div className="character-panel-profile-status">
                   {armedSlotKey ? (
@@ -539,32 +497,42 @@ export function CharacterPanelWorkspace({
                         Clear
                       </button>
                     </>
-                  ) : (
-                    <span className="tiny subdued">
-                      Click a slot, then click media below to assign it.
-                    </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
               <div className="character-profile-card">
-                <label
-                  className="control-row character-simple-field character-simple-field--label-serif"
-                  htmlFor="character-panel-name"
-                >
-                  <span className="input-label">Name:</span>
-                  <input
-                    ref={characterNameInputRef}
-                    id="character-panel-name"
-                    className="character-name-input"
-                    type="text"
-                    value={characterName}
-                    maxLength={80}
-                    onChange={(event) => setCharacterName(event.target.value)}
-                    placeholder="Enter character name"
-                    disabled={loading}
-                  />
-                </label>
+                <div className="character-panel-profile-header-grid">
+                  <label
+                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
+                    htmlFor="character-panel-name"
+                  >
+                    <span className="input-label">Name:</span>
+                    <input
+                      ref={characterNameInputRef}
+                      id="character-panel-name"
+                      className="character-name-input"
+                      type="text"
+                      value={characterName}
+                      maxLength={80}
+                      onChange={(event) => setCharacterName(event.target.value)}
+                      placeholder="Enter character name"
+                      disabled={loading}
+                    />
+                  </label>
+
+                  {isEmbeddedMediaLibraryMaximized ? null : (
+                    <div className="character-panel-profile-description-field">
+                      <CharacterDescriptionEditorCard
+                        description={characterDescription}
+                        maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                        rows={3}
+                        disabled={loading}
+                        onChangeDescription={setCharacterDescription}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
                   <p className="input-label">Looks:</p>
@@ -604,15 +572,6 @@ export function CharacterPanelWorkspace({
                 id="character-panel-preset-panel"
                 aria-labelledby={activeCharacterSheetPresetTabId}
               >
-                {isEmbeddedMediaLibraryMaximized ? null : (
-                  <CharacterDescriptionEditorCard
-                    description={characterDescription}
-                    maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                    rows={3}
-                    disabled={loading}
-                    onChangeDescription={setCharacterDescription}
-                  />
-                )}
                 <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
                   <p className="input-label">Character References:</p>
                 </div>
@@ -741,9 +700,6 @@ export function CharacterPanelWorkspace({
                     );
                   })}
                 </div>
-                <p className="character-sheet-references-helper tiny subdued">
-                  Drag media into a slot or arm a slot and click media below to assign it.
-                </p>
               </div>
             </div>
           )}

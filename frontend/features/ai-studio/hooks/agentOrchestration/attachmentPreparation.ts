@@ -8,7 +8,7 @@ import {
   summarizeCreateWorkflowUrl,
 } from "../../logic/createWorkflowDebug";
 import { resolveAgentAttachmentSubmissionCandidates } from "../../logic/agentAttachmentImage";
-import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
+import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../../utils/imageUpload";
 
 const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_PREPARED_IMAGE_URL_CACHE_ENTRIES = 64;
@@ -56,7 +56,8 @@ export const prepareAgentImageAttachments = async ({
   }
 
   const resolvePreparedImageUrl = async (
-    sourceUrl: string
+    sourceUrl: string,
+    attachmentId: string
   ): Promise<{ safeUrl: string | null; error: string | null }> => {
     const cached = preparedImageUrlCache.get(sourceUrl);
     if (cached && cached.expiresAtMs > Date.now()) {
@@ -75,7 +76,15 @@ export const prepareAgentImageAttachments = async ({
       };
     }
     try {
-      const preparedUrl = await prepareImageUrlForSubmission(sourceUrl);
+      const preparedUrl = await prepareImageUrlForSubmission(sourceUrl, {
+        onStage: (event: PrepareImageStageEvent) => {
+          recordCreateWorkflowEvent("attachment_send_prepare_stage", {
+            attachmentId,
+            source: summarizeCreateWorkflowUrl(sourceUrl),
+            ...event,
+          });
+        },
+      });
       const safeUrl = preparedUrl?.startsWith("https://") ? preparedUrl : null;
       if (!safeUrl) {
         return {
@@ -132,7 +141,7 @@ export const prepareAgentImageAttachments = async ({
       let safeUrl: string | null = null;
       const errors: string[] = [];
       for (const sourceUrl of sourceUrls) {
-        const prepared = await resolvePreparedImageUrl(sourceUrl);
+        const prepared = await resolvePreparedImageUrl(sourceUrl, attachment.id);
         if (prepared.safeUrl?.startsWith("https://")) {
           safeUrl = prepared.safeUrl;
           recordCreateWorkflowEvent("attachment_send_prepare_candidate_ready", {

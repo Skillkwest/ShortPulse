@@ -45,6 +45,7 @@
   --character-panel-card-border: rgba(201, 205, 214, 0.08);
   --character-panel-card-border-strong: rgba(201, 205, 214, 0.18);
   --character-panel-card-radius: 16px;
+  --character-panel-tab-tray-bg: rgba(14, 15, 19, 0.72);
   --character-panel-slot-arm: rgba(255, 123, 167, 0.52);
   --character-panel-slot-arm-bg: rgba(109, 18, 54, 0.22);
   display: flex;
@@ -183,33 +184,6 @@
   color: rgba(255, 196, 196, 0.96);
 }
 
-.character-panel-library-empty-state {
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: 6px;
-  flex: 0 0 auto;
-  min-height: 88px;
-  padding: 18px 0 22px;
-}
-
-.character-panel-library-summary {
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: 6px;
-  flex: 0 0 auto;
-  min-height: 88px;
-  padding: 18px 0 22px;
-}
-
-.character-panel-library-empty-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: rgba(229, 236, 244, 0.92);
-}
-
 .character-panel-slot-armed-pill {
   display: inline-flex;
   align-items: center;
@@ -258,6 +232,28 @@
   gap: 12px;
 }
 
+.character-panel-workspace .character-panel-profile-header-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.character-panel-workspace .character-panel-profile-name-field,
+.character-panel-workspace .character-panel-profile-description-field {
+  min-width: 0;
+}
+
+.character-panel-workspace .character-panel-profile-description-field {
+  align-self: stretch;
+}
+
+.character-panel-workspace
+  .character-panel-profile-description-field
+  .character-sheet-description-card {
+  height: 100%;
+}
+
 .character-panel-workspace.is-embedded-media-library-maximized .character-sheet-preset-panel {
   align-content: start;
 }
@@ -273,9 +269,14 @@
 
 .character-panel-workspace .character-description-text-container {
   border: 1px solid rgba(201, 205, 214, 0.14);
-  background: rgba(11, 14, 21, 0.92);
+  background: var(--character-panel-tab-tray-bg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   padding: 14px 16px;
+}
+
+.character-panel-workspace .character-name-input {
+  border-color: rgba(201, 205, 214, 0.08);
+  background: var(--character-panel-tab-tray-bg);
 }
 
 .character-panel-workspace .character-description-input {
@@ -291,6 +292,12 @@
 .character-panel-workspace .character-description-footer-row {
   align-items: center;
   margin-top: 0;
+}
+
+@media (max-width: 1120px) {
+  .character-panel-workspace .character-panel-profile-header-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 1260px) {

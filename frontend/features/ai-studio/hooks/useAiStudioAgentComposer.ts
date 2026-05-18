@@ -27,6 +27,7 @@ import {
   resolveReferenceTransferUrl,
 } from "../utils/dragDrop";
 import { uploadImageAssetToStorage } from "../utils/imageUpload";
+import type { PrepareImageStageEvent } from "../utils/imageUpload";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
@@ -383,13 +384,21 @@ export const useAiStudioAgentComposer = ({
     []
   );
 
-  const uploadComposerImageBlob = useCallback(async (blob: Blob) => {
+  const uploadComposerImageBlob = useCallback(async (blob: Blob, attachmentId?: string) => {
     if (!(blob instanceof Blob) || blob.size <= 0 || !canCreateObjectUrl()) {
       throw new Error("Could not read that image for upload.");
     }
     const objectUrl = URL.createObjectURL(blob);
     try {
-      return await uploadImageAssetToStorage(objectUrl);
+      return await uploadImageAssetToStorage(objectUrl, {
+        onStage: (event: PrepareImageStageEvent) => {
+          if (!attachmentId) return;
+          recordCreateWorkflowEvent("attachment_delivery_stage", {
+            attachmentId,
+            ...event,
+          });
+        },
+      });
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
@@ -477,7 +486,7 @@ export const useAiStudioAgentComposer = ({
           throw new Error("Image upload/preparation failed. Remove this image and try again.");
         }
 
-        const uploaded = await uploadComposerImageBlob(sourceBlob);
+        const uploaded = await uploadComposerImageBlob(sourceBlob, attachmentId);
         patchImageAttachment(attachmentId, (attachment) => ({
           ...attachment,
           previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,

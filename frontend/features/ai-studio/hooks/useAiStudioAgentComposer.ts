@@ -7,6 +7,12 @@ import {
 } from "../logic/agentAttachmentImage";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
+  createEphemeralComposerImageData,
+  EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE,
+  EPHEMERAL_IMAGE_UNREADABLE_MESSAGE,
+  isEphemeralLocalImageAttachment,
+} from "../logic/ephemeralComposerImage";
+import {
   recordCreateWorkflowEvent,
   setCreateWorkflowAttachmentSnapshot,
   summarizeCreateWorkflowAttachment,
@@ -534,7 +540,9 @@ export const useAiStudioAgentComposer = ({
           deliveryStatus:
             nextAttachment.kind === "prompt"
               ? "ready"
-              : (nextAttachment.deliveryStatus ?? "pending"),
+              : isEphemeralLocalImageAttachment(nextAttachment)
+                ? (nextAttachment.deliveryStatus ?? "ready")
+                : (nextAttachment.deliveryStatus ?? "pending"),
           deliveryError:
             nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
         };
@@ -555,7 +563,9 @@ export const useAiStudioAgentComposer = ({
             ...existingAttachment,
             ...normalizedAttachment,
             id: existingAttachment.id,
-            deliveryStatus: normalizedAttachment.deliveryStatus ?? "pending",
+            deliveryStatus: isEphemeralLocalImageAttachment(normalizedAttachment)
+              ? (normalizedAttachment.deliveryStatus ?? "ready")
+              : (normalizedAttachment.deliveryStatus ?? "pending"),
             deliveryError: normalizedAttachment.deliveryError ?? null,
           };
           recordCreateWorkflowEvent("attachment_replaced", {
@@ -667,26 +677,46 @@ export const useAiStudioAgentComposer = ({
           }
           setAgentAttachmentError(null);
           for (const file of droppedImageFiles) {
-            const preview = await downscaleBlobToComposerPreviewUrl(file).catch(() => null);
-            const previewUrl = preview?.url ?? null;
-            if (preview?.owned) {
-              registerOwnedObjectUrl(preview.url);
-            }
+            const imageData = await createEphemeralComposerImageData(file).catch((error) => {
+              const message =
+                error instanceof Error && error.message.trim().length > 0
+                  ? error.message.trim()
+                  : EPHEMERAL_IMAGE_UNREADABLE_MESSAGE;
+              setAgentAttachmentError(
+                message === EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE
+                  ? EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE
+                  : EPHEMERAL_IMAGE_UNREADABLE_MESSAGE
+              );
+              recordCreateWorkflowEvent("ephemeral_image_rejected", {
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                message,
+              });
+              return null;
+            });
+            if (!imageData) continue;
             const attachmentId = randomId();
             insertAttachment({
               id: attachmentId,
               kind: "image",
+              source: "ephemeral_local",
               referenceId: null,
-              imageUrl: previewUrl,
+              imageUrl: imageData.previewDataUrl,
+              modelDataUrl: imageData.modelDataUrl,
               submissionImageUrl: null,
               text: null,
               aspect: null,
-              deliveryStatus: "preparing",
+              deliveryStatus: "ready",
               deliveryError: null,
             });
-            void promoteAttachmentToDurableSource({
+            recordCreateWorkflowEvent("ephemeral_image_created", {
               attachmentId,
-              sourceBlob: file,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              width: imageData.width,
+              height: imageData.height,
             });
           }
         })();

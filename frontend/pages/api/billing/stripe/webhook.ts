@@ -108,6 +108,28 @@ const asDate = (value: string | null | undefined): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const resolveSubscriptionPeriodFromItems = (
+  itemData: unknown[]
+): { currentPeriodStart: string | null; currentPeriodEnd: string | null } => {
+  const starts: number[] = [];
+  const ends: number[] = [];
+
+  for (const itemValue of itemData) {
+    const item = toRecord(itemValue);
+    if (typeof item.current_period_start === "number") {
+      starts.push(item.current_period_start);
+    }
+    if (typeof item.current_period_end === "number") {
+      ends.push(item.current_period_end);
+    }
+  }
+
+  return {
+    currentPeriodStart: starts.length > 0 ? asIsoDate(Math.min(...starts)) : null,
+    currentPeriodEnd: ends.length > 0 ? asIsoDate(Math.max(...ends)) : null,
+  };
+};
+
 const toRecord = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
@@ -830,6 +852,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
 
   const items = toRecord(subscription.items);
   const itemData = Array.isArray(items.data) ? items.data : [];
+  const fallbackPeriod = resolveSubscriptionPeriodFromItems(itemData);
   let resolvedOffer: ResolvedOffer | null = null;
   let resolvedPlanId: string | null = null;
   const resolvedAddons: Array<{
@@ -894,12 +917,20 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     typeof subscription.status === "string" ? subscription.status : "inactive";
   const cancelAtPeriodEnd = normalizeBoolean(subscription.cancel_at_period_end);
   const isImmediateCancellation = subscriptionStatus === "canceled" && !cancelAtPeriodEnd;
+  const resolvedCurrentPeriodStart =
+    asIsoDate(
+      typeof subscription.current_period_start === "number"
+        ? subscription.current_period_start
+        : typeof subscription.start_date === "number"
+          ? subscription.start_date
+          : null
+    ) ?? fallbackPeriod.currentPeriodStart;
+  const resolvedCurrentPeriodEnd =
+    asIsoDate(
+      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
+    ) ?? fallbackPeriod.currentPeriodEnd;
   const runtimePlanId = isImmediateCancellation ? "free" : resolvedPlanId;
-  const runtimeCurrentPeriodEnd = isImmediateCancellation
-    ? null
-    : asIsoDate(
-        typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
-      );
+  const runtimeCurrentPeriodEnd = isImmediateCancellation ? null : resolvedCurrentPeriodEnd;
 
   const updatePayload: JsonObject = {
     stripe_subscription_id: isImmediateCancellation ? null : (subscription.id ?? null),
@@ -925,16 +956,8 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     stripeCustomerId,
     stripeSubscriptionId: normalizeString(subscription.id),
     status: subscriptionStatus,
-    currentPeriodStart: asIsoDate(
-      typeof subscription.current_period_start === "number"
-        ? subscription.current_period_start
-        : typeof subscription.start_date === "number"
-          ? subscription.start_date
-          : null
-    ),
-    currentPeriodEnd: asIsoDate(
-      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
-    ),
+    currentPeriodStart: resolvedCurrentPeriodStart,
+    currentPeriodEnd: resolvedCurrentPeriodEnd,
     cancelAtPeriodEnd,
     resolvedOffer,
   });
@@ -944,16 +967,8 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     stripeCustomerId,
     stripeSubscriptionId: normalizeString(subscription.id),
     status: subscriptionStatus,
-    currentPeriodStart: asIsoDate(
-      typeof subscription.current_period_start === "number"
-        ? subscription.current_period_start
-        : typeof subscription.start_date === "number"
-          ? subscription.start_date
-          : null
-    ),
-    currentPeriodEnd: asIsoDate(
-      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
-    ),
+    currentPeriodStart: resolvedCurrentPeriodStart,
+    currentPeriodEnd: resolvedCurrentPeriodEnd,
     cancelAtPeriodEnd,
     resolvedAddons,
   });

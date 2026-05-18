@@ -45,6 +45,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-18: Treat tracked temp files such as `supabase/.temp/cli-latest` as generated drift. Restore or clear them before the first staging pass so temp state does not pollute the batch manifest or leftover audits.
 - 2026-05-18: For AI Studio panel-shell or character-library layout runs, keep the component TSX, matching CSS modules, and owning tests in the same manifest. Context-menu positioning, header count moves, and modalized library flows are too coupled to split safely across separate batches.
 - 2026-05-18: On long product runs, rebuild the next manifest from live `git status --short` after every commit. Do not trust the original manifest once lint-staged and inter-batch leftover audits have had a chance to surface omitted helper files or follow-up docs.
+- 2026-05-18: A Gear Ball closeout is only valid for the exact clean worktree that passed the final build/docs/full-suite gates. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate it, finish the new lane, rerun the required validation, and publish a rewritten closeout at the actual end of the run.
 
 ## Open Follow-Ups
 

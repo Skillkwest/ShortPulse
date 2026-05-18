@@ -265,6 +265,7 @@ Code changes made:
 - passed the density config only from `MediaLibraryPanel.tsx` and `ElementsEmbeddedMediaLibraryPanel.tsx`
 - left `MediaLibraryModal.tsx` unchanged, so modal grids stay on the default path
 - added panel-scoped CSS for `.media-library-panel-density-grid`
+- kept CSS column-count density on the non-virtual path only, with an explicit virtualized reset to avoid fighting absolute-positioned masonry
 - routed dense panel preview requests through the smaller `188px` card long-edge input instead of the old static `320px` panel value
 
 Validation completed:

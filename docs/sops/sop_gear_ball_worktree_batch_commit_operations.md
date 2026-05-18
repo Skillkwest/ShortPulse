@@ -411,6 +411,7 @@ After a full SOP run that ends in commit and push:
    - update `docs/records/artifacts/agent/gear-ball/training-history.md`
    - create or update a retained report when the run is substantial or produced a new durable lesson
 6. Update repo-visible memory only when the lesson is durable and broadly useful.
+7. Treat the retained closeout as valid only for the exact clean worktree that passed the final validation ladder. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate that closeout, finish the new lane, rerun the required validation gates, and publish a rewritten closeout at the real end of the run.
 
 This step is mandatory for full commit/push runs, because Gear Ball is expected to grow capability over time rather than merely complete isolated runs.
 

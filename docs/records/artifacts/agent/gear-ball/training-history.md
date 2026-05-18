@@ -278,73 +278,47 @@ Task: run the full Gear Ball SOP on `production` for a mixed character media-ass
 Actions taken:
 
 - Locked separate file-backed manifests under `/tmp/gear-ball-run-2026-05-18c/` for the product lane and the docs lane.
-- Validated the product lane with `gear-ball:preflight`, `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test`.
+- Validated the initial product lane with `gear-ball:preflight`, `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test`.
 - Validated the docs lane with `gear-ball:preflight` and `npm -C frontend run docs:check`.
 - Committed the main product lane on `production` as `098b3c152`.
 - The inter-batch leftover audit surfaced omitted ephemeral-image files and a follow-up composer hook change, which were published as `6d67f3429` and `2b070b47a`.
 - Published the Holomony onboarding/docs lane as `8a088e680`.
 - A final leftover audit surfaced a real follow-up diff in the retained density plan and published it as `1c94533b1`.
+- A stale closeout draft was published too early as `96d7bc80c`; later live-status audits surfaced additional product and docs lanes.
+- Published the later product/doc follow-up chain as `4d31be13a`, `9a7c43b5b`, `f114d51f1`, `5d4ee01a7`, `725bcbbeb`, `45d739792`, and `152d569fd`.
+- Reran `npm -C frontend run build`, `npm -C frontend run docs:check`, the affected media-library slice, and a final full `npm -C frontend run test` on the actual last worktree before writing the corrected closeout.
 
 Training result:
 
-- The initial lane split was directionally correct, but the original manifests were incomplete.
-- The existing guardrails were still enough to prevent a dirty push because the inter-batch leftover audits forced the omitted files back into the run.
-- The strongest durable lesson is procedural: after every commit on a long run, rebuild the next manifest from live `git status --short`.
+- The initial lane split was directionally correct, but the original manifests were incomplete and the first closeout was premature.
+- The existing guardrails still prevented a dirty final state because the inter-batch leftover audits kept surfacing omitted files before the run truly ended.
+- The strongest durable lesson is stricter than the earlier manifest-rebuild rule: a retained closeout is only valid for the exact clean worktree that passed the final validation ladder.
 
 Self-rating:
 
-- Run quality: `7.5/10`
+- Run quality: `6/10`
 
 What went well:
 
-- All validation gates stayed green before the first commit.
-- The product lane and docs lane remained coherent after the omitted files were folded back in.
-- The final worktree was clean before retained closeout staging.
+- The leftover-audit discipline eventually forced every omitted lane back into scope.
+- The final build, docs check, targeted media-library slice, and full suite were green on the actual worktree that will be pushed.
+- The final worktree was clean before the corrected retained closeout staging pass.
 
 What slipped:
 
-- The first product manifest missed three real product files and one follow-up hook delta.
-- The first docs manifest missed a retained Holomony report that still had an unstaged follow-up diff.
+- The first product manifest missed multiple real product tails.
+- The first docs manifest missed retained Holomony follow-up work.
+- A Gear Ball closeout was recorded before the run was actually over, which is a serious process miss even though it was later corrected.
 
 Capability decision:
 
 - New tool/helper needed?: `no`
 - Existing helper update needed?: `no`
-- SOP/doc update needed?: `yes` — durable memory now explicitly requires rebuilding the next manifest from live `git status --short` after every commit on long runs.
+- SOP/doc update needed?: `yes` — durable memory and the SOP now state that any closeout becomes invalid the moment later product/docs/test work appears after it.
 
 Next training focus:
 
-- On the next mixed production run, rebuild the manifest immediately after every commit before looking at the next lane, instead of trusting the original batch files.
-
-Capability decision:
-
-- New tool/helper needed?: `no`
-- Existing helper update needed?: `no`
-- SOP/doc update needed?: `no`
-
-Self-rating:
-
-- Run quality: `9/10`
-
-What went well:
-
-- The batch manifests were clean and disjoint.
-- The full suite stayed green after the targeted fixes.
-- The leftover audit caught the only scope miss before push.
-
-What slipped:
-
-- Two isolated test-only fixes were not added back into the active product manifest before the first staging pass.
-
-Capability decision:
-
-- New tool needed: `no`
-- Existing helper or SOP update needed: `no`
-- Durable lesson added: `yes`
-
-Next training focus:
-
-- On the next long mixed run, append any file touched during isolated rerun fixes back into the active manifest immediately instead of relying on the leftover audit to catch it.
+- On the next mixed production run, do not draft or commit the retained closeout until after the last full validation pass on the exact worktree that is about to be pushed.
 
 ## 2026-05-18: Production Create Composer And Voices Run
 

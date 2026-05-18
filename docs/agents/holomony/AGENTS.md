@@ -22,6 +22,11 @@ Primary active surfaces:
 - AI Studio `Libraries -> Media` panel
 - Elements embedded media panel
 
+Onboarded candidate surfaces:
+
+- `character-panel-media-assignment`
+  - hybrid character workflow seam with shared embedded browse runtime plus character-owned assignment/persistence
+
 Primary supporting code and tooling:
 
 - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/media-library/`
@@ -50,6 +55,12 @@ For substantive Holomony runs, load:
 
 Load only the additional surface-specific SOPs, reports, and artifacts needed for the current lane.
 
+For `character-panel-media-assignment`, load:
+
+- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_character_manager_operations.md`
+- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/adr/0040-character-panel-media-isolation-v2.md`
+- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
+
 ## Operating Rules
 
 1. Optimize the current user-approved media surface only.
@@ -68,6 +79,7 @@ Load only the additional surface-specific SOPs, reports, and artifacts needed fo
    - no save/reopen trust regressions.
 9. Before each new change after a meaningful improvement, explicitly classify the lane as `continue`, `pivot`, `done enough for now`, or `done`.
 10. If the remaining weakness is mostly evidence depth or persistence proof rather than a clear runtime blocker, default to `done enough for now` unless the user explicitly asks to keep pushing.
+11. If a surface reuses the shared media panel for browse but owns a separate persistence/assignment contract, do not classify it as part of the panel KPI family by default.
 
 ## Deliverable Rules
 

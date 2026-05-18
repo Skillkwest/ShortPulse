@@ -62,6 +62,12 @@ This SOP does not govern:
 - AI Studio `Libraries -> Media` panel
 - Elements embedded media panel
 
+### Onboarded candidate surfaces
+
+- Character panel media assignment workflow
+  - stable id: `character-panel-media-assignment`
+  - treat this as a separate candidate surface, not as a third panel in the existing panel KPI family
+
 ### Shared code and tooling surfaces
 
 - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/media-library/`
@@ -125,6 +131,8 @@ Use when enough KPI history exists to compare runs and determine whether the sur
 - Load the current media KPI and operations SOPs when the run is performance-facing:
   - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_panel_performance_kpi.md`
   - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_performance_operations.md`
+- Load the character workflow SOP when the run touches character-panel media assignment:
+  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_character_manager_operations.md`
 
 ### Step 2. Freeze the surface and run type
 
@@ -254,6 +262,8 @@ Before Holomony treats a new media-heavy surface as first-class, it must have:
 - and a retained baseline packet or baseline audit note.
 
 Do not add a new surface to active Holomony scope just because it is media-adjacent.
+
+When a new surface embeds shared media browse/runtime but persists through a different workflow authority, treat it as a separate candidate surface instead of silently widening the shared panel family.
 
 ## Stop Conditions
 

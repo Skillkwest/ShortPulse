@@ -19,6 +19,7 @@ This KPI is panel-first. Later phases can expand the same packet format and scor
 
 - Reference Grid
 - Quick Slot Inventory
+- character panel media assignment
 - detail modals
 - other media-heavy rendering surfaces
 
@@ -44,6 +45,8 @@ In scope:
 Out of scope:
 
 - standalone dead `/media-library` route
+- AI Studio character-panel media assignment workflow
+  - this workflow reuses the embedded media panel browse runtime, but its selection, copy, persistence, and save/reopen authority belong to the character workflow and require a separate surface contract
 - provider generation latency
 - storage backfill operations themselves
 - non-panel media viewers
@@ -83,6 +86,7 @@ Metrics:
 - `signBatchP95Ms`
 
 Current capture note:
+
 - `openToFirstMediaP95Ms` should stay `null` unless it was independently measured.
 - The current direct panel capture helper does **not** infer it from `firstMediaPaintP95Ms`, because treating those as two independent metrics would overstate speed evidence.
 

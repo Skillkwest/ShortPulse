@@ -2,6 +2,32 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-18: Character Panel Media Assignment Onboarding
+
+Task: expand Holomony toward the new character-panel media workflow without collapsing it into the existing panel KPI family.
+
+Actions taken:
+
+- audited the AI Studio Character panel host, split host, embedded media panel seam, character workspace, and character-owned persistence paths
+- verified the character isolation and ownership ADRs against the live code boundary
+- created a stable candidate surface id: `character-panel-media-assignment`
+- added the candidate surface to Holomony's media-surface inventory with owner files, measurement path, correctness gates, and next need
+- created a retained onboarding audit note instead of pretending a panel KPI packet already exists
+- updated Holomony memory, SOP references, and scope rules so future runs do not misclassify the character workflow as just another panel
+
+Training result:
+
+- Holomony now distinguishes:
+  - shared panel browse/runtime surfaces
+  - character-owned assignment/persistence surfaces
+- durable rule recorded: if a surface embeds shared media browse/runtime but persists through a different authority path, onboard it as a separate candidate surface
+- the character workflow is now managed as a real candidate surface instead of an ambiguous scope edge
+
+Next training focus:
+
+- build a direct audit path for selection/drop-to-saved-character latency and failure rate
+- prove save/reopen trust for the character-panel assignment workflow before promoting it beyond candidate status
+
 ## 2026-05-16: Kirk Page Style Lock
 
 Task: preserve the preferred visual direction for Kirk's Holomony profile page.

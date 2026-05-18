@@ -30,9 +30,12 @@ Purpose: list the current retained tools Holomony uses for media optimization an
   - cross-surface control sheet for approved and candidate Holomony surfaces
 - `docs/records/artifacts/agent/holomony/surface-onboarding-checklist.md`
   - minimum gate checklist before a new media-heavy surface becomes first-class
+- `docs/records/artifacts/agent/holomony/reports/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
+  - retained onboarding packet for the character-panel media assignment candidate surface
 
 ## Current Gaps
 
 - no first-class Reference Grid KPI capture path yet
 - repeated retained baseline packets are still thin across approved surfaces
 - some panel metrics still depend on what the live session exposes
+- no dedicated direct audit path yet for `character-panel-media-assignment`

@@ -73,11 +73,11 @@ For this milestone, `stable and strong` means:
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
 - Current classification: `done enough for now`.
 - The next justified lane is regression monitoring or an explicitly approved new surface, not more tuning on the current approved media panels without fresh evidence.
-- Active planned layout lane: `reports/2026-05-18-media-library-five-column-density-plan.md`.
-  - Treat five columns as a capped wide-container panel browse contract, not a forced layout everywhere.
-  - Scope it to AI Studio Media Library panel, Elements embedded Media Library panel, and Character bottom embedded Media Library browser.
+- Active layout lane: `reports/2026-05-18-media-library-five-column-density-plan.md`.
+  - Implementation is now in code for AI Studio Media Library panel, Elements embedded Media Library panel, and Character bottom embedded Media Library browser via shared Elements embedding.
+  - Treat five columns as a capped wide-container masonry-column contract, not a forced layout everywhere.
   - Exclude the full modal, Character QuickSwap, Reference Grid, Quick Slot Inventory, and standalone `/media-library` unless explicitly reopened.
-  - The change is acceptable only with scoped tests, visual proof, and no material KPI regression.
+  - Code/test validation is complete for the implementation path; direct browser visual proof and fresh KPI proof are still required before calling the lane fully done.
 - `character-panel-media-assignment` is now an onboarded Holomony candidate surface.
   - Treat it as a hybrid boundary:
     - shared embedded browse/runtime surface below

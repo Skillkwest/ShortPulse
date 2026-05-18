@@ -253,6 +253,32 @@ Keep the change easy to unwind:
 
 If performance or readability regresses, remove the panel density prop or lower the constant without unwinding unrelated runtime work.
 
+## Implementation Status
+
+Implemented on 2026-05-18.
+
+Code changes made:
+
+- added `MEDIA_LIBRARY_PANEL_DENSITY_CONFIG` with `maxColumnCount: 5` and `targetColumnWidth: 188`
+- added optional `maxColumnCount` support to `mediaGridVirtualization.ts` and `useMediaMasonryVirtualization.ts`
+- added optional `densityConfig` props to `MediaLibraryMediaGrid` and `MediaLibraryAllItemsGrid`
+- passed the density config only from `MediaLibraryPanel.tsx` and `ElementsEmbeddedMediaLibraryPanel.tsx`
+- left `MediaLibraryModal.tsx` unchanged, so modal grids stay on the default path
+- added panel-scoped CSS for `.media-library-panel-density-grid`
+- routed dense panel preview requests through the smaller `188px` card long-edge input instead of the old static `320px` panel value
+
+Validation completed:
+
+- focused virtualizer/grid/panel/Character host tests passed
+- targeted eslint on touched files passed
+- docs check passed
+
+Validation gaps:
+
+- direct browser visual proof is still needed before calling the visual/layout part done
+- fresh KPI proof is still needed before claiming no speed regression
+- full repo `type-check` and full repo `lint` are currently blocked by unrelated pre-existing failures outside this lane
+
 ## Done Criteria
 
 The lane is done when:

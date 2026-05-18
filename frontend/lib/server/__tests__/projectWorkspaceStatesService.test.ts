@@ -492,6 +492,11 @@ describe("projectWorkspaceStatesService", () => {
         schemaVersion: 2,
         sessionId: "session-1",
         updatedAt: "2026-04-23T01:00:00.000Z",
+        workspace: {
+          prompt: "",
+          standardPrompt: "",
+          pulsePrompt: "",
+        },
         agent: {
           messages: [],
           input: "",

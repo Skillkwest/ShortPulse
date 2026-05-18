@@ -1126,6 +1126,60 @@ describe("sessionSnapshot", () => {
     }
   });
 
+  it("strips Standard composer drafts from project workspace snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "standard-project-session",
+      updatedAt: "2026-05-18T15:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Analyze this image",
+      standardCreatePrompt: "Analyze this image",
+      pulseCreatePrompt: "",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [createOutput()],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "Analyze this image",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+
+    expect(projectSnapshot.workspace.prompt).toBe("");
+    expect(projectSnapshot.workspace.standardPrompt).toBe("");
+    expect(projectSnapshot.workspace.pulsePrompt).toBe("");
+    expect(projectSnapshot.agent.input).toBe("");
+  });
+
   it("removes failed outputs from project workspace snapshots and prunes dependent ids", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "project-fail-filter-session",

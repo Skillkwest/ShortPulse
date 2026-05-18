@@ -311,6 +311,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     });
 
     expect(result.current.result).toBe("found_snapshot");
-    expect(result.current.snapshot?.workspace.prompt).toBe("Retry prompt");
+    expect(result.current.snapshot?.workspace.prompt).toBe("");
+    expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
   });
 });

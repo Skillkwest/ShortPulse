@@ -63,13 +63,6 @@ const formatCreditValue = (value: number): string => {
   return roundedValue % 1 === 0 ? roundedValue.toFixed(0) : roundedValue.toFixed(1);
 };
 
-const StackIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="m12 4.25 8.15 4.6L12 13.45 3.85 8.85 12 4.25Z" />
-    <path d="m3.85 14.35 8.15 4.6 8.15-4.6" />
-  </svg>
-);
-
 const ClockIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="12" cy="12" r="8.25" />
@@ -364,13 +357,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       <span className="audio-toggle-dot" />
                     </span>
                   </button>
-
-                  <span className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--static">
-                    <span className="sound-effects-properties-footer-pill-icon">
-                      <StackIcon />
-                    </span>
-                    <span className="sound-effects-properties-footer-pill-value">MP3</span>
-                  </span>
 
                   <span className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--static">
                     <span className="sound-effects-properties-footer-pill-icon">

@@ -161,20 +161,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid rgba(201, 205, 214, 0.22);
   background: rgba(201, 205, 214, 0.08);
   color: rgba(215, 222, 235, 0.86);
-  font-size: 12px;
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .pulse-presets-library-custom-pill.is-built-in {
-  border-color: rgba(105, 198, 255, 0.28);
-  background: rgba(68, 138, 181, 0.14);
-  color: rgba(182, 225, 248, 0.92);
+  border-color: rgba(78, 202, 255, 0.68);
+  background: rgba(10, 54, 78, 0.96);
+  color: rgba(194, 239, 255, 0.98);
 }
 
 .pulse-presets-library-custom-pill.is-custom {

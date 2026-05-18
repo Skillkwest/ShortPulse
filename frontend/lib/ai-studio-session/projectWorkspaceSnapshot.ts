@@ -23,17 +23,6 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-const asString = (value: unknown, fallback = ""): string =>
-  typeof value === "string" ? value : fallback;
-
-const resolveProjectWorkspaceStandardPrompt = (workspace: Record<string, unknown>): string => {
-  const legacyPrompt = asString(workspace.prompt);
-  return asString(
-    workspace.standardPrompt,
-    workspace.expertCreateMode === "pulse" ? "" : legacyPrompt
-  );
-};
-
 export const createEmptyAiStudioSessionAgentState = (): MinimalAiStudioSessionAgentState => ({
   messages: [],
   input: "",
@@ -61,15 +50,18 @@ export const createAiStudioProjectWorkspaceSnapshot = <
 ): TSnapshot => {
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   if (snapshot.schemaVersion >= 2) {
-    const { meta: _meta, agentRuntimes: _agentRuntimes, ...baseSnapshot } = snapshot;
+    const baseSnapshot = {
+      ...snapshot,
+    } as MinimalAiStudioSessionSnapshot;
+    delete baseSnapshot.meta;
+    delete baseSnapshot.agentRuntimes;
     const baseWorkspace = asRecord(baseSnapshot.workspace);
-    const standardProjectPrompt = resolveProjectWorkspaceStandardPrompt(baseWorkspace);
     const normalizedSnapshot = {
       ...baseSnapshot,
       workspace: {
         ...baseWorkspace,
-        prompt: standardProjectPrompt,
-        standardPrompt: standardProjectPrompt,
+        prompt: "",
+        standardPrompt: "",
         pulsePrompt: "",
         selectedTool: "create",
         expertCreateMode: "standard",
@@ -91,8 +83,8 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     ...snapshot,
     workspace: {
       ...asRecord(snapshot.workspace),
-      prompt: resolveProjectWorkspaceStandardPrompt(asRecord(snapshot.workspace)),
-      standardPrompt: resolveProjectWorkspaceStandardPrompt(asRecord(snapshot.workspace)),
+      prompt: "",
+      standardPrompt: "",
       pulsePrompt: "",
       selectedTool: "create",
       expertCreateMode: "standard",

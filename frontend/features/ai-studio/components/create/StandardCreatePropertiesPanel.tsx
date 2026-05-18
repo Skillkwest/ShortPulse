@@ -764,6 +764,12 @@ export function StandardCreatePropertiesPanel({
     hideChatModeToggle: false,
     composerLeadingContent: (
       <div className="create-composer-inline-leading-controls">
+        <StylesControl
+          isOpen={isStylesPanelOpen}
+          selectedStyleId={selectedStyleId}
+          styles={stylesCatalog}
+          onToggle={onStylesPanelToggle}
+        />
         <div className="create-composer-inline-generate">
           <AgentResponseInlineGenerateButton
             onClick={onGenerate}
@@ -772,12 +778,6 @@ export function StandardCreatePropertiesPanel({
             isBusy={isPromptGenerating}
           />
         </div>
-        <StylesControl
-          isOpen={isStylesPanelOpen}
-          selectedStyleId={selectedStyleId}
-          styles={stylesCatalog}
-          onToggle={onStylesPanelToggle}
-        />
       </div>
     ),
   };

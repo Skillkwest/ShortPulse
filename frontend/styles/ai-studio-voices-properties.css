@@ -99,9 +99,9 @@
 
 .voices-library-modal {
   width: min(920px, calc(100vw - 48px));
-  max-height: min(760px, calc(100vh - 52px));
-  display: flex;
-  flex-direction: column;
+  height: min(760px, calc(100vh - 52px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border-radius: 20px;
   border: 1px solid #232a31;
@@ -161,7 +161,6 @@
 }
 
 .voices-library-modal-scroll {
-  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }

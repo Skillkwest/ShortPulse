@@ -29,7 +29,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       "false"
     );
     expect(screen.queryByLabelText("Sound effect output format")).not.toBeInTheDocument();
-    expect(screen.getByText("MP3")).toBeInTheDocument();
+    expect(screen.queryByText("MP3")).not.toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
     expect(screen.getByText("Inspiration")).toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect inspiration")).toBeInTheDocument();

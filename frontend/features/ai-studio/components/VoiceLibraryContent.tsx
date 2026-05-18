@@ -59,6 +59,17 @@ export function VoiceLibraryContent({
       <div className="voices-library-modal-tabs" role="tablist" aria-label="Voice library sections">
         <button
           type="button"
+          id={myTabId}
+          role="tab"
+          className={`voices-library-modal-tab ${activeLibrarySection === "my" ? "is-active" : ""}`}
+          aria-selected={activeLibrarySection === "my"}
+          aria-controls="voices-library-panel-my"
+          onClick={() => setActiveLibrarySection("my")}
+        >
+          My Voices
+        </button>
+        <button
+          type="button"
           id={defaultTabId}
           role="tab"
           className={`voices-library-modal-tab ${
@@ -69,17 +80,6 @@ export function VoiceLibraryContent({
           onClick={() => setActiveLibrarySection("default")}
         >
           Default Voices
-        </button>
-        <button
-          type="button"
-          id={myTabId}
-          role="tab"
-          className={`voices-library-modal-tab ${activeLibrarySection === "my" ? "is-active" : ""}`}
-          aria-selected={activeLibrarySection === "my"}
-          aria-controls="voices-library-panel-my"
-          onClick={() => setActiveLibrarySection("my")}
-        >
-          My Voices
         </button>
       </div>
       {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}

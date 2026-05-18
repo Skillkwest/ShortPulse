@@ -996,18 +996,12 @@ export const createAiStudioProjectWorkspaceSnapshot = (
         agentRuntimes?: AiStudioSessionAgentRuntimesV2;
       }
     ).agentRuntimes;
-    const standardProjectPrompt =
-      typeof baseSnapshot.workspace.standardPrompt === "string"
-        ? baseSnapshot.workspace.standardPrompt
-        : baseSnapshot.workspace.expertCreateMode === "pulse"
-          ? ""
-          : baseSnapshot.workspace.prompt;
     const normalizedSnapshot = {
       ...baseSnapshot,
       workspace: {
         ...baseSnapshot.workspace,
-        prompt: standardProjectPrompt,
-        standardPrompt: standardProjectPrompt,
+        prompt: "",
+        standardPrompt: "",
         pulsePrompt: "",
         selectedTool: "create" as ToolId,
         expertCreateMode: "standard" as const,
@@ -1030,7 +1024,9 @@ export const createAiStudioProjectWorkspaceSnapshot = (
     ...snapshot,
     workspace: {
       ...snapshot.workspace,
-      prompt: snapshot.workspace.expertCreateMode === "pulse" ? "" : snapshot.workspace.prompt,
+      prompt: "",
+      standardPrompt: "",
+      pulsePrompt: "",
       selectedTool: "create" as ToolId,
       expertCreateMode: "standard" as const,
       activePulsePresetId: null,

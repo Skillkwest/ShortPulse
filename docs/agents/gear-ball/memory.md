@@ -44,6 +44,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-17: When isolated rerun fixes touch tests or helpers outside the original changed-file lane, append those files back into the active manifest immediately. The inter-batch leftover audit can save the run, but it should not be the first place those files are rediscovered.
 - 2026-05-18: Treat tracked temp files such as `supabase/.temp/cli-latest` as generated drift. Restore or clear them before the first staging pass so temp state does not pollute the batch manifest or leftover audits.
 - 2026-05-18: For AI Studio panel-shell or character-library layout runs, keep the component TSX, matching CSS modules, and owning tests in the same manifest. Context-menu positioning, header count moves, and modalized library flows are too coupled to split safely across separate batches.
+- 2026-05-18: On long product runs, rebuild the next manifest from live `git status --short` after every commit. Do not trust the original manifest once lint-staged and inter-batch leftover audits have had a chance to surface omitted helper files or follow-up docs.
 
 ## Open Follow-Ups
 

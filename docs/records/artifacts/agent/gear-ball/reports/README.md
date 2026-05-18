@@ -29,6 +29,7 @@ Substantive commit/push reports should include:
 
 ## Reports
 
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-character-media-assignment-and-holomony-onboarding-run.md`: retained report for the production character media-assignment runtime lane plus Holomony onboarding/docs lane, including the manifest-rebuild lesson from repeated leftover audits.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-panel-layout-and-character-library-run.md`: retained report for the production AI Studio panel-layout and character-library flow run, including the coupled panel/CSS/test-manifest lesson.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-create-workflow-diagnostics-and-billing-audit-run.md`: retained report for the production Create workflow diagnosis/runtime lane plus recurring billing diagnostics lane, including the tracked-temp drift cleanup lesson.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-project-foundation-and-prompt-bridge-run.md`: retained report for the production AI Studio project-foundation, prompt-bridge, and billing follow-up run, including the repeated inter-batch leftover cleanup chain.

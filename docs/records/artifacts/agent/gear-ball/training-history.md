@@ -271,6 +271,51 @@ What slipped:
 - One avoidable Prettier issue still made it into the first preflight pass.
 - The first retained closeout draft assumed the leftover audit was clean before the final `git status` recheck.
 
+## 2026-05-18: Production Character Media Assignment And Holomony Onboarding Run
+
+Task: run the full Gear Ball SOP on `production` for a mixed character media-assignment product lane and a Holomony onboarding/docs lane.
+
+Actions taken:
+
+- Locked separate file-backed manifests under `/tmp/gear-ball-run-2026-05-18c/` for the product lane and the docs lane.
+- Validated the product lane with `gear-ball:preflight`, `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test`.
+- Validated the docs lane with `gear-ball:preflight` and `npm -C frontend run docs:check`.
+- Committed the main product lane on `production` as `098b3c152`.
+- The inter-batch leftover audit surfaced omitted ephemeral-image files and a follow-up composer hook change, which were published as `6d67f3429` and `2b070b47a`.
+- Published the Holomony onboarding/docs lane as `8a088e680`.
+- A final leftover audit surfaced a real follow-up diff in the retained density plan and published it as `1c94533b1`.
+
+Training result:
+
+- The initial lane split was directionally correct, but the original manifests were incomplete.
+- The existing guardrails were still enough to prevent a dirty push because the inter-batch leftover audits forced the omitted files back into the run.
+- The strongest durable lesson is procedural: after every commit on a long run, rebuild the next manifest from live `git status --short`.
+
+Self-rating:
+
+- Run quality: `7.5/10`
+
+What went well:
+
+- All validation gates stayed green before the first commit.
+- The product lane and docs lane remained coherent after the omitted files were folded back in.
+- The final worktree was clean before retained closeout staging.
+
+What slipped:
+
+- The first product manifest missed three real product files and one follow-up hook delta.
+- The first docs manifest missed a retained Holomony report that still had an unstaged follow-up diff.
+
+Capability decision:
+
+- New tool/helper needed?: `no`
+- Existing helper update needed?: `no`
+- SOP/doc update needed?: `yes` — durable memory now explicitly requires rebuilding the next manifest from live `git status --short` after every commit on long runs.
+
+Next training focus:
+
+- On the next mixed production run, rebuild the manifest immediately after every commit before looking at the next lane, instead of trusting the original batch files.
+
 Capability decision:
 
 - New tool/helper needed?: `no`

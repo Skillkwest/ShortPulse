@@ -83,6 +83,21 @@ type UseStandardCreatePanelPropsParams = {
   onOpenPresetsLibrary?: () => void;
 };
 
+const resolveImageAttachmentGuardrail = (attachments: AgentAttachment[]): string | null => {
+  const imageAttachments = attachments.filter((attachment) => attachment.kind === "image");
+  if (
+    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "failed")
+  ) {
+    return "Resolve failed image attachments before generating.";
+  }
+  if (
+    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "preparing")
+  ) {
+    return "Wait for attached images to finish preparing.";
+  }
+  return null;
+};
+
 /**
  * Standard Create panel props.
  * Keeps Standard composer controls out of the shared page prop builder.
@@ -151,12 +166,16 @@ export const buildStandardCreatePanelProps = ({
 }: UseStandardCreatePanelPropsParams): StandardCreatePropertiesPanelProps => {
   const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt) ?? "";
   const hasVisibleComposerPrompt = visibleComposerPrompt.trim().length > 0;
-  const isPrimaryGenerateDisabled = isGenerateDisabled || !hasVisibleComposerPrompt;
-  const primaryGenerateGuardrailReason = isGenerateDisabled
-    ? generationGuardrail
-    : hasVisibleComposerPrompt
+  const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
+  const isPrimaryGenerateDisabled =
+    isGenerateDisabled || Boolean(imageAttachmentGuardrail) || !hasVisibleComposerPrompt;
+  const primaryGenerateGuardrailReason = imageAttachmentGuardrail
+    ? imageAttachmentGuardrail
+    : isGenerateDisabled
       ? generationGuardrail
-      : "Enter a prompt to generate.";
+      : hasVisibleComposerPrompt
+        ? generationGuardrail
+        : "Enter a prompt to generate.";
 
   return {
     mode,

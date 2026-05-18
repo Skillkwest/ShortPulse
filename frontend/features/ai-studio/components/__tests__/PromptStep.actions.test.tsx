@@ -69,6 +69,35 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
+  it("blocks Standard chat send while an attached image is still preparing", () => {
+    const onAgentSend = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        agentInput="Analyze this image"
+        onAgentSend={onAgentSend}
+        stagedAttachments={[
+          {
+            id: "img-1",
+            kind: "image",
+            imageUrl: "data:image/png;base64,preview",
+            submissionImageUrl: null,
+            text: null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          },
+        ]}
+      />
+    );
+
+    const composer = screen.getByPlaceholderText("Message the agent...");
+    fireEvent.keyDown(composer, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Send to agent" }));
+
+    expect(onAgentSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
+  });
+
   it("does not render inline generate in chat-off mode", () => {
     render(
       <PromptStep {...baseProps} chatModeEnabled={false} agentInput="a clear product prompt" />
@@ -363,6 +392,42 @@ describe("PromptStep agent actions", () => {
     expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(onAgentInputChange).not.toHaveBeenCalled();
+  });
+
+  it("blocks Pulse chat send while an attached image is still preparing", () => {
+    const onAgentSend = vi.fn();
+    render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentInput="Analyze this image"
+        onAgentInputChange={vi.fn()}
+        onAgentSend={onAgentSend}
+        stagedAttachments={[
+          {
+            id: "img-1",
+            kind: "image",
+            imageUrl: "data:image/png;base64,preview",
+            submissionImageUrl: null,
+            text: null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          },
+        ]}
+      />
+    );
+
+    const composer = screen.getByPlaceholderText("Message the agent...");
+    fireEvent.keyDown(composer, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Send to agent" }));
+
+    expect(onAgentSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
   it("inserts dropped prompt text at the Standard composer caret and restores focus", () => {

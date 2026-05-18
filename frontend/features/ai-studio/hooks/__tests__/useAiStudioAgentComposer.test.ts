@@ -9,6 +9,7 @@ import {
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
 } from "../../utils/dragDrop";
+import { uploadImageAssetToStorage } from "../../utils/imageUpload";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
 
 vi.mock("../../utils/dragDrop", async () => {
@@ -26,10 +27,20 @@ vi.mock("../../logic/mediaLibraryDragPayload", () => ({
   readMediaLibraryDragPayload: vi.fn(),
 }));
 
+vi.mock("../../utils/imageUpload", async () => {
+  const actual =
+    await vi.importActual<typeof import("../../utils/imageUpload")>("../../utils/imageUpload");
+  return {
+    ...actual,
+    uploadImageAssetToStorage: vi.fn(),
+  };
+});
+
 const extractDragDropPayloadMock = vi.mocked(extractDragDropPayload);
 const extractInternalReferenceDragPayloadMock = vi.mocked(extractInternalReferenceDragPayload);
 const extractComposerImageDropPayloadMock = vi.mocked(extractComposerImageDropPayload);
 const readMediaLibraryDragPayloadMock = vi.mocked(readMediaLibraryDragPayload);
+const uploadImageAssetToStorageMock = vi.mocked(uploadImageAssetToStorage);
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
@@ -75,6 +86,14 @@ describe("useAiStudioAgentComposer", () => {
     extractInternalReferenceDragPayloadMock.mockReturnValue(null);
     extractComposerImageDropPayloadMock.mockReturnValue(null);
     readMediaLibraryDragPayloadMock.mockReturnValue(null);
+    let uploadCount = 0;
+    uploadImageAssetToStorageMock.mockImplementation(async () => {
+      uploadCount += 1;
+      return {
+        url: `https://uploaded.example.com/reference-${uploadCount}.png`,
+        path: `uploads/reference-${uploadCount}.png`,
+      };
+    });
   });
 
   afterEach(() => {
@@ -238,18 +257,20 @@ describe("useAiStudioAgentComposer", () => {
         referenceId: "out-1",
         mediaId: "media-1",
         imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-        submissionImageUrl: expect.stringMatching(/^blob:/),
+        submissionImageUrl: "https://signed.example.com/generated.png",
         imageFallbackUrls: [],
         previewStoragePath: "user-1/generated/preview.png",
         fullStoragePath: "user-1/generated/full.png",
         referenceUrl: "https://signed.example.com/generated.png",
         referenceRenderUrl: null,
         text: "Dragged prompt",
+        deliveryStatus: "ready",
+        deliveryError: null,
       });
     });
 
     expect(global.fetch).toHaveBeenCalledWith("https://signed.example.com/generated.png");
-    expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
   it("prefers internal image resolution over the direct composer payload when both are present", async () => {
@@ -331,13 +352,15 @@ describe("useAiStudioAgentComposer", () => {
         referenceId: "out-1",
         mediaId: "media-1",
         imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-        submissionImageUrl: expect.stringMatching(/^blob:/),
+        submissionImageUrl: "https://uploaded.example.com/reference-1.png",
         imageFallbackUrls: ["blob:composer-owned-preview"],
         previewStoragePath: "user-1/generated/preview.png",
-        fullStoragePath: "user-1/generated/full.png",
-        referenceUrl: null,
+        fullStoragePath: "uploads/reference-1.png",
+        referenceUrl: "https://uploaded.example.com/reference-1.png",
         referenceRenderUrl: null,
         text: "Dragged prompt",
+        deliveryStatus: "ready",
+        deliveryError: null,
       });
     });
   });
@@ -496,7 +519,9 @@ describe("useAiStudioAgentComposer", () => {
         expect.objectContaining({
           kind: "image",
           imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-          submissionImageUrl: "blob:one.png",
+          submissionImageUrl: "https://uploaded.example.com/reference-1.png",
+          deliveryStatus: "ready",
+          deliveryError: null,
         }),
       ]);
     });
@@ -539,13 +564,63 @@ describe("useAiStudioAgentComposer", () => {
       ).toBe(true);
       expect(
         result.current.agentAttachments.map((attachment) => attachment.submissionImageUrl)
-      ).toEqual(["blob:one.png", "blob:two.png", "blob:three.png"]);
+      ).toEqual([
+        "https://uploaded.example.com/reference-1.png",
+        "https://uploaded.example.com/reference-2.png",
+        "https://uploaded.example.com/reference-3.png",
+      ]);
+      expect(
+        result.current.agentAttachments.map((attachment) => attachment.deliveryStatus)
+      ).toEqual(["ready", "ready", "ready"]);
     });
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
   });
 
+  it("marks dropped images as failed when upload preparation is unavailable", async () => {
+    uploadImageAssetToStorageMock.mockRejectedValueOnce(new Error("upload failed"));
+    const createObjectURLMock = vi.fn((file: File | Blob) =>
+      file instanceof File ? `blob:${file.name}` : "blob:temporary-upload"
+    );
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURLMock,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({}, [new File(["one"], "one.png", { type: "image/png" })])
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
+        submissionImageUrl: null,
+        deliveryStatus: "failed",
+        deliveryError: "upload failed",
+      });
+    });
+    expect(uploadImageAssetToStorageMock).toHaveBeenCalledTimes(1);
+    expect(result.current.agentAttachmentError).toBe(
+      "One or more attached images failed to prepare. Remove failed images and try again."
+    );
+  });
+
   it("revokes owned blob urls when an attachment is removed", async () => {
-    const createObjectUrlMock = vi.fn(() => "blob:owned-preview");
+    const createObjectUrlMock = vi
+      .fn()
+      .mockReturnValueOnce("blob:owned-preview")
+      .mockReturnValueOnce("blob:temporary-upload");
     const revokeObjectUrlMock = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -864,12 +939,14 @@ describe("useAiStudioAgentComposer", () => {
       referenceId: "out-1",
       mediaId: "media-1",
       imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-      submissionImageUrl: expect.stringMatching(/^blob:/),
+      submissionImageUrl: "https://uploaded.example.com/reference-1.png",
       previewStoragePath: "user-1/generated/preview.png",
-      fullStoragePath: "user-1/generated/full.png",
-      referenceUrl: null,
+      fullStoragePath: "uploads/reference-1.png",
+      referenceUrl: "https://uploaded.example.com/reference-1.png",
       referenceRenderUrl: null,
       text: "Resolved prompt",
+      deliveryStatus: "ready",
+      deliveryError: null,
     });
     expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).toContain(
       "https://signed.example.com/stable-preview.png"

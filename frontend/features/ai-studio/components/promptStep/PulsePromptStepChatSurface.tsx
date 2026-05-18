@@ -132,7 +132,10 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isPulseLoading = pulseLoadingState != null;
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
-  const canSendAgentInput = agentInput.trim().length > 0 || stagedAttachments.length > 0;
+  const hasBlockingImageAttachments =
+    imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
+  const canSendAgentInput =
+    !hasBlockingImageAttachments && (agentInput.trim().length > 0 || stagedAttachments.length > 0);
   const hasInsideInputSendButton = embedSendButtonInInput;
   const hasAuxComposerControls = Boolean(composerMiddleContent) || Boolean(composerLeadingContent);
   const shouldStackTrailingComposerControls =

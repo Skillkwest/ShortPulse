@@ -192,8 +192,6 @@ export function PulsePromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = subtitle;
-  const canSendAgentInput =
-    effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0;
   const markAgentInputFocusForRestore = React.useCallback(() => {
     shouldRestoreAgentInputFocusRef.current = true;
   }, []);
@@ -225,6 +223,11 @@ export function PulsePromptStep({
       failed,
     };
   }, [stagedAttachments]);
+  const hasBlockingImageAttachments =
+    imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
+  const canSendAgentInput =
+    !hasBlockingImageAttachments &&
+    (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
   const handleAgentSendClick = () => {
     if (!canSendAgentInput) return;
     markAgentInputFocusForRestore();

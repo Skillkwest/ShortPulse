@@ -146,8 +146,12 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
+  const hasBlockingImageAttachments =
+    imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
   const canSendAgentInput =
-    chatModeEnabled && (agentInput.trim().length > 0 || stagedAttachments.length > 0);
+    chatModeEnabled &&
+    !hasBlockingImageAttachments &&
+    (agentInput.trim().length > 0 || stagedAttachments.length > 0);
   const hasInsideInputSendButton = embedSendButtonInInput && chatModeEnabled;
   const hasAuxComposerControls = Boolean(composerMiddleContent) || Boolean(composerLeadingContent);
   const shouldStackTrailingComposerControls =

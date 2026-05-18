@@ -143,8 +143,6 @@ export function PromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = subtitle;
-  const canSendAgentInput =
-    chatModeEnabled && (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
   const markAgentInputFocusForRestore = React.useCallback(() => {
     shouldRestoreAgentInputFocusRef.current = true;
   }, []);
@@ -176,6 +174,12 @@ export function PromptStep({
       failed,
     };
   }, [stagedAttachments]);
+  const hasBlockingImageAttachments =
+    imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
+  const canSendAgentInput =
+    chatModeEnabled &&
+    !hasBlockingImageAttachments &&
+    (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
   const handleAgentSendClick = () => {
     if (!canSendAgentInput) return;
     markAgentInputFocusForRestore();

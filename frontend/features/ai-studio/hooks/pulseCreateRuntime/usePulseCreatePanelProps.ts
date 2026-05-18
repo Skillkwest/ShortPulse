@@ -42,6 +42,21 @@ type UsePulseCreatePanelPropsParams = {
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
 
+const resolveImageAttachmentGuardrail = (attachments: AgentAttachment[]): string | null => {
+  const imageAttachments = attachments.filter((attachment) => attachment.kind === "image");
+  if (
+    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "failed")
+  ) {
+    return "Resolve failed image attachments before generating.";
+  }
+  if (
+    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "preparing")
+  ) {
+    return "Wait for attached images to finish preparing.";
+  }
+  return null;
+};
+
 /**
  * Pulse Create panel props.
  * Keeps Pulse-mode composer controls out of the shared page prop builder.
@@ -78,35 +93,38 @@ export const buildPulseCreatePanelProps = ({
   handleClearAgentChat,
   handlePulseCreatePrimarySubmit,
   pulsePreferenceRuntime,
-}: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => ({
-  pulsePrompt,
-  activePulsePresetKind,
-  agentEnabled,
-  agentBootstrapPending: !agentBootstrapReady,
-  agentMessages,
-  agentInput,
-  agentIsSending: agentBusy,
-  agentTransportSending: agentIsSending,
-  agentUiBusy,
-  agentError: agentAttachmentError ?? agentError ?? undefined,
-  stagedPrompt: stagedAgentPrompt,
-  stagedAttachments: agentAttachments,
-  agentDropActive: isAgentDropActive,
-  onAgentInputChange: handleAgentInputChange,
-  onAgentSend: handleAgentSend,
-  onAgentAttachmentDrop: handleAgentAttachmentDrop,
-  onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
-  onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
-  onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
-  onRemoveAgentAttachment: handleRemoveAgentAttachment,
-  onClearAgentAttachments: handleClearAgentAttachments,
-  onAssistantMessageEdit: handleAssistantMessageEdit,
-  onPulsePromptChange: handlePulsePromptChange,
-  isPromptGenerating: createIsGenerating,
-  costCredits: currentCostCredits,
-  isGenerateDisabled,
-  guardrailReason: generationGuardrail,
-  onClearAgentChat: handleClearAgentChat,
-  onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
-  pulsePreferenceRuntime,
-});
+}: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
+  const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
+  return {
+    pulsePrompt,
+    activePulsePresetKind,
+    agentEnabled,
+    agentBootstrapPending: !agentBootstrapReady,
+    agentMessages,
+    agentInput,
+    agentIsSending: agentBusy,
+    agentTransportSending: agentIsSending,
+    agentUiBusy,
+    agentError: agentAttachmentError ?? agentError ?? undefined,
+    stagedPrompt: stagedAgentPrompt,
+    stagedAttachments: agentAttachments,
+    agentDropActive: isAgentDropActive,
+    onAgentInputChange: handleAgentInputChange,
+    onAgentSend: handleAgentSend,
+    onAgentAttachmentDrop: handleAgentAttachmentDrop,
+    onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
+    onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
+    onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+    onRemoveAgentAttachment: handleRemoveAgentAttachment,
+    onClearAgentAttachments: handleClearAgentAttachments,
+    onAssistantMessageEdit: handleAssistantMessageEdit,
+    onPulsePromptChange: handlePulsePromptChange,
+    isPromptGenerating: createIsGenerating,
+    costCredits: currentCostCredits,
+    isGenerateDisabled: isGenerateDisabled || Boolean(imageAttachmentGuardrail),
+    guardrailReason: imageAttachmentGuardrail ?? generationGuardrail,
+    onClearAgentChat: handleClearAgentChat,
+    onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
+    pulsePreferenceRuntime,
+  };
+};

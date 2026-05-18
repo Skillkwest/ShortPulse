@@ -102,4 +102,44 @@ describe("buildStandardCreatePanelProps", () => {
     expect("disableAgentOutputGenerate" in propsRecord).toBe(false);
     expect("outputGenerateCostCredits" in propsRecord).toBe(false);
   });
+
+  it("blocks generate while an attached image is still preparing", () => {
+    const props = buildStandardCreatePanelProps({
+      ...baseParams,
+      agentAttachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          imageUrl: "data:image/png;base64,preview",
+          submissionImageUrl: null,
+          text: null,
+          deliveryStatus: "preparing",
+          deliveryError: null,
+        },
+      ],
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBe("Wait for attached images to finish preparing.");
+  });
+
+  it("blocks generate when an attached image has failed", () => {
+    const props = buildStandardCreatePanelProps({
+      ...baseParams,
+      agentAttachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          imageUrl: "data:image/png;base64,preview",
+          submissionImageUrl: null,
+          text: null,
+          deliveryStatus: "failed",
+          deliveryError: "Upload failed",
+        },
+      ],
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBe("Resolve failed image attachments before generating.");
+  });
 });

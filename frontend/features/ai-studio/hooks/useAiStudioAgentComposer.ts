@@ -409,26 +409,49 @@ export const useAiStudioAgentComposer = ({
       sourceBlob?: Blob | null;
     }) => {
       try {
-        const durablePreviewUrl = await resolveAgentAttachmentPreviewUrl({
-          previewStoragePath: previewStoragePath ?? null,
-          fullStoragePath: fullStoragePath ?? null,
+        const durableReferenceUrl = await resolveAgentAttachmentPreviewUrl({
+          previewStoragePath: null,
+          fullStoragePath: null,
           referenceRenderUrl: null,
           referenceUrl: referenceUrl ?? null,
           imageUrl: null,
           submissionImageUrl: null,
         }).catch(() => null);
+        const durableFullStorageUrl = fullStoragePath
+          ? await resolveAgentAttachmentPreviewUrl({
+              previewStoragePath: null,
+              fullStoragePath,
+              referenceRenderUrl: null,
+              referenceUrl: null,
+              imageUrl: null,
+              submissionImageUrl: null,
+            }).catch(() => null)
+          : null;
+        const durablePreviewStorageUrl =
+          !durableFullStorageUrl && previewStoragePath
+            ? await resolveAgentAttachmentPreviewUrl({
+                previewStoragePath,
+                fullStoragePath: null,
+                referenceRenderUrl: null,
+                referenceUrl: null,
+                imageUrl: null,
+                submissionImageUrl: null,
+              }).catch(() => null)
+            : null;
+        const durableSubmissionUrl =
+          durableReferenceUrl ?? durableFullStorageUrl ?? durablePreviewStorageUrl ?? null;
 
         if (
-          durablePreviewUrl &&
-          !durablePreviewUrl.startsWith("blob:") &&
-          !durablePreviewUrl.startsWith("data:")
+          durableSubmissionUrl &&
+          !durableSubmissionUrl.startsWith("blob:") &&
+          !durableSubmissionUrl.startsWith("data:")
         ) {
           patchImageAttachment(attachmentId, (attachment) => ({
             ...attachment,
             previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,
             fullStoragePath: fullStoragePath ?? attachment.fullStoragePath ?? null,
-            referenceUrl: referenceUrl ?? attachment.referenceUrl ?? durablePreviewUrl,
-            submissionImageUrl: durablePreviewUrl,
+            referenceUrl: referenceUrl ?? attachment.referenceUrl ?? durableSubmissionUrl,
+            submissionImageUrl: durableSubmissionUrl,
             deliveryStatus: "ready",
             deliveryError: null,
           }));
@@ -815,8 +838,9 @@ export const useAiStudioAgentComposer = ({
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
+            const attachmentId = randomId();
             insertAttachment({
-              id: randomId(),
+              id: attachmentId,
               kind: "image",
               referenceId: droppedReferenceId,
               mediaId: composerImagePayload.mediaId ?? null,
@@ -832,7 +856,12 @@ export const useAiStudioAgentComposer = ({
               deliveryStatus: "preparing",
               deliveryError: null,
             });
-            const attachmentId = agentAttachments.length ? "" : "";
+            void promoteAttachmentToDurableSource({
+              attachmentId,
+              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
+              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
+              referenceUrl: durableReferenceUrl,
+            });
             return;
           }
           const orderedImageUrls = buildAgentAttachmentImageCandidates({
@@ -1135,7 +1164,6 @@ export const useAiStudioAgentComposer = ({
       registerOwnedObjectUrl,
       resolveInternalImageDropSource,
       resolveOutputPreviewUrlById,
-      agentAttachments.length,
     ]
   );
 

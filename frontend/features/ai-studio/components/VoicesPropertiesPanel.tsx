@@ -12,6 +12,7 @@ import {
   resolveRequiredAudioVoiceoverModelId,
 } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import type { ToolId } from "../types";
@@ -68,6 +69,8 @@ const cloneVoiceSourceDurationErrorMessage = "Voice clone source must be at leas
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
+const minVoicesTopSectionHeightPx = 120;
+const minVoicesBottomSectionHeightPx = 320;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -355,6 +358,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const voicePromptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const previewAudioVoiceIdRef = React.useRef<string | null>(null);
@@ -430,6 +434,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
+  const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
+    enabled: true,
+    containerRef: splitContainerRef,
+    defaultTopRatio: 0.22,
+    minTopSectionHeightPx: minVoicesTopSectionHeightPx,
+    minBottomSectionHeightPx: minVoicesBottomSectionHeightPx,
+    ariaLabel: "Resize voices mode and composition sections",
+  });
 
   React.useLayoutEffect(() => {
     const textarea = voicePromptRef.current;
@@ -1516,23 +1528,22 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     <section className="voices-properties-panel tool-properties" aria-label="Voices properties">
       <div className="voices-properties-shell">
         <div className="voices-properties-column-shell">
-          <div className="voices-properties-main">
-            <div className="voices-properties-panel-header">
-              <h2 className="panel-title voices-properties-library-title">Voices</h2>
-              <div className="voices-properties-library-actions">
-                <button
-                  ref={voicesLibraryTriggerRef}
-                  type="button"
-                  className="voices-properties-library-open-btn"
-                  aria-label="Voices"
-                  onClick={handleOpenVoicesLibraryModal}
-                >
-                  <span>Voices</span>
-                </button>
+          <div ref={splitContainerRef} className="voices-properties-main">
+            <section className="voices-properties-topbar" style={topSectionStyle}>
+              <div className="voices-properties-panel-header">
+                <h2 className="panel-title voices-properties-library-title">Voices</h2>
+                <div className="voices-properties-library-actions">
+                  <button
+                    ref={voicesLibraryTriggerRef}
+                    type="button"
+                    className="voices-properties-library-open-btn"
+                    aria-label="Voices"
+                    onClick={handleOpenVoicesLibraryModal}
+                  >
+                    <span>Voices</span>
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="voices-properties-compose-area">
               <div className="voices-properties-compose-mode-switcher">
                 <div className="voices-properties-mode-switcher">
                   <div
@@ -1570,7 +1581,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   </div>
                 </div>
               </div>
+            </section>
 
+            <div
+              className="voices-properties-divider-wrap reference-grid-horizontal-divider-wrap"
+              {...dividerProps}
+            >
+              <div
+                className="voices-properties-divider reference-grid-horizontal-divider"
+                aria-hidden="true"
+              />
+            </div>
+
+            <section className="voices-properties-compose-area" style={bottomSectionStyle}>
               {surfaceMode === "create" ? (
                 <div className="voices-properties-script-input-shell">
                   <textarea
@@ -1592,8 +1615,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   resolveInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
                 />
               )}
-
-              <div className="voices-properties-script-divider" aria-hidden="true" />
 
               <div className="voices-properties-script-actions">
                 {surfaceMode === "create" ? (
@@ -1624,7 +1645,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   </span>
                 </button>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>

@@ -82,6 +82,10 @@ Metrics:
 - `stableContentSettleMsP95`
 - `signBatchP95Ms`
 
+Current capture note:
+- `openToFirstMediaP95Ms` should stay `null` unless it was independently measured.
+- The current direct panel capture helper does **not** infer it from `firstMediaPaintP95Ms`, because treating those as two independent metrics would overstate speed evidence.
+
 Interpretation:
 
 - Strong: first visible media appears quickly and signing overhead stays bounded.
@@ -153,6 +157,7 @@ Metrics:
 - Preferred evidence source: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`
 - The dedicated persistence audit uploads a real image fixture through the target panel surface, verifies browse-ready visibility, reloads and reopens the panel, repeats the check in a fresh signed-in context, then deletes the audit fixture. Use its JSON output to populate persistence metrics instead of inferring them from open-path browse telemetry.
 - Default surface is AI Studio. Add `-- --surface elements-media-panel` for the Elements embedded panel.
+- Treat this as a browse-readiness smoke audit, not a full wrong-asset integrity proof.
 
 Interpretation:
 
@@ -175,7 +180,7 @@ Create a packet like this:
   "metrics": {
     "firstMediaPaintP95Ms": 620,
     "loadingStateVisibleMsP95": 820,
-    "openToFirstMediaP95Ms": 980,
+    "openToFirstMediaP95Ms": null,
     "stableContentSettleMsP95": 1380,
     "signBatchP95Ms": 140,
     "resolveCallsPerOpen": 0.08,
@@ -314,8 +319,9 @@ Map those outputs into the KPI packet:
 - `loadingStateVisibleMsP95`
   - from retained browser timing or a panel-specific loading-state measurement packet
 - `openToFirstMediaP95Ms`
-  - from `media.modal.open_to_first_media` only if the same panel/modal contract is intentionally being measured
-  - otherwise capture a panel-specific browser timing packet and write it manually
+  - only when independently measured
+  - do not copy `firstMediaPaintP95Ms` into this field
+  - `media.modal.open_to_first_media` is valid only if the same panel/modal contract is intentionally being measured
 - `stableContentSettleMsP95`
   - from retained browser timing or panel interaction tracing
 - `signBatchP95Ms`
@@ -471,7 +477,6 @@ For the AI Studio media panel, a sprint-level “good” packet should include a
 
 - `firstMediaPaintP95Ms`
 - `loadingStateVisibleMsP95`
-- `openToFirstMediaP95Ms`
 - `stableContentSettleMsP95`
 - `signBatchP95Ms`
 - `resolveCallsPerOpen`

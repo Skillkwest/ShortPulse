@@ -169,7 +169,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 47. `sql/migrations/046_fix_character_quickswap_storage_scope_check.sql`
 48. `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
 49. `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
-50. `sql/migrations/049_enforce_expert_default_beginner_mode.sql`
+50. `sql/migrations/049_enforce_expert_default_beginner_mode.sql` (historical legacy `beginner_mode` preference migration; removed from current schema by migration `120`)
 51. `sql/migrations/051_add_agent_safety_policy_version_rpc.sql`
 52. `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql`
 53. `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql`
@@ -239,7 +239,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 117.  `sql/migrations/117_add_create_pulse_builtin_control_plane.sql`
 118.  `sql/migrations/118_canonicalize_character_metadata_media_ids.sql`
 119.  `sql/migrations/119_require_character_media_id_on_character_links.sql`
-120.  `sql/migrations/120_remove_legacy_onboarding_user_preference.sql`
+120.  `sql/migrations/120_remove_legacy_onboarding_user_preference.sql` (removes deprecated `user_preferences.beginner_mode`; current schema state)
 121.  `sql/migrations/121_add_agent_prompt_runtime_control_plane.sql`
 122.  `sql/migrations/122_retire_character_sheet_alias_compat.sql`
 123.  `sql/migrations/123_add_audio_companion_art_projection_fields.sql`

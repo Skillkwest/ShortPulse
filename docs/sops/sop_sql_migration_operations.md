@@ -100,7 +100,7 @@ Current set:
 - `046_fix_character_quickswap_storage_scope_check.sql`
 - `047_add_agent_safety_policy_control_plane.sql`
 - `048_harden_agent_safety_policy_control_plane_grants.sql`
-- `049_enforce_expert_default_beginner_mode.sql`
+- `049_enforce_expert_default_beginner_mode.sql` (historical legacy `beginner_mode` preference migration; removed by `120_remove_legacy_onboarding_user_preference.sql`)
 - `050_add_media_list_search_cursor_indexes.sql`
 - `051_add_agent_safety_policy_version_rpc.sql`
 - `052_extend_queue_recovery_provider_scope_to_kie.sql`
@@ -167,16 +167,12 @@ Current set:
 - `117_add_create_pulse_builtin_control_plane.sql`
 - `118_canonicalize_character_metadata_media_ids.sql`
 - `119_require_character_media_id_on_character_links.sql`
-- `120_remove_legacy_onboarding_user_preference.sql`
+- `120_remove_legacy_onboarding_user_preference.sql` (removes deprecated `user_preferences.beginner_mode`; current schema state)
 - `121_add_agent_prompt_runtime_control_plane.sql`
 - `122_retire_character_sheet_alias_compat.sql`
 - `123_add_audio_companion_art_projection_fields.sql`
 - `124_add_generation_projection_save_error.sql`
 - `125_add_expert_edit_system_preset_control_plane.sql`
-- `118_canonicalize_character_metadata_media_ids.sql`
-- `119_require_character_media_id_on_character_links.sql`
-- `120_remove_legacy_onboarding_user_preference.sql`
-- `122_retire_character_sheet_alias_compat.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

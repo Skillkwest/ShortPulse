@@ -68,6 +68,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
+- `docs/agents/Create Workflow/README.md`
 - `docs/agents/pulse/README.md`
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`

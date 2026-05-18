@@ -11,7 +11,7 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
   - Prompt override plumbing (`displayPromptOverride` vs `submissionPromptOverride`).
   - Error handling and test coverage requirements.
 - Out of scope:
-  - Beginner Edit panel behavior.
+  - Retired legacy surfaces.
   - Provider payload schema changes.
   - Database migrations or session schema changes.
 

@@ -884,3 +884,47 @@ Next training focus:
 
 - On the next large product run, rebuild the live manifest from `git status --short` after every commit boundary until the lane goes clean, not only after the first leftover audit.
 - When a late UI/layout sub-lane appears, run its owning component test immediately before retrying the commit instead of relying on the broader lane slice alone.
+
+## 2026-05-18 - Production create-workflow diagnostics and billing audit run
+
+Task: publish the Create workflow diagnosis/runtime lane and the recurring billing diagnostics lane on `production`, then close out the run with the retained Gear Ball self-audit packet.
+
+Actions taken:
+
+- Locked two explicit manifests before staging: Create workflow runtime/debugging and recurring billing diagnostics.
+- Ran `gear-ball:preflight` for both lanes, fixed one formatter-only pass and one lint-only explicit-`any` warning before the first commit, then reran both lanes clean.
+- Re-ran the shared gates before any commit: `npm -C frontend run build`, `npm -C frontend run docs:check`, and `npm -C frontend run test` (`724` files passed, `4880` tests passed, `42` skipped).
+- Committed the Create workflow lane as `41e135566` and the billing lane as `99e62b52b`.
+- Cleared tracked generated drift in `supabase/.temp/cli-latest` before staging so the real batch manifests stayed clean.
+
+Training result:
+
+- The current preflight stack is catching the right failures at the right time. Formatter drift and lint-only type hygiene were both stopped before staging instead of surfacing in the first commit hook.
+- File-backed manifests worked cleanly across two coherent lanes with no post-commit leftovers.
+- Generated tracked temp drift is still a real distraction source; it should be cleared before staging so leftover audits stay high-signal.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- Both feature lanes were identified correctly before the first Git write.
+- The branch stayed disciplined and the inter-batch leftover audits stayed clean.
+- Full validation was already green before the first commit.
+
+What slipped:
+
+- Preflight still needed one formatter pass and one lint-only test typing fix.
+- No route-level browser smoke was run because no local target was already active.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`, tracked temp drift should be cleared before staging
+
+Next training focus:
+
+- Convert one more large production run with zero preflight fixups.
+- Keep watching whether tracked temp drift or missing browser-smoke targets recur often enough to justify another helper change.

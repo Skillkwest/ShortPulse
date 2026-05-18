@@ -238,6 +238,43 @@ Training result:
 - The inter-batch leftover audit proved its value by catching two test files that had slipped outside the product manifest.
 - No new tool was required; the current guardrails were sufficient when actually followed.
 
+## 2026-05-18: Production Panel Layout And Character Library Run
+
+Task: run the full Gear Ball SOP on `production` for one coherent AI Studio panel/layout lane spanning media, music, sound-effects, voices, and the embedded character library workspace.
+
+Actions taken:
+
+- Locked one file-backed manifest under `/tmp/gear-ball-run-2026-05-18b/` before the first staging step.
+- Ran `gear-ball:preflight` with the file-backed manifest, fixed one formatter-only issue in `MediaLibraryPanel.tsx`, and reran preflight green.
+- Ran `npm -C frontend run build`, `npm -C frontend run docs:check`, and a full `npm -C frontend run test` before the first Git write.
+- Committed the product lane on `production` as `7f8a2e83d`.
+
+Training result:
+
+- The single-lane manifest was the right shape: component TSX, layout CSS, and owning tests stayed coupled and validated together.
+- The current helper/tooling stack was sufficient; the only issue caught before staging was formatter drift.
+- No inter-batch cleanup was needed after the product commit.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- The worktree was already one coherent lane, so batching stayed simple.
+- Preflight/build/docs/full-suite all completed before the first Git write.
+- The leftover audit after the product commit was clean.
+
+What slipped:
+
+- One avoidable Prettier issue still made it into the first preflight pass.
+
+Capability decision:
+
+- New tool/helper needed?: `no`
+- Existing helper update needed?: `no`
+- SOP/doc update needed?: `no`
+
 Self-rating:
 
 - Run quality: `9/10`

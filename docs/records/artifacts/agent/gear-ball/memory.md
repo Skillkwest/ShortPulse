@@ -21,3 +21,4 @@ Purpose: store retained working memory that supports Gear Ball's repo-visible co
 - If a repo-visible agent contract links to `CURRENT-HANDOFF.md`, commit the linked handoff file with the contract change or revert the link.
 - If isolated rerun fixes touch files outside the original changed-file lane, append those files back into the active batch manifest immediately. Do not rely on memory to pick them up during the first `git add`.
 - Treat tracked temp files such as `supabase/.temp/cli-latest` as generated drift, not source-of-truth change. Clear them before the first staging pass so leftover audits stay focused on real lanes.
+- For AI Studio panel-shell or character-library layout runs, keep the component TSX, matching CSS files, and owning tests in one manifest. Context-menu positioning, moved counters, and modalized library flows are tightly coupled and should not be split across separate batches.

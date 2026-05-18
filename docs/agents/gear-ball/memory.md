@@ -43,6 +43,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-16: For interaction-heavy admin or frontend route changes, one route-level browser smoke should happen before push when a local verification target is already available. The smoke should prove the changed route loads, the primary control surface renders, and there is no obvious fatal client error.
 - 2026-05-17: When isolated rerun fixes touch tests or helpers outside the original changed-file lane, append those files back into the active manifest immediately. The inter-batch leftover audit can save the run, but it should not be the first place those files are rediscovered.
 - 2026-05-18: Treat tracked temp files such as `supabase/.temp/cli-latest` as generated drift. Restore or clear them before the first staging pass so temp state does not pollute the batch manifest or leftover audits.
+- 2026-05-18: For AI Studio panel-shell or character-library layout runs, keep the component TSX, matching CSS modules, and owning tests in the same manifest. Context-menu positioning, header count moves, and modalized library flows are too coupled to split safely across separate batches.
 
 ## Open Follow-Ups
 

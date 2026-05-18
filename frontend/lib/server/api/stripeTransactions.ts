@@ -362,6 +362,14 @@ export const buildUnifiedInvoiceTransaction = (
   };
 };
 
+export const buildSubscriptionFacingTransaction = (
+  invoice: StripeInvoiceResponse,
+  storageCatalog: StorageCatalog
+): BillingPaymentTransaction | null => {
+  const transaction = buildUnifiedInvoiceTransaction(invoice, storageCatalog);
+  return transaction.kind === "storage" ? null : transaction;
+};
+
 export const listCreditPurchaseTransactions = async (
   userId: string
 ): Promise<BillingPaymentTransaction[]> => {

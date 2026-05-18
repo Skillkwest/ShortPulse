@@ -285,7 +285,12 @@ export default function ProfilePage() {
         .from("ai_credit_ledger")
         .select("id, change_cents, reason, source, source_ref, metadata, created_at")
         .eq("user_id", currentUser.id)
-        .in("source", ["stripe_checkout", "subscription_renewal", "signup_seed"])
+        .in("source", [
+          "stripe_checkout",
+          "subscription_renewal",
+          "annual_contract_monthly_allocation",
+          "signup_seed",
+        ])
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;

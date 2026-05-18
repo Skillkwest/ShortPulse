@@ -260,11 +260,12 @@ export function AdminSupportQueueSection({
   const visibleBillingFindings = billingFindings.filter(
     (finding) => finding.code !== "internal_comp_contract"
   );
-  const visibleSupportFindings = visibleBillingFindings.slice(0, 2);
   const pricingObservability = billingDiagnostics?.pricingObservability ?? null;
   const pricingObservabilityCoverageLabel = pricingObservability
     ? `${pricingObservability.observedRows.reservations}/${pricingObservability.rowsScanned.reservations} reservation rows · ${pricingObservability.observedRows.ledgerEntries}/${pricingObservability.rowsScanned.ledgerEntries} ledger rows`
     : null;
+  const showPricingObservabilityCard =
+    pricingObservability != null && pricingObservability.mismatchCount > 0;
   const hasLinkedStripeSubscription = Boolean(
     billingDiagnostics?.stripeSubscription?.subscriptionId ||
     billingDiagnostics?.billingProfile?.stripeSubscriptionId
@@ -593,9 +594,9 @@ export function AdminSupportQueueSection({
                         </p>
                       ) : billingDiagnosticsError ? (
                         <p className={styles.controlNote}>{billingDiagnosticsError}</p>
-                      ) : visibleSupportFindings.length > 0 ? (
+                      ) : visibleBillingFindings.length > 0 ? (
                         <div className={styles.adminBillingFindingList}>
-                          {visibleSupportFindings.map((finding) => (
+                          {visibleBillingFindings.map((finding) => (
                             <article key={finding.code} className={styles.adminBillingFindingCard}>
                               <div className={styles.healthFindingMetaRow}>
                                 <span
@@ -606,6 +607,13 @@ export function AdminSupportQueueSection({
                               </div>
                               <p className={styles.healthFindingSummary}>{finding.summary}</p>
                               <p className={styles.controlNote}>{finding.details}</p>
+                              {finding.recommendedActions.length > 0 ? (
+                                <ul className={styles.healthActionList}>
+                                  {finding.recommendedActions.map((action) => (
+                                    <li key={`${finding.code}-${action}`}>{action}</li>
+                                  ))}
+                                </ul>
+                              ) : null}
                             </article>
                           ))}
                         </div>
@@ -614,7 +622,7 @@ export function AdminSupportQueueSection({
                           No immediate billing anomalies are flagged for this account right now.
                         </p>
                       )}
-                      {pricingObservability ? (
+                      {showPricingObservabilityCard ? (
                         <div className={styles.adminBillingFindingCard}>
                           <div className={styles.healthFindingMetaRow}>
                             <span

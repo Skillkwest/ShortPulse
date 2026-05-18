@@ -44,6 +44,7 @@ export type AdminBillingContractSnapshot = {
   id: string;
   planId: string | null;
   offerId: string | null;
+  billingInterval: "month" | "year" | null;
   stripeCustomerId: string | null;
   stripePriceId: string | null;
   stripeSubscriptionId: string | null;
@@ -52,7 +53,10 @@ export type AdminBillingContractSnapshot = {
   monthlyCreditsCents: number | null;
   storageLimitBytes: number | null;
   status: string | null;
+  currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  lastCreditGrantAt: string | null;
+  nextCreditGrantAt: string | null;
 };
 
 export type AdminBillingOfferSnapshot = {
@@ -141,6 +145,25 @@ export type AdminPricingObservabilitySnapshot = {
   latestEvents: AdminPricingObservabilityEventSnapshot[];
 };
 
+export type AdminBillingRecurringGrantHealthSnapshot = {
+  latestSubscriptionGrantAt: string | null;
+  latestAnnualAllocationAt: string | null;
+  recentPaidAllocationInvoices: number;
+  unmatchedPaidAllocationInvoices: string[];
+};
+
+export type AdminBillingHistoricalStorageAddonSnapshot = {
+  id: string;
+  storageAddonId: string | null;
+  stripeSubscriptionItemId: string | null;
+  status: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  updatedAt: string | null;
+};
+
 export type AdminBillingDiagnosticsResponse = {
   target: {
     userId: string;
@@ -156,6 +179,8 @@ export type AdminBillingDiagnosticsResponse = {
   stripeCustomer: AdminStripeCustomerSnapshot;
   stripeSubscription: AdminStripeSubscriptionSnapshot;
   pricingObservability: AdminPricingObservabilitySnapshot;
+  recurringGrantHealth: AdminBillingRecurringGrantHealthSnapshot;
+  historicalStorageAddons: AdminBillingHistoricalStorageAddonSnapshot[];
   findings: AdminHealthFinding[];
 };
 

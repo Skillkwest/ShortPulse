@@ -317,7 +317,7 @@ export function ProfileSubscriptionSection({
             <p className="subdued tiny">
               {isInternalCompContract
                 ? "This account is managed internally, so there are no Stripe subscription charges to show here."
-                : "Recent recurring subscription invoices charged through Stripe."}
+                : "Recent Stripe invoices that include subscription charges."}
             </p>
           </div>
           <span className="profile-panel-icon-chip" aria-hidden="true">

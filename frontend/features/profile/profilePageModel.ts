@@ -177,6 +177,9 @@ export const resolveLedgerReference = (event: BillingLedgerEvent): string | null
  */
 export const resolveLedgerLabel = (event: BillingLedgerEvent): string => {
   if (event.source === "subscription_renewal") return "Subscription renewal";
+  if (event.source === "annual_contract_monthly_allocation") {
+    return "Annual monthly credit allocation";
+  }
   if (event.source === "stripe_checkout") return "Credit purchase";
   if (event.source === "signup_seed") return "Initial plan allocation";
   return "Billing activity";

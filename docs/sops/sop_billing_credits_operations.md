@@ -21,6 +21,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Paid-entitlement fallback + offer-catalog correction migration: `sql/migrations/088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
+- Historical recurring billing drift audit helper: `sql/check_billing_subscription_historical_drift.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
 - Reservation RPC ambiguity fix: `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
 - Reservation RPC auth/grant hardening: `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
@@ -142,6 +143,29 @@ Safety checks:
 - Non-zero required.
 - Per-request cap: absolute value <= `1_000_000`.
 - DB trigger blocks underflow (`Insufficient credits`).
+
+## Historical recurring billing drift audit
+
+Use `sql/check_billing_subscription_historical_drift.sql` before any production repair run that touches Stripe-backed recurring billing history.
+
+This query packet audits three high-risk historical cohorts:
+
+- Stripe monthly contracts that may have missed their first `subscription_renewal` credit grant
+- Stripe annual contracts with broken `current_period_end` or `next_credit_grant_at` cursors
+- Historical recurring storage add-on rows with suspicious `ended_at` timing
+
+Operator sequence:
+
+1. Set `params.webhook_fix_deployed_at` in the SQL file to the timestamp when the relevant webhook fixes shipped in the target environment.
+2. Run the SQL packet against the target environment.
+3. Export or preserve the result set before touching any rows.
+4. Decide whether a one-time backfill is needed only after reconciling the result set against Stripe invoices/subscriptions and `ai_credit_ledger`.
+5. Re-run the packet after any repair to confirm the cohort is empty.
+
+Important:
+
+- Treat the SQL packet as an audit surface, not an automatic repair script.
+- Use `billing_subscription_contracts`, `billing_subscription_storage_addons`, and `ai_credit_ledger` as the local billing truth surfaces for this audit, not `billing_profiles`.
 
 ## Admin pricing command center
 

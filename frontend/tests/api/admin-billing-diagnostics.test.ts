@@ -27,6 +27,67 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const createStorageAddonSelectMock = ({
+  activeRows = [],
+  historicalRows = [],
+}: {
+  activeRows?: unknown[];
+  historicalRows?: unknown[];
+}) => ({
+  eq: vi.fn().mockReturnValue({
+    is: vi.fn().mockReturnValue({
+      order: vi.fn().mockResolvedValue({
+        data: activeRows,
+        error: null,
+      }),
+    }),
+    not: vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue({
+          data: historicalRows,
+          error: null,
+        }),
+      }),
+    }),
+  }),
+});
+
+const createRecentActivitySelectMock = (rows: unknown[] = []) => ({
+  eq: vi.fn().mockReturnValue({
+    order: vi.fn().mockReturnValue({
+      limit: vi.fn().mockResolvedValue({
+        data: rows,
+        error: null,
+      }),
+    }),
+  }),
+});
+
+const createGrantLedgerSelectMock = ({
+  recentRows = [],
+  recurringGrantRows = [],
+}: {
+  recentRows?: unknown[];
+  recurringGrantRows?: unknown[];
+}) => ({
+  eq: vi.fn().mockReturnValue({
+    order: vi.fn().mockReturnValue({
+      limit: vi.fn().mockResolvedValue({
+        data: recentRows,
+        error: null,
+      }),
+    }),
+    in: vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue({
+          data: recurringGrantRows,
+          error: null,
+        }),
+      }),
+    }),
+  }),
+});
+
 describe("GET /api/admin/billing-diagnostics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -130,89 +191,66 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
-    const storageAddonsQuery = {
-      eq: vi.fn().mockReturnValue({
-        is: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: "addon-contract-1",
-                storage_addon_id: "storage_25gb",
-                offer_id: "storage_25gb__current",
-                stripe_subscription_item_id: "si_123",
-                stripe_price_id: "price_storage_25",
-                storage_limit_bytes: 26843545600,
-                quantity: 1,
-                recurring_price_cents: 500,
-                status: "active",
-              },
-            ],
-            error: null,
-          }),
-        }),
-      }),
-    };
+    const storageAddonsQuery = createStorageAddonSelectMock({
+      activeRows: [
+        {
+          id: "addon-contract-1",
+          storage_addon_id: "storage_25gb",
+          offer_id: "storage_25gb__current",
+          stripe_subscription_item_id: "si_123",
+          stripe_price_id: "price_storage_25",
+          storage_limit_bytes: 26843545600,
+          quantity: 1,
+          recurring_price_cents: 500,
+          status: "active",
+        },
+      ],
+    });
     const mediaFilesQuery = {
       eq: vi.fn().mockResolvedValue({
         data: [{ file_size: 5368709120 }],
         error: null,
       }),
     };
-    const reservationsQuery = {
-      eq: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: "reservation-1",
-                user_id: "11111111-1111-4111-8111-111111111111",
-                source_ref: "source-ref-1",
-                provider_request_id: "provider-req-1",
-                created_at: "2026-04-15T00:00:00.000Z",
-                metadata: {
-                  pricing_observability: {
-                    displayed_billed_credits: 10,
-                    actual_billed_credits: 10,
-                    delta_credits: 0,
-                    mismatch: false,
-                    pricing_display_source: "shared_adapter",
-                    pricing_policy_ready: true,
-                  },
-                },
-              },
-            ],
-            error: null,
-          }),
-        }),
-      }),
-    };
-    const ledgerQuery = {
-      eq: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: "ledger-1",
-                user_id: "11111111-1111-4111-8111-111111111111",
-                source_ref: "source-ref-1",
-                created_at: "2026-04-15T00:05:00.000Z",
-                metadata: {
-                  pricing_observability: {
-                    displayed_billed_credits: 10,
-                    actual_billed_credits: 10,
-                    delta_credits: 0,
-                    mismatch: false,
-                    pricing_display_source: "shared_adapter",
-                    pricing_policy_ready: true,
-                  },
-                },
-              },
-            ],
-            error: null,
-          }),
-        }),
-      }),
-    };
+    const reservationsQuery = createRecentActivitySelectMock([
+      {
+        id: "reservation-1",
+        user_id: "11111111-1111-4111-8111-111111111111",
+        source_ref: "source-ref-1",
+        provider_request_id: "provider-req-1",
+        created_at: "2026-04-15T00:00:00.000Z",
+        metadata: {
+          pricing_observability: {
+            displayed_billed_credits: 10,
+            actual_billed_credits: 10,
+            delta_credits: 0,
+            mismatch: false,
+            pricing_display_source: "shared_adapter",
+            pricing_policy_ready: true,
+          },
+        },
+      },
+    ]);
+    const ledgerQuery = createGrantLedgerSelectMock({
+      recentRows: [
+        {
+          id: "ledger-1",
+          user_id: "11111111-1111-4111-8111-111111111111",
+          source_ref: "source-ref-1",
+          created_at: "2026-04-15T00:05:00.000Z",
+          metadata: {
+            pricing_observability: {
+              displayed_billed_credits: 10,
+              actual_billed_credits: 10,
+              delta_credits: 0,
+              mismatch: false,
+              pricing_display_source: "shared_adapter",
+              pricing_policy_ready: true,
+            },
+          },
+        },
+      ],
+    });
 
     getSupabaseAdminMock.mockReturnValue({
       auth: {
@@ -279,6 +317,9 @@ describe("GET /api/admin/billing-diagnostics", () => {
             },
           ],
         },
+      })
+      .mockResolvedValueOnce({
+        data: [],
       });
 
     const req = {
@@ -469,13 +510,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "billing_subscription_storage_addons") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                is: vi.fn().mockReturnValue({
-                  order: vi.fn().mockResolvedValue({ data: [], error: null }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createStorageAddonSelectMock({})),
           };
         }
         if (table === "media_files") {
@@ -487,22 +522,30 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "ai_credit_reservations" || table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-                }),
-              }),
-            }),
+            select: vi
+              .fn()
+              .mockReturnValue(
+                table === "ai_credit_ledger"
+                  ? createGrantLedgerSelectMock({})
+                  : createRecentActivitySelectMock([])
+              ),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
-    stripeGetMock.mockResolvedValue({
-      id: "cus_profile",
-      email: "user@example.com",
-      deleted: false,
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith("/customers/")) {
+        return {
+          id: "cus_profile",
+          email: "user@example.com",
+          deleted: false,
+        };
+      }
+      if (path === "/subscriptions" || path === "/invoices") {
+        return { data: [] };
+      }
+      throw new Error(`Unexpected Stripe path: ${path}`);
     });
 
     const req = {
@@ -650,16 +693,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "billing_subscription_storage_addons") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                is: vi.fn().mockReturnValue({
-                  order: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createStorageAddonSelectMock({})),
           };
         }
         if (table === "media_files") {
@@ -674,30 +708,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "ai_credit_reservations") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
           };
         }
         if (table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({})),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -710,6 +726,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
           "No such customer: 'cus_UOCazcmcfKm1nM'; a similar object exists in test mode, but a live mode key was used to make this request."
         )
       )
+      .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [] });
 
     const req = {
@@ -735,7 +752,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
 
   it("treats internal-comp accounts with stale Stripe ids as non-fatal and warns", async () => {
     const createOfferQuery = (data: Record<string, unknown> | null) => {
-      const chain: any = {};
+      const chain: {
+        eq?: ReturnType<typeof vi.fn>;
+        order?: ReturnType<typeof vi.fn>;
+        limit?: ReturnType<typeof vi.fn>;
+        maybeSingle?: ReturnType<typeof vi.fn>;
+      } = {};
       chain.eq = vi.fn().mockReturnValue(chain);
       chain.order = vi.fn().mockReturnValue(chain);
       chain.limit = vi.fn().mockReturnValue(chain);
@@ -809,16 +831,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
-    const storageAddonsQuery = {
-      eq: vi.fn().mockReturnValue({
-        is: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-          }),
-        }),
-      }),
-    };
+    const storageAddonsQuery = createStorageAddonSelectMock({});
     const mediaFilesQuery = {
       eq: vi.fn().mockResolvedValue({
         data: [],
@@ -859,30 +872,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "ai_credit_reservations") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
           };
         }
         if (table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({})),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -1014,16 +1009,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
-    const storageAddonsQuery = {
-      eq: vi.fn().mockReturnValue({
-        is: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-          }),
-        }),
-      }),
-    };
+    const storageAddonsQuery = createStorageAddonSelectMock({});
     const mediaFilesQuery = {
       eq: vi.fn().mockResolvedValue({
         data: [{ file_size: 2147483648 }],
@@ -1064,30 +1050,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "ai_credit_reservations") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
           };
         }
         if (table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({})),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -1218,16 +1186,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
-    const storageAddonsQuery = {
-      eq: vi.fn().mockReturnValue({
-        is: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-          }),
-        }),
-      }),
-    };
+    const storageAddonsQuery = createStorageAddonSelectMock({});
     const mediaFilesQuery = {
       eq: vi.fn().mockResolvedValue({
         data: [{ file_size: 6657199308 }],
@@ -1268,30 +1227,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
         }
         if (table === "ai_credit_reservations") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
           };
         }
         if (table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
+            select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({})),
           };
         }
         throw new Error(`Unexpected table: ${table}`);

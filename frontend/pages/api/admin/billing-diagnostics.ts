@@ -30,6 +30,7 @@ type BillingContractRow = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  billing_interval: "month" | "year" | null;
   stripe_customer_id: string | null;
   stripe_price_id: string | null;
   stripe_subscription_id: string | null;
@@ -38,7 +39,10 @@ type BillingContractRow = {
   monthly_credits_cents: number | string | null;
   storage_limit_bytes: number | string | null;
   status: string | null;
+  current_period_start: string | null;
   current_period_end: string | null;
+  last_credit_grant_at: string | null;
+  next_credit_grant_at: string | null;
 };
 
 type BillingOfferRow = {
@@ -65,8 +69,25 @@ type BillingStorageAddonRow = {
   status: string | null;
 };
 
+type HistoricalBillingStorageAddonRow = BillingStorageAddonRow & {
+  current_period_start: string | null;
+  current_period_end: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  updated_at: string | null;
+};
+
 type MediaUsageRow = {
   file_size: number | string | null;
+};
+
+type BillingLedgerGrantRow = {
+  id: string;
+  source: string | null;
+  source_ref: string | null;
+  change_cents: number | string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
 };
 
 type PricingObservabilityEvent = {
@@ -102,6 +123,18 @@ type StripeSubscriptionResponse = {
 
 type StripeSubscriptionListResponse = {
   data?: StripeSubscriptionResponse[];
+};
+
+type StripeInvoiceResponse = {
+  id: string;
+  amount_paid?: number | null;
+  paid?: boolean;
+  status?: string | null;
+  billing_reason?: string | null;
+};
+
+type StripeInvoiceListResponse = {
+  data?: StripeInvoiceResponse[];
 };
 
 type StripeCustomerResponse = {
@@ -175,6 +208,12 @@ const asFiniteNumber = (value: unknown): number | null => {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+};
+
+const asDate = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const readPricingObservability = (
@@ -335,7 +374,7 @@ export default async function handler(
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_customer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_end"
+          "id, plan_id, offer_id, billing_interval, stripe_customer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at"
         )
         .eq("user_id", userId)
         .is("ended_at", null)
@@ -412,42 +451,68 @@ export default async function handler(
       currentPublicOffer = mapOffer((currentOfferResult.data as BillingOfferRow | null) ?? null);
     }
 
-    const [storageAddonsResult, mediaUsageResult, recentReservationsResult, recentLedgerResult] =
-      await Promise.all([
-        supabaseAdmin
-          .from("billing_subscription_storage_addons")
-          .select(
-            "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
-          )
-          .eq("user_id", userId)
-          .is("ended_at", null)
-          .order("created_at", { ascending: false }),
-        supabaseAdmin.from("media_files").select("file_size").eq("user_id", userId),
-        supabaseAdmin
-          .from("ai_credit_reservations")
-          .select("id, user_id, source_ref, provider_request_id, metadata, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(25),
-        supabaseAdmin
-          .from("ai_credit_ledger")
-          .select("id, user_id, source_ref, metadata, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(25),
-      ]);
+    const [
+      storageAddonsResult,
+      historicalStorageAddonsResult,
+      mediaUsageResult,
+      recentReservationsResult,
+      recentLedgerResult,
+      recentGrantLedgerResult,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .select(
+          "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
+        )
+        .eq("user_id", userId)
+        .is("ended_at", null)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .select(
+          "id, storage_addon_id, stripe_subscription_item_id, status, current_period_start, current_period_end, started_at, ended_at, updated_at"
+        )
+        .eq("user_id", userId)
+        .not("ended_at", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(10),
+      supabaseAdmin.from("media_files").select("file_size").eq("user_id", userId),
+      supabaseAdmin
+        .from("ai_credit_reservations")
+        .select("id, user_id, source_ref, provider_request_id, metadata, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(25),
+      supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("id, user_id, source_ref, metadata, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(25),
+      supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("id, source, source_ref, change_cents, metadata, created_at")
+        .eq("user_id", userId)
+        .in("source", ["subscription_renewal", "annual_contract_monthly_allocation"])
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
 
     if (
       storageAddonsResult.error ||
+      historicalStorageAddonsResult.error ||
       mediaUsageResult.error ||
       recentReservationsResult.error ||
-      recentLedgerResult.error
+      recentLedgerResult.error ||
+      recentGrantLedgerResult.error
     ) {
       const detail = [
         storageAddonsResult.error?.message,
+        historicalStorageAddonsResult.error?.message,
         mediaUsageResult.error?.message,
         recentReservationsResult.error?.message,
         recentLedgerResult.error?.message,
+        recentGrantLedgerResult.error?.message,
       ]
         .filter(Boolean)
         .join(" | ");
@@ -456,6 +521,7 @@ export default async function handler(
 
     let liveStripeCustomer: StripeCustomerResponse | null = null;
     let liveStripeSubscription: StripeSubscriptionResponse | null = null;
+    let livePaidInvoices: StripeInvoiceResponse[] = [];
     const stripeLookupFailures: StripeLookupFailure[] = [];
     if (stripeConfigured) {
       if (billingProfile?.stripe_customer_id) {
@@ -548,6 +614,33 @@ export default async function handler(
           });
         }
       }
+
+      if (billingProfile?.stripe_customer_id) {
+        try {
+          const invoiceList = await stripeGet<StripeInvoiceListResponse>("/invoices", {
+            customer: billingProfile.stripe_customer_id,
+            limit: 12,
+          });
+          livePaidInvoices = (Array.isArray(invoiceList.data) ? invoiceList.data : []).filter(
+            (invoice) => {
+              const amountPaid = Number(invoice.amount_paid ?? 0);
+              return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
+            }
+          );
+        } catch (error) {
+          await logApiRouteException({
+            req,
+            error,
+            routeLabel: "admin/billing-diagnostics",
+            user: adminUser,
+            metadata: {
+              stripe_lookup_target: "invoice_list",
+              stripe_customer_id: billingProfile.stripe_customer_id,
+              message: "Invoice list lookup failed in billing diagnostics.",
+            },
+          });
+        }
+      }
     }
 
     const responseProfile: AdminBillingProfileSnapshot | null = billingProfile
@@ -565,6 +658,7 @@ export default async function handler(
           id: currentContract.id,
           planId: currentContract.plan_id ?? null,
           offerId: currentContract.offer_id ?? null,
+          billingInterval: currentContract.billing_interval ?? null,
           stripeCustomerId: currentContract.stripe_customer_id ?? null,
           stripePriceId: currentContract.stripe_price_id ?? null,
           stripeSubscriptionId: currentContract.stripe_subscription_id ?? null,
@@ -573,7 +667,10 @@ export default async function handler(
           monthlyCreditsCents: asCents(currentContract.monthly_credits_cents),
           storageLimitBytes: asCents(currentContract.storage_limit_bytes),
           status: currentContract.status ?? null,
+          currentPeriodStart: currentContract.current_period_start ?? null,
           currentPeriodEnd: currentContract.current_period_end ?? null,
+          lastCreditGrantAt: currentContract.last_credit_grant_at ?? null,
+          nextCreditGrantAt: currentContract.next_credit_grant_at ?? null,
         }
       : null;
     const activeStorageAddons: AdminBillingStorageAddonSnapshot[] = (
@@ -588,6 +685,19 @@ export default async function handler(
       quantity: Math.max(0, Number(row.quantity ?? 0) || 0),
       recurringPriceCents: asCents(row.recurring_price_cents),
       status: row.status ?? null,
+    }));
+    const historicalStorageAddons = (
+      (historicalStorageAddonsResult.data as HistoricalBillingStorageAddonRow[] | null) ?? []
+    ).map((row) => ({
+      id: row.id,
+      storageAddonId: row.storage_addon_id ?? null,
+      stripeSubscriptionItemId: row.stripe_subscription_item_id ?? null,
+      status: row.status ?? null,
+      currentPeriodStart: row.current_period_start ?? null,
+      currentPeriodEnd: row.current_period_end ?? null,
+      startedAt: row.started_at ?? null,
+      endedAt: row.ended_at ?? null,
+      updatedAt: row.updated_at ?? null,
     }));
     const usedBytes = ((mediaUsageResult.data as MediaUsageRow[] | null) ?? []).reduce<number>(
       (sum, row) => sum + Math.max(0, Number(row.file_size ?? 0) || 0),
@@ -618,6 +728,8 @@ export default async function handler(
       (recentReservationsResult.data as Array<Record<string, unknown>> | null) ?? [];
     const recentLedgerRows =
       (recentLedgerResult.data as Array<Record<string, unknown>> | null) ?? [];
+    const recurringGrantRows =
+      (recentGrantLedgerResult.data as BillingLedgerGrantRow[] | null) ?? [];
     const reservationObservabilityRows = recentReservationRows
       .map((row) =>
         buildPricingObservabilityEvent({
@@ -669,6 +781,39 @@ export default async function handler(
       mismatchCount: pricingObservabilityMismatchCount,
       lastObservedAt: pricingObservabilityEvents[0]?.observedAt ?? null,
       latestEvents: pricingObservabilityEvents.slice(0, 5),
+    };
+    const latestSubscriptionGrantAt =
+      recurringGrantRows.find((row) => row.source === "subscription_renewal")?.created_at ?? null;
+    const latestAnnualAllocationAt =
+      recurringGrantRows.find((row) => row.source === "annual_contract_monthly_allocation")
+        ?.created_at ?? null;
+    const recentPaidAllocationInvoices = livePaidInvoices.filter((invoice) =>
+      ["subscription_create", "subscription_cycle"].includes(
+        String(invoice.billing_reason ?? "").toLowerCase()
+      )
+    );
+    const recurringGrantInvoiceIds = new Set(
+      recurringGrantRows
+        .map((row) => {
+          const metadata = row.metadata ?? {};
+          if (typeof metadata.invoice_id === "string" && metadata.invoice_id.length > 0) {
+            return metadata.invoice_id;
+          }
+          if (typeof row.source_ref === "string") {
+            const match = row.source_ref.match(/^invoice:([^:]+):monthly_allocation$/);
+            return match?.[1] ?? null;
+          }
+          return null;
+        })
+        .filter((value): value is string => Boolean(value))
+    );
+    const recurringGrantHealth = {
+      latestSubscriptionGrantAt,
+      latestAnnualAllocationAt,
+      recentPaidAllocationInvoices: recentPaidAllocationInvoices.length,
+      unmatchedPaidAllocationInvoices: recentPaidAllocationInvoices
+        .map((invoice) => invoice.id)
+        .filter((invoiceId) => !recurringGrantInvoiceIds.has(invoiceId)),
     };
     const stripeSubscription = mapStripeSubscriptionSnapshot({
       configured: stripeConfigured,
@@ -741,6 +886,129 @@ export default async function handler(
         recommendedActions: [
           "Replay the latest Stripe subscription update webhook.",
           "Verify which subscription id is active in Stripe before editing local records.",
+        ],
+      });
+    }
+
+    if (
+      currentContract?.contract_source === "stripe" &&
+      currentContract.billing_interval === "year" &&
+      currentContract.status === "active" &&
+      !currentContract.current_period_end
+    ) {
+      pushFinding(findings, {
+        code: "annual_contract_missing_period_end",
+        severity: "critical",
+        confidence: "high",
+        summary: "Annual contract is missing its current period end.",
+        details:
+          "The active annual contract has no current_period_end value, so renewal timing and monthly annual allocations cannot be trusted.",
+        recommendedActions: [
+          "Repair the annual contract period bounds from the live Stripe subscription.",
+          "Do not rely on the renewal worker for this account until the contract cursor is repaired.",
+        ],
+      });
+    }
+
+    if (
+      currentContract?.contract_source === "stripe" &&
+      currentContract.billing_interval === "year" &&
+      currentContract.status === "active" &&
+      currentContract.current_period_end &&
+      !currentContract.next_credit_grant_at
+    ) {
+      pushFinding(findings, {
+        code: "annual_credit_cursor_missing",
+        severity: "critical",
+        confidence: "high",
+        summary: "Annual contract is missing its next monthly credit cursor.",
+        details:
+          "This annual subscriber has an active yearly term but no next_credit_grant_at value. Future monthly allocations will be skipped until the cursor is repaired.",
+        recommendedActions: [
+          "Backfill next_credit_grant_at from the active annual contract period.",
+          "Inspect the live Stripe subscription items before changing local dates.",
+        ],
+      });
+    }
+
+    if (
+      currentContract?.contract_source === "stripe" &&
+      currentContract.billing_interval === "year" &&
+      currentContract.status === "active" &&
+      currentContract.current_period_start &&
+      currentContract.current_period_end &&
+      currentContract.next_credit_grant_at
+    ) {
+      const currentPeriodStart = asDate(currentContract.current_period_start);
+      const currentPeriodEnd = asDate(currentContract.current_period_end);
+      const nextCreditGrantAt = asDate(currentContract.next_credit_grant_at);
+      if (
+        currentPeriodStart &&
+        currentPeriodEnd &&
+        nextCreditGrantAt &&
+        (nextCreditGrantAt.getTime() <= currentPeriodStart.getTime() ||
+          nextCreditGrantAt.getTime() >= currentPeriodEnd.getTime())
+      ) {
+        pushFinding(findings, {
+          code: "annual_credit_cursor_invalid",
+          severity: "critical",
+          confidence: "high",
+          summary: "Annual contract credit cursor is outside the active billing term.",
+          details:
+            "The next annual monthly credit allocation cursor is outside the current annual period bounds. Renewal allocations can stall or misfire until it is corrected.",
+          recommendedActions: [
+            "Repair next_credit_grant_at so it falls strictly inside the active annual term.",
+            "Confirm current_period_start and current_period_end from the live Stripe subscription.",
+          ],
+        });
+      }
+    }
+
+    if (
+      currentContract?.contract_source === "stripe" &&
+      currentContract.billing_interval === "year" &&
+      currentContract.status === "active" &&
+      currentContract.next_credit_grant_at
+    ) {
+      const nextCreditGrantAt = asDate(currentContract.next_credit_grant_at);
+      const currentPeriodEnd = asDate(currentContract.current_period_end);
+      if (
+        nextCreditGrantAt &&
+        currentPeriodEnd &&
+        nextCreditGrantAt.getTime() < Date.now() &&
+        currentPeriodEnd.getTime() > Date.now()
+      ) {
+        pushFinding(findings, {
+          code: "annual_credit_cursor_overdue",
+          severity: "warning",
+          confidence: "high",
+          summary: "Annual monthly credit allocation is overdue.",
+          details:
+            "The next annual monthly allocation cursor is already in the past while the annual term is still active. This usually means the renewal worker has not advanced the contract yet.",
+          recommendedActions: [
+            "Run the annual renewal worker or inspect its latest execution logs.",
+            "Confirm the contract receives an annual_contract_monthly_allocation ledger entry after repair.",
+          ],
+        });
+      }
+    }
+
+    if (
+      currentContract?.contract_source === "stripe" &&
+      currentContract.plan_id !== "free" &&
+      recurringGrantHealth.unmatchedPaidAllocationInvoices.length > 0
+    ) {
+      pushFinding(findings, {
+        code: "missing_paid_invoice_credit_grant",
+        severity: "critical",
+        confidence: "medium",
+        summary: "At least one paid subscription invoice has no matching local credit grant.",
+        details: `Recent paid allocation invoices without a matching local grant: ${recurringGrantHealth.unmatchedPaidAllocationInvoices.join(
+          ", "
+        )}. The user may have been charged successfully without receiving recurring credits.`,
+        recommendedActions: [
+          "Inspect the matching Stripe invoice and local ai_credit_ledger rows together.",
+          "Backfill missing recurring credits only after confirming the invoice was paid and not already granted through another source.",
         ],
       });
     }
@@ -901,6 +1169,37 @@ export default async function handler(
         recommendedActions: [
           "Confirm whether the user wants to add recurring storage capacity or upgrade the base plan.",
           "If the user wants to stay on the current tier, have them delete media until usage falls back under the limit.",
+        ],
+      });
+    }
+
+    const suspiciousHistoricalStorageAddons = historicalStorageAddons.filter((row) => {
+      const endedAt = asDate(row.endedAt);
+      const startedAt = asDate(row.startedAt);
+      const currentPeriodStart = asDate(row.currentPeriodStart);
+      if (endedAt && startedAt && endedAt.getTime() < startedAt.getTime()) {
+        return true;
+      }
+      if (endedAt && currentPeriodStart && endedAt.getTime() === currentPeriodStart.getTime()) {
+        return true;
+      }
+      return false;
+    });
+
+    if (suspiciousHistoricalStorageAddons.length > 0) {
+      const sampleRows = suspiciousHistoricalStorageAddons
+        .slice(0, 3)
+        .map((row) => row.id)
+        .join(", ");
+      pushFinding(findings, {
+        code: "historical_storage_lifecycle_drift",
+        severity: "warning",
+        confidence: "high",
+        summary: "Historical storage add-on lifecycle rows look suspicious.",
+        details: `${suspiciousHistoricalStorageAddons.length} historical storage add-on row(s) have impossible or period-start removal timing. Sample row ids: ${sampleRows}.`,
+        recommendedActions: [
+          "Inspect billing_subscription_storage_addons history before assuming add-on removals were recorded cleanly.",
+          "Use the historical billing drift audit queries before backfilling or deleting any storage lifecycle rows.",
         ],
       });
     }
@@ -1218,6 +1517,8 @@ export default async function handler(
       stripeCustomer,
       stripeSubscription,
       pricingObservability,
+      recurringGrantHealth,
+      historicalStorageAddons,
       findings,
     });
   } catch (error) {

@@ -660,14 +660,7 @@ describe("Admin users and credits overview", () => {
         "Current contract is on a different recurring price than the public offer."
       ).length
     ).toBeGreaterThan(0);
-    expect(screen.getByText("Pricing observability")).toBeInTheDocument();
-    expect(screen.getByText("No recent mismatches")).toBeInTheDocument();
-    expect(screen.getByText(/1\/2 reservation rows/)).toBeInTheDocument();
-    expect(screen.getByText(/1\/2 ledger rows/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open pricing trace" })).toHaveAttribute(
-      "href",
-      `/admin/generation-trace?userId=${USER_1_ID}`
-    );
+    expect(screen.queryByText("Pricing observability")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");

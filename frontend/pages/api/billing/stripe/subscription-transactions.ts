@@ -6,8 +6,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
+  buildSubscriptionFacingTransaction,
   buildStorageTransaction,
-  buildSubscriptionTransaction,
   listPaidInvoices,
   resolveStorageCatalog,
   resolveStripeCustomerBillingState,
@@ -37,15 +37,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const invoices = await listPaidInvoices(billingState.stripeCustomerId);
 
+    const storageCatalog = await resolveStorageCatalog();
+
     let transactions;
     if (transactionKind === "storage") {
-      const storageCatalog = await resolveStorageCatalog();
       transactions = invoices
         .map((invoice) => buildStorageTransaction(invoice, storageCatalog))
         .filter((value): value is NonNullable<typeof value> => Boolean(value))
         .slice(0, 5);
     } else {
-      transactions = invoices.slice(0, 5).map((invoice) => buildSubscriptionTransaction(invoice));
+      transactions = invoices
+        .map((invoice) => buildSubscriptionFacingTransaction(invoice, storageCatalog))
+        .filter((value): value is NonNullable<typeof value> => Boolean(value))
+        .slice(0, 5);
     }
 
     return res.status(200).json({ transactions });

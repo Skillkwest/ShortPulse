@@ -412,6 +412,7 @@ const toHydratedGeneratedOutput = (
   const rawPreviewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
   const taskState = normalizeProjectionTaskState(row.task_state);
+  if (taskState === "fail") return null;
   const queueState = normalizeProjectionQueueState(row.queue_state);
   const modelId = asTrimmedString(row.model_id);
   const mode = inferGeneratedOutputMode({

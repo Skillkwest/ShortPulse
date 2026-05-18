@@ -22,7 +22,6 @@ const baseProps: React.ComponentProps<typeof PulseCreatePropertiesPanel> = {
   onPulsePromptChange: vi.fn(),
   onGeneratePulseArtifact: vi.fn(),
   agentEnabled: true,
-  expertCreateUiEligible: true,
   activePulsePresetId: "pulse_custom",
   activePulsePresetLabel: "Custom Pulse",
   agentUiBusy: true,

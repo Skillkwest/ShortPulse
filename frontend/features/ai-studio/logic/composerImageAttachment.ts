@@ -47,14 +47,20 @@ const resolvePreviewSource = (
 export const resolveComposerImageAttachmentPreview = (
   attachment: Pick<
     AgentAttachment,
-    "kind" | "imageUrl" | "imageFallbackUrls" | "referenceRenderUrl" | "referenceUrl"
+    | "kind"
+    | "imageUrl"
+    | "submissionImageUrl"
+    | "imageFallbackUrls"
+    | "referenceRenderUrl"
+    | "referenceUrl"
   >
 ): ComposerImageAttachmentPreview | null => {
   if (attachment.kind !== "image") return null;
   const candidates = buildAgentAttachmentImageCandidates(attachment);
   if (candidates.length === 0) return null;
   const primaryImageUrl = normalizeAttachmentImageUrl(attachment.imageUrl);
-  const resolvedPreviewUrl = primaryImageUrl ?? candidates[0] ?? null;
+  const submissionImageUrl = normalizeAttachmentImageUrl(attachment.submissionImageUrl);
+  const resolvedPreviewUrl = primaryImageUrl ?? submissionImageUrl ?? candidates[0] ?? null;
   if (!resolvedPreviewUrl) return null;
   return {
     url: resolvedPreviewUrl,
@@ -92,6 +98,7 @@ export const hasComposerImageAttachmentPreview = (
     AgentAttachment,
     | "kind"
     | "imageUrl"
+    | "submissionImageUrl"
     | "imageFallbackUrls"
     | "referenceRenderUrl"
     | "referenceUrl"

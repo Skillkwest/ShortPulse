@@ -39,7 +39,10 @@ import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
-import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
+import {
+  useMediaLibraryPanelSelectionController,
+  type MediaLibrarySelectionPayload,
+} from "../hooks/useMediaLibraryPanelSelectionController";
 import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
 import { MediaLibraryPanelDialogs } from "./MediaLibraryPanelDialogs";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
@@ -57,14 +60,19 @@ type ElementsEmbeddedMediaLibraryPanelProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
+  mediaCardInteractionMode?: "selection" | "assignment";
+  onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
 };
 
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
 type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
+const EMPTY_SET = new Set<string>();
 
 export function ElementsEmbeddedMediaLibraryPanel({
   projectId = null,
   resolveInternalDropItem,
+  mediaCardInteractionMode = "selection",
+  onSelectMedia,
 }: ElementsEmbeddedMediaLibraryPanelProps) {
   const activeFolderId = MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const [rootTab, setRootTab] = React.useState<RootMediaLibraryTab>("all");
@@ -289,16 +297,19 @@ export function ElementsEmbeddedMediaLibraryPanel({
     previewModalUrl,
     previewModalLoading,
     previewModalError,
+    handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
     closePreviewModal,
   } = useMediaLibraryPanelSelectionController({
     activeFolderId,
     currentUserIdRef,
-    onSelectMedia: handleNoopMediaSelect,
+    onSelectMedia: onSelectMedia ?? handleNoopMediaSelect,
     refreshSignedUrl,
     signStoragePath,
   });
+  const mediaCardUsesAssignment = mediaCardInteractionMode === "assignment";
+  const activeSelectedMediaIds = mediaCardUsesAssignment ? EMPTY_SET : selectedIds;
 
   React.useEffect(() => {
     closePreviewModal();
@@ -574,15 +585,17 @@ export function ElementsEmbeddedMediaLibraryPanel({
     (rows: MediaFileRow[]) => (
       <MediaLibraryMediaGrid
         activeMedia={rows}
-        selectedIds={selectedIds}
+        selectedIds={activeSelectedMediaIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
         adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={handleToggleSelectedMedia}
-        onToggleMediaSelection={handleToggleSelectedMedia}
+        onSelectMediaFile={
+          mediaCardUsesAssignment ? handleSelectMediaFile : handleToggleSelectedMedia
+        }
+        onToggleMediaSelection={mediaCardUsesAssignment ? undefined : handleToggleSelectedMedia}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
@@ -605,6 +618,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     ),
     [
       adaptivePreviewQualityEnabled,
+      activeSelectedMediaIds,
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
@@ -612,11 +626,12 @@ export function ElementsEmbeddedMediaLibraryPanel({
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,
       handleMediaPreviewError,
+      handleSelectMediaFile,
       handleToggleSelectedMedia,
+      mediaCardUsesAssignment,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
-      selectedIds,
       setPendingLibraryDelete,
       signedUrlRetryRef,
       previewRuntime.visibleMediaIdsRef,
@@ -641,8 +656,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={handleToggleSelectedMedia}
-        onToggleMediaSelection={handleToggleSelectedMedia}
+        onSelectMediaFile={
+          mediaCardUsesAssignment ? handleSelectMediaFile : handleToggleSelectedMedia
+        }
+        onToggleMediaSelection={mediaCardUsesAssignment ? undefined : handleToggleSelectedMedia}
         onSelectPromptCard={handleToggleSelectedPrompt}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
@@ -683,9 +700,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,
       handleMediaPreviewError,
+      handleSelectMediaFile,
       handlePromptCardDragStart,
       handleToggleSelectedMedia,
       handleToggleSelectedPrompt,
+      mediaCardUsesAssignment,
       mediaAdaptivePressure.previewPressureLevel,
       mediaRows,
       optimizerFallbackMediaIds,

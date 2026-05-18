@@ -15,7 +15,6 @@ export type CreateCharacterLookOption = {
 };
 
 type UseCreateCharacterModeControllerArgs = {
-  beginnerMode: boolean;
   characterModeEnabled: boolean;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
@@ -27,7 +26,6 @@ type UseCreateCharacterModeControllerArgs = {
 };
 
 type UseCreateCharacterModeControllerResult = {
-  characterStepSubtitle: string;
   isCharacterPickerOpen: boolean;
   openCharacterPicker: () => void;
   closeCharacterPicker: () => void;
@@ -51,7 +49,6 @@ export const getCreateCharacterInitials = (name: string): string => {
 };
 
 export const useCreateCharacterModeController = ({
-  beginnerMode,
   characterModeEnabled,
   characterOptions,
   selectedCharacterId,
@@ -122,12 +119,7 @@ export const useCreateCharacterModeController = ({
     ? getCreateCharacterInitials(selectedCharacterOption.name)
     : null;
   const isCharacterSelectionEmpty = !selectedCharacterProfileImageUrl && !selectedCharacterInitials;
-  const characterStepSubtitle = beginnerMode
-    ? "Toggle on character mode then select your character."
-    : "Select one of your Character Manager profiles.";
-
   return {
-    characterStepSubtitle,
     isCharacterPickerOpen,
     openCharacterPicker,
     closeCharacterPicker,

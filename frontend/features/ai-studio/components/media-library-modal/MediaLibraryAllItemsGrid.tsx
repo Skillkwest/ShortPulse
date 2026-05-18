@@ -653,7 +653,7 @@ function MediaLibraryAllItemsAudioCard({
                   </div>
                   <div className="reference-card-audio-time-row">
                     <span className="reference-card-audio-time-current">
-                      {isRequestingAudioUrl ? "Loading…" : "Ready"}
+                      {isRequestingAudioUrl ? "Loading…" : "Load audio"}
                     </span>
                     <span className="reference-card-audio-time-total">
                       {formatAudioDurationLabel(readAudioDurationMs(file))}

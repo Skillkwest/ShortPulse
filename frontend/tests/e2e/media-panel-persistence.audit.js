@@ -1,10 +1,10 @@
-/* global require, process, console, __dirname */
+/* global require, process, console, __dirname, HTMLImageElement, document, Buffer */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Media panel save/reopen persistence audit.
- * Uploads a real image fixture through the AI Studio Media panel, verifies browse-ready visibility,
- * reloads and reopens the panel, verifies the same item again, then repeats the check in a fresh
- * signed-in browser context before deleting the audit fixture.
+ * Uploads a real image fixture through the target media panel surface, verifies browse-ready
+ * visibility, reloads and reopens the panel, verifies the same item again, then repeats the check
+ * in a fresh signed-in browser context before deleting the audit fixture.
  */
 const fs = require("node:fs");
 const os = require("node:os");
@@ -12,9 +12,9 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 
 const PNG_BYTES = new Uint8Array([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4,
-  0, 0, 0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2,
-  0, 239, 154, 236, 175, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0,
+  0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 239,
+  154, 236, 175, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
 ]);
 
 const DEFAULT_BASE_URL = (
@@ -175,7 +175,9 @@ async function openAiStudioMediaPanel(page) {
   while (Date.now() < deadline) {
     if (await panel.isVisible().catch(() => false)) return panel;
     if (await retryProjectButton.isVisible().catch(() => false)) {
-      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+      throw new Error(
+        "AI Studio did not finish loading: retry project/workspace state is visible."
+      );
     }
     if (await expandPanelButton.isVisible().catch(() => false)) {
       await expandPanelButton.click({ timeout: 10_000 });
@@ -207,7 +209,9 @@ async function openElementsMediaPanel(page) {
   while (Date.now() < deadline) {
     if (await panel.isVisible().catch(() => false)) return panel;
     if (await retryProjectButton.isVisible().catch(() => false)) {
-      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+      throw new Error(
+        "AI Studio did not finish loading: retry project/workspace state is visible."
+      );
     }
     if (await elementsHeading.isVisible().catch(() => false)) {
       await panel.waitFor({ timeout: 20_000 });
@@ -241,10 +245,37 @@ async function verifyBrowseReady(page, filename, timeoutMs = 60_000) {
   const image = page.getByAltText(filename).first();
   const downloadButton = page
     .getByRole("button", {
-      name: new RegExp(`^(Download media ${escapeForRegex(filename)}|Download ${escapeForRegex(filename)})$`),
+      name: new RegExp(
+        `^(Download media ${escapeForRegex(filename)}|Download ${escapeForRegex(filename)})$`
+      ),
     })
     .first();
   await image.waitFor({ timeout: timeoutMs });
+  await image.evaluate(async (element, targetName) => {
+    if (!(element instanceof HTMLImageElement)) {
+      throw new Error("Expected persisted media preview to render as an image element.");
+    }
+    if (element.complete && element.naturalWidth > 0) return;
+    await new Promise((resolve, reject) => {
+      const cleanup = () => {
+        element.removeEventListener("load", handleLoad);
+        element.removeEventListener("error", handleError);
+      };
+      const handleLoad = () => {
+        cleanup();
+        resolve(undefined);
+      };
+      const handleError = () => {
+        cleanup();
+        reject(new Error(`Image failed to load for ${targetName}.`));
+      };
+      element.addEventListener("load", handleLoad, { once: true });
+      element.addEventListener("error", handleError, { once: true });
+    });
+    if (!(element.complete && element.naturalWidth > 0)) {
+      throw new Error(`Image did not finish decoding for ${targetName}.`);
+    }
+  }, filename);
   const previewSrc = await image.getAttribute("src");
   if (!previewSrc || !previewSrc.trim()) {
     throw new Error(`Media preview for ${filename} did not expose a usable src.`);
@@ -301,7 +332,9 @@ async function runBrowseReadyCheck(page, filename) {
   return await verifyBrowseReady(page, filename);
 }
 
-let targetSurface = normalizeSurface(process.env.PLAYWRIGHT_MEDIA_PANEL_SURFACE || readSurfaceArg(process.argv));
+let targetSurface = normalizeSurface(
+  process.env.PLAYWRIGHT_MEDIA_PANEL_SURFACE || readSurfaceArg(process.argv)
+);
 
 function normalizeSurface(rawSurface) {
   const normalized = (rawSurface || "").trim().toLowerCase();
@@ -333,9 +366,24 @@ async function runAudit(browser, creds) {
     sampleCount: 1,
     filename: fixture.filename,
     steps: {
-      upload: { visible: false, previewLoaded: false, browseReady: false, downloadActionVisible: false },
-      reloadReopen: { visible: false, previewLoaded: false, browseReady: false, downloadActionVisible: false },
-      freshContextReopen: { visible: false, previewLoaded: false, browseReady: false, downloadActionVisible: false },
+      upload: {
+        visible: false,
+        previewLoaded: false,
+        browseReady: false,
+        downloadActionVisible: false,
+      },
+      reloadReopen: {
+        visible: false,
+        previewLoaded: false,
+        browseReady: false,
+        downloadActionVisible: false,
+      },
+      freshContextReopen: {
+        visible: false,
+        previewLoaded: false,
+        browseReady: false,
+        downloadActionVisible: false,
+      },
     },
     metrics: {
       saveRoundtripFailureRate: 1,
@@ -379,9 +427,7 @@ async function runAudit(browser, creds) {
     result.metrics.saveRoundtripMismatchRate = allSteps.every((step) => step.visible) ? 0 : 1;
     result.metrics.saveBrowseReadyRatio = Number((successfulSteps / allSteps.length).toFixed(4));
     result.ok =
-      successfulSteps === allSteps.length &&
-      result.cleanup.attempted &&
-      result.cleanup.succeeded;
+      successfulSteps === allSteps.length && result.cleanup.attempted && result.cleanup.succeeded;
   } finally {
     await primaryContext.close();
     try {

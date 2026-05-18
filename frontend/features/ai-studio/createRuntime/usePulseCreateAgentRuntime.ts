@@ -316,6 +316,7 @@ export const usePulseCreateAgentRuntime = ({
       getAgentContext,
       notifyBootstrapPending,
       prompt,
+      removeMessageById,
       runtimePolicy,
       selectedTool,
       sendToAgent,

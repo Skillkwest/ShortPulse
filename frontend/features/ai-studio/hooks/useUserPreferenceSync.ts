@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../lib/supabaseClient";
 
 export type UserPreferenceSyncState = "loading" | "ready" | "saving" | "error";
 
 type UseUserPreferenceSyncParams<TValue> = {
   enabled?: boolean;
+  readLocalBeforeUserResolution?: boolean;
   defaultValue: TValue;
   normalizeValue: (value: TValue) => TValue;
   readLocal: (userId?: string | null) => TValue;
@@ -44,6 +45,7 @@ const resolveErrorMessage = (error: unknown, fallback: string): string =>
 
 export const useUserPreferenceSync = <TValue>({
   enabled = true,
+  readLocalBeforeUserResolution = false,
   defaultValue,
   normalizeValue,
   readLocal,
@@ -63,8 +65,8 @@ export const useUserPreferenceSync = <TValue>({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<UserPreferenceSyncState>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
   const latestValueRef = useRef<TValue>(normalizedDefaultValue);
+  const userIdRef = useRef<string | null>(null);
   const remoteSyncEnabledRef = useRef<boolean>(true);
   const writeVersionRef = useRef<number>(0);
   const hasLocalOverrideRef = useRef<boolean>(false);
@@ -81,10 +83,10 @@ export const useUserPreferenceSync = <TValue>({
       latestValueRef.current = normalizedValue;
       setValueState(normalizedValue);
       if (options?.persistLocal !== false) {
-        writeLocal(normalizedValue, options?.storageUserId ?? userId);
+        writeLocal(normalizedValue, options?.storageUserId ?? userIdRef.current);
       }
     },
-    [normalizeValue, userId, writeLocal]
+    [normalizeValue, writeLocal]
   );
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export const useUserPreferenceSync = <TValue>({
       setLoading(false);
       setError(null);
       setSyncState("ready");
-      setUserId(null);
+      userIdRef.current = null;
       return () => {
         active = false;
       };
@@ -105,23 +107,28 @@ export const useUserPreferenceSync = <TValue>({
 
     remoteSyncEnabledRef.current = true;
     hasLocalOverrideRef.current = false;
+    userIdRef.current = null;
     setLoading(true);
     setSyncState("loading");
+    if (readLocalBeforeUserResolution) {
+      setValue(readLocal(), { persistLocal: false });
+    }
 
     (async () => {
       try {
-        const supabase = ensureSupabaseQueryClient();
         const resolvedUserId = await readSupabaseUserId();
         if (!resolvedUserId) {
           if (!active) return;
-          setUserId(null);
-          setValue(readLocal(), { persistLocal: false });
+          userIdRef.current = null;
+          if (!readLocalBeforeUserResolution) {
+            setValue(readLocal(), { persistLocal: false });
+          }
           setError(null);
           setSyncState("ready");
           return;
         }
         if (!active) return;
-        setUserId(resolvedUserId);
+        userIdRef.current = resolvedUserId;
         const localValue = readLocal(resolvedUserId);
         setValue(localValue, {
           storageUserId: resolvedUserId,
@@ -162,6 +169,7 @@ export const useUserPreferenceSync = <TValue>({
     loadErrorMessage,
     loadRemote,
     normalizedDefaultValue,
+    readLocalBeforeUserResolution,
     readLocal,
     setValue,
   ]);
@@ -179,7 +187,8 @@ export const useUserPreferenceSync = <TValue>({
       setSyncState("saving");
       setError(null);
 
-      if (!userId || !remoteSyncEnabledRef.current) {
+      const activeUserId = userIdRef.current;
+      if (!activeUserId || !remoteSyncEnabledRef.current) {
         if (requestVersion === writeVersionRef.current) {
           setSyncState("ready");
         }
@@ -187,7 +196,7 @@ export const useUserPreferenceSync = <TValue>({
       }
 
       try {
-        await persistRemote(userId, normalizedNextValue);
+        await persistRemote(activeUserId, normalizedNextValue);
         if (requestVersion !== writeVersionRef.current) return true;
         setError(null);
         setSyncState("ready");
@@ -214,7 +223,6 @@ export const useUserPreferenceSync = <TValue>({
       saveErrorMessage,
       setValue,
       treatMissingPersistErrorAsDisableRemote,
-      userId,
     ]
   );
 

@@ -229,10 +229,6 @@ vi.mock("../../features/ai-studio/components/create/StandardCreatePanelView", ()
   ),
 }));
 
-vi.mock("../../features/ai-studio/components/create/BeginnerCreatePanelView", () => ({
-  BeginnerCreatePanelView: () => <div data-testid="beginner-create-panel-view" />,
-}));
-
 vi.mock("../../features/ai-studio/components/modal-layer/AiStudioModalLayer", () => ({
   AiStudioModalLayer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   AiStudioModalActivityProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -269,7 +265,6 @@ vi.mock("../../features/ai-studio/components/create/useCreateCharacterModeContro
   return {
     ...(actual as object),
     useCreateCharacterModeController: () => ({
-      characterStepSubtitle: "Select one of your Character Manager profiles.",
       isCharacterPickerOpen: false,
       openCharacterPicker: vi.fn(),
       closeCharacterPicker: vi.fn(),
@@ -324,7 +319,6 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
         {standardCreateProps ? (
           <StandardCreatePropertiesPanel
             {...(standardCreateProps as React.ComponentProps<typeof StandardCreatePropertiesPanel>)}
-            expertCreateUiEligible={true}
           />
         ) : null}
         <button type="button" onClick={() => standardCreateProps?.onGenerate()}>
@@ -548,7 +542,6 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioPageSessionPersistence", () =
 vi.mock("../../features/ai-studio/hooks/useAiStudioPageUiNotices", () => ({
   useAiStudioPageUiNotices: () => ({
     effectiveUiNotice: null,
-    handleBeginnerModeChange: vi.fn(),
   }),
 }));
 

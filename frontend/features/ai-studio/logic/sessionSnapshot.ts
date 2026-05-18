@@ -17,6 +17,7 @@ import type {
   StudioOutputMediaSource,
   StudioOutputPreviewTier,
   StudioOutputSaveState,
+  StudioOutputSubmissionMode,
   StudioOutputStyleContext,
   ToolId,
 } from "../types";
@@ -64,8 +65,10 @@ export type AiStudioSessionOutputV1 = {
   queueState?: "queued" | "dispatching" | "dispatched";
   queueEnqueuedAtMs?: number;
   generationTraceId?: string;
+  submissionMode?: StudioOutputSubmissionMode;
   errorMessage?: string | null;
   errorMessageShort?: string | null;
+  errorDetail?: string | null;
   resultUrls?: string[];
   previewUrl?: string;
   previewPosterUrl?: string | null;
@@ -491,8 +494,10 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     queueState: output.queueState,
     queueEnqueuedAtMs: output.queueEnqueuedAtMs,
     generationTraceId: output.generationTraceId,
+    submissionMode: output.submissionMode,
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
+    errorDetail: output.errorDetail ?? null,
     resultUrls: persistedResultUrls,
     previewUrl,
     previewPosterUrl,
@@ -512,6 +517,87 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     characterContext: output.characterContext,
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,
+  };
+};
+
+const hasSettledSnapshotOutputPayload = (output: StudioOutput): boolean => {
+  if (output.status === "saved") return true;
+  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
+  if ((output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0)) {
+    return true;
+  }
+  if (typeof output.previewUrl === "string" && output.previewUrl.trim().length > 0) return true;
+  if (typeof output.previewText === "string" && output.previewText.trim().length > 0) return true;
+  if (
+    typeof output.previewStoragePath === "string" &&
+    output.previewStoragePath.trim().length > 0
+  ) {
+    return true;
+  }
+  if (typeof output.fullStoragePath === "string" && output.fullStoragePath.trim().length > 0) {
+    return true;
+  }
+  return false;
+};
+
+const shouldPersistOutputInSnapshot = (output: StudioOutput): boolean => {
+  if (output.taskState !== "fail") return true;
+  if (output.mode !== "audio") return true;
+  if (output.mediaSource && output.mediaSource !== "generated") return true;
+  return hasSettledSnapshotOutputPayload(output);
+};
+
+const shouldPersistOutputInProjectWorkspaceSnapshot = (
+  output: Pick<StudioOutput, "taskState">
+): boolean => output.taskState !== "fail";
+
+const filterProjectWorkspaceOutputIds = (
+  value: unknown,
+  persistedOutputIds: Set<string>
+): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length > 0 && persistedOutputIds.has(entry))
+    : [];
+
+const stripFailedOutputsFromProjectWorkspaceOutputs = (
+  outputs: AiStudioSessionSnapshot["outputs"]
+): AiStudioSessionSnapshot["outputs"] => {
+  const persistedActiveOutputs = (outputs.active ?? []).filter(
+    shouldPersistOutputInProjectWorkspaceSnapshot
+  );
+  const persistedArchivedOutputs = (outputs.archived ?? []).filter(
+    shouldPersistOutputInProjectWorkspaceSnapshot
+  );
+  const persistedOutputIds = new Set<string>([
+    ...persistedActiveOutputs
+      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0),
+    ...persistedArchivedOutputs
+      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0),
+  ]);
+  const candidateActiveOutputId =
+    typeof outputs.activeOutputId === "string" ? outputs.activeOutputId.trim() : "";
+  const activeOutputId =
+    candidateActiveOutputId.length > 0 && persistedOutputIds.has(candidateActiveOutputId)
+      ? candidateActiveOutputId
+      : null;
+
+  return {
+    ...outputs,
+    active: persistedActiveOutputs,
+    archived: persistedArchivedOutputs,
+    activeOutputId,
+    curatedReferenceIds: filterProjectWorkspaceOutputIds(
+      outputs.curatedReferenceIds,
+      persistedOutputIds
+    ),
+    removedFromAllRefsIds: filterProjectWorkspaceOutputIds(
+      outputs.removedFromAllRefsIds,
+      persistedOutputIds
+    ),
   };
 };
 
@@ -655,6 +741,12 @@ const computeChecksum = (value: unknown): string => {
 export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
 ): AiStudioSessionSnapshotV2 => {
+  const persistedActiveOutputs = input.outputs.filter(shouldPersistOutputInSnapshot);
+  const persistedArchivedOutputs = input.archivedOutputs.filter(shouldPersistOutputInSnapshot);
+  const persistedOutputIds = new Set<string>([
+    ...persistedActiveOutputs.map((output) => output.id),
+    ...persistedArchivedOutputs.map((output) => output.id),
+  ]);
   const updatedAt = input.updatedAt ?? new Date().toISOString();
   const resolvedPulseWorkspaceState = resolvePulseRuntimeState(
     input.pulseWorkspaceState ?? {
@@ -774,11 +866,14 @@ export const buildAiStudioSessionSnapshot = (
       motionReferenceVideoUrl: sanitizeWorkspaceMediaUrl(input.motionReferenceVideoUrl),
     },
     outputs: {
-      active: input.outputs.map(sanitizeOutput),
-      archived: input.archivedOutputs.map(sanitizeOutput),
-      activeOutputId: input.activeOutputId,
-      curatedReferenceIds: input.curatedReferenceIds,
-      removedFromAllRefsIds: input.removedFromAllRefsIds,
+      active: persistedActiveOutputs.map(sanitizeOutput),
+      archived: persistedArchivedOutputs.map(sanitizeOutput),
+      activeOutputId:
+        input.activeOutputId && persistedOutputIds.has(input.activeOutputId)
+          ? input.activeOutputId
+          : null,
+      curatedReferenceIds: input.curatedReferenceIds.filter((id) => persistedOutputIds.has(id)),
+      removedFromAllRefsIds: input.removedFromAllRefsIds.filter((id) => persistedOutputIds.has(id)),
     },
     agent: emptyAgentRuntime,
     agentRuntimes,
@@ -919,6 +1014,7 @@ export const createAiStudioProjectWorkspaceSnapshot = (
         activePulsePresetId: null,
         pulseSessionInstanceId: null,
       },
+      outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
       agent: emptyAgentRuntime,
     };
     return {
@@ -940,6 +1036,7 @@ export const createAiStudioProjectWorkspaceSnapshot = (
       activePulsePresetId: null,
       pulseSessionInstanceId: null,
     },
+    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
     agent: emptyAgentRuntime,
   };
 };

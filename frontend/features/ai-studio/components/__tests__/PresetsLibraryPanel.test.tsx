@@ -45,6 +45,12 @@ describe("PresetsLibraryPanel", () => {
     expect(container.querySelector(".presets-library-custom-pill")).toBeTruthy();
   });
 
+  it("shows the built-in pill for system presets", () => {
+    render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
+
+    expect(screen.getByText("Built-in")).toBeInTheDocument();
+  });
+
   it("hides the custom pill when a custom preset has a saved override", () => {
     const { container } = render(
       <PresetsLibraryPanel
@@ -114,6 +120,28 @@ describe("PresetsLibraryPanel", () => {
       expect(onSavePresetOverride).toHaveBeenCalledWith("custom_1", createDeletedPresetOverride());
     });
     expect(onSelectPreset).toHaveBeenCalledWith(null);
+  });
+
+  it("allows deleting a built-in preset through a tombstone override", async () => {
+    const onSavePresetOverride = vi.fn().mockResolvedValue(true);
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId={null}
+        onSavePresetOverride={onSavePresetOverride}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
+    expect(
+      screen.getByText("This does not delete the shared built-in for other users.")
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(onSavePresetOverride).toHaveBeenCalledWith("selfie", createDeletedPresetOverride());
+    });
   });
 
   it("opens create modal from the Create New Preset tile and saves to the next custom preset", async () => {

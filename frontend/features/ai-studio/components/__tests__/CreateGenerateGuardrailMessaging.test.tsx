@@ -1,7 +1,6 @@
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ComposeSendCard } from "../create/StandardCreatePropertiesPanel";
 import { PulseCreatePanelView } from "../create/PulseCreatePanelView";
 import { StandardCreatePanelView } from "../create/StandardCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
@@ -28,27 +27,15 @@ vi.mock("../../../../prefabs/agent", () => ({
 }));
 
 vi.mock("../PromptStep", () => ({
-  PromptStep: () => <div data-testid="prompt-step" />,
+  PromptStep: ({ composerLeadingContent }: { composerLeadingContent?: React.ReactNode }) => (
+    <div data-testid="prompt-step">{composerLeadingContent}</div>
+  ),
 }));
 
 describe("Create generate guardrail messaging", () => {
   const message = "Select a model before generating.";
 
-  it("shows the guardrail reason directly under the disabled compose generate button", () => {
-    render(
-      <ComposeSendCard
-        onGenerate={vi.fn()}
-        costCredits={15}
-        isGenerateDisabled
-        isPromptGenerating={false}
-        guardrailReason={message}
-      />
-    );
-
-    expect(screen.getByText(message)).toBeInTheDocument();
-  });
-
-  it("shows the guardrail reason next to the expert inline generate button", () => {
+  it("does not show the removed detached expert generate warning", () => {
     render(
       <StandardCreatePanelView
         promptStepProps={{} as PromptStepProps}
@@ -80,7 +67,8 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("prompt-step")).toBeInTheDocument();
   });
 
   it("does not show the removed active Pulse status UI in Pulse mode", () => {

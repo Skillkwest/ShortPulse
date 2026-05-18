@@ -46,13 +46,14 @@ export const normalizeAttachmentImageUrl = (value: string | null | undefined): s
 export const buildAgentAttachmentImageCandidates = (
   attachment: Pick<
     AgentAttachment,
-    "imageUrl" | "imageFallbackUrls" | "referenceRenderUrl" | "referenceUrl"
+    "imageUrl" | "submissionImageUrl" | "imageFallbackUrls" | "referenceRenderUrl" | "referenceUrl"
   >
 ): string[] =>
   Array.from(
     new Set(
       [
         attachment.imageUrl,
+        attachment.submissionImageUrl,
         ...(attachment.imageFallbackUrls ?? []),
         attachment.referenceRenderUrl,
         attachment.referenceUrl,
@@ -61,6 +62,15 @@ export const buildAgentAttachmentImageCandidates = (
         .filter((candidate): candidate is string => Boolean(candidate))
     )
   );
+
+const pushNormalizedUniqueCandidate = (
+  candidates: string[],
+  value: string | null | undefined
+): void => {
+  const normalized = normalizeAttachmentImageUrl(value);
+  if (!normalized || candidates.includes(normalized)) return;
+  candidates.push(normalized);
+};
 
 const refreshAttachmentPreviewUrl = async (
   value: string | null | undefined
@@ -89,7 +99,12 @@ const signAttachmentStoragePath = async (storagePath: string): Promise<string | 
 export const resolveAgentAttachmentPreviewUrl = async (
   attachment: Pick<
     AgentAttachment,
-    "previewStoragePath" | "fullStoragePath" | "referenceRenderUrl" | "referenceUrl" | "imageUrl"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "referenceRenderUrl"
+    | "referenceUrl"
+    | "imageUrl"
+    | "submissionImageUrl"
   >
 ): Promise<string | null> => {
   const previewStoragePath = normalizeAttachmentStoragePath(attachment.previewStoragePath);
@@ -109,6 +124,7 @@ export const resolveAgentAttachmentPreviewUrl = async (
 
   for (const candidate of [
     attachment.referenceRenderUrl,
+    attachment.submissionImageUrl,
     attachment.imageUrl,
     attachment.referenceUrl,
   ]) {
@@ -117,4 +133,39 @@ export const resolveAgentAttachmentPreviewUrl = async (
   }
 
   return null;
+};
+
+export const resolveAgentAttachmentSubmissionCandidates = async (
+  attachment: Pick<
+    AgentAttachment,
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "referenceRenderUrl"
+    | "referenceUrl"
+    | "imageUrl"
+    | "submissionImageUrl"
+    | "imageFallbackUrls"
+  >
+): Promise<string[]> => {
+  const candidates: string[] = [];
+  pushNormalizedUniqueCandidate(candidates, attachment.submissionImageUrl);
+
+  const durableCandidate = await resolveAgentAttachmentPreviewUrl({
+    previewStoragePath: attachment.previewStoragePath,
+    fullStoragePath: attachment.fullStoragePath,
+    referenceRenderUrl: attachment.referenceRenderUrl,
+    referenceUrl: attachment.referenceUrl,
+    imageUrl: attachment.imageUrl,
+    submissionImageUrl: null,
+  }).catch(() => null);
+  pushNormalizedUniqueCandidate(candidates, durableCandidate);
+
+  pushNormalizedUniqueCandidate(candidates, attachment.imageUrl);
+  (attachment.imageFallbackUrls ?? []).forEach((candidate) => {
+    pushNormalizedUniqueCandidate(candidates, candidate);
+  });
+  pushNormalizedUniqueCandidate(candidates, attachment.referenceRenderUrl);
+  pushNormalizedUniqueCandidate(candidates, attachment.referenceUrl);
+
+  return candidates;
 };

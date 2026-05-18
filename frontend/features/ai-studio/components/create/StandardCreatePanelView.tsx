@@ -1,7 +1,6 @@
 import Image from "next/image";
 import React from "react";
 import { Trash } from "phosphor-react";
-import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
@@ -44,11 +43,6 @@ type StandardCreatePanelViewProps = {
 
 export function StandardCreatePanelView({
   promptStepProps,
-  onGenerate,
-  costCredits,
-  isPromptGenerating,
-  isGenerateDisabled,
-  guardrailReason,
   characterModeEnabled,
   onCharacterModeEnabledToggle,
   onCharacterPickerOpen,
@@ -81,7 +75,6 @@ export function StandardCreatePanelView({
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages;
-  const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
@@ -94,6 +87,7 @@ export function StandardCreatePanelView({
       : "",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
+    composerMiddleContent: promptStepProps.composerMiddleContent,
     composerLeadingContent: promptStepProps.composerLeadingContent,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
@@ -217,19 +211,6 @@ export function StandardCreatePanelView({
                   onSelect={onImageResolutionChange}
                 />
               </div>
-            ) : null}
-          </div>
-        </div>
-        <div className="create-expert-secondary-row create-expert-generate-row">
-          <div className="create-expert-inline-generate">
-            <AgentGenerateButton
-              onClick={onGenerate}
-              disabled={isGenerateDisabled}
-              isBusy={isPromptGenerating}
-              cost={costValue}
-            />
-            {isGenerateDisabled && guardrailReason ? (
-              <div className="inline-warning-hint">{guardrailReason}</div>
             ) : null}
           </div>
         </div>

@@ -847,7 +847,18 @@ const resolveSnapshotOutputMode = (projection: ProjectGenerationProjectionRow): 
 const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectionRow): boolean => {
   if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
   if (asBoolean(projection.reference_grid_visible) === false) return false;
+  if (normalizeProjectionTaskState(projection.task_state) === "fail") return false;
   return Boolean(asTrimmedString(projection.generation_id));
+};
+
+const shouldRetainProjectionSnapshotRow = (
+  projection: ProjectGenerationProjectionRow | null | undefined
+): boolean => {
+  if (!projection) return false;
+  if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
+  if (asBoolean(projection.reference_grid_visible) === false) return false;
+  if (normalizeProjectionTaskState(projection.task_state) === "fail") return false;
+  return true;
 };
 
 const createSnapshotOutputRowFromProjection = ({
@@ -1072,6 +1083,10 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
             previewStoragePath: null,
             fullStoragePath: null,
           };
+        }
+        if (!shouldRetainProjectionSnapshotRow(projection)) {
+          changed = true;
+          return null;
         }
         changed = true;
         return patchSnapshotOutputRow({

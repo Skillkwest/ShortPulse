@@ -52,6 +52,13 @@ describe("reference-projections", () => {
     expect(selectQuickSlotProjection(outputs, suppressed).map((item) => item.id)).toEqual(["a"]);
   });
 
+  it("keeps hidden outputs out of quick-slot projection", () => {
+    const outputs = [makeOutput("a", { hiddenInReferenceGrid: true }), makeOutput("b")];
+    const state = addQuickSlotReference(createEmptyReferenceProjectionState(), "a");
+
+    expect(selectQuickSlotProjection(outputs, state)).toEqual([]);
+  });
+
   it("prunes stale projection ids", () => {
     const base = {
       quickSlotIds: ["a", "missing"],

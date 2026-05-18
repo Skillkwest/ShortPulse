@@ -365,7 +365,6 @@ describe("ExpertEditPanelView", () => {
   let objectUrlCounter = 0;
 
   const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
-    expertEditEligible: true,
     aspect: "1:1",
     modelId: "fal-ai/nano-banana-2/edit",
     modelLabel: "Nano Banana 2 Edit",

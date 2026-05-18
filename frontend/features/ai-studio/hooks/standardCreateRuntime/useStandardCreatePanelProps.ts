@@ -4,7 +4,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateRequest,
+  AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import type { ModelModalContext } from "../../components/ModelModal";
 import type {
@@ -43,7 +43,6 @@ type UseStandardCreatePanelPropsParams = {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  handleApplyAgentOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   setAspect: (value: string) => void;
@@ -60,9 +59,11 @@ type UseStandardCreatePanelPropsParams = {
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
+  disableAgentOutputGenerate?: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handleStandardCreatePrimarySubmit: () => void;
+  handleGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   selectedCharacterLookId?: string;
@@ -79,8 +80,6 @@ type UseStandardCreatePanelPropsParams = {
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   imageResolution: string;
   setImageResolution: Dispatch<SetStateAction<string>>;
-  beginnerCreateMode: boolean;
-  expertCreateUiEligible: boolean;
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
@@ -120,7 +119,6 @@ export const buildStandardCreatePanelProps = ({
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAssistantMessageEdit,
-  handleApplyAgentOutputPrompt,
   isModelModalOpen,
   modelModalAnchor,
   setAspect,
@@ -133,9 +131,11 @@ export const buildStandardCreatePanelProps = ({
   promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
+  disableAgentOutputGenerate,
   generationGuardrail,
   handleClearAgentChat,
   handleStandardCreatePrimarySubmit,
+  handleGenerateOutputPrompt,
   characterOptions,
   selectedCharacterId,
   selectedCharacterLookId,
@@ -150,8 +150,6 @@ export const buildStandardCreatePanelProps = ({
   resolveCharacterAvatarUrlById,
   imageResolution,
   setImageResolution,
-  beginnerCreateMode,
-  expertCreateUiEligible,
   isStylesPanelOpen,
   onStylesPanelToggle,
   selectedStyleId,
@@ -194,7 +192,7 @@ export const buildStandardCreatePanelProps = ({
     onRemoveAgentAttachment: handleRemoveAgentAttachment,
     onClearAgentAttachments: handleClearAgentAttachments,
     onAssistantMessageEdit: handleAssistantMessageEdit,
-    onApplyAgentOutputPrompt: handleApplyAgentOutputPrompt,
+    onGenerateOutputPrompt: handleGenerateOutputPrompt,
     isModelModalOpen,
     modelModalAnchor,
     onAspectChange: setAspect,
@@ -205,6 +203,7 @@ export const buildStandardCreatePanelProps = ({
     outputGenerateCostCredits: promptReferenceGenerateCostCredits,
     hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: isPrimaryGenerateDisabled,
+    disableAgentOutputGenerate,
     guardrailReason: primaryGenerateGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onGenerate: handleStandardCreatePrimarySubmit,
@@ -222,8 +221,6 @@ export const buildStandardCreatePanelProps = ({
     resolveCharacterAvatarUrlById,
     imageResolution,
     onImageResolutionChange: setImageResolution,
-    beginnerMode: beginnerCreateMode,
-    expertCreateUiEligible,
     isStylesPanelOpen,
     onStylesPanelToggle,
     selectedStyleId,

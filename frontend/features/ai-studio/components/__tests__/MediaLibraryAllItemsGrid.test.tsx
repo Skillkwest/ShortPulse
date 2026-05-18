@@ -403,6 +403,7 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     expect(container.querySelector(".reference-card-audio")).toBeNull();
     expect(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" })).toBeInTheDocument();
+    expect(screen.getByText("Load audio")).toBeInTheDocument();
     expect(screen.getByText("0:15")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" }));

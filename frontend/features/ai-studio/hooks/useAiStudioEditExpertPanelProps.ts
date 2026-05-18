@@ -21,7 +21,6 @@ import type {
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type UseAiStudioEditExpertPanelPropsParams = {
-  expertEditEligible: boolean;
   aspect: string;
   model: string | null;
   currentModelLabel: string;
@@ -80,7 +79,6 @@ type UseAiStudioEditExpertPanelPropsParams = {
  * Builds props for the expert edit properties panel.
  */
 export const useAiStudioEditExpertPanelProps = ({
-  expertEditEligible,
   aspect,
   model,
   currentModelLabel,
@@ -136,7 +134,6 @@ export const useAiStudioEditExpertPanelProps = ({
     ) as [string | null, string | null, string | null];
 
     return {
-      expertEditEligible,
       aspect,
       modelId: model,
       modelLabel: currentModelLabel,
@@ -206,7 +203,6 @@ export const useAiStudioEditExpertPanelProps = ({
     currentCostCredits,
     currentModelLabel,
     editReferenceText,
-    expertEditEligible,
     extraImageUrls,
     generationGuardrail,
     handleEditPromptTextChange,

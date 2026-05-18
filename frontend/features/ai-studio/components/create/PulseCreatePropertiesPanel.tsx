@@ -55,7 +55,6 @@ export type PulseCreatePropertiesPanelProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGeneratePulseArtifact: () => void;
   onClearAgentChat?: () => void;
-  expertCreateUiEligible?: boolean;
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
   activePulsePresetLabel?: string | null;

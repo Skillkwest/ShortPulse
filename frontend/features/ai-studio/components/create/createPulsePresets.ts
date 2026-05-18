@@ -1,1 +1,1 @@
-export * from "./createPulsePresetDomain";
+export * from "../../../../lib/model-runtime/createPulsePresetDomain";

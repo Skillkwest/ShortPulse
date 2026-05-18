@@ -16,7 +16,6 @@ import type {
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
-  AgentOutputGenerateRequest,
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
@@ -28,7 +27,6 @@ import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteracti
 import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
-import { normalizeAgentOutputGenerateRequest } from "../logic/promptAdjacency";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
   AiStudioSessionAgentMessageV1,
@@ -401,22 +399,6 @@ export const useStandardCreateAgentRuntime = ({
     },
     [agentMessages, trackAgentUiEvent, updateMessageById]
   );
-  const handleApplyAgentOutputPrompt = useCallback(
-    (request: AgentOutputGenerateRequest) => {
-      const normalizedRequest = normalizeAgentOutputGenerateRequest(request);
-      if (!normalizedRequest) return;
-      setAgentInput(normalizedRequest.prompt);
-      setStandardCreatePrompt(normalizedRequest.prompt);
-      setLatestAgentPrompt(normalizedRequest.prompt);
-      setPromptOrigin("agent");
-      trackAgentUiEvent("studio_agent_output_applied_to_composer", {
-        message_id: normalizedRequest.messageId,
-        source: normalizedRequest.source,
-        prompt_chars: normalizedRequest.prompt.length,
-      });
-    },
-    [setAgentInput, setPromptOrigin, setStandardCreatePrompt, trackAgentUiEvent]
-  );
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
     () => ({
       messages: agentMessages.map(serializeMessageForSnapshot),
@@ -524,7 +506,6 @@ export const useStandardCreateAgentRuntime = ({
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAssistantMessageEdit,
-    handleApplyAgentOutputPrompt,
     handleClearAgentChat,
   };
 };

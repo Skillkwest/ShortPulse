@@ -152,6 +152,8 @@ const sanitizeProjectWorkspaceOutputs = ({
   const allowedMediaFileIds = new Set(ownedMediaFileIds);
   const allowedPromptIds = new Set(ownedPromptIds);
   const allowedGenerationIds = new Set(ownedGenerationIds);
+  const isFailedWorkspaceOutputRow = (row: Record<string, unknown>): boolean =>
+    typeof row.taskState === "string" && row.taskState.trim() === "fail";
 
   const sanitizeRows = (value: unknown) => {
     if (!Array.isArray(value)) return [];
@@ -159,6 +161,9 @@ const sanitizeProjectWorkspaceOutputs = ({
     return value
       .map((row) => {
         const normalizedRow = asRecord(row);
+        if (isFailedWorkspaceOutputRow(normalizedRow)) {
+          return null;
+        }
         const generationId =
           typeof normalizedRow.generationId === "string" ? normalizedRow.generationId.trim() : "";
         const promptId =

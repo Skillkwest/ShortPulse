@@ -33,6 +33,9 @@ export const usePresetDragDropRuntime = <PresetId extends string>({
   addPresetToPanel,
   removePresetFromPanel,
 }: UsePresetDragDropRuntimeParams<PresetId>) => {
+  const fireAndForget = React.useCallback((operation: void | Promise<unknown>) => {
+    void Promise.resolve(operation).catch(() => undefined);
+  }, []);
   const activePresetDragPayloadRef = React.useRef<PresetDragPayload<PresetId> | null>(null);
   const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
   const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
@@ -136,9 +139,9 @@ export const usePresetDragDropRuntime = <PresetId extends string>({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetPanelDropActive(false);
-      void addPresetToPanel(payload.presetId);
+      fireAndForget(addPresetToPanel(payload.presetId));
     },
-    [addPresetToPanel, resolvePayload]
+    [addPresetToPanel, fireAndForget, resolvePayload]
   );
 
   const handlePresetsSurfaceDragOver = React.useCallback(
@@ -164,9 +167,9 @@ export const usePresetDragDropRuntime = <PresetId extends string>({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetsSurfaceDropActive(false);
-      void removePresetFromPanel(payload.presetId);
+      fireAndForget(removePresetFromPanel(payload.presetId));
     },
-    [removePresetFromPanel, resolvePayload]
+    [fireAndForget, removePresetFromPanel, resolvePayload]
   );
 
   return {

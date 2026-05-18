@@ -24,11 +24,6 @@
   box-sizing: border-box;
 }
 
-.create-expert-generate-row {
-  margin-top: 10px;
-  display: none;
-}
-
 .create-expert-controls {
   display: flex;
   flex: 1 1 auto;

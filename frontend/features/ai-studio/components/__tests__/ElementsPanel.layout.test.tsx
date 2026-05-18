@@ -309,7 +309,7 @@ describe("ElementsPanel layout", () => {
     expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Deck" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Sheet" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Element" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "+ Create" })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "All Media type tabs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
@@ -327,7 +327,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.click(screen.getByRole("button", { name: "+ Create" }));
 
     const dialog = await waitForElementEditor();
-    expect(within(dialog).getByRole("button", { name: "Save Element" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save Element" })).toBeEnabled();
     expect(within(dialog).getByLabelText("Name:")).toHaveValue("");
     expect(screen.queryByRole("heading", { name: "New Element" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
@@ -335,7 +335,7 @@ describe("ElementsPanel layout", () => {
     expect(elementsManagerPersistenceMockState.list).toHaveLength(1);
 
     fireEvent.change(within(dialog).getByLabelText("Name:"), { target: { value: "Taylor" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save Element" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Element" }));
 
     await waitFor(() => {
       expect(saveElementManagerDraft).toHaveBeenCalledWith({
@@ -349,7 +349,7 @@ describe("ElementsPanel layout", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save Element" })).toBeDisabled();
     });
     expect(screen.getByRole("button", { name: "Edit element: Taylor" })).toBeInTheDocument();
     expect(elementsManagerPersistenceMockState.list).toHaveLength(2);
@@ -381,7 +381,7 @@ describe("ElementsPanel layout", () => {
     expect(
       dialog.querySelector(".elements-description-text-container .elements-description-count")
     ).toBeTruthy();
-    expect(within(dialog).queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Element" })).toBeDisabled();
     expect(screen.queryByRole("heading", { name: "Red Lantern" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit element: Red Lantern" })).toBeInTheDocument();
@@ -506,7 +506,7 @@ describe("ElementsPanel layout", () => {
     });
 
     expect(within(dialog).getByDisplayValue("Draft Beach")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Save Element" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Element" })).toBeEnabled();
     expect(screen.queryByRole("heading", { name: "Discard new element?" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
   });

@@ -4,6 +4,7 @@ import {
   formatPerfAuditDebugLine,
   isPerfAuditRuntimeEnabled,
 } from "../../../features/ai-studio/logic/perfAuditDebug";
+import { recordCreateWorkflowEvent } from "../../../features/ai-studio/logic/createWorkflowDebug";
 import { resolveAgentAttachmentPreviewUrl } from "../../../features/ai-studio/logic/agentAttachmentImage";
 
 type AgentImageAttachmentPreviewProps = {
@@ -11,7 +12,12 @@ type AgentImageAttachmentPreviewProps = {
   sources?: string[] | null;
   repairAttachment?: Pick<
     AgentAttachment,
-    "previewStoragePath" | "fullStoragePath" | "referenceRenderUrl" | "referenceUrl" | "imageUrl"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "referenceRenderUrl"
+    | "referenceUrl"
+    | "imageUrl"
+    | "submissionImageUrl"
   > | null;
   alt?: string;
   debugLabel?: string | null;
@@ -46,6 +52,7 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
         repairAttachment?.referenceRenderUrl ?? "",
         repairAttachment?.referenceUrl ?? "",
         repairAttachment?.imageUrl ?? "",
+        repairAttachment?.submissionImageUrl ?? "",
       ].join("\n"),
     [repairAttachment]
   );
@@ -77,17 +84,24 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
   const attemptIdentityRepair = React.useCallback(async () => {
     if (!repairAttachment || repairAttempted) return;
     setRepairAttempted(true);
+    recordCreateWorkflowEvent("preview_repair_attempted", {
+      candidateCount: candidateSources.length,
+      repairAttachmentKey,
+    });
     const requestId = repairRequestIdRef.current + 1;
     repairRequestIdRef.current = requestId;
     const repairedSource = await resolveAgentAttachmentPreviewUrl(repairAttachment).catch(
       () => null
     );
     if (repairRequestIdRef.current !== requestId || !repairedSource) return;
+    recordCreateWorkflowEvent("preview_repair_resolved", {
+      repairedSource,
+    });
     setResolvedRepairSource((current) => current ?? repairedSource);
     setActiveSourceIndex((currentIndex) =>
       currentIndex >= candidateSources.length - 1 ? candidateSources.length : currentIndex
     );
-  }, [candidateSources.length, repairAttachment, repairAttempted]);
+  }, [candidateSources.length, repairAttachment, repairAttachmentKey, repairAttempted]);
 
   React.useEffect(() => {
     if (!allSources.length && repairAttachment && !repairAttempted) {
@@ -97,6 +111,14 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
 
   const resolvedSrc = allSources[activeSourceIndex] ?? null;
   const resolvedDebugLabel = debugLabel ?? formatPerfAuditDebugLine("chip", resolvedSrc);
+
+  React.useEffect(() => {
+    recordCreateWorkflowEvent("preview_resolved_source_changed", {
+      resolvedSrc,
+      activeSourceIndex,
+      sourceCount: allSources.length,
+    });
+  }, [activeSourceIndex, allSources.length, resolvedSrc]);
 
   if (!resolvedSrc) {
     return (
@@ -136,6 +158,11 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
         alt={alt}
         className="agent-attachment-card-media"
         onError={() => {
+          recordCreateWorkflowEvent("preview_img_error", {
+            resolvedSrc,
+            activeSourceIndex,
+            sourceCount: allSources.length,
+          });
           setActiveSourceIndex((currentIndex) => {
             if (currentIndex < allSources.length - 1) {
               return currentIndex + 1;

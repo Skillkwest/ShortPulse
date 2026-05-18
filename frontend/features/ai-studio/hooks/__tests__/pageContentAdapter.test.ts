@@ -4,7 +4,7 @@ import { mapHookContractsToPageContentProps } from "../contracts/pageContentAdap
 describe("mapHookContractsToPageContentProps", () => {
   it("maps hook contracts to AiStudioPageContent props without mutation", () => {
     const propertiesCreate = { id: "create" } as unknown as Record<string, unknown>;
-    const propertiesEditExpert = { expertEditEligible: true } as unknown as Record<string, unknown>;
+    const propertiesEditExpert = {} as unknown as Record<string, unknown>;
     const propertiesVideo = { id: "video" } as unknown as Record<string, unknown>;
     const referenceGridProps = { id: "grid" } as unknown as Record<string, unknown>;
     const studioPreviewProps = { id: "preview" } as unknown as Record<string, unknown>;

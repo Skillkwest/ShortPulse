@@ -159,7 +159,6 @@ export const useExpertEditPromptComposerRuntime = ({
   });
 
   const { isCharacterPickerOpen, closeCharacterPicker } = useCreateCharacterModeController({
-    beginnerMode: false,
     characterModeEnabled,
     characterOptions,
     selectedCharacterId,

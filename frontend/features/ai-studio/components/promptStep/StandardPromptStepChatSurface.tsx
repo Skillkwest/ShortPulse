@@ -15,7 +15,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateRequest,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
@@ -61,7 +60,6 @@ type StandardPromptStepChatSurfaceProps = {
   agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
-  onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   highlightLatestAssistantOnly: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
   disableOutputGenerate: boolean;
@@ -122,7 +120,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   agentBootstrapPending,
   onAgentSend,
   onGenerateOutputPrompt,
-  onApplyOutputPrompt,
   highlightLatestAssistantOnly,
   CreateChatPanel = AgentChatPanel,
   disableOutputGenerate,
@@ -203,7 +200,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         onInputChange={(value) => onAgentInputChange?.(value)}
         onSend={onAgentSend ?? (() => {})}
         onGenerateOutputPrompt={onGenerateOutputPrompt}
-        onApplyOutputPrompt={onApplyOutputPrompt}
         onAssistantMessageEdit={onAssistantMessageEdit}
         highlightLatestAssistantOnly={highlightLatestAssistantOnly}
         disableOutputGenerate={disableOutputGenerate}

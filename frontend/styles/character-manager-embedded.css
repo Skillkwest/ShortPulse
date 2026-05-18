@@ -2,6 +2,285 @@
  * Character Manager embedded-panel styling.
  * Owns AI Studio panel-specific layout and appearance overrides without changing shared component contracts.
  */
+.character-panel-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.character-panel-split-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.character-panel-top-section,
+.character-panel-bottom-section {
+  min-height: 0;
+}
+
+.character-panel-top-section {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.character-panel-bottom-section {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(201, 205, 214, 0.03);
+  background: rgba(201, 205, 214, 0.03);
+  overflow: hidden;
+}
+
+.character-panel-horizontal-divider-wrap {
+  flex-shrink: 0;
+  padding: 2px 0;
+}
+
+.character-panel-workspace {
+  --character-panel-card-bg: rgba(201, 205, 214, 0.03);
+  --character-panel-card-border: rgba(201, 205, 214, 0.08);
+  --character-panel-card-border-strong: rgba(201, 205, 214, 0.18);
+  --character-panel-card-radius: 16px;
+  --character-panel-slot-arm: rgba(255, 123, 167, 0.52);
+  --character-panel-slot-arm-bg: rgba(109, 18, 54, 0.22);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+
+.character-panel-library-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1.1fr);
+  align-items: stretch;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.character-panel-library-column,
+.character-panel-editor-column {
+  min-height: 0;
+  border: 1px solid var(--character-panel-card-border);
+  background: var(--character-panel-card-bg);
+}
+
+.character-panel-library-column {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 18px 0;
+  overflow: hidden;
+}
+
+.character-panel-editor-column {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.character-panel-editor-column-panel {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 18px 18px;
+  border: 1px solid rgba(201, 205, 214, 0.05);
+  border-radius: var(--character-panel-card-radius);
+  background: rgba(201, 205, 214, 0.05);
+}
+
+.character-panel-library-header,
+.character-panel-editor-column-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.character-panel-library-header-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.character-panel-library-title-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.character-panel-library-title-stack h2 {
+  margin: 0;
+  color: var(--ai-accent);
+}
+
+.character-panel-library-title-stack p {
+  margin: 0;
+}
+
+.character-panel-library-header-actions,
+.character-panel-profile-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.character-panel-action-btn {
+  appearance: none;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(24, 28, 33, 0.94);
+  color: rgba(228, 235, 243, 0.92);
+  min-width: 96px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.character-panel-action-btn:not(:disabled):hover {
+  border-color: rgba(255, 123, 167, 0.52);
+  transform: translateY(-1px);
+}
+
+.character-panel-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.character-panel-action-btn--primary {
+  border-color: rgba(255, 123, 167, 0.58);
+  color: rgba(255, 214, 231, 0.96);
+}
+
+.character-panel-action-btn--danger {
+  border-color: rgba(255, 108, 108, 0.42);
+  color: rgba(255, 196, 196, 0.96);
+}
+
+.character-panel-library-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  overflow-y: auto;
+  padding-bottom: 18px;
+}
+
+.character-panel-library-empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.character-panel-library-empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(229, 236, 244, 0.92);
+}
+
+.character-panel-slot-armed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 123, 167, 0.36);
+  background: rgba(91, 14, 47, 0.22);
+  color: rgba(255, 214, 231, 0.96);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.character-panel-slot-actions {
+  position: absolute;
+  inset: 8px 8px auto auto;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.character-panel-slot-upload-btn {
+  opacity: 0;
+}
+
+.character-character-sheet-card.is-armed {
+  border-color: var(--character-panel-slot-arm);
+  background: var(--character-panel-slot-arm-bg);
+  box-shadow: 0 0 0 1px rgba(255, 123, 167, 0.18);
+}
+
+.character-character-sheet-card:hover .character-panel-slot-upload-btn,
+.character-character-sheet-card:focus-within .character-panel-slot-upload-btn,
+.character-character-sheet-card.is-armed .character-panel-slot-upload-btn {
+  opacity: 1;
+}
+
+.character-panel-workspace .character-feedback.error {
+  margin: 0;
+}
+
+.character-panel-workspace .character-sheet-preset-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.character-panel-workspace.is-embedded-media-library-maximized .character-sheet-preset-panel {
+  align-content: start;
+}
+
+.character-panel-workspace .character-reference-empty-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1260px) {
+  .character-panel-library-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .character-panel-library-column,
+  .character-panel-editor-column {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .character-panel-library-header-main {
+    grid-template-columns: 1fr;
+  }
+
+  .character-panel-library-header-actions,
+  .character-panel-profile-status {
+    justify-content: flex-start;
+  }
+
+  .character-panel-workspace .character-reference-empty-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .character-manager-page--embedded {
   display: flex;
   flex-direction: column;

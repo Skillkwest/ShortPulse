@@ -32,8 +32,8 @@ import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/us
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
 import { useAiStudioProjectRouteRecovery } from "../features/ai-studio/hooks/useAiStudioProjectRouteRecovery";
+import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
-import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
@@ -84,7 +84,6 @@ type UseAiStudioCreatePanelRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
-  workflowBeginnerPolicy: ReturnType<typeof createWorkflowBeginnerModePolicy>;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
@@ -110,7 +109,6 @@ type UseAiStudioCreatePanelRuntimeParams = {
 };
 type UseAiStudioEditVideoPanelRuntimesParams = {
   base: AiStudioPageBaseRuntime;
-  workflowBeginnerPolicy: ReturnType<typeof createWorkflowBeginnerModePolicy>;
   currentCostCredits: number | null;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
@@ -167,7 +165,6 @@ const useAiStudioCreatePanelRuntime = ({
   base,
   createPulsePageRuntime,
   activeCreateAgentRuntime,
-  workflowBeginnerPolicy,
   currentCostCredits,
   promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
@@ -203,15 +200,21 @@ const useAiStudioCreatePanelRuntime = ({
     model,
     modelModalAnchor,
     pulsePrompt,
+    referenceGridReadyOutputIds,
     refreshCharacterOptions,
+    removedFromAllRefsIds,
     resolveCharacterAvatarUrlById,
+    setEditReferenceText,
     selectedCreateCharacterLookLabel,
     selectedTool,
     setAspect,
     setImageResolution,
     setIsCreateCharacterModeEnabled,
+    setMode,
+    setSelectedToolWithEditIntentReset,
     setStandardCreatePrompt,
     setUiNotice,
+    setVideoReferenceText,
     standardPrompt,
     useReferenceImageIndicator,
   } = base;
@@ -241,6 +244,7 @@ const useAiStudioCreatePanelRuntime = ({
     isAgentDropActive,
     persistedAgentRuntime,
     stagedAgentPrompt,
+    setPromptOrigin,
   } = activeCreateAgentRuntime;
   const standardCreateAgentRuntime =
     activeCreateAgentRuntime.kind === "standard" ? activeCreateAgentRuntime : null;
@@ -250,13 +254,10 @@ const useAiStudioCreatePanelRuntime = ({
     () => undefined,
     []
   );
-  const noopApplyAgentOutputPrompt = useCallback(() => undefined, []);
   const chatModeEnabled =
     standardCreateAgentRuntime?.chatModeEnabled ?? STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
-  const handleApplyAgentOutputPrompt =
-    standardCreateAgentRuntime?.handleApplyAgentOutputPrompt ?? noopApplyAgentOutputPrompt;
   const handleProviderPrimarySubmit = useCallback(() => {
     void handleGenerate();
   }, [handleGenerate]);
@@ -271,7 +272,27 @@ const useAiStudioCreatePanelRuntime = ({
     handleProviderPrimarySubmit,
     setSharedPrompt: setStandardCreatePrompt,
   });
-  const assistantBubbleMedia = undefined;
+  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt, disableAgentOutputGenerate } =
+    useAiStudioAgentOutputGenerationBridge({
+      outputs: base.outputs.filter((output) => !removedFromAllRefsIds.includes(output.id)),
+      referenceGridReadyOutputIds,
+      mode,
+      selectedTool,
+      isGenerateDisabled: effectiveIsGenerateDisabled,
+      hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
+      model,
+      characterModeEnabled: isCreateCharacterModeEnabled,
+      selectedCharacterId: createSelectedCharacterId,
+      currentCostCredits,
+      promptReferenceGenerateCostCredits,
+      setVideoReferenceText,
+      setEditReferenceText,
+      setSharedPrompt: setStandardCreatePrompt,
+      setSelectedToolWithEditIntentReset,
+      setMode,
+      setPromptOrigin,
+      handleGenerate,
+    });
   const pulsePrimarySubmitGuardrail =
     pulseArtifactTarget != null ? pulseGenerationGuardrail : effectiveGenerationGuardrail;
   const pulsePrimarySubmitCostCredits =
@@ -296,7 +317,6 @@ const useAiStudioCreatePanelRuntime = ({
     mode === "text" && !chatModeEnabled
       ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
       : currentCostCredits;
-  const expertCreatePolicy = workflowBeginnerPolicy.create;
   const {
     pulsePreferenceRuntime,
     displayCreatePulsePresetId,
@@ -318,7 +338,6 @@ const useAiStudioCreatePanelRuntime = ({
           currentCostCredits: pulseGenerateCostCredits,
           isGenerateDisabled: pulseArtifactGenerateDisabled,
           generationGuardrail: pulseArtifactGenerateGuardrail,
-          expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
           onPulsePromptChange: handlePulseCreatePromptChange,
           onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
           pulsePreferenceRuntime,
@@ -386,6 +405,7 @@ const useAiStudioCreatePanelRuntime = ({
         promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
         hasSufficientCreditsForPromptReferenceGenerate,
         isGenerateDisabled: effectiveIsGenerateDisabled,
+        disableAgentOutputGenerate,
         generationGuardrail: effectiveGenerationGuardrail,
         useReferenceImageIndicator,
         isModelModalOpen: base.isModelModalOpen,
@@ -397,9 +417,8 @@ const useAiStudioCreatePanelRuntime = ({
         isCharacterOptionsLoading,
         isCharacterModeEnabled: isCreateCharacterModeEnabled,
         imageResolution,
-        beginnerCreateMode: expertCreatePolicy.beginnerMode,
-        expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
         onPromptChange: handleStandardCreatePromptChange,
+        onGenerateOutputPrompt: handleGenerateFromAgentOutputPrompt,
         onAspectChange: setAspect,
         onModelPickerOpen: handleOpenModelModal,
         onSelectedCharacterChange: handleCreateCharacterSelection,
@@ -439,7 +458,6 @@ const useAiStudioCreatePanelRuntime = ({
         onRemoveAgentAttachment: handleRemoveAgentAttachment,
         onClearAgentAttachments: handleClearAgentAttachments,
         onAssistantMessageEdit: handleAssistantMessageEdit,
-        onApplyAgentOutputPrompt: handleApplyAgentOutputPrompt,
         onClearAgentChat: handleClearAgentChat,
         onPrimarySubmit: handleStandardCreatePrimarySubmit,
       },
@@ -474,11 +492,10 @@ const useAiStudioCreatePanelRuntime = ({
     displayCreatePulsePresetSnapshot?.label,
     displayCreatePulsePresetSnapshot?.pulseKind,
     describeInFlightCount,
+    disableAgentOutputGenerate,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
     expertCreateMode,
-    expertCreatePolicy.beginnerMode,
-    expertCreatePolicy.expertCreateEligible,
     handleActiveCreatePulsePresetIdChangeForPage,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,
@@ -486,7 +503,7 @@ const useAiStudioCreatePanelRuntime = ({
     handleAgentAttachmentDrop,
     handleAgentInputChange,
     handleAgentSend,
-    handleApplyAgentOutputPrompt,
+    handleGenerateFromAgentOutputPrompt,
     handleAssistantMessageEdit,
     handleClearAgentAttachments,
     handleClearAgentChat,
@@ -534,7 +551,6 @@ const useAiStudioCreatePanelRuntime = ({
 
 const useAiStudioEditVideoPanelRuntimes = ({
   base,
-  workflowBeginnerPolicy,
   currentCostCredits,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
@@ -546,9 +562,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
   handleRegenerateWithDebit,
   resolveExpertEditVariantCostCredits,
 }: UseAiStudioEditVideoPanelRuntimesParams) => {
-  const expertEditEligible = workflowBeginnerPolicy.edit.expertEditEligible;
   const editExpertPanelProps = useAiStudioEditExpertPanelProps({
-    expertEditEligible,
     aspect: base.aspect,
     model: base.model,
     currentModelLabel: base.currentModelLabel,
@@ -1106,6 +1120,7 @@ const AiStudioPageRuntimeBody = ({
     refreshCharacterModeInjectionBundleForSubmission,
     refreshCharacterOptions,
     regenerateOutput,
+    removedFromAllRefsIds,
     removeOptimisticGenerationPlaceholder,
     saveReferenceToLibrary,
     clearPendingCharacterUploadRequest,
@@ -1164,12 +1179,6 @@ const AiStudioPageRuntimeBody = ({
     enabled: true,
   });
   const isMediaStorageFull = quotaSummary?.isOverLimit === true;
-  const beginnerMode = false;
-  const beginnerModeError = null;
-  const beginnerModeLoading = false;
-  const beginnerModeSyncState = "ready" as const;
-  const showBeginnerModeToggle = false;
-  const setBeginnerMode = () => {};
   const {
     activeCreatePulsePresetSnapshot,
     setPendingCreatePulsePresetSnapshot,
@@ -1290,11 +1299,6 @@ const AiStudioPageRuntimeBody = ({
   const dismissNotice = () => setUiNotice(null);
   const { effectiveUiNotice } = useAiStudioPageUiNotices({
     uiNotice,
-    beginnerModeError,
-    beginnerModeLoading,
-    beginnerModeSyncState,
-    showBeginnerModeToggle,
-    setBeginnerMode,
     mediaAutosaveError,
     mediaAutosaveSyncState,
   });
@@ -1368,6 +1372,7 @@ const AiStudioPageRuntimeBody = ({
     motionReferenceVideoUrl,
     notifyGenerationFailure,
     optimisticDebitEntries,
+    removedFromAllRefsIds,
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     openModelModal,
     projectId,
@@ -1411,10 +1416,6 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   });
-  const workflowBeginnerPolicy = useMemo(
-    () => createWorkflowBeginnerModePolicy(beginnerMode, true),
-    [beginnerMode]
-  );
   const resolveExpertEditVariantCostCredits = useCallback(
     ({
       modelId,
@@ -1442,7 +1443,6 @@ const AiStudioPageRuntimeBody = ({
   );
   const { editExpertPanelProps, videoPanelProps } = useAiStudioEditVideoPanelRuntimes({
     base,
-    workflowBeginnerPolicy,
     currentCostCredits,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
@@ -1458,7 +1458,6 @@ const AiStudioPageRuntimeBody = ({
     base,
     createPulsePageRuntime,
     activeCreateAgentRuntime,
-    workflowBeginnerPolicy,
     currentCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForPromptReferenceGenerate,

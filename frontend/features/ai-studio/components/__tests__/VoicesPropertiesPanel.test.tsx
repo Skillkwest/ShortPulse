@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import {
   buildVoiceoverElevenV3RequestConfig,
+  hardcodedVoiceGenerationDefaults,
+  hardcodedVoiceOutputFormat,
+  hardcodedVoiceoverModelId,
   VoicesPropertiesPanel,
 } from "../VoicesPropertiesPanel";
 import { createVoiceChangerSourceFromFile } from "../VoiceChangerSourceDropzone";
@@ -48,6 +51,11 @@ const createReferenceDragTransfer = () => {
     currentTarget: dragNode,
   } as unknown as Parameters<typeof prepareReferenceDrag>[0];
   return { transfer, event };
+};
+
+const openVoicesLibraryModal = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+  return await screen.findByRole("dialog", { name: "Voices" });
 };
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
@@ -150,15 +158,10 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel />);
 
     expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Available voices")).toBeInTheDocument();
-    expect(screen.queryByText("Available voices")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("separator", { name: "Resize available voices and prompt sections" })
-    ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
       "placeholder",
       "Paste or write the script that will be spoken with this voice."
@@ -175,23 +178,23 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save voice" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByText("Voice mode")).toBeInTheDocument();
+    expect(screen.queryByText("Voice mode")).not.toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(
       "aria-selected",
       "false"
     );
-    expect(screen.getByLabelText("Voice shaping")).toBeInTheDocument();
-    expect(screen.getByText("Voice shaping")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
+    expect(screen.queryByText("Voice shaping")).not.toBeInTheDocument();
     expect(screen.queryByText("Language")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Voiceover language override" })
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Format")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Voiceover output format" })).toHaveValue(
-      "mp3_44100_128"
-    );
+    expect(screen.queryByText("Format")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Voiceover output format" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Create method")).not.toBeInTheDocument();
     expect(screen.queryByText("Reference audio")).not.toBeInTheDocument();
     expect(screen.queryByText("Design setup")).not.toBeInTheDocument();
@@ -199,6 +202,25 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: "Voice Design" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Instant Voice Clone" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Voice Remixing" })).not.toBeInTheDocument();
+  });
+
+  it("opens the voices library modal from the header action and restores focus on close", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    const voicesButton = screen.getByRole("button", { name: "Voices" });
+    fireEvent.click(voicesButton);
+
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Available voices")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close voices modal" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Voices" })).not.toBeInTheDocument();
+    });
+    expect(voicesButton).toHaveFocus();
   });
 
   it("shows a header delete action for a selected live voice and removes it from the grid", async () => {
@@ -235,7 +257,7 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /adam voice/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
     });
 
     const deleteButton = screen.getByRole("button", { name: "Delete Voice" });
@@ -253,17 +275,18 @@ describe("VoicesPropertiesPanel", () => {
       });
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
     });
-
     expect(screen.getByRole("button", { name: /bella voice/i })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
   });
 
-  it("keeps the create mode guidance in the right rail until the create panel opens", () => {
+  it("keeps the default create surface focused on the left-column script composer", () => {
     render(<VoicesPropertiesPanel />);
 
     const scriptField = screen.getByRole("textbox", {
@@ -279,8 +302,10 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByText("Preview text")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Design model" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Preview text mode" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Voice shaping")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Voiceover output format" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Voiceover output format" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice description" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice name" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
@@ -305,8 +330,10 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Voice description" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate voice previews" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save voice" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Voice shaping")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Voiceover output format" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Voiceover output format" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
   });
@@ -314,14 +341,16 @@ describe("VoicesPropertiesPanel", () => {
   it("renders skeleton voice chips while the live voices request is loading", () => {
     fetchWithAuthMock.mockImplementation(() => new Promise(() => undefined));
 
-    const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
 
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent("Loading voices…");
-    expect(container.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
+    expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
     expect(screen.queryByRole("button", { name: /darian voice/i })).not.toBeInTheDocument();
   });
 
-  it("switches the right rail between create and edit voice modes", () => {
+  it("switches the inline left-column surface between voiceover and voice changer modes", () => {
     render(<VoicesPropertiesPanel />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -341,15 +370,6 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Record your voice sample" })).toBeInTheDocument();
     expect(screen.getByText(/Drag one audio or video file/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByLabelText("Voice changer shaping")).toBeInTheDocument();
-    expect(screen.getByLabelText("Voice changer settings")).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: /noise reduction/i })).toHaveAttribute(
-      "aria-checked",
-      "false"
-    );
-    expect(screen.getByRole("combobox", { name: "Voice changer output format" })).toHaveValue(
-      "mp3_44100_128"
-    );
     expect(screen.queryByText("Input format")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Voice changer input format" })
@@ -362,15 +382,18 @@ describe("VoicesPropertiesPanel", () => {
     expect(
       screen.queryByRole("button", { name: "Generate voice previews" })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("switch", { name: /speaker boost/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Voice changer model" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Voiceover" }));
 
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByLabelText("Voice shaping")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Voiceover output format" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Voice script" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice description" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Voiceover output format" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
   });
@@ -494,10 +517,7 @@ describe("VoicesPropertiesPanel", () => {
     const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /darian voice/i })).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
+      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -541,10 +561,7 @@ describe("VoicesPropertiesPanel", () => {
     const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /darian voice/i })).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
+      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -568,6 +585,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(onGenerate).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "voice-changer",
+        outputFormat: hardcodedVoiceOutputFormat,
         source: expect.objectContaining({
           extractedFrom: expect.objectContaining({
             aspect: "9:16",
@@ -575,11 +593,12 @@ describe("VoicesPropertiesPanel", () => {
           }),
         }),
         voiceSettings: {
-          stability: 1,
-          similarity_boost: 1,
+          stability: hardcodedVoiceGenerationDefaults.stability,
+          similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
           speed: 1,
-          use_speaker_boost: true,
+          use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
         },
+        removeBackgroundNoise: false,
       })
     );
   });
@@ -1212,84 +1231,18 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 
-  it("uses the voiceover shaping controls only", () => {
-    render(<VoicesPropertiesPanel />);
-
-    expect(screen.getByText("Speed")).toBeInTheDocument();
-    expect(screen.getByText("1.00x")).toBeInTheDocument();
-    expect(screen.getByText("Stability")).toBeInTheDocument();
-    expect(screen.getByText("0.50")).toBeInTheDocument();
-    expect(screen.getByText("Similarity boost")).toBeInTheDocument();
-    expect(screen.getByText("0.75")).toBeInTheDocument();
-    expect(screen.queryByText("Style exaggeration")).not.toBeInTheDocument();
-    expect(screen.queryByText("Similarity")).not.toBeInTheDocument();
-    expect(screen.queryByText("Speaker boost")).not.toBeInTheDocument();
-  });
-
-  it("lets voiceover sliders move locally and updates the readout", () => {
-    render(<VoicesPropertiesPanel />);
-
-    const speedSlider = screen.getByRole("slider", { name: "Speed" });
-    fireEvent.change(speedSlider, { target: { value: "80" } });
-
-    expect(speedSlider).toHaveValue("80");
-    expect(screen.getByText("1.30x")).toBeInTheDocument();
-  });
-
   it("hard-codes the correct Eleven v3 voiceover request defaults", () => {
-    expect(
-      buildVoiceoverElevenV3RequestConfig({
-        speed: 50,
-        stability: 50,
-        similarityBoost: 75,
-      })
-    ).toEqual({
-      model_id: "eleven_multilingual_v2",
+    expect(buildVoiceoverElevenV3RequestConfig()).toEqual({
+      model_id: hardcodedVoiceoverModelId,
       language_code: null,
       voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        speed: 1,
-        style: 0,
+        stability: hardcodedVoiceGenerationDefaults.stability,
+        similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
+        speed: hardcodedVoiceGenerationDefaults.speed,
+        style: hardcodedVoiceGenerationDefaults.style,
+        use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
       },
     });
-  });
-
-  it("lets voice changer sliders move locally and keeps their peach-mode values", () => {
-    render(<VoicesPropertiesPanel />);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
-
-    const speedSlider = screen.getByRole("slider", { name: "Speed" });
-    fireEvent.change(speedSlider, { target: { value: "72" } });
-
-    expect(speedSlider).toHaveValue("72");
-    expect(screen.getByText("1.08x")).toBeInTheDocument();
-  });
-
-  it("keeps voiceover and voice changer slider values decoupled across mode switches", () => {
-    render(<VoicesPropertiesPanel />);
-
-    const voiceoverSpeedSlider = screen.getByRole("slider", { name: "Speed" });
-    fireEvent.change(voiceoverSpeedSlider, { target: { value: "80" } });
-    expect(voiceoverSpeedSlider).toHaveValue("80");
-    expect(screen.getByText("1.30x")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
-
-    const voiceChangerSpeedSlider = screen.getByRole("slider", { name: "Speed" });
-    expect(voiceChangerSpeedSlider).toHaveValue("64");
-    expect(screen.getByText("0.96x")).toBeInTheDocument();
-
-    fireEvent.change(voiceChangerSpeedSlider, { target: { value: "72" } });
-    expect(voiceChangerSpeedSlider).toHaveValue("72");
-    expect(screen.getByText("1.08x")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Voiceover" }));
-
-    const voiceoverSpeedSliderAfterReturn = screen.getByRole("slider", { name: "Speed" });
-    expect(voiceoverSpeedSliderAfterReturn).toHaveValue("80");
-    expect(screen.getByText("1.30x")).toBeInTheDocument();
   });
 
   it("closes the create modal without inserting a fake local voice", () => {
@@ -1306,6 +1259,7 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close create voice modal" }));
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
     expect(screen.queryByRole("button", { name: /beacon voice/i })).not.toBeInTheDocument();
   });
 
@@ -1420,6 +1374,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    await openVoicesLibraryModal();
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /lantern voice/i })).toHaveAttribute(
       "aria-pressed",
@@ -1498,6 +1453,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    await openVoicesLibraryModal();
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toHaveAttribute(
       "aria-pressed",
@@ -1658,75 +1614,6 @@ describe("VoicesPropertiesPanel", () => {
     expect(generateButton).toBeEnabled();
   });
 
-  it("resizes the voice list and prompt sections when dragging the divider", () => {
-    const { container } = render(<VoicesPropertiesPanel />);
-
-    const divider = screen.getByRole("separator", {
-      name: "Resize available voices and prompt sections",
-    });
-    const splitContainer = container.querySelector(".voices-properties-main") as HTMLElement;
-
-    expect(splitContainer).toBeTruthy();
-    Object.defineProperty(splitContainer, "getBoundingClientRect", {
-      configurable: true,
-      value: () => ({
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        width: 700,
-        height: 900,
-        right: 700,
-        bottom: 900,
-        toJSON: () => ({}),
-      }),
-    });
-
-    const before = Number(divider.getAttribute("aria-valuenow"));
-    expect(Number.isFinite(before)).toBe(true);
-
-    fireEvent.pointerDown(divider, {
-      pointerId: 101,
-      button: 0,
-      clientY: 430,
-      pointerType: "mouse",
-    });
-    fireEvent.pointerMove(window, { pointerId: 101, clientY: 320 });
-    fireEvent.pointerUp(window, { pointerId: 101, clientY: 320 });
-
-    const after = Number(divider.getAttribute("aria-valuenow"));
-    expect(after).toBeLessThan(before);
-  });
-
-  it("hides the voices grid and top create button when the top pane is fully collapsed", () => {
-    const { container } = render(<VoicesPropertiesPanel />);
-
-    const divider = screen.getByRole("separator", {
-      name: "Resize available voices and prompt sections",
-    });
-    const splitContainer = container.querySelector(".voices-properties-main") as HTMLElement;
-
-    Object.defineProperty(splitContainer, "getBoundingClientRect", {
-      configurable: true,
-      value: () => ({
-        x: 0,
-        y: 0,
-        top: 0,
-        left: 0,
-        width: 700,
-        height: 900,
-        right: 700,
-        bottom: 900,
-        toJSON: () => ({}),
-      }),
-    });
-
-    fireEvent.keyDown(divider, { key: "Home" });
-
-    expect(screen.queryByRole("button", { name: "+ Create New Voice" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /darian voice/i })).not.toBeInTheDocument();
-  });
-
   it("keeps generation disabled when only fallback ElevenLabs default voices are available", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
@@ -1757,6 +1644,8 @@ describe("VoicesPropertiesPanel", () => {
       target: { value: "Fallback voices should not submit to ElevenLabs." },
     });
 
+    await openVoicesLibraryModal();
+
     expect(
       screen.getByText("Showing the ElevenLabs default catalog until live voices are configured.")
     ).toBeInTheDocument();
@@ -1785,10 +1674,7 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /darian voice/i })).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
+      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
     });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
@@ -1804,6 +1690,18 @@ describe("VoicesPropertiesPanel", () => {
       expect.objectContaining({
         mode: "voiceover",
         script: "Use the live Darian voice id for generation.",
+        outputFormat: hardcodedVoiceOutputFormat,
+        config: {
+          model_id: hardcodedVoiceoverModelId,
+          language_code: null,
+          voice_settings: {
+            stability: hardcodedVoiceGenerationDefaults.stability,
+            similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
+            speed: hardcodedVoiceGenerationDefaults.speed,
+            style: hardcodedVoiceGenerationDefaults.style,
+            use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
+          },
+        },
         voice: expect.objectContaining({
           id: "voice_live_darian_123",
           name: "Darian",
@@ -1832,6 +1730,7 @@ describe("VoicesPropertiesPanel", () => {
     const onGenerate = vi.fn();
 
     render(<VoicesPropertiesPanel onGenerate={onGenerate} isGenerating />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /repeat voice voice/i })).toHaveAttribute(
@@ -1898,6 +1797,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
 
     const playButton = await screen.findByRole("button", {
       name: /play bella - professional, bright, warm sample/i,
@@ -1944,7 +1844,8 @@ describe("VoicesPropertiesPanel", () => {
       }),
     });
 
-    const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    const voicesDialog = await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(
@@ -1952,7 +1853,9 @@ describe("VoicesPropertiesPanel", () => {
       ).toBeInTheDocument();
     });
 
-    expect(container.querySelector(".voices-properties-voice-chip-name")?.textContent).toBe("Adam");
+    expect(voicesDialog.querySelector(".voices-properties-voice-chip-name")?.textContent).toBe(
+      "Adam"
+    );
     expect(screen.queryByText("Adam - Deep, cinematic, resonant")).not.toBeInTheDocument();
   });
 
@@ -1973,7 +1876,8 @@ describe("VoicesPropertiesPanel", () => {
       }),
     });
 
-    const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    const voicesDialog = await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(
@@ -1983,9 +1887,11 @@ describe("VoicesPropertiesPanel", () => {
       ).toBeInTheDocument();
     });
 
-    expect(container.querySelector(".voices-properties-voice-chip-name")?.textContent).toBe("Maya");
+    expect(voicesDialog.querySelector(".voices-properties-voice-chip-name")?.textContent).toBe(
+      "Maya"
+    );
     expect(
-      (container.querySelector(".voices-properties-generate-context-value") as HTMLElement | null)
+      (document.querySelector(".voices-properties-generate-context-value") as HTMLElement | null)
         ?.textContent
     ).toBe("Maya");
     expect(screen.queryByText(/Maya: Young, shy, introspective/i)).not.toBeInTheDocument();
@@ -2016,6 +1922,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /adam voice/i })).toHaveAttribute(

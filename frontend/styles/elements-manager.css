@@ -110,11 +110,13 @@
   align-items: center;
   justify-content: flex-end;
   align-self: start;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .elements-manager-shell--panel .elements-manage-header-actions > .elements-manage-create-btn,
-.elements-manager-shell--panel .elements-manage-header-actions > .elements-manage-delete-btn {
+.elements-manager-shell--panel .elements-manage-header-actions > .elements-manage-delete-btn,
+.elements-manager-shell--panel .elements-manage-header-actions > .elements-manage-save-btn {
   min-width: 108px;
   min-height: 40px;
   padding: 0 14px;
@@ -205,14 +207,6 @@
   border: 1px solid rgba(201, 205, 214, 0.05);
   border-radius: 16px;
   background: rgba(201, 205, 214, 0.05);
-}
-
-.elements-manager-shell--panel .elements-editor-column-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex: 0 0 auto;
-  margin-top: 12px;
 }
 
 .elements-manager-shell--panel .elements-manage-create-btn {

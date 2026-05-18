@@ -124,9 +124,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(onMessageClick).not.toHaveBeenCalled();
   });
 
-  it("applies assistant prompt outputs without triggering bubble click", () => {
-    const onMessageClick = vi.fn();
-    const onApplyOutputPrompt = vi.fn();
+  it("does not render assistant bubble action buttons when output generate is unavailable", () => {
     render(
       <AgentChatPanel
         messages={[
@@ -142,56 +140,13 @@ describe("AgentChatPanel prompt actions", () => {
         stagedPrompt="Assistant staged prompt."
         onInputChange={vi.fn()}
         onSend={vi.fn()}
-        onMessageClick={onMessageClick}
-        onApplyOutputPrompt={onApplyOutputPrompt}
-      />
-    );
-
-    const applyButtons = screen.getAllByRole("button", {
-      name: "Apply this agent output to the composer",
-    });
-    expect(applyButtons).toHaveLength(2);
-
-    fireEvent.click(applyButtons[0]);
-    fireEvent.click(applyButtons[1]);
-
-    expect(onApplyOutputPrompt).toHaveBeenNthCalledWith(1, {
-      messageId: "staged-agent-output",
-      prompt: "Assistant staged prompt.",
-      source: "staged",
-    });
-    expect(onApplyOutputPrompt).toHaveBeenNthCalledWith(2, {
-      messageId: "a-1",
-      prompt: "Assistant output one.",
-      source: "history",
-    });
-    expect(onMessageClick).not.toHaveBeenCalled();
-  });
-
-  it("does not render inline generate buttons when only apply output is available", () => {
-    render(
-      <AgentChatPanel
-        messages={[
-          {
-            id: "a-1",
-            role: "assistant",
-            content: "Assistant output one.",
-            outputPrompt: "Assistant output one.",
-            canUseAsPrompt: true,
-          },
-        ]}
-        input=""
-        stagedPrompt="Assistant staged prompt."
-        onInputChange={vi.fn()}
-        onSend={vi.fn()}
-        onApplyOutputPrompt={vi.fn()}
       />
     );
 
     expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Apply this agent output to the composer" })
-    ).toHaveLength(2);
+      screen.queryByRole("button", { name: "Apply this agent output to the composer" })
+    ).toBeNull();
   });
 
   it("disables small generate pills when output generate is disabled", () => {

@@ -246,7 +246,14 @@ export function PulsePresetsLibraryPanel({
                   >
                     <span className="pulse-presets-library-tile-head">
                       <span className="pulse-presets-library-tile-title">{preset.label}</span>
-                      {preset.isCustom ? (
+                      {preset.isBuiltIn ? (
+                        <span
+                          className="pulse-presets-library-custom-pill is-built-in"
+                          title="Built-in Pulse. It can't be edited, but you can still delete it from your library."
+                        >
+                          Built-in
+                        </span>
+                      ) : preset.isCustom ? (
                         <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
                       ) : null}
                     </span>

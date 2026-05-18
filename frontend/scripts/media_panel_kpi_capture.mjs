@@ -142,6 +142,22 @@ const getCaptureSurfaceSpec = (surface) => {
 
 const getRootTabConfig = (rootTab) => ROOT_TAB_CONFIG[rootTab] ?? null;
 
+export const selectRepresentativeOpenPhaseListSummary = (summaries) => {
+  const normalized = Array.isArray(summaries)
+    ? summaries.filter((summary) => summary && typeof summary === "object")
+    : [];
+  if (normalized.length === 0) return null;
+  return normalized.reduce((best, candidate) => {
+    if (!best) return candidate;
+    const bestRowCount = Number.isFinite(best?.rowCount) && best.rowCount > 0 ? best.rowCount : 0;
+    const candidateRowCount =
+      Number.isFinite(candidate?.rowCount) && candidate.rowCount > 0 ? candidate.rowCount : 0;
+    if (candidateRowCount > bestRowCount) return candidate;
+    if (candidateRowCount === bestRowCount) return candidate;
+    return best;
+  }, null);
+};
+
 const usage = () => {
   process.stdout.write(
     [
@@ -702,7 +718,7 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       firstMediaPaintP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       loadingStateVisibleMsP95:
         loadingStateVisibleMsP95 == null ? null : Math.round(loadingStateVisibleMsP95),
-      openToFirstMediaP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
+      openToFirstMediaP95Ms: null,
       stableContentSettleMsP95:
         stableContentSettleMsP95 == null ? null : Math.round(stableContentSettleMsP95),
       signBatchP95Ms: signAggregate?.signBatchP95Ms ?? null,
@@ -1192,7 +1208,7 @@ async function runPanelCapture({ baseUrl, headless, surface, rootTab }) {
       initialResolveRequestCount: resolveRequests.filter((entry) => entry.phase === "open").length,
       consoleEntries,
       openPhasePerfHandle,
-      openPhaseListSummary: openPhaseListSummaries[0] ?? null,
+      openPhaseListSummary: selectRepresentativeOpenPhaseListSummary(openPhaseListSummaries),
       openPhaseVisiblePreviewSummary,
       postTabPerfHandle,
       perfHandle: postTabPerfHandle,

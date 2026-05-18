@@ -41,6 +41,7 @@ type PendingPresetEditState = {
 type PendingPresetDeleteState = {
   presetId: ExpertEditPresetId;
   presetLabel: string;
+  isBuiltIn: boolean;
 };
 
 export function PresetsLibraryPanel({
@@ -220,7 +221,14 @@ export function PresetsLibraryPanel({
                 >
                   <span className="presets-library-tile-head">
                     <span className="presets-library-tile-title">{preset.label}</span>
-                    {preset.isCustom && !preset.hasOverride ? (
+                    {!preset.isCustom ? (
+                      <span
+                        className="presets-library-custom-pill is-built-in"
+                        title="Built-in preset. It can't be edited, but you can still delete it from your library."
+                      >
+                        Built-in
+                      </span>
+                    ) : !preset.hasOverride ? (
                       <span className="presets-library-custom-pill" aria-hidden="true">
                         Custom
                       </span>
@@ -228,22 +236,21 @@ export function PresetsLibraryPanel({
                   </span>
                   <span className="presets-library-tile-prompt">{preset.prompt}</span>
                 </button>
-                {preset.isCustom ? (
-                  <button
-                    type="button"
-                    className="presets-library-tile-delete"
-                    aria-label={`Delete preset: ${preset.label}`}
-                    onClick={() => {
-                      setLocalSaveError(null);
-                      setPendingPresetDelete({
-                        presetId: preset.presetId,
-                        presetLabel: preset.label,
-                      });
-                    }}
-                  >
-                    <TrashSimple size={11} weight="bold" aria-hidden="true" />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="presets-library-tile-delete"
+                  aria-label={`Delete preset: ${preset.label}`}
+                  onClick={() => {
+                    setLocalSaveError(null);
+                    setPendingPresetDelete({
+                      presetId: preset.presetId,
+                      presetLabel: preset.label,
+                      isBuiltIn: !preset.isCustom,
+                    });
+                  }}
+                >
+                  <TrashSimple size={11} weight="bold" aria-hidden="true" />
+                </button>
               </article>
             );
           })}
@@ -372,10 +379,17 @@ export function PresetsLibraryPanel({
           <ConfirmationModal
             title="Delete this preset?"
             body={
-              <p>
-                <strong>{pendingPresetDelete.presetLabel}</strong> will be removed permanently from
-                your presets library.
-              </p>
+              <>
+                <p>
+                  <strong>{pendingPresetDelete.presetLabel}</strong>{" "}
+                  {pendingPresetDelete.isBuiltIn
+                    ? "will be removed from your personal presets library."
+                    : "will be removed permanently from your presets library."}
+                </p>
+                {pendingPresetDelete.isBuiltIn ? (
+                  <p>This does not delete the shared built-in for other users.</p>
+                ) : null}
+              </>
             }
             confirmLabel="Delete"
             confirmBusyLabel={deleteSubmitting ? "Deleting..." : undefined}

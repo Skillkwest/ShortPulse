@@ -242,6 +242,7 @@ export const useExpertEditPresetPanelPreference = ({
     latestValueRef,
     persistValue,
   } = useUserPreferenceSync<ExpertEditPresetPreferenceValue>({
+    readLocalBeforeUserResolution: true,
     defaultValue: DEFAULT_PRESET_PREFERENCE_VALUE,
     normalizeValue: normalizePreferenceValue,
     readLocal: readLocalPreferenceValue,

@@ -15,14 +15,13 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateRequest,
+  AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
 import { StylesControl } from "../StylesControl";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
 import { getModelConfig } from "../../logic/modelRegistry";
-import { BeginnerCreatePanelView } from "./BeginnerCreatePanelView";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
 import {
   getCreateCharacterInitials,
@@ -70,6 +69,7 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  disableAgentOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
@@ -84,11 +84,9 @@ export type StandardCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onApplyAgentOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
+  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
   onClearAgentChat?: () => void;
-  beginnerMode?: boolean;
-  expertCreateUiEligible?: boolean;
   imageResolution?: string;
   onImageResolutionChange?: (value: string) => void;
   characterOptions?: CreateCharacterOption[];
@@ -111,17 +109,6 @@ export type StandardCreatePropertiesPanelProps = {
   stylesCatalog?: readonly ExpertEditStyleTile[];
   createModeToggle?: React.ReactNode;
   onOpenPresetsLibrary?: () => void;
-};
-
-type ComposeSendCardProps = {
-  agentEnabled?: boolean;
-  agentError?: string;
-  onGenerate: () => void;
-  costCredits?: number | null;
-  isPromptGenerating?: boolean;
-  isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
-  beginnerMode?: boolean;
 };
 
 type CharacterPickerModalProps = {
@@ -571,14 +558,13 @@ export function StandardCreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
-  onApplyAgentOutputPrompt,
+  onGenerateOutputPrompt,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  disableAgentOutputGenerate,
   outputGenerateCostCredits = null,
   hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
-  beginnerMode = false,
-  expertCreateUiEligible = false,
   imageResolution,
   onImageResolutionChange,
   characterOptions = [],
@@ -601,8 +587,6 @@ export function StandardCreatePropertiesPanel({
   onGenerate,
   guardrailReason,
 }: StandardCreatePropertiesPanelProps) {
-  const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
-  const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = modelLabel;
   const effectiveModelLogoSrc = modelLogoSrc;
@@ -614,13 +598,6 @@ export function StandardCreatePropertiesPanel({
     }
     return aspectOptions;
   }, [modelConfig]);
-  const [collapsedSteps, setCollapsedSteps] = React.useState<{
-    model: boolean;
-    prompt: boolean;
-  }>({
-    model: false,
-    prompt: false,
-  });
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
     surfaceId: "create-character-picker-trigger",
   });
@@ -628,7 +605,6 @@ export function StandardCreatePropertiesPanel({
     void refreshCharacterOptions?.();
   }, [refreshCharacterOptions]);
   const {
-    characterStepSubtitle,
     isCharacterPickerOpen,
     openCharacterPicker,
     closeCharacterPicker,
@@ -639,7 +615,6 @@ export function StandardCreatePropertiesPanel({
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
   } = useCreateCharacterModeController({
-    beginnerMode,
     characterModeEnabled,
     characterOptions,
     selectedCharacterId,
@@ -677,26 +652,10 @@ export function StandardCreatePropertiesPanel({
     clearAvatarFailure(selectedCharacterId);
   }, [clearAvatarFailure, selectedCharacterId]);
 
-  const toggleStep = (step: "model" | "prompt") => {
-    setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
-    onStepActionClick?.(step);
-  };
-
   const handleCreateModelOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     const context: ModelModalContext | null = "text-image";
     onModelPickerOpen("create-model", event.currentTarget, context);
     onStepActionClick?.("model");
-  };
-
-  const expandIfCollapsed = (step: "model" | "prompt") => {
-    setCollapsedSteps((prev) => {
-      if (!prev[step]) {
-        return prev;
-      }
-      const next = { ...prev, [step]: false };
-      onStepActionClick?.(step);
-      return next;
-    });
   };
 
   const selectorViewState = useMemo(
@@ -766,12 +725,13 @@ export function StandardCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
-    onApplyOutputPrompt: onApplyAgentOutputPrompt,
+    onGenerateOutputPrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
-    disableOutputGenerate,
+    disableOutputGenerate: disableAgentOutputGenerate ?? disableOutputGenerate,
     outputGenerateCostCredits,
-    outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
+    outputGenerateGuardrailReason:
+      (disableAgentOutputGenerate ?? disableOutputGenerate) ? guardrailReason : null,
     hideOutputGenerateControls: false,
     chatOnly: true,
   } satisfies Omit<
@@ -779,18 +739,7 @@ export function StandardCreatePropertiesPanel({
     "stepNumber" | "isCollapsed" | "onToggleCollapse"
   >;
 
-  const beginnerPromptStepProps: React.ComponentProps<typeof PromptStep> = {
-    ...sharedPromptStepProps,
-    stepNumber: promptStepNumber,
-    title: "Build Your Prompt",
-    subtitle: "Describe what you want to make. Enter to send, Shift+Enter for a new line.",
-    beginnerSubtitle:
-      "Send simple prompts to the agent to be refined into a high quality text prompt.",
-    isCollapsed: collapsedSteps.prompt,
-    onToggleCollapse: () => toggleStep("prompt"),
-    beginnerMode,
-  };
-  const expertPromptStepProps: React.ComponentProps<typeof PromptStep> = {
+  const promptStepProps: React.ComponentProps<typeof PromptStep> = {
     ...sharedPromptStepProps,
     stepNumber: "1",
     title: "Ask anything",
@@ -799,7 +748,6 @@ export function StandardCreatePropertiesPanel({
     onToggleCollapse: () => {
       // Expert mode keeps chat composer always open.
     },
-    beginnerMode: false,
     className: `create-expert-prompt-step ${
       characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
     }`,
@@ -815,93 +763,64 @@ export function StandardCreatePropertiesPanel({
     agentInputCollapseOnBlur: true,
     hideChatModeToggle: false,
     composerLeadingContent: (
-      <StylesControl
-        isOpen={isStylesPanelOpen}
-        selectedStyleId={selectedStyleId}
-        styles={stylesCatalog}
-        onToggle={onStylesPanelToggle}
-      />
+      <div className="create-expert-inline-leading-controls">
+        <div className="create-expert-inline-generate">
+          <AgentGenerateButton
+            onClick={onGenerate}
+            disabled={isGenerateDisabled}
+            isBusy={isPromptGenerating}
+            cost={costCredits != null ? costCredits : "—"}
+          />
+        </div>
+        <StylesControl
+          isOpen={isStylesPanelOpen}
+          selectedStyleId={selectedStyleId}
+          styles={stylesCatalog}
+          onToggle={onStylesPanelToggle}
+        />
+      </div>
     ),
   };
 
   return (
     <>
-      {showExpertView ? (
-        <StandardCreatePanelView
-          promptStepProps={expertPromptStepProps}
-          onGenerate={onGenerate}
-          costCredits={costCredits}
-          isPromptGenerating={isPromptGenerating}
-          isGenerateDisabled={isGenerateDisabled}
-          guardrailReason={guardrailReason}
-          characterModeEnabled={characterModeEnabled}
-          onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
-          onCharacterPickerOpen={openCharacterPicker}
-          characterSelectDisabled={characterSelectDisabled}
-          isCharacterSelectionEmpty={isCharacterSelectionEmpty}
-          selectedCharacterName={selectedCharacterName}
-          selectedCharacterDisplayName={selectedCharacterDisplayName}
-          selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
-          selectedCharacterInitials={selectedCharacterInitials}
-          onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
-          onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
-          isCharacterPickerOpen={isCharacterPickerOpen}
-          isCreateModelPickerOpen={isCreateModelPickerOpen}
-          isModelSelectionEmpty={isModelSelectionEmpty}
-          onCreateModelOpen={handleCreateModelOpen}
-          effectiveModelLogoSrc={effectiveModelLogoSrc}
-          useUnoptimizedModelLogo={useUnoptimizedModelLogo}
-          effectiveModelLabel={effectiveModelLabel}
-          aspect={aspect}
-          aspectOptionsForModel={aspectOptionsForModel}
-          onAspectChange={onAspectChange}
-          shouldShowImageResolutionCard={shouldShowImageResolutionCard}
-          imageResolutionValue={imageResolutionValue}
-          imageResolutionOptions={imageResolutionOptions}
-          onImageResolutionChange={(value) => {
-            onImageResolutionChange?.(value);
-            onStepActionClick?.("imageSettings");
-          }}
-          createModeToggle={createModeToggle}
-        />
-      ) : (
-        <BeginnerCreatePanelView
-          beginnerMode={beginnerMode}
-          promptStepProps={beginnerPromptStepProps}
-          characterStepSubtitle={characterStepSubtitle}
-          characterModeEnabled={characterModeEnabled}
-          onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
-          onCharacterPickerOpen={openCharacterPicker}
-          characterSelectDisabled={characterSelectDisabled}
-          isCharacterSelectionEmpty={isCharacterSelectionEmpty}
-          selectedCharacterName={selectedCharacterName}
-          selectedCharacterDisplayName={selectedCharacterDisplayName}
-          selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
-          selectedCharacterInitials={selectedCharacterInitials}
-          onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
-          onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
-          isCharacterPickerOpen={isCharacterPickerOpen}
-          collapsedModel={collapsedSteps.model}
-          onToggleModel={() => toggleStep("model")}
-          onExpandModel={() => expandIfCollapsed("model")}
-          isCreateModelPickerOpen={isCreateModelPickerOpen}
-          isModelSelectionEmpty={isModelSelectionEmpty}
-          onCreateModelOpen={handleCreateModelOpen}
-          effectiveModelLogoSrc={effectiveModelLogoSrc}
-          useUnoptimizedModelLogo={useUnoptimizedModelLogo}
-          effectiveModelLabel={effectiveModelLabel}
-          aspect={aspect}
-          aspectOptionsForModel={aspectOptionsForModel}
-          onAspectChange={onAspectChange}
-          shouldShowImageResolutionCard={shouldShowImageResolutionCard}
-          imageResolutionValue={imageResolutionValue}
-          imageResolutionOptions={imageResolutionOptions}
-          onImageResolutionChange={(value) => {
-            onImageResolutionChange?.(value);
-            onStepActionClick?.("imageSettings");
-          }}
-        />
-      )}
+      <StandardCreatePanelView
+        promptStepProps={promptStepProps}
+        onGenerate={onGenerate}
+        costCredits={costCredits}
+        isPromptGenerating={isPromptGenerating}
+        isGenerateDisabled={isGenerateDisabled}
+        guardrailReason={guardrailReason}
+        characterModeEnabled={characterModeEnabled}
+        onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
+        onCharacterPickerOpen={openCharacterPicker}
+        characterSelectDisabled={characterSelectDisabled}
+        isCharacterSelectionEmpty={isCharacterSelectionEmpty}
+        selectedCharacterName={selectedCharacterName}
+        selectedCharacterDisplayName={selectedCharacterDisplayName}
+        selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
+        selectedCharacterInitials={selectedCharacterInitials}
+        onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
+        onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
+        isCharacterPickerOpen={isCharacterPickerOpen}
+        isCreateModelPickerOpen={isCreateModelPickerOpen}
+        isModelSelectionEmpty={isModelSelectionEmpty}
+        onCreateModelOpen={handleCreateModelOpen}
+        effectiveModelLogoSrc={effectiveModelLogoSrc}
+        useUnoptimizedModelLogo={useUnoptimizedModelLogo}
+        effectiveModelLabel={effectiveModelLabel}
+        aspect={aspect}
+        aspectOptionsForModel={aspectOptionsForModel}
+        onAspectChange={onAspectChange}
+        shouldShowImageResolutionCard={shouldShowImageResolutionCard}
+        imageResolutionValue={imageResolutionValue}
+        imageResolutionOptions={imageResolutionOptions}
+        onImageResolutionChange={(value) => {
+          onImageResolutionChange?.(value);
+          onStepActionClick?.("imageSettings");
+        }}
+        createModeToggle={createModeToggle}
+      />
       <CharacterPickerModal
         isOpen={isCharacterPickerOpen}
         characterModeEnabled={characterModeEnabled}
@@ -917,45 +836,5 @@ export function StandardCreatePropertiesPanel({
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
       />
     </>
-  );
-}
-
-export function ComposeSendCard({
-  agentEnabled = false,
-  agentError,
-  onGenerate,
-  costCredits,
-  isPromptGenerating = false,
-  isGenerateDisabled = false,
-  guardrailReason,
-  beginnerMode = false,
-}: ComposeSendCardProps) {
-  const costValue = costCredits != null ? costCredits : "—";
-  const inlineGuardrailReason = guardrailReason;
-
-  return (
-    <div className="step-card prompt-step generate-step-card">
-      <div className="step-card-header">
-        {beginnerMode && <span className="step-badge">4</span>}
-        <div className="step-header-copy">
-          {beginnerMode ? <p className="step-title">Generate</p> : null}
-          <span className="step-subtitle tiny helper-text">
-            Run generation with the current prompt and selections.
-          </span>
-        </div>
-      </div>
-      <div className="create-controls single-control">
-        <AgentGenerateButton
-          onClick={onGenerate}
-          disabled={isGenerateDisabled}
-          isBusy={isPromptGenerating}
-          cost={costValue}
-        />
-        {isGenerateDisabled && inlineGuardrailReason ? (
-          <div className="inline-warning-hint">{inlineGuardrailReason}</div>
-        ) : null}
-        {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
-      </div>
-    </div>
   );
 }

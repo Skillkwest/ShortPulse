@@ -162,4 +162,31 @@ describe("generatedOutputHydration", () => {
       "local-upload",
     ]);
   });
+
+  it("prunes unmatched failed canonical generated outputs already in state", () => {
+    const existing = [
+      createOutput({
+        id: "generated:gen-failed",
+        generationId: "gen-failed",
+        taskId: "req-failed",
+        taskState: "fail",
+        mediaSource: "generated",
+      }),
+      createOutput({ id: "local-upload" }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-success",
+        generationId: "gen-success",
+        taskId: "req-success",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated).map((output) => output.id)).toEqual([
+      "generated:gen-success",
+      "local-upload",
+    ]);
+  });
 });

@@ -1462,4 +1462,103 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
   });
+
+  it("drops restored transient direct-request failures without durable authority", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-voiceover-fail",
+              prompt: "voiceover",
+              mode: "audio",
+              aspect: "audio",
+              model: "ElevenLabs Voiceover",
+              modelId: "eleven_multilingual_v2",
+              provider: "elevenlabs",
+              status: "ready",
+              timestamp: "Failed",
+              mediaSource: "generated",
+              submissionMode: "direct-request",
+              taskState: "fail",
+              errorMessage: "Unable to generate speech",
+              errorMessageShort: "Unknown error",
+              errorDetail: "Unknown error",
+            },
+          ],
+          activeOutputId: "out-voiceover-fail",
+        },
+      })
+    );
+
+    expect(payload.outputs.active).toEqual([]);
+    expect(payload.outputs.activeOutputId).toBeNull();
+  });
+
+  it("drops legacy restored direct-model failures even when submissionMode was not persisted", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-legacy-voiceover-fail",
+              prompt: "voiceover",
+              mode: "audio",
+              aspect: "audio",
+              model: "ElevenLabs Voiceover",
+              modelId: "eleven_multilingual_v2",
+              provider: "elevenlabs",
+              status: "ready",
+              timestamp: "Failed",
+              mediaSource: "generated",
+              taskState: "fail",
+              errorMessage: "Unable to generate speech",
+              errorMessageShort: "Unknown error",
+              errorDetail: "Unknown error",
+            },
+          ],
+          activeOutputId: "out-legacy-voiceover-fail",
+        },
+      })
+    );
+
+    expect(payload.outputs.active).toEqual([]);
+    expect(payload.outputs.activeOutputId).toBeNull();
+  });
+
+  it("drops restored unsettled generated audio failures even when task identity exists", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-tasked-voiceover-fail",
+              prompt: "voiceover",
+              mode: "audio",
+              aspect: "audio",
+              model: "ElevenLabs Voiceover",
+              modelId: "eleven_multilingual_v2",
+              provider: "elevenlabs",
+              status: "ready",
+              timestamp: "Failed",
+              mediaSource: "generated",
+              taskId: "task-voiceover-fail",
+              sourceRef: "source-voiceover-fail",
+              taskState: "fail",
+              errorMessage: "Unable to generate speech",
+              errorMessageShort: "Unknown error",
+              errorDetail: "Unknown error",
+            },
+          ],
+          activeOutputId: "out-tasked-voiceover-fail",
+        },
+      })
+    );
+
+    expect(payload.outputs.active).toEqual([]);
+    expect(payload.outputs.activeOutputId).toBeNull();
+  });
 });

@@ -198,6 +198,139 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("persists direct-request failure metadata when durable output payload exists", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "audio",
+      selectedTool: "text-to-speech",
+      prompt: "voiceover",
+      model: "eleven_multilingual_v2",
+      aspect: "audio",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          mode: "audio",
+          aspect: "audio",
+          model: "ElevenLabs Voiceover",
+          modelId: "eleven_multilingual_v2",
+          provider: "elevenlabs",
+          mediaSource: "generated",
+          submissionMode: "direct-request",
+          taskState: "fail",
+          errorMessage: "Unable to generate speech",
+          errorMessageShort: "Unknown error",
+          errorDetail: "Unknown error",
+          previewUrl: "https://cdn.example.com/audio-preview.mp3",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        submissionMode: "direct-request",
+        errorMessage: "Unable to generate speech",
+        errorMessageShort: "Unknown error",
+        errorDetail: "Unknown error",
+      })
+    );
+  });
+
+  it("omits unsettled failed generated audio outputs from persisted snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "audio",
+      selectedTool: "text-to-speech",
+      prompt: "voiceover",
+      model: "eleven_multilingual_v2",
+      aspect: "audio",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-audio-fail",
+          mode: "audio",
+          aspect: "audio",
+          model: "ElevenLabs Voiceover",
+          modelId: "eleven_multilingual_v2",
+          provider: "elevenlabs",
+          mediaSource: "generated",
+          taskState: "fail",
+          taskId: "task-audio-fail",
+          sourceRef: "source-audio-fail",
+          errorMessage: "Unable to generate speech",
+          errorMessageShort: "Unknown error",
+          errorDetail: "Unknown error",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-audio-fail",
+      curatedReferenceIds: ["out-audio-fail"],
+      removedFromAllRefsIds: ["out-audio-fail"],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.outputs.active).toEqual([]);
+    expect(snapshot.outputs.activeOutputId).toBeNull();
+    expect(snapshot.outputs.curatedReferenceIds).toEqual([]);
+    expect(snapshot.outputs.removedFromAllRefsIds).toEqual([]);
+  });
+
   it("serializes legacy image attachments into one canonical preview url", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "legacy-image-attachment-session",
@@ -991,6 +1124,83 @@ describe("sessionSnapshot", () => {
     if (projectSnapshot.schemaVersion === 2) {
       expect(projectSnapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
     }
+  });
+
+  it("removes failed outputs from project workspace snapshots and prunes dependent ids", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-fail-filter-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-success",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/success.png",
+        }),
+        createOutput({
+          id: "out-fail-active",
+          taskState: "fail",
+          errorMessage: "Generation failed",
+          errorMessageShort: "Generation failed",
+        }),
+      ],
+      archivedOutputs: [
+        createOutput({
+          id: "out-fail-archived",
+          taskState: "fail",
+          errorMessage: "Generation failed",
+          errorMessageShort: "Generation failed",
+        }),
+      ],
+      activeOutputId: "out-fail-active",
+      curatedReferenceIds: ["out-success", "out-fail-active", "out-fail-archived"],
+      removedFromAllRefsIds: ["out-fail-active", "out-fail-archived"],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+
+    expect(projectSnapshot.outputs.active).toHaveLength(1);
+    expect(projectSnapshot.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        id: "out-success",
+      })
+    );
+    expect(projectSnapshot.outputs.archived).toEqual([]);
+    expect(projectSnapshot.outputs.activeOutputId).toBeNull();
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual(["out-success"]);
+    expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual([]);
   });
 
   it("patches workspace-selected character state and recomputes snapshot metadata", () => {

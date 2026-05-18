@@ -2,30 +2,6 @@
  * AI Studio voices properties panel.
  * Keeps the Voices workflow visually aligned with the TTS layout while remaining fully isolated.
  */
-@property --voices-slider-progress {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 50%;
-}
-
-@property --voices-slider-accent-start {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: rgba(149, 235, 228, 0.98);
-}
-
-@property --voices-slider-accent-end {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: rgba(105, 220, 203, 0.9);
-}
-
-@property --voices-slider-accent-glow {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: rgba(101, 216, 217, 0.22);
-}
-
 .voices-properties-panel {
   --voices-accent: #69dccb;
   --voices-split-mode-transition-duration: 240ms;
@@ -45,22 +21,11 @@
 }
 
 .voices-properties-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.36fr) minmax(304px, 0.64fr);
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-}
-
-.voices-properties-shell > .voices-properties-column-shell:first-child {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.voices-properties-shell > .voices-properties-column-shell--aside {
-  grid-column: 2;
-  grid-row: 1;
 }
 
 .voices-properties-column-shell {
@@ -76,16 +41,7 @@
   overflow: hidden;
 }
 
-.voices-properties-column-shell--aside {
-  padding: 10px;
-  border-radius: 0;
-  border: none;
-  background: var(--ai-voice-workflow-panel-bg);
-  box-shadow: none;
-}
-
-.voices-properties-main,
-.voices-properties-aside {
+.voices-properties-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -99,19 +55,6 @@
   padding-top: 16px;
   padding-right: 0;
   padding-left: 2px;
-}
-
-.voices-properties-aside {
-  overflow: auto;
-  padding: 10px 4px 32px 8px;
-}
-
-.voices-properties-voice-library {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .voices-create-modal-backdrop {
@@ -141,6 +84,91 @@
 
 .voices-create-modal--clone {
   width: min(920px, calc(100vw - 48px));
+}
+
+.voices-library-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: rgba(4, 6, 11, 0.76);
+  z-index: var(--ai-studio-z-modal-backdrop);
+}
+
+.voices-library-modal {
+  width: min(920px, calc(100vw - 48px));
+  max-height: min(760px, calc(100vh - 52px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid #232a31;
+  background: #14181d;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.52);
+  z-index: var(--ai-studio-z-modal-content);
+  animation: voices-create-modal-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.voices-library-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #232a31;
+}
+
+.voices-library-modal-title-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voices-library-modal-title {
+  margin: 0;
+  color: #f7fbff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.voices-library-modal-subtitle {
+  margin: 0;
+  max-width: 640px;
+  color: rgba(212, 223, 236, 0.72);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.voices-library-modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.voices-library-modal-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 18px 20px 20px;
+}
+
+.voices-library-modal-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.voices-library-modal-content .voices-properties-voice-grid {
+  padding-top: 0;
 }
 
 @keyframes voices-create-modal-in {
@@ -654,7 +682,7 @@
   min-height: 176px;
 }
 
-.voices-properties-voice-library-header {
+.voices-properties-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -678,6 +706,7 @@
   min-height: 44px;
 }
 
+.voices-properties-library-open-btn,
 .voices-properties-library-delete-btn,
 .voices-properties-library-create-btn {
   position: relative;
@@ -712,13 +741,7 @@
   color: rgba(255, 206, 206, 0.94);
 }
 
-.voices-properties-library-delete-btn:hover {
-  border-color: rgba(255, 168, 168, 0.42);
-  background: rgba(41, 24, 29, 0.92);
-  color: rgba(255, 223, 223, 0.98);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
-}
-
+.voices-properties-library-open-btn:hover,
 .voices-properties-library-create-btn:hover {
   border-color: rgba(245, 221, 174, 0.62);
   background: rgba(28, 32, 37, 0.98);
@@ -726,6 +749,15 @@
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
 }
 
+.voices-properties-library-delete-btn:hover {
+  border-color: rgba(255, 168, 168, 0.42);
+  background: rgba(41, 24, 29, 0.92);
+  color: rgba(255, 223, 223, 0.98);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.voices-properties-library-open-btn:focus,
+.voices-properties-library-open-btn:focus-visible,
 .voices-properties-library-delete-btn:focus,
 .voices-properties-library-delete-btn:focus-visible,
 .voices-properties-library-create-btn:focus,
@@ -734,6 +766,7 @@
   box-shadow: none;
 }
 
+.voices-properties-library-open-btn:active,
 .voices-properties-library-delete-btn:active,
 .voices-properties-library-create-btn:active {
   transform: none;
@@ -1012,11 +1045,6 @@
   transform: translateX(1px);
 }
 
-.voices-properties-horizontal-divider-wrap {
-  min-height: 12px;
-  padding: 2px 0;
-}
-
 .voices-properties-script-divider {
   width: 100%;
   height: 1px;
@@ -1043,26 +1071,12 @@
 
 .voices-properties-compose-mode-switcher {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   min-width: 0;
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
   width: min(320px, 100%);
-}
-
-.voices-properties-main.is-mode-transitioning .voices-properties-voice-library,
-.voices-properties-main.is-mode-transitioning .voices-properties-compose-area {
-  transition: flex-basis var(--voices-split-mode-transition-duration)
-    var(--voices-split-mode-transition-easing);
-  will-change: flex-basis;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .voices-properties-main.is-mode-transitioning .voices-properties-voice-library,
-  .voices-properties-main.is-mode-transitioning .voices-properties-compose-area {
-    transition: none;
-  }
 }
 
 .voices-properties-script-input-shell {
@@ -3160,13 +3174,7 @@
 
 @media (max-width: 1180px) {
   .voices-properties-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .voices-properties-shell > .voices-properties-column-shell:first-child,
-  .voices-properties-shell > .voices-properties-column-shell--aside {
-    grid-column: auto;
-    grid-row: auto;
+    min-height: 0;
   }
 }
 

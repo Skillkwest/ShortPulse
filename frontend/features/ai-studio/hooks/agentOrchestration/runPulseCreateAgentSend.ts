@@ -253,7 +253,9 @@ export const runPulseCreateAgentSend = async ({
         updateOptimisticAttachmentDelivery(
           preparedImageResult.failedIds,
           "failed",
-          "Image upload/preparation failed. Remove this image and try again."
+          (attachment) =>
+            preparedImageResult.failureMessages[attachment.id] ??
+            "Image upload/preparation failed. Remove this image and try again."
         );
         setAgentAttachmentError(
           "One or more attached images failed to prepare. Remove failed images and try again."

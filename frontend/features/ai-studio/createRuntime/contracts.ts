@@ -9,7 +9,7 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateRequest,
+  AgentOutputGenerateInput,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import type { ModelModalContext } from "../components/ModelModal";
@@ -73,7 +73,6 @@ export type StandardCreateAgentRuntimeActions = {
   onRemoveAgentAttachment: (id: string) => void;
   onClearAgentAttachments: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
   onClearAgentChat: () => void;
   onPrimarySubmit: () => void;
 };
@@ -92,6 +91,7 @@ export type StandardCreateRuntimeProps = {
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
+  disableAgentOutputGenerate?: boolean;
   generationGuardrail: string | null;
   useReferenceImageIndicator: boolean;
   isModelModalOpen: boolean;
@@ -103,12 +103,11 @@ export type StandardCreateRuntimeProps = {
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   imageResolution: string;
-  beginnerCreateMode: boolean;
-  expertCreateUiEligible: boolean;
   isStylesPanelOpen?: boolean;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
   onPromptChange: (value: string) => void;
+  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (
     anchorId: string,
@@ -158,7 +157,6 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
-  handleApplyAgentOutputPrompt: (request: AgentOutputGenerateRequest) => void;
   handleClearAgentChat: () => void;
   hydrateFromSessionAgentSnapshot: (
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
@@ -212,7 +210,6 @@ export type PulseCreateRuntimeProps = {
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
-  expertCreateUiEligible: boolean;
   onPulsePromptChange: (value: string) => void;
   onActivePresetIdChange: (
     nextPresetId: string | null,

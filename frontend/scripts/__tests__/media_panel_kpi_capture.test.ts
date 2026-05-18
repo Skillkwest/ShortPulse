@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildPacketFromPanelCapture, parseArgs } from "../media_panel_kpi_capture.mjs";
+import {
+  buildPacketFromPanelCapture,
+  parseArgs,
+  selectRepresentativeOpenPhaseListSummary,
+} from "../media_panel_kpi_capture.mjs";
 
 describe("media_panel_kpi_capture", () => {
   const createCaptureSample = (overrides = {}) => ({
@@ -118,7 +122,7 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.surface).toBe("ai-studio-panel");
     expect(packet.sampleCount).toBe(5);
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1668);
-    expect(packet.metrics.openToFirstMediaP95Ms).toBe(1668);
+    expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
     expect(packet.metrics.loadingStateVisibleMsP95).toBe(1162);
     expect(packet.metrics.stableContentSettleMsP95).toBe(1872);
     expect(packet.metrics.stateFlipCountPerOpen).toBe(2);
@@ -462,6 +466,75 @@ describe("media_panel_kpi_capture", () => {
           fileType: "audio/mpeg",
           source: "upload",
           hasThumbVariant: false,
+          hasPosterVariant: false,
+          hasPreviewVariant: false,
+        },
+      ],
+    });
+  });
+
+  it("chooses the richest open-phase list payload when one run emits multiple list responses", () => {
+    const selected = selectRepresentativeOpenPhaseListSummary([
+      {
+        mediaKind: "all",
+        profile: "expanded",
+        rowCount: 12,
+        includeLibraryTotalCount: false,
+        countsByKind: { image: 4, video: 4, audio: 4, other: 0 },
+        withThumbVariantCount: 4,
+        withPosterVariantCount: 4,
+        withPreviewVariantCount: 0,
+        withAnyDurablePreviewCount: 8,
+        signedSeedCount: 0,
+        firstRowsSample: [
+          {
+            fileType: "audio/mpeg",
+            source: "upload",
+            hasThumbVariant: false,
+            hasPosterVariant: false,
+            hasPreviewVariant: false,
+          },
+        ],
+      },
+      {
+        mediaKind: "all",
+        profile: "expanded",
+        rowCount: 36,
+        includeLibraryTotalCount: true,
+        countsByKind: { image: 20, video: 10, audio: 6, other: 0 },
+        withThumbVariantCount: 20,
+        withPosterVariantCount: 10,
+        withPreviewVariantCount: 8,
+        withAnyDurablePreviewCount: 28,
+        signedSeedCount: 0,
+        firstRowsSample: [
+          {
+            fileType: "image/png",
+            source: "upload",
+            hasThumbVariant: true,
+            hasPosterVariant: false,
+            hasPreviewVariant: false,
+          },
+        ],
+      },
+    ]);
+
+    expect(selected).toEqual({
+      mediaKind: "all",
+      profile: "expanded",
+      rowCount: 36,
+      includeLibraryTotalCount: true,
+      countsByKind: { image: 20, video: 10, audio: 6, other: 0 },
+      withThumbVariantCount: 20,
+      withPosterVariantCount: 10,
+      withPreviewVariantCount: 8,
+      withAnyDurablePreviewCount: 28,
+      signedSeedCount: 0,
+      firstRowsSample: [
+        {
+          fileType: "image/png",
+          source: "upload",
+          hasThumbVariant: true,
           hasPosterVariant: false,
           hasPreviewVariant: false,
         },

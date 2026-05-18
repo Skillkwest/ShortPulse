@@ -500,6 +500,12 @@
   text-transform: uppercase;
 }
 
+.presets-library-custom-pill.is-built-in {
+  border-color: rgba(255, 191, 36, 0.34);
+  background: rgba(196, 123, 40, 0.12);
+  color: rgba(255, 228, 187, 0.94);
+}
+
 .presets-library-tile-delete {
   position: absolute;
   top: 8px;

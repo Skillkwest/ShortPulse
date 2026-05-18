@@ -71,6 +71,8 @@ export const useAiStudioStateOutputControllers = ({
     setReferenceProjectionState,
     setActiveOutputId,
     deleteOutputFromLifecycle,
+    findOutputById,
+    updateOutputById,
     pendingFinalizeRemovalIdsRef,
   });
 

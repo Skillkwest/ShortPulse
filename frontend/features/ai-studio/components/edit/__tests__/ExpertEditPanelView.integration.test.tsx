@@ -107,7 +107,6 @@ describe("ExpertEditPanelView interaction flow", () => {
   it("creates a second layer from a stage drop and preserves it through Center", async () => {
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -170,7 +169,6 @@ describe("ExpertEditPanelView interaction flow", () => {
   it("moves keyboard focus onto the inline stage when the canvas is pressed", async () => {
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -221,7 +219,6 @@ describe("ExpertEditPanelView interaction flow", () => {
 
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -292,7 +289,6 @@ describe("ExpertEditPanelView interaction flow", () => {
   it("keeps zoom state in sync between inline and expanded modal surfaces", async () => {
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -362,7 +358,6 @@ describe("ExpertEditPanelView interaction flow", () => {
   it("does not show the transform box when edit opens with a non-image reference URL", async () => {
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -423,7 +418,6 @@ describe("ExpertEditPanelView interaction flow", () => {
 
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
@@ -469,7 +463,6 @@ describe("ExpertEditPanelView interaction flow", () => {
   it("does not reopen a stale transform box when edit starts with no current image authority", async () => {
     render(
       <ExpertEditPanelView
-        expertEditEligible
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"

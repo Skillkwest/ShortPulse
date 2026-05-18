@@ -1665,6 +1665,59 @@ describe("generatedMediaAuthority", () => {
     expect(projectionBuilder.in).not.toHaveBeenCalled();
   });
 
+  it("skips failed project-scoped projection outputs during active hydration", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-failed-1",
+          project_id: "project-1",
+          request_id: "req-project-failed-1",
+          source_ref: "source-project-failed-1",
+          provider: "elevenlabs",
+          model_id: "eleven_multilingual_v2",
+          display_prompt: "A failed voiceover",
+          preview_url: null,
+          result_urls: [],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "fail",
+          queue_state: "failed",
+          error_message_short: "Unknown error",
+          error_detail: "Unknown error",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:14:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([]);
+  });
+
   it("requires project generation association before reconciling project-route outputs", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: {

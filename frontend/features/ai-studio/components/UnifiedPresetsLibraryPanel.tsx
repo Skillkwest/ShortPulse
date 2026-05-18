@@ -36,8 +36,8 @@ const FILTER_OPTIONS: ReadonlyArray<{
   label: string;
 }> = [
   { id: "all", label: "All" },
-  { id: "pulses", label: "Pulse Catalog" },
-  { id: "prompt-presets", label: "Prompt Presets" },
+  { id: "pulses", label: "Pulses" },
+  { id: "prompt-presets", label: "Edit Presets" },
 ];
 
 /**
@@ -97,7 +97,7 @@ export function UnifiedPresetsLibraryPanel({
                   </span>
                 </button>
                 <h3 id="presets-pulses-title" className="merged-presets-library-section-title">
-                  Pulse Catalog
+                  Pulses
                 </h3>
               </div>
             </div>

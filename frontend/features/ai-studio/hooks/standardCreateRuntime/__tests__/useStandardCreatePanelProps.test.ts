@@ -60,8 +60,6 @@ describe("buildStandardCreatePanelProps", () => {
     resolveCharacterAvatarUrlById: undefined,
     imageResolution: "default",
     setImageResolution: vi.fn(),
-    beginnerCreateMode: false,
-    expertCreateUiEligible: true,
     isStylesPanelOpen: false,
     onStylesPanelToggle: vi.fn(),
     selectedStyleId: null,
@@ -92,5 +90,17 @@ describe("buildStandardCreatePanelProps", () => {
 
     expect(props.isGenerateDisabled).toBe(true);
     expect(props.guardrailReason).toBe("Select a model before generating.");
+  });
+
+  it("forwards the Standard output-generate bridge separately from primary generate disablement", () => {
+    const handleGenerateOutputPrompt = vi.fn();
+    const props = buildStandardCreatePanelProps({
+      ...baseParams,
+      handleGenerateOutputPrompt,
+      disableAgentOutputGenerate: true,
+    });
+
+    expect(props.onGenerateOutputPrompt).toBe(handleGenerateOutputPrompt);
+    expect(props.disableAgentOutputGenerate).toBe(true);
   });
 });

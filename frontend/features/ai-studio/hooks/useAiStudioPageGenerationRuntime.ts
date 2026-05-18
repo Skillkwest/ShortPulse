@@ -95,6 +95,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   optimisticDebitEntries: OptimisticDebitEntry[];
   outputs?: StudioOutput[];
+  removedFromAllRefsIds?: string[];
   closeModelModal: () => void;
   openModelModal: (
     anchorId: string,
@@ -207,6 +208,7 @@ export const useAiStudioPageGenerationRuntime = ({
   notifyGenerationFailure,
   optimisticDebitEntries,
   outputs,
+  removedFromAllRefsIds = [],
   closeModelModal,
   openModelModal,
   projectId,
@@ -256,6 +258,7 @@ export const useAiStudioPageGenerationRuntime = ({
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
       outputs,
+      suppressedFailureIds: removedFromAllRefsIds,
       optimisticDebitEntries,
       setOptimisticDebitEntries,
       refreshBalance,

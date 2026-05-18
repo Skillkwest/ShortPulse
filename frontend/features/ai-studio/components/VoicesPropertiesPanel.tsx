@@ -3,7 +3,7 @@
  * Keeps the Voices workflow visually aligned with the TTS layout while remaining fully isolated.
  */
 import React from "react";
-import { Microphone, Trash } from "phosphor-react";
+import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import {
@@ -12,18 +12,19 @@ import {
   resolveRequiredAudioVoiceoverModelId,
 } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
-import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import type { ToolId } from "../types";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
+import { VoiceLibraryContent } from "./VoiceLibraryContent";
 import {
   releaseVoiceChangerSource,
   VoiceChangerSourceDropzone,
   type ResolveVoiceChangerInternalReferenceSource,
   type VoiceChangerSource,
 } from "./VoiceChangerSourceDropzone";
+import { VoicesLibraryModal } from "./VoicesLibraryModal";
 import {
   extractVoiceChangerVideoSource,
   resolveVoiceChangerMediaDurationMs,
@@ -42,31 +43,6 @@ import {
 
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
-type VoicesSliderTheme = "voiceover" | "voice-changer";
-
-type VoicesSliderProps = {
-  label: string;
-  helper: string;
-  value: number;
-  displayValue: string;
-  onChange: (nextValue: number) => void;
-  theme: VoicesSliderTheme;
-  isModeTransitioning: boolean;
-};
-
-type VoicesSliderDefinition = {
-  id: string;
-  label: string;
-  helper: string;
-  defaultValue: number;
-  formatValue: (value: number) => string;
-};
-
-type VoiceoverSliderValues = {
-  speed?: number;
-  stability?: number;
-  similarityBoost?: number;
-};
 
 type ElevenVoiceoverRequestConfig = {
   model_id: string;
@@ -76,6 +52,7 @@ type ElevenVoiceoverRequestConfig = {
     similarity_boost: number;
     speed: number;
     style: 0;
+    use_speaker_boost: boolean;
   };
 };
 
@@ -90,11 +67,7 @@ const minCloneVoiceSourceDurationMs = 60_000;
 const cloneVoiceSourceDurationErrorMessage = "Voice clone source must be at least 1 minute long.";
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
-const minTopVoicesPaneHeightPx = 0;
-const minBottomComposePaneHeightPx = 480;
 const maxVoicePromptHeightPx = 264;
-const minVisibleVoicesPaneHeightPx = 76;
-const minBottomVoiceChangerPaneHeightPx = 520;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -118,116 +91,31 @@ export const hardcodedVoiceoverModelId = resolveRequiredAudioVoiceoverModelId();
 export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
 export const hardcodedVoiceDesignModelId = resolveRequiredAudioVoiceDesignModelId();
+export const hardcodedVoiceGenerationDefaults = {
+  stability: 0.5,
+  similarity_boost: 0.75,
+  speed: 1,
+  style: 0,
+  use_speaker_boost: true,
+} as const;
+export const hardcodedVoiceOutputFormat = "mp3_44100_128";
+const hardcodedVoiceChangerNoiseReductionEnabled = false;
 
-const normalizeSliderValue = (value: number | undefined, fallback: number): number =>
-  Number(((value ?? fallback) / 100).toFixed(2));
-
-export const buildVoiceoverElevenV3RequestConfig = (
-  sliderValues: VoiceoverSliderValues
-): ElevenVoiceoverRequestConfig => ({
+export const buildVoiceoverElevenV3RequestConfig = (): ElevenVoiceoverRequestConfig => ({
   model_id: hardcodedVoiceoverModelId,
   language_code: hardcodedVoiceoverLanguageCode,
   voice_settings: {
-    stability: normalizeSliderValue(sliderValues.stability, 50),
-    similarity_boost: normalizeSliderValue(sliderValues.similarityBoost, 75),
-    speed: Number((0.5 + (sliderValues.speed ?? 50) / 100).toFixed(2)),
+    stability: hardcodedVoiceGenerationDefaults.stability,
+    similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
+    speed: hardcodedVoiceGenerationDefaults.speed,
     style: hardcodedVoiceoverStyleValue,
+    use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
   },
 });
-
-const voiceoverShapingSliders = [
-  {
-    id: "speed",
-    label: "Speed",
-    helper: "Controls the playback speed for voice output.",
-    defaultValue: 50,
-    formatValue: (value: number) => `${(0.5 + value / 100).toFixed(2)}x`,
-  },
-  {
-    id: "stability",
-    label: "Stability",
-    helper: "Lower values add more variation. Higher values keep the read steadier.",
-    defaultValue: 50,
-    formatValue: (value: number) => (value / 100).toFixed(2),
-  },
-  {
-    id: "similarityBoost",
-    label: "Similarity boost",
-    helper: "Controls how closely the output stays matched to the selected voice.",
-    defaultValue: 75,
-    formatValue: (value: number) => (value / 100).toFixed(2),
-  },
-] satisfies readonly VoicesSliderDefinition[];
-
-const voiceoverFormatOptions = [
-  { value: "mp3_44100_128", label: "MP3" },
-  { value: "wav_44100", label: "WAV" },
-  { value: "pcm_24000", label: "PCM" },
-] as const;
-
-const voiceChangerShapingSliders = [
-  {
-    id: "speed",
-    label: "Speed",
-    helper: "Adjusts the pacing of the converted performance.",
-    defaultValue: 64,
-    formatValue: (value: number) => `${(value * 0.015).toFixed(2)}x`,
-  },
-  {
-    id: "stability",
-    label: "Stability",
-    helper: "Higher values keep the conversion more even across takes.",
-    defaultValue: 62,
-    formatValue: (value: number) => (value / 100).toFixed(2),
-  },
-  {
-    id: "similarityBoost",
-    label: "Similarity boost",
-    helper: "Pushes the result closer to the selected output voice.",
-    defaultValue: 82,
-    formatValue: (value: number) => (value / 100).toFixed(2),
-  },
-] satisfies readonly VoicesSliderDefinition[];
-
-const voiceChangerOutputFormatOptions = [
-  { value: "mp3_44100_128", label: "MP3" },
-  { value: "wav_44100", label: "WAV" },
-  { value: "pcm_24000", label: "PCM" },
-] as const;
 
 const hardcodedVoiceChangerModel = resolveRequiredAudioVoiceChangerModelId();
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 const hardcodedVoiceChangerInputFormat = "other";
-const hardcodedVideoDerivedVoiceChangerSettings = {
-  stability: 1,
-  similarity_boost: 1,
-  speed: 1,
-  use_speaker_boost: true,
-} as const;
-const hardcodedVideoDerivedVoiceChangerSliderValues = {
-  speed: 67,
-  stability: 100,
-  similarityBoost: 100,
-} as const;
-const sliderThemeTokens: Record<
-  VoicesSliderTheme,
-  {
-    accentStart: string;
-    accentEnd: string;
-    accentGlow: string;
-  }
-> = {
-  voiceover: {
-    accentStart: "rgba(149, 235, 228, 0.98)",
-    accentEnd: "rgba(105, 220, 203, 0.9)",
-    accentGlow: "rgba(101, 216, 217, 0.22)",
-  },
-  "voice-changer": {
-    accentStart: "rgba(255, 196, 142, 0.98)",
-    accentEnd: "rgba(255, 170, 116, 0.95)",
-    accentGlow: "rgba(255, 178, 126, 0.22)",
-  },
-};
 
 const extractDroppedPromptText = (transfer: DataTransfer): string | null => {
   const promptText = (
@@ -259,39 +147,17 @@ const isPromptTextDrag = (transfer: DataTransfer): boolean => {
   return Boolean(extractDroppedPromptText(transfer));
 };
 
-const buildSliderState = (sliders: readonly VoicesSliderDefinition[]): Record<string, number> =>
-  Object.fromEntries(sliders.map((slider) => [slider.id, slider.defaultValue]));
-
-const buildVoiceChangerRequestSettings = ({
-  source,
-  sliderValues,
-}: {
-  source: VoiceChangerSource;
-  sliderValues: Record<string, number>;
-}): {
+const buildVoiceChangerRequestSettings = (): {
   stability: number;
   similarity_boost: number;
   speed: number;
   use_speaker_boost: boolean;
-} => {
-  if (source.extractedFrom) {
-    return { ...hardcodedVideoDerivedVoiceChangerSettings };
-  }
-  return {
-    stability: normalizeSliderValue(
-      sliderValues.stability,
-      voiceChangerShapingSliders[1]?.defaultValue ?? 62
-    ),
-    similarity_boost: normalizeSliderValue(
-      sliderValues.similarityBoost,
-      voiceChangerShapingSliders[2]?.defaultValue ?? 82
-    ),
-    speed: Number(
-      ((sliderValues.speed ?? voiceChangerShapingSliders[0]?.defaultValue ?? 64) * 0.015).toFixed(2)
-    ),
-    use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
-  };
-};
+} => ({
+  stability: hardcodedVoiceGenerationDefaults.stability,
+  similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
+  speed: hardcodedVoiceGenerationDefaults.speed,
+  use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
+});
 
 const buildVoiceDesignPreviewAudioSrc = (
   audioBase64: string,
@@ -425,64 +291,6 @@ const resolveActiveVoiceChangerSourceVideo = ({
   };
 };
 
-function VoicesSlider({
-  label,
-  helper,
-  value,
-  displayValue,
-  onChange,
-  theme,
-  isModeTransitioning,
-}: VoicesSliderProps) {
-  const themeTokens = sliderThemeTokens[theme];
-  const handleValueInput = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
-      onChange(Number((event.target as HTMLInputElement).value));
-    },
-    [onChange]
-  );
-  return (
-    <label className="voices-properties-mode-slider">
-      <span className="voices-properties-mode-slider-label-row">
-        <span className="voices-properties-mode-slider-label">{label}</span>
-        <output className="voices-properties-mode-slider-value" aria-live="polite">
-          {displayValue}
-        </output>
-      </span>
-      <span
-        className={`voices-properties-mode-slider-control${
-          isModeTransitioning ? " is-mode-transitioning" : ""
-        }`}
-        style={
-          {
-            "--voices-slider-progress": `${value}%`,
-            "--voices-slider-accent-start": themeTokens.accentStart,
-            "--voices-slider-accent-end": themeTokens.accentEnd,
-            "--voices-slider-accent-glow": themeTokens.accentGlow,
-          } as React.CSSProperties
-        }
-      >
-        <span className="voices-properties-mode-slider-visual" aria-hidden="true">
-          <span className="voices-properties-mode-slider-band" />
-          <span className="voices-properties-mode-slider-knob" />
-        </span>
-        <input
-          className="voices-properties-mode-slider-input"
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={value}
-          aria-label={label}
-          onChange={handleValueInput}
-          onInput={handleValueInput}
-        />
-      </span>
-      <span className="voices-properties-mode-slider-helper">{helper}</span>
-    </label>
-  );
-}
-
 /**
  * Renders the dedicated Voices workflow panel.
  */
@@ -535,38 +343,26 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [pendingDeleteVoice, setPendingDeleteVoice] = React.useState<SharedVoiceOption | null>(
     null
   );
+  const [isVoicesLibraryModalOpen, setIsVoicesLibraryModalOpen] = React.useState(false);
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScript, setVoiceScript] = React.useState("");
-  const [voiceoverSliderValues, setVoiceoverSliderValues] = React.useState<Record<string, number>>(
-    () => buildSliderState(voiceoverShapingSliders)
-  );
-  const [voiceChangerSliderValues, setVoiceChangerSliderValues] = React.useState<
-    Record<string, number>
-  >(() => buildSliderState(voiceChangerShapingSliders));
-  const [selectedVoiceoverFormat, setSelectedVoiceoverFormat] = React.useState("mp3_44100_128");
-  const [selectedVoiceChangerOutputFormat, setSelectedVoiceChangerOutputFormat] =
-    React.useState("mp3_44100_128");
-  const [voiceChangerBackgroundCleanupEnabled, setVoiceChangerBackgroundCleanupEnabled] =
-    React.useState(false);
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
   );
 
-  const voiceoverSplitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const voiceChangerSplitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voiceNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const voicePromptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const previewAudioVoiceIdRef = React.useRef<string | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const designedPreviewAudioIdRef = React.useRef<string | null>(null);
-  const previousVoiceScriptRef = React.useRef(voiceScript);
-  const previousSurfaceModeRef = React.useRef(surfaceMode);
   const previousVoiceChangerSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const previousCloneVoiceSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
+  const shouldRestoreVoicesLibraryTriggerFocusRef = React.useRef(false);
   const voiceChangerSourceRequestIdRef = React.useRef(0);
   const cloneVoiceSourceRequestIdRef = React.useRef(0);
   const requiresProviderVoice = Boolean(onGenerate);
@@ -626,51 +422,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     !cloneVoiceSourceDurationError &&
     isCloneConsentChecked &&
     !isCloningVoice;
-  const activeSliderDefinitions =
-    surfaceMode === "create" ? voiceoverShapingSliders : voiceChangerShapingSliders;
-  const activeSliderValues =
-    surfaceMode === "create" ? voiceoverSliderValues : voiceChangerSliderValues;
-  const isVideoDerivedVoiceChangerSource =
-    surfaceMode === "edit" &&
-    Boolean(
-      voiceChangerSource &&
-      (voiceChangerSource.kind === "video" || voiceChangerSource.extractedFrom)
-    );
   const canDeleteSelectedVoice =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
-  const activeSliderTheme: VoicesSliderTheme =
-    surfaceMode === "create" ? "voiceover" : "voice-changer";
-  const voiceoverSplit = useReferenceGridHorizontalSplit({
-    enabled: surfaceMode === "create",
-    containerRef: voiceoverSplitContainerRef,
-    defaultTopRatio: 0.995,
-    minTopSectionHeightPx: minTopVoicesPaneHeightPx,
-    minBottomSectionHeightPx: minBottomComposePaneHeightPx,
-    ariaLabel: "Resize available voices and prompt sections",
-  });
-  const voiceChangerSplit = useReferenceGridHorizontalSplit({
-    enabled: surfaceMode === "edit",
-    containerRef: voiceChangerSplitContainerRef,
-    defaultTopRatio: 0.995,
-    minTopSectionHeightPx: minTopVoicesPaneHeightPx,
-    minBottomSectionHeightPx: minBottomVoiceChangerPaneHeightPx,
-    ariaLabel: "Resize available voices and voice changer sections",
-  });
-  const activeSplit = surfaceMode === "create" ? voiceoverSplit : voiceChangerSplit;
-  const {
-    topRatio,
-    topSectionStyle,
-    bottomSectionStyle,
-    topSectionHeightPx,
-    bottomSectionHeightPx,
-    dividerProps,
-  } = activeSplit;
-  const { nudgeTopSectionHeightByPx: nudgeVoiceoverTopSectionHeightByPx } = voiceoverSplit;
-  const isVoiceLibraryVisible =
-    topSectionHeightPx > 0 ? topSectionHeightPx > minVisibleVoicesPaneHeightPx : topRatio > 0.2;
 
   React.useLayoutEffect(() => {
     const textarea = voicePromptRef.current;
@@ -690,43 +446,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
 
-    const scriptChanged =
-      previousVoiceScriptRef.current !== voiceScript ||
-      previousSurfaceModeRef.current !== surfaceMode;
-
     if (surfaceMode !== "create") {
       textarea.style.overflowY = "auto";
-      previousVoiceScriptRef.current = voiceScript;
-      previousSurfaceModeRef.current = surfaceMode;
       return;
     }
 
-    const overflowPx = textarea.scrollHeight - textarea.clientHeight;
-    if (overflowPx <= 1) {
-      textarea.style.overflowY = "hidden";
-      previousVoiceScriptRef.current = voiceScript;
-      previousSurfaceModeRef.current = surfaceMode;
-      return;
-    }
-
-    if (scriptChanged && topSectionHeightPx > minTopVoicesPaneHeightPx + 1) {
-      const residualOverflowPx = nudgeVoiceoverTopSectionHeightByPx(-overflowPx);
-      textarea.style.overflowY = Math.abs(residualOverflowPx) > 1 ? "auto" : "hidden";
-      previousVoiceScriptRef.current = voiceScript;
-      previousSurfaceModeRef.current = surfaceMode;
-      return;
-    }
-
-    textarea.style.overflowY = "auto";
-    previousVoiceScriptRef.current = voiceScript;
-    previousSurfaceModeRef.current = surfaceMode;
-  }, [
-    bottomSectionHeightPx,
-    nudgeVoiceoverTopSectionHeightByPx,
-    surfaceMode,
-    topSectionHeightPx,
-    voiceScript,
-  ]);
+    textarea.style.overflowY =
+      textarea.scrollHeight > textarea.clientHeight + 1 ? "auto" : "hidden";
+  }, [surfaceMode, voiceScript]);
 
   React.useEffect(() => {
     if (!isCreateVoiceModalOpen || !shouldFocusCreateControlsRef.current) {
@@ -736,6 +463,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     voiceNameInputRef.current?.focus();
     shouldFocusCreateControlsRef.current = false;
   }, [isCreateVoiceModalOpen]);
+
+  React.useEffect(() => {
+    if (isVoicesLibraryModalOpen) {
+      return;
+    }
+    if (!shouldRestoreVoicesLibraryTriggerFocusRef.current) {
+      return;
+    }
+    queueMicrotask(() => {
+      voicesLibraryTriggerRef.current?.focus();
+    });
+    shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
+  }, [isVoicesLibraryModalOpen]);
 
   const stopActiveDesignedPreview = React.useCallback(() => {
     const activeAudio = designedPreviewAudioRef.current;
@@ -809,10 +549,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           : nextSource.file
             ? "uploading"
             : "ready";
-      if (nextSource.kind === "video") {
-        setVoiceChangerSliderValues({ ...hardcodedVideoDerivedVoiceChangerSliderValues });
-      }
-
       const initialSource: VoiceChangerSource = {
         ...nextSource,
         status: initialStatus,
@@ -1218,24 +954,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setCloneVoiceError(null);
   }, []);
 
-  const handleShapingSliderChange = React.useCallback(
-    (sliderId: string, nextValue: number) => {
-      if (surfaceMode === "create") {
-        setVoiceoverSliderValues((currentValues) => ({
-          ...currentValues,
-          [sliderId]: nextValue,
-        }));
-        return;
-      }
-
-      setVoiceChangerSliderValues((currentValues) => ({
-        ...currentValues,
-        [sliderId]: nextValue,
-      }));
-    },
-    [surfaceMode]
-  );
-
   const handleCreateVoicePreviewGeneration = React.useCallback(async () => {
     const nextVoiceName = voiceName.trim();
     const nextVoiceDescription = voicePrompt.trim();
@@ -1325,6 +1043,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const handleCreateVoiceEntry = React.useCallback(() => {
     shouldFocusCreateControlsRef.current = true;
+    shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
+    setIsVoicesLibraryModalOpen(false);
     handleSurfaceModeChange("create");
     resetCreateVoiceModalState();
     setIsCreatePanelOpen(true);
@@ -1336,6 +1056,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   }, [resetCreateVoiceModalState]);
 
   useAiStudioModalActivity("voices-create-modal", isCreateVoiceModalOpen);
+
+  const handleOpenVoicesLibraryModal = React.useCallback(() => {
+    shouldRestoreVoicesLibraryTriggerFocusRef.current = true;
+    setIsVoicesLibraryModalOpen(true);
+  }, []);
 
   React.useEffect(() => {
     if (!isCreateVoiceModalOpen) {
@@ -1381,6 +1106,28 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     previewAudioVoiceIdRef.current = null;
     setActivePreviewVoiceId(null);
   }, []);
+
+  const handleCloseVoicesLibraryModal = React.useCallback(() => {
+    stopActiveVoicePreview();
+    setIsVoicesLibraryModalOpen(false);
+  }, [stopActiveVoicePreview]);
+
+  React.useEffect(() => {
+    if (!isVoicesLibraryModalOpen) {
+      return;
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      handleCloseVoicesLibraryModal();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [handleCloseVoicesLibraryModal, isVoicesLibraryModalOpen]);
 
   const handleVoicePreviewPlay = React.useCallback(
     (voiceId: string, previewUrl: string | null | undefined) => {
@@ -1648,6 +1395,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
 
+    shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
+    setIsVoicesLibraryModalOpen(false);
     setPendingDeleteVoice(selectedLibraryVoice);
   }, [canDeleteSelectedVoice, selectedLibraryVoice]);
 
@@ -1713,8 +1462,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         mode: "voiceover",
         voice: selectedLibraryVoice,
         script: voiceScript.trim(),
-        outputFormat: selectedVoiceoverFormat,
-        config: buildVoiceoverElevenV3RequestConfig(voiceoverSliderValues),
+        outputFormat: hardcodedVoiceOutputFormat,
+        config: buildVoiceoverElevenV3RequestConfig(),
         displayedBilledCredits: estimatedCredits,
       });
       return;
@@ -1724,28 +1473,20 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       mode: "voice-changer",
       voice: selectedLibraryVoice,
       source: voiceChangerSource,
-      outputFormat: selectedVoiceChangerOutputFormat,
-      removeBackgroundNoise: voiceChangerBackgroundCleanupEnabled,
+      outputFormat: hardcodedVoiceOutputFormat,
+      removeBackgroundNoise: hardcodedVoiceChangerNoiseReductionEnabled,
       modelId: hardcodedVoiceChangerModel,
       inputFormat: hardcodedVoiceChangerInputFormat,
       displayedBilledCredits: estimatedCredits,
-      voiceSettings: buildVoiceChangerRequestSettings({
-        source: voiceChangerSource,
-        sliderValues: voiceChangerSliderValues,
-      }),
+      voiceSettings: buildVoiceChangerRequestSettings(),
     });
   }, [
     onGenerate,
     selectedLibraryVoice,
-    selectedVoiceChangerOutputFormat,
-    selectedVoiceoverFormat,
     surfaceMode,
     estimatedCredits,
-    voiceChangerBackgroundCleanupEnabled,
-    voiceChangerSliderValues,
     voiceChangerSource,
     voiceScript,
-    voiceoverSliderValues,
   ]);
 
   const cloneSourceIntake = (
@@ -1762,152 +1503,49 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     <section className="voices-properties-panel tool-properties" aria-label="Voices properties">
       <div className="voices-properties-shell">
         <div className="voices-properties-column-shell">
-          <div
-            className="voices-properties-main"
-            ref={
-              surfaceMode === "create" ? voiceoverSplitContainerRef : voiceChangerSplitContainerRef
-            }
-          >
-            <section
-              className="voices-properties-voice-library"
-              aria-label="Available voices"
-              style={topSectionStyle}
-            >
-              {isVoiceLibraryVisible ? (
-                <>
-                  <div className="voices-properties-voice-library-header">
-                    <h2 className="panel-title voices-properties-library-title">Voices</h2>
-                    <div className="voices-properties-library-actions">
-                      {selectedLibraryVoice ? (
-                        <button
-                          type="button"
-                          className="voices-properties-library-delete-btn"
-                          onClick={handleDeleteSelectedVoice}
-                          aria-label="Delete Voice"
-                          disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
-                          title={
-                            canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."
-                          }
-                        >
-                          <Trash size={14} weight="bold" aria-hidden="true" />
-                          <span>
-                            {isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}
-                          </span>
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="voices-properties-library-create-btn"
-                        onClick={handleCreateVoiceEntry}
-                        aria-label="+ Create New Voice"
-                      >
-                        <span
-                          className="voices-properties-library-create-btn-icon"
-                          aria-hidden="true"
-                        >
-                          +
-                        </span>
-                        <span>Create New Voice</span>
-                      </button>
-                    </div>
-                  </div>
-                  {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
-                  {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
-                  <ul className="voices-properties-voice-grid" aria-label="Available voices list">
-                    {isVoicesLoading ? (
-                      <>
-                        <li className="sr-only" role="status" aria-live="polite">
-                          Loading voices…
-                        </li>
-                        {Array.from({ length: voiceLoadingSkeletonCount }, (_, index) => (
-                          <li
-                            key={`voice-loading-skeleton-${index + 1}`}
-                            className="voices-properties-voice-item"
-                            aria-hidden="true"
-                          >
-                            <div className="voices-properties-voice-chip voices-properties-voice-chip--skeleton">
-                              <span className="voices-properties-voice-chip-avatar voices-properties-voice-chip-skeleton-block" />
-                              <span className="voices-properties-voice-chip-copy">
-                                <span className="voices-properties-voice-chip-label voices-properties-voice-chip-skeleton-line voices-properties-voice-chip-skeleton-line--label" />
-                                <span className="voices-properties-voice-chip-name voices-properties-voice-chip-skeleton-line voices-properties-voice-chip-skeleton-line--name" />
-                              </span>
-                              <span className="voices-properties-voice-chip-play voices-properties-voice-chip-play--skeleton">
-                                <span className="voices-properties-voice-chip-skeleton-block voices-properties-voice-chip-skeleton-block--play" />
-                              </span>
-                            </div>
-                          </li>
-                        ))}
-                      </>
-                    ) : (
-                      libraryVoices.map((voice) => {
-                        const isSelected = voice.id === selectedLibraryVoice?.id;
-                        const isPreviewPlaying = voice.id === activePreviewVoiceId;
-                        const voiceChipDisplayName = getVoiceChipDisplayName(voice.name);
-                        return (
-                          <li key={voice.id} className="voices-properties-voice-item">
-                            <div
-                              className={`voices-properties-voice-chip ${isSelected ? "is-selected" : ""}`}
-                            >
-                              <button
-                                type="button"
-                                className="voices-properties-voice-chip-select"
-                                aria-pressed={isSelected}
-                                aria-label={`${voice.name} voice`}
-                                onClick={() => setSelectedLibraryVoice(voice.id)}
-                              >
-                                <span
-                                  className="voices-properties-voice-chip-avatar"
-                                  aria-hidden="true"
-                                >
-                                  <Microphone size={14} weight="bold" />
-                                </span>
-                                <span className="voices-properties-voice-chip-copy">
-                                  <span className="voices-properties-voice-chip-label">Voice</span>
-                                  <span className="voices-properties-voice-chip-name">
-                                    {voiceChipDisplayName}
-                                  </span>
-                                </span>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="voices-properties-voice-chip-play"
-                                aria-label={`${isPreviewPlaying ? "Stop" : "Play"} ${voice.name} sample`}
-                                aria-pressed={isPreviewPlaying}
-                                disabled={!voice.previewUrl}
-                                onClick={() => handleVoicePreviewPlay(voice.id, voice.previewUrl)}
-                              >
-                                <span
-                                  className="voices-properties-voice-chip-play-icon"
-                                  aria-hidden="true"
-                                >
-                                  {isPreviewPlaying ? "❚❚" : "▶"}
-                                </span>
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                </>
-              ) : null}
-            </section>
-
-            <div
-              className="voices-properties-horizontal-divider-wrap reference-grid-horizontal-divider-wrap"
-              {...dividerProps}
-            >
-              <div
-                className="voices-properties-horizontal-divider reference-grid-horizontal-divider"
-                aria-hidden="true"
-              />
+          <div className="voices-properties-main">
+            <div className="voices-properties-panel-header">
+              <h2 className="panel-title voices-properties-library-title">Voices</h2>
+              <div className="voices-properties-library-actions">
+                <button
+                  ref={voicesLibraryTriggerRef}
+                  type="button"
+                  className="voices-properties-library-open-btn"
+                  aria-label="Voices"
+                  onClick={handleOpenVoicesLibraryModal}
+                >
+                  <span>Voices</span>
+                </button>
+                {selectedLibraryVoice ? (
+                  <button
+                    type="button"
+                    className="voices-properties-library-delete-btn"
+                    onClick={handleDeleteSelectedVoice}
+                    aria-label="Delete Voice"
+                    disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
+                    title={canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."}
+                  >
+                    <Trash size={14} weight="bold" aria-hidden="true" />
+                    <span>{isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}</span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="voices-properties-library-create-btn"
+                  onClick={handleCreateVoiceEntry}
+                  aria-label="+ Create New Voice"
+                >
+                  <span className="voices-properties-library-create-btn-icon" aria-hidden="true">
+                    +
+                  </span>
+                  <span>Create New Voice</span>
+                </button>
+              </div>
             </div>
 
-            <div className="voices-properties-compose-area" style={bottomSectionStyle}>
+            <div className="voices-properties-compose-area">
               <div className="voices-properties-compose-mode-switcher">
                 <div className="voices-properties-mode-switcher">
-                  <span className="voices-properties-field-label">Voice mode</span>
                   <div
                     className="voices-properties-mode-tabs"
                     role="tablist"
@@ -2000,153 +1638,28 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             </div>
           </div>
         </div>
-
-        <div className="voices-properties-column-shell voices-properties-column-shell--aside">
-          <aside className="voices-properties-aside">
-            <section className="voices-properties-rail-section">
-              {isVideoDerivedVoiceChangerSource ? null : (
-                <section
-                  className={`voices-properties-shaping-card ${
-                    activeSliderTheme === "voiceover" ? "is-voiceover" : "is-voice-changer"
-                  }`}
-                  aria-label={surfaceMode === "create" ? "Voice shaping" : "Voice changer shaping"}
-                >
-                  <div className="voices-properties-shaping-card-heading-row">
-                    <p className="voices-properties-shaping-card-kicker">Voice shaping</p>
-                  </div>
-
-                  <div className="voices-properties-mode-slider-stack">
-                    {activeSliderDefinitions.map((slider, index) => (
-                      <VoicesSlider
-                        key={`voices-shaping-slider-${index}`}
-                        label={slider.label}
-                        helper={slider.helper}
-                        value={activeSliderValues[slider.id] ?? slider.defaultValue}
-                        displayValue={slider.formatValue(
-                          activeSliderValues[slider.id] ?? slider.defaultValue
-                        )}
-                        onChange={(nextValue) => handleShapingSliderChange(slider.id, nextValue)}
-                        theme={activeSliderTheme}
-                        isModeTransitioning={false}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {surfaceMode === "create" ? (
-                <>
-                  <section
-                    className="voices-properties-voiceover-card"
-                    aria-label="Voiceover settings"
-                  >
-                    {/* Eleven v3 voiceover request defaults: model_id is fixed, language_code stays null, style stays at 0, and Speaker Boost is omitted because v3 does not support it. */}
-                    <div className="voices-properties-delivery-stack">
-                      <label className="voices-properties-output-field">
-                        <span className="voices-properties-selector-label">Format</span>
-                        <span className="voices-properties-output-select-shell">
-                          <select
-                            className="voices-properties-output-select"
-                            value={selectedVoiceoverFormat}
-                            onChange={(event) => setSelectedVoiceoverFormat(event.target.value)}
-                            aria-label="Voiceover output format"
-                          >
-                            {voiceoverFormatOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </span>
-                      </label>
-                    </div>
-                  </section>
-                </>
-              ) : (
-                <>
-                  <section
-                    className="voices-properties-voice-changer-card"
-                    aria-label="Voice changer settings"
-                  >
-                    <div className="voices-properties-voice-changer-card-heading-row">
-                      <p className="voices-properties-voice-changer-card-kicker">
-                        Conversion settings
-                      </p>
-                    </div>
-
-                    <div className="voices-properties-voice-changer-setting-stack">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={voiceChangerBackgroundCleanupEnabled}
-                        className={`voices-properties-voice-changer-switch-row ${
-                          voiceChangerBackgroundCleanupEnabled ? "is-active" : ""
-                        }`}
-                        onClick={() =>
-                          setVoiceChangerBackgroundCleanupEnabled((currentValue) => !currentValue)
-                        }
-                      >
-                        <span className="voices-properties-voice-changer-switch-copy">
-                          <span className="voices-properties-voice-changer-switch-label">
-                            Noise reduction
-                          </span>
-                        </span>
-                        <span
-                          className="voices-properties-voice-changer-switch-control"
-                          aria-hidden="true"
-                        >
-                          <span className="voices-properties-voice-changer-switch-thumb" />
-                        </span>
-                      </button>
-
-                      <input
-                        type="hidden"
-                        name="voiceChangerModel"
-                        value={hardcodedVoiceChangerModel}
-                        aria-hidden="true"
-                      />
-                      <input
-                        type="hidden"
-                        name="voiceChangerSpeakerBoostEnabled"
-                        value={hardcodedVoiceChangerSpeakerBoostEnabled ? "true" : "false"}
-                        aria-hidden="true"
-                      />
-                      <input
-                        type="hidden"
-                        name="voiceChangerInputFormat"
-                        value={hardcodedVoiceChangerInputFormat}
-                        aria-hidden="true"
-                      />
-
-                      <label className="voices-properties-voice-changer-field">
-                        <span className="voices-properties-voice-changer-field-label">
-                          Output format
-                        </span>
-                        <span className="voices-properties-voice-changer-select-shell">
-                          <select
-                            className="voices-properties-voice-changer-select"
-                            value={selectedVoiceChangerOutputFormat}
-                            onChange={(event) =>
-                              setSelectedVoiceChangerOutputFormat(event.target.value)
-                            }
-                            aria-label="Voice changer output format"
-                          >
-                            {voiceChangerOutputFormatOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </span>
-                      </label>
-                    </div>
-                  </section>
-                </>
-              )}
-            </section>
-          </aside>
-        </div>
       </div>
+      <VoicesLibraryModal
+        isOpen={isVoicesLibraryModalOpen}
+        onClose={handleCloseVoicesLibraryModal}
+        title="Voices"
+        subtitle="Choose the voice used for voiceover and voice changer output."
+      >
+        <section className="voices-library-modal-content" aria-label="Available voices">
+          <VoiceLibraryContent
+            libraryVoices={libraryVoices}
+            selectedLibraryVoice={selectedLibraryVoice}
+            activePreviewVoiceId={activePreviewVoiceId}
+            isVoicesLoading={isVoicesLoading}
+            voicesLoadError={voicesLoadError}
+            voicesLoadNotice={voicesLoadNotice}
+            voiceLoadingSkeletonCount={voiceLoadingSkeletonCount}
+            getVoiceChipDisplayName={getVoiceChipDisplayName}
+            onSelectVoice={setSelectedLibraryVoice}
+            onPreviewVoice={handleVoicePreviewPlay}
+          />
+        </section>
+      </VoicesLibraryModal>
       {pendingDeleteVoice ? (
         <AiStudioModalLayer>
           <ConfirmationModal

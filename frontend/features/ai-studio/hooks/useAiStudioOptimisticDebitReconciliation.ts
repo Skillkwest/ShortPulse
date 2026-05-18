@@ -16,6 +16,7 @@ const STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS = 2 * 60 * 1000;
 
 type UseAiStudioOptimisticDebitReconciliationParams = {
   outputs?: StudioOutput[];
+  suppressedFailureIds?: readonly string[];
   optimisticDebitEntries: OptimisticDebitEntry[];
   setOptimisticDebitEntries: Dispatch<SetStateAction<OptimisticDebitEntry[]>>;
   refreshBalance: (options?: {
@@ -78,11 +79,16 @@ const areFailureCardListsEqual = (left: FailureCard[], right: FailureCard[]) => 
  */
 export const useAiStudioOptimisticDebitReconciliation = ({
   outputs: outputsOverride,
+  suppressedFailureIds = [],
   optimisticDebitEntries,
   setOptimisticDebitEntries,
   refreshBalance,
   setDetailOutputId,
 }: UseAiStudioOptimisticDebitReconciliationParams) => {
+  const suppressedFailureIdSet = useMemo(
+    () => new Set(suppressedFailureIds.map((id) => id.trim()).filter(Boolean)),
+    [suppressedFailureIds]
+  );
   const outputLite = useOutputSelector((snapshot) => {
     if (outputsOverride) return EMPTY_OUTPUT_LITE;
     return snapshot.outputOrder
@@ -100,7 +106,13 @@ export const useAiStudioOptimisticDebitReconciliation = ({
     return snapshot.outputOrder
       .map((id) => snapshot.outputById[id])
       .filter((item): item is StudioOutput => Boolean(item))
-      .filter((item) => item.taskState === "fail" && Boolean(item.errorMessage))
+      .filter(
+        (item) =>
+          item.taskState === "fail" &&
+          Boolean(item.errorMessage) &&
+          item.hiddenInReferenceGrid !== true &&
+          !suppressedFailureIdSet.has(item.id)
+      )
       .map((item) => ({
         id: item.id,
         model: item.model,
@@ -124,7 +136,13 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   const overrideFailureCards = useMemo<FailureCard[]>(
     () =>
       (outputsOverride ?? [])
-        .filter((item) => item.taskState === "fail" && Boolean(item.errorMessage))
+        .filter(
+          (item) =>
+            item.taskState === "fail" &&
+            Boolean(item.errorMessage) &&
+            item.hiddenInReferenceGrid !== true &&
+            !suppressedFailureIdSet.has(item.id)
+        )
         .map((item) => ({
           id: item.id,
           model: item.model,
@@ -134,7 +152,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
           errorMessageShort: item.errorMessageShort ?? null,
           errorDetail: item.errorDetail ?? null,
         })),
-    [outputsOverride]
+    [outputsOverride, suppressedFailureIdSet]
   );
   const effectiveOutputLite = outputsOverride ? overrideOutputLite : outputLite;
   const failureCards = outputsOverride ? overrideFailureCards : selectorFailureCards;

@@ -171,6 +171,44 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     expect(setDetailOutputId).toHaveBeenCalledWith("out-fail");
   });
 
+  it("excludes hidden failed outputs from visible failures", () => {
+    const { result } = renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [
+          makeOutput("out-hidden", "fail", {
+            errorMessage: "Failure",
+            hiddenInReferenceGrid: true,
+          }),
+        ],
+        optimisticDebitEntries: [],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    expect(result.current.visibleFailures).toEqual([]);
+  });
+
+  it("excludes explicitly suppressed failed outputs from visible failures", () => {
+    const { result } = renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [
+          makeOutput("out-suppressed", "fail", {
+            errorMessage: "Failure",
+          }),
+        ],
+        suppressedFailureIds: ["out-suppressed"],
+        optimisticDebitEntries: [],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    expect(result.current.visibleFailures).toEqual([]);
+  });
+
   it("drops stale unassigned optimistic debits instead of assigning them to unrelated new outputs", async () => {
     const setOptimisticDebitEntries = vi.fn();
     renderHook(() =>

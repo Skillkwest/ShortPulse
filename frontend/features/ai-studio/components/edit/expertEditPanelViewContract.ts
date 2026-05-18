@@ -32,7 +32,6 @@ import type {
 import { resolveStageViewportSize, type StageViewportSize } from "./expertEditViewportUtils";
 
 export type ExpertEditPanelViewProps = {
-  expertEditEligible: boolean;
   aspect: string;
   modelId: string | null;
   modelLabel: string;

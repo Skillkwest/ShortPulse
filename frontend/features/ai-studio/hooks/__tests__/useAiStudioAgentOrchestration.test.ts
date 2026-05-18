@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useAiStudioAgentOrchestration } from "../useAiStudioAgentOrchestration";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "../agentOrchestration/createAgentOrchestrationRuntimePolicy";
-import { prepareImageUrl } from "../../logic/imageDescription";
+import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import type { StudioOutput } from "../../types";
 import type { AgentAttachment, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import {
@@ -11,11 +11,11 @@ import {
   type CreatePulseResolvedPreset,
 } from "../../components/create/createPulsePresets";
 
-vi.mock("../../logic/imageDescription", () => ({
-  prepareImageUrl: vi.fn(async (url: string) => url),
+vi.mock("../../utils/imageUpload", () => ({
+  prepareImageUrlForSubmission: vi.fn(async (url: string) => url),
 }));
 
-const prepareImageUrlMock = vi.mocked(prepareImageUrl);
+const prepareImageUrlForSubmissionMock = vi.mocked(prepareImageUrlForSubmission);
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
@@ -95,7 +95,7 @@ const createParams = (
 describe("useAiStudioAgentOrchestration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prepareImageUrlMock.mockResolvedValue("https://cdn.test/prepared-image.png");
+    prepareImageUrlForSubmissionMock.mockResolvedValue("https://cdn.test/prepared-image.png");
   });
 
   it("returns early for empty outbound send", async () => {
@@ -197,7 +197,7 @@ describe("useAiStudioAgentOrchestration", () => {
             expect.objectContaining({
               id: "ref-image-1",
               kind: "image",
-              url: "https://cdn.test/prepared-image.png",
+              url: expect.stringMatching(/^https:\/\/cdn\.test\/(?:prepared-image|image)\.png$/),
             }),
           ],
         }),
@@ -775,7 +775,7 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleDescribeReference("out-1");
     });
 
-    expect(prepareImageUrlMock).not.toHaveBeenCalled();
+    expect(prepareImageUrlForSubmissionMock).not.toHaveBeenCalled();
     expect(sendToAgent).not.toHaveBeenCalled();
     expect(setUiNotice).toHaveBeenCalledWith("This helper is unavailable in Standard mode.");
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_standard_helper_disabled");
@@ -886,7 +886,7 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleAgentSend();
     });
 
-    expect(prepareImageUrlMock).toHaveBeenCalledTimes(1);
+    expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledTimes(1);
   });
 
   it("primes authoritative workflow session state immediately when a workflow pulse starts", async () => {

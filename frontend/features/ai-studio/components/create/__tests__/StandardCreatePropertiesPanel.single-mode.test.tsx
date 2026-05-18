@@ -1,11 +1,10 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
 
 const { createCharacterModeControllerState } = vi.hoisted(() => ({
   createCharacterModeControllerState: {
-    characterStepSubtitle: "Select one of your Character Manager profiles.",
     isCharacterPickerOpen: false,
     openCharacterPicker: vi.fn(),
     closeCharacterPicker: vi.fn(),
@@ -34,7 +33,11 @@ vi.mock("../StandardCreatePanelView", () => ({
     onCreateModelOpen,
   }: {
     createModeToggle?: React.ReactNode;
-    promptStepProps: { title?: string; hideChatModeToggle?: boolean };
+    promptStepProps: {
+      title?: string;
+      hideChatModeToggle?: boolean;
+      composerLeadingContent?: React.ReactNode;
+    };
     onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
   }) => (
     <div data-testid="standard-create-panel-view">
@@ -42,16 +45,13 @@ vi.mock("../StandardCreatePanelView", () => ({
       <span data-testid="chat-toggle-visibility">
         {promptStepProps.hideChatModeToggle ? "hidden" : "visible"}
       </span>
+      <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
       <button type="button" onClick={onCreateModelOpen}>
         open-model-picker
       </button>
       {createModeToggle}
     </div>
   ),
-}));
-
-vi.mock("../BeginnerCreatePanelView", () => ({
-  BeginnerCreatePanelView: () => <div data-testid="beginner-create-panel-view" />,
 }));
 
 vi.mock("../../modal-layer/AiStudioModalLayer", () => ({
@@ -107,8 +107,6 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   };
 
   beforeEach(() => {
-    createCharacterModeControllerState.characterStepSubtitle =
-      "Select one of your Character Manager profiles.";
     createCharacterModeControllerState.isCharacterPickerOpen = false;
     createCharacterModeControllerState.openCharacterPicker = vi.fn();
     createCharacterModeControllerState.closeCharacterPicker = vi.fn();
@@ -122,43 +120,37 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   });
 
   it("always renders the standard create panel view", () => {
-    render(<StandardCreatePropertiesPanel {...baseProps} expertCreateUiEligible={true} />);
+    render(<StandardCreatePropertiesPanel {...baseProps} />);
 
     expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
     expect(screen.getByText("Ask anything")).toBeInTheDocument();
     expect(screen.getByTestId("chat-toggle-visibility")).toHaveTextContent("visible");
+    expect(
+      within(screen.getByTestId("composer-leading-content")).getByRole("button", {
+        name: "Generate",
+      })
+    ).toBeInTheDocument();
   });
 
   it("keeps the create mode toggle in the standard panel path", () => {
     render(
-      <StandardCreatePropertiesPanel
-        {...baseProps}
-        expertCreateUiEligible={true}
-        createModeToggle={<span>mode-toggle</span>}
-      />
+      <StandardCreatePropertiesPanel {...baseProps} createModeToggle={<span>mode-toggle</span>} />
     );
 
     expect(screen.getByText("mode-toggle")).toBeInTheDocument();
     expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
   });
 
-  it("preserves the beginner create branch when expert create is not eligible", () => {
-    render(<StandardCreatePropertiesPanel {...baseProps} expertCreateUiEligible={false} />);
+  it("keeps the standard create panel view when the legacy fallback path is gone", () => {
+    render(<StandardCreatePropertiesPanel {...baseProps} />);
 
-    expect(screen.getByTestId("beginner-create-panel-view")).toBeInTheDocument();
-    expect(screen.queryByTestId("standard-create-panel-view")).not.toBeInTheDocument();
+    expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
   });
 
   it("opens the create picker with the text-image context", () => {
     const onModelPickerOpen = vi.fn();
 
-    render(
-      <StandardCreatePropertiesPanel
-        {...baseProps}
-        expertCreateUiEligible={true}
-        onModelPickerOpen={onModelPickerOpen}
-      />
-    );
+    render(<StandardCreatePropertiesPanel {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
 
     screen.getByRole("button", { name: "open-model-picker" }).click();
 
@@ -173,7 +165,6 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     render(
       <StandardCreatePropertiesPanel
         {...baseProps}
-        expertCreateUiEligible={true}
         characterModeEnabled
         onModelPickerOpen={onModelPickerOpen}
       />
@@ -194,7 +185,6 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     render(
       <StandardCreatePropertiesPanel
         {...baseProps}
-        expertCreateUiEligible={true}
         characterModeEnabled
         characterOptions={[
           {

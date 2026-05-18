@@ -63,7 +63,6 @@ export function ElementsManagerShell({
   });
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
-  const showSaveAction = isEditorOpen && hasUnsavedElementDraft;
   const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
   const selectedElementName = selectedElement?.name || "Untitled element";
 
@@ -381,6 +380,14 @@ export function ElementsManagerShell({
             <div className="elements-manage-header-actions">
               <button
                 type="button"
+                className="elements-manage-create-btn elements-manage-save-btn"
+                onClick={onSaveElement}
+                disabled={!isEditorOpen || !hasUnsavedElementDraft || isSavingElement || loading}
+              >
+                {isSavingElement ? "Saving..." : "Save Element"}
+              </button>
+              <button
+                type="button"
                 className="elements-manage-delete-btn"
                 onClick={() => {
                   if (!selectedElementId) return;
@@ -471,19 +478,6 @@ export function ElementsManagerShell({
                 </p>
               </section>
             )}
-
-            {showSaveAction ? (
-              <div className="elements-editor-column-footer">
-                <button
-                  type="button"
-                  className="elements-manage-create-btn elements-manage-save-btn"
-                  onClick={onSaveElement}
-                  disabled={!hasUnsavedElementDraft || isSavingElement || loading}
-                >
-                  {isSavingElement ? "Saving..." : "Save Element"}
-                </button>
-              </div>
-            ) : null}
           </div>
         </aside>
       </div>

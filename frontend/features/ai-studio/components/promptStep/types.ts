@@ -8,7 +8,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateRequest,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
@@ -53,7 +52,6 @@ export type PromptStepProps = {
   onClearAgentChat?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
-  onApplyOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -63,14 +61,11 @@ export type PromptStepProps = {
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   className?: string;
-  beginnerMode?: boolean;
   chatOnly?: boolean;
   promptOnly?: boolean;
   enhanceOnly?: boolean;
   hideEnhanceButton?: boolean;
   promptPlaceholder?: string;
-  beginnerSubtitle?: string;
-  beginnerTitle?: string;
   promptInlineAction?: React.ReactNode;
   promptInlineActionClassName?: string;
   embedSendButtonInInput?: boolean;

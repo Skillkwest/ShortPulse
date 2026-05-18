@@ -3,9 +3,9 @@
  * Resolves image attachment URLs into safe HTTPS URLs with bounded caching.
  */
 import type { AgentAttachment } from "../../../../prefabs/agent";
-import { resolveAgentAttachmentPreviewUrl } from "../../logic/agentAttachmentImage";
-import { projectAgentAttachmentToComposerImageAttachment } from "../../logic/composerImageAttachment";
-import { prepareImageUrl } from "../../logic/imageDescription";
+import { recordCreateWorkflowEvent } from "../../logic/createWorkflowDebug";
+import { resolveAgentAttachmentSubmissionCandidates } from "../../logic/agentAttachmentImage";
+import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 
 const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_PREPARED_IMAGE_URL_CACHE_ENTRIES = 64;
@@ -26,6 +26,7 @@ export type PrepareImageAttachmentsResult =
       reason: "prepare_failed";
       failedIds: string[];
       attemptedCount: number;
+      failureMessages: Record<string, string>;
     };
 
 /**
@@ -51,56 +52,91 @@ export const prepareAgentImageAttachments = async ({
     };
   }
 
-  const resolvePreparedImageUrl = async (sourceUrl: string): Promise<string | null> => {
+  const resolvePreparedImageUrl = async (
+    sourceUrl: string
+  ): Promise<{ safeUrl: string | null; error: string | null }> => {
     const cached = preparedImageUrlCache.get(sourceUrl);
     if (cached && cached.expiresAtMs > Date.now()) {
-      return cached.safeUrl;
+      return {
+        safeUrl: cached.safeUrl,
+        error: null,
+      };
     }
     if (cached) {
       preparedImageUrlCache.delete(sourceUrl);
     }
-    const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
-    if (!safeUrl?.startsWith("https://")) return safeUrl;
-    preparedImageUrlCache.set(sourceUrl, {
-      safeUrl,
-      expiresAtMs: Date.now() + PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS,
-    });
-    if (preparedImageUrlCache.size > MAX_PREPARED_IMAGE_URL_CACHE_ENTRIES) {
-      const oldestKey = preparedImageUrlCache.keys().next().value;
-      if (oldestKey) {
-        preparedImageUrlCache.delete(oldestKey);
-      }
+    if (!sourceUrl) {
+      return {
+        safeUrl: null,
+        error: "Image source missing.",
+      };
     }
-    return safeUrl;
+    try {
+      const preparedUrl = await prepareImageUrlForSubmission(sourceUrl);
+      const safeUrl = preparedUrl?.startsWith("https://") ? preparedUrl : null;
+      if (!safeUrl) {
+        return {
+          safeUrl: null,
+          error: "Prepared image URL was invalid.",
+        };
+      }
+      preparedImageUrlCache.set(sourceUrl, {
+        safeUrl,
+        expiresAtMs: Date.now() + PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS,
+      });
+      if (preparedImageUrlCache.size > MAX_PREPARED_IMAGE_URL_CACHE_ENTRIES) {
+        const oldestKey = preparedImageUrlCache.keys().next().value;
+        if (oldestKey) {
+          preparedImageUrlCache.delete(oldestKey);
+        }
+      }
+      return {
+        safeUrl,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        safeUrl: null,
+        error:
+          error instanceof Error && error.message.trim() ? error.message.trim() : "Unknown error",
+      };
+    }
   };
+
+  const summarizeCandidateFailure = (error: string | null): string =>
+    error?.trim() || "Image upload/preparation failed.";
+
+  const summarizeAttachmentFailure = (errors: string[]): string =>
+    errors.find(Boolean) ?? "Image upload/preparation failed.";
 
   const preparedResults = await Promise.allSettled(
     imageAttachments.map(async (attachment) => {
-      const projectedImageAttachment = projectAgentAttachmentToComposerImageAttachment(attachment);
-      const sourceUrl =
-        attachment.submissionImageUrl?.trim() ??
-        (await resolveAgentAttachmentPreviewUrl({
-          previewStoragePath: attachment.previewStoragePath ?? null,
-          fullStoragePath: attachment.fullStoragePath ?? null,
-          referenceRenderUrl: attachment.referenceRenderUrl ?? null,
-          referenceUrl: attachment.referenceUrl ?? null,
-          imageUrl: attachment.submissionImageUrl ?? attachment.imageUrl ?? null,
-        }).catch(() => null)) ??
-        projectedImageAttachment?.preview.url ??
-        attachment.imageUrl?.trim() ??
-        "";
-      if (!sourceUrl) {
+      const sourceUrls = await resolveAgentAttachmentSubmissionCandidates(attachment);
+      if (!sourceUrls.length) {
         return {
           attachmentId: attachment.id,
           safeUrl: null,
           missingUrl: true,
+          failureMessage: "Image URL missing. Remove this image and attach it again.",
         };
       }
-      const safeUrl = await resolvePreparedImageUrl(sourceUrl);
+
+      let safeUrl: string | null = null;
+      const errors: string[] = [];
+      for (const sourceUrl of sourceUrls) {
+        const prepared = await resolvePreparedImageUrl(sourceUrl);
+        if (prepared.safeUrl?.startsWith("https://")) {
+          safeUrl = prepared.safeUrl;
+          break;
+        }
+        errors.push(summarizeCandidateFailure(prepared.error));
+      }
+
       return {
         attachmentId: attachment.id,
         safeUrl,
         missingUrl: false,
+        failureMessage: safeUrl ? null : summarizeAttachmentFailure(errors),
       };
     })
   );
@@ -108,11 +144,15 @@ export const prepareAgentImageAttachments = async ({
   const preparedImageUrls = new Map<string, string>();
   const missingUrlAttachmentIds: string[] = [];
   const failedAttachmentIds: string[] = [];
+  const failureMessages: Record<string, string> = {};
   preparedResults.forEach((result, index) => {
     const attachmentId = imageAttachments[index]?.id;
     if (!attachmentId) return;
     if (result.status === "fulfilled" && result.value.missingUrl) {
       missingUrlAttachmentIds.push(attachmentId);
+      if (result.value.failureMessage) {
+        failureMessages[attachmentId] = result.value.failureMessage;
+      }
       return;
     }
     if (result.status === "fulfilled" && result.value.safeUrl?.startsWith("https://")) {
@@ -120,6 +160,11 @@ export const prepareAgentImageAttachments = async ({
       return;
     }
     failedAttachmentIds.push(attachmentId);
+    if (result.status === "fulfilled" && result.value.failureMessage) {
+      failureMessages[attachmentId] = result.value.failureMessage;
+    } else {
+      failureMessages[attachmentId] = "Image upload/preparation failed.";
+    }
   });
 
   if (missingUrlAttachmentIds.length > 0) {
@@ -131,11 +176,16 @@ export const prepareAgentImageAttachments = async ({
   }
 
   if (failedAttachmentIds.length) {
+    recordCreateWorkflowEvent("attachment_prepare_failed", {
+      failedIds: [...failedAttachmentIds],
+      failureMessages,
+    });
     return {
       ok: false,
       reason: "prepare_failed",
       failedIds: failedAttachmentIds,
       attemptedCount: imageAttachmentIds.length,
+      failureMessages,
     };
   }
 

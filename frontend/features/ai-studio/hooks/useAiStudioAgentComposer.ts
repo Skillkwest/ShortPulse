@@ -6,6 +6,11 @@ import {
   resolveAgentAttachmentPreviewUrl,
 } from "../logic/agentAttachmentImage";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import {
+  recordCreateWorkflowEvent,
+  setCreateWorkflowAttachmentSnapshot,
+  summarizeCreateWorkflowAttachment,
+} from "../logic/createWorkflowDebug";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
   extractComposerImageDropPayload,
@@ -325,6 +330,12 @@ export const useAiStudioAgentComposer = ({
     [agentAttachments]
   );
 
+  useEffect(() => {
+    setCreateWorkflowAttachmentSnapshot(
+      agentAttachments.map((attachment) => summarizeCreateWorkflowAttachment(attachment))
+    );
+  }, [agentAttachments]);
+
   const isSupportedAttachmentDrag = useCallback((event: DragEvent<HTMLDivElement>) => {
     const types = Array.from(event.dataTransfer.types ?? []);
     return (
@@ -400,11 +411,20 @@ export const useAiStudioAgentComposer = ({
             deliveryStatus: normalizedAttachment.deliveryStatus ?? "pending",
             deliveryError: normalizedAttachment.deliveryError ?? null,
           };
+          recordCreateWorkflowEvent("attachment_replaced", {
+            attachmentId: existingAttachment.id,
+            before: summarizeCreateWorkflowAttachment(existingAttachment),
+            after: summarizeCreateWorkflowAttachment(replacementAttachment),
+          });
           return prev.map((attachment, index) =>
             index === existingIndex ? replacementAttachment : attachment
           );
         }
         let next = [...prev, normalizedAttachment];
+        recordCreateWorkflowEvent("attachment_inserted", {
+          attachmentId: normalizedAttachment.id,
+          attachment: summarizeCreateWorkflowAttachment(normalizedAttachment),
+        });
         if (nextAttachment.kind === "image") {
           const imageCount = next.filter((item) => item.kind === "image").length;
           if (imageCount > MAX_AGENT_IMAGE_ATTACHMENTS) {
@@ -412,6 +432,12 @@ export const useAiStudioAgentComposer = ({
             if (oldestImageIndex >= 0) {
               const removedAttachment = next[oldestImageIndex];
               revokeOwnedAttachmentUrls(removedAttachment ?? null);
+              recordCreateWorkflowEvent("attachment_trimmed", {
+                attachmentId: removedAttachment?.id ?? null,
+                attachment: removedAttachment
+                  ? summarizeCreateWorkflowAttachment(removedAttachment)
+                  : null,
+              });
               next = next.filter((_, index) => index !== oldestImageIndex);
             }
           }
@@ -420,7 +446,13 @@ export const useAiStudioAgentComposer = ({
           const trimmedNext = next.slice(next.length - MAX_AGENT_ATTACHMENTS);
           next
             .filter((attachment) => !trimmedNext.includes(attachment))
-            .forEach((attachment) => revokeOwnedAttachmentUrls(attachment));
+            .forEach((attachment) => {
+              revokeOwnedAttachmentUrls(attachment);
+              recordCreateWorkflowEvent("attachment_pruned_by_max_total", {
+                attachmentId: attachment.id,
+                attachment: summarizeCreateWorkflowAttachment(attachment),
+              });
+            });
           next = trimmedNext;
         }
         return next;
@@ -471,6 +503,12 @@ export const useAiStudioAgentComposer = ({
           0,
           Math.max(1, Math.min(MAX_AGENT_IMAGE_ATTACHMENTS, Math.trunc(maxImageAttachmentsPerDrop)))
         );
+      recordCreateWorkflowEvent("drop_received", {
+        transferTypes: Array.from(transfer.types ?? []),
+        droppedFileCount: droppedFiles.length,
+        droppedImageFileCount: droppedImageFiles.length,
+        droppedVideoFileCount: droppedVideoFiles.length,
+      });
       if (droppedVideoFiles.length > 0) {
         setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
         return;
@@ -973,6 +1011,12 @@ export const useAiStudioAgentComposer = ({
       setAgentAttachments((prev) => {
         const removedAttachment = prev.find((item) => item.id === id);
         revokeOwnedAttachmentUrls(removedAttachment ?? null);
+        recordCreateWorkflowEvent("attachment_removed", {
+          attachmentId: removedAttachment?.id ?? id,
+          attachment: removedAttachment
+            ? summarizeCreateWorkflowAttachment(removedAttachment)
+            : null,
+        });
         return prev.filter((item) => item.id !== id);
       });
     },
@@ -982,6 +1026,9 @@ export const useAiStudioAgentComposer = ({
   const handleClearAgentAttachments = useCallback(() => {
     setAgentAttachmentError(null);
     setAgentAttachments((prev) => {
+      recordCreateWorkflowEvent("attachments_cleared", {
+        attachmentIds: prev.map((attachment) => attachment.id),
+      });
       prev.forEach((attachment) => revokeOwnedAttachmentUrls(attachment));
       return [];
     });
@@ -1007,6 +1054,11 @@ export const useAiStudioAgentComposer = ({
       }
       if (!preserveAttachments) {
         setAgentAttachments((prev) => {
+          recordCreateWorkflowEvent("attachments_reset", {
+            attachmentIds: prev.map((attachment) => attachment.id),
+            preserveInput,
+            preserveAttachments,
+          });
           prev.forEach((attachment) => revokeOwnedAttachmentUrls(attachment));
           return [];
         });

@@ -601,6 +601,93 @@ describe("projectWorkspaceStatesService", () => {
     expect("agentRuntimes" in (firstWorkspaceUpsertArg?.snapshot ?? {})).toBe(false);
   });
 
+  it("removes failed outputs from project workspace snapshots before saving", async () => {
+    createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-failed-save",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:failed-save",
+        },
+        workspace: {
+          mode: "audio",
+          selectedTool: "create",
+          prompt: "failed audio",
+          standardPrompt: "failed audio",
+          model: "eleven_multilingual_v2",
+          aspect: "audio",
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          editReferenceText: "",
+          videoReferenceText: "",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          imageResolution: "model_default",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          motionReferenceVideoUrl: null,
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-fail-active",
+              taskState: "fail",
+              errorMessage: "Unknown error",
+              errorMessageShort: "Unknown error",
+            },
+          ],
+          archived: [
+            {
+              id: "out-fail-archived",
+              taskState: "fail",
+              errorMessage: "Unknown error",
+              errorMessageShort: "Unknown error",
+            },
+          ],
+          activeOutputId: "out-fail-active",
+          curatedReferenceIds: ["out-fail-active", "out-fail-archived"],
+          removedFromAllRefsIds: ["out-fail-active"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.snapshot.outputs).toMatchObject({
+      active: [],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+    });
+  });
+
   it("persists the sanitized snapshot when restored-project projection hydration fails during save", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
@@ -953,6 +1040,65 @@ describe("projectWorkspaceStatesService", () => {
     expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
   });
 
+  it("removes failed legacy snapshot rows and prunes dependent ids on workspace read", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:legacy-failed",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-fail-active",
+              taskState: "fail",
+              errorMessage: "Unknown error",
+              errorMessageShort: "Unknown error",
+            },
+          ],
+          archived: [
+            {
+              id: "out-fail-archived",
+              taskState: "fail",
+              errorMessage: "Unknown error",
+              errorMessageShort: "Unknown error",
+            },
+          ],
+          activeOutputId: "out-fail-active",
+          curatedReferenceIds: ["out-fail-active", "out-fail-archived"],
+          removedFromAllRefsIds: ["out-fail-active"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+    });
+  });
+
   it("returns the sanitized base workspace when read-time enrichment fails", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     createSupabaseMock({
@@ -1275,6 +1421,139 @@ describe("projectWorkspaceStatesService", () => {
           fullStoragePath: "user-1/generations/videos/generated-video.mp4",
         },
       ],
+      archived: [],
+    });
+  });
+
+  it("does not append failed project-associated generations into active outputs", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:empty",
+        },
+        outputs: {
+          active: [],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      },
+      recentGenerationIds: ["generation-failed-1"],
+      projectionRows: [
+        {
+          generation_id: "generation-failed-1",
+          request_id: "task-failed-1",
+          preview_url: null,
+          result_urls: [],
+          saved_media_ids: [],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "fail",
+          queue_state: "failed",
+          display_prompt: "Failed voiceover",
+          provider: "elevenlabs",
+          model_id: "eleven_multilingual_v2",
+          error_message_short: "Unknown error",
+          error_detail: "Unknown error",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [],
+      archived: [],
+    });
+  });
+
+  it("drops existing snapshot rows when the associated project generation is suppressed", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:empty",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated:generation-removed-1",
+              generationId: "generation-removed-1",
+              taskId: "task-removed-1",
+              mode: "audio",
+              model: "ElevenLabs Voiceover",
+              prompt: "Suppressed failure",
+              status: "ready",
+              timestamp: "Now",
+              mediaSource: "generated",
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: ["generation-removed-1"],
+      recentGenerationIds: ["generation-removed-1"],
+      projectionRows: [
+        {
+          generation_id: "generation-removed-1",
+          request_id: "task-removed-1",
+          preview_url: null,
+          result_urls: [],
+          saved_media_ids: [],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "fail",
+          queue_state: "failed",
+          display_prompt: "Suppressed failure",
+          provider: "elevenlabs",
+          model_id: "eleven_multilingual_v2",
+          error_message_short: "Generation was removed",
+          error_detail: "Generation was removed",
+          hidden_in_reference_grid: true,
+          reference_grid_visible: false,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [],
       archived: [],
     });
   });

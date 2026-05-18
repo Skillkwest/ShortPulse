@@ -11,10 +11,7 @@ import {
 } from "../../../lib/explicitContentFailure";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
-import {
-  ComposeSendCard,
-  StandardCreatePropertiesPanel,
-} from "./create/StandardCreatePropertiesPanel";
+import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
 import { CreateExpertModeToggle } from "./create/CreateExpertModeToggle";
 import { DetailModal } from "./DetailModal";
@@ -645,10 +642,6 @@ export function AiStudioPageContent({
       : null;
   const resolvedPulseCreateProperties =
     resolvedCreateProperties.expertCreateMode === "pulse" ? resolvedCreateProperties.pulse : null;
-  const activeCreateProperties =
-    resolvedCreateProperties.expertCreateMode === "pulse"
-      ? resolvedPulseCreateProperties
-      : resolvedStandardCreateProperties;
   const resolvedReferenceGridProps = referenceGridProps;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
@@ -657,11 +650,9 @@ export function AiStudioPageContent({
     ? "image/*"
     : "image/*,video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
-  const showExpertCreatePanel = Boolean(
-    propertiesPanelKind === "create" && activeCreateProperties?.expertCreateUiEligible
-  );
+  const showCreatePropertiesPanel = propertiesPanelKind === "create";
   const showExpertEditPanel = propertiesPanelKind === "edit";
-  const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
+  const showStylesPanelEligible = showExpertEditPanel || showCreatePropertiesPanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
   const [isCanvasVisible, setIsCanvasVisible] = React.useState(false);
@@ -780,12 +771,12 @@ export function AiStudioPageContent({
       ? AI_SHELL_LEFT_SOUND_MIN_PX
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_MIN_PX
-        : showExpertCreatePanel
+        : showCreatePropertiesPanel
           ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
           : showExpertEditPanel
             ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
             : undefined;
-  const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
+  const maxLeftWidthPx = showCreatePropertiesPanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
     selectedTool === "media-library"
       ? AI_SHELL_RIGHT_CANVAS_MIN_PX
@@ -858,7 +849,7 @@ export function AiStudioPageContent({
     "ai-shell-motion-flat",
     selectedTool ? "" : "ai-shell-wide",
     showDivider ? "ai-shell-resizable" : "",
-    showExpertCreatePanel ? "ai-shell-expert-create" : "",
+    showCreatePropertiesPanel ? "ai-shell-expert-create" : "",
     showExpertEditPanel ? "ai-shell-expert-edit" : "",
     isCharacterShellPanelOpen ? "ai-shell-character-open" : "",
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
@@ -900,7 +891,7 @@ export function AiStudioPageContent({
       nextSessionId: sessionId,
       nextTool: selectedTool,
       nextMode: expertCreateMode,
-      expertCreateEnabled: showExpertCreatePanel,
+      expertCreateEnabled: showCreatePropertiesPanel,
     });
     if (shouldCollapseForStandardCreateSession) {
       collapseToMin();
@@ -914,7 +905,7 @@ export function AiStudioPageContent({
       nextTool: selectedTool,
       previousMode: previousExpertCreateMode,
       nextMode: expertCreateMode,
-      expertCreateEnabled: showExpertCreatePanel,
+      expertCreateEnabled: showCreatePropertiesPanel,
     });
     const isInitialSoundSelection =
       previousSelectedTool !== selectedTool &&
@@ -950,7 +941,7 @@ export function AiStudioPageContent({
     resetToDefaultWidth,
     sessionId,
     selectedTool,
-    showExpertCreatePanel,
+    showCreatePropertiesPanel,
   ]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
@@ -1186,8 +1177,11 @@ export function AiStudioPageContent({
   });
 
   const createPropertiesPanelContent = React.useMemo(() => {
+    const shouldRenderPulseCreateProperties =
+      resolvedCreateProperties.expertCreateMode === "pulse" &&
+      resolvedPulseCreatePropertiesWithRuntime;
     // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
-    if (showExpertCreatePanel && resolvedPulseCreatePropertiesWithRuntime) {
+    if (shouldRenderPulseCreateProperties) {
       return (
         <PulseCreatePropertiesPanel
           key="pulse-create-runtime"
@@ -1198,23 +1192,15 @@ export function AiStudioPageContent({
     // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
     if (!resolvedStandardCreatePropertiesWithStyles) return null;
     return (
-      <>
-        <StandardCreatePropertiesPanel
-          key="standard-create-runtime"
-          {...resolvedStandardCreatePropertiesWithStyles}
-        />
-        {!showExpertCreatePanel ? (
-          <ComposeSendCard
-            {...resolvedStandardCreatePropertiesWithStyles}
-            onGenerate={resolvedStandardCreatePropertiesWithStyles.onGenerate}
-          />
-        ) : null}
-      </>
+      <StandardCreatePropertiesPanel
+        key="standard-create-runtime"
+        {...resolvedStandardCreatePropertiesWithStyles}
+      />
     );
   }, [
+    resolvedCreateProperties.expertCreateMode,
     resolvedPulseCreatePropertiesWithRuntime,
     resolvedStandardCreatePropertiesWithStyles,
-    showExpertCreatePanel,
   ]);
   const editPropertiesPanelContent = React.useMemo(
     () => <ExpertEditPanelView {...resolvedExpertEditProperties} />,

@@ -339,6 +339,36 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  it("loads authenticated Pulse remote preferences only once during bootstrap", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-single-load");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(maybeSingle).toHaveBeenCalledTimes(1);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("preserves local hidden built-ins when signed-in remote Pulse preferences load", async () => {
     window.localStorage.setItem(
       scopedCreatePulseHiddenBuiltInsStorageKey("user-hidden-local"),

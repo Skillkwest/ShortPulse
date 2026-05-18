@@ -208,5 +208,5 @@ export const selectQuickSlotProjection = (
   const byId = new Map(outputs.map((item) => [item.id, item]));
   return state.quickSlotIds
     .map((id) => byId.get(id))
-    .filter((item): item is StudioOutput => Boolean(item));
+    .filter((item): item is StudioOutput => item != null && item.hiddenInReferenceGrid !== true);
 };

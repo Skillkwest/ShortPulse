@@ -10,7 +10,10 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
-import { loadElementManagerDraftByElementId } from "../../../elements-manager/logic/elementsManagerPersistence";
+import {
+  fetchElementsManagerList,
+  loadElementManagerDraftByElementId,
+} from "../../../elements-manager/logic/elementsManagerPersistence";
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
@@ -294,6 +297,8 @@ const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   onExtraImageChange: vi.fn(),
   onPromptTextChange: vi.fn(),
   onRegenerate: vi.fn(),
+  onCreateCharacter: vi.fn(),
+  onCreateElement: vi.fn(),
 };
 
 const createTransferStore = () => {
@@ -307,6 +312,16 @@ const createTransferStore = () => {
     }),
     getData: vi.fn((type: string) => store[type] ?? ""),
   } as unknown as DataTransfer;
+};
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 };
 
 function KlingModeStateHarness() {
@@ -409,6 +424,8 @@ describe("VideoPropertiesPanel", () => {
     referencePromptStepMock.mockClear();
     vi.mocked(listCharacterManagerCharacters).mockClear();
     vi.mocked(loadCharacterManagerDraftByCharacterId).mockClear();
+    vi.mocked(fetchElementsManagerList).mockClear();
+    vi.mocked(loadElementManagerDraftByElementId).mockClear();
   });
 
   it("shows the Kling reference image warning when both standard frame slots are empty", () => {
@@ -592,6 +609,86 @@ describe("VideoPropertiesPanel", () => {
     );
     expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
     expect(screen.queryByText("Shot 2")).toBeNull();
+  });
+
+  it("keeps both create buttons visible when both libraries are empty", async () => {
+    vi.mocked(listCharacterManagerCharacters).mockResolvedValueOnce([]);
+    vi.mocked(fetchElementsManagerList).mockResolvedValueOnce([]);
+
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    expect(await screen.findByRole("button", { name: "Create New Character" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Create New Element" })).toBeInTheDocument();
+    expect(await screen.findByText("No saved Characters available.")).toBeInTheDocument();
+    expect(await screen.findByText("No saved Elements available.")).toBeInTheDocument();
+    expect(screen.queryByText("No saved Characters or Elements available.")).toBeNull();
+  });
+
+  it("shows section loading states on first open without flashing the old empty message", async () => {
+    const deferredCharacters =
+      createDeferred<Awaited<ReturnType<typeof listCharacterManagerCharacters>>>();
+    const deferredElements = createDeferred<Awaited<ReturnType<typeof fetchElementsManagerList>>>();
+    vi.mocked(listCharacterManagerCharacters).mockReturnValueOnce(deferredCharacters.promise);
+    vi.mocked(fetchElementsManagerList).mockReturnValueOnce(deferredElements.promise);
+
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Loading saved Characters...")).toBeInTheDocument();
+      expect(screen.getByText("Loading saved Elements...")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("No saved Characters available.")).toBeNull();
+    expect(screen.queryByText("No saved Elements available.")).toBeNull();
+    expect(screen.queryByText("No saved Characters or Elements available.")).toBeNull();
+
+    deferredCharacters.resolve([]);
+    deferredElements.resolve([]);
+    await waitFor(() => {
+      expect(screen.getByText("No saved Characters available.")).toBeInTheDocument();
+      expect(screen.getByText("No saved Elements available.")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the elements section usable when characters fail to load", async () => {
+    vi.mocked(listCharacterManagerCharacters).mockRejectedValueOnce(new Error("character failure"));
+
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    expect(await screen.findByRole("button", { name: "Create New Character" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Create New Element" })).toBeInTheDocument();
+    expect(await screen.findByText("Unable to load saved Characters.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /red lantern/i })).toBeInTheDocument();
+  });
+
+  it("keeps the characters section usable when elements fail to load", async () => {
+    vi.mocked(fetchElementsManagerList).mockRejectedValueOnce(new Error("element failure"));
+
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    expect(await screen.findByRole("button", { name: "Create New Character" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Create New Element" })).toBeInTheDocument();
+    expect(await screen.findByText("Unable to load saved Elements.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /taylor/i })).toBeInTheDocument();
+  });
+
+  it("uses the neutral linked video asset subtitle in the picker", async () => {
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    expect(
+      await screen.findByText(
+        "Select a saved Character or Element for the linked video asset slots."
+      )
+    ).toBeInTheDocument();
   });
 
   it("opens the elements picker and attaches a saved element to a Kling slot", async () => {

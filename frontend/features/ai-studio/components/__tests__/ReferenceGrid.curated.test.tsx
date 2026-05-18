@@ -1395,7 +1395,7 @@ describe("ReferenceGrid curated split", () => {
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
-  it("keeps hidden curated references in quick slots while excluding them from all refs", () => {
+  it("excludes hidden curated references from both quick slots and all refs", () => {
     const hiddenCurated: StudioOutput = {
       id: "out-hidden",
       prompt: "Hidden",
@@ -1434,7 +1434,10 @@ describe("ReferenceGrid curated split", () => {
     const curatedQueries = within(curatedSection);
     const allRefsQueries = within(allRefsSection);
 
-    expect(curatedQueries.getByText("Hidden in quick slot only")).toBeInTheDocument();
+    expect(curatedQueries.queryByText("Hidden in quick slot only")).toBeNull();
+    expect(
+      curatedQueries.getByText("Drag & drop references here from the Reference Grid.")
+    ).toBeInTheDocument();
     expect(allRefsQueries.queryByText("Hidden in quick slot only")).toBeNull();
     expect(allRefsQueries.getByText("Visible in all refs")).toBeInTheDocument();
   });

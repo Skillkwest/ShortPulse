@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStandardCreateAgentRuntime } from "../useStandardCreateAgentRuntime";
+import type { AgentAttachment } from "../../../../prefabs/agent";
 
 const mockSend = vi.fn();
 const mockAppendUserMessage = vi.fn();
@@ -14,6 +15,7 @@ const mockSetAgentAttachmentError = vi.fn();
 const mockResetAgentComposer = vi.fn();
 const mockHandleClearAgentChat = vi.fn();
 const mockResetProjectAgentConversation = vi.fn();
+let mockAgentAttachments: AgentAttachment[] = [];
 
 vi.mock("../../../ai-agent/useCreateAgentStateCore", () => ({
   useCreateAgentStateCore: () => ({
@@ -35,7 +37,7 @@ vi.mock("../../hooks/useAiStudioAgentComposer", () => ({
     handleAgentInputChange: mockHandleAgentInputChange,
     agentAttachmentError: null,
     setAgentAttachmentError: mockSetAgentAttachmentError,
-    agentAttachments: [],
+    agentAttachments: mockAgentAttachments,
     setAgentAttachments: mockSetAgentAttachments,
     isAgentDropActive: false,
     handleAgentAttachmentDragOver: vi.fn(),
@@ -110,6 +112,7 @@ describe("useStandardCreateAgentRuntime", () => {
     mockResetAgentComposer.mockReset();
     mockHandleClearAgentChat.mockReset();
     mockResetProjectAgentConversation.mockReset();
+    mockAgentAttachments = [];
   });
 
   it("mirrors Standard chat composer edits into shared prompt state", async () => {

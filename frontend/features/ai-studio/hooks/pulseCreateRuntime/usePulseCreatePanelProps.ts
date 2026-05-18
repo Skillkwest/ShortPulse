@@ -39,7 +39,6 @@ type UsePulseCreatePanelPropsParams = {
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handlePulseCreatePrimarySubmit: () => void;
-  expertCreateUiEligible: boolean;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
 
@@ -78,7 +77,6 @@ export const buildPulseCreatePanelProps = ({
   generationGuardrail,
   handleClearAgentChat,
   handlePulseCreatePrimarySubmit,
-  expertCreateUiEligible,
   pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => ({
   pulsePrompt,
@@ -110,6 +108,5 @@ export const buildPulseCreatePanelProps = ({
   guardrailReason: generationGuardrail,
   onClearAgentChat: handleClearAgentChat,
   onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
-  expertCreateUiEligible,
   pulsePreferenceRuntime,
 });

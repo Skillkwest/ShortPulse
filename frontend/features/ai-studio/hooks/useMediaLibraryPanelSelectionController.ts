@@ -9,23 +9,25 @@ import {
 } from "../logic/mediaLibraryModalModel";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 
+export type MediaLibrarySelectionPayload = {
+  id: string;
+  url: string;
+  fileType: "image" | "video" | "audio";
+  filename?: string | null;
+  promptText?: string | null;
+  source?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
+  fullUrl?: string | null;
+};
+
 type UseMediaLibraryPanelSelectionControllerParams = {
   activeFolderId: string;
   currentUserIdRef: React.MutableRefObject<string | null>;
-  onSelectMedia: (payload: {
-    id: string;
-    url: string;
-    fileType: "image" | "video" | "audio";
-    filename?: string | null;
-    promptText?: string | null;
-    source?: string | null;
-    previewStoragePath?: string | null;
-    fullStoragePath?: string | null;
-    previewUrl?: string | null;
-    previewPosterUrl?: string | null;
-    previewPosterStoragePath?: string | null;
-    fullUrl?: string | null;
-  }) => void;
+  onSelectMedia: (payload: MediaLibrarySelectionPayload) => void;
   refreshSignedUrl: (row: MediaFileRow) => Promise<string | null>;
   signStoragePath: (
     storagePath: string,
@@ -101,9 +103,12 @@ export const useMediaLibraryPanelSelectionController = ({
     [currentUserIdRef, onSelectMedia, refreshSignedUrl, signStoragePath]
   );
 
-  const handleSelectMediaFile = React.useCallback((file: MediaFileRow) => {
-    void file;
-  }, []);
+  const handleSelectMediaFile = React.useCallback(
+    (file: MediaFileRow) => {
+      void addMediaReferenceFromFile(file);
+    },
+    [addMediaReferenceFromFile]
+  );
 
   const resolvePreviewModalUrl = React.useCallback(
     async (file: MediaFileRow): Promise<string | null> => {

@@ -66,6 +66,7 @@ const resolveReferenceInputsForToolMock = vi.fn((tool: string | null) => {
 });
 const getSignedMediaUrlMock = vi.fn();
 const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
+const abandonGenerationOutputMock = vi.fn(async () => undefined);
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
@@ -80,6 +81,12 @@ vi.mock("../../utils/imageUpload", async () => {
       refreshSupabaseSignedUrlIfNeededMock(...args),
   };
 });
+
+vi.mock("../../logic/generationAbandonment", () => ({
+  canAbandonGenerationOutput: (output: StudioOutput | null | undefined) =>
+    Boolean(output?.generationId || output?.sourceRef || output?.taskId),
+  abandonGenerationOutput: (args: unknown) => abandonGenerationOutputMock(args),
+}));
 
 vi.mock("../useAiStudioReferenceSelectionState", () => ({
   useAiStudioReferenceSelectionState: () => ({
@@ -215,9 +222,14 @@ describe("useAiStudioState output store bridge", () => {
       }
     );
     mockFindOutputById.mockClear();
+    mockFindOutputById.mockImplementation((id: string) => {
+      const snapshot = getAiStudioOutputSnapshot();
+      return snapshot.outputById[id] ?? snapshot.archivedOutputById[id] ?? null;
+    });
     mockDeleteOutputFromLifecycle.mockClear();
     mockNotifyGenerationFailure.mockClear();
     mockUpdateOutputPrompt.mockClear();
+    abandonGenerationOutputMock.mockClear();
     generationPromptComposerArgsMock.mockClear();
     resolveReferenceInputsForToolMock.mockClear();
     getSignedMediaUrlMock.mockReset();
@@ -1116,5 +1128,39 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.removedFromAllRefsIds).toEqual([]);
     });
     expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-1");
+  });
+
+  it("hides failed generated outputs and persists abandonment on delete", async () => {
+    const failedGenerated = makeOutput("out-failed-generated", {
+      taskState: "fail",
+      errorMessage: "Unknown error",
+      mediaSource: "generated",
+      generationId: "gen-failed-1",
+    });
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([failedGenerated]);
+      result.current.addCuratedReference(failedGenerated.id);
+    });
+
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual([failedGenerated.id]);
+    });
+
+    act(() => {
+      result.current.deleteOutput(failedGenerated.id);
+    });
+
+    expect(abandonGenerationOutputMock).toHaveBeenCalledWith({
+      output: expect.objectContaining({
+        id: failedGenerated.id,
+        generationId: failedGenerated.generationId,
+      }),
+    });
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith(failedGenerated.id);
+    });
   });
 });

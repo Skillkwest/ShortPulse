@@ -8,6 +8,7 @@ import type {
   AiStudioSessionSnapshotV1,
 } from "./sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import { getModelConfig } from "../../../lib/model-runtime/modelRegistry";
 import type {
   AgentAttachment,
   AgentMessage,
@@ -357,6 +358,38 @@ const hasSettledRestoredOutputPayload = (output: StudioOutput): boolean => {
   return false;
 };
 
+const resolveRestoredSubmissionMode = (
+  output: Pick<AiStudioSessionOutputV1, "submissionMode" | "modelId">
+): StudioOutput["submissionMode"] => {
+  if (output.submissionMode === "direct-request" || output.submissionMode === "provider-task") {
+    return output.submissionMode;
+  }
+  const modelId = typeof output.modelId === "string" ? output.modelId.trim() : "";
+  if (!modelId) return undefined;
+  return getModelConfig(modelId)?.executionMode === "direct" ? "direct-request" : undefined;
+};
+
+const shouldDropRestoredTransientFailure = (output: StudioOutput): boolean => {
+  if (output.taskState !== "fail") return false;
+  if (output.submissionMode !== "direct-request") return false;
+  if (hasSettledRestoredOutputPayload(output)) return false;
+  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
+  if (generationId) return false;
+  const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
+  if (sourceRef) return false;
+  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
+  if (taskId) return false;
+  if (output.mediaSource && output.mediaSource !== "generated") return false;
+  return true;
+};
+
+const shouldDropRestoredUnsettledGeneratedAudioFailure = (output: StudioOutput): boolean => {
+  if (output.taskState !== "fail") return false;
+  if (output.mode !== "audio") return false;
+  if (output.mediaSource && output.mediaSource !== "generated") return false;
+  return !hasSettledRestoredOutputPayload(output);
+};
+
 const normalizeRestoredOutputLifecycle = (output: StudioOutput): StudioOutput => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
@@ -386,7 +419,7 @@ const normalizeRestoredOutputLifecycle = (output: StudioOutput): StudioOutput =>
   };
 };
 
-const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => {
+const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => {
   const mode = asMode(output.mode);
   const normalizedStorageAuthority = normalizeHydratedVideoStorageAuthority({
     mode,
@@ -394,7 +427,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => {
     previewPosterStoragePath: output.previewPosterStoragePath ?? null,
     fullStoragePath: output.fullStoragePath ?? null,
   });
-  return normalizeRestoredOutputLifecycle({
+  const hydratedOutput = normalizeRestoredOutputLifecycle({
     id: output.id,
     prompt: output.prompt,
     mode,
@@ -418,8 +451,13 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => {
         ? output.queueEnqueuedAtMs
         : undefined,
     generationTraceId: output.generationTraceId,
+    submissionMode: resolveRestoredSubmissionMode(output),
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
+    errorDetail:
+      typeof output.errorDetail === "string" || output.errorDetail === null
+        ? output.errorDetail
+        : null,
     resultUrls: output.resultUrls,
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl ?? null,
@@ -440,6 +478,10 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => {
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,
   });
+  return shouldDropRestoredTransientFailure(hydratedOutput) ||
+    shouldDropRestoredUnsettledGeneratedAudioFailure(hydratedOutput)
+    ? null
+    : hydratedOutput;
 };
 
 const dedupeOutputs = (rows: StudioOutput[]): StudioOutput[] => {
@@ -764,8 +806,12 @@ export const buildAiStudioSessionHydrationPayload = (
         )
       : null;
 
-  const activeOutputs = dedupeOutputs((outputs.active ?? []).map(hydrateOutput));
-  const archivedOutputs = dedupeOutputs((outputs.archived ?? []).map(hydrateOutput));
+  const activeOutputs = dedupeOutputs(
+    (outputs.active ?? []).map(hydrateOutput).filter((row): row is StudioOutput => Boolean(row))
+  );
+  const archivedOutputs = dedupeOutputs(
+    (outputs.archived ?? []).map(hydrateOutput).filter((row): row is StudioOutput => Boolean(row))
+  );
   const allOutputIds = new Set<string>([
     ...activeOutputs.map((row) => row.id),
     ...archivedOutputs.map((row) => row.id),

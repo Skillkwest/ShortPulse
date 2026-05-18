@@ -92,15 +92,14 @@ describe("buildStandardCreatePanelProps", () => {
     expect(props.guardrailReason).toBe("Select a model before generating.");
   });
 
-  it("forwards the Standard output-generate bridge separately from primary generate disablement", () => {
-    const handleGenerateOutputPrompt = vi.fn();
+  it("does not forward the removed Standard output-generate bridge", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
-      handleGenerateOutputPrompt,
-      disableAgentOutputGenerate: true,
     });
 
-    expect(props.onGenerateOutputPrompt).toBe(handleGenerateOutputPrompt);
-    expect(props.disableAgentOutputGenerate).toBe(true);
+    const propsRecord = props as Record<string, unknown>;
+    expect("onGenerateOutputPrompt" in propsRecord).toBe(false);
+    expect("disableAgentOutputGenerate" in propsRecord).toBe(false);
+    expect("outputGenerateCostCredits" in propsRecord).toBe(false);
   });
 });

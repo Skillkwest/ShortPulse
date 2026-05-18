@@ -122,6 +122,32 @@ describe("PromptStep agent actions", () => {
     expect(messageBubble).toHaveClass("agent-message--with-output-thumbnail");
   });
 
+  it("shows the drag-to-composer handoff hint after a promptable assistant reply in chat mode", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled
+        agentInput=""
+        agentMessages={[
+          {
+            id: "assistant-prompt",
+            role: "assistant",
+            content: "A cinematic product photo with crisp blue rim light.",
+            outputPrompt: "A cinematic product photo with crisp blue rim light.",
+            canUseAsPrompt: true,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(
+      screen.getByText(
+        "Drag agent text into the composer to enable Generate. Enter sends chat. Shift+Enter adds a new line."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("marks only usable assistant prompt outputs for prompt-color styling", () => {
     render(
       <PromptStep

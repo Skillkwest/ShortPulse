@@ -451,9 +451,3 @@
 .create-composer-panel .step2-input-row .step2-send-btn:hover {
   box-shadow: none;
 }
-
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-composer-hint:not(.agent-composer-hint--media) {
-  display: none;
-}

@@ -1,5 +1,6 @@
 import type { NextApiRequest } from "next";
 import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
+import { isAgentImageDataUrl } from "../../../prefabs/agent/mediaUrlPolicy";
 import type { StudioAgentOrchestration } from "../../ai-agent/logic/studioAgentOrchestration";
 import type { ThinkerSelectedReference } from "../../ai-agent/logic/studioAgentReferenceSelection";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -66,6 +67,22 @@ type StudioAgentFastPathSuccessTurn = Extract<
   { ok: true }
 >;
 
+const stringifyPulseContextForTextPrompt = (context: AgentContext): string => {
+  const textContext: AgentContext = {
+    ...context,
+    media: context.media?.map((item) => ({
+      ...item,
+      url: isAgentImageDataUrl(item.url)
+        ? "[ephemeral image data URL omitted from text context]"
+        : item.url,
+      dataUrl: isAgentImageDataUrl(item.dataUrl)
+        ? "[ephemeral image data URL omitted from text context]"
+        : item.dataUrl,
+    })),
+  };
+  return JSON.stringify(textContext);
+};
+
 export const buildStudioAgentOpenAiMessages = ({
   messages,
   context,
@@ -86,7 +103,7 @@ export const buildStudioAgentOpenAiMessages = ({
     { role: "system", content: systemPrompt },
     ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
     ...(pulseTurnStateMessage ? [{ role: "system" as const, content: pulseTurnStateMessage }] : []),
-    { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
+    { role: "system", content: `CONTEXT:\n${stringifyPulseContextForTextPrompt(context)}` },
     { role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` },
   ];
 

@@ -10,6 +10,7 @@ import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-librar
 import {
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
+  type MediaLibraryGridDensityConfig,
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import {
@@ -53,6 +54,7 @@ type MediaLibraryMediaGridProps = {
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
+  densityConfig?: MediaLibraryGridDensityConfig;
 };
 
 export function MediaLibraryMediaGrid({
@@ -78,8 +80,11 @@ export function MediaLibraryMediaGrid({
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
+  densityConfig,
 }: MediaLibraryMediaGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
+  const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
+  const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
 
   const {
     containerRef: virtualContainerRef,
@@ -101,7 +106,8 @@ export function MediaLibraryMediaGrid({
     },
     enabled: MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
     scrollContainerRef,
-    targetColumnWidth: 220,
+    targetColumnWidth,
+    maxColumnCount: densityConfig?.maxColumnCount,
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: 24,
@@ -126,13 +132,27 @@ export function MediaLibraryMediaGrid({
       detachDelayMs: 850,
       visibilityThreshold: 0.5,
     });
+  const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    const densityStyle = densityConfig
+      ? ({
+          "--media-library-modal-preview-width": `${densityConfig.targetColumnWidth}px`,
+          "--media-library-panel-density-max-columns": densityConfig.maxColumnCount,
+        } as React.CSSProperties)
+      : undefined;
+    if (!isVirtualized) return densityStyle;
+    return {
+      ...densityStyle,
+      height: `${virtualTotalHeight}px`,
+    };
+  }, [densityConfig, isVirtualized, virtualTotalHeight]);
+
   return (
     <div
       ref={virtualContainerRef}
       className={`media-grid media-library-modal-grid media-library-modal-grid-packed${
         isVirtualized ? " media-library-modal-grid-virtualized" : ""
-      }`}
-      style={isVirtualized ? { height: `${virtualTotalHeight}px` } : undefined}
+      }${densityConfig ? " media-library-panel-density-grid" : ""}`}
+      style={gridStyle}
     >
       {activeMedia.length === 0 ? (
         <p className="tiny subdued">No media found for this tab.</p>
@@ -164,7 +184,7 @@ export function MediaLibraryMediaGrid({
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
-                cardLongEdgePx: 320,
+                cardLongEdgePx: cardPreviewLongEdgePx,
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               })
             : resolveMediaLibraryAdaptiveCardPreviewUrl({
@@ -174,7 +194,7 @@ export function MediaLibraryMediaGrid({
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
-                cardLongEdgePx: 320,
+                cardLongEdgePx: cardPreviewLongEdgePx,
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               });
           const durablePreviewPath = resolveDurablePreviewStoragePath(file);

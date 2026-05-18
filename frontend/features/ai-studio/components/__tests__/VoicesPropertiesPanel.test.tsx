@@ -58,6 +58,12 @@ const openVoicesLibraryModal = async () => {
   return await screen.findByRole("dialog", { name: "Voices" });
 };
 
+const openCreateVoiceModal = async () => {
+  await openVoicesLibraryModal();
+  fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+  return await screen.findByRole("dialog", { name: "Create New Voice" });
+};
+
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
@@ -160,13 +166,12 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
       "placeholder",
       "Paste or write the script that will be spoken with this voice."
     );
-    expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Create New Voice" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Voice" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice name" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice description" })).not.toBeInTheDocument();
     expect(
@@ -212,6 +217,17 @@ describe("VoicesPropertiesPanel", () => {
 
     expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByLabelText("Available voices")).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Voice library sections" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Default Voices" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
 
@@ -255,6 +271,7 @@ describe("VoicesPropertiesPanel", () => {
       });
 
     render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
@@ -312,11 +329,12 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
   });
 
-  it("uses the top create button as the entry point to the create panel", async () => {
+  it("uses the voices modal create button as the entry point to the create panel", async () => {
     render(<VoicesPropertiesPanel />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
 
+    await openVoicesLibraryModal();
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
 
     const createVoiceModal = screen.getByRole("dialog", { name: "Create New Voice" });
@@ -348,6 +366,47 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent("Loading voices…");
     expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
     expect(screen.queryByRole("button", { name: /darian voice/i })).not.toBeInTheDocument();
+  });
+
+  it("splits the voices modal into Default Voices and My Voices tabs", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_default_adam",
+            name: "Adam",
+            previewUrl: "https://cdn.elevenlabs.test/adam.mp3",
+            description: "steady",
+            isFallback: false,
+            librarySection: "default",
+          },
+          {
+            voiceId: "voice_my_custom",
+            name: "Custom Voice",
+            previewUrl: "https://cdn.elevenlabs.test/custom.mp3",
+            description: "saved",
+            isFallback: false,
+            librarySection: "my",
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /adam voice/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /custom voice voice/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "My Voices" }));
+
+    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
   });
 
   it("switches the inline left-column surface between voiceover and voice changer modes", () => {
@@ -515,6 +574,7 @@ describe("VoicesPropertiesPanel", () => {
     resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(null);
 
     const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
@@ -559,6 +619,7 @@ describe("VoicesPropertiesPanel", () => {
     });
     const onGenerate = vi.fn();
     const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
@@ -1248,6 +1309,7 @@ describe("VoicesPropertiesPanel", () => {
   it("closes the create modal without inserting a fake local voice", () => {
     render(<VoicesPropertiesPanel />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Beacon" },
@@ -1328,7 +1390,7 @@ describe("VoicesPropertiesPanel", () => {
 
     render(<VoicesPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    await openCreateVoiceModal();
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Lantern" },
     });
@@ -1398,7 +1460,7 @@ describe("VoicesPropertiesPanel", () => {
 
     render(<VoicesPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    await openCreateVoiceModal();
     fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
     const createDialog = screen.getByRole("dialog", { name: "Create New Voice" });
 
@@ -1464,7 +1526,7 @@ describe("VoicesPropertiesPanel", () => {
   it("blocks cloned voice creation when the staged sample is under one minute", async () => {
     render(<VoicesPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    await openCreateVoiceModal();
     fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Short Clone" },
@@ -1500,7 +1562,7 @@ describe("VoicesPropertiesPanel", () => {
 
     render(<VoicesPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    await openCreateVoiceModal();
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Lantern" },
     });
@@ -1524,6 +1586,7 @@ describe("VoicesPropertiesPanel", () => {
   it("overwrites the prompt text when dropping a prompt into the create-side prompt box", () => {
     render(<VoicesPropertiesPanel />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
 
     const promptField = screen.getByRole("textbox", { name: "Voice description" });
@@ -1570,6 +1633,7 @@ describe("VoicesPropertiesPanel", () => {
   it("keeps the voice prompt and voice script fully decoupled", () => {
     render(<VoicesPropertiesPanel />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
 
     const promptField = screen.getByRole("textbox", { name: "Voice description" });
@@ -1672,6 +1736,7 @@ describe("VoicesPropertiesPanel", () => {
     const onGenerate = vi.fn();
 
     render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
+    await openVoicesLibraryModal();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();

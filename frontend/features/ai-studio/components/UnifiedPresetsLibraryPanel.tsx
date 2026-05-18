@@ -37,7 +37,7 @@ const FILTER_OPTIONS: ReadonlyArray<{
 }> = [
   { id: "all", label: "All" },
   { id: "pulses", label: "Pulses" },
-  { id: "prompt-presets", label: "Edit Presets" },
+  { id: "prompt-presets", label: "Prompt Presets" },
 ];
 
 /**
@@ -130,7 +130,7 @@ export function UnifiedPresetsLibraryPanel({
                   id="presets-prompt-presets-title"
                   className="merged-presets-library-section-title"
                 >
-                  Edit Mode Presets
+                  Prompt Presets
                 </h3>
               </div>
             </div>

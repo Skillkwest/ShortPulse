@@ -1,5 +1,5 @@
 /**
- * Shared Styles control used by Expert Edit and Expert Create composer surfaces.
+ * Shared Styles control used by Edit and Create composer surfaces.
  * Renders a single labeled button and mirrors selected-style preview state.
  */
 import React from "react";

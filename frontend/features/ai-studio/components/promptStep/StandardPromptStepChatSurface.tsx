@@ -421,10 +421,10 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
       ) : null}
       {shouldUseComposerOverlay ? (
         <div
-          className={`create-expert-chat-composer-overlay-zone ${shouldBlurComposerUnderlay ? "is-composer-expanded" : ""}`.trim()}
+          className={`create-composer-chat-composer-overlay-zone ${shouldBlurComposerUnderlay ? "is-composer-expanded" : ""}`.trim()}
         >
-          <div className="create-expert-chat-composer-base-layer">{chatHistoryContent}</div>
-          <div className="create-expert-chat-composer-overlay">{composerRowContent}</div>
+          <div className="create-composer-chat-composer-base-layer">{chatHistoryContent}</div>
+          <div className="create-composer-chat-composer-overlay">{composerRowContent}</div>
         </div>
       ) : (
         <>

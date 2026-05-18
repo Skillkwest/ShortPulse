@@ -13,7 +13,7 @@ import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
-import { CreateExpertModeToggle } from "./create/CreateExpertModeToggle";
+import { CreateModeToggle } from "./create/CreateModeToggle";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
@@ -67,16 +67,16 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
-  AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
-  AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
+  AI_SHELL_LEFT_CREATE_MAX_PX,
+  AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
   AI_SHELL_RIGHT_ELEMENTS_MIN_PX,
-  resolveExpertCreateShellResizeAction,
-  shouldCollapseExpertCreateOnSessionChange,
+  resolveCreateShellResizeAction,
+  shouldCollapseCreateOnSessionChange,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
@@ -772,11 +772,11 @@ export function AiStudioPageContent({
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_MIN_PX
         : showCreatePropertiesPanel
-          ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
+          ? AI_SHELL_LEFT_CREATE_MIN_PX
           : showExpertEditPanel
             ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
             : undefined;
-  const maxLeftWidthPx = showCreatePropertiesPanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
+  const maxLeftWidthPx = showCreatePropertiesPanel ? AI_SHELL_LEFT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
     selectedTool === "media-library"
       ? AI_SHELL_RIGHT_CANVAS_MIN_PX
@@ -886,12 +886,12 @@ export function AiStudioPageContent({
       previousSessionIdRef.current = sessionId;
       return;
     }
-    const shouldCollapseForStandardCreateSession = shouldCollapseExpertCreateOnSessionChange({
+    const shouldCollapseForStandardCreateSession = shouldCollapseCreateOnSessionChange({
       previousSessionId,
       nextSessionId: sessionId,
       nextTool: selectedTool,
       nextMode: expertCreateMode,
-      expertCreateEnabled: showCreatePropertiesPanel,
+      createModeEnabled: showCreatePropertiesPanel,
     });
     if (shouldCollapseForStandardCreateSession) {
       collapseToMin();
@@ -900,12 +900,12 @@ export function AiStudioPageContent({
       previousSessionIdRef.current = sessionId;
       return;
     }
-    const expertCreateShellResizeAction = resolveExpertCreateShellResizeAction({
+    const expertCreateShellResizeAction = resolveCreateShellResizeAction({
       previousTool: previousSelectedTool,
       nextTool: selectedTool,
       previousMode: previousExpertCreateMode,
       nextMode: expertCreateMode,
-      expertCreateEnabled: showCreatePropertiesPanel,
+      createModeEnabled: showCreatePropertiesPanel,
     });
     const isInitialSoundSelection =
       previousSelectedTool !== selectedTool &&
@@ -1042,9 +1042,7 @@ export function AiStudioPageContent({
     ]
   );
   const createModeToggle = React.useMemo(
-    () => (
-      <CreateExpertModeToggle value={expertCreateMode} onChange={handleExpertCreateModeChange} />
-    ),
+    () => <CreateModeToggle value={expertCreateMode} onChange={handleExpertCreateModeChange} />,
     [expertCreateMode, handleExpertCreateModeChange]
   );
   const resolvedStandardCreatePropertiesWithStyles = React.useMemo(
@@ -1216,14 +1214,18 @@ export function AiStudioPageContent({
         createRequestKey={characterCreateRequestKey}
         externalUploadRequest={pendingCharacterUploadRequest}
         onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
+        projectId={projectId}
         resolveCharacterDropReference={resolveCharacterDropReference}
+        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
       />
     ),
     [
       characterCreateRequestKey,
       onCharacterUploadRequestHandled,
       pendingCharacterUploadRequest,
+      projectId,
       resolveCharacterDropReference,
+      resolveMediaLibraryInternalDropItem,
     ]
   );
   const presetsPropertiesPanelContent = React.useMemo(

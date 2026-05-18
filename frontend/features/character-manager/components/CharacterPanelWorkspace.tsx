@@ -35,13 +35,13 @@ type CharacterPanelWorkspaceProps = {
 };
 
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
-const CHARACTER_DESCRIPTION_HELPER_TEXT =
-  "Tip: Character description will be used as part of consistency generation.";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
+const FULL_SLOT_UPLOAD_ERROR =
+  "All character reference slots are filled. Clear a slot before adding more media.";
 
 const fetchSelectionFile = async (payload: MediaLibrarySelectionPayload): Promise<File> => {
   const candidateUrl = (payload.fullUrl ?? payload.previewUrl ?? payload.url ?? "").trim();
@@ -270,32 +270,44 @@ export function CharacterPanelWorkspace({
     async (files: File[]) => {
       const nextFiles = files.filter((file) => file instanceof File);
       if (!nextFiles.length) return;
-      let workingAssignments = resolvedCharacterSheetPresetAssignments;
-      let preferredSlot = armedSlotKey;
+      clearMessages();
+      const openSlotQueue = SLOT_ASSIGNMENT_ORDER.filter(
+        (slotKey) => !resolvedCharacterSheetPresetAssignments[slotKey]
+      );
+      if (!openSlotQueue.length) {
+        setErrorMessage(FULL_SLOT_UPLOAD_ERROR);
+        return;
+      }
+      const orderedTargetSlots =
+        armedSlotKey && openSlotQueue.includes(armedSlotKey)
+          ? [armedSlotKey, ...openSlotQueue.filter((slotKey) => slotKey !== armedSlotKey)]
+          : openSlotQueue;
+      let assignedCount = 0;
 
       for (const file of nextFiles) {
-        const targetSlotKey =
-          preferredSlot ??
-          SLOT_ASSIGNMENT_ORDER.find((slotKey) => !workingAssignments[slotKey]) ??
-          SLOT_ASSIGNMENT_ORDER[0];
+        const targetSlotKey = orderedTargetSlots[assignedCount] ?? null;
         if (!targetSlotKey) break;
         const saved = await setCharacterSheetPresetFile(targetSlotKey, file);
         if (!saved) break;
-        workingAssignments = {
-          ...workingAssignments,
-          [targetSlotKey]: {
-            characterMediaId: "__pending__",
-            storagePath: "__pending__",
-            previewStoragePath: null,
-            previewUrl: null,
-          },
-        };
-        preferredSlot = null;
+        assignedCount += 1;
       }
 
+      if (nextFiles.length > orderedTargetSlots.length) {
+        setErrorMessage(
+          `Only ${orderedTargetSlots.length} open reference slot${
+            orderedTargetSlots.length === 1 ? " was" : "s were"
+          } available. Extra uploads were skipped.`
+        );
+      }
       setArmedSlotKey(null);
     },
-    [armedSlotKey, resolvedCharacterSheetPresetAssignments, setCharacterSheetPresetFile]
+    [
+      armedSlotKey,
+      clearMessages,
+      resolvedCharacterSheetPresetAssignments,
+      setCharacterSheetPresetFile,
+      setErrorMessage,
+    ]
   );
 
   React.useEffect(() => {
@@ -615,7 +627,6 @@ export function CharacterPanelWorkspace({
                 {isEmbeddedMediaLibraryMaximized ? null : (
                   <CharacterDescriptionEditorCard
                     description={characterDescription}
-                    helperText={CHARACTER_DESCRIPTION_HELPER_TEXT}
                     maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
                     rows={3}
                     disabled={loading}

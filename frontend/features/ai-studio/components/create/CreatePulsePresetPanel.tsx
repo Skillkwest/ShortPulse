@@ -23,7 +23,7 @@ import { useCreatePulsePresetRuntime } from "./useCreatePulsePresetRuntime";
 const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
 
-type CreateExpertPresetPanelProps = {
+type CreatePulsePresetPanelProps = {
   activePresetId?: CreatePulsePresetId | null;
   onActivePresetIdChange?: (
     presetId: CreatePulsePresetId | null,
@@ -48,9 +48,9 @@ type CreateExpertPresetPanelProps = {
 };
 
 /**
- * Renders the Pulse preset rail used in expert Create mode.
+ * Renders the Pulse preset rail used in Create Pulse mode.
  */
-export function CreateExpertPresetPanel({
+export function CreatePulsePresetPanel({
   activePresetId,
   onActivePresetIdChange,
   onPresetStart,
@@ -61,7 +61,7 @@ export function CreateExpertPresetPanel({
   onSavedPresetsChange,
   onOpenPresetsLibrary,
   isActivationBusy = false,
-}: CreateExpertPresetPanelProps) {
+}: CreatePulsePresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
   const toastVisibleTimerRef = React.useRef<number | null>(null);
   const toastFadeTimerRef = React.useRef<number | null>(null);
@@ -220,17 +220,17 @@ export function CreateExpertPresetPanel({
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
 
   return (
-    <section className="create-expert-presets-panel" aria-label="Create pulse presets">
-      <div className="create-expert-presets-card">
-        <div className="create-expert-presets-title-card">
-          <p className="create-expert-presets-title">Pulses</p>
-          <span className="create-expert-presets-title-icon" aria-hidden="true">
+    <section className="create-composer-presets-panel" aria-label="Create pulse presets">
+      <div className="create-composer-presets-card">
+        <div className="create-composer-presets-title-card">
+          <p className="create-composer-presets-title">Pulses</p>
+          <span className="create-composer-presets-title-icon" aria-hidden="true">
             <Sliders size={14} weight="regular" />
           </span>
         </div>
-        <div className="create-expert-presets-list" aria-label="Selected pulse presets">
+        <div className="create-composer-presets-list" aria-label="Selected pulse presets">
           <div
-            className={`create-expert-presets-dropzone ${
+            className={`create-composer-presets-dropzone ${
               hasSelectedPresetIds ? "is-populated" : "is-empty"
             } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
             aria-label="Pulse preset panel list"
@@ -245,8 +245,8 @@ export function CreateExpertPresetPanel({
                   type="button"
                   draggable
                   aria-pressed={activePresetId === preset.presetId}
-                  className={`create-expert-presets-btn create-expert-presets-btn--selected ${
-                    activePresetId === preset.presetId ? "create-expert-presets-btn--active" : ""
+                  className={`create-composer-presets-btn create-composer-presets-btn--selected ${
+                    activePresetId === preset.presetId ? "create-composer-presets-btn--active" : ""
                   }`.trim()}
                   aria-label={`${preset.label} preset`}
                   aria-disabled={!isPulseActivationEnabled || isActivationBusy}
@@ -254,13 +254,13 @@ export function CreateExpertPresetPanel({
                   onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
                   onDragEnd={handlePresetDragEnd}
                 >
-                  <span className="create-expert-presets-btn-label">{preset.label}</span>
+                  <span className="create-composer-presets-btn-label">{preset.label}</span>
                 </button>
               ))
             ) : (
               <button
                 type="button"
-                className="create-expert-presets-empty-drop"
+                className="create-composer-presets-empty-drop"
                 aria-label="Empty pulse preset drop target"
                 onClick={() => setIsMorePresetsSurfaceOpen(true)}
               >
@@ -268,16 +268,16 @@ export function CreateExpertPresetPanel({
               </button>
             )}
           </div>
-          <div className="create-expert-presets-divider" aria-hidden="true" />
+          <div className="create-composer-presets-divider" aria-hidden="true" />
           <button
             type="button"
-            className="create-expert-presets-btn create-expert-presets-btn--more"
+            className="create-composer-presets-btn create-composer-presets-btn--more"
             aria-label={CREATE_PULSE_MORE_LABEL}
             aria-expanded={isMorePresetsSurfaceOpen}
             aria-controls={morePresetsSurfaceId}
             onClick={toggleMorePresetsSurface}
           >
-            <span className="create-expert-presets-btn-icon" aria-hidden="true">
+            <span className="create-composer-presets-btn-icon" aria-hidden="true">
               <GearSix size={12} weight="regular" />
             </span>
             {CREATE_PULSE_MORE_LABEL}
@@ -332,16 +332,16 @@ export function CreateExpertPresetPanel({
         ) : null}
         {persistentStatusMessage ? (
           <div
-            className={`create-expert-presets-status-banner is-${persistentStatusTone}`.trim()}
+            className={`create-composer-presets-status-banner is-${persistentStatusTone}`.trim()}
             role={persistentStatusTone === "warning" ? "alert" : "status"}
             aria-live="polite"
           >
-            <span className="create-expert-presets-status-banner-copy">
+            <span className="create-composer-presets-status-banner-copy">
               {persistentStatusMessage}
             </span>
             <button
               type="button"
-              className="create-expert-presets-status-banner-dismiss"
+              className="create-composer-presets-status-banner-dismiss"
               aria-label="Dismiss pulse status"
               onClick={clearStatusMessage}
             >
@@ -351,7 +351,7 @@ export function CreateExpertPresetPanel({
         ) : null}
         {statusToastMessage ? (
           <div
-            className={`create-expert-presets-status-toast is-${statusToastTone} ${
+            className={`create-composer-presets-status-toast is-${statusToastTone} ${
               isStatusToastFading ? "is-fading" : ""
             }`.trim()}
             role="status"

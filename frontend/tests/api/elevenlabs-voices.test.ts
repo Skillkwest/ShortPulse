@@ -73,8 +73,16 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.source).toBe("api");
     expect(payload.voices).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ voiceId: "voice-live-1", isFallback: false }),
-        expect.objectContaining({ voiceId: "custom-1", isFallback: false }),
+        expect.objectContaining({
+          voiceId: "voice-live-1",
+          isFallback: false,
+          librarySection: "default",
+        }),
+        expect.objectContaining({
+          voiceId: "custom-1",
+          isFallback: false,
+          librarySection: "my",
+        }),
       ])
     );
     expect(payload.warning).toBeUndefined();
@@ -104,6 +112,7 @@ describe("GET /api/elevenlabs/voices", () => {
     );
     expect(payload.voices.length).toBeGreaterThan(1);
     expect(payload.voices[0]?.isFallback).toBe(true);
+    expect(payload.voices[0]?.librarySection).toBe("default");
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
@@ -130,6 +139,7 @@ describe("GET /api/elevenlabs/voices", () => {
       "Showing the ElevenLabs default catalog until live voices are configured."
     );
     expect(payload.voices[0]?.isFallback).toBe(true);
+    expect(payload.voices[0]?.librarySection).toBe("default");
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 });

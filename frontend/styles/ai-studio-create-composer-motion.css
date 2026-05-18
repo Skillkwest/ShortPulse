@@ -1,0 +1,18 @@
+@keyframes create-composer-thinking-shine {
+  0% {
+    background-position: 140% 50%;
+  }
+  100% {
+    background-position: -90% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-composer-panel .create-composer-panel-shell,
+  .create-composer-panel .create-composer-left-panel,
+  .create-composer-character-mode-control,
+  .create-composer-panel .create-composer-character-picker-trigger,
+  .create-composer-model-control {
+    transition: none;
+  }
+}

@@ -72,6 +72,52 @@ describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
 
     expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot)).toEqual([]);
   });
+
+  it("ignores failed image outputs when resolving project previews from raw snapshots", () => {
+    const snapshot = {
+      outputs: {
+        curatedReferenceIds: ["failed-quick", "success-quick"],
+        active: [
+          {
+            id: "failed-quick",
+            mode: "image",
+            taskState: "fail",
+            previewUrl: "https://cdn.example.com/failed-quick.png",
+          },
+          {
+            id: "success-quick",
+            mode: "image",
+            taskState: "success",
+            previewUrl: "https://cdn.example.com/success-quick.png",
+          },
+          {
+            id: "failed-grid",
+            mode: "image",
+            taskState: "fail",
+            previewUrl: "https://cdn.example.com/failed-grid.png",
+          },
+          {
+            id: "success-grid",
+            mode: "image",
+            taskState: "success",
+            previewUrl: "https://cdn.example.com/success-grid.png",
+          },
+        ],
+        archived: [
+          {
+            id: "failed-archived",
+            mode: "image",
+            taskState: "fail",
+            previewUrl: "https://cdn.example.com/failed-archived.png",
+          },
+        ],
+      },
+    };
+
+    expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot)).toEqual([
+      "https://cdn.example.com/success-quick.png",
+    ]);
+  });
 });
 
 describe("resolveProjectCardPreviewSigningStoragePaths", () => {

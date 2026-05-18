@@ -8,7 +8,7 @@ import {
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
-  AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
+  AI_SHELL_LEFT_CREATE_MAX_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
@@ -18,8 +18,8 @@ import {
   getDefaultAiShellLeftWidth,
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
-  resolveExpertCreateShellResizeAction,
-  shouldCollapseExpertCreateOnSessionChange,
+  resolveCreateShellResizeAction,
+  shouldCollapseCreateOnSessionChange,
   shouldCollapseAiShellOnToolSelect,
   shouldExpandAiShellOnToolSelect,
 } from "../shellResize";
@@ -47,9 +47,9 @@ describe("getAiShellLeftWidthBounds", () => {
 
   it("supports a caller-provided maximum width cap", () => {
     const bounds = getAiShellLeftWidthBounds(1700, {
-      maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
+      maxLeftWidthPx: AI_SHELL_LEFT_CREATE_MAX_PX,
     });
-    expect(bounds.max).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+    expect(bounds.max).toBe(AI_SHELL_LEFT_CREATE_MAX_PX);
   });
 
   it("supports a canvas right column minimum of zero", () => {
@@ -77,9 +77,9 @@ describe("clampAiShellLeftWidth", () => {
   it("respects caller-provided maximum width", () => {
     expect(
       clampAiShellLeftWidth(1400, 1600, {
-        maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
+        maxLeftWidthPx: AI_SHELL_LEFT_CREATE_MAX_PX,
       })
-    ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+    ).toBe(AI_SHELL_LEFT_CREATE_MAX_PX);
   });
 
   it("allows the divider to cover the full right column for canvas mode", () => {
@@ -104,9 +104,9 @@ describe("getDefaultAiShellLeftWidth", () => {
   });
 
   it("clamps defaults to a caller-provided maximum width", () => {
-    expect(
-      getDefaultAiShellLeftWidth(3000, { maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX })
-    ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+    expect(getDefaultAiShellLeftWidth(3000, { maxLeftWidthPx: AI_SHELL_LEFT_CREATE_MAX_PX })).toBe(
+      AI_SHELL_LEFT_CREATE_MAX_PX
+    );
   });
 
   it("supports a caller-provided preferred ratio for tool-specific defaults", () => {
@@ -171,127 +171,127 @@ describe("shouldExpandAiShellOnToolSelect", () => {
   });
 });
 
-describe("resolveExpertCreateShellResizeAction", () => {
-  it("collapses when entering expert create in standard mode", () => {
+describe("resolveCreateShellResizeAction", () => {
+  it("collapses when entering create in standard mode", () => {
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "edit",
         nextTool: "create",
         previousMode: "standard",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe("collapse");
   });
 
-  it("collapses when entering expert create in pulse mode", () => {
+  it("collapses when entering create in pulse mode", () => {
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "edit",
         nextTool: "create",
         previousMode: "standard",
         nextMode: "pulse",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe("collapse");
   });
 
   it("does not resize on pulse switch and collapses on standard switch while already in create", () => {
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "create",
         nextTool: "create",
         previousMode: "standard",
         nextMode: "pulse",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBeNull();
 
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "create",
         nextTool: "create",
         previousMode: "pulse",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe("collapse");
   });
 
-  it("does nothing when expert create is inactive or nothing changed", () => {
+  it("does nothing when create is inactive or nothing changed", () => {
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "create",
         nextTool: "create",
         previousMode: "standard",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBeNull();
 
     expect(
-      resolveExpertCreateShellResizeAction({
+      resolveCreateShellResizeAction({
         previousTool: "edit",
         nextTool: "create",
         previousMode: "standard",
         nextMode: "pulse",
-        expertCreateEnabled: false,
+        createModeEnabled: false,
       })
     ).toBeNull();
   });
 });
 
-describe("shouldCollapseExpertCreateOnSessionChange", () => {
-  it("collapses when a new expert-create session starts", () => {
+describe("shouldCollapseCreateOnSessionChange", () => {
+  it("collapses when a new Create session starts", () => {
     expect(
-      shouldCollapseExpertCreateOnSessionChange({
+      shouldCollapseCreateOnSessionChange({
         previousSessionId: "session-1",
         nextSessionId: "session-2",
         nextTool: "create",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe(true);
 
     expect(
-      shouldCollapseExpertCreateOnSessionChange({
+      shouldCollapseCreateOnSessionChange({
         previousSessionId: "session-1",
         nextSessionId: "session-2",
         nextTool: "create",
         nextMode: "pulse",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe(true);
   });
 
   it("does not collapse when the session is unchanged or create is inactive", () => {
     expect(
-      shouldCollapseExpertCreateOnSessionChange({
+      shouldCollapseCreateOnSessionChange({
         previousSessionId: "session-1",
         nextSessionId: "session-1",
         nextTool: "create",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe(false);
 
     expect(
-      shouldCollapseExpertCreateOnSessionChange({
+      shouldCollapseCreateOnSessionChange({
         previousSessionId: "session-1",
         nextSessionId: "session-2",
         nextTool: "edit",
         nextMode: "standard",
-        expertCreateEnabled: true,
+        createModeEnabled: true,
       })
     ).toBe(false);
 
     expect(
-      shouldCollapseExpertCreateOnSessionChange({
+      shouldCollapseCreateOnSessionChange({
         previousSessionId: "session-1",
         nextSessionId: "session-2",
         nextTool: "create",
         nextMode: "standard",
-        expertCreateEnabled: false,
+        createModeEnabled: false,
       })
     ).toBe(false);
   });

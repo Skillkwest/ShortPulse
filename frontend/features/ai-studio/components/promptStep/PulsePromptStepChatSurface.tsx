@@ -162,15 +162,15 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const pulseLoadingTitle = "Generating...";
   const pulseLoadingContent = pulseLoadingState ? (
     <div
-      className={`create-expert-pulse-loading-card is-${pulseLoadingState.phase.replace("_", "-")}`}
+      className={`create-composer-pulse-loading-card is-${pulseLoadingState.phase.replace("_", "-")}`}
       role="status"
       aria-live="polite"
       aria-label={pulseLoadingTitle}
     >
-      <span className="create-expert-pulse-loading-spinner" aria-hidden="true" />
-      <div className="create-expert-pulse-loading-card-copy">
-        <p className="create-expert-pulse-loading-card-title">{pulseLoadingTitle}</p>
-        <p className="create-expert-pulse-loading-card-message">{pulseLoadingState.message}</p>
+      <span className="create-composer-pulse-loading-spinner" aria-hidden="true" />
+      <div className="create-composer-pulse-loading-card-copy">
+        <p className="create-composer-pulse-loading-card-title">{pulseLoadingTitle}</p>
+        <p className="create-composer-pulse-loading-card-message">{pulseLoadingState.message}</p>
       </div>
     </div>
   ) : null;
@@ -406,10 +406,10 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       ) : null}
       {shouldUseComposerOverlay ? (
         <div
-          className={`create-expert-chat-composer-overlay-zone ${shouldBlurComposerUnderlay ? "is-composer-expanded" : ""}`.trim()}
+          className={`create-composer-chat-composer-overlay-zone ${shouldBlurComposerUnderlay ? "is-composer-expanded" : ""}`.trim()}
         >
-          <div className="create-expert-chat-composer-base-layer">{chatHistoryContent}</div>
-          <div className="create-expert-chat-composer-overlay">{composerRowContent}</div>
+          <div className="create-composer-chat-composer-base-layer">{chatHistoryContent}</div>
+          <div className="create-composer-chat-composer-overlay">{composerRowContent}</div>
         </div>
       ) : (
         <>

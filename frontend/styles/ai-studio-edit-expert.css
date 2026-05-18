@@ -19,20 +19,20 @@
   box-sizing: border-box;
   overflow: visible;
   --edit-expert-center-column-max-width: 860px;
-  --create-expert-selector-width: 175px;
-  --create-expert-model-selector-width: 170px;
-  --create-expert-character-selector-width: 155px;
-  --create-expert-resolution-width: 120px;
-  --create-expert-selector-gap: 6px;
-  --create-expert-controls-gap: 6px;
-  --create-expert-character-toggle-gap: 6px;
-  --create-expert-selector-height: 40px;
-  --create-expert-selector-bg: var(--color-bg);
-  --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);
+  --create-composer-selector-width: 175px;
+  --create-composer-model-selector-width: 170px;
+  --create-composer-character-selector-width: 155px;
+  --create-composer-resolution-width: 120px;
+  --create-composer-selector-gap: 6px;
+  --create-composer-controls-gap: 6px;
+  --create-composer-character-toggle-gap: 6px;
+  --create-composer-selector-height: 40px;
+  --create-composer-selector-bg: var(--color-bg);
+  --create-composer-selector-hover-border: rgba(201, 205, 214, 0.3);
   --edit-expert-post-stage-composer-clearance: 20px;
   --edit-expert-post-stage-overlay-gap: 12px;
   --edit-expert-post-stage-overlay-reserve: calc(
-    var(--edit-expert-prompt-input-min-height) + var(--create-expert-selector-height) +
+    var(--edit-expert-prompt-input-min-height) + var(--create-composer-selector-height) +
       var(--edit-expert-post-stage-composer-clearance) + var(--edit-expert-post-stage-overlay-gap)
   );
 }
@@ -5460,7 +5460,7 @@
   align-items: center;
 }
 
-.edit-expert-panel .create-expert-controls-row {
+.edit-expert-panel .create-composer-controls-row {
   justify-content: center;
   padding-inline: 0;
 }
@@ -5470,7 +5470,7 @@
   padding-top: 22px;
 }
 
-.edit-expert-panel .edit-expert-post-stage-wrapper .create-expert-controls-row {
+.edit-expert-panel .edit-expert-post-stage-wrapper .create-composer-controls-row {
   width: 100%;
   justify-content: center;
   padding-inline: 0;
@@ -5479,7 +5479,7 @@
 .edit-expert-panel
   .edit-expert-post-stage-wrapper
   .edit-expert-selector-row
-  .create-expert-controls {
+  .create-composer-controls {
   flex: 0 0 auto;
   flex-wrap: nowrap;
   width: max-content;
@@ -5489,17 +5489,17 @@
   padding-inline: 0;
 }
 
-.edit-expert-panel .create-expert-character-picker-trigger {
+.edit-expert-panel .create-composer-character-picker-trigger {
   flex: 0 0 auto;
-  width: var(--create-expert-character-selector-width);
-  max-width: var(--create-expert-character-selector-width);
-  min-height: var(--create-expert-selector-height);
-  height: var(--create-expert-selector-height);
+  width: var(--create-composer-character-selector-width);
+  max-width: var(--create-composer-character-selector-width);
+  min-height: var(--create-composer-selector-height);
+  height: var(--create-composer-selector-height);
   padding: 6px 10px;
   justify-content: flex-start;
   gap: 8px;
   border-color: rgba(201, 205, 214, 0.22);
-  background: var(--create-expert-selector-bg);
+  background: var(--create-composer-selector-bg);
   box-shadow: none;
   overflow: hidden;
   transform-origin: left center;
@@ -5514,32 +5514,32 @@
     background 160ms ease;
 }
 
-.edit-expert-panel .create-expert-character-picker-trigger:hover,
-.edit-expert-panel .create-expert-character-picker-trigger.is-open,
-.edit-expert-panel .create-expert-character-picker-trigger.is-empty,
-.edit-expert-panel .create-expert-character-picker-trigger:disabled,
-.edit-expert-panel .create-expert-character-picker-trigger:disabled:hover {
-  border-color: var(--create-expert-selector-hover-border);
-  background: var(--create-expert-selector-bg);
+.edit-expert-panel .create-composer-character-picker-trigger:hover,
+.edit-expert-panel .create-composer-character-picker-trigger.is-open,
+.edit-expert-panel .create-composer-character-picker-trigger.is-empty,
+.edit-expert-panel .create-composer-character-picker-trigger:disabled,
+.edit-expert-panel .create-composer-character-picker-trigger:disabled:hover {
+  border-color: var(--create-composer-selector-hover-border);
+  background: var(--create-composer-selector-bg);
   box-shadow: none;
 }
 
 .edit-expert-panel
-  .create-expert-character-mode-control.is-character-mode-on
-  .create-expert-character-picker-trigger.is-empty,
+  .create-composer-character-mode-control.is-character-mode-on
+  .create-composer-character-picker-trigger.is-empty,
 .edit-expert-panel
-  .create-expert-character-mode-control.is-character-mode-on
-  .create-expert-character-picker-trigger.is-empty:hover,
+  .create-composer-character-mode-control.is-character-mode-on
+  .create-composer-character-picker-trigger.is-empty:hover,
 .edit-expert-panel
-  .create-expert-character-mode-control.is-character-mode-on
-  .create-expert-character-picker-trigger.is-empty.is-open {
+  .create-composer-character-mode-control.is-character-mode-on
+  .create-composer-character-picker-trigger.is-empty.is-open {
   border-color: var(--ai-accent, #25a9bf);
   box-shadow:
     0 0 0 1px var(--ai-accent-soft, rgba(37, 169, 191, 0.4)),
     0 0 14px var(--ai-accent-shadow, rgba(52, 201, 255, 0.176));
 }
 
-.edit-expert-panel .create-expert-character-picker-trigger .model-picker-name {
+.edit-expert-panel .create-composer-character-picker-trigger .model-picker-name {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -5547,19 +5547,19 @@
   white-space: nowrap;
 }
 
-.edit-expert-panel .create-expert-model-picker-trigger {
-  width: var(--create-expert-model-selector-width);
-  min-width: var(--create-expert-model-selector-width);
-  max-width: var(--create-expert-model-selector-width);
+.edit-expert-panel .create-composer-model-picker-trigger {
+  width: var(--create-composer-model-selector-width);
+  min-width: var(--create-composer-model-selector-width);
+  max-width: var(--create-composer-model-selector-width);
   box-sizing: border-box;
   position: relative;
   z-index: 2;
-  min-height: var(--create-expert-selector-height);
-  height: var(--create-expert-selector-height);
+  min-height: var(--create-composer-selector-height);
+  height: var(--create-composer-selector-height);
   padding: 6px 28px 6px 8px;
   justify-content: flex-start;
   border-color: rgba(201, 205, 214, 0.22);
-  background: var(--create-expert-selector-bg);
+  background: var(--create-composer-selector-bg);
   background-size:
     5px 5px,
     5px 5px;
@@ -5568,67 +5568,67 @@
   transition: none;
 }
 
-.edit-expert-panel .create-expert-character-picker-trigger,
-.edit-expert-panel .create-expert-model-picker-trigger,
+.edit-expert-panel .create-composer-character-picker-trigger,
+.edit-expert-panel .create-composer-model-picker-trigger,
 .ai-studio-page .edit-expert-panel .aspect-trigger,
-.edit-expert-panel .create-expert-resolution-trigger {
+.edit-expert-panel .create-composer-resolution-trigger {
   cursor: pointer;
 }
 
-.edit-expert-panel .create-expert-character-picker-trigger:disabled,
-.edit-expert-panel .create-expert-character-picker-trigger[aria-disabled="true"],
-.edit-expert-panel .create-expert-model-picker-trigger:disabled,
-.edit-expert-panel .create-expert-model-picker-trigger[aria-disabled="true"],
-.edit-expert-panel .create-expert-model-picker-trigger.is-locked,
+.edit-expert-panel .create-composer-character-picker-trigger:disabled,
+.edit-expert-panel .create-composer-character-picker-trigger[aria-disabled="true"],
+.edit-expert-panel .create-composer-model-picker-trigger:disabled,
+.edit-expert-panel .create-composer-model-picker-trigger[aria-disabled="true"],
+.edit-expert-panel .create-composer-model-picker-trigger.is-locked,
 .ai-studio-page .edit-expert-panel .aspect-trigger:disabled,
 .ai-studio-page .edit-expert-panel .aspect-trigger[aria-disabled="true"],
-.edit-expert-panel .create-expert-resolution-trigger:disabled,
-.edit-expert-panel .create-expert-resolution-trigger[aria-disabled="true"] {
+.edit-expert-panel .create-composer-resolution-trigger:disabled,
+.edit-expert-panel .create-composer-resolution-trigger[aria-disabled="true"] {
   cursor: not-allowed;
 }
 
-.edit-expert-panel .create-expert-model-picker-trigger:hover,
-.edit-expert-panel .create-expert-model-picker-trigger.is-open,
-.edit-expert-panel .create-expert-model-picker-trigger:disabled,
-.edit-expert-panel .create-expert-model-picker-trigger:disabled:hover,
-.edit-expert-panel .create-expert-model-picker-trigger.is-locked,
-.edit-expert-panel .create-expert-model-picker-trigger.is-locked:hover {
-  border-color: var(--create-expert-selector-hover-border);
-  background-color: var(--create-expert-selector-bg);
+.edit-expert-panel .create-composer-model-picker-trigger:hover,
+.edit-expert-panel .create-composer-model-picker-trigger.is-open,
+.edit-expert-panel .create-composer-model-picker-trigger:disabled,
+.edit-expert-panel .create-composer-model-picker-trigger:disabled:hover,
+.edit-expert-panel .create-composer-model-picker-trigger.is-locked,
+.edit-expert-panel .create-composer-model-picker-trigger.is-locked:hover {
+  border-color: var(--create-composer-selector-hover-border);
+  background-color: var(--create-composer-selector-bg);
   box-shadow: none;
 }
 
-.edit-expert-panel .create-expert-model-picker-trigger.is-empty,
-.edit-expert-panel .create-expert-model-picker-trigger.is-empty:hover,
-.edit-expert-panel .create-expert-model-picker-trigger.is-empty.is-open {
+.edit-expert-panel .create-composer-model-picker-trigger.is-empty,
+.edit-expert-panel .create-composer-model-picker-trigger.is-empty:hover,
+.edit-expert-panel .create-composer-model-picker-trigger.is-empty.is-open {
   border-color: var(--ai-accent, #25a9bf);
 }
 
-.edit-expert-panel .create-expert-controls .model-chip-logo-img {
+.edit-expert-panel .create-composer-controls .model-chip-logo-img {
   height: 14px;
   width: auto;
 }
 
-.edit-expert-panel .create-expert-controls .model-chip-logo-img--locked-edit-tool {
+.edit-expert-panel .create-composer-controls .model-chip-logo-img--locked-edit-tool {
   width: 18px;
   object-fit: contain;
 }
 
-.edit-expert-panel .create-expert-toggle-control.is-active .audio-toggle-dot {
+.edit-expert-panel .create-composer-toggle-control.is-active .audio-toggle-dot {
   transform: translate(24px, -50%);
   background: #1a140c;
 }
 
 .ai-studio-page .edit-expert-panel .aspect-trigger {
-  width: var(--create-expert-selector-width);
-  min-width: var(--create-expert-selector-width);
-  max-width: var(--create-expert-selector-width);
+  width: var(--create-composer-selector-width);
+  min-width: var(--create-composer-selector-width);
+  max-width: var(--create-composer-selector-width);
   box-sizing: border-box;
-  min-height: var(--create-expert-selector-height);
-  height: var(--create-expert-selector-height);
+  min-height: var(--create-composer-selector-height);
+  height: var(--create-composer-selector-height);
   padding: 6px 28px 6px 8px;
   border-color: rgba(201, 205, 214, 0.22);
-  background: var(--create-expert-selector-bg);
+  background: var(--create-composer-selector-bg);
   background-image:
     linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
     linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
@@ -5645,8 +5645,8 @@
 .ai-studio-page .edit-expert-panel .aspect-trigger:hover:not(:disabled),
 .ai-studio-page .edit-expert-panel .aspect-trigger[aria-expanded="true"] {
   transform: none;
-  border-color: var(--create-expert-selector-hover-border);
-  background-color: var(--create-expert-selector-bg);
+  border-color: var(--create-composer-selector-hover-border);
+  background-color: var(--create-composer-selector-bg);
   box-shadow: none;
 }
 
@@ -5654,18 +5654,18 @@
   display: none;
 }
 
-.ai-studio-page .edit-expert-panel .create-expert-resolution-trigger {
-  width: var(--create-expert-resolution-width);
-  min-width: var(--create-expert-resolution-width);
-  max-width: var(--create-expert-resolution-width);
+.ai-studio-page .edit-expert-panel .create-composer-resolution-trigger {
+  width: var(--create-composer-resolution-width);
+  min-width: var(--create-composer-resolution-width);
+  max-width: var(--create-composer-resolution-width);
   box-sizing: border-box;
-  min-height: var(--create-expert-selector-height);
-  height: var(--create-expert-selector-height);
+  min-height: var(--create-composer-selector-height);
+  height: var(--create-composer-selector-height);
   padding: 6px 28px 6px 8px;
   font-size: 12px;
   border-color: rgba(201, 205, 214, 0.22);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg);
+  background: var(--create-composer-selector-bg);
   background-image:
     linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
     linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
@@ -5680,50 +5680,50 @@
   box-shadow: none;
 }
 
-.edit-expert-panel .create-expert-resolution-trigger:hover:not(:disabled),
-.edit-expert-panel .create-expert-resolution-trigger:focus-visible,
-.edit-expert-panel .create-expert-resolution-trigger[aria-expanded="true"] {
-  border-color: var(--create-expert-selector-hover-border);
-  background-color: var(--create-expert-selector-bg);
+.edit-expert-panel .create-composer-resolution-trigger:hover:not(:disabled),
+.edit-expert-panel .create-composer-resolution-trigger:focus-visible,
+.edit-expert-panel .create-composer-resolution-trigger[aria-expanded="true"] {
+  border-color: var(--create-composer-selector-hover-border);
+  background-color: var(--create-composer-selector-bg);
   box-shadow: none;
   transform: none;
   outline: none;
 }
 
-.edit-expert-panel .create-expert-resolution-value {
+.edit-expert-panel .create-composer-resolution-value {
   display: block;
   max-width: 100%;
 }
 
 .ai-studio-page .edit-expert-panel .aspect-trigger,
-.edit-expert-panel .create-expert-resolution-trigger {
-  background-color: var(--create-expert-selector-bg);
+.edit-expert-panel .create-composer-resolution-trigger {
+  background-color: var(--create-composer-selector-bg);
 }
 
 .ai-studio-page .edit-expert-panel .aspect-trigger:hover:not(:disabled),
 .ai-studio-page .edit-expert-panel .aspect-trigger[aria-expanded="true"],
-.edit-expert-panel .create-expert-resolution-trigger:hover:not(:disabled),
-.edit-expert-panel .create-expert-resolution-trigger:focus-visible,
-.edit-expert-panel .create-expert-resolution-trigger[aria-expanded="true"] {
+.edit-expert-panel .create-composer-resolution-trigger:hover:not(:disabled),
+.edit-expert-panel .create-composer-resolution-trigger:focus-visible,
+.edit-expert-panel .create-composer-resolution-trigger[aria-expanded="true"] {
   border-color: rgba(245, 185, 66, 0.62);
-  background-color: var(--create-expert-selector-bg);
+  background-color: var(--create-composer-selector-bg);
 }
 
 .ai-studio-page .edit-expert-panel .aspect-menu,
-.ai-studio-page .edit-expert-panel .create-expert-resolution-menu {
+.ai-studio-page .edit-expert-panel .create-composer-resolution-menu {
   background: #131518;
   border-color: rgba(245, 185, 66, 0.35);
 }
 
 .ai-studio-page .edit-expert-panel .aspect-menu-item:hover,
-.ai-studio-page .edit-expert-panel .create-expert-resolution-option:hover {
+.ai-studio-page .edit-expert-panel .create-composer-resolution-option:hover {
   background: rgba(245, 185, 66, 0.12);
   border-color: rgba(245, 185, 66, 0.45);
   color: #f7fafc;
 }
 
 .ai-studio-page .edit-expert-panel .aspect-menu-item.is-active,
-.ai-studio-page .edit-expert-panel .create-expert-resolution-option.is-active {
+.ai-studio-page .edit-expert-panel .create-composer-resolution-option.is-active {
   background: rgba(245, 185, 66, 0.18);
   border-color: rgba(245, 185, 66, 0.62);
   box-shadow: inset 0 0 0 1px rgba(245, 185, 66, 0.3);
@@ -5740,12 +5740,12 @@
 .ai-studio-page .edit-expert-panel .aspect-menu-item.is-active .aspect-name,
 .ai-studio-page
   .edit-expert-panel
-  .create-expert-resolution-option:hover
-  .create-expert-resolution-option-label,
+  .create-composer-resolution-option:hover
+  .create-composer-resolution-option-label,
 .ai-studio-page
   .edit-expert-panel
-  .create-expert-resolution-option.is-active
-  .create-expert-resolution-option-label {
+  .create-composer-resolution-option.is-active
+  .create-composer-resolution-option-label {
   color: #f7fafc;
 }
 
@@ -5759,12 +5759,12 @@
   --edit-expert-generation-mode-slot-width: calc(
     (100% - (var(--edit-expert-generation-mode-pad) * 2)) / var(--edit-expert-generation-mode-slots)
   );
-  min-height: var(--create-expert-selector-height);
-  height: var(--create-expert-selector-height);
+  min-height: var(--create-composer-selector-height);
+  height: var(--create-composer-selector-height);
   padding: var(--edit-expert-generation-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.22);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg);
+  background: var(--create-composer-selector-bg);
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(var(--edit-expert-generation-mode-slots), minmax(0, 1fr));
@@ -5855,25 +5855,25 @@
   }
 }
 
-.edit-expert-panel .create-expert-character-mode-control {
+.edit-expert-panel .create-composer-character-mode-control {
   min-width: 0;
 }
 
-.edit-expert-panel .create-expert-character-mode-control.is-character-mode-on {
+.edit-expert-panel .create-composer-character-mode-control.is-character-mode-on {
   min-width: 252px;
 }
 
-.edit-expert-panel .create-expert-character-mode-control.is-character-mode-off {
+.edit-expert-panel .create-composer-character-mode-control.is-character-mode-off {
   min-width: 108px;
 }
 
-.edit-expert-panel .create-expert-character-mode-control .create-expert-toggle-control {
+.edit-expert-panel .create-composer-character-mode-control .create-composer-toggle-control {
   border-radius: 999px;
 }
 
 .edit-expert-panel
-  .create-expert-character-mode-control
-  .create-expert-toggle-control
+  .create-composer-character-mode-control
+  .create-composer-toggle-control
   .audio-toggle-track {
   border-radius: 999px;
   overflow: hidden;

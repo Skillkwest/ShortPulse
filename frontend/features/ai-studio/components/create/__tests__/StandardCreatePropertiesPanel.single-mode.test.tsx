@@ -132,6 +132,17 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses the inline-response generate prefab and preserves busy semantics in the composer row", () => {
+    render(<StandardCreatePropertiesPanel {...baseProps} costCredits={2} isPromptGenerating />);
+
+    const button = within(screen.getByTestId("composer-leading-content")).getByRole("button", {
+      name: "Generate",
+    });
+
+    expect(button.classList.contains("agent-response-inline-generate-prefab")).toBe(true);
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
+
   it("keeps the create mode toggle in the standard panel path", () => {
     render(
       <StandardCreatePropertiesPanel {...baseProps} createModeToggle={<span>mode-toggle</span>} />

@@ -3,7 +3,7 @@
  * Decouples hook return types from the `AiStudioPageContentProps` container type.
  */
 import type { ComponentProps } from "react";
-import type { ExpertCreateMode } from "../../components/create/createModeTypes";
+import type { CreateMode } from "../../components/create/createModeTypes";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
 import type { StandardCreatePropertiesPanelProps } from "../../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditPanelViewProps } from "../../components/edit/ExpertEditPanelView";
@@ -13,8 +13,8 @@ import type { VideoPropertiesPanelProps } from "../../components/VideoProperties
 import type { StudioOutput } from "../../types";
 
 type AiStudioCreatePanelBaseContract = {
-  expertCreateMode: ExpertCreateMode;
-  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  expertCreateMode: CreateMode;
+  onExpertCreateModeChange?: (value: CreateMode) => void;
 };
 
 export type AiStudioCreatePanelContract =

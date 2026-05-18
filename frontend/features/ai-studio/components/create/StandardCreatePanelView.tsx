@@ -83,7 +83,7 @@ export function StandardCreatePanelView({
     hideEmptyAgentChatState: true,
     forceRenderAgentChatPanel: !shouldShowPersistentEmptyShell,
     emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
-      ? "create-expert-chat-spacer"
+      ? "create-composer-chat-spacer"
       : "",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
@@ -96,31 +96,31 @@ export function StandardCreatePanelView({
     <>
       {shouldShowPersistentEmptyShell ? (
         <>
-          <div className="create-expert-empty-preview-frame" aria-hidden="true" />
-          <div className="create-expert-ready-row" aria-hidden={shouldHideReadyTitle}>
+          <div className="create-composer-empty-preview-frame" aria-hidden="true" />
+          <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
             <p
-              className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
+              className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
             >
               What do you want to make?
             </p>
           </div>
-          <div className="create-expert-lower-preview-frame" aria-hidden="true" />
+          <div className="create-composer-lower-preview-frame" aria-hidden="true" />
         </>
       ) : null}
-      <div className="create-expert-bottom-block">
+      <div className="create-composer-bottom-block">
         <PromptStep {...promptStepLayoutProps} />
-        <div className="create-expert-secondary-row create-expert-controls-row">
-          <div className="create-expert-controls">
+        <div className="create-composer-secondary-row create-composer-controls-row">
+          <div className="create-composer-controls">
             <div
-              className={`create-expert-control create-expert-character-mode-control ${
+              className={`create-composer-control create-composer-character-mode-control ${
                 characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
               }`}
             >
-              <div className="create-expert-character-mode-meta">
-                <span className="create-expert-character-mode-title">Character</span>
+              <div className="create-composer-character-mode-meta">
+                <span className="create-composer-character-mode-title">Character</span>
                 <button
                   type="button"
-                  className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${
+                  className={`audio-toggle ai-character-mode-toggle create-composer-toggle-control ${
                     characterModeEnabled ? "is-active" : ""
                   }`}
                   aria-pressed={characterModeEnabled}
@@ -136,10 +136,10 @@ export function StandardCreatePanelView({
               </div>
             </div>
             {characterModeEnabled ? (
-              <div className="create-expert-control create-expert-character-picker-control">
+              <div className="create-composer-control create-composer-character-picker-control">
                 <button
                   type="button"
-                  className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
+                  className={`model-picker-btn create-composer-picker-control create-composer-character-picker-trigger ${
                     isCharacterSelectionEmpty ? "is-empty" : ""
                   } ${isCharacterPickerOpen ? "is-open" : ""}`}
                   aria-haspopup="dialog"
@@ -168,11 +168,11 @@ export function StandardCreatePanelView({
                 </button>
               </div>
             ) : null}
-            <div className="create-expert-control create-expert-model-control">
-              <span className="create-expert-control-label">Model</span>
+            <div className="create-composer-control create-composer-model-control">
+              <span className="create-composer-control-label">Model</span>
               <button
                 type="button"
-                className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+                className={`model-picker-btn create-composer-picker-control create-composer-model-picker-trigger ${
                   isModelSelectionEmpty ? "is-empty" : ""
                 } ${isCreateModelPickerOpen ? "is-open" : ""}`}
                 data-model-anchor="create-model"
@@ -194,8 +194,8 @@ export function StandardCreatePanelView({
                 <span className="model-picker-name">{effectiveModelLabel}</span>
               </button>
             </div>
-            <div className="create-expert-control create-expert-aspect-control">
-              <span className="create-expert-control-label">Aspect</span>
+            <div className="create-composer-control create-composer-aspect-control">
+              <span className="create-composer-control-label">Aspect</span>
               <AspectDropdown
                 aspect={aspect}
                 onSelect={onAspectChange}
@@ -203,8 +203,8 @@ export function StandardCreatePanelView({
               />
             </div>
             {shouldShowImageResolutionCard ? (
-              <div className="create-expert-control create-expert-resolution-control">
-                <span className="create-expert-control-label">Resolution</span>
+              <div className="create-composer-control create-composer-resolution-control">
+                <span className="create-composer-control-label">Resolution</span>
                 <ResolutionDropdown
                   value={imageResolutionValue}
                   options={imageResolutionOptions}
@@ -220,22 +220,22 @@ export function StandardCreatePanelView({
 
   return (
     <div
-      className={`tool-properties text-properties-panel create-expert-panel ${shouldShowPersistentEmptyShell ? "create-expert-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-composer-panel ${shouldShowPersistentEmptyShell ? "create-composer-panel--no-history" : ""}`.trim()}
       role="group"
-      aria-label="Expert create composer"
+      aria-label="Create composer"
     >
       <div className="tool-header">
         <p className="eyebrow">Create</p>
       </div>
-      <div className="create-expert-panel-shell is-pulse-rail-inactive">
-        <div className="create-expert-right-panel">
-          <div className="create-expert-right-panel-inner">
-            <div className="create-expert-right-panel-topbar">
-              <div className="create-expert-right-panel-topbar-center">{createModeToggle}</div>
+      <div className="create-composer-panel-shell is-pulse-rail-inactive">
+        <div className="create-composer-right-panel">
+          <div className="create-composer-right-panel-inner">
+            <div className="create-composer-right-panel-topbar">
+              <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
               {handleClearAgentChat ? (
                 <button
                   type="button"
-                  className="create-expert-topbar-clear-btn"
+                  className="create-composer-topbar-clear-btn"
                   onClick={handleClearAgentChat}
                   aria-label="Clear chat"
                 >
@@ -245,9 +245,9 @@ export function StandardCreatePanelView({
               ) : null}
             </div>
             {shouldShowPersistentEmptyShell ? (
-              <div className="create-expert-empty-state-shell">{promptAndControls}</div>
+              <div className="create-composer-empty-state-shell">{promptAndControls}</div>
             ) : (
-              <div className="create-expert-flow-shell">{promptAndControls}</div>
+              <div className="create-composer-flow-shell">{promptAndControls}</div>
             )}
           </div>
         </div>

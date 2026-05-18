@@ -6,7 +6,7 @@ type CharacterProfileLoadingSkeletonProps = {
 
 /**
  * Dedicated loading prefab for the Character Profile view.
- * Keeps loading-state layout isolated from the live QuickSwap and Character Sheet shells.
+ * Keeps loading-state layout isolated from the live Character library and profile workspace.
  */
 export function CharacterProfileLoadingSkeleton({ surface }: CharacterProfileLoadingSkeletonProps) {
   return (
@@ -22,6 +22,32 @@ export function CharacterProfileLoadingSkeleton({ surface }: CharacterProfileLoa
           surface === "panel" ? "is-embedded" : ""
         }`}
       >
+        <section
+          className="character-profile-loading-prefab-card character-profile-loading-prefab-card--library"
+          data-layout-region="library"
+          aria-hidden="true"
+        >
+          <div className="character-profile-loading-prefab-heading">
+            <span className="character-create-loading-line character-create-loading-line--title" />
+            <span className="character-create-loading-line character-create-loading-line--subtitle" />
+          </div>
+
+          <div className="character-profile-loading-prefab-library-list">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div
+                key={`character-profile-loading-library-item-${index + 1}`}
+                className="character-profile-loading-prefab-library-item"
+              >
+                <span className="character-profile-loading-prefab-library-item-avatar" />
+                <div className="character-profile-loading-prefab-library-item-copy">
+                  <span className="character-create-loading-line character-create-loading-line--subtitle" />
+                  <span className="character-create-loading-line character-create-loading-line--title" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section
           className="character-profile-loading-prefab-card character-profile-loading-prefab-card--sheet"
           data-layout-region="sheet"
@@ -50,26 +76,6 @@ export function CharacterProfileLoadingSkeleton({ surface }: CharacterProfileLoa
               <span
                 key={`character-profile-loading-reference-${index + 1}`}
                 className="character-create-loading-reference"
-              />
-            ))}
-          </div>
-        </section>
-
-        <section
-          className="character-profile-loading-prefab-card character-profile-loading-prefab-card--quickswap"
-          data-layout-region="quickswap"
-          aria-hidden="true"
-        >
-          <div className="character-profile-loading-prefab-heading">
-            <span className="character-create-loading-line character-create-loading-line--title" />
-            <span className="character-create-loading-line character-create-loading-line--subtitle" />
-          </div>
-
-          <div className="character-profile-loading-prefab-quickswap-grid">
-            {Array.from({ length: 15 }, (_, index) => (
-              <span
-                key={`character-profile-loading-quickswap-${index + 1}`}
-                className="character-create-loading-thumbnail"
               />
             ))}
           </div>

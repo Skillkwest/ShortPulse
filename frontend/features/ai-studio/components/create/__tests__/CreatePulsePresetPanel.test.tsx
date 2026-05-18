@@ -5,7 +5,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CreateExpertPresetPanel } from "../CreateExpertPresetPanel";
+import { CreatePulsePresetPanel } from "../CreatePulsePresetPanel";
 
 class MockDataTransfer implements DataTransfer {
   dropEffect: "none" | "copy" | "link" | "move" = "none";
@@ -41,10 +41,10 @@ class MockDataTransfer implements DataTransfer {
   addElement(): void {}
 }
 
-describe("CreateExpertPresetPanel", () => {
+describe("CreatePulsePresetPanel", () => {
   it("activates the selected pulse preset without mutating the visible composer", async () => {
     const onActivePresetIdChange = vi.fn();
-    render(<CreateExpertPresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
+    render(<CreatePulsePresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" }));
 
@@ -64,7 +64,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         savedPresets={[
           {
             presetId: "image",
@@ -115,7 +115,7 @@ describe("CreateExpertPresetPanel", () => {
     const onActivePresetIdChange = vi.fn();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         savedPresets={[
           {
             presetId: "single_shot",
@@ -144,7 +144,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
       />
@@ -184,7 +184,7 @@ describe("CreateExpertPresetPanel", () => {
     });
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
       />
@@ -225,7 +225,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         activePresetId="image"
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
@@ -251,7 +251,7 @@ describe("CreateExpertPresetPanel", () => {
     });
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         activePresetId="image"
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
@@ -276,7 +276,7 @@ describe("CreateExpertPresetPanel", () => {
     const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(true);
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[
           "image",
           "multi_shot",
@@ -381,7 +381,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         activePresetId="image"
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
@@ -417,7 +417,7 @@ describe("CreateExpertPresetPanel", () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         savedPresets={[
           {
             presetId: "pulse_storyboard",
@@ -469,7 +469,7 @@ describe("CreateExpertPresetPanel", () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[]}
@@ -500,7 +500,7 @@ describe("CreateExpertPresetPanel", () => {
     ];
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={savedPresets}
@@ -522,7 +522,7 @@ describe("CreateExpertPresetPanel", () => {
   it("opens the Pulse Library modal from the Pulse Catalog surface", () => {
     const onOpenPresetsLibrary = vi.fn();
 
-    render(<CreateExpertPresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
+    render(<CreatePulsePresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
@@ -534,7 +534,7 @@ describe("CreateExpertPresetPanel", () => {
 
   it("hides built-in ownership badges in the Pulse Catalog activation surface", () => {
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[
@@ -561,7 +561,7 @@ describe("CreateExpertPresetPanel", () => {
 
   it("renders custom and built-in Pulses inside one catalog grid", () => {
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[
@@ -595,7 +595,7 @@ describe("CreateExpertPresetPanel", () => {
 
   it("hides built-in Pulses from the catalog when the user has removed them", () => {
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[
@@ -638,7 +638,7 @@ describe("CreateExpertPresetPanel", () => {
     ];
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
         savedPresets={savedPresets}
@@ -664,7 +664,7 @@ describe("CreateExpertPresetPanel", () => {
     const transfer = new MockDataTransfer();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={onSelectedPresetIdsChange}
       />
@@ -689,7 +689,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={onSelectedPresetIdsChange}
         onActivePresetIdChange={onActivePresetIdChange}
@@ -732,7 +732,7 @@ describe("CreateExpertPresetPanel", () => {
     const onPresetStart = vi.fn();
 
     render(
-      <CreateExpertPresetPanel
+      <CreatePulsePresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={onSelectedPresetIdsChange}
         onActivePresetIdChange={onActivePresetIdChange}

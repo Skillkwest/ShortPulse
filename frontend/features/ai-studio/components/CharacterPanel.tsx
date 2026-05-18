@@ -7,19 +7,27 @@ import { CharacterPanelSplitHost } from "../../character-manager/components/Char
 import { useCharacterPanelPropertiesScrollLock } from "../hooks/useCharacterPanelPropertiesScrollLock";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
+import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 
 type CharacterPanelProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
+    kind: "media" | "prompt";
+    id: string;
+  } | null>;
   createRequestKey?: number;
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
+  projectId?: string | null;
 };
 
 export function CharacterPanel({
   resolveCharacterDropReference,
+  resolveMediaLibraryInternalDropItem,
   createRequestKey = 0,
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
+  projectId = null,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -33,7 +41,9 @@ export function CharacterPanel({
         externalCreateRequestKey={createRequestKey}
         externalUploadRequest={externalUploadRequest}
         onExternalUploadRequestHandled={onExternalUploadRequestHandled}
+        projectId={projectId}
         resolveCharacterDropReference={resolveCharacterDropReference}
+        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
       />
     </div>
   );

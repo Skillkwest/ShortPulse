@@ -9,7 +9,7 @@ import { CaretDown, X } from "phosphor-react";
 import type { AspectOption, StudioMode } from "../../types";
 import { aspectOptions, modelLogos } from "../../constants";
 import type { ModelModalContext } from "../ModelModal";
-import { AgentGenerateButton } from "../../../../prefabs/agent";
+import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -38,7 +38,7 @@ import {
   AiStudioPickerModalFrame,
 } from "../picker/AiStudioPickerPrimitives";
 
-export type { ExpertCreateMode } from "./createModeTypes";
+export type { CreateMode } from "./createModeTypes";
 
 export type StandardCreatePropertiesPanelProps = {
   mode: StudioMode;
@@ -746,9 +746,9 @@ export function StandardCreatePropertiesPanel({
     subtitle: "",
     isCollapsed: false,
     onToggleCollapse: () => {
-      // Expert mode keeps chat composer always open.
+      // Standard Create keeps the chat composer always open.
     },
-    className: `create-expert-prompt-step ${
+    className: `create-composer-prompt-step ${
       characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
     }`,
     embedSendButtonInInput: true,
@@ -763,13 +763,13 @@ export function StandardCreatePropertiesPanel({
     agentInputCollapseOnBlur: true,
     hideChatModeToggle: false,
     composerLeadingContent: (
-      <div className="create-expert-inline-leading-controls">
-        <div className="create-expert-inline-generate">
-          <AgentGenerateButton
+      <div className="create-composer-inline-leading-controls">
+        <div className="create-composer-inline-generate">
+          <AgentResponseInlineGenerateButton
             onClick={onGenerate}
+            costCredits={costCredits}
             disabled={isGenerateDisabled}
             isBusy={isPromptGenerating}
-            cost={costCredits != null ? costCredits : "—"}
           />
         </div>
         <StylesControl

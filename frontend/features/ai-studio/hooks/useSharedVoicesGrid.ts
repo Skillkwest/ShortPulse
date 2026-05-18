@@ -7,6 +7,7 @@ export type SharedVoiceOption = {
   previewUrl?: string | null;
   description?: string | null;
   isFallback?: boolean;
+  librarySection: "default" | "my";
   provider: "elevenlabs" | "local";
 };
 
@@ -16,6 +17,7 @@ const initialSharedVoices: SharedVoiceOption[] = ELEVENLABS_DEFAULT_VOICES.map((
   previewUrl: null,
   description: voice.description,
   isFallback: true,
+  librarySection: "default",
   provider: "elevenlabs",
 }));
 

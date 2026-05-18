@@ -690,10 +690,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .character-manager-page--embedded .character-profile-loading-prefab-quickswap-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

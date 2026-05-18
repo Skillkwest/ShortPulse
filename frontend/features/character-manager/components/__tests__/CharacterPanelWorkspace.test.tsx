@@ -11,66 +11,74 @@ import {
 } from "../../constants";
 
 const setCharacterSheetPresetFileMock = vi.fn();
+const setErrorMessageMock = vi.fn();
+
+const createDraftState = () => ({
+  characters: [
+    {
+      characterId: "character-1",
+      characterName: "Taylor",
+      updatedAt: "2026-05-16T00:00:00.000Z",
+      characterStatus: "draft",
+      characterSheetId: "sheet-1",
+      profileImageUrl: null,
+      profileImageTransform: null,
+      profileImageStoragePath: null,
+      profileImagePreviewStoragePath: null,
+      characterSheetStatus: "ready",
+    },
+  ],
+  selectedCharacterId: "character-1",
+  characterName: "Taylor",
+  characterDescription: "",
+  characterSheetAssignments: createEmptyCharacterSheetAssignments(),
+  activeCharacterSheetPresetId: "1" as const,
+  characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+  visibleCharacterSheetPresetIds: ["1"],
+  characterSheetPresetLabels: Object.fromEntries(
+    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+      presetId,
+      getDefaultCharacterSheetPresetTabLabel(presetId),
+    ])
+  ),
+  characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
+  error: null,
+  loading: false,
+  isSavingName: false,
+  isCreatingCharacter: false,
+  isSavingCharacter: false,
+  isDeletingCharacter: false,
+  isSwitchingCharacter: false,
+  isSavingCharacterSheetPreset: false,
+  hasUnsavedCharacterDraft: false,
+  setCharacterName: () => undefined,
+  setCharacterDescription: () => undefined,
+  setActiveCharacterSheetPreset: async () => true,
+  saveCharacterSheetPresetAssignments: async () => true,
+  addCharacterSheetPreset: async () => true,
+  renameCharacterSheetPreset: async () => true,
+  deleteCharacterSheetPreset: async () => true,
+  setCharacterSheetPresetFile: setCharacterSheetPresetFileMock,
+  createCharacter: async () => undefined,
+  saveCharacter: async () => true,
+  selectCharacter: async () => undefined,
+  deleteCharacter: async () => true,
+  clearMessages: () => undefined,
+  setErrorMessage: setErrorMessageMock,
+});
+
+let currentDraftState = createDraftState();
 
 vi.mock("next/image", () => ({
-  // eslint-disable-next-line @next/next/no-img-element -- Test shim for next/image.
-  default: (props: Record<string, unknown>) => <img alt="" {...props} />,
+  default: ({ unoptimized, ...props }: Record<string, unknown>) => {
+    void unoptimized;
+    // eslint-disable-next-line @next/next/no-img-element -- Test shim for next/image.
+    return <img alt="" {...props} />;
+  },
 }));
 
 vi.mock("../../hooks/useCharacterManagerDraft", () => ({
-  useCharacterManagerDraft: () => ({
-    characters: [
-      {
-        characterId: "character-1",
-        characterName: "Taylor",
-        updatedAt: "2026-05-16T00:00:00.000Z",
-        characterStatus: "draft",
-        characterSheetId: "sheet-1",
-        profileImageUrl: null,
-        profileImageTransform: null,
-        profileImageStoragePath: null,
-        profileImagePreviewStoragePath: null,
-        characterSheetStatus: "ready",
-      },
-    ],
-    selectedCharacterId: "character-1",
-    characterName: "Taylor",
-    characterDescription: "",
-    characterSheetAssignments: createEmptyCharacterSheetAssignments(),
-    activeCharacterSheetPresetId: "1",
-    characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
-    visibleCharacterSheetPresetIds: ["1"],
-    characterSheetPresetLabels: Object.fromEntries(
-      CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
-        presetId,
-        getDefaultCharacterSheetPresetTabLabel(presetId),
-      ])
-    ),
-    characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
-    error: null,
-    loading: false,
-    isSavingName: false,
-    isCreatingCharacter: false,
-    isSavingCharacter: false,
-    isDeletingCharacter: false,
-    isSwitchingCharacter: false,
-    isSavingCharacterSheetPreset: false,
-    hasUnsavedCharacterDraft: false,
-    setCharacterName: () => undefined,
-    setCharacterDescription: () => undefined,
-    setActiveCharacterSheetPreset: async () => true,
-    saveCharacterSheetPresetAssignments: async () => true,
-    addCharacterSheetPreset: async () => true,
-    renameCharacterSheetPreset: async () => true,
-    deleteCharacterSheetPreset: async () => true,
-    setCharacterSheetPresetFile: setCharacterSheetPresetFileMock,
-    createCharacter: async () => undefined,
-    saveCharacter: async () => true,
-    selectCharacter: async () => undefined,
-    deleteCharacter: async () => true,
-    clearMessages: () => undefined,
-    setErrorMessage: () => undefined,
-  }),
+  useCharacterManagerDraft: () => currentDraftState,
 }));
 
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
@@ -112,6 +120,7 @@ vi.mock("../../../../components/ConfirmationModal", () => ({
 describe("CharacterPanelWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentDraftState = createDraftState();
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
   });
 
@@ -122,6 +131,11 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Character Profile" })).toBeInTheDocument();
     expect(screen.queryByText("QuickSwap Deck")).not.toBeInTheDocument();
     expect(screen.queryByText("Manage Characters")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Tip: Character description will be used as part of consistency generation."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("assigns media-library selections to the armed slot", async () => {
@@ -164,5 +178,47 @@ describe("CharacterPanelWorkspace", () => {
         type: "image/png",
       })
     );
+  });
+
+  it("blocks external uploads when all reference slots are already filled", async () => {
+    currentDraftState = {
+      ...createDraftState(),
+      characterSheetPresetAssignments: {
+        portrait: {
+          characterMediaId: "media-portrait",
+          storagePath: "path/portrait.png",
+          previewStoragePath: "path/portrait-thumb.png",
+          previewUrl: "https://example.com/portrait.png",
+        },
+        close_up: {
+          characterMediaId: "media-close",
+          storagePath: "path/close.png",
+          previewStoragePath: "path/close-thumb.png",
+          previewUrl: "https://example.com/close.png",
+        },
+        front_shot: {
+          characterMediaId: "media-front",
+          storagePath: "path/front.png",
+          previewStoragePath: "path/front-thumb.png",
+          previewUrl: "https://example.com/front.png",
+        },
+      },
+    };
+
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 3,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setErrorMessageMock).toHaveBeenCalledWith(
+        "All character reference slots are filled. Clear a slot before adding more media."
+      );
+    });
+    expect(setCharacterSheetPresetFileMock).not.toHaveBeenCalled();
   });
 });

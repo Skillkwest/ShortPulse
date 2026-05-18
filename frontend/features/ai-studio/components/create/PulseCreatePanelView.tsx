@@ -4,7 +4,7 @@ import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
-import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
+import { CreatePulsePresetPanel } from "./CreatePulsePresetPanel";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
@@ -84,7 +84,7 @@ const PulseCreatePanelViewContent = ({
     hideEmptyAgentChatState: true,
     forceRenderAgentChatPanel: !isNoHistoryShell && !shouldShowPulseStartupShell,
     emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
-      ? "create-expert-chat-spacer"
+      ? "create-composer-chat-spacer"
       : "",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
@@ -96,28 +96,28 @@ const PulseCreatePanelViewContent = ({
     <>
       {shouldShowPulseStartupShell ? (
         <div
-          className="create-expert-pulse-start-shell"
+          className="create-composer-pulse-start-shell"
           role="status"
           aria-live="polite"
           aria-label={`Starting ${pulseLoadingState.presetLabel ?? "Pulse"}`}
         >
-          <div className="create-expert-pulse-start-shell-badge">
-            <span className="create-expert-pulse-start-shell-badge-dot" aria-hidden="true" />
-            <span className="create-expert-pulse-start-shell-badge-label">
+          <div className="create-composer-pulse-start-shell-badge">
+            <span className="create-composer-pulse-start-shell-badge-dot" aria-hidden="true" />
+            <span className="create-composer-pulse-start-shell-badge-label">
               {pulseLoadingState.presetLabel ?? "Pulse"}
             </span>
           </div>
-          <div className="create-expert-pulse-start-shell-card">
-            <span className="create-expert-pulse-start-shell-spinner" aria-hidden="true" />
-            <div className="create-expert-pulse-start-shell-copy">
-              <p className="create-expert-pulse-start-shell-title">Starting Pulse</p>
+          <div className="create-composer-pulse-start-shell-card">
+            <span className="create-composer-pulse-start-shell-spinner" aria-hidden="true" />
+            <div className="create-composer-pulse-start-shell-copy">
+              <p className="create-composer-pulse-start-shell-title">Starting Pulse</p>
               {pulseLoadingState.message ? (
-                <p className="create-expert-pulse-start-shell-message">
+                <p className="create-composer-pulse-start-shell-message">
                   {pulseLoadingState.message}
                 </p>
               ) : null}
               {pulseLoadingState.stepLabel ? (
-                <p className="create-expert-pulse-start-shell-step">
+                <p className="create-composer-pulse-start-shell-step">
                   Next up: {pulseLoadingState.stepLabel}
                 </p>
               ) : null}
@@ -127,21 +127,21 @@ const PulseCreatePanelViewContent = ({
       ) : null}
       {shouldShowPersistentEmptyShell ? (
         <>
-          <div className="create-expert-empty-preview-frame" aria-hidden="true" />
-          <div className="create-expert-ready-row" aria-hidden={shouldHideReadyTitle}>
+          <div className="create-composer-empty-preview-frame" aria-hidden="true" />
+          <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
             <p
-              className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
+              className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
             >
               What do you want to make?
             </p>
           </div>
-          <div className="create-expert-lower-preview-frame" aria-hidden="true" />
+          <div className="create-composer-lower-preview-frame" aria-hidden="true" />
         </>
       ) : null}
-      <div className="create-expert-bottom-block">
+      <div className="create-composer-bottom-block">
         <PulsePromptStep {...promptStepLayoutProps} />
-        <div className="create-expert-secondary-row create-expert-generate-row">
-          <div className="create-expert-inline-generate">
+        <div className="create-composer-secondary-row create-composer-generate-row">
+          <div className="create-composer-inline-generate">
             <AgentGenerateButton
               onClick={onGeneratePulseArtifact}
               disabled={isGenerateDisabled}
@@ -159,17 +159,17 @@ const PulseCreatePanelViewContent = ({
 
   return (
     <div
-      className={`tool-properties text-properties-panel create-expert-panel ${isNoHistoryShell ? "create-expert-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-composer-panel ${isNoHistoryShell ? "create-composer-panel--no-history" : ""}`.trim()}
       role="group"
-      aria-label="Expert create composer"
+      aria-label="Create composer"
     >
       <div className="tool-header">
         <p className="eyebrow">Create</p>
       </div>
-      <div className="create-expert-panel-shell is-pulse-rail-active">
-        <div className="create-expert-left-panel is-pulse-active">
-          <div className="create-expert-left-panel-inner">
-            <CreateExpertPresetPanel
+      <div className="create-composer-panel-shell is-pulse-rail-active">
+        <div className="create-composer-left-panel is-pulse-active">
+          <div className="create-composer-left-panel-inner">
+            <CreatePulsePresetPanel
               selectedPresetIds={selectedPulsePresetIds}
               onSelectedPresetIdsChange={onSelectedPulsePresetIdsChange}
               activePresetId={activePulsePresetId}
@@ -183,14 +183,14 @@ const PulseCreatePanelViewContent = ({
             />
           </div>
         </div>
-        <div className="create-expert-right-panel">
-          <div className="create-expert-right-panel-inner">
-            <div className="create-expert-right-panel-topbar">
-              <div className="create-expert-right-panel-topbar-center">{createModeToggle}</div>
+        <div className="create-composer-right-panel">
+          <div className="create-composer-right-panel-inner">
+            <div className="create-composer-right-panel-topbar">
+              <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
               {handleClearAgentChat ? (
                 <button
                   type="button"
-                  className="create-expert-topbar-clear-btn"
+                  className="create-composer-topbar-clear-btn"
                   onClick={handleClearAgentChat}
                   aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
                 >
@@ -204,9 +204,9 @@ const PulseCreatePanelViewContent = ({
               ) : null}
             </div>
             {isNoHistoryShell ? (
-              <div className="create-expert-empty-state-shell">{promptAndControls}</div>
+              <div className="create-composer-empty-state-shell">{promptAndControls}</div>
             ) : (
-              <div className="create-expert-flow-shell">{promptAndControls}</div>
+              <div className="create-composer-flow-shell">{promptAndControls}</div>
             )}
           </div>
         </div>

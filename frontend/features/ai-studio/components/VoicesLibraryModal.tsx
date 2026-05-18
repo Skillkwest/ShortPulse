@@ -12,6 +12,7 @@ type VoicesLibraryModalProps = {
   onClose: () => void;
   title: string;
   subtitle: string;
+  headerActions?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -23,6 +24,7 @@ export function VoicesLibraryModal({
   onClose,
   title,
   subtitle,
+  headerActions,
   children,
 }: VoicesLibraryModalProps) {
   useAiStudioModalActivity("voices-library-modal", isOpen);
@@ -51,14 +53,19 @@ export function VoicesLibraryModal({
               </h2>
               <p className="voices-library-modal-subtitle">{subtitle}</p>
             </div>
-            <button
-              type="button"
-              className="voices-properties-create-panel-close"
-              aria-label="Close voices modal"
-              onClick={onClose}
-            >
-              <X size={15} weight="bold" aria-hidden="true" />
-            </button>
+            <div className="voices-library-modal-header-controls">
+              {headerActions ? (
+                <div className="voices-library-modal-header-actions">{headerActions}</div>
+              ) : null}
+              <button
+                type="button"
+                className="voices-properties-create-panel-close"
+                aria-label="Close voices modal"
+                onClick={onClose}
+              >
+                <X size={15} weight="bold" aria-hidden="true" />
+              </button>
+            </div>
           </div>
           <div className="voices-library-modal-scroll">
             <div className="voices-library-modal-body">{children}</div>

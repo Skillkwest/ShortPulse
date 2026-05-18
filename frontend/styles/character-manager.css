@@ -1703,20 +1703,40 @@ body.character-manager-body {
   gap: 8px;
 }
 
-.character-profile-loading-prefab-quickswap-grid {
+.character-profile-loading-prefab-library-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
-.character-profile-loading-prefab-card--quickswap {
-  min-height: min(62vh, 560px);
-  align-content: start;
+.character-profile-loading-prefab-library-item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 204, 255, 0.18);
+  background: rgba(201, 205, 214, 0.05);
+  padding: 10px 12px;
+}
+
+.character-profile-loading-prefab-library-item-avatar {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.28);
+  background: linear-gradient(145deg, rgba(201, 205, 214, 0.16), rgba(201, 205, 214, 0.06));
+}
+
+.character-profile-loading-prefab-library-item-copy {
+  display: grid;
+  gap: 8px;
 }
 
 @media (min-width: 1101px) {
   .character-profile-loading-prefab-workspace {
-    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
   }
 }
 
@@ -2420,10 +2440,6 @@ body.character-manager-body {
   }
 
   .character-profile-loading-prefab-references-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .character-profile-loading-prefab-quickswap-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

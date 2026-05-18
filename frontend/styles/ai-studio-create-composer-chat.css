@@ -1,4 +1,4 @@
-.create-expert-panel .create-expert-prompt-step {
+.create-composer-panel .create-composer-prompt-step {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -7,7 +7,7 @@
   gap: 6px;
 }
 
-.create-expert-panel .create-expert-prompt-step .step-card-header {
+.create-composer-panel .create-composer-prompt-step .step-card-header {
   border: none;
   background: transparent;
   padding: 0;
@@ -15,24 +15,24 @@
   position: relative;
 }
 
-.create-expert-panel .create-expert-prompt-step .step-card-header::before {
+.create-composer-panel .create-composer-prompt-step .step-card-header::before {
   display: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .step-header-copy {
+.create-composer-panel .create-composer-prompt-step .step-header-copy {
   display: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .step-utility-btn {
+.create-composer-panel .create-composer-prompt-step .step-utility-btn {
   display: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .step-header-actions {
+.create-composer-panel .create-composer-prompt-step .step-header-actions {
   margin-left: 0;
   width: 100%;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-actions {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-actions {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -44,7 +44,7 @@
   z-index: 8;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-extra {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-extra {
   display: inline-flex;
   position: absolute;
   top: 0;
@@ -52,7 +52,7 @@
   transform: translateX(-50%);
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn {
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
@@ -67,77 +67,77 @@
     opacity 0.12s ease;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn span {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn span {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn svg {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn svg {
   color: currentColor;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn:hover:not(:disabled) {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn:hover:not(:disabled) {
   transform: none;
   border-color: rgba(255, 136, 136, 0.4);
   background: #1b242f;
   color: #ffd2d2;
 }
 
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn:disabled,
-.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn[aria-disabled="true"] {
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn:disabled,
+.create-composer-panel .create-composer-prompt-step .prompt-chat-header-btn[aria-disabled="true"] {
   opacity: 0.46;
   border-color: rgba(201, 205, 214, 0.16);
 }
 
-.create-expert-panel .create-expert-mode-shell {
+.create-composer-panel .create-composer-mode-shell {
   display: inline-flex;
   min-width: 198px;
 }
 
-.create-expert-panel .create-expert-mode-tabs {
+.create-composer-panel .create-composer-mode-tabs {
   width: 100%;
-  --create-expert-mode-slots: 2;
-  --create-expert-mode-pad: 2px;
-  --create-expert-mode-slot-width: calc(
-    (100% - (var(--create-expert-mode-pad) * 2)) / var(--create-expert-mode-slots)
+  --create-composer-mode-slots: 2;
+  --create-composer-mode-pad: 2px;
+  --create-composer-mode-slot-width: calc(
+    (100% - (var(--create-composer-mode-pad) * 2)) / var(--create-composer-mode-slots)
   );
   min-height: 40px;
   height: 40px;
-  padding: var(--create-expert-mode-pad);
+  padding: var(--create-composer-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.24);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(var(--create-expert-mode-slots), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--create-composer-mode-slots), minmax(0, 1fr));
   gap: 0;
   position: relative;
   overflow: hidden;
 }
 
-.create-expert-panel .create-expert-mode-tabs:hover,
-.create-expert-panel .create-expert-mode-tabs:focus-within {
+.create-composer-panel .create-composer-mode-tabs:hover,
+.create-composer-panel .create-composer-mode-tabs:focus-within {
   border-color: rgba(201, 205, 214, 0.24);
 }
 
-.create-expert-panel .create-expert-mode-indicator {
+.create-composer-panel .create-composer-mode-indicator {
   position: absolute;
-  top: var(--create-expert-mode-pad);
-  left: var(--create-expert-mode-pad);
-  width: var(--create-expert-mode-slot-width);
-  height: calc(100% - (var(--create-expert-mode-pad) * 2));
+  top: var(--create-composer-mode-pad);
+  left: var(--create-composer-mode-pad);
+  width: var(--create-composer-mode-slot-width);
+  height: calc(100% - (var(--create-composer-mode-pad) * 2));
   box-sizing: border-box;
   border: 1px solid rgba(122, 126, 136, 0.92);
   border-radius: 8px;
   background: rgba(62, 66, 74, 0.92);
-  transform: translate3d(calc(var(--create-expert-mode-index, 0) * 100%), 0, 0);
+  transform: translate3d(calc(var(--create-composer-mode-index, 0) * 100%), 0, 0);
   transition: transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: none;
   z-index: 0;
 }
 
-.create-expert-panel .create-expert-mode-tab {
+.create-composer-panel .create-composer-mode-tab {
   border: 1px solid transparent;
   background: transparent;
   min-height: 0;
@@ -162,70 +162,70 @@
   text-align: center;
 }
 
-.create-expert-panel .create-expert-mode-tab.is-active {
+.create-composer-panel .create-composer-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
   color: #f0f3f9;
 }
 
-.create-expert-panel .create-expert-mode-tab:focus {
+.create-composer-panel .create-composer-mode-tab:focus {
   outline: none;
 }
 
-.create-expert-panel .create-expert-mode-tab:focus-visible {
+.create-composer-panel .create-composer-mode-tab:focus-visible {
   outline: 1px solid rgba(201, 205, 214, 0.62);
   outline-offset: -2px;
   border-color: rgba(201, 205, 214, 0.62);
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-shell {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-shell {
   display: inline-flex;
   min-width: 198px;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tabs {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tabs {
   width: 100%;
-  --create-expert-mode-slots: 2;
-  --create-expert-mode-pad: 2px;
-  --create-expert-mode-slot-width: calc(
-    (100% - (var(--create-expert-mode-pad) * 2)) / var(--create-expert-mode-slots)
+  --create-composer-mode-slots: 2;
+  --create-composer-mode-pad: 2px;
+  --create-composer-mode-slot-width: calc(
+    (100% - (var(--create-composer-mode-pad) * 2)) / var(--create-composer-mode-slots)
   );
   min-height: 40px;
   height: 40px;
-  padding: var(--create-expert-mode-pad);
+  padding: var(--create-composer-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.24);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(var(--create-expert-mode-slots), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--create-composer-mode-slots), minmax(0, 1fr));
   gap: 0;
   position: relative;
   overflow: hidden;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tabs:hover,
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tabs:focus-within {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tabs:hover,
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tabs:focus-within {
   border-color: rgba(201, 205, 214, 0.24);
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-indicator {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-indicator {
   position: absolute;
-  top: var(--create-expert-mode-pad);
-  left: var(--create-expert-mode-pad);
-  width: var(--create-expert-mode-slot-width);
-  height: calc(100% - (var(--create-expert-mode-pad) * 2));
+  top: var(--create-composer-mode-pad);
+  left: var(--create-composer-mode-pad);
+  width: var(--create-composer-mode-slot-width);
+  height: calc(100% - (var(--create-composer-mode-pad) * 2));
   box-sizing: border-box;
   border: 1px solid rgba(122, 126, 136, 0.92);
   border-radius: 8px;
   background: rgba(62, 66, 74, 0.92);
-  transform: translate3d(calc(var(--create-expert-mode-index, 0) * 100%), 0, 0);
+  transform: translate3d(calc(var(--create-composer-mode-index, 0) * 100%), 0, 0);
   transition: transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: none;
   z-index: 0;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tab {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tab {
   border: 1px solid transparent;
   background: transparent;
   min-height: 0;
@@ -250,23 +250,23 @@
   text-align: center;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tab.is-active {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
   color: #f0f3f9;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tab:focus {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tab:focus {
   outline: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-mode-tab:focus-visible {
+.create-composer-panel .create-composer-prompt-step .create-composer-mode-tab:focus-visible {
   outline: 1px solid rgba(201, 205, 214, 0.62);
   outline-offset: -2px;
   border-color: rgba(201, 205, 214, 0.62);
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-chat-wrapper--inline {
+.create-composer-panel .create-composer-prompt-step .agent-chat-wrapper--inline {
   margin-top: 0;
   padding: 0;
   border: none;
@@ -276,52 +276,54 @@
   min-height: 0;
 }
 
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-prompt-step {
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay-zone {
+.create-composer-panel .create-composer-prompt-step .create-composer-chat-composer-overlay-zone {
   position: relative;
   padding-bottom: calc(
-    var(--create-expert-chat-composer-overlay-reserve) +
-      var(--create-expert-chat-composer-overlay-bottom-offset)
+    var(--create-composer-chat-composer-overlay-reserve) +
+      var(--create-composer-chat-composer-overlay-bottom-offset)
   );
   min-height: 0;
 }
 
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
-  .create-expert-chat-composer-overlay-zone {
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
+  .create-composer-chat-composer-overlay-zone {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-base-layer {
+.create-composer-panel .create-composer-prompt-step .create-composer-chat-composer-base-layer {
   position: relative;
   z-index: 1;
   min-height: 0;
 }
 
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
-  .create-expert-chat-composer-base-layer,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
+  .create-composer-chat-composer-base-layer,
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-wrapper--inline,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-panel,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-surface {
   display: flex;
   flex: 1 1 auto;
@@ -329,41 +331,41 @@
   min-height: 0;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
-  .create-expert-chat-composer-overlay-zone.is-composer-expanded
-  .create-expert-chat-composer-base-layer {
+.create-composer-panel
+  .create-composer-prompt-step
+  .create-composer-chat-composer-overlay-zone.is-composer-expanded
+  .create-composer-chat-composer-base-layer {
   filter: blur(6px);
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay {
+.create-composer-panel .create-composer-prompt-step .create-composer-chat-composer-overlay {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: var(--create-expert-chat-composer-overlay-bottom-offset);
+  bottom: var(--create-composer-chat-composer-overlay-bottom-offset);
   z-index: 9;
   pointer-events: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay > * {
+.create-composer-panel .create-composer-prompt-step .create-composer-chat-composer-overlay > * {
   pointer-events: auto;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
-  .agent-chat-inline-spacer.create-expert-chat-spacer {
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-chat-inline-spacer.create-composer-chat-spacer {
   min-height: 18px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-messages {
+.create-composer-panel .create-composer-prompt-step .agent-messages {
   min-height: 220px;
   max-height: min(50vh, 520px);
   padding: 0 8px 8px 0;
 }
 
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-messages {
   min-height: 0;
   max-height: min(62vh, 680px);
@@ -372,46 +374,52 @@
   overscroll-behavior: contain;
 }
 
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-flow-shell,
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-bottom-block,
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-prompt-step,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-flow-shell,
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-bottom-block,
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step,
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-wrapper--inline,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-panel,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-surface {
   flex: 0 0 auto;
 }
 
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-wrapper--inline,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-panel,
-.create-expert-panel
-  .create-expert-panel-shell.is-pulse-rail-active
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
   .agent-chat-surface {
   flex-basis: auto;
   min-height: 0;
   overflow: visible;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-chat-panel {
+.create-composer-panel .create-composer-prompt-step .agent-chat-panel {
   gap: 8px;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card {
+.create-composer-panel .create-composer-prompt-step .create-composer-pulse-loading-card {
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -424,16 +432,16 @@
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
-  .create-expert-pulse-loading-card.is-starting-pulse {
+.create-composer-panel
+  .create-composer-prompt-step
+  .create-composer-pulse-loading-card.is-starting-pulse {
   min-height: 0;
   border-color: transparent;
   background: transparent;
   box-shadow: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-spinner {
+.create-composer-panel .create-composer-prompt-step .create-composer-pulse-loading-spinner {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
@@ -441,11 +449,11 @@
   border-top-color: rgba(238, 242, 248, 0.88);
   border-right-color: rgba(205, 211, 221, 0.52);
   border-radius: 999px;
-  animation: create-expert-pulse-loading-spinner 0.82s linear infinite;
+  animation: create-composer-pulse-loading-spinner 0.82s linear infinite;
   will-change: transform;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card-title {
+.create-composer-panel .create-composer-prompt-step .create-composer-pulse-loading-card-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
@@ -453,19 +461,19 @@
   color: rgba(238, 242, 248, 0.94);
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card-copy {
+.create-composer-panel .create-composer-prompt-step .create-composer-pulse-loading-card-copy {
   display: grid;
   gap: 4px;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card-message {
+.create-composer-panel .create-composer-prompt-step .create-composer-pulse-loading-card-message {
   margin: 0;
   color: rgba(199, 207, 218, 0.78);
   font-size: 13px;
   line-height: 1.4;
 }
 
-@keyframes create-expert-pulse-loading-spinner {
+@keyframes create-composer-pulse-loading-spinner {
   from {
     transform: rotate(0deg);
   }
@@ -474,15 +482,15 @@
   }
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
-  .create-expert-chat-composer-overlay
+.create-composer-panel
+  .create-composer-prompt-step
+  .create-composer-chat-composer-overlay
   .agent-composer-row {
   margin-bottom: 0;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-thinking-message {
   width: auto;
   max-width: none;
@@ -493,8 +501,8 @@
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-thinking-message
   .agent-thinking.agent-thinking--history {
   margin: 0;
@@ -517,77 +525,79 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 8px rgba(216, 223, 233, 0.12);
-  animation: create-expert-thinking-shine 2.35s linear infinite;
+  animation: create-composer-thinking-shine 2.35s linear infinite;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-chat-surface {
+.create-composer-panel .create-composer-prompt-step .agent-chat-surface {
   gap: 6px;
   padding: 4px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-message {
+.create-composer-panel .create-composer-prompt-step .agent-message {
   margin-bottom: 4px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message
   + .agent-message.agent-user:not(.agent-user-attachments) {
   margin-top: 12px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user {
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable:hover,
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable:active,
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable.is-dragging {
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user.is-draggable:hover,
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user.is-draggable:active,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user.is-draggable.is-dragging {
   border-color: transparent;
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-user
   .agent-message-attachments {
   justify-content: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-user
   .agent-attachment-card-list--message {
   justify-content: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-user
   .agent-attachment-card--message {
   border-color: transparent;
   box-shadow: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user,
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user p,
-.create-expert-panel .create-expert-prompt-step .agent-message.agent-user .tiny {
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user,
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user p,
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user .tiny {
   color: rgba(192, 202, 217, 0.82) !important;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-chat-panel--latest-assistant-only
   .agent-message.agent-assistant,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-chat-panel--latest-assistant-only
   .agent-message.agent-assistant
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-chat-panel--latest-assistant-only
   .agent-message.agent-assistant
   .tiny {
@@ -595,26 +605,26 @@
   font-weight: 400;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output
   .agent-message-edit-input {
   color: var(--agent-output-prompt-text, #57d4ff) !important;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
     .agent-message--pulse-guided
   ) {
@@ -625,8 +635,8 @@
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
@@ -635,20 +645,20 @@
   min-width: 0;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
@@ -663,32 +673,32 @@
   transition: border-color 140ms ease;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):hover
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):hover
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):focus-within
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):hover
   .agent-message-edit-input,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):focus-within
@@ -696,8 +706,8 @@
   border-color: rgba(94, 216, 252, 0.18);
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided {
   max-width: min(760px, 88%);
   padding: 2px 18px 6px;
@@ -706,36 +716,36 @@
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable:hover,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable:active,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable.is-dragging {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-chat-panel--latest-assistant-only
   .agent-message.agent-assistant.agent-message--pulse-guided.agent-message--with-output-thumbnail {
   padding-bottom: 126px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-body {
   gap: 14px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-lead {
   color: #ececf1 !important;
@@ -744,8 +754,8 @@
   line-height: 1.55;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-hint {
   color: rgba(236, 236, 241, 0.86) !important;
@@ -755,12 +765,12 @@
   font-weight: 400;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-paragraph,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-list {
   color: #ececf1 !important;
@@ -769,50 +779,50 @@
   line-height: 1.72;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-paragraph {
   font-weight: 400;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable {
   color: #25a9bf !important;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-heading,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-lead,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-paragraph,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-hint,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-list,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-list
   li,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-option-title,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
   .agent-message-rich-option-description {
   color: #25a9bf !important;

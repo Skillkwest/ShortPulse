@@ -1,10 +1,10 @@
 /**
- * AI Studio expert create panel styles.
- * Scoped under `.create-expert-panel` for Create-specific panel styling.
+ * AI Studio create panel styles.
+ * Scoped under `.create-composer-panel` for Create-specific panel styling.
  */
 
 .ai-studio-page {
-  /* Expert Create properties container surface controls */
+  /* Create properties container surface controls */
   --ai-expert-create-properties-bg: var(--color-bg);
   --ai-expert-create-properties-border: 0;
   --ai-expert-create-properties-shadow: none;
@@ -18,33 +18,33 @@
   padding: 0;
 }
 
-.create-expert-panel {
+.create-composer-panel {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
-  --create-expert-selector-width: 175px;
-  --create-expert-model-selector-width: 170px;
-  --create-expert-character-selector-width: 155px;
-  --create-expert-resolution-width: 120px;
-  --create-expert-selector-gap: 6px;
-  --create-expert-controls-gap: 6px;
-  --create-expert-panel-gap: 8px;
-  --create-expert-left-rail-width: 214px;
-  --create-expert-inline-gutter: clamp(9px, 2.05vw, 25px);
-  --create-expert-character-toggle-gap: 6px;
-  --create-expert-selector-height: 40px;
-  --create-expert-selector-bg: var(--color-bg);
-  --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);
-  --create-expert-output-generate-max-height: 140px;
-  --create-expert-agent-input-min-height: 64px;
-  --create-expert-agent-input-max-height: 520px;
-  --create-expert-chat-composer-overlay-reserve: 126px;
-  --create-expert-chat-composer-overlay-bottom-offset: 22px;
-  --create-expert-bottom-block-offset: 4px;
-  --create-expert-agent-input-bg: #25292f;
+  --create-composer-selector-width: 175px;
+  --create-composer-model-selector-width: 170px;
+  --create-composer-character-selector-width: 155px;
+  --create-composer-resolution-width: 120px;
+  --create-composer-selector-gap: 6px;
+  --create-composer-controls-gap: 6px;
+  --create-composer-panel-gap: 8px;
+  --create-composer-left-rail-width: 214px;
+  --create-composer-inline-gutter: clamp(9px, 2.05vw, 25px);
+  --create-composer-character-toggle-gap: 6px;
+  --create-composer-selector-height: 40px;
+  --create-composer-selector-bg: var(--color-bg);
+  --create-composer-selector-hover-border: rgba(201, 205, 214, 0.3);
+  --create-composer-output-generate-max-height: 140px;
+  --create-composer-agent-input-min-height: 64px;
+  --create-composer-agent-input-max-height: 520px;
+  --create-composer-chat-composer-overlay-reserve: 126px;
+  --create-composer-chat-composer-overlay-bottom-offset: 22px;
+  --create-composer-bottom-block-offset: 4px;
+  --create-composer-agent-input-bg: #25292f;
   /*
-   * Reuse Edit styles-control chrome in Expert Create.
+   * Reuse Edit styles-control chrome in Create.
    * These tokens are normally scoped to `.edit-expert-panel`.
    * Define only the color/surface subset used by `StylesControl` so Create keeps
    * the same chrome without inheriting broader Edit-only panel styles.
@@ -62,11 +62,11 @@
   --edit-expert-control-text: var(--edit-expert-neutral-text-strong);
 }
 
-.create-expert-panel .tool-header {
+.create-composer-panel .tool-header {
   display: none;
 }
 
-.create-expert-panel .create-expert-panel-shell {
+.create-composer-panel .create-composer-panel-shell {
   position: relative;
   display: flex;
   flex: 1 1 auto;
@@ -76,19 +76,19 @@
   transition: gap 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active {
-  gap: var(--create-expert-panel-gap);
-  --create-expert-chat-composer-overlay-bottom-offset: 28px;
+.create-composer-panel .create-composer-panel-shell.is-pulse-rail-active {
+  gap: var(--create-composer-panel-gap);
+  --create-composer-chat-composer-overlay-bottom-offset: 28px;
 }
 
-.create-expert-panel .create-expert-left-panel {
+.create-composer-panel .create-composer-left-panel {
   position: relative;
   z-index: 2;
   display: flex;
-  flex: 0 0 var(--create-expert-left-rail-width);
+  flex: 0 0 var(--create-composer-left-rail-width);
   flex-direction: column;
-  width: var(--create-expert-left-rail-width);
-  min-width: var(--create-expert-left-rail-width);
+  width: var(--create-composer-left-rail-width);
+  min-width: var(--create-composer-left-rail-width);
   min-height: 0;
   overflow: visible;
   opacity: 1;
@@ -101,7 +101,7 @@
     transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.create-expert-panel .create-expert-left-panel.is-pulse-inactive {
+.create-composer-panel .create-composer-left-panel.is-pulse-inactive {
   flex-basis: 0;
   width: 0;
   min-width: 0;
@@ -111,7 +111,7 @@
   pointer-events: none;
 }
 
-.create-expert-panel .create-expert-left-panel-inner {
+.create-composer-panel .create-composer-left-panel-inner {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -125,7 +125,7 @@
   box-sizing: border-box;
 }
 
-.create-expert-panel .create-expert-right-panel {
+.create-composer-panel .create-composer-right-panel {
   position: relative;
   z-index: 1;
   display: flex;
@@ -136,7 +136,7 @@
   min-height: 0;
 }
 
-.create-expert-panel .create-expert-right-panel-inner {
+.create-composer-panel .create-composer-right-panel-inner {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -150,7 +150,7 @@
   box-sizing: border-box;
 }
 
-.create-expert-panel .create-expert-right-panel-topbar {
+.create-composer-panel .create-composer-right-panel-topbar {
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;
@@ -163,7 +163,7 @@
   flex: 0 0 auto;
 }
 
-.create-expert-panel .create-expert-right-panel-topbar-center {
+.create-composer-panel .create-composer-right-panel-topbar-center {
   position: absolute;
   top: 2px;
   left: 50%;
@@ -171,7 +171,7 @@
   display: inline-flex;
 }
 
-.create-expert-panel .create-expert-topbar-clear-btn {
+.create-composer-panel .create-composer-topbar-clear-btn {
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
@@ -190,40 +190,42 @@
     opacity 0.12s ease;
 }
 
-.create-expert-panel .create-expert-topbar-clear-btn span {
+.create-composer-panel .create-composer-topbar-clear-btn span {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.create-expert-panel .create-expert-topbar-clear-btn svg {
+.create-composer-panel .create-composer-topbar-clear-btn svg {
   color: currentColor;
 }
 
-.create-expert-panel .create-expert-topbar-clear-btn:hover:not(:disabled) {
+.create-composer-panel .create-composer-topbar-clear-btn:hover:not(:disabled) {
   border-color: rgba(255, 136, 136, 0.4);
   background: #1b242f;
   color: #ffd2d2;
 }
 
-.create-expert-panel .create-expert-topbar-clear-btn:disabled,
-.create-expert-panel .create-expert-topbar-clear-btn[aria-disabled="true"] {
+.create-composer-panel .create-composer-topbar-clear-btn:disabled,
+.create-composer-panel .create-composer-topbar-clear-btn[aria-disabled="true"] {
   opacity: 0.46;
   border-color: rgba(201, 205, 214, 0.16);
 }
 
-.create-expert-panel .create-expert-flow-shell {
+.create-composer-panel .create-composer-flow-shell {
   width: 100%;
   min-height: 0;
 }
 
-.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-flow-shell {
+.create-composer-panel
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-flow-shell {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
 }
 
-.create-expert-panel .create-expert-active-pulse-card {
+.create-composer-panel .create-composer-active-pulse-card {
   width: 100%;
   margin: 0 0 12px;
   padding: 12px 14px;
@@ -235,27 +237,27 @@
   box-sizing: border-box;
 }
 
-.create-expert-panel .create-expert-active-pulse-card.is-idle {
+.create-composer-panel .create-composer-active-pulse-card.is-idle {
   background:
     linear-gradient(135deg, rgba(201, 205, 214, 0.08), rgba(20, 27, 36, 0.82)),
     rgba(19, 21, 24, 0.96);
 }
 
-.create-expert-panel .create-expert-active-pulse-header {
+.create-composer-panel .create-composer-active-pulse-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.create-expert-panel .create-expert-active-pulse-copy {
+.create-composer-panel .create-composer-active-pulse-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 4px;
 }
 
-.create-expert-panel .create-expert-active-pulse-eyebrow {
+.create-composer-panel .create-composer-active-pulse-eyebrow {
   margin: 0;
   color: rgba(201, 205, 214, 0.7);
   font-size: 11px;
@@ -264,7 +266,7 @@
   text-transform: uppercase;
 }
 
-.create-expert-panel .create-expert-active-pulse-title {
+.create-composer-panel .create-composer-active-pulse-title {
   margin: 0;
   color: #f5f9ff;
   font-size: 18px;
@@ -273,7 +275,7 @@
   letter-spacing: -0.02em;
 }
 
-.create-expert-panel .create-expert-active-pulse-action {
+.create-composer-panel .create-composer-active-pulse-action {
   flex: 0 0 auto;
   min-height: 28px;
   padding: 0 10px;
@@ -290,22 +292,22 @@
     color 0.12s ease;
 }
 
-.create-expert-panel .create-expert-active-pulse-action:hover:not(:disabled),
-.create-expert-panel .create-expert-active-pulse-action:focus-visible {
+.create-composer-panel .create-composer-active-pulse-action:hover:not(:disabled),
+.create-composer-panel .create-composer-active-pulse-action:focus-visible {
   outline: none;
   border-color: rgba(100, 209, 230, 0.48);
   background: rgba(20, 27, 36, 0.96);
   color: #f5fbff;
 }
 
-.create-expert-panel .create-expert-active-pulse-badges {
+.create-composer-panel .create-composer-active-pulse-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin: 10px 0 8px;
 }
 
-.create-expert-panel .create-expert-active-pulse-badge {
+.create-composer-panel .create-composer-active-pulse-badge {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -318,14 +320,14 @@
   letter-spacing: 0.03em;
 }
 
-.create-expert-panel .create-expert-active-pulse-summary {
+.create-composer-panel .create-composer-active-pulse-summary {
   margin: 0;
   color: rgba(214, 227, 239, 0.82);
   font-size: 13px;
   line-height: 1.45;
 }
 
-.create-expert-panel .create-expert-active-pulse-note {
+.create-composer-panel .create-composer-active-pulse-note {
   margin: 8px 0 0;
   color: rgba(156, 210, 225, 0.88);
   font-size: 11px;
@@ -334,7 +336,7 @@
   line-height: 1.45;
 }
 
-.create-expert-panel--no-history .create-expert-empty-state-shell {
+.create-composer-panel--no-history .create-composer-empty-state-shell {
   display: grid;
   flex: 1 1 auto;
   grid-template-rows: auto minmax(48px, auto) auto auto;
@@ -344,19 +346,19 @@
   min-height: 0;
 }
 
-.create-expert-panel--no-history .create-expert-empty-preview-frame {
+.create-composer-panel--no-history .create-composer-empty-preview-frame {
   height: 190px;
   border: 1px solid rgba(201, 205, 214, 0);
   border-radius: 28px;
 }
 
-.create-expert-panel--no-history .create-expert-lower-preview-frame {
+.create-composer-panel--no-history .create-composer-lower-preview-frame {
   height: 55px;
   border: 1px solid rgba(201, 205, 214, 0);
   border-radius: 28px;
 }
 
-.create-expert-ready-text {
+.create-composer-ready-text {
   margin: 0;
   text-align: center;
   color: #f5f9ff;
@@ -367,14 +369,14 @@
   transition: opacity 180ms ease;
 }
 
-.create-expert-panel--no-history .create-expert-ready-row {
+.create-composer-panel--no-history .create-composer-ready-row {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell {
+.create-composer-panel--no-history .create-composer-pulse-start-shell {
   display: grid;
   justify-items: center;
   align-content: center;
@@ -383,7 +385,7 @@
   padding: 16px 0 8px;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-badge {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-badge {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -394,7 +396,7 @@
   box-shadow: none;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-badge-dot {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-badge-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
@@ -402,7 +404,7 @@
   box-shadow: none;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-badge-label {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-badge-label {
   color: rgba(201, 205, 214, 0.74);
   font-size: 10px;
   font-weight: 600;
@@ -410,7 +412,7 @@
   text-transform: uppercase;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-card {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-card {
   display: grid;
   justify-items: center;
   gap: 12px;
@@ -422,7 +424,7 @@
   box-shadow: none;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-spinner {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-spinner {
   width: 28px;
   height: 28px;
   border: 2px solid rgba(201, 205, 214, 0.16);
@@ -430,17 +432,17 @@
   border-right-color: rgba(201, 205, 214, 0.34);
   border-radius: 999px;
   box-shadow: none;
-  animation: create-expert-pulse-loading-spinner 0.9s linear infinite;
+  animation: create-composer-pulse-loading-spinner 0.9s linear infinite;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-copy {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-copy {
   display: grid;
   justify-items: center;
   gap: 4px;
   text-align: center;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-title {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-title {
   margin: 0;
   color: rgba(225, 233, 242, 0.9);
   font-size: 13px;
@@ -449,7 +451,7 @@
   letter-spacing: 0;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-message {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-message {
   max-width: 28ch;
   margin: 0;
   color: rgba(201, 205, 214, 0.72);
@@ -457,7 +459,7 @@
   line-height: 1.45;
 }
 
-.create-expert-panel--no-history .create-expert-pulse-start-shell-step {
+.create-composer-panel--no-history .create-composer-pulse-start-shell-step {
   margin: 2px 0 0;
   color: rgba(201, 205, 214, 0.58);
   font-size: 10px;
@@ -466,30 +468,30 @@
   text-transform: none;
 }
 
-.create-expert-panel--no-history .create-expert-ready-text {
+.create-composer-panel--no-history .create-composer-ready-text {
   margin: 0;
 }
 
-.create-expert-panel--no-history .create-expert-right-panel-inner {
+.create-composer-panel--no-history .create-composer-right-panel-inner {
   padding-top: 10px;
 }
 
-.create-expert-panel--no-history .create-expert-right-panel-topbar {
+.create-composer-panel--no-history .create-composer-right-panel-topbar {
   min-height: 34px;
   padding-top: 0;
   padding-bottom: 6px;
   align-items: center;
 }
 
-.create-expert-panel--no-history .create-expert-right-panel-topbar-center {
+.create-composer-panel--no-history .create-composer-right-panel-topbar-center {
   top: 8px;
 }
 
-.create-expert-panel--no-history .create-expert-bottom-block {
+.create-composer-panel--no-history .create-composer-bottom-block {
   margin-top: 0;
 }
 
-.create-expert-ready-text.is-hidden {
+.create-composer-ready-text.is-hidden {
   opacity: 0;
   pointer-events: none;
 }

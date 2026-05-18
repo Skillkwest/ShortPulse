@@ -2,13 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const createExpertOutputGenerateCssPath = path.resolve(
+const createComposerOutputGenerateCssPath = path.resolve(
   process.cwd(),
-  "styles/ai-studio-create-expert-output-generate.css"
+  "styles/ai-studio-create-composer-output-generate.css"
 );
-const createExpertChatCssPath = path.resolve(
+const createComposerChatCssPath = path.resolve(
   process.cwd(),
-  "styles/ai-studio-create-expert-chat.css"
+  "styles/ai-studio-create-composer-chat.css"
 );
 
 const extractRuleBlock = (css: string, selector: string) => {
@@ -24,12 +24,12 @@ const extractRuleBlock = (css: string, selector: string) => {
   return match?.[0] ?? "";
 };
 
-describe("create expert output generate layout contract", () => {
+describe("create composer output generate layout contract", () => {
   it("bottom-aligns assistant-response generate controls within the response row", () => {
-    const css = fs.readFileSync(createExpertOutputGenerateCssPath, "utf8");
+    const css = fs.readFileSync(createComposerOutputGenerateCssPath, "utf8");
     const controls = extractRuleBlock(
       css,
-      ".create-expert-panel .create-expert-prompt-step .agent-message.agent-assistant.agent-message--with-output-generate .agent-output-bubble-controls"
+      ".create-composer-panel .create-composer-prompt-step .agent-message.agent-assistant.agent-message--with-output-generate .agent-output-bubble-controls"
     );
 
     expect(controls).toContain("align-self: stretch;");
@@ -38,7 +38,7 @@ describe("create expert output generate layout contract", () => {
   });
 
   it("keeps non-generate Standard assistant replies on the same transparent shell", () => {
-    const css = fs.readFileSync(createExpertChatCssPath, "utf8");
+    const css = fs.readFileSync(createComposerChatCssPath, "utf8");
 
     expect(css).toContain(
       ".agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not("

@@ -1,21 +1,21 @@
 import React from "react";
-import type { ExpertCreateMode } from "./createModeTypes";
+import type { CreateMode } from "./createModeTypes";
 
-type CreateExpertModeToggleProps = {
-  value: ExpertCreateMode;
-  onChange?: (value: ExpertCreateMode) => void;
+type CreateModeToggleProps = {
+  value: CreateMode;
+  onChange?: (value: CreateMode) => void;
 };
 
-export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeToggleProps) {
+export function CreateModeToggle({ value, onChange }: CreateModeToggleProps) {
   const createModeTabsStyle = React.useMemo(
     () =>
       ({
-        ["--create-expert-mode-index" as string]: value === "pulse" ? 1 : 0,
+        ["--create-composer-mode-index" as string]: value === "pulse" ? 1 : 0,
       }) as React.CSSProperties,
     [value]
   );
   const handleModeSelect = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, nextMode: ExpertCreateMode) => {
+    (event: React.MouseEvent<HTMLButtonElement>, nextMode: CreateMode) => {
       event.preventDefault();
       onChange?.(nextMode);
     },
@@ -23,19 +23,19 @@ export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeTogg
   );
 
   return (
-    <div className="create-expert-mode-shell">
+    <div className="create-composer-mode-shell">
       <div
-        className="create-expert-mode-tabs"
+        className="create-composer-mode-tabs"
         role="tablist"
         aria-label="Create mode"
         style={createModeTabsStyle}
       >
-        <span className="create-expert-mode-indicator" aria-hidden="true" />
+        <span className="create-composer-mode-indicator" aria-hidden="true" />
         <button
           type="button"
           role="tab"
           aria-selected={value === "standard"}
-          className={`create-expert-mode-tab ${value === "standard" ? "is-active" : ""}`}
+          className={`create-composer-mode-tab ${value === "standard" ? "is-active" : ""}`}
           onClick={(event) => handleModeSelect(event, "standard")}
         >
           Standard
@@ -44,7 +44,7 @@ export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeTogg
           type="button"
           role="tab"
           aria-selected={value === "pulse"}
-          className={`create-expert-mode-tab ${value === "pulse" ? "is-active" : ""}`}
+          className={`create-composer-mode-tab ${value === "pulse" ? "is-active" : ""}`}
           onClick={(event) => handleModeSelect(event, "pulse")}
         >
           Pulse

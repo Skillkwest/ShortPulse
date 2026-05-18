@@ -8,9 +8,9 @@ export const AI_SHELL_LEFT_SOUND_MIN_PX = 760;
 export const AI_SHELL_LEFT_VIDEO_MIN_PX = 820;
 export const AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO = 0.6;
 export const AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO = 0.75;
-export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 888;
+export const AI_SHELL_LEFT_CREATE_MIN_PX = 888;
 export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 970;
-export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1120;
+export const AI_SHELL_LEFT_CREATE_MAX_PX = 1120;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 920;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_RIGHT_ELEMENTS_MIN_PX = 180;
@@ -145,22 +145,22 @@ export const shouldExpandAiShellOnToolSelect = (
 ): boolean => nextTool === "create" && nextTool !== previousTool;
 
 /**
- * Resolves the shell resize action for expert create based on tool navigation and mode changes.
+ * Resolves the shell resize action for Create based on tool navigation and mode changes.
  */
-export const resolveExpertCreateShellResizeAction = ({
+export const resolveCreateShellResizeAction = ({
   previousTool,
   nextTool,
   previousMode,
   nextMode,
-  expertCreateEnabled,
+  createModeEnabled,
 }: {
   previousTool: string | null;
   nextTool: string | null;
   previousMode: "standard" | "pulse";
   nextMode: "standard" | "pulse";
-  expertCreateEnabled: boolean;
+  createModeEnabled: boolean;
 }): "collapse" | null => {
-  if (!expertCreateEnabled || nextTool !== "create") return null;
+  if (!createModeEnabled || nextTool !== "create") return null;
   const isEnteringCreate = shouldExpandAiShellOnToolSelect(previousTool, nextTool);
   const isModeChangeWhileInCreate = previousTool === "create" && previousMode !== nextMode;
   if (!isEnteringCreate && !isModeChangeWhileInCreate) return null;
@@ -169,17 +169,17 @@ export const resolveExpertCreateShellResizeAction = ({
 };
 
 /**
- * Indicates whether a new expert-create session should re-collapse the shell.
+ * Indicates whether a new Create session should re-collapse the shell.
  */
-export const shouldCollapseExpertCreateOnSessionChange = ({
+export const shouldCollapseCreateOnSessionChange = ({
   previousSessionId,
   nextSessionId,
   nextTool,
-  expertCreateEnabled,
+  createModeEnabled,
 }: {
   previousSessionId: string | null;
   nextSessionId: string | null;
   nextTool: string | null;
   nextMode: "standard" | "pulse";
-  expertCreateEnabled: boolean;
-}): boolean => previousSessionId !== nextSessionId && nextTool === "create" && expertCreateEnabled;
+  createModeEnabled: boolean;
+}): boolean => previousSessionId !== nextSessionId && nextTool === "create" && createModeEnabled;

@@ -939,7 +939,7 @@
   padding: var(--video-shot-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.2);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(var(--video-shot-mode-slots), minmax(0, 1fr));
@@ -1361,7 +1361,7 @@
   padding: var(--video-reference-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.24);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(var(--video-reference-mode-slots), minmax(0, 1fr));
@@ -1776,7 +1776,7 @@
 .video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty.is-open {
   border-color: var(--video-accent-strong, rgba(170, 101, 239, 0.9));
   box-shadow: none;
-  background-color: var(--create-expert-selector-bg, var(--color-bg));
+  background-color: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .video-properties-panel .video-settings-card-model-row .model-picker-btn:hover:not(.is-empty),

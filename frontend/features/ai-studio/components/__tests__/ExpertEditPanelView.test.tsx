@@ -2767,7 +2767,7 @@ describe("ExpertEditPanelView", () => {
       ".aspect-trigger"
     ) as HTMLButtonElement | null;
     const mainAspectTrigger = document.querySelector(
-      ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
+      ".edit-expert-selector-row .create-composer-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
     const initialModalStage = expandedModal.querySelector(
       ".edit-expert-markup-modal-stage"
@@ -2792,7 +2792,7 @@ describe("ExpertEditPanelView", () => {
       ".edit-expert-markup-modal-general-row--aspect .aspect-trigger"
     ) as HTMLButtonElement | null;
     const refreshedMainTrigger = document.querySelector(
-      ".edit-expert-selector-row .create-expert-aspect-control .aspect-trigger"
+      ".edit-expert-selector-row .create-composer-aspect-control .aspect-trigger"
     ) as HTMLButtonElement | null;
     const refreshedModalStage = refreshedModal.querySelector(
       ".edit-expert-markup-modal-stage"

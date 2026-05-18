@@ -92,8 +92,8 @@ export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
 export const hardcodedVoiceDesignModelId = resolveRequiredAudioVoiceDesignModelId();
 export const hardcodedVoiceGenerationDefaults = {
-  stability: 0.5,
-  similarity_boost: 0.75,
+  stability: 1,
+  similarity_boost: 1,
   speed: 1,
   style: 0,
   use_speaker_boost: true,
@@ -182,6 +182,7 @@ type VoicesListResponse = {
     previewUrl?: string | null;
     description?: string | null;
     isFallback?: boolean;
+    librarySection?: "default" | "my";
   }>;
   source?: "api" | "fallback";
   warning?: string;
@@ -423,7 +424,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     isCloneConsentChecked &&
     !isCloningVoice;
   const canDeleteSelectedVoice =
-    selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
+    selectedLibraryVoice?.provider === "elevenlabs" &&
+    !selectedLibraryVoice?.isFallback &&
+    selectedLibraryVoice?.librarySection === "my";
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
@@ -913,6 +916,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               previewUrl: voice.previewUrl?.trim() || null,
               description: voice.description?.trim() || null,
               isFallback: Boolean(voice.isFallback),
+              librarySection:
+                voice.librarySection === "default"
+                  ? "default"
+                  : voice.librarySection === "my"
+                    ? "my"
+                    : voice.isFallback
+                      ? "default"
+                      : "my",
               provider: "elevenlabs" as const,
             },
           ];
@@ -1302,6 +1313,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         previewUrl: payload?.voice?.previewUrl?.trim() || null,
         description: payload?.voice?.description?.trim() || nextVoiceDescription,
         isFallback: false,
+        librarySection: "my",
         provider: "elevenlabs",
       });
       resetCreateVoiceModalState();
@@ -1367,6 +1379,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         previewUrl: payload?.voice?.previewUrl?.trim() || null,
         description: payload?.voice?.description?.trim() || nextVoiceDescription || null,
         isFallback: false,
+        librarySection: "my",
         provider: "elevenlabs",
       });
       resetCreateVoiceModalState();
@@ -1516,30 +1529,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 >
                   <span>Voices</span>
                 </button>
-                {selectedLibraryVoice ? (
-                  <button
-                    type="button"
-                    className="voices-properties-library-delete-btn"
-                    onClick={handleDeleteSelectedVoice}
-                    aria-label="Delete Voice"
-                    disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
-                    title={canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."}
-                  >
-                    <Trash size={14} weight="bold" aria-hidden="true" />
-                    <span>{isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}</span>
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="voices-properties-library-create-btn"
-                  onClick={handleCreateVoiceEntry}
-                  aria-label="+ Create New Voice"
-                >
-                  <span className="voices-properties-library-create-btn-icon" aria-hidden="true">
-                    +
-                  </span>
-                  <span>Create New Voice</span>
-                </button>
               </div>
             </div>
 
@@ -1644,6 +1633,34 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         onClose={handleCloseVoicesLibraryModal}
         title="Voices"
         subtitle="Choose the voice used for voiceover and voice changer output."
+        headerActions={
+          <>
+            {selectedLibraryVoice ? (
+              <button
+                type="button"
+                className="voices-properties-library-delete-btn"
+                onClick={handleDeleteSelectedVoice}
+                aria-label="Delete Voice"
+                disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
+                title={canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."}
+              >
+                <Trash size={14} weight="bold" aria-hidden="true" />
+                <span>{isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="voices-properties-library-create-btn"
+              onClick={handleCreateVoiceEntry}
+              aria-label="+ Create New Voice"
+            >
+              <span className="voices-properties-library-create-btn-icon" aria-hidden="true">
+                +
+              </span>
+              <span>Create New Voice</span>
+            </button>
+          </>
+        }
       >
         <section className="voices-library-modal-content" aria-label="Available voices">
           <VoiceLibraryContent

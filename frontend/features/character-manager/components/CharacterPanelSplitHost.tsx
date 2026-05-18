@@ -4,13 +4,19 @@ import { useReferenceGridHorizontalSplit } from "../../ai-studio/hooks/useRefere
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { MediaLibrarySelectionPayload } from "../../ai-studio/hooks/useMediaLibraryPanelSelectionController";
+import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { CharacterPanelWorkspace } from "./CharacterPanelWorkspace";
 
 type CharacterPanelSplitHostProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
+    kind: "media" | "prompt";
+    id: string;
+  } | null>;
   externalCreateRequestKey?: number;
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
+  projectId?: string | null;
 };
 
 const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.54;
@@ -19,9 +25,11 @@ const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
+  resolveMediaLibraryInternalDropItem,
   externalCreateRequestKey = 0,
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
+  projectId = null,
 }: CharacterPanelSplitHostProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [pendingMediaSelection, setPendingMediaSelection] = React.useState<{
@@ -61,6 +69,8 @@ export function CharacterPanelSplitHost({
       <div className="character-panel-bottom-section" style={split.bottomSectionStyle}>
         <ElementsEmbeddedMediaLibraryPanel
           mediaCardInteractionMode="assignment"
+          projectId={projectId}
+          resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           onSelectMedia={(payload) => {
             setPendingMediaSelection((current) => ({
               key: (current?.key ?? 0) + 1,

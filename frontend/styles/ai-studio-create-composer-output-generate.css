@@ -1,8 +1,8 @@
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--create-expert-output-column-width, 94px);
+  grid-template-columns: minmax(0, 1fr) var(--create-composer-output-column-width, 94px);
   align-items: stretch;
   column-gap: 12px;
   padding: 0;
@@ -12,16 +12,16 @@
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-message-edit-input {
   margin: 0;
@@ -35,23 +35,23 @@
   transition: border-color 140ms ease;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
   .agent-message-edit-input {
   color: var(--agent-output-prompt-text, #57d4ff) !important;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable {
   transform: none;
   transition:
@@ -61,58 +61,58 @@
   will-change: auto;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable:hover,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable:active,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable.is-dragging {
   transform: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:hover
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:hover
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:hover
   .agent-message-edit-input,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
   .agent-message-edit-input {
   border-color: rgba(94, 216, 252, 0.18);
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
   p,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
   .tiny,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail:hover
   .agent-message-edit-input {
   border-color: transparent;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls {
   position: static;
@@ -120,9 +120,9 @@
   bottom: auto;
   grid-column: 2;
   grid-row: 1;
-  width: var(--create-expert-output-column-width, 94px);
-  min-width: var(--create-expert-output-column-width, 94px);
-  max-width: var(--create-expert-output-column-width, 94px);
+  width: var(--create-composer-output-column-width, 94px);
+  min-width: var(--create-composer-output-column-width, 94px);
+  max-width: var(--create-composer-output-column-width, 94px);
   align-self: stretch;
   justify-self: end;
   display: flex;
@@ -133,26 +133,26 @@
   min-height: 100%;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-output-bubble-media {
-  width: var(--create-expert-output-column-width, 94px);
+  width: var(--create-composer-output-column-width, 94px);
   height: auto;
   aspect-ratio: 4 / 5;
   border-radius: 8px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.agent-message--with-output-thumbnail
   .agent-output-bubble-controls {
   padding-bottom: 12px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-output-bubble-media--status
@@ -160,21 +160,21 @@
   font-size: 9px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab {
   position: static;
   right: auto;
   bottom: auto;
-  width: var(--create-expert-output-column-width, 94px);
-  min-width: var(--create-expert-output-column-width, 94px);
-  max-width: var(--create-expert-output-column-width, 94px);
+  width: var(--create-composer-output-column-width, 94px);
+  min-width: var(--create-composer-output-column-width, 94px);
+  max-width: var(--create-composer-output-column-width, 94px);
   min-height: 62px;
   height: auto;
   max-height: none;
@@ -192,13 +192,13 @@
   transform: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:hover:not(:disabled),
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:hover:not(:disabled) {
   transform: translateY(1px);
@@ -206,22 +206,22 @@
 }
 
 /* Response-bubble small generate buttons should not render a border ring. */
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab {
   border: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab
   .agent-generate-label,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab
   .agent-generate-label {
@@ -230,14 +230,14 @@
   font-weight: 700;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab
   .generate-pill,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab
   .generate-pill {
@@ -245,15 +245,15 @@
   gap: 4px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab
   .generate-pill
   .model-chip-icon,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab
   .generate-pill
@@ -261,15 +261,15 @@
   font-size: 16px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab
   .generate-pill
   .model-chip-credits,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab
   .generate-pill
@@ -278,13 +278,13 @@
   font-weight: 700;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled {
   border-color: rgba(132, 143, 156, 0.3);
@@ -293,66 +293,66 @@
   color: rgba(174, 184, 196, 0.8);
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled
   .agent-generate-label,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled
   .agent-generate-label {
   color: rgba(174, 184, 196, 0.8);
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled
   .generate-pill,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled
   .generate-pill,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-icon,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-icon,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-credits,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-credits,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate
   .agent-output-bubble-controls
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
   .model-chip-credits-label,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-response-inline-generate-prefab:disabled
   .generate-pill
@@ -360,14 +360,15 @@
   color: rgba(174, 184, 196, 0.8);
 }
 
-.create-expert-inline-generate {
+.create-composer-inline-generate {
   margin-top: 0;
   display: flex;
   flex: 1 1 auto;
   justify-content: flex-start;
 }
 
-.create-expert-inline-generate .agent-generate-prefab {
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab) {
   width: 100%;
   min-width: 0;
   border-color: rgba(201, 205, 214, 0.24);
@@ -376,36 +377,59 @@
   box-shadow: none;
 }
 
-.create-expert-inline-generate .agent-generate-prefab:hover:not(:disabled) {
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):hover:not(:disabled) {
   transform: none;
   box-shadow: none;
   border-color: rgba(201, 205, 214, 0.34);
   background: #202934;
 }
 
-.create-expert-inline-generate .agent-generate-prefab:disabled {
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled {
   border-color: rgba(201, 205, 214, 0.16);
   background: #171b22;
   color: rgba(201, 205, 214, 0.56);
 }
 
-.create-expert-inline-generate .agent-generate-prefab:disabled .agent-generate-label {
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled
+  .agent-generate-label {
   color: rgba(201, 205, 214, 0.56);
 }
 
-.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill,
-.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill .model-chip-icon,
-.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill .model-chip-credits,
-.create-expert-inline-generate
-  .agent-generate-prefab:disabled
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled
+  .generate-pill,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled
+  .generate-pill
+  .model-chip-icon,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled
+  .generate-pill
+  .model-chip-credits,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab):disabled
   .generate-pill
   .model-chip-credits-label {
   color: rgba(201, 205, 214, 0.56);
 }
 
-.create-expert-inline-generate .agent-generate-prefab .generate-pill,
-.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-icon,
-.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits,
-.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab)
+  .generate-pill,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab)
+  .generate-pill
+  .model-chip-icon,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab)
+  .generate-pill
+  .model-chip-credits,
+.create-composer-inline-generate
+  .agent-generate-prefab:not(.agent-response-inline-generate-prefab)
+  .generate-pill
+  .model-chip-credits-label {
   color: rgba(226, 236, 246, 0.9);
 }

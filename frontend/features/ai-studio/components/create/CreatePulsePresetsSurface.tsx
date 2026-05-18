@@ -159,7 +159,7 @@ export const CreatePulsePresetsSurface = ({
       if (triggerElement && triggerElement.getAttribute("aria-controls") === id) {
         return;
       }
-      if (targetElement && targetElement.closest(".create-expert-presets-btn--selected")) {
+      if (targetElement && targetElement.closest(".create-composer-presets-btn--selected")) {
         return;
       }
       onClose();
@@ -176,7 +176,7 @@ export const CreatePulsePresetsSurface = ({
     <section
       id={id}
       ref={surfaceRef}
-      className={`create-expert-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
+      className={`create-composer-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
       role="region"
       aria-label="Pulse Catalog"
       tabIndex={-1}
@@ -202,25 +202,25 @@ export const CreatePulsePresetsSurface = ({
         onClose();
       }}
     >
-      <div className="create-expert-presets-surface-header">
-        <div className="create-expert-presets-surface-title-group">
-          <h3 className="create-expert-presets-surface-title">Pulse Catalog</h3>
-          <p className="create-expert-presets-surface-subtitle">
+      <div className="create-composer-presets-surface-header">
+        <div className="create-composer-presets-surface-title-group">
+          <h3 className="create-composer-presets-surface-title">Pulse Catalog</h3>
+          <p className="create-composer-presets-surface-subtitle">
             Custom and built-in Pulses share the same grid. Click to activate and pin a Pulse. Drag
             to pin without switching. Switching or deactivating starts a fresh Pulse session.
           </p>
         </div>
-        <div className="create-expert-presets-surface-actions">
+        <div className="create-composer-presets-surface-actions">
           <button
             type="button"
-            className="ghost-btn create-expert-presets-surface-library-btn"
+            className="ghost-btn create-composer-presets-surface-library-btn"
             onClick={handleOpenPresetsLibrary}
           >
             Pulse Library
           </button>
           <button
             type="button"
-            className="ghost-btn mini create-expert-presets-surface-close"
+            className="ghost-btn mini create-composer-presets-surface-close"
             aria-label="Close presets"
             onClick={onClose}
           >
@@ -228,10 +228,10 @@ export const CreatePulsePresetsSurface = ({
           </button>
         </div>
       </div>
-      <div className="create-expert-presets-surface-scroll">
+      <div className="create-composer-presets-surface-scroll">
         <section aria-label="Pulse Catalog presets">
           <div
-            className="create-expert-presets-chip-grid"
+            className="create-composer-presets-chip-grid"
             role="list"
             aria-label="Pulse catalog presets"
           >
@@ -239,14 +239,14 @@ export const CreatePulsePresetsSurface = ({
               <div
                 key={preset.presetId}
                 role="listitem"
-                className={`create-expert-presets-chip-item ${
+                className={`create-composer-presets-chip-item ${
                   activePresetId === preset.presetId ? "is-active" : ""
                 } ${selectedPresetIds.includes(preset.presetId) ? "is-pinned" : ""}`.trim()}
               >
                 <button
                   type="button"
                   draggable
-                  className={`create-expert-presets-chip ${
+                  className={`create-composer-presets-chip ${
                     shouldUseMutedCustomLabel(preset) ? "is-custom-label" : ""
                   }`.trim()}
                   aria-pressed={activePresetId === preset.presetId}
@@ -258,25 +258,25 @@ export const CreatePulsePresetsSurface = ({
                   onDragStart={(event) => onPresetDragStart?.(event, preset.presetId)}
                   onDragEnd={onPresetDragEnd}
                 >
-                  <span className="create-expert-presets-chip-label">{preset.label}</span>
-                  <span className="create-expert-presets-chip-meta" aria-hidden="true">
+                  <span className="create-composer-presets-chip-label">{preset.label}</span>
+                  <span className="create-composer-presets-chip-meta" aria-hidden="true">
                     {preset.isCustom ? (
-                      <span className="create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership is-custom">
+                      <span className="create-composer-presets-chip-badge create-composer-presets-chip-badge--ownership is-custom">
                         Custom
                       </span>
                     ) : null}
                     {activePresetId === preset.presetId ? (
-                      <span className="create-expert-presets-chip-badge is-active">Active</span>
+                      <span className="create-composer-presets-chip-badge is-active">Active</span>
                     ) : null}
                     {selectedPresetIds.includes(preset.presetId) ? (
-                      <span className="create-expert-presets-chip-badge">Pinned</span>
+                      <span className="create-composer-presets-chip-badge">Pinned</span>
                     ) : null}
                   </span>
                 </button>
                 {preset.isEditable ? (
                   <button
                     type="button"
-                    className="create-expert-presets-chip-edit"
+                    className="create-composer-presets-chip-edit"
                     aria-label={`Edit ${preset.label} preset`}
                     onClick={(event) => {
                       event.preventDefault();
@@ -293,18 +293,18 @@ export const CreatePulsePresetsSurface = ({
         </section>
       </div>
       {editingPresetId ? (
-        <div className="create-expert-presets-custom-editor-overlay" {...editorBackdropDismiss}>
+        <div className="create-composer-presets-custom-editor-overlay" {...editorBackdropDismiss}>
           <div
             ref={editorDialogRef}
             role="dialog"
             aria-modal="false"
             aria-label="Edit pulse preset"
-            className="create-expert-presets-custom-editor"
+            className="create-composer-presets-custom-editor"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="create-expert-presets-custom-editor-fields">
+            <div className="create-composer-presets-custom-editor-fields">
               <label
-                className="create-expert-presets-custom-editor-label"
+                className="create-composer-presets-custom-editor-label"
                 htmlFor="create-pulse-preset-name-input"
               >
                 Preset name
@@ -313,7 +313,7 @@ export const CreatePulsePresetsSurface = ({
                 id="create-pulse-preset-name-input"
                 ref={editorNameInputRef}
                 type="text"
-                className="create-expert-presets-custom-editor-input"
+                className="create-composer-presets-custom-editor-input"
                 value={editorDraft.label}
                 maxLength={40}
                 onChange={(event) => {
@@ -331,14 +331,14 @@ export const CreatePulsePresetsSurface = ({
                 artifact behavior, describe that directly in the instructions.
               </p>
               <label
-                className="create-expert-presets-custom-editor-label"
+                className="create-composer-presets-custom-editor-label"
                 htmlFor="create-pulse-preset-prompt-input"
               >
                 System instructions
               </label>
               <textarea
                 id="create-pulse-preset-prompt-input"
-                className="create-expert-presets-custom-editor-textarea"
+                className="create-composer-presets-custom-editor-textarea"
                 value={editorDraft.systemInstructions}
                 rows={7}
                 placeholder="Describe how this Pulse should behave, what it should ask for, and what kind of output it should produce."
@@ -353,13 +353,13 @@ export const CreatePulsePresetsSurface = ({
                 }}
               />
               {editorError ? (
-                <p className="create-expert-presets-custom-editor-error">{editorError}</p>
+                <p className="create-composer-presets-custom-editor-error">{editorError}</p>
               ) : null}
             </div>
-            <div className="create-expert-presets-custom-editor-actions">
+            <div className="create-composer-presets-custom-editor-actions">
               <button
                 type="button"
-                className="create-expert-presets-custom-editor-btn"
+                className="create-composer-presets-custom-editor-btn"
                 onClick={closeEditor}
                 disabled={editorSubmitting}
               >
@@ -367,7 +367,7 @@ export const CreatePulsePresetsSurface = ({
               </button>
               <button
                 type="button"
-                className="create-expert-presets-custom-editor-btn is-primary"
+                className="create-composer-presets-custom-editor-btn is-primary"
                 onClick={() => {
                   void saveEditor();
                 }}

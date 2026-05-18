@@ -34,6 +34,7 @@ type ProjectWorkspacePreviewRow = {
 type SnapshotOutputPreviewRecord = {
   id: string;
   mode?: string;
+  taskState?: string;
   previewUrl?: string;
   resultUrls?: string[];
   previewStoragePath?: string;
@@ -85,6 +86,7 @@ const toSnapshotOutputPreviewRecord = (value: unknown): SnapshotOutputPreviewRec
   return {
     id,
     mode: typeof record.mode === "string" ? record.mode.trim() : undefined,
+    taskState: typeof record.taskState === "string" ? record.taskState.trim() : undefined,
     previewUrl: typeof record.previewUrl === "string" ? record.previewUrl.trim() : undefined,
     resultUrls: asStringArray(record.resultUrls),
     previewStoragePath:
@@ -94,6 +96,9 @@ const toSnapshotOutputPreviewRecord = (value: unknown): SnapshotOutputPreviewRec
     hiddenInReferenceGrid: record.hiddenInReferenceGrid === true,
   };
 };
+
+const isFailedSnapshotOutputPreviewRecord = (output: SnapshotOutputPreviewRecord): boolean =>
+  output.taskState === "fail";
 
 const resolveSnapshotOutputImageCandidate = (
   output: SnapshotOutputPreviewRecord
@@ -161,12 +166,18 @@ const resolveProjectPreviewImageCandidatesFromSnapshot = (
   const activeOutputs = Array.isArray(outputsRecord.active)
     ? outputsRecord.active
         .map((value) => toSnapshotOutputPreviewRecord(value))
-        .filter((value): value is SnapshotOutputPreviewRecord => Boolean(value))
+        .filter(
+          (value): value is SnapshotOutputPreviewRecord =>
+            value !== null && !isFailedSnapshotOutputPreviewRecord(value)
+        )
     : [];
   const archivedOutputs = Array.isArray(outputsRecord.archived)
     ? outputsRecord.archived
         .map((value) => toSnapshotOutputPreviewRecord(value))
-        .filter((value): value is SnapshotOutputPreviewRecord => Boolean(value))
+        .filter(
+          (value): value is SnapshotOutputPreviewRecord =>
+            value !== null && !isFailedSnapshotOutputPreviewRecord(value)
+        )
     : [];
   const allOutputs = [...activeOutputs, ...archivedOutputs];
   const outputsById = allOutputs.reduce<Record<string, SnapshotOutputPreviewRecord>>(

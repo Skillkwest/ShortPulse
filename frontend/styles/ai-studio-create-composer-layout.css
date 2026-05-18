@@ -1,33 +1,36 @@
-.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+.create-composer-panel .create-composer-prompt-step .agent-composer-input-shell {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell.is-drop-active
   .agent-input-prefab {
   border-color: rgba(52, 200, 255, 0.62);
   background: rgba(24, 34, 45, 0.96);
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell .agent-input-prefab {
-  min-height: var(--create-expert-agent-input-min-height);
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-input-shell
+  .agent-input-prefab {
+  min-height: var(--create-composer-agent-input-min-height);
   height: auto;
   padding: 6px 16px;
   overflow: hidden;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell.has-inside-send-button
   .agent-input-prefab {
   padding-right: 72px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-composer-attachment-strip {
   position: relative;
@@ -39,29 +42,29 @@
   margin-bottom: -8px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell.has-inside-send-button
   .agent-composer-attachment-strip {
   padding-right: 72px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-input-prefab.has-leading-attachments {
-  min-height: var(--create-expert-agent-input-min-height);
+  min-height: var(--create-composer-agent-input-min-height);
   padding-top: 12px;
   padding-bottom: 6px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-input-prefab-field {
   padding: 6px 4px 6px 0;
-  min-height: calc(var(--create-expert-agent-input-min-height) - 28px);
-  max-height: var(--create-expert-agent-input-max-height);
+  min-height: calc(var(--create-composer-agent-input-min-height) - 28px);
+  max-height: var(--create-composer-agent-input-max-height);
   font-size: 16px;
   line-height: 1.55;
   transition: height 60ms cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -69,8 +72,8 @@
   -ms-overflow-style: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-input-prefab-field::-webkit-scrollbar {
   width: 0;
@@ -78,14 +81,14 @@
   display: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-input-prefab-field::placeholder {
   font-size: 16px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-send-prefab--inside-input {
+.create-composer-panel .create-composer-prompt-step .agent-send-prefab--inside-input {
   position: absolute;
   right: 12px;
   bottom: 8px;
@@ -94,40 +97,40 @@
   border-radius: 999px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-input-prefab {
+.create-composer-panel .create-composer-prompt-step .agent-input-prefab {
   border-color: rgba(201, 205, 214, 0.2);
-  background: var(--create-expert-agent-input-bg);
+  background: var(--create-composer-agent-input-bg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-.create-expert-panel
-  .create-expert-prompt-step.is-character-mode-on
+.create-composer-panel
+  .create-composer-prompt-step.is-character-mode-on
   .agent-composer-input-shell
   .agent-input-prefab {
   border-color: rgba(43, 232, 121, 0.56);
 }
 
-.create-expert-panel .create-expert-prompt-step .step2-input-row.agent-composer-row {
+.create-composer-panel .create-composer-prompt-step .step2-input-row.agent-composer-row {
   align-items: flex-end;
   justify-content: flex-start;
   width: 100%;
   gap: 8px;
-  padding-inline: var(--create-expert-inline-gutter, clamp(10px, 4vw, 44px));
+  padding-inline: var(--create-composer-inline-gutter, clamp(10px, 4vw, 44px));
   box-sizing: border-box;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-row {
+.create-composer-panel .create-composer-prompt-step .agent-composer-row {
   margin-top: 4px;
   margin-bottom: 14px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-row.is-stacked {
+.create-composer-panel .create-composer-prompt-step .agent-composer-row.is-stacked {
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-primary-row {
+.create-composer-panel .create-composer-prompt-step .agent-composer-primary-row {
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
@@ -136,7 +139,7 @@
   order: 1;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-controls-row {
+.create-composer-panel .create-composer-prompt-step .agent-composer-controls-row {
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -144,15 +147,15 @@
   width: 100%;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row.is-stacked
   .agent-composer-controls-row {
   order: 2;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-primary-row
   .agent-composer-input-shell {
   order: initial;
@@ -162,34 +165,37 @@
   align-self: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-primary-row
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   flex: 0 0 auto;
   align-self: flex-end;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-primary-row .agent-composer-leading,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-primary-row
+  .agent-composer-leading,
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-primary-row
   .agent-composer-post-input-actions {
   order: initial;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-leading {
+.create-composer-panel .create-composer-prompt-step .agent-composer-leading {
   align-self: flex-end;
   order: 4;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-inline-leading-controls {
+.create-composer-panel .create-composer-prompt-step .create-composer-inline-leading-controls {
   display: inline-flex;
   align-items: flex-end;
   gap: 8px;
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-inline-character-mode {
+.create-composer-panel .create-composer-prompt-step .create-composer-inline-character-mode {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
@@ -204,7 +210,7 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-.create-expert-panel .create-expert-prompt-step .create-expert-inline-character-mode-title {
+.create-composer-panel .create-composer-prompt-step .create-composer-inline-character-mode-title {
   margin: 0;
   color: #f5f9ff;
   font-size: 12px;
@@ -214,7 +220,7 @@
   white-space: nowrap;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-trailing-column {
+.create-composer-panel .create-composer-prompt-step .agent-composer-trailing-column {
   order: 3;
   flex: 0 0 auto;
   display: inline-flex;
@@ -225,7 +231,7 @@
   gap: 8px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-trailing-stack {
+.create-composer-panel .create-composer-prompt-step .agent-composer-trailing-stack {
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
@@ -233,7 +239,9 @@
   gap: 8px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-trailing-stack.is-chat-off-inline {
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-trailing-stack.is-chat-off-inline {
   flex-direction: row;
   align-items: flex-end;
 }
@@ -243,8 +251,8 @@
  * In Create, keep that control bottom-aligned so it sits flush with the
  * inline generate and chat-mode columns.
  */
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-leading
   .edit-expert-styles-control {
   margin-top: 0;
@@ -253,13 +261,16 @@
   transform: none;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-btn {
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-leading
+  .edit-expert-styles-btn {
   width: 62px;
   min-width: 62px;
   height: 62px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+.create-composer-panel .create-composer-prompt-step .agent-composer-input-shell {
   order: 2;
   flex: 1 1 auto;
   width: auto;
@@ -268,8 +279,8 @@
   align-self: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row.is-stacked
   .agent-composer-input-shell {
   order: initial;
@@ -277,7 +288,7 @@
   align-self: stretch;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-post-input-actions {
+.create-composer-panel .create-composer-prompt-step .agent-composer-post-input-actions {
   order: 3;
   flex: 0 0 auto;
   display: inline-flex;
@@ -286,16 +297,16 @@
   align-self: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-composer-leading,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-composer-post-input-actions,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-inline-actions {
   order: initial;
@@ -303,18 +314,18 @@
   justify-content: stretch;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-stack.is-chat-off-inline
   .agent-composer-post-input-actions,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-stack.is-chat-off-inline
   .agent-composer-leading {
   align-self: flex-end;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-inline-actions {
+.create-composer-panel .create-composer-prompt-step .agent-composer-row .agent-inline-actions {
   order: 1;
   width: auto;
   flex: 0 0 auto;
@@ -323,24 +334,27 @@
   align-self: flex-end;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-controls-row .agent-inline-actions {
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-controls-row
+  .agent-inline-actions {
   order: initial;
   align-self: flex-end;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
   .agent-composer-post-input-actions,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
   .agent-composer-leading {
   order: initial;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-inline-actions {
   display: inline-flex;
@@ -349,52 +363,52 @@
   gap: 8px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-chat-inline-generate-btn,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
   .agent-chat-inline-generate-btn,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
-  .create-expert-inline-character-mode,
-.create-expert-panel
-  .create-expert-prompt-step
+  .create-composer-inline-character-mode,
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-composer-leading
   .edit-expert-styles-control,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
   .agent-composer-leading
   .edit-expert-styles-control,
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-trailing-column
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   width: 100%;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   width: auto;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-controls-row
-  .create-expert-inline-character-mode {
+  .create-composer-inline-character-mode {
   width: auto;
   min-width: 72px;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-row
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   flex-direction: column;
@@ -406,7 +420,10 @@
   transform: translateY(0);
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-chat-mode-toggle-copy {
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-row
+  .agent-chat-mode-toggle-copy {
   min-width: 72px;
   display: flex;
   flex-direction: column;
@@ -414,7 +431,7 @@
   gap: 2px;
 }
 
-.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-chat-mode-label {
+.create-composer-panel .create-composer-prompt-step .agent-composer-row .agent-chat-mode-label {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
@@ -423,20 +440,20 @@
   white-space: nowrap;
 }
 
-.create-expert-panel .step2-input-row .agent-send-btn,
-.create-expert-panel .step2-input-row .step2-send-btn {
+.create-composer-panel .step2-input-row .agent-send-btn,
+.create-composer-panel .step2-input-row .step2-send-btn {
   border: 1px solid rgba(201, 205, 214, 0.22);
   background: #1b232c;
   box-shadow: none;
 }
 
-.create-expert-panel .step2-input-row .agent-send-btn:hover,
-.create-expert-panel .step2-input-row .step2-send-btn:hover {
+.create-composer-panel .step2-input-row .agent-send-btn:hover,
+.create-composer-panel .step2-input-row .step2-send-btn:hover {
   box-shadow: none;
 }
 
-.create-expert-panel
-  .create-expert-prompt-step
+.create-composer-panel
+  .create-composer-prompt-step
   .agent-composer-hint:not(.agent-composer-hint--media) {
   display: none;
 }

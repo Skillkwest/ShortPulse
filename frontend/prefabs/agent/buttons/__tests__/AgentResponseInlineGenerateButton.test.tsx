@@ -34,6 +34,14 @@ describe("AgentResponseInlineGenerateButton", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("exposes busy semantics when requested", () => {
+    render(<AgentResponseInlineGenerateButton onClick={vi.fn()} isBusy />);
+
+    const button = screen.getByRole("button", { name: "Generate" });
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button.classList.contains("is-busy")).toBe(true);
+  });
+
   it("stops click and double-click propagation when enabled", () => {
     const parentClick = vi.fn();
     const parentDoubleClick = vi.fn();

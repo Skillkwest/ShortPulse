@@ -169,7 +169,7 @@
   padding-top: 0;
   padding-bottom: 0;
   border-radius: var(--video-settings-inline-control-radius);
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .video-settings-card-model-row .model-picker-row {
@@ -402,7 +402,7 @@
   width: 100%;
   min-height: 40px;
   border-radius: 10px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .video-settings-card .video-settings-inline-controls > .control-row {
@@ -439,8 +439,8 @@
 .video-settings-card .video-settings-inline-controls > .video-settings-toggle-row--compact {
   min-height: var(--video-settings-inline-control-height);
   border-radius: var(--video-settings-inline-control-radius);
-  background: var(--create-expert-selector-bg, var(--color-bg)) !important;
-  background-color: var(--create-expert-selector-bg, var(--color-bg)) !important;
+  background: var(--create-composer-selector-bg, var(--color-bg)) !important;
+  background-color: var(--create-composer-selector-bg, var(--color-bg)) !important;
   border: 1px solid rgba(201, 205, 214, 0.22);
   padding: 0 12px;
 }
@@ -451,7 +451,7 @@
   border-radius: 8px;
   padding: 6px 28px 6px 8px;
   border-color: rgba(201, 205, 214, 0.22);
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .video-settings-card .aspect-trigger {
@@ -525,7 +525,7 @@
 .video-settings-popover .aspect-dropdown-trigger:hover,
 .video-settings-popover .aspect-dropdown-trigger:focus-visible {
   border-color: rgba(201, 205, 214, 0.24);
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .video-settings-controls .video-settings-full-row {

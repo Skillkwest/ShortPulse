@@ -87,7 +87,7 @@ export function ResolutionDropdown({
           <div
             id={listboxId}
             ref={menuRef}
-            className="create-expert-resolution-menu aspect-menu"
+            className="create-composer-resolution-menu aspect-menu"
             role="listbox"
             aria-label={ariaLabel}
             style={menuStyle}
@@ -98,7 +98,7 @@ export function ResolutionDropdown({
                 <button
                   type="button"
                   key={option.value}
-                  className={`create-expert-resolution-option aspect-menu-item${isActive ? " is-active" : ""}`}
+                  className={`create-composer-resolution-option aspect-menu-item${isActive ? " is-active" : ""}`}
                   role="option"
                   aria-selected={isActive}
                   onClick={() => {
@@ -106,7 +106,7 @@ export function ResolutionDropdown({
                     setIsOpen(false);
                   }}
                 >
-                  <span className="create-expert-resolution-option-label">{option.label}</span>
+                  <span className="create-composer-resolution-option-label">{option.label}</span>
                 </button>
               );
             })}
@@ -116,11 +116,11 @@ export function ResolutionDropdown({
       : null;
 
   return (
-    <div className="create-expert-resolution-dropdown aspect-dropdown" ref={dropdownRef}>
+    <div className="create-composer-resolution-dropdown aspect-dropdown" ref={dropdownRef}>
       <button
         type="button"
         ref={triggerRef}
-        className={`create-expert-resolution-trigger aspect-trigger${isOpen ? " is-open" : ""}`}
+        className={`create-composer-resolution-trigger aspect-trigger${isOpen ? " is-open" : ""}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? listboxId : undefined}
@@ -133,7 +133,7 @@ export function ResolutionDropdown({
           setIsOpen((open) => !open);
         }}
       >
-        <span className="create-expert-resolution-value">{selectedOption?.label ?? value}</span>
+        <span className="create-composer-resolution-value">{selectedOption?.label ?? value}</span>
       </button>
       {menu}
     </div>

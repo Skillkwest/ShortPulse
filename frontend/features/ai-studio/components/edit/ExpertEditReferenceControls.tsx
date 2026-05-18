@@ -145,12 +145,12 @@ export function ExpertEditSelectorControls({
   const isLockedEditToolLogo = effectiveModelPickerLogoSrc === LOCKED_EDIT_TOOL_MODEL_LOGO_SRC;
 
   return (
-    <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
-      <div className="create-expert-controls">
-        <div className="create-expert-control create-expert-model-control">
+    <div className="edit-expert-selector-row create-composer-secondary-row create-composer-controls-row">
+      <div className="create-composer-controls">
+        <div className="create-composer-control create-composer-model-control">
           <button
             type="button"
-            className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+            className={`model-picker-btn create-composer-picker-control create-composer-model-picker-trigger ${
               !modelId ? "is-empty" : ""
             } ${isModelPickerLocked ? "is-locked" : ""} ${
               isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""
@@ -180,7 +180,7 @@ export function ExpertEditSelectorControls({
           </button>
         </div>
 
-        <div className="create-expert-control create-expert-aspect-control">
+        <div className="create-composer-control create-composer-aspect-control">
           <AspectDropdown
             aspect={aspect}
             onSelect={onAspectChange}
@@ -189,7 +189,7 @@ export function ExpertEditSelectorControls({
         </div>
 
         {shouldShowResolutionControl ? (
-          <div className="create-expert-control create-expert-resolution-control">
+          <div className="create-composer-control create-composer-resolution-control">
             <ResolutionDropdown
               value={imageResolutionValue}
               options={imageResolutionOptions}

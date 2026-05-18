@@ -12,6 +12,7 @@ type VoicesSuccessResponse = {
     previewUrl: string | null;
     description: string | null;
     isFallback: boolean;
+    librarySection: "default" | "my";
   }>;
   source: "api" | "fallback";
   warning?: string;
@@ -46,7 +47,10 @@ const fallbackVoices: ElevenLabsVoice[] = ELEVENLABS_DEFAULT_VOICES.map((voice) 
 const buildFallbackVoicesResponse = () => ({
   source: "fallback" as const,
   warning: "Showing the ElevenLabs default catalog until live voices are configured.",
-  voices: fallbackVoices,
+  voices: fallbackVoices.map((voice) => ({
+    ...voice,
+    librarySection: "default" as const,
+  })),
 });
 
 export default async function handler(
@@ -77,7 +81,13 @@ export default async function handler(
   }
 
   try {
-    const voices = mergeVoices(await listElevenLabsVoices(), savedVoices);
+    const savedVoiceIds = new Set(savedVoices.map((voice) => voice.voiceId.trim().toLowerCase()));
+    const voices = mergeVoices(await listElevenLabsVoices(), savedVoices).map((voice) => ({
+      ...voice,
+      librarySection: savedVoiceIds.has(voice.voiceId.trim().toLowerCase())
+        ? ("my" as const)
+        : ("default" as const),
+    }));
     return res.status(200).json({ voices, source: "api" });
   } catch (error) {
     await logApiRouteException({

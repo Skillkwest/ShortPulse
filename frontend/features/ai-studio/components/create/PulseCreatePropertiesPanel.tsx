@@ -198,9 +198,9 @@ export function PulseCreatePropertiesPanel({
     subtitle: "",
     isCollapsed: false,
     onToggleCollapse: () => {
-      // Pulse expert mode keeps chat composer always open.
+      // Pulse create mode keeps chat composer always open.
     },
-    className: "create-expert-prompt-step is-character-mode-off",
+    className: "create-composer-prompt-step is-character-mode-off",
     embedSendButtonInInput: true,
     hideAgentIntroMessage: true,
     agentAttachmentDropTarget: "input",

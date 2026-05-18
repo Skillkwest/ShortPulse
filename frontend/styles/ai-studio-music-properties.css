@@ -83,7 +83,7 @@
   padding: var(--music-composer-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.24);
   border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
+  background: var(--create-composer-selector-bg, var(--color-bg));
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(var(--music-composer-mode-slots), minmax(0, 1fr));

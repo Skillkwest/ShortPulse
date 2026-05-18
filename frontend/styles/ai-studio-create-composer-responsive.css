@@ -1,0 +1,122 @@
+@media (max-width: 900px) {
+  .create-composer-panel .create-composer-panel-shell {
+    gap: var(--create-composer-panel-gap);
+    flex-direction: column;
+  }
+
+  .create-composer-panel .create-composer-left-panel {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .create-composer-panel .create-composer-left-panel.is-pulse-inactive {
+    display: none;
+  }
+
+  .create-composer-panel .create-composer-left-panel-inner {
+    padding: 0 0 12px;
+  }
+
+  .create-composer-panel .create-composer-right-panel {
+    width: 100%;
+  }
+
+  .create-composer-presets-surface {
+    top: calc(100% + 10px);
+    left: 0;
+    width: min(100%, 540px);
+    max-width: min(540px, calc(100vw - 44px));
+  }
+
+  .create-composer-panel--no-history .create-composer-empty-state-shell {
+    justify-content: center;
+    padding-top: 24px;
+    padding-bottom: 12px;
+  }
+
+  .create-composer-panel--no-history .create-composer-pulse-start-shell {
+    min-height: 214px;
+    padding-top: 8px;
+  }
+
+  .create-composer-panel--no-history .create-composer-pulse-start-shell-card {
+    width: 100%;
+    padding: 16px 14px;
+    border-radius: 16px;
+  }
+
+  .create-composer-panel--no-history .create-composer-pulse-start-shell-message {
+    max-width: 24ch;
+  }
+
+  .create-composer-ready-text {
+    font-size: clamp(19px, 7vw, 26px);
+  }
+
+  .create-composer-panel--no-history .create-composer-ready-text {
+    margin: 0 0 12px;
+  }
+
+  .create-composer-inline-generate
+    .agent-generate-prefab:not(.agent-response-inline-generate-prefab) {
+    min-width: 180px;
+  }
+
+  .create-composer-panel .create-composer-picker-control .model-picker-name {
+    max-width: 112px;
+  }
+
+  .create-composer-panel .create-composer-prompt-step .step2-input-row.agent-composer-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .create-composer-panel .create-composer-prompt-step .agent-composer-input-shell {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .create-composer-panel .create-composer-prompt-step .agent-composer-post-input-actions {
+    order: 3;
+  }
+
+  .create-composer-panel
+    .create-composer-prompt-step
+    .agent-composer-input-shell
+    .agent-input-prefab {
+    height: auto;
+    min-height: 76px;
+  }
+
+  .create-composer-panel .create-composer-prompt-step .agent-composer-row .agent-inline-actions {
+    width: auto;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .create-composer-panel
+    .create-composer-prompt-step
+    .agent-composer-row
+    .agent-chat-mode-row.agent-chat-mode-toggle-shell {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .create-composer-panel
+    .create-composer-prompt-step
+    .agent-composer-row
+    .agent-chat-inline-generate-btn.agent-output-generate-pill.agent-generate-prefab {
+    flex: 0 0 94px;
+  }
+
+  .create-composer-character-mode-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .create-composer-secondary-row {
+    flex-wrap: wrap;
+  }
+}

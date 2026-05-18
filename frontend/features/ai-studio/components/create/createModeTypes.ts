@@ -1,1 +1,1 @@
-export type ExpertCreateMode = "standard" | "pulse";
+export type CreateMode = "standard" | "pulse";

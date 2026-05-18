@@ -65,7 +65,7 @@ Prompt ownership rule:
 - **Refine prompt path (Prompt tab):**
   - Uses `/api/ai/studio-agent-standard` with isolated history and `modeHint="text"`.
   - Uses returned assistant text as the prompt candidate and saves a “Refined prompt” card when dragged into the composer or saved to the grid.
-- **Expert Create Pulse mode:**
+- **Create Pulse mode:**
   - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
   - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent-pulse` without mutating the visible Create composer.

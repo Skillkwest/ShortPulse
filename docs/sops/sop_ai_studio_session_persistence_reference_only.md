@@ -1,9 +1,11 @@
 # SOP: AI Studio Session Persistence (Retired Legacy Lane)
 
 ## Scope
+
 Historical runbook for the retired AI Studio legacy session persistence system with former durability across:
+
 1. workspace settings,
-   including Expert Create Pulse mode plus active pinned Pulse preset id,
+   including Create Pulse mode plus active pinned Pulse preset id,
 2. outputs/reference projections,
 3. agent transcript/input state,
    including derived Pulse workflow session state for active built-in `workflow_gpt` guided workflows (`status`, current step label/prompt, collected user inputs, last artifact when present),
@@ -12,16 +14,20 @@ Historical runbook for the retired AI Studio legacy session persistence system w
 This SOP governs the retired legacy AI Studio session persistence system. That system is no longer available in the shipped product. `sid` remains runtime identity only and no longer restores or saves durable session snapshots.
 
 ## Prerequisites
+
 1. Session SQL migration `044_add_ai_studio_sessions_persistence.sql` may still exist in older environments.
 2. Hotfix migration `053_fix_ai_studio_session_upsert_ambiguity.sql` may still exist in older environments.
 3. The legacy `/api/ai/sessions/*` routes are retired and should not be used for runtime product behavior.
 
 ## Runtime Flags
+
 Legacy flags:
+
 1. Historical AI Studio session-persistence env flags are ignored by current runtime policy.
 2. The legacy `/api/ai/sessions/*` routes now return a retired response and do not persist or restore session data.
 
 ## Persistence Contract
+
 1. Snapshot schema version is `2` (V2 write path).
 2. V1 snapshots remain readable for backward compatibility.
 3. Canvas payload includes:
@@ -39,12 +45,14 @@ Legacy flags:
 6. Non-durable canvas image sources (`blob:`/`data:`) are excluded from durable snapshot writes.
 
 ## Runtime Status
+
 1. The shipped product no longer performs durable `sid` session autosave or restore.
 2. `/api/ai/sessions/save`, `/api/ai/sessions/:sid`, and `/api/ai/sessions` are retired endpoints.
 3. Non-project `sid` values remain runtime identity only.
 4. Durable AI Studio persistence now lives on project routes through `/api/projects/:projectId/workspace`.
 
 ## Validation Matrix
+
 1. Targeted tests:
    - `sessionSnapshot*.test.ts`
    - `sessionSnapshot*.test.ts`
@@ -61,6 +69,7 @@ Legacy flags:
    - verify oversize snapshot warning behavior.
 
 ## Operator Guidance
+
 1. Do not use this SOP as runtime product guidance for current AI Studio persistence behavior.
 2. For live project-owned persistence, use the project workspace docs and routes:
    - `docs/adr/0063-project-workspace-authority.md`
@@ -68,8 +77,10 @@ Legacy flags:
    - `docs/routes.md`
 
 ## Rollback
+
 This retired lane has no supported runtime rollback path. If historical investigation needs to inspect the old implementation, use source history rather than re-enabling retired session endpoints.
 
 ## Maintenance
+
 1. Keep this SOP clearly marked as retired historical reference only.
 2. Keep `docs/api/api-internal-routes.md` aligned with the retired endpoint status.

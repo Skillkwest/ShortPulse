@@ -87,7 +87,7 @@ behave like guided workflow tools.
 
 ### 1. Entering Pulse mode
 
-- The user switches the Expert Create mode toggle from `Standard` to `Pulse`.
+- The user switches the Create mode toggle from `Standard` to `Pulse`.
 - The left Pulse rail appears.
 - The shared Standard chat-mode toggle is hidden.
 - The shared Create Styles controls are hidden while Pulse is active.
@@ -216,15 +216,15 @@ Pulse Mode should use an explicit lifecycle model. The exact implementation may
 use React state, reducer state, persisted session fields, or derived selectors,
 but it must preserve these observable states and transitions.
 
-| State | Meaning | Allowed transitions |
-| --- | --- | --- |
-| `inactive` | Pulse mode is open with no active Pulse. | Start Pulse, switch to Standard. |
-| `starting` | A Pulse was selected and kickoff is in flight with no prior active Pulse fallback. | `active.awaiting_input`, `active.completed`, `failed_retryable`, `inactive`. |
-| `active.awaiting_input` | The active Pulse has started and is collecting input or continuing its custom conversation/workflow. | Continue turn, complete, restart, switch Pulse, deactivate, switch to Standard. |
-| `active.completed` | The active Pulse has emitted a final reusable output or guided-workflow artifact. | Generate/export when supported, restart, switch Pulse, deactivate, switch to Standard. |
-| `switching` | A replacement Pulse kickoff is in flight while a previous active Pulse remains the fallback state. | New `active.awaiting_input` or `active.completed` on success; previous active state plus `failed_retryable` status on failure. |
-| `failed_retryable` | Startup, switch, or turn failed without destroying the last valid Pulse state. | Retry, dismiss status, restart, switch Pulse, deactivate. |
-| `deactivated` | User explicitly cleared active Pulse runtime while staying in Pulse mode. | `inactive`, start Pulse. |
+| State                   | Meaning                                                                                              | Allowed transitions                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `inactive`              | Pulse mode is open with no active Pulse.                                                             | Start Pulse, switch to Standard.                                                                                               |
+| `starting`              | A Pulse was selected and kickoff is in flight with no prior active Pulse fallback.                   | `active.awaiting_input`, `active.completed`, `failed_retryable`, `inactive`.                                                   |
+| `active.awaiting_input` | The active Pulse has started and is collecting input or continuing its custom conversation/workflow. | Continue turn, complete, restart, switch Pulse, deactivate, switch to Standard.                                                |
+| `active.completed`      | The active Pulse has emitted a final reusable output or guided-workflow artifact.                    | Generate/export when supported, restart, switch Pulse, deactivate, switch to Standard.                                         |
+| `switching`             | A replacement Pulse kickoff is in flight while a previous active Pulse remains the fallback state.   | New `active.awaiting_input` or `active.completed` on success; previous active state plus `failed_retryable` status on failure. |
+| `failed_retryable`      | Startup, switch, or turn failed without destroying the last valid Pulse state.                       | Retry, dismiss status, restart, switch Pulse, deactivate.                                                                      |
+| `deactivated`           | User explicitly cleared active Pulse runtime while staying in Pulse mode.                            | `inactive`, start Pulse.                                                                                                       |
 
 Lifecycle rules:
 
@@ -260,7 +260,7 @@ Pulse runtime config:
   - `frontend/features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx`
   - `frontend/features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx`
   - `frontend/features/ai-studio/components/create/PulseCreatePanelView.tsx`
-  - `frontend/features/ai-studio/components/create/CreateExpertPresetPanel.tsx`
+  - `frontend/features/ai-studio/components/create/CreatePulsePresetPanel.tsx`
   - `frontend/features/ai-studio/components/create/CreatePulsePresetsSurface.tsx`
 - Page orchestration:
   - `frontend/pages/ai-studio.tsx`
@@ -319,7 +319,7 @@ Pulse runtime config:
 
 ## Current repo-backed interaction flow
 
-1. The user enters Pulse mode from the Expert Create mode toggle.
+1. The user enters Pulse mode from the Create mode toggle.
 2. The left rail renders from the shared Pulse catalog.
 3. Clicking a Pulse calls the Create Pulse runtime handler.
 4. That handler creates a fresh Pulse session instance and starts the hidden kickoff before committing the new active Pulse id.

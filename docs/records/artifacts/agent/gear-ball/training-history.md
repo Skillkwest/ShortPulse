@@ -262,6 +262,50 @@ Next training focus:
 
 - On the next long mixed run, append any file touched during isolated rerun fixes back into the active manifest immediately instead of relying on the leftover audit to catch it.
 
+## 2026-05-18: Production Create Composer And Voices Run
+
+Task: run the full Gear Ball SOP on `production` for the AI Studio create-composer/voices surface refactor and the matching docs reconciliation lane.
+
+Actions taken:
+
+- Locked one product manifest and one docs manifest under `/tmp/gear-ball-run-2026-05-18/`.
+- Preflighted the docs lane, fixed four Prettier-only docs files, and revalidated with `docs:check`.
+- Preflighted the product lane, fixed one `VoicesPropertiesPanel.tsx` lint issue and one `next/image` test shim issue, then validated the changed-test slice.
+- Ran `build`, found a real type regression in `frontend/lib/server/projectsService.ts`, fixed the nullable filter guard, reran the affected test, reran `build`, and reran the full suite.
+- Committed two logical batches on `production`:
+  - `60d3a54ff` `feat(ai-studio): reshape create composer and voice surfaces`
+  - `2d84a7da6` `docs: reconcile create composer route and SOP indexes`
+
+Training result:
+
+- The early-build rule was justified again; the build caught a real issue that the targeted test slice and the first full-suite pass did not.
+- The current helper/tooling stack was sufficient. No new script or SOP change was required.
+- The lane remained reviewable because product and docs stayed separate after validation finished.
+
+Self-rating:
+
+- Run quality: `8.5/10`
+
+What went well:
+
+- Preflight surfaced cheap formatting/lint issues before commit time.
+- The final full-suite rerun stayed green after the build-only fix.
+- The worktree stayed cleanly partitioned into product and docs batches.
+
+What slipped:
+
+- The first full-suite pass happened before the build-only type regression was resolved.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `yes`, in retained history/report only
+
+Next training focus:
+
+- On the next shared-server-file lane, run the early build immediately after the changed-test slice instead of waiting until the first broad checkpoint finishes.
+
 - New tool needed: `no`
 - Existing helper or SOP update needed: `no`
 - Durable lesson added: `yes`

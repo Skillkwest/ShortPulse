@@ -32,7 +32,7 @@
 }
 
 .music-properties-main {
-  padding-top: 16px;
+  padding-top: 6px;
   overflow: hidden;
 }
 
@@ -45,7 +45,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  padding: 18px 20px 12px;
+  padding: 10px 20px 12px;
   gap: 16px;
   overflow: hidden;
 }

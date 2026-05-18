@@ -516,6 +516,7 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
     seenIds.add(resolvedId);
     const kind = asAgentAttachmentKind(attachment.kind);
     if (!kind) return;
+    if (attachment.source === "ephemeral_local") return;
     const imageUrl = sanitizeHydratedMediaUrl(asNullableString(attachment.imageUrl));
     const imageFallbackUrls = sanitizeHydratedAttachmentImageFallbackUrls(
       attachment.imageFallbackUrls

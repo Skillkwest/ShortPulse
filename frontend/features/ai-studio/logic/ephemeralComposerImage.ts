@@ -156,6 +156,18 @@ export const stripEphemeralLocalImagePayload = (attachment: AgentAttachment): Ag
   };
 };
 
+export const stripEphemeralLocalImageModelPayload = (
+  attachment: AgentAttachment
+): AgentAttachment => {
+  if (!isEphemeralLocalImageAttachment(attachment)) return attachment;
+  return {
+    ...attachment,
+    modelDataUrl: null,
+    submissionImageUrl: null,
+    imageFallbackUrls: [],
+  };
+};
+
 export const resolveEphemeralLocalImageModelUrl = (attachment: AgentAttachment): string | null => {
   if (!isEphemeralLocalImageAttachment(attachment)) return null;
   return isAgentImageDataUrl(attachment.modelDataUrl) ? attachment.modelDataUrl : null;

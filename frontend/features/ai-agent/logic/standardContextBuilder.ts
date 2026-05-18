@@ -8,27 +8,24 @@ import type {
   AgentContext,
   AgentReferenceSummary,
 } from "../../../prefabs/agent";
-
-const MAX_MEDIA_ITEMS = 3;
-
-const isSafeRemoteUrl = (value?: string | null) => {
-  if (!value || typeof value !== "string") return false;
-  if (!value.startsWith("https://")) return false;
-  return true;
-};
+import { pickSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
 
 const pickMediaPreviews = (media?: AgentContext["media"]): AgentApiMediaPreview[] => {
   if (!media || !media.length) return [];
-  return media
-    .filter((item) => item.kind === "image")
-    .filter((item) => isSafeRemoteUrl(item.url))
-    .map((item) => ({
-      id: item.id,
-      kind: "image" as const,
-      url: item.url as string,
-      thumbnailAlt: item.thumbnailAlt ?? undefined,
-    }))
-    .slice(0, MAX_MEDIA_ITEMS);
+  return pickSafeAgentImageMediaUrls(
+    media
+      .filter((item) => item.kind === "image" && typeof item.url === "string")
+      .map((item) => ({
+        id: item.id,
+        url: item.url as string,
+        thumbnailAlt: item.thumbnailAlt ?? undefined,
+      }))
+  ).map((item) => ({
+    id: item.id,
+    kind: "image" as const,
+    url: item.url,
+    thumbnailAlt: item.thumbnailAlt ?? undefined,
+  }));
 };
 
 export const buildStandardCreateAgentContext = (context: AgentContext): AgentApiContext => {

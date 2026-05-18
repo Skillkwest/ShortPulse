@@ -25,6 +25,7 @@ import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStand
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
+import { isEphemeralLocalImageAttachment } from "../logic/ephemeralComposerImage";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -73,43 +74,48 @@ const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
   typeof message.outputPrompt === "string" &&
   message.outputPrompt.trim().length > 0;
 
-const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgentMessageV1 => ({
-  id: message.id ?? null,
-  role: message.role,
-  content: message.content,
-  ...(typeof message.outputPrompt === "string" || message.outputPrompt === null
-    ? { outputPrompt: message.outputPrompt }
-    : {}),
-  ...(typeof message.canUseAsPrompt === "boolean"
-    ? { canUseAsPrompt: message.canUseAsPrompt }
-    : {}),
-  ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
-  ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
-  ...(message.decision ? { decision: message.decision } : {}),
-  attachments: message.attachments?.map((attachment) => {
-    const projectedImageAttachment =
-      attachment.kind === "image"
-        ? projectAgentAttachmentToComposerImageAttachment(attachment)
-        : null;
-    return {
-      id: attachment.id,
-      kind: attachment.kind,
-      referenceId: attachment.referenceId ?? null,
-      mediaId: attachment.mediaId ?? null,
-      text: attachment.text ?? null,
-      previewStoragePath: attachment.previewStoragePath ?? null,
-      fullStoragePath: attachment.fullStoragePath ?? null,
-      referenceUrl: attachment.referenceUrl ?? null,
-      referenceRenderUrl: attachment.referenceRenderUrl ?? null,
-      imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
-      imageFallbackUrls:
-        projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls,
-      aspect: attachment.aspect ?? null,
-      deliveryStatus: attachment.deliveryStatus,
-      deliveryError: attachment.deliveryError ?? null,
-    };
-  }),
-});
+const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgentMessageV1 => {
+  const attachments = message.attachments
+    ?.filter((attachment) => !isEphemeralLocalImageAttachment(attachment))
+    .map((attachment) => {
+      const projectedImageAttachment =
+        attachment.kind === "image"
+          ? projectAgentAttachmentToComposerImageAttachment(attachment)
+          : null;
+      return {
+        id: attachment.id,
+        kind: attachment.kind,
+        referenceId: attachment.referenceId ?? null,
+        mediaId: attachment.mediaId ?? null,
+        text: attachment.text ?? null,
+        previewStoragePath: attachment.previewStoragePath ?? null,
+        fullStoragePath: attachment.fullStoragePath ?? null,
+        referenceUrl: attachment.referenceUrl ?? null,
+        referenceRenderUrl: attachment.referenceRenderUrl ?? null,
+        imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
+        imageFallbackUrls:
+          projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls,
+        aspect: attachment.aspect ?? null,
+        deliveryStatus: attachment.deliveryStatus,
+        deliveryError: attachment.deliveryError ?? null,
+      };
+    });
+  return {
+    id: message.id ?? null,
+    role: message.role,
+    content: message.content,
+    ...(typeof message.outputPrompt === "string" || message.outputPrompt === null
+      ? { outputPrompt: message.outputPrompt }
+      : {}),
+    ...(typeof message.canUseAsPrompt === "boolean"
+      ? { canUseAsPrompt: message.canUseAsPrompt }
+      : {}),
+    ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
+    ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
+    ...(message.decision ? { decision: message.decision } : {}),
+    ...(attachments?.length ? { attachments } : {}),
+  };
+};
 
 const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>
   Array.from(

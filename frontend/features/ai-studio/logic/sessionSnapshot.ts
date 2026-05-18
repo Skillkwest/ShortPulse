@@ -37,6 +37,7 @@ import {
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
 import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
+import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
@@ -363,6 +364,7 @@ const sanitizeAgentAttachments = (
   if (!attachments?.length) return undefined;
   const sanitized: NonNullable<AiStudioSessionAgentMessageV1["attachments"]> = [];
   attachments.forEach((attachment) => {
+    if (isEphemeralLocalImageAttachment(attachment)) return;
     const id = attachment.id?.trim();
     if (!id) return;
     const projectedImageAttachment =

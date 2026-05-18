@@ -23,6 +23,7 @@ describe("buildStandardCreateAgentContext", () => {
         modelId: "model-1",
         media: [
           { id: "image-1", kind: "image", url: "https://cdn.test/image.png" },
+          { id: "image-2", kind: "image", url: "data:image/jpeg;base64,YWJjMTIz" },
           { id: "video-1", kind: "video", url: "https://cdn.test/video.mp4" },
         ],
       })
@@ -31,7 +32,10 @@ describe("buildStandardCreateAgentContext", () => {
         activePrompt: "A calm portrait",
         modelId: "model-1",
         mode: "image",
-        media: [{ id: "image-1", kind: "image", url: "https://cdn.test/image.png" }],
+        media: [
+          { id: "image-1", kind: "image", url: "https://cdn.test/image.png" },
+          { id: "image-2", kind: "image", url: "data:image/jpeg;base64,YWJjMTIz" },
+        ],
       })
     );
   });

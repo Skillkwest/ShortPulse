@@ -10,8 +10,8 @@ import type {
   AgentPulseRuntimeContext,
   AgentReferenceSummary,
 } from "../../../prefabs/agent";
+import { pickSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
 
-const MAX_MEDIA_ITEMS = 3;
 const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
 const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
 const GUIDED_PULSE_OUTPUT_MODE = "chat_reply" as const;
@@ -28,27 +28,23 @@ const normalizePulseArtifactTarget = (
     ? value
     : undefined;
 
-const isSafeRemoteUrl = (value?: string | null) => {
-  if (!value || typeof value !== "string") return false;
-  if (!value.startsWith("https://")) return false;
-  return true;
-};
-
 const pickMediaPreviews = (media?: AgentContext["media"]): AgentApiMediaPreview[] => {
   if (!media || !media.length) return [];
-  return (
+  return pickSafeAgentImageMediaUrls(
     media
-      .filter((item) => item.kind === "image") // videos are not processed by the agent; exclude them from vision payload
-      // Use signed/public HTTPS URLs only to avoid oversized chat payloads from base64 data URLs.
-      .filter((item) => isSafeRemoteUrl(item.url))
+      // Videos are not processed by the agent; exclude them from vision payloads.
+      .filter((item) => item.kind === "image" && typeof item.url === "string")
       .map((item) => ({
         id: item.id,
-        kind: "image" as const,
         url: item.url as string,
         thumbnailAlt: item.thumbnailAlt ?? undefined,
       }))
-      .slice(0, MAX_MEDIA_ITEMS)
-  );
+  ).map((item) => ({
+    id: item.id,
+    kind: "image" as const,
+    url: item.url,
+    thumbnailAlt: item.thumbnailAlt ?? undefined,
+  }));
 };
 
 const pickPulseRuntime = (

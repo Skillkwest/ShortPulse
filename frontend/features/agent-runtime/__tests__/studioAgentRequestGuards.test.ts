@@ -77,7 +77,7 @@ describe("studioAgentRequestGuards", () => {
         { id: "m-1", kind: "image", url: "https://example.com/1.png" },
         { id: "m-2", kind: "image", url: "http://example.com/2.png" },
         { id: "m-3", kind: "video", url: "https://example.com/3.mp4" },
-        { id: "m-4", kind: "image", url: "https://example.com/4.png" },
+        { id: "m-4", kind: "image", url: "data:image/webp;base64,YWJjMTIz" },
         { id: "m-5", kind: "image", url: "https://example.com/5.png" },
         { id: "m-6", kind: "image", url: "https://example.com/6.png" },
       ],
@@ -86,7 +86,7 @@ describe("studioAgentRequestGuards", () => {
     expect(context.references).toHaveLength(24);
     expect(context.selectedReferenceIds).toHaveLength(8);
     expect(context.media).toHaveLength(STUDIO_AGENT_MAX_MEDIA);
-    expect(context.media?.every((item) => item.url?.startsWith("https://"))).toBe(true);
+    expect(context.media?.map((item) => item.id)).toEqual(["m-1", "m-4", "m-5"]);
     expect(context.media?.every((item) => item.kind === "image")).toBe(true);
   });
 

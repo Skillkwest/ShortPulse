@@ -89,9 +89,11 @@ const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boo
         return (
           attachment.id === otherAttachment?.id &&
           attachment.kind === otherAttachment?.kind &&
+          (attachment.source ?? null) === (otherAttachment?.source ?? null) &&
           (attachment.referenceId ?? null) === (otherAttachment?.referenceId ?? null) &&
           (attachment.text ?? null) === (otherAttachment?.text ?? null) &&
           (attachment.imageUrl ?? null) === (otherAttachment?.imageUrl ?? null) &&
+          (attachment.modelDataUrl ?? null) === (otherAttachment?.modelDataUrl ?? null) &&
           (attachment.aspect ?? null) === (otherAttachment?.aspect ?? null) &&
           (attachment.deliveryStatus ?? null) === (otherAttachment?.deliveryStatus ?? null) &&
           (attachment.deliveryError ?? null) === (otherAttachment?.deliveryError ?? null)

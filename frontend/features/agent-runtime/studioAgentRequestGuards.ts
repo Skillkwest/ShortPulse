@@ -4,10 +4,14 @@ import type {
   AgentPulseWorkflowSession,
   AgentRuntimeMode,
 } from "../../prefabs/agent";
+import {
+  AGENT_MEDIA_MAX_ITEMS,
+  pickSafeAgentImageMediaUrls,
+} from "../../prefabs/agent/mediaUrlPolicy";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 
 const MAX_MESSAGES = 24;
-export const STUDIO_AGENT_MAX_MEDIA = 3;
+export const STUDIO_AGENT_MAX_MEDIA = AGENT_MEDIA_MAX_ITEMS;
 const GUIDED_PULSE_KIND = "guided_workflow" as const;
 const CUSTOM_PULSE_KIND = "custom_gpt" as const;
 const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
@@ -312,14 +316,21 @@ export const sanitizeStudioAgentContext = (
   runtimeMode?: AgentRuntimeMode | null
 ): AgentContext => {
   if (!context) return {};
-  const media =
+  const media = pickSafeAgentImageMediaUrls(
     context.media
-      ?.filter((item) => {
-        if (item?.kind && item.kind !== "image") return false;
-        const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
-        return isHttpsUrl;
-      })
-      .slice(0, STUDIO_AGENT_MAX_MEDIA) ?? [];
+      ?.filter((item) => !item?.kind || item.kind === "image")
+      .filter((item) => typeof item?.url === "string")
+      .map((item) => ({
+        id: item.id,
+        url: item.url as string,
+        thumbnailAlt: item.thumbnailAlt ?? undefined,
+      })) ?? []
+  ).map((item) => ({
+    id: item.id,
+    kind: "image" as const,
+    url: item.url,
+    thumbnailAlt: item.thumbnailAlt ?? undefined,
+  }));
 
   const sanitized: AgentContext = {
     activePrompt: sanitizeGenerationPromptText(context.activePrompt ?? null),

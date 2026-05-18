@@ -4,6 +4,11 @@ import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
 import { getCreateWorkflowDebugSnapshot } from "../../logic/createWorkflowDebug";
+import {
+  createEphemeralComposerImageData,
+  EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE,
+  EPHEMERAL_IMAGE_UNREADABLE_MESSAGE,
+} from "../../logic/ephemeralComposerImage";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractComposerImageDropPayload,
@@ -28,6 +33,16 @@ vi.mock("../../logic/mediaLibraryDragPayload", () => ({
   readMediaLibraryDragPayload: vi.fn(),
 }));
 
+vi.mock("../../logic/ephemeralComposerImage", () => ({
+  createEphemeralComposerImageData: vi.fn(),
+  EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE:
+    "That image is too large to attach here. Try a smaller image or screenshot.",
+  EPHEMERAL_IMAGE_UNREADABLE_MESSAGE:
+    "Could not read that image. Try dragging it again or use a different image.",
+  isEphemeralLocalImageAttachment: (attachment: { kind: string; source?: string | null }) =>
+    attachment.kind === "image" && attachment.source === "ephemeral_local",
+}));
+
 vi.mock("../../utils/imageUpload", async () => {
   const actual =
     await vi.importActual<typeof import("../../utils/imageUpload")>("../../utils/imageUpload");
@@ -41,6 +56,7 @@ const extractDragDropPayloadMock = vi.mocked(extractDragDropPayload);
 const extractInternalReferenceDragPayloadMock = vi.mocked(extractInternalReferenceDragPayload);
 const extractComposerImageDropPayloadMock = vi.mocked(extractComposerImageDropPayload);
 const readMediaLibraryDragPayloadMock = vi.mocked(readMediaLibraryDragPayload);
+const createEphemeralComposerImageDataMock = vi.mocked(createEphemeralComposerImageData);
 const uploadImageAssetToStorageMock = vi.mocked(uploadImageAssetToStorage);
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -99,6 +115,12 @@ describe("useAiStudioAgentComposer", () => {
         path: `uploads/reference-${uploadCount}.png`,
         size: 1,
       };
+    });
+    createEphemeralComposerImageDataMock.mockResolvedValue({
+      previewDataUrl: "data:image/png;base64,cHJldmlldw==",
+      modelDataUrl: "data:image/png;base64,bW9kZWw=",
+      width: 512,
+      height: 512,
     });
   });
 
@@ -496,11 +518,6 @@ describe("useAiStudioAgentComposer", () => {
   });
 
   it("defaults desktop image-file drops to a single attachment", async () => {
-    const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectURLMock,
-    });
     const files = [
       new File(["one"], "one.png", { type: "image/png" }),
       new File(["two"], "two.png", { type: "image/png" }),
@@ -524,21 +541,30 @@ describe("useAiStudioAgentComposer", () => {
       expect(result.current.agentAttachments).toEqual([
         expect.objectContaining({
           kind: "image",
-          imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-          submissionImageUrl: "https://uploaded.example.com/reference-1.png",
+          source: "ephemeral_local",
+          imageUrl: "data:image/png;base64,cHJldmlldw==",
+          modelDataUrl: "data:image/png;base64,bW9kZWw=",
+          submissionImageUrl: null,
           deliveryStatus: "ready",
           deliveryError: null,
         }),
       ]);
     });
+    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(1);
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
   it("stages up to the configured image-file drop limit", async () => {
     const ensureAgentSession = vi.fn();
-    const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectURLMock,
+    let callCount = 0;
+    createEphemeralComposerImageDataMock.mockImplementation(async () => {
+      callCount += 1;
+      return {
+        previewDataUrl: `data:image/png;base64,cHJldmlldy0${callCount}`,
+        modelDataUrl: `data:image/png;base64,bW9kZWwt${callCount}`,
+        width: 512,
+        height: 512,
+      };
     });
     const files = [
       new File(["one"], "one.png", { type: "image/png" }),
@@ -565,32 +591,25 @@ describe("useAiStudioAgentComposer", () => {
       expect(ensureAgentSession).toHaveBeenCalledTimes(1);
       expect(
         result.current.agentAttachments.every((attachment) =>
-          /^(blob:|data:image\/)/.test(attachment.imageUrl ?? "")
+          /^data:image\/png;base64,cHJldmlldy0/.test(attachment.imageUrl ?? "")
         )
       ).toBe(true);
       expect(
         result.current.agentAttachments.map((attachment) => attachment.submissionImageUrl)
-      ).toEqual([
-        "https://uploaded.example.com/reference-1.png",
-        "https://uploaded.example.com/reference-2.png",
-        "https://uploaded.example.com/reference-3.png",
-      ]);
+      ).toEqual([null, null, null]);
       expect(
         result.current.agentAttachments.map((attachment) => attachment.deliveryStatus)
       ).toEqual(["ready", "ready", "ready"]);
     });
+    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(3);
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
   });
 
-  it("marks dropped images as failed when upload preparation is unavailable", async () => {
-    uploadImageAssetToStorageMock.mockRejectedValueOnce(new Error("upload failed"));
-    const createObjectURLMock = vi.fn((file: File | Blob) =>
-      file instanceof File ? `blob:${file.name}` : "blob:temporary-upload"
+  it("rejects dropped images when ephemeral preparation is unavailable", async () => {
+    createEphemeralComposerImageDataMock.mockRejectedValueOnce(
+      new Error(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE)
     );
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectURLMock,
-    });
 
     const { result } = renderHook(() =>
       useAiStudioAgentComposer({
@@ -608,50 +627,14 @@ describe("useAiStudioAgentComposer", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.agentAttachments[0]).toMatchObject({
-        kind: "image",
-        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-        submissionImageUrl: null,
-        deliveryStatus: "failed",
-        deliveryError: "upload failed",
-      });
+      expect(result.current.agentAttachments).toEqual([]);
+      expect(result.current.agentAttachmentError).toBe(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE);
     });
-    expect(uploadImageAssetToStorageMock).toHaveBeenCalledTimes(1);
-    expect(result.current.agentAttachmentError).toBe(
-      "One or more attached images failed to prepare. Remove failed images and try again."
-    );
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("records upload delivery stage events when create workflow debug is enabled", async () => {
+  it("records ephemeral image creation events when create workflow debug is enabled", async () => {
     window.localStorage.setItem(CREATE_WORKFLOW_DEBUG_STORAGE_KEY, "1");
-    uploadImageAssetToStorageMock.mockImplementationOnce(async (_localUrl, options) => {
-      options?.onStage?.({
-        stage: "fetch_local_image",
-        status: "start",
-        sourceKind: "blob",
-        elapsedMs: 0,
-        timeoutMs: 12000,
-      });
-      options?.onStage?.({
-        stage: "upload_image_route",
-        status: "success",
-        sourceKind: "blob",
-        elapsedMs: 25,
-        timeoutMs: 45000,
-      });
-      return {
-        url: "https://uploaded.example.com/reference-debug.png",
-        path: "uploads/reference-debug.png",
-        size: 1,
-      };
-    });
-    const createObjectURLMock = vi.fn((file: File | Blob) =>
-      file instanceof File ? `blob:${file.name}` : "blob:temporary-upload"
-    );
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectURLMock,
-    });
 
     const { result } = renderHook(() =>
       useAiStudioAgentComposer({
@@ -673,27 +656,19 @@ describe("useAiStudioAgentComposer", () => {
     });
 
     const snapshot = getCreateWorkflowDebugSnapshot();
-    expect(snapshot?.events.some((event) => event.type === "attachment_delivery_stage")).toBe(true);
+    expect(snapshot?.events.some((event) => event.type === "ephemeral_image_created")).toBe(true);
     expect(
       snapshot?.events.some(
         (event) =>
-          event.type === "attachment_delivery_stage" &&
-          event.payload?.stage === "upload_image_route" &&
-          event.payload?.status === "success"
+          event.type === "ephemeral_image_created" &&
+          event.payload?.width === 512 &&
+          event.payload?.height === 512
       )
     ).toBe(true);
   });
 
-  it("revokes owned blob urls when an attachment is removed", async () => {
-    const createObjectUrlMock = vi
-      .fn()
-      .mockReturnValueOnce("blob:owned-preview")
-      .mockReturnValueOnce("blob:temporary-upload");
+  it("does not try to revoke ephemeral data-url attachments on removal", async () => {
     const revokeObjectUrlMock = vi.fn();
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: createObjectUrlMock,
-    });
     Object.defineProperty(URL, "revokeObjectURL", {
       configurable: true,
       value: revokeObjectUrlMock,
@@ -721,7 +696,7 @@ describe("useAiStudioAgentComposer", () => {
       result.current.handleRemoveAgentAttachment(result.current.agentAttachments[0]?.id ?? "");
     });
 
-    expect(revokeObjectUrlMock).toHaveBeenCalledWith("blob:owned-preview");
+    expect(revokeObjectUrlMock).not.toHaveBeenCalled();
   });
 
   it("rejects dropped video files before they reach the composer", () => {

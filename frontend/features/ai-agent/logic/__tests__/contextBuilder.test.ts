@@ -5,12 +5,12 @@ import { describe, expect, it } from "vitest";
 import { buildAgentContext } from "../contextBuilder";
 
 describe("buildAgentContext media filtering", () => {
-  it("keeps only https image media and drops data URLs", () => {
+  it("keeps https image media and capped image data URLs", () => {
     const context = buildAgentContext({
       mode: "image",
       media: [
         { id: "https-img", kind: "image", url: "https://cdn.example.com/a.jpg" },
-        { id: "data-img", kind: "image", dataUrl: "data:image/png;base64,abc123" },
+        { id: "data-img", kind: "image", url: "data:image/png;base64,YWJjMTIz" },
         { id: "video", kind: "video", url: "https://cdn.example.com/clip.mp4" },
         { id: "blob-like", kind: "image", url: "blob:abc123" },
       ],
@@ -18,6 +18,7 @@ describe("buildAgentContext media filtering", () => {
 
     expect(context.media).toEqual([
       { id: "https-img", kind: "image", url: "https://cdn.example.com/a.jpg" },
+      { id: "data-img", kind: "image", url: "data:image/png;base64,YWJjMTIz" },
     ]);
   });
 

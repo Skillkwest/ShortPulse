@@ -5,8 +5,13 @@ import {
   recordCreateWorkflowEvent,
   summarizeCreateWorkflowUrl,
 } from "../../logic/createWorkflowDebug";
+import { stripEphemeralLocalImageModelPayload } from "../../logic/ephemeralComposerImage";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
+import {
+  EPHEMERAL_IMAGE_SEND_MISSING_MESSAGE,
+  splitAgentImageAttachmentsForSend,
+} from "./ephemeralAttachmentSend";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
 
 const STANDARD_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
@@ -125,7 +130,10 @@ export const runStandardCreateAgentSend = async ({
   setAgentUiBusy(true);
   const sentFromComposer = typeof textOverride !== "string";
   const userMessageText = trimmed || outboundText;
-  const optimisticUserMessageId = appendUserMessage(userMessageText, outboundAttachments);
+  const optimisticMessageAttachments = outboundAttachments.map(
+    stripEphemeralLocalImageModelPayload
+  );
+  const optimisticUserMessageId = appendUserMessage(userMessageText, optimisticMessageAttachments);
   const originalAgentInput = agentInput;
   const originalAgentAttachments = cloneMessageAttachments(agentAttachments);
   let composerCleared = false;
@@ -187,15 +195,37 @@ export const runStandardCreateAgentSend = async ({
     }
   };
   try {
-    const imageAttachmentIds = outboundAttachments
-      .filter((attachment) => attachment.kind === "image")
-      .map((attachment) => attachment.id);
-    let preparedImageUrls = new Map<string, string>();
+    const {
+      imageAttachmentIds,
+      durableImageAttachments,
+      durableImageAttachmentIds,
+      ephemeralImageUrls,
+      failedEphemeralImageIds,
+    } = splitAgentImageAttachmentsForSend(outboundAttachments);
+    const preparedImageUrls = new Map<string, string>(ephemeralImageUrls);
     if (imageAttachmentIds.length > 0) {
-      updateOptimisticAttachmentDelivery(imageAttachmentIds, "preparing");
+      if (failedEphemeralImageIds.length > 0) {
+        updateOptimisticAttachmentDelivery(
+          failedEphemeralImageIds,
+          "failed",
+          EPHEMERAL_IMAGE_SEND_MISSING_MESSAGE
+        );
+        setAgentAttachmentError(
+          "One or more attached images failed to prepare. Remove failed images and try again."
+        );
+        trackAgentUiEvent("studio_agent_attachment_prepare_failed", {
+          failed_image_attachments: failedEphemeralImageIds.length,
+          attempted_image_attachments: imageAttachmentIds.length,
+          failure_kind: "ephemeral_missing_model_payload",
+        });
+        restoreComposerDraft();
+        return;
+      }
+
+      updateOptimisticAttachmentDelivery(durableImageAttachmentIds, "preparing");
 
       const preparedImageResult = await prepareAgentImageAttachments({
-        attachments: outboundAttachments,
+        attachments: durableImageAttachments,
         preparedImageUrlCache: preparedImageUrlCacheRef.current,
       });
       if (!preparedImageResult.ok) {
@@ -232,7 +262,9 @@ export const runStandardCreateAgentSend = async ({
         return;
       }
 
-      preparedImageUrls = preparedImageResult.preparedImageUrls;
+      preparedImageResult.preparedImageUrls.forEach((safeUrl, attachmentId) => {
+        preparedImageUrls.set(attachmentId, safeUrl);
+      });
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
 

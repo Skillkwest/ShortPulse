@@ -163,6 +163,17 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   const shouldUseComposerOverlay =
     chatComposerOverlayEnabled && shouldRenderAgentChatPanel && !shouldRenderAgentChatSpacer;
   const shouldBlurComposerUnderlay = isAgentInputExpanded && agentInputVisualRowCount >= 8;
+  const hasReturnedPromptToDrag =
+    Boolean(stagedPrompt?.trim()) ||
+    agentMessages.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.canUseAsPrompt === true &&
+        typeof message.outputPrompt === "string" &&
+        message.outputPrompt.trim().length > 0
+    );
+  const showDragGenerateHint =
+    chatModeEnabled && agentInput.trim().length === 0 && hasReturnedPromptToDrag;
   const handleAgentInputVisualRowCountChange = React.useCallback(
     (rowCount: number) => {
       setAgentInputVisualRowCount(rowCount);
@@ -435,7 +446,9 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
       )}
       {chatModeEnabled ? (
         <p className="tiny helper-text agent-composer-hint">
-          Enter to send. Shift+Enter for a new line.
+          {showDragGenerateHint
+            ? "Drag agent text into the composer to enable Generate. Enter sends chat. Shift+Enter adds a new line."
+            : "Enter sends chat. Shift+Enter adds a new line."}
         </p>
       ) : null}
       {imageAttachmentCounts.total > 0 ? (

@@ -15,7 +15,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
@@ -69,8 +68,6 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
-  disableAgentOutputGenerate?: boolean;
-  outputGenerateCostCredits?: number | null;
   hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
@@ -84,7 +81,6 @@ export type StandardCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
   onClearAgentChat?: () => void;
   imageResolution?: string;
@@ -558,11 +554,8 @@ export function StandardCreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
-  onGenerateOutputPrompt,
   isPromptGenerating = false,
   isGenerateDisabled = false,
-  disableAgentOutputGenerate,
-  outputGenerateCostCredits = null,
   hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
   imageResolution,
@@ -725,14 +718,8 @@ export function StandardCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
-    onGenerateOutputPrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
-    disableOutputGenerate: disableAgentOutputGenerate ?? disableOutputGenerate,
-    outputGenerateCostCredits,
-    outputGenerateGuardrailReason:
-      (disableAgentOutputGenerate ?? disableOutputGenerate) ? guardrailReason : null,
-    hideOutputGenerateControls: false,
     chatOnly: true,
   } satisfies Omit<
     React.ComponentProps<typeof PromptStep>,

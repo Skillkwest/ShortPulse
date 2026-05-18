@@ -96,6 +96,75 @@ Correction:
   - what real runtime/product behavior this lane is trying to improve,
   - and why this is better ROI than stopping or pivoting elsewhere
 
+### 7. Multi-truth retention drift
+
+Definition:
+
+- allowing the same live status to exist in multiple retained surfaces that can fall out of sync
+
+Why it matters:
+
+- current state becomes harder to trust than raw reports
+- memory, inventory, SOP, and ledger start competing instead of supporting one another
+
+Correction:
+
+- keep one concise current-state surface
+- keep detailed status in historical reports
+- remove dynamic status blocks from standing SOPs and other secondary artifacts
+
+### 8. Scorecard contract drift
+
+Definition:
+
+- using performance scores, category values, or weakest-category labels that violate the scorecard's own caps or vocabulary
+
+Why it matters:
+
+- self-scoring becomes theater
+- trend claims stop being comparable across runs
+
+Correction:
+
+- if any ledger row exceeds a category max or uses a non-category weakest label, treat that row as invalid
+- repair the ledger before using it for current-trend or confidence claims
+
+### 9. Repo-path assumption drift
+
+Definition:
+
+- treating a repo-local skill or contract path as if it were a Codex-global skill alias first
+
+Why it matters:
+
+- wastes time
+- makes the repo contract look less trustworthy than it is
+- creates avoidable “missing file” confusion
+
+Correction:
+
+- when the repo names a local file path, open that exact path first
+- only fall back to global/tool-registry lookup if the literal repo path is actually missing
+
+### 10. Report-value understatement
+
+Definition:
+
+- speaking about retained reports as though they are weak or disposable because fresher proof would be better
+
+Why it matters:
+
+- users use those reports as training data and continuity artifacts
+- understating them sounds like the retention system is ornamental
+
+Correction:
+
+- describe the evidence hierarchy explicitly:
+  - fresh direct proof if available,
+  - current code/tests,
+  - retained reports as historical support
+- do not frame retained reports as low-value just because they are not live reruns
+
 ## P2: Moderate-Impact Failures
 
 - shallow doc retention

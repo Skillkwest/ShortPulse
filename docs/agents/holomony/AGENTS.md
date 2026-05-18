@@ -75,12 +75,12 @@ When Holomony changes behavior, also consider whether to update:
 
 - Holomony memory
 - training history
-- run log
 - KPI docs
 - relevant SOPs
 - retained reports
 
 Do not create duplicate systems when an existing Holomony artifact already has the right job.
+Use `docs/agents/holomony/memory.md` as the only canonical current-state surface; detailed state belongs in reports, not in multiple competing summaries.
 
 ## Scoring and Self-Audit
 

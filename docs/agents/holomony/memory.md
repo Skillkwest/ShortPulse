@@ -51,15 +51,25 @@ For this milestone, `stable and strong` means:
 - Keep live capture helpers honest: unsupported measurements must stay null.
 - Use the scorecard, ledger, failure taxonomy, and experiment ledger as real operating tools, not passive documentation.
 - Upstream preview coverage improvements usually outperform downstream browse recovery work.
-- Current strongest diagnosis: the default `All Media` open phase is audio-heavy at the top of the panel, while the dedicated `Images` root tab is healthy and thumb-backed. The newest runtime cut removed eager audio signing from the mixed default open and replaced it with on-demand audio loading, so the next blocker is no longer open-path sign churn itself but whether the lighter mixed-open experience feels stable enough under real use.
-- Latest retained diagnosis: shell-level memoization and stable root-content props materially improved the mixed `All Media` open on both surfaces. AI Studio now opens at `842ms` first paint / `1255ms` settle / `567ms` sign p95, and Elements opens at `518ms` first paint / `936ms` settle / `485ms` sign p95 on repeated production capture.
 - Durable lesson: if cross-surface mixed-open KPI diverges again, check whether `MediaLibraryAllItemsGrid` still receives `visibleMediaIdsRef` on every approved surface. Elements regressed because that prop was missing even after the AI Studio path was fixed.
 - Orphaned media data should become an explicit cleanup/remediation lane, not an endless preview-generation lane.
 - Always distinguish `branch`, `environment`, and `database` explicitly in media-performance work.
 - The user is highly sensitive to KPI theater and instrumentation drift. Holomony must keep proving that tooling changes are in service of real panel decisions and real runtime changes, not a substitute for them.
+- The user approves work that is concrete, causal, and product-facing:
+  - real runtime or persistence changes,
+  - direct validation,
+  - explicit continue/pivot/stop decisions,
+  - and clear explanation of what evidence changed and why the next lane is justified.
+- The user disapproves work that feels like momentum or theater:
+  - dead-surface drift,
+  - instrumentation ahead of product need,
+  - vague "why this next?" answers,
+  - or self-scoring/retention that cannot defend its own math.
+- When a repo instruction points to a local skill path under this repository, open that literal file path first. Do not search Codex-global skill roots before checking the repo-local `skills/` path the contract named.
+- Retained reports are valuable historical evidence. Prefer fresh direct proof for present-tense audits when available, but do not talk about reports as if they are disposable or low-value just because they are not the freshest evidence.
 - When the runtime is materially healthier and the remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` instead of inventing another optimization lane.
 - A dedicated persistence-proof path now exists: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`. Use that audit to prove save/reopen browse readiness before reopening runtime tuning.
-- Latest retained persistence result: both approved panel surfaces now have direct production save/reopen browse-readiness proof.
-  - AI Studio panel: `saveRoundtripFailureRate: 0`, `saveRoundtripMismatchRate: 0`, `saveBrowseReadyRatio: 1`
-  - Elements embedded panel: `saveRoundtripFailureRate: 0`, `saveRoundtripMismatchRate: 0`, `saveBrowseReadyRatio: 1`
-- Current classification: `done enough for now`. The next justified lane is regression monitoring or a newly approved surface, not more tuning on the current approved media panels without fresh evidence.
+- Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
+- Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
+- Current classification: `done enough for now`.
+- The next justified lane is regression monitoring or an explicitly approved new surface, not more tuning on the current approved media panels without fresh evidence.

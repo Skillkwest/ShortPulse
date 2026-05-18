@@ -31,21 +31,16 @@ Holomony does not treat a media-heavy surface as first-class until it has:
 - This is the current primary Holomony surface.
 - It already has the strongest KPI and capture support.
 - The active milestone for this surface is now explicitly `stable and strong media panel`.
-- The biggest remaining gap is no longer list-count churn; that lane improved.
-- The main remaining proven weaknesses are slower mixed-open first paint on AI Studio and still-low evidence depth on correctness metrics.
-- The stronger KPI capture now shows the default `All Media` open phase is a mixed payload with audio-heavy top rows, so blanket canonical-preview scoring on that surface is not yet trustworthy without row-class-aware evidence.
-- A dedicated `Images` root-tab capture now shows a healthy image path: image-only row mix, thumb-backed durable coverage, `canonicalPreviewCoverageRatio: 1`, and `signBatchP95Ms: 558`.
-- A dedicated `Audio` root-tab capture shows the audio-only path is also not the main performance failure by itself; the remaining issue is the default mixed `All Media` open.
-- The latest shared-runtime cuts replaced eager audio signing on the mixed default open with an on-demand audio shell and then scoped mixed-grid video browse signing to actual visible rows.
-- After the visibility-scoped browse-preview fix, AI Studio and Elements both dropped to `6` open-phase signed rows on mixed `All Media`, which means the old cross-surface sign-count mismatch is no longer the main blocker.
+- Historical optimization detail belongs in retained reports, not here.
+- Current operational read for this surface lives in `docs/agents/holomony/memory.md` and the retained KPI/persistence reports.
 
 ### Elements embedded media panel
 
 - This is already approved in Holomony scope and now has a dedicated capture path.
 - The surface reuses much of the panel runtime, so it is a good control surface for shared-runtime audits.
 - The active milestone for this surface is the same `stable and strong media panel` finish line.
-- Elements now shows the same `Images healthy / default open mixed` split as AI Studio.
-- Elements now serves as the cleaner control surface for mixed `All Media`: after the visibility-scoped browse-preview fix it retained better first paint/settle than AI Studio while matching AI Studio's reduced open-phase signed-row count.
+- Historical optimization detail belongs in retained reports, not here.
+- Current operational read for this surface lives in `docs/agents/holomony/memory.md` and the retained KPI/persistence reports.
 
 ### AI Studio Media modal
 

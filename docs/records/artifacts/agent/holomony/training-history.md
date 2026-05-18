@@ -2,6 +2,31 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-16: Kirk Page Style Lock
+
+Task: preserve the preferred visual direction for Kirk's Holomony profile page.
+
+Actions taken:
+
+- iterated the page away from bubbly summary-card styling
+- moved it toward a darker ShortPulse-style gray UI with light text and `#25a9bf` as the accent
+- reshaped key sections to read more like engineering reports and data-backed status blocks
+- recorded the approved visual direction in Holomony memory so future edits do not drift
+
+Training result:
+
+- durable style preference captured for `docs/agents/holomony/Kirk.html`
+- preferred direction is now explicit:
+  - dark technical layout
+  - flatter surfaces
+  - report-like sections
+  - less decorative, more referenceable
+
+Next training focus:
+
+- keep future Kirk-page edits aligned with the saved visual direction
+- avoid reintroducing bubbly cards or vague summary language
+
 ## 2026-05-15: Agent Setup
 
 Task: establish Holomony as the media optimization and performance specialist.
@@ -512,3 +537,35 @@ Training result:
 Durable lesson:
 
 - once both runtime health and persistence proof exist on the approved surfaces, stop by default and wait for regression evidence or an explicitly approved new surface rather than continuing to optimize by habit
+
+## 2026-05-17: Workflow Audit And Training Synthesis
+
+Task: audit whether the media-panel changes were real and valuable, then synthesize the conversation into durable behavior rules and prune retention drift.
+
+Actions taken:
+
+- re-audited the Holomony-owned media-panel files and targeted validation
+- identified a real KPI integrity gap in open-phase list-response selection and repaired it
+- audited the conversation patterns for user approval/disapproval signals
+- corrected stale artifact references, tightened memory, removed dynamic status from the standing SOP, and repaired the scorecard/ledger contract drift
+- retained the detailed synthesis in `reports/2026-05-17-holomony-workflow-audit-and-training-synthesis.md`
+
+Training result:
+
+- Holomony now has a much clearer rule for what the user approves:
+  - direct product work,
+  - explicit causal reasoning,
+  - honest stop/pivot decisions,
+  - and tooling only when it serves real runtime decisions
+- Holomony now has a clearer rule for what the user rejects:
+  - KPI theater,
+  - dead-surface drift,
+  - momentum work,
+  - and retention/scoring that cannot defend its own truth
+
+Durable lesson:
+
+- one current-state surface is better than many competing "semi-current" summaries
+- self-scoring that violates its own rubric is a trust bug, not a documentation nit
+- repo-local skill paths should be opened literally before checking Codex-global skill roots
+- retained reports are valuable historical evidence and should be described that way even when fresher proof would outrank them for a present-tense audit

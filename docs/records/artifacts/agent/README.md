@@ -75,6 +75,10 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/holomony/sops.md`
 - `docs/records/artifacts/agent/holomony/training-history.md`
 - `docs/records/artifacts/agent/holomony/tools.md`
+- `docs/records/artifacts/agent/create-workflow/README.md`
+- `docs/records/artifacts/agent/create-workflow/reports/README.md`
+- `docs/records/artifacts/agent/create-workflow/training-history.md`
+- `docs/records/artifacts/agent/create-workflow/reports/2026-05-16-create-composer-attachment-incident-audit.md`
 - `docs/records/artifacts/agent/copperknot/README.md`
 - `docs/records/artifacts/agent/copperknot/memory.md`
 - `docs/records/artifacts/agent/copperknot/metrics/README.md`

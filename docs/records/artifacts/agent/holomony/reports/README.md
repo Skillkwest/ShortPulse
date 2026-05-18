@@ -33,3 +33,4 @@ Use:
 - KPI baseline or audit reports
 - hotspot or optimization audit reports
 - surface onboarding reports
+- workflow and user-alignment audits

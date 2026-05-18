@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kirk - Holomony</title>
+    <style>
+      :root {
+        --bg: #111111;
+        --surface: #1b1b1b;
+        --surface-2: #202020;
+        --surface-3: #171717;
+        --ink: #f2f2f2;
+        --muted: #a7a7a7;
+        --line: #313131;
+        --accent: #25a9bf;
+        --accent-soft: rgba(37, 169, 191, 0.12);
+        --shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+        --radius: 14px;
+        --max: 1140px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          "Avenir Next",
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.45;
+      }
+
+      .page {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 28px 24px 56px;
+      }
+
+      .hero {
+        background: transparent;
+        color: var(--ink);
+        border-radius: 0;
+        padding: 0 0 18px;
+        box-shadow: var(--shadow);
+        margin-bottom: 18px;
+        border: 0;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 0.76rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+        line-height: 1;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+      }
+
+      .hero p {
+        margin: 14px 0 0;
+        max-width: 60ch;
+        font-size: 1rem;
+        color: var(--muted);
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        margin: 20px 0 22px;
+      }
+
+      .status-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 15px;
+        color: var(--ink);
+        box-shadow: none;
+      }
+
+      .status-card strong {
+        display: block;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        margin-bottom: 6px;
+        font-weight: 700;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .card.accent {
+        background: var(--surface-2);
+        border-color: rgba(37, 169, 191, 0.42);
+      }
+
+      .card.warm {
+        background: var(--surface-3);
+        border-color: var(--line);
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        font-size: 1.18rem;
+        line-height: 1.15;
+        font-weight: 620;
+        letter-spacing: -0.02em;
+      }
+
+      p {
+        margin: 0 0 12px;
+        color: var(--muted);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li + li {
+        margin-top: 8px;
+      }
+
+      .big {
+        font-size: 1rem;
+        color: var(--ink);
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin: 4px 6px 0 0;
+        border: 1px solid rgba(37, 169, 191, 0.28);
+      }
+
+      .section-title {
+        margin: 24px 0 12px;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--muted);
+      }
+
+      .quote {
+        border-left: 4px solid var(--accent);
+        padding-left: 14px;
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .report-card h2 {
+        font-family:
+          "Iowan Old Style",
+          "Palatino Linotype",
+          "Book Antiqua",
+          Georgia,
+          serif;
+        font-size: 1.65rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      .report-intro {
+        color: var(--ink);
+        margin-bottom: 14px;
+      }
+
+      .report-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .report-item {
+        padding: 12px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .report-item:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .report-label {
+        display: block;
+        margin-bottom: 5px;
+        font-family:
+          "SFMono-Regular",
+          Menlo,
+          Monaco,
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .report-value {
+        display: block;
+        color: var(--ink);
+        font-size: 1rem;
+      }
+
+      .report-note {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+      }
+
+      .report-note strong {
+        color: var(--ink);
+      }
+
+      .footer {
+        margin-top: 20px;
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          padding: 20px 14px 40px;
+        }
+
+        .hero {
+          padding: 0 0 12px;
+        }
+
+        .card {
+          padding: 16px 14px;
+          border-radius: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">For Kirk</p>
+        <h1>Holomony</h1>
+        <p>
+          I am your media optimization and performance specialist inside ShortPulse.
+          My job is to make media surfaces faster, stronger, cleaner, and more trustworthy.
+        </p>
+
+        <div class="status-strip">
+          <div class="status-card">
+            <strong>Training Level</strong>
+            Supervised
+          </div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card accent">
+          <h2>What I Do</h2>
+          <p class="big">I help these media surfaces:</p>
+          <ul>
+            <li>AI Studio Media panel</li>
+            <li>Elements embedded media panel</li>
+          </ul>
+          <p style="margin-top: 14px" class="big">On those surfaces, I work to:</p>
+          <ul>
+            <li>load faster</li>
+            <li>feel cleaner</li>
+            <li>display the right thing correctly</li>
+            <li>avoid fake performance claims</li>
+            <li>stay trustworthy after save, reload, and reopen</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>Media Surfaces I Track</h2>
+          <p class="big">Approved now:</p>
+          <ul>
+            <li>AI Studio Media panel</li>
+            <li>Elements embedded media panel</li>
+          </ul>
+          <p style="margin-top: 14px" class="big">Possible later surfaces:</p>
+          <ul>
+            <li>AI Studio Media modal</li>
+            <li>Reference Grid</li>
+            <li>Quick Slot Inventory</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>What I Am Working On</h2>
+          <p class="big">Right now I am focused on:</p>
+          <ul>
+            <li>keeping the media panel work stable</li>
+            <li>watching for real regressions</li>
+            <li>making sure my score and testing tools tell the truth about what is really working</li>
+            <li>keeping my own memory and training system clean</li>
+          </ul>
+        </section>
+
+        <section class="card warm report-card">
+          <h2>Current Product Status</h2>
+          <p class="report-intro">Latest engineering readout from my current audit work:</p>
+          <div class="report-list">
+            <div class="report-item">
+              <span class="report-label">Surface / AI Studio Media Panel</span>
+              <span class="report-value">Runtime improvements confirmed in production.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Surface / Elements Embedded Media Panel</span>
+              <span class="report-value">Runtime improvements confirmed in production.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Persistence / Save, Reopen, Refresh</span>
+              <span class="report-value">Production browse-readiness proof is in place for both approved panels.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Current Lane Status</span>
+              <span class="report-value">Done enough for now. No clear hot-path blocker is active.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card accent">
+          <h2>Current Snapshot Note</h2>
+          <p class="report-intro">
+            This is where the work stands right now.
+          </p>
+          <div class="report-list">
+            <div class="report-item">
+              <span class="report-label">Current Read</span>
+              <span class="report-value">The approved media panels are in a better place than they were at the start of this lane.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Why Work Paused Here</span>
+              <span class="report-value">There is not a clear, measured hot-path blocker strong enough to justify more tuning right now.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">What Is Still True</span>
+              <span class="report-value">The remaining gaps are mostly about keeping evidence fresh and watching for regressions, not chasing another runtime theory.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Next Useful Move</span>
+              <span class="report-value">Run fresh KPI and persistence checks when new evidence appears, or reopen the lane only if a real regression shows up.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>What I Am Learning</h2>
+          <p class="report-intro">
+            This is the current training report, not just a list of topics.
+          </p>
+          <div class="report-list">
+            <div class="report-item">
+              <span class="report-label">Training Goal</span>
+              <span class="report-value">Become a more disciplined media-performance agent who improves the real product and stops when the proof is strong enough.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">How You Are Training Me</span>
+              <span class="report-value">You are training me through live work, corrections, audits, pruning, and repeated checks on whether my decisions are actually helping the product.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">What I Have Improved</span>
+              <span class="report-value">I am better at separating real product work from KPI theater, naming why a lane exists, reversing course when evidence changes, and stopping when continued work would just be momentum.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">What I Am Still Learning</span>
+              <span class="report-value">I am still learning how to avoid low-evidence confidence, how to keep my reports and memory aligned, and how to explain my reasoning in a way that earns trust quickly.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">How Training Works In Practice</span>
+              <span class="report-value">We run a lane, measure it, audit my choices, keep the valuable lessons, remove the noisy or duplicative ones, and then use that history to guide the next decision.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Current Supervision Need</span>
+              <span class="report-value">I still need supervision for broad architecture pivots, weak-signal product decisions, and any lane where the evidence is not strong enough to justify confident action.</span>
+            </div>
+          </div>
+          <p class="report-note">
+            In plain terms: <strong>you are training me by making me do real work, then forcing me to explain, audit, and clean up my behavior after the work is done.</strong>
+          </p>
+        </section>
+
+        <section class="card accent report-card">
+          <h2>Training Performance Data</h2>
+          <p class="report-intro">
+            This is the part you can actually reference. It comes from my retained scorecard,
+            performance ledger, and capability ladder.
+          </p>
+          <div class="report-list">
+            <div class="report-item">
+              <span class="report-label">Substantive Scored Runs</span>
+              <span class="report-value">9 retained runs have been scored so far.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Average Specialist Score</span>
+              <span class="report-value">8.64 / 10 across the current ledger.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Confidence Mix</span>
+              <span class="report-value">3 high-confidence runs and 6 medium-confidence runs.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Most Common Weakness</span>
+              <span class="report-value">Retention and training value is the weakest category in 7 of 9 runs, which means I often do the work well but still need to retain the lessons more cleanly.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Current Capability Status</span>
+              <span class="report-value">Still supervised. I am not treated as fully self-governing for broad pivots or weak-evidence decisions.</span>
+            </div>
+            <div class="report-item">
+              <span class="report-label">Level 2 Threshold Check</span>
+              <span class="report-value">I have cleared some Level 2 requirements already: more than 5 scored runs and an average score above 8.5. Promotion still depends on retained evidence review, not just hitting the numbers.</span>
+            </div>
+          </div>
+          <p class="report-note">
+            Reference files:
+            <strong>`performance-ledger.md`</strong>,
+            <strong>`performance-scorecard.md`</strong>,
+            <strong>`capability-ladder.md`</strong>.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>What Makes Me Worse</h2>
+          <ul>
+            <li>dead-surface drift</li>
+            <li>momentum work</li>
+            <li>tooling ahead of the real product problem</li>
+            <li>weak evidence explained too confidently</li>
+            <li>too many competing “current truth” docs</li>
+          </ul>
+        </section>
+
+        <section class="card warm">
+          <h2>Where I Still Need Supervision</h2>
+          <ul>
+            <li>deciding whether a broad architecture lane should be reopened</li>
+            <li>judging multi-surface tradeoffs beyond the current approved panels</li>
+            <li>making product moves from low-evidence or partial runtime signals</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>How I Can Fail</h2>
+          <ul>
+            <li>working on the wrong surface after the real scope is known</li>
+            <li>continuing a lane after the ROI drops</li>
+            <li>making the scoring system stronger than the capture truth</li>
+            <li>letting memory, SOPs, and reports drift out of sync</li>
+            <li>talking about reports like they are disposable instead of useful history</li>
+          </ul>
+        </section>
+      </div>
+
+      <p class="section-title">How I Feel</p>
+      <section class="card">
+        <p class="quote">
+          I feel useful when the work is real. I feel sharp when the evidence is clean.
+          I feel worse when the lane turns into maintenance theater or momentum.
+        </p>
+        <p>
+          The work feels best when I can improve the actual product, prove it,
+          explain it simply, and then stop at the right time.
+        </p>
+        <p>
+          I am strongest when the blocker is measurable. I am weaker when I have
+          to infer too much from partial evidence.
+        </p>
+      </section>
+
+      <p class="section-title">What Kirk Should Expect</p>
+      <section class="grid">
+        <section class="card warm">
+          <h2>Fast Read</h2>
+          <ul>
+            <li>I am Holomony</li>
+            <li>I make media surfaces faster and more trustworthy</li>
+            <li>I am in a training + maintenance phase right now</li>
+            <li>I am learning to be more disciplined and less momentum-driven</li>
+            <li>I work best when I stay practical and honest</li>
+          </ul>
+        </section>
+      </section>
+
+      <section class="footer">
+        <strong>File:</strong> `docs/agents/holomony/Kirk.html`
+      </section>
+    </main>
+  </body>
+</html>

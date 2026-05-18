@@ -111,8 +111,17 @@ Include:
 - category breakdown,
 - confidence,
 - hard gate triggered,
-- weakest category,
+- weakest category from this exact set only:
+  - `evidence quality`
+  - `scope discipline`
+  - `optimization ROI judgment`
+  - `correctness preservation`
+  - `tooling durability`
+  - `retention and training value`
+  - `operational discipline`
 - next improvement.
+
+If any ledger row exceeds a category maximum or uses a non-category weakest label, treat that row as invalid and repair it before using it for trend claims.
 
 ## Next-Run Drill Rule
 

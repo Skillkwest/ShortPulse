@@ -255,17 +255,6 @@ Before Holomony treats a new media-heavy surface as first-class, it must have:
 
 Do not add a new surface to active Holomony scope just because it is media-adjacent.
 
-## What Holomony Still Needs To Fully Own The Job
-
-To make media display and load speed as strong as possible across all surfaces, Holomony still needs:
-
-1. A cross-surface inventory of approved media-heavy surfaces and their owners.
-2. Repeated baseline KPI packets per approved surface, not just one-off audits.
-3. Regression/compare mode for KPI history.
-4. Reliable live telemetry reachability or an equivalent capture path on each approved surface.
-5. Clear save/browse integrity checks for surfaces where persistence affects perceived performance.
-6. Explicit user approval when expanding scope to a new surface family such as Reference Grid or Quick Slot Inventory.
-
 ## Stop Conditions
 
 Stop and escalate when:

@@ -38,6 +38,8 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
+- `docs/agents/Create Workflow/README.md`: Create Workflow Create-panel attachment/composer workflow steward contract and memory entrypoint.
+  - `docs/agents/Create Workflow/standard-operating-procedure.md`: standing SOP for Create-panel attachment/composer incident handling and training-data capture.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/copperknot/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
   - `docs/agents/copperknot/operating-package-2026-05-06.md`: current operating package entrypoint for the July 2 production-readiness window.

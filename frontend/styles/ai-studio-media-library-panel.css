@@ -897,10 +897,18 @@
 }
 
 .media-library-panel
-  .media-library-modal-grid.media-library-modal-grid-packed.media-library-panel-density-grid {
+  .media-library-modal-grid.media-library-modal-grid-packed.media-library-panel-density-grid:not(
+    .media-library-modal-grid-virtualized
+  ) {
   --media-library-panel-density-max-columns: 5;
   column-count: var(--media-library-panel-density-max-columns);
   column-width: var(--media-library-modal-preview-width);
+}
+
+.media-library-panel
+  .media-library-modal-grid.media-library-modal-grid-packed.media-library-panel-density-grid.media-library-modal-grid-virtualized {
+  column-count: auto;
+  column-width: auto;
 }
 
 .media-library-panel

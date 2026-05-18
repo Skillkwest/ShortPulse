@@ -578,7 +578,7 @@ describe("MediaLibraryPanel", () => {
 
   it("keeps panel density CSS scoped to packed media-library panel grids", () => {
     expect(mediaLibraryPanelStylesheet).toMatch(
-      /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid/
+      /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid:not/
     );
     expect(mediaLibraryPanelStylesheet).toContain(
       "column-count: var(--media-library-panel-density-max-columns);"
@@ -586,6 +586,10 @@ describe("MediaLibraryPanel", () => {
     expect(mediaLibraryPanelStylesheet).toContain(
       "column-width: var(--media-library-modal-preview-width);"
     );
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid\.media-library-modal-grid-virtualized/
+    );
+    expect(mediaLibraryPanelStylesheet).toContain("column-count: auto;");
   });
 
   it.skip("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {

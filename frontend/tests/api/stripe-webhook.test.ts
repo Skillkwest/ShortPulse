@@ -947,6 +947,79 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
+  it("derives subscription period boundaries from subscription items when top-level period fields are absent", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const billingProfileUpdateSpy = vi.fn();
+    const contractInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "starter",
+        },
+        billingOffer: {
+          id: "starter__year__current",
+          plan_id: "starter",
+          billing_interval: "year",
+          stripe_price_id: "price_starter_year",
+          recurring_price_cents: 18000,
+          monthly_credits_cents: 350,
+          storage_limit_bytes: 1073741824,
+        },
+        billingContract: null,
+        onBillingProfileUpdate: billingProfileUpdateSpy,
+        onContractInsert: contractInsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_created_item_periods_1",
+        type: "customer.subscription.created",
+        data: {
+          object: {
+            id: "sub_starter_year",
+            customer: "cus_123",
+            status: "active",
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  id: "si_plan_annual",
+                  quantity: 1,
+                  current_period_start: 1704067200,
+                  current_period_end: 1735689600,
+                  price: {
+                    id: "price_starter_year",
+                    unit_amount: 18000,
+                    metadata: {
+                      monthly_credits_cents: "350",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(billingProfileUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        current_period_end: "2025-01-01T00:00:00.000Z",
+      })
+    );
+    expect(contractInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        current_period_start: "2024-01-01T00:00:00.000Z",
+        current_period_end: "2025-01-01T00:00:00.000Z",
+        next_credit_grant_at: "2024-02-01T00:00:00.000Z",
+      })
+    );
+  });
+
   it("ends removed recurring storage add-ons at mutation time instead of subscription period start", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2024-02-15T10:30:00.000Z"));

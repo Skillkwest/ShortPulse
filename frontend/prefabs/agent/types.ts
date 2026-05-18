@@ -48,6 +48,7 @@ export type AgentMessage = {
 export type AgentAttachment = {
   id: string;
   kind: "image" | "prompt";
+  source?: "ephemeral_local" | null;
   referenceId?: string | null;
   mediaId?: string | null;
   text?: string | null;
@@ -56,6 +57,7 @@ export type AgentAttachment = {
   referenceUrl?: string | null;
   referenceRenderUrl?: string | null;
   imageUrl?: string | null;
+  modelDataUrl?: string | null;
   submissionImageUrl?: string | null;
   imageFallbackUrls?: string[];
   aspect?: string | null;

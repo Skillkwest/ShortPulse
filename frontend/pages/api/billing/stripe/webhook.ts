@@ -424,6 +424,59 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
   return null;
 };
 
+const resolveBillingContextFromInvoice = async (invoice: JsonObject, stripeCustomerId: string) => {
+  const profile = await resolveBillingProfileByCustomer(stripeCustomerId);
+  if (!profile?.user_id) return null;
+
+  const lines = toRecord(invoice.lines);
+  const lineData = Array.isArray(lines.data) ? lines.data : [];
+
+  for (const lineValue of lineData) {
+    const line = toRecord(lineValue);
+    const directPrice = toRecord(line.price);
+    const pricing = toRecord(line.pricing);
+    const priceDetails = toRecord(pricing.price_details);
+    const metadata = toRecord(directPrice.metadata);
+    const priceId =
+      normalizeString(priceDetails.price) ??
+      normalizeString(directPrice.id) ??
+      normalizeString(toRecord(line.plan).id) ??
+      undefined;
+
+    if (!priceId) continue;
+
+    const fallbackRecurringPriceCents =
+      Number(directPrice.unit_amount ?? pricing.unit_amount_decimal ?? line.amount ?? 0) || 0;
+    const fallbackMonthlyCreditsCents = Number(metadata.monthly_credits_cents ?? 0) || 0;
+    const resolvedOffer = await resolveOfferFromPriceId(priceId, {
+      recurringPriceCents: fallbackRecurringPriceCents,
+      monthlyCreditsCents: fallbackMonthlyCreditsCents,
+    });
+    const candidatePlanId = resolvedOffer?.planId ?? (await resolvePlanIdFromSubscription(priceId));
+
+    if (!candidatePlanId) continue;
+
+    const period = toRecord(line.period);
+    return {
+      contractId: null,
+      userId: profile.user_id,
+      planId: candidatePlanId,
+      offerId: resolvedOffer?.offerId ?? null,
+      billingInterval:
+        resolvedOffer?.billingInterval === BILLING_INTERVAL_YEAR
+          ? BILLING_INTERVAL_YEAR
+          : BILLING_INTERVAL_MONTH,
+      stripePriceId: resolvedOffer?.stripePriceId ?? priceId,
+      monthlyCreditsCents: Number(resolvedOffer?.monthlyCreditsCents ?? 0),
+      currentPeriodStart: asIsoDate(typeof period.start === "number" ? period.start : null),
+      currentPeriodEnd: asIsoDate(typeof period.end === "number" ? period.end : null),
+      nextCreditGrantAt: null,
+    };
+  }
+
+  return null;
+};
+
 const resolveAnnualNextCreditGrantAt = (params: {
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
@@ -591,7 +644,7 @@ const syncSubscriptionStorageAddons = async (params: {
       .map((addon) => addon.stripeSubscriptionItemId)
       .filter((value): value is string => typeof value === "string" && value.length > 0)
   );
-  const transitionTime = params.currentPeriodStart ?? new Date().toISOString();
+  const transitionTime = new Date().toISOString();
 
   for (const current of currentRows) {
     const currentItemId = current.stripe_subscription_item_id;
@@ -915,7 +968,9 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
   const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : undefined;
   if (!stripeCustomerId) return;
 
-  const billingContext = await resolveCurrentBillingContextByCustomer(stripeCustomerId);
+  const billingContext =
+    (await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
+    (await resolveBillingContextFromInvoice(invoice, stripeCustomerId));
   if (!billingContext?.userId || !billingContext.planId) return;
 
   const monthlyCredits = Number(billingContext.monthlyCreditsCents ?? 0);
@@ -937,7 +992,7 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
     },
   });
 
-  if (billingContext.billingInterval === BILLING_INTERVAL_YEAR) {
+  if (billingContext.billingInterval === BILLING_INTERVAL_YEAR && billingContext.contractId) {
     const annualNextGrantAt = resolveAnnualNextCreditGrantAt({
       currentPeriodStart: billingContext.currentPeriodStart ?? null,
       currentPeriodEnd: billingContext.currentPeriodEnd ?? null,

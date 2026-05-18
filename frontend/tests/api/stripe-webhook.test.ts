@@ -215,6 +215,7 @@ const createSupabaseAdminForWebhook = (params?: {
 describe("POST /api/billing/stripe/webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
@@ -560,6 +561,77 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
   });
 
+  it("grants first-cycle subscription credits from invoice lines before the contract exists", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "free",
+        },
+        billingOffer: {
+          id: "starter__current",
+          plan_id: "starter",
+          billing_interval: "month",
+          stripe_price_id: "price_starter",
+          recurring_price_cents: 1500,
+          monthly_credits_cents: 350,
+          storage_limit_bytes: 1073741824,
+        },
+        billingContract: null,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_create_first_cycle",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_create_1",
+            customer: "cus_123",
+            billing_reason: "subscription_create",
+            lines: {
+              data: [
+                {
+                  amount: 1500,
+                  period: {
+                    start: 1704067200,
+                    end: 1706745600,
+                  },
+                  price: {
+                    id: "price_starter",
+                    unit_amount: 1500,
+                    metadata: {
+                      monthly_credits_cents: "350",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        changeCents: 350,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_create_1:monthly_allocation",
+        metadata: expect.objectContaining({
+          billing_reason: "subscription_create",
+          plan_id: "starter",
+          offer_id: "starter__current",
+          stripe_price_id: "price_starter",
+        }),
+      })
+    );
+  });
+
   it("syncs a subscription contract snapshot when Stripe subscription state changes", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     const contractInsertSpy = vi.fn();
@@ -871,6 +943,93 @@ describe("POST /api/billing/stripe/webhook", () => {
         quantity: 2,
         recurring_price_cents: 3000,
         status: "active",
+      })
+    );
+  });
+
+  it("ends removed recurring storage add-ons at mutation time instead of subscription period start", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-02-15T10:30:00.000Z"));
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const storageAddonUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "studio__current",
+          plan_id: "studio",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+        },
+        billingContract: {
+          id: "contract_studio_1",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+        },
+        billingStorageAddonContracts: [
+          {
+            id: "addon_contract_1",
+            storage_addon_id: "storage_25gb",
+            offer_id: "storage_25gb__current",
+            stripe_subscription_item_id: "si_storage_1",
+            stripe_price_id: "price_storage_25gb",
+            quantity: 1,
+            recurring_price_cents: 500,
+            status: "active",
+          },
+        ],
+        onStorageAddonUpdate: storageAddonUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_storage_removed_1",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "active",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  id: "si_plan_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_studio",
+                    unit_amount: 3900,
+                    metadata: {
+                      monthly_credits_cents: "3000",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(storageAddonUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "canceled",
+        ended_at: "2024-02-15T10:30:00.000Z",
       })
     );
   });

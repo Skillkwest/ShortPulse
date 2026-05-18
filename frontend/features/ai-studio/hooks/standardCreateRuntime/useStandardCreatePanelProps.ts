@@ -4,7 +4,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import type { ModelModalContext } from "../../components/ModelModal";
 import type {
@@ -56,14 +55,11 @@ type UseStandardCreatePanelPropsParams = {
   isPromptRefining: boolean;
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
-  promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
-  disableAgentOutputGenerate?: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handleStandardCreatePrimarySubmit: () => void;
-  handleGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
   selectedCharacterLookId?: string;
@@ -128,14 +124,11 @@ export const buildStandardCreatePanelProps = ({
   isPromptRefining,
   describeInFlightCount,
   createGenerateCostCredits,
-  promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
-  disableAgentOutputGenerate,
   generationGuardrail,
   handleClearAgentChat,
   handleStandardCreatePrimarySubmit,
-  handleGenerateOutputPrompt,
   characterOptions,
   selectedCharacterId,
   selectedCharacterLookId,
@@ -192,7 +185,6 @@ export const buildStandardCreatePanelProps = ({
     onRemoveAgentAttachment: handleRemoveAgentAttachment,
     onClearAgentAttachments: handleClearAgentAttachments,
     onAssistantMessageEdit: handleAssistantMessageEdit,
-    onGenerateOutputPrompt: handleGenerateOutputPrompt,
     isModelModalOpen,
     modelModalAnchor,
     onAspectChange: setAspect,
@@ -200,10 +192,8 @@ export const buildStandardCreatePanelProps = ({
     onPromptChange: handleManualPromptChange,
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
-    outputGenerateCostCredits: promptReferenceGenerateCostCredits,
     hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: isPrimaryGenerateDisabled,
-    disableAgentOutputGenerate,
     guardrailReason: primaryGenerateGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onGenerate: handleStandardCreatePrimarySubmit,

@@ -25,6 +25,7 @@ import {
   normalizeReferenceTransferUrlCandidate,
   resolveReferenceTransferUrl,
 } from "../utils/dragDrop";
+import { uploadImageAssetToStorage } from "../utils/imageUpload";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
@@ -199,8 +200,6 @@ const materializeComposerPreviewBlobUrl = async (args: {
 }): Promise<{
   previewUrl: string;
   previewOwned: boolean;
-  submissionUrl: string | null;
-  submissionOwned: boolean;
 } | null> => {
   const displayArtifactUrl = normalizeDroppedImageCandidate(args.displayArtifactUrl);
   const durableReferenceUrl = normalizeDurableDroppedImageCandidate(args.referenceUrl);
@@ -213,8 +212,6 @@ const materializeComposerPreviewBlobUrl = async (args: {
       ? {
           previewUrl: displayArtifactUrl,
           previewOwned: false,
-          submissionUrl: null,
-          submissionOwned: false,
         }
       : null;
   }
@@ -233,20 +230,15 @@ const materializeComposerPreviewBlobUrl = async (args: {
     if (!response.ok) return null;
     const blob = await response.blob();
     const previewResult = await downscaleBlobToComposerPreviewUrl(blob);
-    const submissionUrl = URL.createObjectURL(blob);
     return {
-      previewUrl: previewResult?.url ?? submissionUrl,
+      previewUrl: previewResult?.url ?? resolvedSource,
       previewOwned: previewResult?.owned ?? true,
-      submissionUrl,
-      submissionOwned: true,
     };
   } catch {
     return resolvedSource.startsWith("blob:") || resolvedSource.startsWith("data:")
       ? {
           previewUrl: resolvedSource,
           previewOwned: false,
-          submissionUrl: null,
-          submissionOwned: false,
         }
       : null;
   }
@@ -376,6 +368,116 @@ export const useAiStudioAgentComposer = ({
       );
     },
     []
+  );
+
+  const patchImageAttachment = useCallback(
+    (id: string, updater: (attachment: AgentAttachment & { kind: "image" }) => AgentAttachment) => {
+      setAgentAttachments((prev) =>
+        prev.map((attachment) => {
+          if (attachment.id !== id || attachment.kind !== "image") return attachment;
+          return updater(attachment as AgentAttachment & { kind: "image" });
+        })
+      );
+    },
+    []
+  );
+
+  const uploadComposerImageBlob = useCallback(async (blob: Blob) => {
+    if (!(blob instanceof Blob) || blob.size <= 0 || !canCreateObjectUrl()) {
+      throw new Error("Could not read that image for upload.");
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      return await uploadImageAssetToStorage(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }, []);
+
+  const promoteAttachmentToDurableSource = useCallback(
+    async ({
+      attachmentId,
+      previewStoragePath,
+      fullStoragePath,
+      referenceUrl,
+      sourceBlob,
+    }: {
+      attachmentId: string;
+      previewStoragePath?: string | null;
+      fullStoragePath?: string | null;
+      referenceUrl?: string | null;
+      sourceBlob?: Blob | null;
+    }) => {
+      try {
+        const durablePreviewUrl = await resolveAgentAttachmentPreviewUrl({
+          previewStoragePath: previewStoragePath ?? null,
+          fullStoragePath: fullStoragePath ?? null,
+          referenceRenderUrl: null,
+          referenceUrl: referenceUrl ?? null,
+          imageUrl: null,
+          submissionImageUrl: null,
+        }).catch(() => null);
+
+        if (
+          durablePreviewUrl &&
+          !durablePreviewUrl.startsWith("blob:") &&
+          !durablePreviewUrl.startsWith("data:")
+        ) {
+          patchImageAttachment(attachmentId, (attachment) => ({
+            ...attachment,
+            previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,
+            fullStoragePath: fullStoragePath ?? attachment.fullStoragePath ?? null,
+            referenceUrl: referenceUrl ?? attachment.referenceUrl ?? durablePreviewUrl,
+            submissionImageUrl: durablePreviewUrl,
+            deliveryStatus: "ready",
+            deliveryError: null,
+          }));
+          recordCreateWorkflowEvent("attachment_delivery_ready", {
+            attachmentId,
+            source: "durable_identity",
+          });
+          return;
+        }
+
+        if (!(sourceBlob instanceof Blob) || sourceBlob.size <= 0) {
+          throw new Error("Image upload/preparation failed. Remove this image and try again.");
+        }
+
+        const uploaded = await uploadComposerImageBlob(sourceBlob);
+        patchImageAttachment(attachmentId, (attachment) => ({
+          ...attachment,
+          previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,
+          fullStoragePath: uploaded.path ?? fullStoragePath ?? attachment.fullStoragePath ?? null,
+          referenceUrl: referenceUrl ?? uploaded.url ?? attachment.referenceUrl ?? null,
+          submissionImageUrl: uploaded.url,
+          deliveryStatus: "ready",
+          deliveryError: null,
+        }));
+        recordCreateWorkflowEvent("attachment_delivery_ready", {
+          attachmentId,
+          source: "uploaded_storage",
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message.trim()
+            : "Image upload/preparation failed. Remove this image and try again.";
+        patchImageAttachment(attachmentId, (attachment) => ({
+          ...attachment,
+          submissionImageUrl: null,
+          deliveryStatus: "failed",
+          deliveryError: message,
+        }));
+        setAgentAttachmentError(
+          "One or more attached images failed to prepare. Remove failed images and try again."
+        );
+        recordCreateWorkflowEvent("attachment_delivery_failed", {
+          attachmentId,
+          message,
+        });
+      }
+    },
+    [patchImageAttachment, uploadComposerImageBlob]
   );
 
   const insertAttachment = useCallback(
@@ -521,20 +623,25 @@ export const useAiStudioAgentComposer = ({
           setAgentAttachmentError(null);
           for (const file of droppedImageFiles) {
             const preview = await downscaleBlobToComposerPreviewUrl(file).catch(() => null);
-            const submissionUrl = URL.createObjectURL(file);
-            const previewUrl = preview?.url ?? submissionUrl;
+            const previewUrl = preview?.url ?? null;
             if (preview?.owned) {
               registerOwnedObjectUrl(preview.url);
             }
-            registerOwnedObjectUrl(submissionUrl);
+            const attachmentId = randomId();
             insertAttachment({
-              id: randomId(),
+              id: attachmentId,
               kind: "image",
               referenceId: null,
               imageUrl: previewUrl,
-              submissionImageUrl: submissionUrl,
+              submissionImageUrl: null,
               text: null,
               aspect: null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            });
+            void promoteAttachmentToDurableSource({
+              attachmentId,
+              sourceBlob: file,
             });
           }
         })();
@@ -586,11 +693,10 @@ export const useAiStudioAgentComposer = ({
             resolvedInternalImageSource && canCreateObjectUrl()
               ? await resolvedInternalImageSource
                   .loadBlob()
-                  .then(async (blob) => {
-                    const preview = await downscaleBlobToComposerPreviewUrl(blob);
-                    const submissionUrl = URL.createObjectURL(blob);
-                    return { preview, submissionUrl };
-                  })
+                  .then(async (blob) => ({
+                    blob,
+                    preview: await downscaleBlobToComposerPreviewUrl(blob),
+                  }))
                   .catch(() => null)
               : null;
           const composerInternalPreviewUrl =
@@ -603,11 +709,9 @@ export const useAiStudioAgentComposer = ({
             if (materializedInternalPreview?.preview?.owned) {
               registerOwnedObjectUrl(materializedInternalPreview.preview.url);
             }
-            if (materializedInternalPreview?.submissionUrl) {
-              registerOwnedObjectUrl(materializedInternalPreview.submissionUrl);
-            }
+            const attachmentId = randomId();
             insertAttachment({
-              id: randomId(),
+              id: attachmentId,
               kind: "image",
               referenceId: droppedReferenceId,
               mediaId:
@@ -626,7 +730,7 @@ export const useAiStudioAgentComposer = ({
               referenceUrl: null,
               referenceRenderUrl: null,
               imageUrl: composerInternalPreviewUrl,
-              submissionImageUrl: materializedInternalPreview?.submissionUrl ?? null,
+              submissionImageUrl: null,
               imageFallbackUrls:
                 composerInternalPreviewUrl &&
                 composerInternalPreviewUrl !== normalizedInternalImageUrl
@@ -634,6 +738,20 @@ export const useAiStudioAgentComposer = ({
                   : internalImageUrls.slice(1),
               text: normalizedPromptText,
               aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            });
+            void promoteAttachmentToDurableSource({
+              attachmentId,
+              previewStoragePath:
+                resolvedInternalImageSource?.previewStoragePath ??
+                composerImagePayload.previewStoragePath ??
+                null,
+              fullStoragePath:
+                resolvedInternalImageSource?.fullStoragePath ??
+                composerImagePayload.fullStoragePath ??
+                null,
+              sourceBlob: materializedInternalPreview?.blob ?? null,
             });
             return;
           }
@@ -666,11 +784,9 @@ export const useAiStudioAgentComposer = ({
             if (materializedPreview.previewOwned) {
               registerOwnedObjectUrl(materializedPreview.previewUrl);
             }
-            if (materializedPreview.submissionOwned) {
-              registerOwnedObjectUrl(materializedPreview.submissionUrl);
-            }
+            const attachmentId = randomId();
             insertAttachment({
-              id: randomId(),
+              id: attachmentId,
               kind: "image",
               referenceId: droppedReferenceId,
               mediaId: composerImagePayload.mediaId ?? null,
@@ -679,10 +795,18 @@ export const useAiStudioAgentComposer = ({
               referenceUrl: durableReferenceUrl,
               referenceRenderUrl: null,
               imageUrl: materializedPreview.previewUrl,
-              submissionImageUrl: materializedPreview.submissionUrl,
+              submissionImageUrl: null,
               imageFallbackUrls: [],
               text: normalizedPromptText,
               aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            });
+            void promoteAttachmentToDurableSource({
+              attachmentId,
+              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
+              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
+              referenceUrl: durableReferenceUrl,
             });
             return;
           }
@@ -705,7 +829,10 @@ export const useAiStudioAgentComposer = ({
               imageFallbackUrls: [],
               text: normalizedPromptText,
               aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
             });
+            const attachmentId = agentAttachments.length ? "" : "";
             return;
           }
           const orderedImageUrls = buildAgentAttachmentImageCandidates({
@@ -771,11 +898,10 @@ export const useAiStudioAgentComposer = ({
             resolvedInternalImageSource && canCreateObjectUrl()
               ? await resolvedInternalImageSource
                   .loadBlob()
-                  .then(async (blob) => {
-                    const preview = await downscaleBlobToComposerPreviewUrl(blob);
-                    const submissionUrl = URL.createObjectURL(blob);
-                    return { preview, submissionUrl };
-                  })
+                  .then(async (blob) => ({
+                    blob,
+                    preview: await downscaleBlobToComposerPreviewUrl(blob),
+                  }))
                   .catch(() => null)
               : null;
           const composerInternalPreviewUrl =
@@ -806,11 +932,9 @@ export const useAiStudioAgentComposer = ({
             if (materializedInternalPreview?.preview?.owned) {
               registerOwnedObjectUrl(materializedInternalPreview.preview.url);
             }
-            if (materializedInternalPreview?.submissionUrl) {
-              registerOwnedObjectUrl(materializedInternalPreview.submissionUrl);
-            }
+            const attachmentId = randomId();
             insertAttachment({
-              id: randomId(),
+              id: attachmentId,
               kind: "image",
               referenceId: droppedReferenceId,
               mediaId: resolvedInternalImageSource?.mediaId ?? internalPayload.mediaId ?? null,
@@ -819,7 +943,7 @@ export const useAiStudioAgentComposer = ({
               referenceUrl: null,
               referenceRenderUrl: null,
               imageUrl: composerInternalPreviewUrl,
-              submissionImageUrl: materializedInternalPreview?.submissionUrl ?? null,
+              submissionImageUrl: null,
               imageFallbackUrls:
                 composerInternalPreviewUrl &&
                 composerInternalPreviewUrl !== normalizedInternalImageUrl
@@ -827,6 +951,14 @@ export const useAiStudioAgentComposer = ({
                   : internalImageUrls.slice(1),
               text: internalPromptText,
               aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            });
+            void promoteAttachmentToDurableSource({
+              attachmentId,
+              previewStoragePath: resolvedInternalImageSource?.previewStoragePath ?? null,
+              fullStoragePath: resolvedInternalImageSource?.fullStoragePath ?? null,
+              sourceBlob: materializedInternalPreview?.blob ?? null,
             });
             return;
           }
@@ -999,9 +1131,11 @@ export const useAiStudioAgentComposer = ({
       findOutputById,
       insertAttachment,
       maxImageAttachmentsPerDrop,
+      promoteAttachmentToDurableSource,
       registerOwnedObjectUrl,
       resolveInternalImageDropSource,
       resolveOutputPreviewUrlById,
+      agentAttachments.length,
     ]
   );
 

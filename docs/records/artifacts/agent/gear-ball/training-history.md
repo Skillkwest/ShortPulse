@@ -28,6 +28,7 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 | Shared-contract fan-out misses          | Added mandatory shared-contract checklist in the SOP and auto-inferred contract tests in `gear-ball:preflight`.                         |
 | Soft route-smoke behavior               | Added `smoke-incomplete` as a scored failure mode for qualifying runs.                                                                  |
 | Tooling PATH/runtime assumptions        | Switched helper/docs/test invocations and Husky pre-commit lint-staged execution to explicit local binaries or direct Node entrypoints. |
+| Pre-smoke manifest drift                | Rebuild the active manifest from live `git status --short` after smoke/KPI capture steps that generate new retained or support files.   |
 
 ## Current Training Priorities
 

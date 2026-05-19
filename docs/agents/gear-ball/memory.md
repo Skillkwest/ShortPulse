@@ -24,8 +24,10 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
   - run `gear-ball:preflight`
 - Serialize all index-touching Git operations. Never parallelize `git add`, `git status`, `git commit`, or similar commands.
 - On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
+- If route smoke, KPI capture, or other validation steps generate new retained/support artifacts before the first Git write, rebuild the active manifest from live `git status --short` before staging so those artifacts are either intentionally included or intentionally deferred.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.
+- Keep execution chatter near zero. Routine command progress, polling, and successful intermediate steps should stay internal unless a blocker, approval need, or material plan change appears.
 - Shared frontend hooks/pages/API routes and `frontend/package.json` are early-build triggers. Generated docs, evidence packets, and agent artifacts are early-`docs:check` triggers.
 - Shared-contract changes require first-manifest fan-out. Include downstream tests for preview delivery, KPI packets, route payloads, shared runtime helpers, and cross-surface layout contracts instead of relying on the final full suite to surface them.
 - Interaction-heavy admin/frontend route changes need one route-level browser smoke before push when feasible. If qualifying smoke cannot be run, classify the run as `smoke-incomplete` and score it accordingly.

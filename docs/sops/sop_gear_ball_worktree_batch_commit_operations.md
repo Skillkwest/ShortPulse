@@ -49,6 +49,7 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 - If the user has already established a standing approved branch for the repo and the local checkout has drifted elsewhere, realign `shortpulse.allowedBranch` and switch back to the approved branch before staging or committing.
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - For large or mixed worktrees, create the batch manifest before the first staging step. Do not let the first commit become the place where batch boundaries are discovered.
+- If validation steps before the first Git write generate new retained/support artifacts (for example KPI packets, route-smoke captures, or agent evidence files), rebuild the active manifest from live `git status --short` before staging.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
 - Do not push directly to `main`.
 - Do not expose secrets, env values, tokens, customer-private data, or temporary env copies.
@@ -103,6 +104,14 @@ Default to minimal user-facing output.
 - For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
 - For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
 - Create or update a durable report only when the run is substantial or the SOP already requires one.
+- During active execution, do not narrate routine progress. Keep polling, command-by-command status, and successful intermediate steps internal.
+- Only emit an in-flight update when:
+  - progress is blocked and user action may be needed
+  - credentials/auth/path/branch state prevents progress
+  - the plan materially changed
+  - a risk requires explicit approval
+  - the user explicitly asked for status
+- Otherwise, finish the run and report once at the end.
 
 ## Batch Principles
 
@@ -154,6 +163,7 @@ The taxonomy is a starting point, not a substitute for reading the diffs.
    git diff --cached --name-status
    ```
 7. If staged work exists and the user did not identify it as part of Gear Ball's task, stop and ask before changing the index.
+8. If pre-commit validation already generated new retained/support artifacts, rebuild the live batch manifest before the first `git add`.
 
 ### 2. Inventory The Worktree
 

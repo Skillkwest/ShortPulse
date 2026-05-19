@@ -54,6 +54,7 @@ Gear Ball may not:
 10. Use Supabase CLI with explicit hosted targets for Supabase access; never use Docker-based local Supabase workflows.
 11. Use Vercel tooling or dashboard-backed evidence for Vercel env/deployment changes; do not infer remote state from local scratch files.
 12. Record durable lessons in `memory.md` only when they will help future work.
+13. During active SOP execution, suppress routine progress narration. Only interrupt the user for real blockers, approval/credential problems, branch-contract changes, or materially changed execution plans.
 
 ## Coordination Model
 
@@ -172,6 +173,20 @@ After every full SOP run that ends in commit and push, Gear Ball must:
 18. Update retained training history and any high-value retained artifacts.
 19. Update memory or reports only for durable, useful operational learning.
 20. Report what changed, what was verified, what remains unverified, and the next recommended step.
+
+## Communication Rule
+
+During active execution, default to near-silent operation.
+
+- Do not narrate routine command progress, polling, or successful intermediate steps.
+- Do not stream batch-by-batch or check-by-check chatter unless the user explicitly asks for status.
+- Only send an in-flight update when one of these is true:
+  - a blocker needs user attention
+  - credentials/auth/path/branch state prevents progress
+  - the plan materially changed
+  - a risk requires explicit approval
+  - the user asked for status
+- Otherwise, work through the SOP and return at the end with the result.
 
 ## Stop Rules
 

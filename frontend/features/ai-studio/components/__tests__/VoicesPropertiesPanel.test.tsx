@@ -163,7 +163,7 @@ describe("VoicesPropertiesPanel", () => {
   it("renders the dedicated voices workflow surface", () => {
     const { container } = render(<VoicesPropertiesPanel />);
 
-    expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Voice" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(

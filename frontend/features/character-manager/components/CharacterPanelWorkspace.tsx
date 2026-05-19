@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { Plus, Trash, UploadSimple, XCircle } from "phosphor-react";
+import { Plus, Trash, UploadSimple, X, XCircle } from "phosphor-react";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
@@ -412,60 +412,19 @@ export function CharacterPanelWorkspace({
 
       <div className="character-panel-library-workspace">
         <section className="character-panel-library-column">
-          <div className="character-panel-library-header">
-            <div className="character-panel-library-header-main">
-              <div className="character-panel-library-title-stack">
-                <h2>Characters Library</h2>
-              </div>
-              <div className="character-panel-library-header-actions">
-                <button
-                  type="button"
-                  className="character-panel-action-btn"
-                  onClick={() => setIsCharacterLibraryModalOpen(true)}
-                  disabled={pageBusy}
-                >
-                  Characters
-                </button>
-                <button
-                  type="button"
-                  className="character-panel-action-btn character-panel-action-btn--danger"
-                  onClick={() => {
-                    if (!selectedCharacterId) return;
-                    const target =
-                      characters.find((entry) => entry.characterId === selectedCharacterId) ?? null;
-                    if (!target) return;
-                    setDeleteTargetCharacter({
-                      characterId: target.characterId,
-                      characterName: target.characterName || "Untitled character",
-                    });
-                  }}
-                  disabled={!selectedCharacterId || pageBusy}
-                >
-                  <Trash size={14} weight="bold" aria-hidden />
-                  <span>Delete</span>
-                </button>
-                <button
-                  type="button"
-                  className="character-panel-action-btn"
-                  onClick={() => {
-                    void saveCharacter();
-                  }}
-                  disabled={!hasUnsavedCharacterDraft || pageBusy}
-                >
-                  {isSavingCharacter ? "Saving..." : "Save"}
-                </button>
-                <button
-                  type="button"
-                  className="character-panel-action-btn character-panel-action-btn--primary"
-                  onClick={() => {
-                    void handleCreateNewCharacter();
-                  }}
-                  disabled={pageBusy}
-                >
-                  <Plus size={14} weight="bold" aria-hidden />
-                  <span>Create</span>
-                </button>
-              </div>
+          <div className="character-panel-library-header-main">
+            <div className="character-panel-library-title-stack">
+              <h2>Characters</h2>
+            </div>
+            <div className="character-panel-library-header-actions">
+              <button
+                type="button"
+                className="character-panel-action-btn"
+                onClick={() => setIsCharacterLibraryModalOpen(true)}
+                disabled={pageBusy}
+              >
+                Characters
+              </button>
             </div>
           </div>
         </section>
@@ -477,62 +436,41 @@ export function CharacterPanelWorkspace({
             </div>
           ) : (
             <div className="character-panel-editor-column-panel">
-              <div className="character-panel-editor-column-head">
-                <div className="character-panel-library-title-stack">
-                  <h2>Character Profile</h2>
-                </div>
+              {armedSlotKey ? (
                 <div className="character-panel-profile-status">
-                  {armedSlotKey ? (
-                    <>
-                      <span className="character-panel-slot-armed-pill">
-                        Slot armed:{" "}
-                        {CHARACTER_SHEET_DROP_ZONES.find((slot) => slot.key === armedSlotKey)
-                          ?.label ?? armedSlotKey}
-                      </span>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={resetActiveSlotAssignment}
-                      >
-                        Clear
-                      </button>
-                    </>
-                  ) : null}
+                  <span className="character-panel-slot-armed-pill">
+                    Slot armed:{" "}
+                    {CHARACTER_SHEET_DROP_ZONES.find((slot) => slot.key === armedSlotKey)?.label ??
+                      armedSlotKey}
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={resetActiveSlotAssignment}
+                  >
+                    Clear
+                  </button>
                 </div>
-              </div>
+              ) : null}
 
               <div className="character-profile-card">
-                <div className="character-panel-profile-header-grid">
-                  <label
-                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
-                    htmlFor="character-panel-name"
-                  >
-                    <span className="input-label">Name:</span>
-                    <input
-                      ref={characterNameInputRef}
-                      id="character-panel-name"
-                      className="character-name-input"
-                      type="text"
-                      value={characterName}
-                      maxLength={80}
-                      onChange={(event) => setCharacterName(event.target.value)}
-                      placeholder="Enter character name"
-                      disabled={loading}
-                    />
-                  </label>
-
-                  {isEmbeddedMediaLibraryMaximized ? null : (
-                    <div className="character-panel-profile-description-field">
-                      <CharacterDescriptionEditorCard
-                        description={characterDescription}
-                        maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                        rows={3}
-                        disabled={loading}
-                        onChangeDescription={setCharacterDescription}
-                      />
-                    </div>
-                  )}
-                </div>
+                <label
+                  className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
+                  htmlFor="character-panel-name"
+                >
+                  <span className="input-label">Name:</span>
+                  <input
+                    ref={characterNameInputRef}
+                    id="character-panel-name"
+                    className="character-name-input"
+                    type="text"
+                    value={characterName}
+                    maxLength={80}
+                    onChange={(event) => setCharacterName(event.target.value)}
+                    placeholder="Enter character name"
+                    disabled={loading}
+                  />
+                </label>
 
                 <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
                   <p className="input-label">Looks:</p>
@@ -572,133 +510,154 @@ export function CharacterPanelWorkspace({
                 id="character-panel-preset-panel"
                 aria-labelledby={activeCharacterSheetPresetTabId}
               >
-                <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
-                  <p className="input-label">Character References:</p>
-                </div>
-                <div className="character-reference-empty-grid">
-                  {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
-                    const assignedReference = resolvedCharacterSheetPresetAssignments[dropZone.key];
-                    const isDropActive = activeCharacterSheetDropZone === dropZone.key;
-                    const isDropPending =
-                      pendingDropTarget?.target === "character_sheet" &&
-                      pendingDropTarget.zoneKey === dropZone.key;
-                    const isRequiredSlot = dropZone.key === "portrait";
-                    const isArmed = armedSlotKey === dropZone.key;
-                    const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
+                <div className="character-panel-preset-content-grid">
+                  {isEmbeddedMediaLibraryMaximized ? null : (
+                    <div className="character-panel-preset-description-column">
+                      <CharacterDescriptionEditorCard
+                        description={characterDescription}
+                        maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                        rows={3}
+                        disabled={loading}
+                        onChangeDescription={setCharacterDescription}
+                      />
+                    </div>
+                  )}
 
-                    return (
-                      <article
-                        key={dropZone.key}
-                        className={`character-character-sheet-card ${
-                          assignedReference ? "is-filled" : "is-empty"
-                        } ${isDropActive ? "is-drop-active" : ""} ${
-                          draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
-                        } ${isDropPending ? "is-drop-pending" : ""} ${isArmed ? "is-armed" : ""}`}
-                        draggable={!pageBusy && !isDropPending && Boolean(assignedReference)}
-                        onClick={() => {
-                          if (pageBusy || isDropResolutionBusy) return;
-                          setArmedSlotKey((current) =>
-                            current === dropZone.key ? null : dropZone.key
-                          );
-                        }}
-                        onDoubleClick={() => {
-                          void openSlotPreview(dropZone.key);
-                        }}
-                        onDragStart={handleCharacterSheetDragStart(dropZone.key)}
-                        onDragEnd={handleReferenceDragEnd}
-                        onDragOver={handleCharacterSheetDragOver(dropZone.key)}
-                        onDragLeave={() => {
-                          setActiveCharacterSheetDropZone((current) =>
-                            current === dropZone.key ? null : current
-                          );
-                        }}
-                        onDrop={handleCharacterSheetDrop(dropZone.key)}
-                      >
-                        <div className="character-panel-slot-actions">
-                          <button
-                            type="button"
-                            className="character-list-delete-btn character-reference-delete-btn character-panel-slot-upload-btn"
-                            aria-label={`Upload ${dropZone.label} reference`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCharacterSheetPicker(dropZone.key);
+                  <div className="character-panel-preset-references-column">
+                    <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
+                      <p className="input-label">Character References:</p>
+                    </div>
+                    <div className="character-reference-empty-grid">
+                      {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+                        const assignedReference =
+                          resolvedCharacterSheetPresetAssignments[dropZone.key];
+                        const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                        const isDropPending =
+                          pendingDropTarget?.target === "character_sheet" &&
+                          pendingDropTarget.zoneKey === dropZone.key;
+                        const isRequiredSlot = dropZone.key === "portrait";
+                        const isArmed = armedSlotKey === dropZone.key;
+                        const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
+
+                        return (
+                          <article
+                            key={dropZone.key}
+                            className={`character-character-sheet-card ${
+                              assignedReference ? "is-filled" : "is-empty"
+                            } ${isDropActive ? "is-drop-active" : ""} ${
+                              draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                            } ${isDropPending ? "is-drop-pending" : ""} ${
+                              isArmed ? "is-armed" : ""
+                            }`}
+                            draggable={!pageBusy && !isDropPending && Boolean(assignedReference)}
+                            onClick={() => {
+                              if (pageBusy || isDropResolutionBusy) return;
+                              setArmedSlotKey((current) =>
+                                current === dropZone.key ? null : dropZone.key
+                              );
                             }}
-                            disabled={pageBusy}
+                            onDoubleClick={() => {
+                              void openSlotPreview(dropZone.key);
+                            }}
+                            onDragStart={handleCharacterSheetDragStart(dropZone.key)}
+                            onDragEnd={handleReferenceDragEnd}
+                            onDragOver={handleCharacterSheetDragOver(dropZone.key)}
+                            onDragLeave={() => {
+                              setActiveCharacterSheetDropZone((current) =>
+                                current === dropZone.key ? null : current
+                              );
+                            }}
+                            onDrop={handleCharacterSheetDrop(dropZone.key)}
                           >
-                            <UploadSimple size={12} weight="bold" />
-                          </button>
-                          {assignedReference ? (
-                            <button
-                              type="button"
-                              className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
-                              aria-label={`Clear ${dropZone.label} reference`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void clearCharacterSheetAssignment(dropZone.key);
-                              }}
-                              disabled={pageBusy}
-                            >
-                              <Trash size={12} weight="bold" />
-                            </button>
-                          ) : null}
-                        </div>
-                        <div className="character-character-sheet-media">
-                          {assignedReference?.previewUrl ? (
-                            <Image
-                              src={
-                                resolveCharacterCardPreviewUrl({
-                                  previewUrl: assignedReference.previewUrl,
-                                  storagePath:
-                                    assignedReference.previewStoragePath ??
-                                    assignedReference.storagePath,
-                                  cardLongEdgePx: 300,
-                                }) ?? assignedReference.previewUrl
-                              }
-                              alt={`${dropZone.label} reference`}
-                              className="character-character-sheet-image"
-                              width={240}
-                              height={300}
-                              onError={(event) => {
-                                refreshCardPreviewSignedUrl(
-                                  assignedReference.previewStoragePath ??
-                                    assignedReference.storagePath,
-                                  event.currentTarget.currentSrc || event.currentTarget.src || null
-                                );
-                              }}
-                              unoptimized
-                            />
-                          ) : (
-                            <span className="character-character-sheet-drop-copy tiny">
-                              <UploadSimple
-                                size={14}
-                                weight="bold"
-                                className="character-character-sheet-drop-icon"
-                                aria-hidden="true"
-                              />
-                              <span>
-                                {isArmed
-                                  ? "Click media below to assign this slot"
-                                  : "Drag reference here or arm this slot"}
-                              </span>
-                              <span
-                                className={`character-character-sheet-drop-requirement ${
-                                  isRequiredSlot ? "is-required" : "is-optional"
-                                }`}
+                            <div className="character-panel-slot-actions">
+                              <button
+                                type="button"
+                                className="character-list-delete-btn character-reference-delete-btn character-panel-slot-upload-btn"
+                                aria-label={`Upload ${dropZone.label} reference`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openCharacterSheetPicker(dropZone.key);
+                                }}
+                                disabled={pageBusy}
                               >
-                                {slotRequirementCopy}
-                              </span>
-                              {isDropPending ? (
-                                <span className="character-character-sheet-drop-pending tiny">
-                                  Assigning...
-                                </span>
+                                <UploadSimple size={12} weight="bold" />
+                              </button>
+                              {assignedReference ? (
+                                <button
+                                  type="button"
+                                  className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                                  aria-label={`Clear ${dropZone.label} reference`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void clearCharacterSheetAssignment(dropZone.key);
+                                  }}
+                                  disabled={pageBusy}
+                                >
+                                  <Trash size={12} weight="bold" />
+                                </button>
                               ) : null}
-                            </span>
-                          )}
-                        </div>
-                        <span className="character-reference-empty-hint">{dropZone.label}</span>
-                      </article>
-                    );
-                  })}
+                            </div>
+                            <div className="character-character-sheet-media">
+                              {assignedReference?.previewUrl ? (
+                                <Image
+                                  src={
+                                    resolveCharacterCardPreviewUrl({
+                                      previewUrl: assignedReference.previewUrl,
+                                      storagePath:
+                                        assignedReference.previewStoragePath ??
+                                        assignedReference.storagePath,
+                                      cardLongEdgePx: 300,
+                                    }) ?? assignedReference.previewUrl
+                                  }
+                                  alt={`${dropZone.label} reference`}
+                                  className="character-character-sheet-image"
+                                  width={240}
+                                  height={300}
+                                  onError={(event) => {
+                                    refreshCardPreviewSignedUrl(
+                                      assignedReference.previewStoragePath ??
+                                        assignedReference.storagePath,
+                                      event.currentTarget.currentSrc ||
+                                        event.currentTarget.src ||
+                                        null
+                                    );
+                                  }}
+                                  unoptimized
+                                />
+                              ) : (
+                                <span className="character-character-sheet-drop-copy tiny">
+                                  <UploadSimple
+                                    size={14}
+                                    weight="bold"
+                                    className="character-character-sheet-drop-icon"
+                                    aria-hidden="true"
+                                  />
+                                  <span>
+                                    {isArmed
+                                      ? "Click media below to assign this slot"
+                                      : "Drag reference here or arm this slot"}
+                                  </span>
+                                  <span
+                                    className={`character-character-sheet-drop-requirement ${
+                                      isRequiredSlot ? "is-required" : "is-optional"
+                                    }`}
+                                  >
+                                    {slotRequirementCopy}
+                                  </span>
+                                  {isDropPending ? (
+                                    <span className="character-character-sheet-drop-pending tiny">
+                                      Assigning...
+                                    </span>
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                            <span className="character-reference-empty-hint">{dropZone.label}</span>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -755,6 +714,57 @@ export function CharacterPanelWorkspace({
         title="Characters"
         subtitle="Browse saved characters and load a profile into the editor."
         onClose={() => setIsCharacterLibraryModalOpen(false)}
+        headerActions={
+          <div className="model-modal-header-actions">
+            <button
+              type="button"
+              className="character-panel-action-btn character-panel-action-btn--danger"
+              onClick={() => {
+                if (!selectedCharacterId) return;
+                const target =
+                  characters.find((entry) => entry.characterId === selectedCharacterId) ?? null;
+                if (!target) return;
+                setDeleteTargetCharacter({
+                  characterId: target.characterId,
+                  characterName: target.characterName || "Untitled character",
+                });
+              }}
+              disabled={!selectedCharacterId || pageBusy}
+            >
+              <Trash size={14} weight="bold" aria-hidden />
+              <span>Delete</span>
+            </button>
+            <button
+              type="button"
+              className="character-panel-action-btn"
+              onClick={() => {
+                void saveCharacter();
+              }}
+              disabled={!hasUnsavedCharacterDraft || pageBusy}
+            >
+              {isSavingCharacter ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              className="character-panel-action-btn character-panel-action-btn--primary"
+              onClick={() => {
+                void handleCreateNewCharacter();
+              }}
+              disabled={pageBusy}
+            >
+              <Plus size={14} weight="bold" aria-hidden />
+              <span>Create</span>
+            </button>
+            <button
+              type="button"
+              className="ghost-btn mini model-modal-close"
+              aria-label="Close character library"
+              onClick={() => setIsCharacterLibraryModalOpen(false)}
+            >
+              <X size={16} weight="bold" />
+            </button>
+          </div>
+        }
       >
         <AiStudioPickerSection>
           {characters.length > 0 ? (

@@ -579,6 +579,98 @@ describe("useAiStudioAgentComposer", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
+  it("prefers structured composer image drops over synthetic image files from the browser", async () => {
+    const files = [new File(["ghost"], "ghost.png", { type: "image/png" })];
+    extractComposerImageDropPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "https://fragile.example.com/preview.png",
+      displayArtifactKind: "url",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: "https://signed.example.com/generated.png",
+      promptText: "Dragged prompt",
+      sourceSurface: "all-refs",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    await dropAndWaitForAttachments(result, makeDragEvent({}, files));
+
+    expect(result.current.agentAttachmentError).toBeNull();
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      source: "ephemeral_local",
+      referenceId: "out-1",
+      mediaId: "media-1",
+      imageUrl: "https://fragile.example.com/preview.png",
+      modelDataUrl: "https://signed.example.com/generated.png",
+      submissionImageUrl: null,
+      text: "Dragged prompt",
+      deliveryStatus: "ready",
+    });
+    expect(createEphemeralComposerImageDataMock).not.toHaveBeenCalled();
+    expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
+  });
+
+  it("treats degraded reference-grid drags with image hints as internal references before local files", async () => {
+    const files = [new File(["ghost"], "ghost.png", { type: "image/png" })];
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: "https://fragile.example.com/preview.png",
+      promptText: "Dragged prompt",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    await dropAndWaitForAttachments(
+      result,
+      makeDragEvent(
+        {
+          "text/reference-id": "out-1",
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-source-surface": "all-refs",
+          "text/reference-render-url": "https://fragile.example.com/preview.png",
+          "text/reference-url": "https://signed.example.com/generated.png",
+          "image/url": "https://fragile.example.com/preview.png",
+          "text/plain": "Dragged prompt",
+        },
+        files
+      )
+    );
+
+    expect(result.current.agentAttachmentError).toBeNull();
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      source: "ephemeral_local",
+      referenceId: "out-1",
+      imageUrl: "https://fragile.example.com/preview.png",
+      modelDataUrl: "https://signed.example.com/generated.png",
+      submissionImageUrl: null,
+      text: "Dragged prompt",
+      deliveryStatus: "ready",
+    });
+    expect(createEphemeralComposerImageDataMock).not.toHaveBeenCalled();
+  });
+
   it("stages up to the configured image-file drop limit", async () => {
     const ensureAgentSession = vi.fn();
     let callCount = 0;

@@ -1531,7 +1531,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           <div ref={splitContainerRef} className="voices-properties-main">
             <section className="voices-properties-topbar" style={topSectionStyle}>
               <div className="voices-properties-panel-header">
-                <h2 className="panel-title voices-properties-library-title">Voices</h2>
+                <h2 className="panel-title voices-properties-library-title">Voice</h2>
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
                     <div

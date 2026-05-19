@@ -213,8 +213,8 @@ describe("POST /api/media/sign-batch", () => {
 
     expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
       transform: {
-        width: 512,
-        quality: 50,
+        width: 256,
+        quality: 46,
         resize: "contain",
       },
     });
@@ -260,8 +260,8 @@ describe("POST /api/media/sign-batch", () => {
     expect(createSignedUrlsMock).toHaveBeenCalledWith([videoPath], 3600);
     expect(createSignedUrlMock).toHaveBeenCalledWith(imagePath, 3600, {
       transform: {
-        width: 512,
-        quality: 50,
+        width: 256,
+        quality: 46,
         resize: "contain",
       },
     });

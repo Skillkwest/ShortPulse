@@ -127,9 +127,13 @@ describe("CharacterPanelWorkspace", () => {
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
     render(<CharacterPanelWorkspace />);
 
-    expect(screen.getByRole("heading", { name: "Characters Library" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Character Profile" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Characters" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Characters Library" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Character Profile" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Characters" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Description:" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Saved characters" })).not.toBeInTheDocument();
@@ -166,6 +170,9 @@ describe("CharacterPanelWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Characters" }));
 
     expect(screen.getByRole("dialog", { name: "Character library" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
   });

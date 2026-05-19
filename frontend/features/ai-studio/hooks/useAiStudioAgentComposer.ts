@@ -35,6 +35,8 @@ import {
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
 } from "../../../lib/internalReferenceDragSession";
 import type { StudioOutput } from "../types";
 import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../prefabs/agent";
@@ -114,6 +116,157 @@ const buildResolvedInternalImageUrls = (candidates: Array<string | null | undefi
 
 const isLocalInlineImageUrl = (value: string | null | undefined) =>
   Boolean(value && (value.startsWith("blob:") || value.startsWith("data:image/")));
+
+type ComposerDropSnapshot = {
+  transferTypes: string[];
+  files: File[];
+  internalReferenceDragSessionToken: string;
+  composerImageDropSessionToken: string;
+  composerImageDropPayload: string;
+  referenceOrigin: string;
+  referenceVersion: string;
+  referenceId: string;
+  referenceOutputId: string;
+  referenceMediaId: string;
+  referenceMediaKind: string;
+  referencePreviewStoragePath: string;
+  referenceFullStoragePath: string;
+  referenceImageIndex: string;
+  referenceWidth: string;
+  referenceHeight: string;
+  referenceSourceSurface: string;
+  referenceUrl: string;
+  referenceRenderUrl: string;
+  imageUrl: string;
+  plainText: string;
+  uriList: string;
+};
+
+const captureComposerDropSnapshot = (transfer: DataTransfer): ComposerDropSnapshot => ({
+  transferTypes: Array.from(transfer.types ?? []),
+  files: Array.from(transfer.files ?? []),
+  internalReferenceDragSessionToken:
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE) ||
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE),
+  composerImageDropSessionToken:
+    transfer.getData(COMPOSER_IMAGE_DROP_SESSION_TYPE) ||
+    transfer.getData(COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE),
+  composerImageDropPayload:
+    transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE) ||
+    transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE),
+  referenceOrigin: transfer.getData("text/reference-origin"),
+  referenceVersion: transfer.getData("text/reference-version"),
+  referenceId: transfer.getData("text/reference-id"),
+  referenceOutputId: transfer.getData("text/reference-output-id"),
+  referenceMediaId: transfer.getData("text/reference-media-id"),
+  referenceMediaKind: transfer.getData("text/reference-media-kind"),
+  referencePreviewStoragePath: transfer.getData("text/reference-preview-storage-path"),
+  referenceFullStoragePath: transfer.getData("text/reference-full-storage-path"),
+  referenceImageIndex: transfer.getData("text/reference-image-index"),
+  referenceWidth: transfer.getData("text/reference-width"),
+  referenceHeight: transfer.getData("text/reference-height"),
+  referenceSourceSurface: transfer.getData("text/reference-source-surface"),
+  referenceUrl: transfer.getData("text/reference-url"),
+  referenceRenderUrl: transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+  imageUrl: transfer.getData("image/url"),
+  plainText: transfer.getData("text/plain"),
+  uriList: transfer.getData("text/uri-list"),
+});
+
+const buildComposerDropSnapshotTransfer = (snapshot: ComposerDropSnapshot): DataTransfer =>
+  ({
+    types: snapshot.transferTypes,
+    files: snapshot.files,
+    getData: (type: string) => {
+      switch (type) {
+        case INTERNAL_REFERENCE_DRAG_SESSION_TYPE:
+        case INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE:
+          return snapshot.internalReferenceDragSessionToken;
+        case COMPOSER_IMAGE_DROP_SESSION_TYPE:
+        case COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE:
+          return snapshot.composerImageDropSessionToken;
+        case COMPOSER_IMAGE_DROP_PAYLOAD_TYPE:
+        case COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE:
+          return snapshot.composerImageDropPayload;
+        case "text/reference-origin":
+          return snapshot.referenceOrigin;
+        case "text/reference-version":
+          return snapshot.referenceVersion;
+        case "text/reference-id":
+          return snapshot.referenceId;
+        case "text/reference-output-id":
+          return snapshot.referenceOutputId;
+        case "text/reference-media-id":
+          return snapshot.referenceMediaId;
+        case "text/reference-media-kind":
+          return snapshot.referenceMediaKind;
+        case "text/reference-preview-storage-path":
+          return snapshot.referencePreviewStoragePath;
+        case "text/reference-full-storage-path":
+          return snapshot.referenceFullStoragePath;
+        case "text/reference-image-index":
+          return snapshot.referenceImageIndex;
+        case "text/reference-width":
+          return snapshot.referenceWidth;
+        case "text/reference-height":
+          return snapshot.referenceHeight;
+        case "text/reference-source-surface":
+          return snapshot.referenceSourceSurface;
+        case "text/reference-url":
+          return snapshot.referenceUrl;
+        case REFERENCE_TRANSFER_RENDER_URL_TYPE:
+          return snapshot.referenceRenderUrl;
+        case "image/url":
+          return snapshot.imageUrl;
+        case "text/plain":
+          return snapshot.plainText;
+        case "text/uri-list":
+          return snapshot.uriList;
+        default:
+          return "";
+      }
+    },
+  }) as unknown as DataTransfer;
+
+const hasSnapshotReferenceImageHints = (snapshot: ComposerDropSnapshot): boolean => {
+  const normalizedTransferTypes = snapshot.transferTypes.map((type) => type.trim().toLowerCase());
+  const normalizedImageUrl = normalizeDroppedImageCandidate(snapshot.imageUrl);
+  const normalizedReferenceUrl = normalizeDroppedImageCandidate(snapshot.referenceUrl);
+  const normalizedRenderUrl = normalizeDroppedImageCandidate(snapshot.referenceRenderUrl);
+  const normalizedUriUrl = normalizeDroppedImageCandidate(snapshot.uriList);
+  const normalizedPlainTextUrl = normalizeDroppedImageCandidate(snapshot.plainText);
+  const hasReferenceTransferTypeHints = normalizedTransferTypes.some(
+    (type) =>
+      type === COMPOSER_IMAGE_DROP_SESSION_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE.toLowerCase() ||
+      type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE.toLowerCase() ||
+      type === INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_PAYLOAD_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE.toLowerCase() ||
+      type === "text/reference-origin" ||
+      type === "text/reference-id" ||
+      type === "text/reference-output-id" ||
+      type === "text/reference-media-id" ||
+      type === "text/reference-source-surface" ||
+      type === "text/reference-url" ||
+      type === REFERENCE_TRANSFER_RENDER_URL_TYPE.toLowerCase() ||
+      type === "image/url"
+  );
+
+  return Boolean(
+    hasReferenceTransferTypeHints ||
+    snapshot.referenceOrigin.trim() ||
+    snapshot.referenceId.trim() ||
+    snapshot.referenceOutputId.trim() ||
+    snapshot.referenceMediaId.trim() ||
+    snapshot.referenceSourceSurface.trim() ||
+    normalizedImageUrl ||
+    normalizedReferenceUrl ||
+    normalizedRenderUrl ||
+    normalizedUriUrl ||
+    normalizedPlainTextUrl
+  );
+};
 
 const readLocalInlineImageBlob = async (url: string): Promise<Blob | null> => {
   if (!isLocalInlineImageUrl(url)) return null;
@@ -427,7 +580,17 @@ export const useAiStudioAgentComposer = ({
       agentDropDepthRef.current = 0;
       setIsAgentDropActive(false);
       const transfer = event.dataTransfer;
-      const droppedFiles = Array.from(transfer.files ?? []);
+      const dropSnapshot = captureComposerDropSnapshot(transfer);
+      const transferSnapshot = buildComposerDropSnapshotTransfer(dropSnapshot);
+      const internalPayload = extractInternalReferenceDragPayload(transferSnapshot);
+      const composerImagePayload = extractComposerImageDropPayload(transferSnapshot);
+      const mediaLibraryPayload = readMediaLibraryDragPayload(transferSnapshot);
+      const hasStructuredReferenceDrop = Boolean(
+        internalPayload || composerImagePayload || mediaLibraryPayload
+      );
+      const hasReferenceImageHints =
+        hasStructuredReferenceDrop || hasSnapshotReferenceImageHints(dropSnapshot);
+      const droppedFiles = dropSnapshot.files;
       const droppedVideoFiles = droppedFiles.filter((file) => file.type.startsWith("video/"));
       const droppedImageFiles = droppedFiles
         .filter((file) => file.type.startsWith("image/"))
@@ -436,7 +599,7 @@ export const useAiStudioAgentComposer = ({
           Math.max(1, Math.min(MAX_AGENT_IMAGE_ATTACHMENTS, Math.trunc(maxImageAttachmentsPerDrop)))
         );
       recordCreateWorkflowEvent("drop_received", {
-        transferTypes: Array.from(transfer.types ?? []),
+        transferTypes: dropSnapshot.transferTypes,
         droppedFileCount: droppedFiles.length,
         droppedImageFileCount: droppedImageFiles.length,
         droppedVideoFileCount: droppedVideoFiles.length,
@@ -445,7 +608,7 @@ export const useAiStudioAgentComposer = ({
         setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
         return;
       }
-      if (droppedImageFiles.length > 0) {
+      if (!hasReferenceImageHints && droppedImageFiles.length > 0) {
         void (async () => {
           if (!agentSessionEnabled) {
             ensureAgentSession();
@@ -498,12 +661,10 @@ export const useAiStudioAgentComposer = ({
         return;
       }
       void (async () => {
-        const internalPayload = extractInternalReferenceDragPayload(transfer);
         const resolvedInternalImageSource =
           internalPayload && resolveInternalImageDropSource
             ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
             : null;
-        const composerImagePayload = extractComposerImageDropPayload(transfer);
         if (composerImagePayload) {
           const droppedReferenceId =
             composerImagePayload.outputId ??
@@ -645,8 +806,7 @@ export const useAiStudioAgentComposer = ({
           return;
         }
 
-        const payload = extractDragDropPayload(transfer);
-        const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+        const payload = extractDragDropPayload(transferSnapshot);
         const droppedReferenceId =
           payload.referenceId ??
           resolvedInternalImageSource?.outputId ??
@@ -741,10 +901,11 @@ export const useAiStudioAgentComposer = ({
             ? resolveReferenceTransferUrl(matchedOutput, "image")
             : null;
         const transferReferenceUrl =
-          normalizeReferenceTransferUrlCandidate(transfer.getData("text/reference-url")) ?? null;
+          normalizeReferenceTransferUrlCandidate(transferSnapshot.getData("text/reference-url")) ??
+          null;
         const transferRenderUrl =
           normalizeReferenceTransferUrlCandidate(
-            transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+            transferSnapshot.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
             { unwrapNextImage: false }
           ) ?? null;
         const mediaLibraryImagePayload =

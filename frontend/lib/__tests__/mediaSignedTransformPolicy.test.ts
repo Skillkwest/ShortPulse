@@ -40,8 +40,8 @@ describe("mediaSignedTransformPolicy", () => {
         transformsEnabled: true,
       })
     ).toEqual({
-      width: 512,
-      quality: 50,
+      width: 256,
+      quality: 46,
       resize: "contain",
     });
   });

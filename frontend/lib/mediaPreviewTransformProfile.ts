@@ -27,8 +27,8 @@ const PROFILE_TRANSFORM_PRESETS: Record<
     resize: "contain",
   },
   "media-library-panel-image-card": {
-    width: 512,
-    quality: 50,
+    width: 256,
+    quality: 46,
     resize: "contain",
   },
   "project-card-preview": {

@@ -11,7 +11,8 @@ Purpose: define the baseline quality targets Gear Ball should improve against ov
 - Build-only regressions discovered after a green full suite: target `0`
 - Post-commit leftover escapes discovered after the next batch has already started: target `0`
 - Repo-root targeted-test path mistakes: target `0`
-- High-risk admin/frontend route runs that skip browser smoke despite a ready local target: target `0`
+- Helper or hook failures caused by `npm`/`npx`/runtime path assumptions: target `0`
+- High-risk admin/frontend route runs that end `smoke-incomplete`: target `0`
 - Post-run self-audit + training update completion: target `100%`
 - Helper/SOP decision recorded after full commit/push runs: target `100%`
 
@@ -22,8 +23,10 @@ Purpose: define the baseline quality targets Gear Ball should improve against ov
 - Too much reliance on final full-suite pressure to expose stale tests
 - Generated audit/docs packets can carry avoidable docs parity breakage
 - Build-only regressions still appear on compound-risk frontend runs when build is delayed too long
-- High-risk UI/admin route changes can still ship without one direct route-level smoke unless the run explicitly calls for it
+- High-risk UI/admin route changes can still end `smoke-incomplete` if a feasible local target is not stood up early enough
+- Uncatalogued shared-contract fan-out can still leave downstream API/script contract tests out of the first manifest even after helper inference
+- Repo tooling can still regress if hooks or helper scripts assume `npm`, `npx`, or a specific Node runtime is on `PATH`
 
 ## Improvement Rule
 
-When a full SOP run scores below `9/10`, Gear Ball should identify one specific mechanical change, helper update, or SOP improvement that would have prevented the slip and record that in training history.
+When a full SOP run scores below `9/10`, Gear Ball should identify one specific mechanical change, helper update, or SOP improvement that would have prevented the slip, ship it in the same run when feasible, and record that in training history.

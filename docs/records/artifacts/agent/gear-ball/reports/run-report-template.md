@@ -17,7 +17,7 @@ Purpose: <one sentence describing the operational run>.
 ## Validation Results
 
 - `<command>`: <pass/fail and exact summary>
-- Route-level browser smoke: `<passed | blocked | skipped with reason>`
+- Route-level browser smoke: `<passed | blocked | skipped with reason | smoke-incomplete>`
 
 ## Self Audit
 
@@ -38,6 +38,7 @@ Purpose: <one sentence describing the operational run>.
 - New tool/helper needed?: <yes/no and why>
 - Existing helper update needed?: <yes/no and why>
 - SOP/doc update needed?: <yes/no and why>
+- Mechanical remediation shipped for sub-9 run?: <yes/no and what changed>
 
 ## Final State
 

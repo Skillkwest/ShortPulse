@@ -3,24 +3,29 @@
 This folder contains the active ShortPulse product repo.
 
 ## Where to work
+
 - App code: `frontend/`
 - Product/engineering docs: `docs/`
 - Supabase bootstrap SQL: `sql/`
 
 ## Commands
+
 From `ShortPulse/`:
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 One-time setup (new environment or when dependencies change):
+
 ```bash
 cd frontend
 npm install
 ```
 
 Optional checks:
+
 ```bash
 cd frontend
 npm run lint
@@ -28,6 +33,7 @@ npm run build
 ```
 
 ## Rules of engagement
+
 - Always apply senior-level engineering best practices (clarity, maintainability, minimal diff, validate changes).
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
@@ -44,6 +50,7 @@ npm run build
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)
+
 - Never move or rename generated/build artifact directories (for example `frontend/.next`) to another path inside this repository as a backup.
 - If build artifacts must be cleared, either delete them directly or move them outside the repo root (for example under `/tmp`).
 - Before running repo-wide commands (for example `eslint .`, `git status`, broad `rg`), verify no large generated backup/artifact directories exist inside the repo.
@@ -53,19 +60,23 @@ npm run build
 - Never use temporary env/text copies to decide, validate, or overwrite variable values unless the user explicitly says to use that specific temp file for that task.
 
 ## Session Startup Contract (mandatory)
+
 Follow this startup sequence at the start of every new task/session in this repo:
 
 1. **Session preflight (always first)**
+
 - Confirm task mode (`brainstorm/no-edit` vs implementation).
 - Run a workspace safety check before broad/repo-wide commands (artifact/backup guardrails).
 
 2. **Core doc load (always)**
+
 - Read this root `AGENTS.md`.
 - Read `docs/dev-ground-rules.md`, `docs/conventions.md`, and `docs/agent-playbook.md`.
 - Read `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - Read scoped instructions for touched areas (`frontend/AGENTS.md`, `docs/AGENTS.md`).
 
 3. **Task classification + targeted context load**
+
 - SQL/migrations: read `docs/sops/sop_sql_migration_operations.md`, `docs/database-migrations.md`, `docs/security-checklist.md`, and impacted files under `sql/migrations/`.
 - Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
 - Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
@@ -75,14 +86,17 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Audit/inspection/online research: run `skills/skill-subagent-audit-research/SKILL.md`.
 
 4. **Web research policy**
+
 - Default to local repo sources first.
 - Browse when explicitly requested, when "latest/current" matters, or for high-stakes/temporally unstable facts.
 
 5. **No-edit gate**
+
 - Do not edit files until core + task-specific context is loaded.
 - In brainstorm/no-edit mode, do not mutate repository files.
 
 6. **Execution/closeout defaults**
+
 - Keep diffs minimal and scoped to the request.
 - Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
 - Stay on the current user-approved branch for all edits, commits, and pushes unless the user explicitly authorizes a different branch action in the current thread.
@@ -91,4 +105,4 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Run relevant validation checks for touched areas.
 - Perform a final self-audit for missed high-value updates and provide suggested next steps.
 
-Use `skills/skill-session-startup-contract/SKILL.md` as the procedural checklist for this contract.
+Use the repo-local checklist at `skills/skill-session-startup-contract/SKILL.md` as the procedural helper for this contract. If that file is unavailable for any reason, follow the six-step startup contract in this document directly and call out that fallback in your startup summary instead of skipping startup discipline.

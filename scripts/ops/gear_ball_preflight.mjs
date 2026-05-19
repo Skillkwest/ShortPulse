@@ -9,6 +9,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..", "..");
 const frontendRoot = path.join(repoRoot, "frontend");
+const frontendNodeBin = path.join(frontendRoot, "node_modules", ".bin");
+const nodeBin = process.execPath;
+const prettierBin = path.join(frontendNodeBin, "prettier");
+const eslintBin = path.join(frontendNodeBin, "eslint");
+const vitestBin = path.join(frontendNodeBin, "vitest");
+const DOCS_CHECK_SCRIPTS = [
+  "scripts/check_docs_links.js",
+  "scripts/check_docs_semantic_drift.js",
+  "scripts/check_migration_doc_parity.js",
+  "scripts/check_archive_manifest.js",
+  "scripts/check_model_catalog_parity.js",
+  "scripts/check_naming_canonical_drift.js",
+  "scripts/check_operator_map_drift.js",
+];
 
 const GENERATED_PATH_PATTERNS = [
   /^frontend\/\.next\//,
@@ -93,6 +107,46 @@ const SUITE_HOT_RULES = [
   },
 ];
 
+const CONTRACT_FANOUT_RULES = [
+  {
+    name: "preview-delivery-contract",
+    note: "Preview/signing changes should pull the downstream media preview API contract tests into the first manifest.",
+    matchers: [
+      "frontend/pages/api/media/sign-batch.ts",
+      "frontend/pages/api/media/resolve-previews.ts",
+      /^frontend\/.*preview/i,
+      /^frontend\/.*sign-batch/i,
+      /^frontend\/.*transform.*profile/i,
+    ],
+    tests: [
+      "tests/api/media-sign-batch.test.ts",
+      "tests/api/media-resolve-previews.test.ts",
+    ],
+  },
+  {
+    name: "media-panel-kpi-contract",
+    note: "Media panel KPI packet changes should pull the capture/score script tests into the first manifest.",
+    matchers: [/^frontend\/scripts\/media_panel_kpi_/i],
+    tests: [
+      "scripts/__tests__/media_panel_kpi_capture.test.ts",
+      "scripts/__tests__/media_panel_kpi_score.test.ts",
+    ],
+  },
+  {
+    name: "character-panel-layout-contract",
+    note: "Character panel layout and embedded library changes should pull the shared layout contract test into the first manifest.",
+    matchers: [
+      "frontend/styles/character-manager-embedded.css",
+      /^frontend\/features\/ai-studio\/logic\/.*characterPanelLayout/i,
+      /^frontend\/features\/character-manager\//,
+      /^frontend\/pages\/character(?:\.tsx)?$/i,
+    ],
+    tests: [
+      "features/ai-studio/logic/__tests__/characterPanelLayoutContract.test.ts",
+    ],
+  },
+];
+
 function printHelp() {
   console.log(`Usage:
   node scripts/ops/gear_ball_preflight.mjs --files <paths...> [--files-from <path>] [--tests <tests...>] [--tests-from <path>] [--include-suite-hot] [--print-test-manifest] [--dry-run]
@@ -108,6 +162,9 @@ Options:
   --print-test-manifest  Print the normalized frontend-relative Vitest target list before running checks.
   --dry-run            Print planned checks without executing them.
   --help               Show this message.
+
+Behavior:
+  Known shared-contract files auto-add downstream dependent tests for preview delivery, media KPI packets, and character panel layout contracts.
 `);
 }
 
@@ -235,6 +292,25 @@ function getSharedRiskWarnings(files) {
   return warnings;
 }
 
+function matchesRule(file, matcher) {
+  if (typeof matcher === "string") return file === matcher;
+  return matcher.test(file);
+}
+
+function deriveContractFanout(files) {
+  const matches = [];
+  for (const rule of CONTRACT_FANOUT_RULES) {
+    if (
+      files.some((file) =>
+        rule.matchers.some((matcher) => matchesRule(file, matcher)),
+      )
+    ) {
+      matches.push(rule);
+    }
+  }
+  return matches;
+}
+
 function needsDocsCheck(files) {
   return files.some(
     (file) =>
@@ -251,6 +327,10 @@ function needsDocsCheck(files) {
 function formatCommand(command, args, cwd) {
   const rendered = [command, ...args].join(" ");
   return cwd ? `(cd ${cwd} && ${rendered})` : rendered;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'\\''`)}'`;
 }
 
 const args = process.argv.slice(2);
@@ -306,6 +386,7 @@ if (secretFiles.length > 0) {
 }
 
 const sharedRiskWarnings = getSharedRiskWarnings(existingFiles);
+const contractFanoutRules = deriveContractFanout(existingFiles);
 const frontendLintFiles = existingFiles
   .filter((file) => /^frontend\/.+\.(?:[jt]sx?)$/.test(file))
   .map((file) => path.relative(frontendRoot, path.join(repoRoot, file)));
@@ -316,6 +397,9 @@ const targetedTests = [
   ...new Set([
     ...testsArg,
     ...manifestTests,
+    ...contractFanoutRules.flatMap((rule) =>
+      rule.tests.map(toFrontendRelativeTestPath),
+    ),
     ...(includeSuiteHot
       ? deriveSuiteHotTests(existingFiles).map(toFrontendRelativeTestPath)
       : []),
@@ -326,17 +410,16 @@ const checks = [];
 if (prettierFiles.length > 0) {
   checks.push({
     label: "prettier",
-    command: "npx",
-    args: ["prettier", "--check", ...prettierFiles],
+    command: prettierBin,
+    args: ["--check", ...prettierFiles],
     cwd: repoRoot,
   });
 }
 if (frontendLintFiles.length > 0) {
   checks.push({
     label: "eslint",
-    command: "npx",
+    command: eslintBin,
     args: [
-      "eslint",
       "--config",
       "eslint.config.mjs",
       "--max-warnings",
@@ -347,31 +430,56 @@ if (frontendLintFiles.length > 0) {
   });
 }
 if (needsDocsCheck(files)) {
-  checks.push({
-    label: "docs:check",
-    command: "npm",
-    args: ["-C", "frontend", "run", "docs:check"],
-    cwd: repoRoot,
-  });
+  for (const script of DOCS_CHECK_SCRIPTS) {
+    checks.push({
+      label: `docs:${path.basename(script, ".js").replace(/^check_/, "")}`,
+      command: nodeBin,
+      args: [script],
+      cwd: repoRoot,
+    });
+  }
 }
 if (targetedTests.length > 0) {
+  const vitestShellCommand = [
+    "./node_modules/.bin/vitest",
+    "run",
+    ...targetedTests,
+  ]
+    .map(shellQuote)
+    .join(" ");
   checks.push({
     label: "vitest",
-    command: "npm",
-    args: ["-C", "frontend", "run", "test", "--", ...targetedTests],
-    cwd: repoRoot,
+    command: "zsh",
+    args: ["-lc", vitestShellCommand],
+    cwd: frontendRoot,
+    displayCommand: formatCommand(
+      vitestBin,
+      ["run", ...targetedTests],
+      "frontend",
+    ),
   });
 }
 
 console.log("gear-ball preflight");
 console.log(`files: ${files.length}`);
 if (deletedOnlyFiles.length > 0) {
-  console.log(`deleted/absent paths skipped for direct file checks: ${deletedOnlyFiles.length}`);
+  console.log(
+    `deleted/absent paths skipped for direct file checks: ${deletedOnlyFiles.length}`,
+  );
 }
 if (sharedRiskWarnings.length > 0) {
   console.log("shared-risk warnings:");
   for (const warning of sharedRiskWarnings) {
     console.log(`- ${warning}`);
+  }
+}
+if (contractFanoutRules.length > 0) {
+  console.log("shared-contract fan-out:");
+  for (const rule of contractFanoutRules) {
+    console.log(`- ${rule.name}: ${rule.note}`);
+    for (const test of rule.tests.map(toFrontendRelativeTestPath)) {
+      console.log(`  - adds ${test}`);
+    }
   }
 }
 if (checks.length === 0) {
@@ -389,7 +497,7 @@ if (printTestManifest && targetedTests.length > 0) {
 console.log("planned checks:");
 for (const check of checks) {
   console.log(
-    `- ${check.label}: ${formatCommand(check.command, check.args, check.cwd === repoRoot ? null : "frontend")}`,
+    `- ${check.label}: ${check.displayCommand ?? formatCommand(check.command, check.args, check.cwd === repoRoot ? null : "frontend")}`,
   );
 }
 

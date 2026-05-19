@@ -92,6 +92,8 @@ Gear Ball's durable operational workflows live in:
   - Catches generated files, env-file mistakes, shared-risk files, targeted lint drift, route/doc parity drift, and suite-hot test pressure earlier.
   - Accepts either frontend-relative or repo-root `frontend/...` Vitest paths and can print the normalized frontend-relative test manifest with `--print-test-manifest`.
   - Also accepts `--files-from <manifest>` and `--tests-from <manifest>` for newline-delimited manifests so large runs do not depend on long shell arg lists.
+  - Auto-adds known downstream contract tests for shared preview-delivery, media KPI packet, and character-panel layout changes so the first manifest is less likely to miss fan-out.
+  - Uses explicit local frontend binaries plus direct Node-based docs checks so preflight does not depend on `npm` or `npx` being on `PATH`.
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
   - Generate a compact markdown batch manifest from the staged index or a supplied file list.
   - Use for substantial worktree runs and durable Gear Ball reports.

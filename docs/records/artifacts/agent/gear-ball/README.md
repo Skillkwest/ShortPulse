@@ -15,7 +15,7 @@ The agent has a durable contract, repo-visible memory, helper tooling, and a ret
 - `baseline-kpi.md`: frozen baseline for future Gear Ball quality comparisons.
 - `sops.md`: Gear Ball workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.
-- `training-history.md`: supervised runs, self-ratings, lessons, and next training focus.
+- `training-history.md`: compact synthesis of recurring slips, shipped remediations, and current training priorities. Detailed run narratives stay in `run-log.md` and `reports/`.
 - `reports/`: dated run reports, templates, and evidence summaries when a Gear Ball run needs durable retained detail.
 
 ## Authority

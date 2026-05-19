@@ -203,6 +203,13 @@ Rules:
 - Do not split a mixed file blindly. Prefer a single coherent combined batch, or stop for user review if combining would hide risk.
 - For shared docs indexes, shared CSS, app shells, or route files that span multiple batches, either stage by hunk with immediate staged-diff verification or defer them to a final reconciliation batch.
 - If a file's dominant owner is clear but it contains supporting references for another batch, document the dominant-owner decision in the batch plan.
+- If the batch changes a shared contract, write the dependency fan-out into the batch plan before the first preflight. Shared-contract triggers include:
+  - preview transform profiles or signed-preview policy
+  - KPI/report packet fields
+  - shared route/request/response payload shapes
+  - shared runtime helpers/config constants used across routes or scripts
+  - cross-surface CSS/layout contracts consumed by contract tests
+- For shared-contract batches, include at least one downstream dependent test family in the initial manifest, not only the closest component/hook tests.
 
 ### 4. Inspect A Batch
 
@@ -228,6 +235,7 @@ If the batch touches high-risk areas, run or schedule the relevant specialist ch
 - Vercel/deployment/env: Vercel env contract and deployment parity checks.
 - Routes/UI behavior: route docs and relevant SOPs.
 - Adaptive media/reference grid: adaptive change gate.
+- Shared-contract fan-out: inspect the dependent routes, scripts, or contract tests that consume the changed constant/helper/payload field before preflight.
 
 Before staging a high-risk, mixed-lane, or shared-file batch, run the reusable preflight helper on the candidate file list:
 
@@ -243,6 +251,7 @@ npm -C frontend run gear-ball:preflight -- --files-from <file-manifest.txt> --te
 
 Use `docs/agents/gear-ball/shared-file-risk-map.md` to decide when a file must be adapted manually, deferred to a reconciliation batch, or re-run as a suite-hot test before the full suite.
 If invoking from repo root, prefer repo-relative frontend test paths or rely on preflight normalization so the emitted Vitest targets are frontend-relative.
+`gear-ball:preflight` also auto-adds known downstream contract tests for preview-delivery, media-KPI, and character-layout fan-out. Do not treat that as exhaustive; it is a floor, not a substitute for manual dependency review.
 
 ### 5. Validate Before Commit
 
@@ -258,7 +267,10 @@ Treat these as hard escalation triggers, not optional judgment calls:
 
 - If a batch touches shared editor/runtime hooks, shared page shells, `frontend/pages/`, `frontend/pages/api/`, or `frontend/package.json`, run `npm -C frontend run build` before the final full suite.
 - If a batch includes generated or agent-produced docs/packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/`, run `npm -C frontend run docs:check` before staging or before the first commit for that lane.
-- If a batch materially changes an interaction-heavy admin or frontend route and a local verification target is already available, run one route-level browser smoke before the final push. Verify the changed route loads, the primary control surface renders, and there is no obvious fatal client error.
+- If a batch materially changes an interaction-heavy admin or frontend route, route-level browser smoke is a required validation decision, not an optional note.
+  - If a local verification target is already available, run the smoke before the final push.
+  - If no target is active but starting the canonical local target is feasible within the run, start it and run the smoke.
+  - If smoke truly cannot run, classify the run as `smoke-incomplete` in the report, explain why, and treat that as a scoring slip rather than a neutral skip.
 - If both triggers fire in the same run, treat `build` and `docs:check` as early gates before the first Git write.
 
 For a large, mixed, or cross-cutting worktree, full test green is the commit-readiness bar:
@@ -378,6 +390,8 @@ After the final requested commit batch:
    npm -C frontend run test
    ```
 3. If a route-level browser smoke was required by batch risk, run it after build/full-suite success and record either `passed`, `blocked`, or `skipped with reason`.
+   - `skipped with reason` is allowed only when there is a concrete blocker or no feasible local target path in the current run.
+   - A qualifying run with no smoke should be classified as `smoke-incomplete` in the retained report and should not receive a self-score above `8.5/10`.
 4. Verify a clean or intentionally deferred tree:
    ```bash
    git status --short
@@ -406,12 +420,18 @@ After a full SOP run that ends in commit and push:
    - whether an existing helper needs enhancement
    - whether a new helper is justified
 4. If a small, low-risk, clearly useful helper or doc change is warranted, implement it in the same run.
-5. Update retained training artifacts:
+5. If the run scores below `9/10`, ship or explicitly reject one concrete mechanical remediation before the run is considered closed. Valid remediation types:
+   - SOP hardening
+   - helper-tool behavior change
+   - manifest/checklist rule change
+   - retained memory/risk-map rule that changes future execution behavior
+     A memory-only note is not enough unless the report explains why no stronger mechanical change was possible.
+6. Update retained training artifacts:
    - append `docs/records/artifacts/agent/gear-ball/run-log.md`
    - update `docs/records/artifacts/agent/gear-ball/training-history.md`
    - create or update a retained report when the run is substantial or produced a new durable lesson
-6. Update repo-visible memory only when the lesson is durable and broadly useful.
-7. Treat the retained closeout as valid only for the exact clean worktree that passed the final validation ladder. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate that closeout, finish the new lane, rerun the required validation gates, and publish a rewritten closeout at the real end of the run.
+7. Update repo-visible memory only when the lesson is durable and broadly useful.
+8. Treat the retained closeout as valid only for the exact clean worktree that passed the final validation ladder. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate that closeout, finish the new lane, rerun the required validation gates, and publish a rewritten closeout at the real end of the run.
 
 This step is mandatory for full commit/push runs, because Gear Ball is expected to grow capability over time rather than merely complete isolated runs.
 

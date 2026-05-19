@@ -1,4 +1,4 @@
 #!/bin/sh
 sh ./scripts/git-enforce-current-branch.sh pre-commit || exit 1
 cd frontend || exit 1
-npx lint-staged
+./node_modules/.bin/lint-staged

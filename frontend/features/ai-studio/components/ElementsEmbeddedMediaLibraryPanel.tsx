@@ -70,6 +70,7 @@ type ElementsEmbeddedMediaLibraryPanelProps = {
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
 type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 const EMPTY_SET = new Set<string>();
+const ELEMENTS_MEDIA_PANEL_SURFACE = "elements-media-panel" as const;
 
 export function ElementsEmbeddedMediaLibraryPanel({
   projectId = null,
@@ -98,7 +99,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
-    surface: "media-library-panel",
+    surface: ELEMENTS_MEDIA_PANEL_SURFACE,
     enabled: adaptivePreviewQualityEnabled,
   });
 
@@ -132,6 +133,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     shouldShowPrompts,
     showFolderCanvas,
     panelBodyRef,
+    listSurface: ELEMENTS_MEDIA_PANEL_SURFACE,
   });
 
   const refreshFolders = React.useCallback(async () => undefined, []);
@@ -200,7 +202,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     firstMediaPaintEventName: "media.panel.first_media_paint",
     previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
     signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
-    surface: panelSurfaceConfig.listSurface,
+    surface: ELEMENTS_MEDIA_PANEL_SURFACE,
     visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
     visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
     applySignedUrlsToSurface: applySignedUrlsToMediaRows,
@@ -363,7 +365,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     filteredMedia: signableMediaRows,
     signBudgetOverride,
     isSigningPassEnabled: shouldShowMedia,
-    surface: "media-library-panel",
+    surface: ELEMENTS_MEDIA_PANEL_SURFACE,
     unresolvedWarningPrefix: "[elements-media-library]",
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
     maxSignCandidatesPerRow: 4,
@@ -617,6 +619,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
+        surface={ELEMENTS_MEDIA_PANEL_SURFACE}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),
@@ -692,6 +695,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
+        surface={ELEMENTS_MEDIA_PANEL_SURFACE}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),

@@ -13,8 +13,6 @@ const DEFAULT_BASE_URL = "http://localhost:3000";
 const DEFAULT_SURFACE = "ai-studio-panel";
 const DEFAULT_RUNS = 5;
 const DEFAULT_ROOT_TAB = "all";
-const PANEL_TELEMETRY_SURFACE = "media-library-panel";
-
 const ROOT_TAB_CONFIG = {
   all: {
     label: "All Media",
@@ -52,14 +50,15 @@ const CAPTURE_SURFACES = {
   "ai-studio-panel": {
     label: "AI Studio media panel",
     panelSelector: 'section[aria-label="Media library panel"]',
-    telemetrySurface: PANEL_TELEMETRY_SURFACE,
+    telemetrySurface: "media-library-panel",
   },
   "elements-media-panel": {
     label: "Elements embedded media panel",
     panelSelector: 'section[aria-label="Elements media library panel"]',
-    telemetrySurface: PANEL_TELEMETRY_SURFACE,
+    telemetrySurface: "elements-media-panel",
   },
 };
+const DEFAULT_TELEMETRY_SURFACE = CAPTURE_SURFACES[DEFAULT_SURFACE].telemetrySurface;
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const toFiniteNumber = (value) => {
@@ -134,6 +133,7 @@ const loadAuditEnv = () => {
   const frontendRoot = path.resolve(path.dirname(SCRIPT_FILE), "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 };
 
@@ -142,6 +142,37 @@ const getCaptureSurfaceSpec = (surface) => {
 };
 
 const getRootTabConfig = (rootTab) => ROOT_TAB_CONFIG[rootTab] ?? null;
+
+const isMediaBearingRootTab = (rootTab) => rootTab !== "prompts";
+const MINIMUM_VISIBLE_MEDIA_SUCCESS_RATIO = 0.8;
+
+const resolveCaptureValidity = ({
+  rootTab,
+  sampleCount,
+  minimumRunsForDerivedP95,
+  firstVisibleMediaRunCount,
+  openPhaseVisiblePreviewSummary,
+}) => {
+  const reasons = [];
+  const visibleMediaSuccessRatio = sampleCount > 0 ? firstVisibleMediaRunCount / sampleCount : 0;
+  if (sampleCount < minimumRunsForDerivedP95) {
+    reasons.push("sample_count_below_minimum");
+  }
+  if (isMediaBearingRootTab(rootTab)) {
+    const visibleMediaCardCount =
+      toFiniteNumber(openPhaseVisiblePreviewSummary?.visibleMediaCardCount) ?? 0;
+    if (firstVisibleMediaRunCount <= 0 || visibleMediaCardCount <= 0) {
+      reasons.push("no_visible_media_observed");
+    } else if (visibleMediaSuccessRatio < MINIMUM_VISIBLE_MEDIA_SUCCESS_RATIO) {
+      reasons.push("visible_media_success_ratio_below_minimum");
+    }
+  }
+  return {
+    valid: reasons.length === 0,
+    reasons,
+    visibleMediaSuccessRatio,
+  };
+};
 
 export const selectRepresentativeOpenPhaseListSummary = (summaries) => {
   const normalized = Array.isArray(summaries)
@@ -254,7 +285,7 @@ const collectSignBucketsBySample = (capture, phase = "open") =>
       ? getSamplePerfHandleForPhase(sample, phase).signStats.filter(
           (bucket) =>
             bucket?.surface ===
-            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? DEFAULT_TELEMETRY_SURFACE)
         )
       : []
   );
@@ -373,7 +404,7 @@ const aggregateResolveStats = (capture) => {
       ? sample.perfHandle.resolveStats.filter(
           (bucket) =>
             bucket?.surface ===
-            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? DEFAULT_TELEMETRY_SURFACE)
         )
       : []
   );
@@ -427,7 +458,7 @@ const aggregateFallbackStats = (capture) => {
       ? sample.perfHandle.fallbackStats.filter(
           (bucket) =>
             bucket?.surface ===
-            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE)
+            (sample?.telemetrySurface ?? capture?.telemetrySurface ?? DEFAULT_TELEMETRY_SURFACE)
         )
       : []
   );
@@ -684,6 +715,19 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
   const surfaceLabel = surfaceSpec?.label ?? "media panel";
   const rootTab = resolveRootTab(options.rootTab ?? DEFAULT_ROOT_TAB);
   const rootTabConfig = getRootTabConfig(rootTab) ?? ROOT_TAB_CONFIG.all;
+  const captureValidity = resolveCaptureValidity({
+    rootTab,
+    sampleCount,
+    minimumRunsForDerivedP95,
+    firstVisibleMediaRunCount: firstVisibleMediaSamples.length,
+    openPhaseVisiblePreviewSummary,
+  });
+  const captureValidityNotes = captureValidity.valid
+    ? []
+    : [
+        `INVALID_CAPTURE: ${captureValidity.reasons.join(", ")}.`,
+        "This packet should not be treated as baseline evidence until the invalid-capture reasons are cleared.",
+      ];
 
   return {
     packetVersion: 2,
@@ -704,9 +748,17 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       signAggregate?.canonicalPreviewCoverageRatio == null
         ? "Canonical preview coverage was not derivable from open-phase panel sign stats in this run."
         : "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available.",
+      ...captureValidityNotes,
     ],
     analysis: {
       requestedRootTab: rootTab,
+      captureValidity: {
+        ...captureValidity,
+        minimumRunsForDerivedP95,
+        minimumVisibleMediaSuccessRatio: MINIMUM_VISIBLE_MEDIA_SUCCESS_RATIO,
+        firstVisibleMediaRunCount: firstVisibleMediaSamples.length,
+        visibleMediaCardCount: openPhaseVisiblePreviewSummary?.visibleMediaCardCount ?? 0,
+      },
       signStatsPhaseUsed: signAggregate ? "open" : "none",
       openPhaseListSummary,
       openPhaseVisiblePreviewSummary,
@@ -717,7 +769,7 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       firstMediaPaintP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       loadingStateVisibleMsP95:
         loadingStateVisibleMsP95 == null ? null : Math.round(loadingStateVisibleMsP95),
-      openToFirstMediaP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
+      openToFirstMediaP95Ms: null,
       stableContentSettleMsP95:
         stableContentSettleMsP95 == null ? null : Math.round(stableContentSettleMsP95),
       signBatchP95Ms: signAggregate?.signBatchP95Ms ?? null,
@@ -1227,7 +1279,7 @@ const collectPanelCaptures = async ({ baseUrl, headless, surface, rootTab, runs 
     baseUrl,
     surface,
     rootTab: rootTab ?? DEFAULT_ROOT_TAB,
-    telemetrySurface: getCaptureSurfaceSpec(surface)?.telemetrySurface ?? PANEL_TELEMETRY_SURFACE,
+    telemetrySurface: getCaptureSurfaceSpec(surface)?.telemetrySurface ?? DEFAULT_TELEMETRY_SURFACE,
     finalUrl: captures[captures.length - 1]?.finalUrl ?? null,
     captures,
   };
@@ -1236,6 +1288,12 @@ const collectPanelCaptures = async ({ baseUrl, headless, surface, rootTab, runs 
 const writeJsonFile = (outputPath, value) => {
   const absolutePath = path.resolve(process.cwd(), outputPath);
   fs.writeFileSync(absolutePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+};
+
+const buildInvalidCaptureNotice = (packet) => {
+  const validity = packet?.analysis?.captureValidity;
+  if (!validity || validity.valid !== false) return null;
+  return `Invalid capture: ${validity.reasons.join(", ")}.`;
 };
 
 const main = async () => {
@@ -1270,6 +1328,7 @@ const main = async () => {
     packet,
     scored,
   };
+  const invalidCaptureNotice = buildInvalidCaptureNotice(packet);
 
   if (args.writePacket) {
     writeJsonFile(args.writePacket, packet);
@@ -1277,27 +1336,36 @@ const main = async () => {
 
   if (args.format === "packet") {
     process.stdout.write(`${JSON.stringify(packet, null, 2)}\n`);
+    if (invalidCaptureNotice) process.exitCode = 2;
     return;
   }
   if (args.format === "markdown") {
-    process.stdout.write(`${buildMarkdownReport(scored)}\n`);
+    process.stdout.write(
+      `${invalidCaptureNotice ? `${invalidCaptureNotice}\n\n` : ""}${buildMarkdownReport(scored)}\n`
+    );
+    if (invalidCaptureNotice) process.exitCode = 2;
     return;
   }
   if (args.format === "text") {
     process.stdout.write(
       [
+        invalidCaptureNotice,
         `Surface: ${scored.surfaceLabel} (${scored.surface})`,
         `Overall score: ${scored.overallScore10} / 10 (${scored.grade})`,
         `Readiness: ${scored.readiness}`,
         `Evidence quality: ${scored.evidence}`,
         `Coverage: ${(scored.coverage * 100).toFixed(0)}%`,
         `Capture URL: ${capture.finalUrl ?? baseUrl}`,
-      ].join("\n") + "\n"
+      ]
+        .filter(Boolean)
+        .join("\n") + "\n"
     );
+    if (invalidCaptureNotice) process.exitCode = 2;
     return;
   }
 
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  if (invalidCaptureNotice) process.exitCode = 2;
 };
 
 if (path.resolve(process.argv[1] || "") === SCRIPT_FILE) {

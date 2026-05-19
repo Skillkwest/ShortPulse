@@ -75,6 +75,7 @@ type MediaLibraryAllItemsGridProps = {
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   signedPosterUrlById?: Record<string, string>;
   signedVideoUrlById?: Record<string, string>;
+  surface?: "media-library-panel" | "elements-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
 };
 
@@ -718,6 +719,7 @@ export function MediaLibraryAllItemsGrid({
   visibleMediaIdsRef,
   signedPosterUrlById: signedPosterUrlOverrides = {},
   signedVideoUrlById: signedVideoUrlOverrides = {},
+  surface = "media-library-panel",
   densityConfig,
 }: MediaLibraryAllItemsGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
@@ -729,7 +731,7 @@ export function MediaLibraryAllItemsGrid({
   } = useMediaVideoBrowsePreviewUrls({
     mediaRows,
     currentUserId,
-    surface: "media-library-panel",
+    surface,
     visibleMediaIdsRef,
   });
   const signedPosterUrlById = React.useMemo(

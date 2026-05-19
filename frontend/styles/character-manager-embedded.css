@@ -53,7 +53,7 @@
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  gap: 12px;
+  gap: 8px;
   overflow: hidden;
 }
 
@@ -78,7 +78,7 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
-  padding: 0 0 10px;
+  padding: 0 0 4px;
   border: 0;
   background: transparent;
   overflow: hidden;
@@ -88,7 +88,7 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  padding: 14px 18px 18px;
+  padding: 10px 14px 12px;
   overflow: hidden;
 }
 
@@ -97,7 +97,7 @@
   flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -110,14 +110,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 12px;
-}
-
-.character-panel-editor-header-main {
-  display: flex;
-  align-items: start;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
 }
 
 .character-panel-library-title-stack {
@@ -135,12 +128,11 @@
 }
 
 .character-panel-library-header-actions,
-.character-panel-editor-header-actions,
 .character-panel-profile-status {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -149,15 +141,15 @@
   border: 1px solid rgba(201, 205, 214, 0.16);
   background: rgba(24, 28, 33, 0.94);
   color: rgba(228, 235, 243, 0.92);
-  min-width: 96px;
-  min-height: 40px;
-  padding: 0 14px;
+  min-width: 88px;
+  min-height: 36px;
+  padding: 0 12px;
   border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   transition:
@@ -232,7 +224,7 @@
 
 .character-panel-workspace .character-sheet-preset-panel {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .character-panel-workspace.is-embedded-media-library-maximized .character-sheet-preset-panel {
@@ -244,7 +236,7 @@
   grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
   grid-template-areas: "description references";
   align-items: start;
-  gap: 18px;
+  gap: 12px;
 }
 
 .character-panel-workspace .character-panel-preset-description-column,
@@ -259,40 +251,75 @@
 .character-panel-workspace
   .character-panel-preset-description-column
   .character-sheet-description-card {
-  height: 100%;
+  height: auto;
 }
 
 .character-panel-workspace .character-panel-preset-references-column {
   grid-area: references;
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .character-panel-workspace .character-reference-empty-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .character-panel-workspace .character-sheet-description-card {
   margin: 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 .character-panel-workspace .character-description-text-container {
   border: 1px solid rgba(201, 205, 214, 0.14);
   background: var(--character-panel-tab-tray-bg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  padding: 14px 16px;
+  padding: 10px 12px;
 }
 
 .character-panel-workspace .character-name-input {
   border-color: rgba(201, 205, 214, 0.08);
   background: var(--character-panel-tab-tray-bg);
+  min-height: 38px;
+  padding: 7px 10px;
 }
 
 .character-panel-workspace .character-description-input {
-  min-height: 108px;
+  min-height: 64px;
   background: transparent;
   color: rgba(233, 242, 248, 0.94);
+}
+
+.character-panel-workspace .character-profile-fields {
+  gap: 8px;
+}
+
+.character-panel-workspace .character-sheet-looks-title-row,
+.character-panel-workspace .character-sheet-references-title-row {
+  margin: 0 0 2px;
+}
+
+.character-panel-workspace .character-character-sheet-card {
+  width: min(100%, 182px);
+  grid-template-rows: auto 34px;
+}
+
+.character-panel-workspace .character-character-sheet-media {
+  aspect-ratio: 4 / 4.2;
+}
+
+.character-panel-workspace .character-reference-empty-hint {
+  font-size: 10px;
+}
+
+.character-panel-workspace .character-character-sheet-drop-copy {
+  gap: 3px;
+  padding-inline: 10px;
+}
+
+.character-panel-workspace .character-character-sheet-drop-requirement {
+  margin-top: 4px;
+  font-size: 11px;
 }
 
 .character-panel-workspace .character-description-input::placeholder {
@@ -325,13 +352,7 @@
     grid-template-columns: 1fr;
   }
 
-  .character-panel-editor-header-main {
-    display: flex;
-    justify-content: flex-start;
-  }
-
   .character-panel-library-header-actions,
-  .character-panel-editor-header-actions,
   .character-panel-profile-status {
     justify-content: flex-start;
   }

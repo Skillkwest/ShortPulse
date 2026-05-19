@@ -565,75 +565,78 @@ describe("POST /api/media/list", () => {
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "minimal");
   });
 
-  it("supports count-only requests without row hydration or seeded signing", async () => {
-    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
-      {
-        id: "media-1",
-        user_id: "user-1",
-        filename: "cat-shot.png",
-        storage_path: "user-1/upload/cat-shot.png",
-        file_type: "image/png",
-        width: 1024,
-        height: 768,
-        file_size: 10,
-        source: "upload",
-        source_ref: null,
-        prompt_id: null,
-        metadata: null,
-        thumb_variant_path: null,
-        poster_variant_path: null,
-        preview_variant_path: null,
-        created_at: "2026-02-20T10:00:00.000Z",
-        updated_at: null,
-      },
-      {
-        id: "media-2",
-        user_id: "user-1",
-        filename: "dog-shot.png",
-        storage_path: "user-1/upload/dog-shot.png",
-        file_type: "image/png",
-        width: 1024,
-        height: 768,
-        file_size: 10,
-        source: "upload",
-        source_ref: null,
-        prompt_id: null,
-        metadata: null,
-        thumb_variant_path: null,
-        poster_variant_path: null,
-        preview_variant_path: null,
-        created_at: "2026-02-19T10:00:00.000Z",
-        updated_at: null,
-      },
-    ]);
+  it.each(["media-library-panel", "elements-media-panel"] as const)(
+    "supports count-only requests for %s without row hydration or seeded signing",
+    async (surface) => {
+      const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
+        {
+          id: "media-1",
+          user_id: "user-1",
+          filename: "cat-shot.png",
+          storage_path: "user-1/upload/cat-shot.png",
+          file_type: "image/png",
+          width: 1024,
+          height: 768,
+          file_size: 10,
+          source: "upload",
+          source_ref: null,
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+        {
+          id: "media-2",
+          user_id: "user-1",
+          filename: "dog-shot.png",
+          storage_path: "user-1/upload/dog-shot.png",
+          file_type: "image/png",
+          width: 1024,
+          height: 768,
+          file_size: 10,
+          source: "upload",
+          source_ref: null,
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-19T10:00:00.000Z",
+          updated_at: null,
+        },
+      ]);
 
-    const req = {
-      method: "POST",
-      body: {
-        mediaKind: "all",
-        query: "",
-        cursor: null,
-        limit: 36,
-        surface: "media-library-panel",
-        includeLibraryTotalCount: true,
-        countOnly: true,
-      },
-    };
-    const res = createMockResponse();
+      const req = {
+        method: "POST",
+        body: {
+          mediaKind: "all",
+          query: "",
+          cursor: null,
+          limit: 36,
+          surface,
+          includeLibraryTotalCount: true,
+          countOnly: true,
+        },
+      };
+      const res = createMockResponse();
 
-    await handler(req as never, res as never);
+      await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
-    expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-count-only", "true");
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rows: [],
-        hasMore: false,
-        libraryTotalCount: 2,
-      })
-    );
-  });
+      expect(createSignedUrlsMock).not.toHaveBeenCalled();
+      expect(createSignedUrlMock).not.toHaveBeenCalled();
+      expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-count-only", "true");
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rows: [],
+          hasMore: false,
+          libraryTotalCount: 2,
+        })
+      );
+    }
+  );
 
   it("returns expanded rows with metadata when requested explicitly", async () => {
     createSupabaseAdminMock([

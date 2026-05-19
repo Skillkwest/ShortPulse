@@ -54,6 +54,7 @@ type MediaLibraryMediaGridProps = {
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
+  surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
 };
 
@@ -80,6 +81,7 @@ export function MediaLibraryMediaGrid({
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
+  surface = "media-library-modal",
   densityConfig,
 }: MediaLibraryMediaGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
@@ -126,7 +128,7 @@ export function MediaLibraryMediaGrid({
     useMediaGridVideoBudgetController({
       items: videoBudgetItems,
       enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
-      surface: "media-library-modal",
+      surface,
       isVideoFile: isVideoFileType,
       scrollContainerRef,
       detachDelayMs: 850,

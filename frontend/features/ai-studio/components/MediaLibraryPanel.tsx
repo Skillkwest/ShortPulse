@@ -123,6 +123,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   resolveInternalDropItem,
 }: MediaLibraryPanelProps) {
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
+  const panelListSurface = "media-library-panel" as const;
   const {
     folders,
     visibleFolders,
@@ -221,6 +222,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     shouldShowPrompts,
     showFolderCanvas,
     panelBodyRef,
+    listSurface: panelListSurface,
   });
   const {
     isStorageQuotaBlocked,
@@ -306,7 +308,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     firstMediaPaintEventName: "media.panel.first_media_paint",
     previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
     signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
-    surface: panelSurfaceConfig.listSurface,
+    surface: panelListSurface,
     visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
     visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
     applySignedUrlsToSurface: applySignedUrlsToMediaRows,
@@ -829,6 +831,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={visibleMediaIdsRef}
+        surface={panelListSurface}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),
@@ -851,6 +854,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
+      panelListSurface,
       visibleMediaIdsRef,
     ]
   );
@@ -910,6 +914,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={visibleMediaIdsRef}
+        surface={panelListSurface}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
       />
     ),
@@ -933,6 +938,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       panelBodyRef,
+      panelListSurface,
       refreshSignedUrl,
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,

@@ -24,6 +24,7 @@ type ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow extends SigningCandidateRow
   surface?:
     | "media-library-modal"
     | "media-library-panel"
+    | "elements-media-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"
@@ -39,13 +40,18 @@ type HydrateMediaPreviewViaStorageDownloadArgs<TRow extends SigningCandidateRow>
   surface?:
     | "media-library-modal"
     | "media-library-panel"
+    | "elements-media-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"
     | "detail-modal";
 };
 
-const LOCAL_SIGN_FIRST_SURFACES = new Set(["media-library-modal", "media-library-panel"]);
+const LOCAL_SIGN_FIRST_SURFACES = new Set([
+  "media-library-modal",
+  "media-library-panel",
+  "elements-media-panel",
+]);
 const MAX_LOCAL_SIGN_CANDIDATES_PER_ROW = 2;
 
 export const signMediaStoragePath = async (

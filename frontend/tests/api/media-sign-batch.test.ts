@@ -145,81 +145,87 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("keeps panel image signing untransformed when dual transform flags are off", async () => {
-    const path = "user-1/uploads/images/panel-image.jpg";
-    const createSignedUrlsMock = vi.fn(async () => ({
-      data: [{ path, signedUrl: "https://example.test/panel-signed" }],
-      error: null,
-    }));
+  it.each(["media-library-panel", "elements-media-panel"] as const)(
+    "keeps %s image signing untransformed when dual transform flags are off",
+    async (surface) => {
+      const path = "user-1/uploads/images/panel-image.jpg";
+      const createSignedUrlsMock = vi.fn(async () => ({
+        data: [{ path, signedUrl: "https://example.test/panel-signed" }],
+        error: null,
+      }));
 
-    getSupabaseAdminMock.mockReturnValue({
-      storage: {
-        from: vi.fn(() => ({
-          createSignedUrls: createSignedUrlsMock,
-          createSignedUrl: vi.fn(),
-        })),
-      },
-    });
+      getSupabaseAdminMock.mockReturnValue({
+        storage: {
+          from: vi.fn(() => ({
+            createSignedUrls: createSignedUrlsMock,
+            createSignedUrl: vi.fn(),
+          })),
+        },
+      });
 
-    const req = {
-      method: "POST",
-      body: {
-        bucket: "media_library",
-        paths: [path],
-        surface: "media-library-panel",
-      },
-    };
-    const res = createMockResponse();
+      const req = {
+        method: "POST",
+        body: {
+          bucket: "media_library",
+          paths: [path],
+          surface,
+        },
+      };
+      const res = createMockResponse();
 
-    await handler(req as never, res as never);
+      await handler(req as never, res as never);
 
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "x-shortpulse-media-sign-preview-profile",
-      "media-library-panel-image-card"
-    );
-    expect(createSignedUrlsMock).toHaveBeenCalledWith([path], 3600);
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
+      expect(res.setHeader).toHaveBeenCalledWith(
+        "x-shortpulse-media-sign-preview-profile",
+        "media-library-panel-image-card"
+      );
+      expect(createSignedUrlsMock).toHaveBeenCalledWith([path], 3600);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+  );
 
-  it("applies panel image transforms when both transform flags are enabled", async () => {
-    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
-    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+  it.each(["media-library-panel", "elements-media-panel"] as const)(
+    "applies %s image transforms when both transform flags are enabled",
+    async (surface) => {
+      vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+      vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
-    const path = "user-1/uploads/images/panel-image.jpg";
-    const createSignedUrlMock = vi.fn(async () => ({
-      data: { signedUrl: "https://example.test/panel-signed" },
-      error: null,
-    }));
+      const path = "user-1/uploads/images/panel-image.jpg";
+      const createSignedUrlMock = vi.fn(async () => ({
+        data: { signedUrl: "https://example.test/panel-signed" },
+        error: null,
+      }));
 
-    getSupabaseAdminMock.mockReturnValue({
-      storage: {
-        from: vi.fn(() => ({
-          createSignedUrl: createSignedUrlMock,
-        })),
-      },
-    });
+      getSupabaseAdminMock.mockReturnValue({
+        storage: {
+          from: vi.fn(() => ({
+            createSignedUrl: createSignedUrlMock,
+          })),
+        },
+      });
 
-    const req = {
-      method: "POST",
-      body: {
-        bucket: "media_library",
-        paths: [path],
-        surface: "media-library-panel",
-      },
-    };
-    const res = createMockResponse();
+      const req = {
+        method: "POST",
+        body: {
+          bucket: "media_library",
+          paths: [path],
+          surface,
+        },
+      };
+      const res = createMockResponse();
 
-    await handler(req as never, res as never);
+      await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
-      transform: {
-        width: 256,
-        quality: 46,
-        resize: "contain",
-      },
-    });
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
+      expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
+        transform: {
+          width: 256,
+          quality: 46,
+          resize: "contain",
+        },
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+  );
 
   it("batches untransformed paths and still signs transformed image paths individually", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");

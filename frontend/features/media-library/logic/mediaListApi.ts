@@ -5,7 +5,10 @@ import { normalizeMediaSearchTerm } from "./mediaQueryModel";
 export type MediaListTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
 export type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
-export type MediaListSurface = "media-library-modal" | "media-library-panel";
+export type MediaListSurface =
+  | "media-library-modal"
+  | "media-library-panel"
+  | "elements-media-panel";
 
 export type MediaListCursor = {
   createdAt: string;
@@ -46,6 +49,7 @@ export type FetchMediaListPageResult<TRow> = {
 const MAX_LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
   "media-library-panel": 36,
+  "elements-media-panel": 36,
 };
 
 const toSafeCursor = (value: unknown): MediaListCursor | null => {

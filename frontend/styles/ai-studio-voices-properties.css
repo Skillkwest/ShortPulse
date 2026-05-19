@@ -1158,7 +1158,7 @@
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
-  width: min(388px, 100%);
+  width: min(424px, 100%);
 }
 
 @media (max-width: 900px) {

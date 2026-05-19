@@ -3,6 +3,7 @@ import {
   fetchMediaListPage,
   type MediaListCursor,
   type MediaListMediaKind,
+  type MediaListSurface,
 } from "../../media-library/logic/mediaListApi";
 import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
@@ -23,6 +24,7 @@ type UseMediaLibraryPanelDataControllerParams = {
   shouldShowPrompts: boolean;
   showFolderCanvas: boolean;
   panelBodyRef: React.RefObject<HTMLDivElement | null>;
+  listSurface?: MediaListSurface;
 };
 
 type UseMediaLibraryPanelDataControllerResult = {
@@ -86,6 +88,7 @@ export const useMediaLibraryPanelDataController = ({
   shouldShowPrompts,
   showFolderCanvas,
   panelBodyRef,
+  listSurface = "media-library-panel",
 }: UseMediaLibraryPanelDataControllerParams): UseMediaLibraryPanelDataControllerResult => {
   const {
     error: runtimeError,
@@ -189,7 +192,7 @@ export const useMediaLibraryPanelDataController = ({
           query: normalizedSearch,
           cursor: reset ? null : mediaCursorRef.current,
           limit: MEDIA_PAGE_SIZE,
-          surface: "media-library-panel",
+          surface: listSurface,
           profile: resolveMediaListProfile(itemType),
           folderId: requestFolderId,
           projectId,
@@ -239,6 +242,7 @@ export const useMediaLibraryPanelDataController = ({
     [
       activeRowsScopeKey,
       itemType,
+      listSurface,
       normalizedSearch,
       projectId,
       requestFolderId,

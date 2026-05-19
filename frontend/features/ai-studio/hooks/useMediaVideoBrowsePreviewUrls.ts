@@ -7,11 +7,12 @@ import { isVideoUrl } from "../logic/stateParsers";
 type UseMediaVideoBrowsePreviewUrlsArgs = {
   mediaRows: MediaFileRow[];
   currentUserId?: string | null;
-  surface?: "media-library-panel" | "media-library-modal";
+  surface?: "media-library-panel" | "elements-media-panel" | "media-library-modal";
   visibleMediaIdsRef?: React.MutableRefObject<Set<string>>;
 };
 
 type SignedUrlMap = Record<string, string>;
+const VISIBLE_SCOPED_VIDEO_SURFACES = new Set(["media-library-panel", "elements-media-panel"]);
 
 const areSignedUrlMapsEqual = (left: SignedUrlMap, right: SignedUrlMap): boolean => {
   const leftKeys = Object.keys(left);
@@ -33,7 +34,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
 
   React.useEffect(() => {
     const scopedMediaRows =
-      surface === "media-library-panel" && visibleMediaIdsRef
+      VISIBLE_SCOPED_VIDEO_SURFACES.has(surface) && visibleMediaIdsRef
         ? mediaRows.filter((row) => visibleMediaIdsRef.current.has(row.id))
         : mediaRows;
     const directVideoUrlById: SignedUrlMap = {};
@@ -57,7 +58,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
       hoverVideoPathByRowId.set(rowId, storagePath);
       storagePaths.add(storagePath);
     }
-    for (const [rowId, candidates] of posterPathByRowId.entries()) {
+    for (const [, candidates] of posterPathByRowId.entries()) {
       for (const candidate of candidates) {
         if (!collectedStoragePaths.has(candidate)) continue;
         storagePaths.add(candidate);

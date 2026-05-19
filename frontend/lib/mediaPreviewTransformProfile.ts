@@ -47,7 +47,9 @@ export const resolvePreviewProfileForSurface = (
   surface?: string | null
 ): MediaPreviewTransformProfile => {
   const normalized = trimLower(surface);
-  if (normalized === "media-library-panel") return "media-library-panel-image-card";
+  if (normalized === "media-library-panel" || normalized === "elements-media-panel") {
+    return "media-library-panel-image-card";
+  }
   if (normalized === "media-library-modal") return "media-library-modal-image-card";
   return "none";
 };

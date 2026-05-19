@@ -13,6 +13,7 @@ type ResolvePreviewUrlsByMediaIdsArgs = {
   surface?:
     | "media-library-modal"
     | "media-library-panel"
+    | "elements-media-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"

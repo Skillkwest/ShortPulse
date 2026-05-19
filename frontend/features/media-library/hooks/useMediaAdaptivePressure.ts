@@ -15,7 +15,11 @@ import {
   type AdaptivePressureRecoveryCandidate,
 } from "../../../lib/adaptive-media";
 
-type MediaAdaptiveSurface = "media-library-modal" | "media-library-panel" | "character-grid";
+type MediaAdaptiveSurface =
+  | "media-library-modal"
+  | "media-library-panel"
+  | "elements-media-panel"
+  | "character-grid";
 
 type MediaPreviewPressureLevel = 0 | 1;
 

@@ -122,7 +122,7 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.surface).toBe("ai-studio-panel");
     expect(packet.sampleCount).toBe(5);
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1668);
-    expect(packet.metrics.openToFirstMediaP95Ms).toBe(1668);
+    expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
     expect(packet.metrics.loadingStateVisibleMsP95).toBe(1162);
     expect(packet.metrics.stableContentSettleMsP95).toBe(1872);
     expect(packet.metrics.stateFlipCountPerOpen).toBe(2);
@@ -138,6 +138,15 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.visualRegressionCount).toBeNull();
     expect(packet.metrics.emptyStateMismatchCount).toBeNull();
     expect(packet.analysis.requestedRootTab).toBe("all");
+    expect(packet.analysis.captureValidity).toEqual({
+      valid: true,
+      reasons: [],
+      visibleMediaSuccessRatio: 1,
+      minimumRunsForDerivedP95: 5,
+      minimumVisibleMediaSuccessRatio: 0.8,
+      firstVisibleMediaRunCount: 5,
+      visibleMediaCardCount: 30,
+    });
     expect(packet.analysis.signStatsPhaseUsed).toBe("open");
     expect(packet.analysis.openPhaseListSummary).toEqual({
       samples: 5,
@@ -204,6 +213,69 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.metrics.signBatchP95Ms).toBe(280);
     expect(packet.metrics.canonicalPreviewCoverageRatio).toBe(1);
     expect(packet.metrics.missingPreviewRatio).toBe(0.1667);
+  });
+
+  it("marks media captures invalid when repeated runs never reach visible media cards", () => {
+    const packet = buildPacketFromPanelCapture(
+      {
+        captures: Array.from({ length: 5 }, () =>
+          createCaptureSample({
+            firstVisibleKind: "empty",
+            firstVisibleMs: 900,
+            openPhaseVisiblePreviewSummary: {
+              visibleMediaCardCount: 0,
+              visiblePreviewReadyCount: 0,
+              visibleMissingPreviewCount: 0,
+            },
+          })
+        ),
+      },
+      {
+        environment: "production",
+      }
+    );
+
+    expect(packet.analysis.captureValidity).toEqual({
+      valid: false,
+      reasons: ["no_visible_media_observed"],
+      visibleMediaSuccessRatio: 0,
+      minimumRunsForDerivedP95: 5,
+      minimumVisibleMediaSuccessRatio: 0.8,
+      firstVisibleMediaRunCount: 0,
+      visibleMediaCardCount: 0,
+    });
+    expect(packet.notes).toContain("INVALID_CAPTURE: no_visible_media_observed.");
+  });
+
+  it("marks repeated runs invalid when visible media succeeds too inconsistently", () => {
+    const packet = buildPacketFromPanelCapture(
+      {
+        captures: [
+          createCaptureSample(),
+          createCaptureSample(),
+          createCaptureSample(),
+          createCaptureSample({ firstVisibleKind: "empty", openPhaseVisiblePreviewSummary: null }),
+          createCaptureSample({
+            firstVisibleKind: "timeout",
+            openPhaseVisiblePreviewSummary: null,
+          }),
+        ],
+      },
+      {
+        environment: "production",
+      }
+    );
+
+    expect(packet.analysis.captureValidity).toEqual({
+      valid: false,
+      reasons: ["visible_media_success_ratio_below_minimum"],
+      visibleMediaSuccessRatio: 0.6,
+      minimumRunsForDerivedP95: 5,
+      minimumVisibleMediaSuccessRatio: 0.8,
+      firstVisibleMediaRunCount: 3,
+      visibleMediaCardCount: 18,
+    });
+    expect(packet.notes).toContain("INVALID_CAPTURE: visible_media_success_ratio_below_minimum.");
   });
 
   it("prefers open-phase sign stats over post-tab churn when deriving coverage", () => {
@@ -343,12 +415,12 @@ describe("media_panel_kpi_capture", () => {
     ]);
   });
 
-  it("builds an Elements packet using the same shared telemetry surface", () => {
+  it("builds an Elements packet using its own retained telemetry surface", () => {
     const packet = buildPacketFromPanelCapture(
       {
         captures: Array.from({ length: 5 }, (_, index) =>
           createCaptureSample({
-            telemetrySurface: "media-library-panel",
+            telemetrySurface: "elements-media-panel",
             firstVisibleMs: 1110 + index * 20,
             loadingStateVisibleMs: 700 + index * 10,
             stateFlipCount: 1,
@@ -358,7 +430,7 @@ describe("media_panel_kpi_capture", () => {
               available: true,
               signStats: [
                 {
-                  surface: "media-library-panel",
+                  surface: "elements-media-panel",
                   samples: 2,
                   p95_duration_ms: 190,
                   total_signed: 10,

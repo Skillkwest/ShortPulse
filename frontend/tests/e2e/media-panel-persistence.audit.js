@@ -76,6 +76,7 @@ function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 

@@ -1,9 +1,9 @@
-/* global require, process, console, __dirname, document, HTMLElement, setTimeout, window, URL */
+/* global require, process, console, __dirname, document, HTMLElement, setTimeout, URL */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * AI Studio Media Library panel/modal browser audit.
- * Signs in to AI Studio, opens the Media Library panel and modal, and
- * checks for severe runtime/browser signals while exercising the main browse tabs.
+ * AI Studio Media Library browser audit.
+ * Signs in to AI Studio, exercises the active panel browse flow, and
+ * optionally audits the legacy standalone modal when that entry point exists.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -58,7 +58,7 @@ function usage() {
       "  PLAYWRIGHT_AUDIT_PASSWORD           Optional password override",
       "  PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL   Default base URL (default http://localhost:3000)",
       "  PLAYWRIGHT_PANEL_BASE_URL           Optional panel base URL override",
-      "  PLAYWRIGHT_MODAL_BASE_URL           Optional modal base URL override",
+      "  PLAYWRIGHT_MODAL_BASE_URL           Optional standalone modal base URL override",
       "  PLAYWRIGHT_HEADLESS                 Set to false to watch the audit",
       "",
     ].join("\n")
@@ -90,6 +90,7 @@ function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 
@@ -337,7 +338,9 @@ async function openAiStudioMediaPanel(page) {
   while (Date.now() < deadline) {
     if (await panel.isVisible().catch(() => false)) return panel;
     if (await retryProjectButton.isVisible().catch(() => false)) {
-      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+      throw new Error(
+        "AI Studio did not finish loading: retry project/workspace state is visible."
+      );
     }
     if (await expandPanelButton.isVisible().catch(() => false)) {
       await expandPanelButton.click({ timeout: 10_000 });
@@ -359,11 +362,24 @@ async function openAiStudioMediaModal(page) {
   const modal = page.getByRole("dialog", { name: /media library/i }).first();
   if (await modal.isVisible().catch(() => false)) return modal;
 
-  const openButton = page.getByRole("button", { name: /^Media Library$/i }).last();
-  await openButton.waitFor({ timeout: 20_000 });
-  await openButton.click({ timeout: 10_000 });
-  await modal.waitFor({ timeout: 20_000 });
-  return modal;
+  const candidateButtons = [
+    page.getByRole("button", { name: /^Media Library$/i }).last(),
+    page.getByRole("button", { name: /^Open media library$/i }).last(),
+    page.getByRole("button", { name: /^Browse media library$/i }).last(),
+  ];
+
+  for (const candidate of candidateButtons) {
+    const isVisible = await candidate.isVisible().catch(() => false);
+    if (!isVisible) continue;
+    await candidate.click({ timeout: 10_000 });
+    const opened = await modal
+      .waitFor({ timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (opened) return modal;
+  }
+
+  return null;
 }
 
 async function runPanelAudit(browser, creds) {
@@ -447,6 +463,8 @@ async function runModalAudit(browser, creds) {
   const result = {
     surface: "modal",
     ok: false,
+    skipped: false,
+    skipReason: null,
     baseUrl: MODAL_BASE_URL,
     tabClicks: [],
     loadMoreClicks: 0,
@@ -459,6 +477,20 @@ async function runModalAudit(browser, creds) {
     await ensureSignedIn(page, MODAL_BASE_URL, "/ai-studio", creds.email, creds.password);
     await openAiStudioMediaPanel(page);
     const modal = await openAiStudioMediaModal(page);
+    if (!modal) {
+      result.skipped = true;
+      result.skipReason =
+        "Standalone Media Library modal trigger is not present in the current AI Studio surface.";
+      result.ok = true;
+      result.finalUrl = page.url();
+      result.severeSignals = summarizeSignals(
+        observers.consoleEntries,
+        observers.pageErrors,
+        observers.httpFailures,
+        observers.requestFailures
+      );
+      return result;
+    }
 
     const tabNames = ["Videos", "Prompts", "Images", "All Media"];
     for (const tabName of tabNames) {

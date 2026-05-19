@@ -178,64 +178,70 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
-  it("does not apply transforms by default when surface is media-library-panel", async () => {
-    const row = createRow({
-      id: "media-panel-1",
-      storage_path: "user-1/uploads/images/panel-image.jpg",
-      file_type: "image/jpeg",
-    });
-    const { createSignedUrlMock } = setupSupabaseAdmin({
-      rows: [row],
-      existingObjectNames: [row.storage_path as string],
-    });
+  it.each(["media-library-panel", "elements-media-panel"] as const)(
+    "does not apply transforms by default when surface is %s",
+    async (surface) => {
+      const row = createRow({
+        id: "media-panel-1",
+        storage_path: "user-1/uploads/images/panel-image.jpg",
+        file_type: "image/jpeg",
+      });
+      const { createSignedUrlMock } = setupSupabaseAdmin({
+        rows: [row],
+        existingObjectNames: [row.storage_path as string],
+      });
 
-    const req = {
-      method: "POST",
-      body: {
-        ids: [row.id],
-        surface: "media-library-panel",
-      },
-    };
-    const res = createMockResponse();
+      const req = {
+        method: "POST",
+        body: {
+          ids: [row.id],
+          surface,
+        },
+      };
+      const res = createMockResponse();
 
-    await handler(req as never, res as never);
+      await handler(req as never, res as never);
 
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "x-shortpulse-media-resolve-preview-profile",
-      "media-library-panel-image-card"
-    );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
+      expect(res.setHeader).toHaveBeenCalledWith(
+        "x-shortpulse-media-resolve-preview-profile",
+        "media-library-panel-image-card"
+      );
+      expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+  );
 
-  it("keeps direct signing behavior even when transform flags are enabled", async () => {
-    vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
-    vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+  it.each(["media-library-panel", "elements-media-panel"] as const)(
+    "keeps direct signing behavior for %s even when transform flags are enabled",
+    async (surface) => {
+      vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
+      vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
-    const row = createRow({
-      id: "media-panel-transform-1",
-      storage_path: "user-1/uploads/images/panel-image.jpg",
-      file_type: "image/jpeg",
-    });
-    const { createSignedUrlMock } = setupSupabaseAdmin({
-      rows: [row],
-      existingObjectNames: [row.storage_path as string],
-    });
+      const row = createRow({
+        id: "media-panel-transform-1",
+        storage_path: "user-1/uploads/images/panel-image.jpg",
+        file_type: "image/jpeg",
+      });
+      const { createSignedUrlMock } = setupSupabaseAdmin({
+        rows: [row],
+        existingObjectNames: [row.storage_path as string],
+      });
 
-    const req = {
-      method: "POST",
-      body: {
-        ids: [row.id],
-        surface: "media-library-panel",
-      },
-    };
-    const res = createMockResponse();
+      const req = {
+        method: "POST",
+        body: {
+          ids: [row.id],
+          surface,
+        },
+      };
+      const res = createMockResponse();
 
-    await handler(req as never, res as never);
+      await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
+      expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+  );
 
   it("prefers durable variant paths over original storage paths when both exist", async () => {
     const row = createRow({

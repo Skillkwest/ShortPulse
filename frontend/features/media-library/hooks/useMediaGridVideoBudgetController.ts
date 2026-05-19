@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 
-type VideoBudgetSurface = "media-library-modal" | "media-library-panel";
+type VideoBudgetSurface = "media-library-modal" | "media-library-panel" | "elements-media-panel";
 
 type VideoBudgetItem = {
   id: string;

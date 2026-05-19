@@ -1,4 +1,4 @@
-/* global require, process, console, __dirname, window, document, HTMLElement, setTimeout */
+/* global require, process, console, __dirname, window, document, HTMLElement */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Elements panel layout browser audit.
@@ -53,6 +53,7 @@ function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 
@@ -183,7 +184,9 @@ async function openElementsPanel(page) {
     if (await elementsHeading.isVisible().catch(() => false)) return;
 
     if (await retryProjectButton.isVisible().catch(() => false)) {
-      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+      throw new Error(
+        "AI Studio did not finish loading: retry project/workspace state is visible."
+      );
     }
 
     if (await elementsButton.isVisible().catch(() => false)) {
@@ -244,7 +247,9 @@ async function readElementsLayoutSnapshot(page) {
     const firstRowRects =
       firstRowTop == null
         ? []
-        : rowRects.filter((rect) => Math.abs(rect.top - firstRowTop) <= 2).sort((a, b) => a.left - b.left);
+        : rowRects
+            .filter((rect) => Math.abs(rect.top - firstRowTop) <= 2)
+            .sort((a, b) => a.left - b.left);
     const firstRowMetrics =
       firstRowRects.length > 0
         ? {
@@ -288,9 +293,7 @@ function assertLayoutSnapshot(snapshot) {
     throw new Error("Description counter is no longer inside the textarea container.");
   }
   if (snapshot.chipGrid.justifyContent !== "center") {
-    throw new Error(
-      `Chip grid justify-content regressed to ${snapshot.chipGrid.justifyContent}.`
-    );
+    throw new Error(`Chip grid justify-content regressed to ${snapshot.chipGrid.justifyContent}.`);
   }
   const firstRow = snapshot.chipGrid.firstRowMetrics;
   if (
@@ -333,9 +336,7 @@ async function main() {
 
     const severeSignals = summarizeSignals(observers.consoleEntries, observers.pageErrors);
     if (!severeSignals.ok) {
-      throw new Error(
-        `Severe runtime signals detected: ${JSON.stringify(severeSignals, null, 2)}`
-      );
+      throw new Error(`Severe runtime signals detected: ${JSON.stringify(severeSignals, null, 2)}`);
     }
 
     console.log(

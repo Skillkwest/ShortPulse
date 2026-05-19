@@ -281,6 +281,47 @@ describe("media_panel_kpi_score", () => {
     expect(scored.scoreCapsApplied).toContain("sample count below 2");
   });
 
+  it("treats invalid captures as insufficient evidence even when metric values look strong", () => {
+    const scored = scorePacket({
+      packetVersion: 2,
+      environment: "production",
+      captureMode: "playwright-panel-audit+live-perf-handle",
+      sampleCount: 5,
+      surface: "ai-studio-panel",
+      analysis: {
+        captureValidity: {
+          valid: false,
+          reasons: ["no_visible_media_observed"],
+        },
+      },
+      metrics: {
+        firstMediaPaintP95Ms: 520,
+        loadingStateVisibleMsP95: 600,
+        openToFirstMediaP95Ms: null,
+        stableContentSettleMsP95: 1100,
+        signBatchP95Ms: 120,
+        resolveCallsPerOpen: 0.05,
+        fallbackCallsPerOpen: 0,
+        stateFlipCountPerOpen: 0.1,
+        extraListCallsPerOpen: 0.1,
+        signFailedRatio: 0,
+        resolveFailedRatio: 0,
+        fallbackFailedRatio: 0,
+        consoleErrorsPerOpen: 0,
+        visualRegressionCount: 0,
+        missingPreviewRatio: 0,
+        canonicalPreviewCoverageRatio: 1,
+        emptyStateMismatchCount: 0,
+      },
+    });
+
+    expect(scored.evidence).toBe("insufficient");
+    expect(scored.grade).toBe("I");
+    expect(scored.readiness).toBe("insufficient evidence");
+    expect(scored.overallScore10).toBeLessThanOrEqual(4.9);
+    expect(scored.scoreCapsApplied).toContain("invalid capture: no_visible_media_observed");
+  });
+
   it("parses template args", () => {
     const args = parseArgs(["--template", "--surface", "elements-media-panel"]);
 

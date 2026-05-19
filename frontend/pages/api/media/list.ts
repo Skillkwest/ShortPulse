@@ -28,7 +28,7 @@ import {
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../lib/server/mediaFoldersService";
 
-type MediaListSurface = "media-library-modal" | "media-library-panel";
+type MediaListSurface = "media-library-modal" | "media-library-panel" | "elements-media-panel";
 type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
 type MediaListCursor = {
@@ -89,6 +89,7 @@ const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
   "media-library-panel": 36,
+  "elements-media-panel": 36,
 };
 
 const shouldSeedInitialSignedUrls = ({ countOnly }: { countOnly: boolean }): boolean => {
@@ -125,7 +126,11 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 };
 
 const toSurface = (value: unknown): MediaListSurface | null => {
-  if (value === "media-library-modal" || value === "media-library-panel") {
+  if (
+    value === "media-library-modal" ||
+    value === "media-library-panel" ||
+    value === "elements-media-panel"
+  ) {
     return value;
   }
   return null;

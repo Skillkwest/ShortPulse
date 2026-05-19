@@ -47,12 +47,17 @@ const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const ALLOWED_SURFACE_VALUES = new Set([
   "media-library-modal",
   "media-library-panel",
+  "elements-media-panel",
   "reference-grid",
   "quick-slot",
   "character-grid",
   "detail-modal",
 ]);
-const BROWSE_SURFACE_VALUES = new Set(["media-library-modal", "media-library-panel"]);
+const BROWSE_SURFACE_VALUES = new Set([
+  "media-library-modal",
+  "media-library-panel",
+  "elements-media-panel",
+]);
 
 const resolveBrowseSurfaceSigningStoragePaths = (row: MediaLookupRow, userId: string): string[] => {
   const candidates = [

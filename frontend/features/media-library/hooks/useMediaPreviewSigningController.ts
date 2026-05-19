@@ -62,13 +62,15 @@ type UseMediaPreviewSigningControllerArgs<
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?: "media-library-modal" | "media-library-panel";
+  surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
   maxSignCandidatesPerRow?: number;
   backgroundHydrateFallbackEnabled?: boolean;
 };
+
+const VISIBLE_SCOPED_SIGN_SURFACES = new Set(["media-library-panel", "elements-media-panel"]);
 
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,
@@ -176,15 +178,10 @@ export const useMediaPreviewSigningController = <
       visibleMediaVersion,
       activeMediaCachePagesLoaded,
     ].join("|");
-    const resolveSignAttemptKey = (rowId: string) => {
-      const entry = signCandidateEntryById.get(rowId);
-      const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
-      return `${signPassAttemptScopeKey}|${candidateKey}`;
-    };
     const resolveBlockedSignAttemptKey = (rowId: string) => {
       const entry = signCandidateEntryById.get(rowId);
       const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
-      if (surface === "media-library-panel" && !visibleMediaIdsRef.current.has(rowId)) {
+      if (VISIBLE_SCOPED_SIGN_SURFACES.has(surface) && !visibleMediaIdsRef.current.has(rowId)) {
         return `panel-offscreen|${candidateKey}`;
       }
       return `${signPassAttemptScopeKey}|${candidateKey}`;
@@ -382,6 +379,7 @@ export const useMediaPreviewSigningController = <
     scheduleDeferredDrain,
     setSignPassNonce,
     signAttemptRef,
+    signBudget,
     signBudget.initialSignLimit,
     signBudget.prefetchWindow,
     signBudget.signBatchSize,

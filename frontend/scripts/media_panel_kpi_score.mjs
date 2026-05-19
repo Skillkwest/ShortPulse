@@ -504,6 +504,16 @@ const ensureSampleCountOrNull = (value) => {
   return numericValue;
 };
 
+const extractInvalidCaptureReasons = (analysis) => {
+  if (!analysis || typeof analysis !== "object") return [];
+  const captureValidity = analysis.captureValidity;
+  if (!captureValidity || typeof captureValidity !== "object") return [];
+  if (captureValidity.valid !== false) return [];
+  if (!Array.isArray(captureValidity.reasons)) return ["invalid_capture"];
+  const reasons = captureValidity.reasons.map((reason) => normalizeString(reason)).filter(Boolean);
+  return reasons.length > 0 ? reasons : ["invalid_capture"];
+};
+
 const validatePacket = (packet) => {
   if (!packet || typeof packet !== "object" || Array.isArray(packet)) {
     throw new Error("Invalid KPI packet. Expected a JSON object.");
@@ -560,9 +570,20 @@ const validatePacket = (packet) => {
   };
 };
 
-const applyScoreCaps = ({ coverage, sampleCount, scoredMetrics, rawOverallScore10 }) => {
+const applyScoreCaps = ({
+  coverage,
+  sampleCount,
+  scoredMetrics,
+  rawOverallScore10,
+  invalidCaptureReasons,
+}) => {
   let cappedScore10 = rawOverallScore10;
   const capReasons = [];
+
+  if (invalidCaptureReasons.length > 0) {
+    cappedScore10 = Math.min(cappedScore10, 4.9);
+    capReasons.push(`invalid capture: ${invalidCaptureReasons.join(", ")}`);
+  }
 
   if (coverage < 0.5) {
     cappedScore10 = Math.min(cappedScore10, 4.9);
@@ -628,6 +649,7 @@ export const scorePacket = (packet) => {
   const validated = validatePacket(packet);
   const profile = SURFACE_PROFILES[validated.surface];
   const metrics = validated.metrics;
+  const invalidCaptureReasons = extractInvalidCaptureReasons(validated.analysis);
   const scoredMetrics = METRIC_DEFS.map((metricDef) =>
     scoreMetric(metricDef, metrics[metricDef.key])
   );
@@ -639,12 +661,16 @@ export const scorePacket = (packet) => {
   const normalizedScore100 = measuredWeight > 0 ? (weightedScore / measuredWeight) * 100 : 0;
   const rawOverallScore10 = Number((normalizedScore100 / 10).toFixed(2));
   const coverage = Number((measuredWeight / TOTAL_POSSIBLE_WEIGHT).toFixed(4));
-  const evidence = evidenceLabel(coverage, validated.sampleCount);
+  const evidence =
+    invalidCaptureReasons.length > 0
+      ? "insufficient"
+      : evidenceLabel(coverage, validated.sampleCount);
   const { overallScore10, scoreCapsApplied } = applyScoreCaps({
     coverage,
     sampleCount: validated.sampleCount,
     scoredMetrics,
     rawOverallScore10,
+    invalidCaptureReasons,
   });
 
   const categories = CATEGORY_ORDER.map(([categoryKey, categoryLabel]) => {

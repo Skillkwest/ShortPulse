@@ -35,7 +35,7 @@ type MediaSignCompletionParams = {
   results: MediaSignResult[];
   signedById: Map<string, string>;
   finishSignBatch: (eventName: MediaPerfEventName, metrics: Record<string, unknown>) => void;
-  surface: "media-library-modal" | "media-library-panel";
+  surface: "media-library-modal" | "media-library-panel" | "elements-media-panel";
   tab: string;
   pageIndex: number;
   queryMode: "search" | "default";

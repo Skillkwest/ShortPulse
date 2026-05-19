@@ -955,7 +955,10 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps).toBeTruthy();
     expect(latestProps.visibleMediaIdsRef).toBeTruthy();
     expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
+    expect(latestProps.surface).toBe("elements-media-panel");
     expect(latestProps.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
+    const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
+    expect(latestSigningArgs?.surface).toBe("elements-media-panel");
   });
 
   it("passes panel density config to media-only grids", async () => {

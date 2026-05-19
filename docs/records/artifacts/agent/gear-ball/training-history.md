@@ -986,3 +986,46 @@ Next training focus:
 
 - Convert one more large production run with zero preflight fixups.
 - Keep watching whether tracked temp drift or missing browser-smoke targets recur often enough to justify another helper change.
+
+## 2026-05-18 - Production ephemeral agent-image transport run
+
+Task: publish the production AI Studio ephemeral agent-image transport lane, adaptive-media tuning, and the related AI Studio SOP/script support updates on `production`.
+
+Actions taken:
+
+- Locked one product manifest under `/tmp/gear-ball-run-2026-05-18d/product-files.txt` and one support manifest under `/tmp/gear-ball-run-2026-05-18d/support-files.txt` before the first staging step.
+- Ran `gear-ball:preflight` on the product manifest, fixed one formatter-only issue in `frontend/features/ai-studio/hooks/useAiStudioAgentComposer.ts`, then reran the product slice clean.
+- Re-ran the shared gates before push: `npm -C frontend run build`, `npm -C frontend run docs:check`, and `npm -C frontend run test` (`725` files passed, `4899` tests passed, `42` skipped).
+- Committed the product lane as `a042c7beb` and the support lane as `277cf4423`, then used an empty final leftover audit to prove the retained closeout lane was safe to publish separately.
+
+Training result:
+
+- The current three-lane structure worked: product, support, then retained closeout.
+- File-backed manifests plus preflight were sufficient to keep this run out of the late-leftover failure mode.
+- No new tool or SOP change was needed; the current process held.
+
+Self-rating:
+
+- Run quality: `9/10`
+
+What went well:
+
+- The first manifests matched the real lane boundaries.
+- Validation was fully green before push.
+- The final leftover audit stayed clean after the product and support commits.
+
+What slipped:
+
+- The product lane still needed one formatter-only cleanup before preflight passed.
+- No route-level browser smoke was run because the repo-root validation ladder already covered the changed surfaces.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `no`
+- Durable lesson added: `no`; this run reinforced existing manifest/preflight rules rather than revealing a new recurring failure mode
+
+Next training focus:
+
+- Convert another medium production run with zero preflight fixups.
+- Keep preserving the product/support/retained split even when the worktree looks small enough to compress.

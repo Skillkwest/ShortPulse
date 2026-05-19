@@ -10,6 +10,11 @@ type UseAiStudioStableTextSettersParams = {
   setPulsePromptState: Dispatch<SetStateAction<string>>;
   setEditReferenceTextState: Dispatch<SetStateAction<string>>;
   setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
+  setMusicPromptDraftState: Dispatch<SetStateAction<string>>;
+  setMusicLyricsDraftState: Dispatch<SetStateAction<string>>;
+  setSoundEffectsPromptDraftState: Dispatch<SetStateAction<string>>;
+  setVoiceDesignPromptDraftState: Dispatch<SetStateAction<string>>;
+  setVoiceScriptDraftState: Dispatch<SetStateAction<string>>;
 };
 
 /**
@@ -21,6 +26,11 @@ export const useAiStudioStableTextSetters = ({
   setPulsePromptState,
   setEditReferenceTextState,
   setVideoReferenceTextState,
+  setMusicPromptDraftState,
+  setMusicLyricsDraftState,
+  setSoundEffectsPromptDraftState,
+  setVoiceDesignPromptDraftState,
+  setVoiceScriptDraftState,
 }: UseAiStudioStableTextSettersParams) => {
   const setStandardCreatePrompt = useCallback(
     (value: string) => {
@@ -56,6 +66,36 @@ export const useAiStudioStableTextSetters = ({
     },
     [setVideoReferenceTextState]
   );
+  const setMusicPromptDraft = useCallback(
+    (value: string) => {
+      setMusicPromptDraftState((prev) => (prev === value ? prev : value));
+    },
+    [setMusicPromptDraftState]
+  );
+  const setMusicLyricsDraft = useCallback(
+    (value: string) => {
+      setMusicLyricsDraftState((prev) => (prev === value ? prev : value));
+    },
+    [setMusicLyricsDraftState]
+  );
+  const setSoundEffectsPromptDraft = useCallback(
+    (value: string) => {
+      setSoundEffectsPromptDraftState((prev) => (prev === value ? prev : value));
+    },
+    [setSoundEffectsPromptDraftState]
+  );
+  const setVoiceDesignPromptDraft = useCallback(
+    (value: string) => {
+      setVoiceDesignPromptDraftState((prev) => (prev === value ? prev : value));
+    },
+    [setVoiceDesignPromptDraftState]
+  );
+  const setVoiceScriptDraft = useCallback(
+    (value: string) => {
+      setVoiceScriptDraftState((prev) => (prev === value ? prev : value));
+    },
+    [setVoiceScriptDraftState]
+  );
 
   return {
     setSharedPrompt,
@@ -63,5 +103,10 @@ export const useAiStudioStableTextSetters = ({
     setPulseCreatePrompt,
     setEditReferenceText,
     setVideoReferenceText,
+    setMusicPromptDraft,
+    setMusicLyricsDraft,
+    setSoundEffectsPromptDraft,
+    setVoiceDesignPromptDraft,
+    setVoiceScriptDraft,
   };
 };

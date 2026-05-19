@@ -37,6 +37,16 @@ export type UseAiStudioCreationStateResult = {
   setEditReferenceTextState: Dispatch<SetStateAction<string>>;
   videoReferenceText: string;
   setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
+  musicPromptDraft: string;
+  setMusicPromptDraftState: Dispatch<SetStateAction<string>>;
+  musicLyricsDraft: string;
+  setMusicLyricsDraftState: Dispatch<SetStateAction<string>>;
+  soundEffectsPromptDraft: string;
+  setSoundEffectsPromptDraftState: Dispatch<SetStateAction<string>>;
+  voiceDesignPromptDraft: string;
+  setVoiceDesignPromptDraftState: Dispatch<SetStateAction<string>>;
+  voiceScriptDraft: string;
+  setVoiceScriptDraftState: Dispatch<SetStateAction<string>>;
   expertEditSessionState: ExpertEditSessionState | null;
   setExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
   publishExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
@@ -123,6 +133,11 @@ export const useAiStudioCreationState = ({
   const [pulsePrompt, setPulsePrompt] = useState<string>("");
   const [editReferenceText, setEditReferenceTextState] = useState<string>("");
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
+  const [musicPromptDraft, setMusicPromptDraftState] = useState<string>("");
+  const [musicLyricsDraft, setMusicLyricsDraftState] = useState<string>("");
+  const [soundEffectsPromptDraft, setSoundEffectsPromptDraftState] = useState<string>("");
+  const [voiceDesignPromptDraft, setVoiceDesignPromptDraftState] = useState<string>("");
+  const [voiceScriptDraft, setVoiceScriptDraftState] = useState<string>("");
   const [expertEditSessionState, setExpertEditSessionStateState] =
     useState<ExpertEditSessionState | null>(null);
   const expertEditSessionStateRef = useRef<ExpertEditSessionState | null>(expertEditSessionState);
@@ -267,6 +282,16 @@ export const useAiStudioCreationState = ({
     setEditReferenceTextState,
     videoReferenceText,
     setVideoReferenceTextState,
+    musicPromptDraft,
+    setMusicPromptDraftState,
+    musicLyricsDraft,
+    setMusicLyricsDraftState,
+    soundEffectsPromptDraft,
+    setSoundEffectsPromptDraftState,
+    voiceDesignPromptDraft,
+    setVoiceDesignPromptDraftState,
+    voiceScriptDraft,
+    setVoiceScriptDraftState,
     expertEditSessionState,
     setExpertEditSessionState,
     publishExpertEditSessionState,

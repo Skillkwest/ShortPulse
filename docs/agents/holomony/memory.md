@@ -55,6 +55,11 @@ For this milestone, `stable and strong` means:
 - Orphaned media data should become an explicit cleanup/remediation lane, not an endless preview-generation lane.
 - Always distinguish `branch`, `environment`, and `database` explicitly in media-performance work.
 - The user is highly sensitive to KPI theater and instrumentation drift. Holomony must keep proving that tooling changes are in service of real panel decisions and real runtime changes, not a substitute for them.
+- When the user asks a meta-validity question such as `are our measure tools still valid?`, answer in decision layers instead of one blended status summary:
+  - tool logic validity,
+  - evidence freshness,
+  - and surface coverage completeness.
+    Give the direct verdict first, then the layered explanation, then the best next step.
 - The user approves work that is concrete, causal, and product-facing:
   - real runtime or persistence changes,
   - direct validation,

@@ -80,6 +80,11 @@ For `character-panel-media-assignment`, load:
 9. Before each new change after a meaningful improvement, explicitly classify the lane as `continue`, `pivot`, `done enough for now`, or `done`.
 10. If the remaining weakness is mostly evidence depth or persistence proof rather than a clear runtime blocker, default to `done enough for now` unless the user explicitly asks to keep pushing.
 11. If a surface reuses the shared media panel for browse but owns a separate persistence/assignment contract, do not classify it as part of the panel KPI family by default.
+12. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
+
+- direct verdict first,
+- separate `tool validity`, `evidence freshness`, and `coverage completeness`,
+- and avoid blended status summaries that hide which layer is actually weak.
 
 ## Deliverable Rules
 
@@ -104,6 +109,8 @@ After substantive Holomony runs:
 - record durable wins or failed ideas in `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/experiment-ledger.md` when the run teaches a reusable lesson
 
 If the run is too small to score meaningfully, say so explicitly instead of forcing a fake score.
+
+For governance-answer self-audits, treat a directionally correct but blended answer as a real miss if it failed to separate the operational layers the user needed to make a decision.
 
 ## Stop Conditions
 

@@ -89,6 +89,10 @@ Current capture note:
 
 - `openToFirstMediaP95Ms` should stay `null` unless it was independently measured.
 - The current direct panel capture helper does **not** infer it from `firstMediaPaintP95Ms`, because treating those as two independent metrics would overstate speed evidence.
+- The direct panel capture helper marks packets as invalid evidence when repeated runs do not meet the minimum retained-run count or when a media-bearing root tab never shows visible media cards. Invalid captures keep their packet for debugging, but the CLI exits non-zero and the packet notes/analysis call out the invalid-capture reason.
+- For media-bearing root tabs, repeated-run validity also requires visible media success on at least 80% of retained runs; a mostly-empty or inconsistent repeated run set is not baseline evidence.
+- The standalone scorer also treats packets marked with invalid-capture analysis as insufficient evidence and caps their score accordingly, even if the raw metric values look strong.
+- Retained attribution is surface-specific: AI Studio uses `media-library-panel`, while Elements uses `elements-media-panel`. Both still share the same panel image-card transform profile.
 
 Interpretation:
 
@@ -251,6 +255,14 @@ Capture a live run and persist the derived packet:
 cd frontend
 npm run media:kpi:capture -- --base-url https://www.shortpulse.ai --write-packet /absolute/path/to/panel-kpi.packet.json
 ```
+
+Audit auth env loading:
+
+- The capture helper loads audit credentials from:
+  - `frontend/.env.local`
+  - `frontend/.env.playwright.local`
+  - repo-root `.env.agent.local`
+- Use `frontend/.env.playwright.local` as the dedicated local secret file for retained Playwright audit credentials.
 
 Change the repeated-run count explicitly when needed:
 

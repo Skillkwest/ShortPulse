@@ -165,6 +165,26 @@ Correction:
   - retained reports as historical support
 - do not frame retained reports as low-value just because they are not live reruns
 
+### 11. Answer-layer collapse
+
+Definition:
+
+- answering a governance or validity question with one blended summary instead of separating the operational layers the user needs to make a decision
+
+Why it matters:
+
+- the answer can be directionally correct but still not decision-grade
+- users cannot tell whether the weakness is in the tool, the freshness of proof, or the missing surface coverage
+
+Correction:
+
+- answer direct verdict first
+- separate:
+  - tool validity
+  - evidence freshness
+  - coverage completeness
+- then state the best next move from those layers
+
 ## P2: Moderate-Impact Failures
 
 - shallow doc retention

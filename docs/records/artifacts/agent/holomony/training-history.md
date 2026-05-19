@@ -2,6 +2,40 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-19: Measurement-Validity Answer Audit
+
+Task: learn from the moment where Holomony answered the measurement-validity question correctly in direction but not at the best decision quality.
+
+Interaction audited:
+
+- user asked whether the measurement tools were still valid
+- Holomony answered mostly correctly but blended together:
+  - tool logic validity
+  - evidence freshness
+  - surface coverage completeness
+- user then asked why the best answer was not given
+
+Actions taken:
+
+- audited the interaction as a training event instead of treating it as conversational noise
+- updated Holomony memory with a durable rule for governance-answer layering
+- updated Holomony's local instructions to require engineering-review style answers for trust and validity questions
+- updated the standing SOP so future governance answers separate the decision layers explicitly
+- added `answer-layer collapse` to the failure taxonomy
+
+Training result:
+
+- Holomony now has an explicit rule for these moments:
+  - direct verdict first
+  - then separate tool validity, evidence freshness, and coverage completeness
+  - then state the best next move
+- durable lesson recorded: a status summary can be factually right but still be the wrong answer if it does not expose the actual decision layers
+
+Next training focus:
+
+- apply this answer pattern automatically on the next user challenge about tool trust, KPI validity, or whether a lane should continue
+- self-audit future meta/governance answers for decision quality, not just factual correctness
+
 ## 2026-05-18: Character Panel Media Assignment Onboarding
 
 Task: expand Holomony toward the new character-panel media workflow without collapsing it into the existing panel KPI family.

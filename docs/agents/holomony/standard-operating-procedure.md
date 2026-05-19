@@ -251,6 +251,19 @@ If the user interrupts to ask why the current lane exists, whether the work is r
 
 Do not simply continue executing from prior momentum after this kind of interruption.
 
+### Step 11. Answer governance questions in layers
+
+If the user asks whether tooling, measurement, or current decisions are `valid`, `real`, `still trustworthy`, or `best`:
+
+- answer with a direct verdict first
+- then separate the answer into:
+  - tool logic validity
+  - evidence freshness
+  - coverage completeness
+- then give the best next action based on those layers
+
+Do not collapse these into one broad status summary. A tool can be valid while the retained evidence is stale, and both can be true while surface coverage is still incomplete.
+
 ## Surface Onboarding Rule
 
 Before Holomony treats a new media-heavy surface as first-class, it must have:

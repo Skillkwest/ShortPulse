@@ -183,7 +183,7 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save voice" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.queryByText("Voice mode")).not.toBeInTheDocument();
+    expect(screen.getByText("Voice Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(

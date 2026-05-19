@@ -1534,6 +1534,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <h2 className="panel-title voices-properties-library-title">Voice</h2>
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
+                    <span className="voices-properties-mode-switcher-label">Voice Mode</span>
                     <div
                       className="voices-properties-mode-tabs"
                       role="tablist"

@@ -430,6 +430,39 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
+  it("disables Pulse send affordances while Pulse-owned loading is active", () => {
+    const onAgentSend = vi.fn();
+    render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentInput="Keep going"
+        onAgentInputChange={vi.fn()}
+        onAgentSend={onAgentSend}
+        useFlowComposerLayout
+        pulseLoadingState={{
+          phase: "generating_step",
+          title: "Generating...",
+          message: "Preparing the next Pulse response.",
+        }}
+      />
+    );
+
+    const composer = screen.getByPlaceholderText("Pulse is generating the next response...");
+    const sendButton = screen.getByRole("button", { name: "Send to agent" });
+
+    expect(composer).toBeDisabled();
+    expect(sendButton).toBeDisabled();
+
+    fireEvent.click(sendButton);
+    expect(onAgentSend).not.toHaveBeenCalled();
+  });
+
   it("inserts dropped prompt text at the Standard composer caret and restores focus", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();

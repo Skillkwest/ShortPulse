@@ -46,7 +46,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
           activePulsePresetId: "multi_shot",
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
-          editReferenceText: "",
+          editReferenceText: "Make the background moodier without changing the face.",
           videoReferenceText: "",
           videoReferenceMode: "standard",
           videoDurationSeconds: 6,
@@ -136,6 +136,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     expect(result.current.snapshot?.workspace.prompt).toBe("");
     expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
     expect(result.current.snapshot?.workspace.pulsePrompt).toBe("");
+    expect(result.current.snapshot?.workspace.editReferenceText).toBe("");
     expect(result.current.snapshot?.workspace.activePulsePresetId).toBeNull();
     expect(result.current.snapshot?.workspace.pulseSessionInstanceId).toBeNull();
     expect(result.current.snapshot?.agent).toEqual({

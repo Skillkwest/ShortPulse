@@ -20,7 +20,7 @@
   min-height: 0;
   overflow: hidden;
   padding: 14px;
-  background: #94a0a108;
+  background: var(--create-composer-selector-bg, var(--color-bg));
 }
 
 .music-properties-main {

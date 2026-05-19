@@ -11,6 +11,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Media Library panel operations: `docs/sops/sop_ai_studio_media_library_operations.md` — target contract + runtime deltas for `All Media` master-folder behavior, inline tabbed prompts/images/videos display, drag/drop membership semantics, ghost-image expectations, right-click ingest actions, and folder-canvas domain behavior.
 - Agent collaboration: `docs/sops/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
+- Internal drag/drop intake: `docs/sops/sop_ai_studio_internal_drag_drop_intake.md` — canonical snapshot-first pattern for Reference Grid, Media Library, Styles, and Create composer internal drags, including degraded browser payload handling.
 - Agent safety control plane: `docs/sops/sop_ai_studio_agent_safety_control_plane.md` — profile tuning knobs, admin control routes, rollback/cooldown workflow, and SQL validation gates.
 - Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
 - Create panel + generation wiring: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md` — end-to-end wiring map for Create properties UI, model selectors, submit pipeline, and agent/control integration.

@@ -1,6 +1,6 @@
 # SOP: AI Studio Agent Collaboration
 
-Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sops/sop_ai_studio_agent_chat_ops.md`. For safety profile tuning knobs and admin control-plane operations, see `docs/sops/sop_ai_studio_agent_safety_control_plane.md`.
+Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sops/sop_ai_studio_agent_chat_ops.md`. For safety profile tuning knobs and admin control-plane operations, see `docs/sops/sop_ai_studio_agent_safety_control_plane.md`. For the canonical internal drag/drop intake pattern used by composer image attachments and related AI Studio surfaces, see `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`.
 
 ## Scope
 
@@ -31,7 +31,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Admin control-plane routes: `/api/admin/agent-safety-policy/active`, `/api/admin/agent-safety-policy/activate`, `/api/admin/agent-safety-policy/rollback`, and `/api/admin/agent-safety-policy/version` (admin bearer required, service-role RPC backed).
 - Feature flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI behavior (`undefined` or `true` = enabled, `false` = disabled). `STUDIO_AGENT_ENABLED` is a server override (`true|false`); if unset, server follows `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`, and if both are unset defaults enabled.
 - Size guardrails: body size cap 512 KB (text) / 1.5 MB (mixed/image) plus Next API parser cap (`2mb`).
-- Create composer image attachments are chat-only ephemeral inputs: local files and Reference Grid image drops are reduced to small preview/model data URLs when possible, or use an existing safe signed/public `https://` model URL. They are not uploaded or persisted just to support agent vision.
+- Create composer image attachments are chat-only ephemeral inputs: local files and Reference Grid image drops are reduced to small preview/model data URLs when possible, or use an existing safe signed/public `https://` model URL. They are not uploaded or persisted just to support agent vision. Internal drag/drop intake must follow the snapshot-first structured-hints-first pattern documented in `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`.
 
 ## Message schema
 

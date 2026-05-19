@@ -60,6 +60,7 @@ const createSnapshot = (): AiStudioSessionSnapshot =>
     workspace: {
       expertCreateMode: "pulse",
       activePulsePresetId: "preset-1",
+      editReferenceText: "Keep this only while the page session stays open.",
     } as AiStudioSessionSnapshot["workspace"],
     outputs: {} as AiStudioSessionSnapshot["outputs"],
     agent: {
@@ -230,6 +231,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
     expect(lastWriteShadowArgs?.snapshot).toEqual(createAiStudioProjectWorkspaceSnapshot(snapshot));
+    expect(lastWriteShadowArgs?.snapshot?.workspace.editReferenceText).toBe("");
     expect(buildSessionSnapshot).toHaveBeenCalledWith("session-1");
   });
 

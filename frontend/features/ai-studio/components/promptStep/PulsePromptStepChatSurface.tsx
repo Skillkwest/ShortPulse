@@ -296,7 +296,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       {hasInsideInputSendButton ? (
         <AgentSendButton
           onClick={handleAgentSendClick}
-          disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
+          disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending || isPulseLoading}
           loading={agentIsSending}
           ariaLabel="Send to agent"
           icon="arrow-up"
@@ -309,7 +309,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const chatSendButtonContent = !embedSendButtonInInput ? (
     <AgentSendButton
       onClick={handleAgentSendClick}
-      disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
+      disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending || isPulseLoading}
       loading={agentIsSending}
       ariaLabel="Send to agent"
       label="Send"

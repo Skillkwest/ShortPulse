@@ -19,6 +19,7 @@ const createComposerControlsCssPath = path.resolve(
   process.cwd(),
   "styles/ai-studio-create-composer-controls.css"
 );
+const prefabsAgentCssPath = path.resolve(process.cwd(), "styles/prefabs-agent.css");
 const createComposerTokensCssPath = path.resolve(
   process.cwd(),
   "styles/ai-studio-create-composer.tokens.css"
@@ -148,6 +149,20 @@ describe("create composer layout contract", () => {
 
     expect(css).toContain('*:not([class*="spinner"]):not([class*="loading-spinner"])');
     expect(css).toContain("animation: none !important;");
+  });
+
+  it("keeps the shared agent send button as a centered flex box with a real spinner box", () => {
+    const css = fs.readFileSync(prefabsAgentCssPath, "utf8");
+    const sendButton = extractRuleBlock(css, ".agent-send-prefab");
+    const spinner = extractRuleBlock(css, ".agent-send-spinner");
+
+    expect(sendButton).toContain("display: inline-flex;");
+    expect(sendButton).toContain("align-items: center;");
+    expect(sendButton).toContain("justify-content: center;");
+    expect(spinner).toContain("display: block;");
+    expect(spinner).toContain("flex: 0 0 16px;");
+    expect(spinner).toContain("width: 16px;");
+    expect(spinner).toContain("height: 16px;");
   });
 
   it("renders pulse guided assistant responses as transparent instructional text", () => {

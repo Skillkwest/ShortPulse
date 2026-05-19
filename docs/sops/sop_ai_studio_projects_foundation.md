@@ -16,7 +16,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 5. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
 6. The visible Media Library project title now reads from and writes to `projects.title`.
 7. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
-8. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes conversational runtime such as agent transcripts, draft agent input, unsent Create composer text, chat-mode state, Pulse workflow progress, and split agent runtime lanes.
+8. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes conversational runtime such as agent transcripts, draft agent input, unsent Create composer text, unsent Edit composer text, chat-mode state, Pulse workflow progress, and split agent runtime lanes.
 9. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state.
 10. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
 11. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
@@ -206,7 +206,7 @@ Behavior:
 
 1. When AI Studio is opened with `?projectId=<uuid>`, project routes read/write workspace snapshots through `GET|PUT /api/projects/:projectId/workspace`.
 2. The current workspace storage contract reuses the AI Studio session snapshot envelope as a temporary migration schema boundary, but project persistence sanitizes the project payload before write and ignores legacy conversational fields on restore.
-3. Unsent Standard Create composer drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
+3. Unsent Standard Create composer drafts and unsent Edit composer drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
 4. Project routes do not use the legacy remote `sid` session snapshot API as their primary durable authority.
 5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage; project reopen resets conversational runtime instead of restoring it from project workspace state.
 6. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.

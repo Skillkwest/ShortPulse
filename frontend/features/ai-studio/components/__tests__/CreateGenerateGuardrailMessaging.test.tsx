@@ -49,7 +49,7 @@ describe("Create generate guardrail messaging", () => {
         onCharacterPickerOpen={vi.fn()}
         characterSelectDisabled={false}
         isCharacterSelectionEmpty
-        selectedCharacterName="No characters available"
+        selectedCharacterName="No Characters"
         selectedCharacterProfileImageUrl={null}
         selectedCharacterInitials={null}
         isCharacterPickerOpen={false}

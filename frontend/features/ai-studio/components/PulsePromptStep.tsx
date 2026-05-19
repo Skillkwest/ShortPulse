@@ -192,11 +192,20 @@ export function PulsePromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = subtitle;
+  const isPulseLoading = pulseLoadingState != null;
   const markAgentInputFocusForRestore = React.useCallback(() => {
     shouldRestoreAgentInputFocusRef.current = true;
   }, []);
   const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending || !canSendAgentInput) return;
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      agentIsSending ||
+      isPulseLoading ||
+      !canSendAgentInput
+    ) {
+      return;
+    }
     event.preventDefault();
     markAgentInputFocusForRestore();
     onAgentSend?.();
@@ -229,7 +238,7 @@ export function PulsePromptStep({
     !hasBlockingImageAttachments &&
     (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
   const handleAgentSendClick = () => {
-    if (!canSendAgentInput) return;
+    if (!canSendAgentInput || isPulseLoading) return;
     markAgentInputFocusForRestore();
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());

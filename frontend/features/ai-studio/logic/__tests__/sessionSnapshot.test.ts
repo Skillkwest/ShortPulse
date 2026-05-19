@@ -1142,7 +1142,7 @@ describe("sessionSnapshot", () => {
       pulseSessionInstanceId: null,
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
-      editReferenceText: "",
+      editReferenceText: "Make the skyline teal with warm gold rim light.",
       videoReferenceText: "",
       videoReferenceMode: "standard",
       videoDurationSeconds: 6,
@@ -1177,6 +1177,7 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.workspace.prompt).toBe("");
     expect(projectSnapshot.workspace.standardPrompt).toBe("");
     expect(projectSnapshot.workspace.pulsePrompt).toBe("");
+    expect(projectSnapshot.workspace.editReferenceText).toBe("");
     expect(projectSnapshot.agent.input).toBe("");
   });
 

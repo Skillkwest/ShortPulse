@@ -4,6 +4,7 @@ import { CharacterPanelSplitHost } from "../CharacterPanelSplitHost";
 
 const embeddedMediaPanelSpy = vi.fn();
 const workspaceSpy = vi.fn();
+const splitHookSpy = vi.fn();
 
 vi.mock("../../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel", () => ({
   ElementsEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
@@ -20,17 +21,20 @@ vi.mock("../CharacterPanelWorkspace", () => ({
 }));
 
 vi.mock("../../../ai-studio/hooks/useReferenceGridHorizontalSplit", () => ({
-  useReferenceGridHorizontalSplit: () => ({
-    topSectionStyle: { flexBasis: "54%" },
-    bottomSectionStyle: { flexBasis: "46%" },
-    isAllRefsExpanded: false,
-    dividerProps: {
-      role: "separator",
-      "aria-orientation": "horizontal",
-      "aria-label": "Resize character workspace and media library sections",
-      tabIndex: 0,
-    },
-  }),
+  useReferenceGridHorizontalSplit: (args: Record<string, unknown>) => {
+    splitHookSpy(args);
+    return {
+      topSectionStyle: { flexBasis: "47%" },
+      bottomSectionStyle: { flexBasis: "53%" },
+      isAllRefsExpanded: false,
+      dividerProps: {
+        role: "separator",
+        "aria-orientation": "horizontal",
+        "aria-label": "Resize character workspace and media library sections",
+        tabIndex: 0,
+      },
+    };
+  },
 }));
 
 describe("CharacterPanelSplitHost", () => {
@@ -63,6 +67,13 @@ describe("CharacterPanelSplitHost", () => {
     expect(workspaceSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         isEmbeddedMediaLibraryMaximized: false,
+      })
+    );
+    expect(splitHookSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultTopRatio: 0.47,
+        minTopSectionHeightPx: 208,
+        minBottomSectionHeightPx: 248,
       })
     );
   });

@@ -11,8 +11,8 @@ const { createCharacterModeControllerState } = vi.hoisted(() => ({
     handleCharacterModeEnabledToggle: vi.fn(),
     characterSelectDisabled: false,
     isCharacterSelectionEmpty: true,
-    selectedCharacterName: "No characters available",
-    selectedCharacterDisplayName: "No characters available",
+    selectedCharacterName: "No Characters",
+    selectedCharacterDisplayName: "No Characters",
     selectedCharacterProfileImageUrl: null as string | null,
     selectedCharacterInitials: null as string | null,
   },
@@ -113,8 +113,8 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     createCharacterModeControllerState.handleCharacterModeEnabledToggle = vi.fn();
     createCharacterModeControllerState.characterSelectDisabled = false;
     createCharacterModeControllerState.isCharacterSelectionEmpty = true;
-    createCharacterModeControllerState.selectedCharacterName = "No characters available";
-    createCharacterModeControllerState.selectedCharacterDisplayName = "No characters available";
+    createCharacterModeControllerState.selectedCharacterName = "No Characters";
+    createCharacterModeControllerState.selectedCharacterDisplayName = "No Characters";
     createCharacterModeControllerState.selectedCharacterProfileImageUrl = null;
     createCharacterModeControllerState.selectedCharacterInitials = null;
   });

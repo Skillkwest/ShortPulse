@@ -175,6 +175,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+- `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 - `docs/sops/sop_ai_studio_pulse_mode.md`

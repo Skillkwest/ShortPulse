@@ -104,7 +104,7 @@ export const useCreateCharacterModeController = ({
       ? "Loading characters..."
       : hasCharacterOptions
         ? "Choose Character"
-        : "No characters available";
+        : "No Characters";
   const selectedCharacterOption = React.useMemo(
     () => characterOptions.find((option) => option.id === selectedCharacterId) ?? null,
     [characterOptions, selectedCharacterId]

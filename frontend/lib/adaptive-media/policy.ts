@@ -27,6 +27,16 @@ const resolveQualityBand = (pressureLevel: AdaptivePressureLevel): AdaptiveQuali
   return "high";
 };
 
+const resolveTunedLongEdgeBounds = (surface: AdaptiveSurface): { min: number; max: number } => {
+  if (surface === "quick-slot") {
+    return { min: 240, max: 640 };
+  }
+  if (surface === "media-library-panel-grid") {
+    return { min: 240, max: 960 };
+  }
+  return { min: 320, max: 1280 };
+};
+
 const PARITY_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
   high: 40,
   balanced: 34,
@@ -92,8 +102,7 @@ const resolveTunedTargetLongEdgePx = ({
     balanced: 1,
     compact: 0.9,
   };
-  const min = surface === "quick-slot" ? 240 : 320;
-  const max = surface === "quick-slot" ? 640 : 1280;
+  const { min, max } = resolveTunedLongEdgeBounds(surface);
   const safeCardEdge =
     Number.isFinite(cardLongEdgePx) && (cardLongEdgePx ?? 0) > 0 ? cardLongEdgePx! : 480;
   const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;

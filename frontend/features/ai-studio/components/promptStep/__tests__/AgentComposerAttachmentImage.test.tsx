@@ -2,7 +2,9 @@ import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const resolveAgentAttachmentPreviewUrlMock = vi.hoisted(() => vi.fn(async () => null));
+const resolveAgentAttachmentPreviewUrlMock = vi.hoisted(() =>
+  vi.fn<() => Promise<string | null>>(async () => null)
+);
 
 vi.mock("../../../logic/agentAttachmentImage", async () => {
   const actual = await vi.importActual<typeof import("../../../logic/agentAttachmentImage")>(

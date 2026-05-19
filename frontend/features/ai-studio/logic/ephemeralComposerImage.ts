@@ -6,6 +6,7 @@ import type { AgentAttachment } from "../../../prefabs/agent";
 import {
   AGENT_EPHEMERAL_IMAGE_MAX_BYTES,
   isAgentImageDataUrl,
+  isSafeAgentImageMediaUrl,
   measureAgentMediaStringBytes,
 } from "../../../prefabs/agent/mediaUrlPolicy";
 
@@ -170,5 +171,5 @@ export const stripEphemeralLocalImageModelPayload = (
 
 export const resolveEphemeralLocalImageModelUrl = (attachment: AgentAttachment): string | null => {
   if (!isEphemeralLocalImageAttachment(attachment)) return null;
-  return isAgentImageDataUrl(attachment.modelDataUrl) ? attachment.modelDataUrl : null;
+  return isSafeAgentImageMediaUrl(attachment.modelDataUrl) ? attachment.modelDataUrl : null;
 };

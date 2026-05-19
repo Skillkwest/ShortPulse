@@ -91,6 +91,34 @@ describe("createWorkflowDebug", () => {
     expect(diagnosis.attachments[0]?.submissionImageUrl.kind).toBe("https");
   });
 
+  it("does not require durable submission URLs for ephemeral local image attachments", () => {
+    const diagnosis = buildCreateWorkflowDiagnosis({
+      enabled: true,
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "image",
+          source: "ephemeral_local",
+          referenceId: null,
+          mediaId: null,
+          imageUrl: "data:image/jpeg;base64,preview",
+          submissionImageUrl: null,
+          previewStoragePath: null,
+          fullStoragePath: null,
+          referenceUrl: null,
+          referenceRenderUrl: null,
+          imageFallbackUrls: [],
+          deliveryStatus: "ready",
+          deliveryError: null,
+        },
+      ],
+      events: [],
+    });
+
+    expect(diagnosis.likelyFailureClass).toBe("ready_for_model_send");
+    expect(diagnosis.blockers).not.toContain("missing_durable_submission_url");
+  });
+
   it("summarizes URL values without retaining full signed URLs", () => {
     expect(summarizeCreateWorkflowUrl("blob:preview")).toEqual(
       expect.objectContaining({ kind: "blob", host: null })

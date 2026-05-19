@@ -67,6 +67,33 @@ describe("adaptive-media resolver", () => {
     expect(result.previewUrl).toContain("q=");
   });
 
+  it("uses the smaller optimizer width for tuned media-library panel grids", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.com");
+    vi.resetModules();
+    const { resolveAdaptiveMedia: resolveAdaptiveMediaWithTunedPolicy } =
+      await import("../resolver");
+
+    const result = resolveAdaptiveMediaWithTunedPolicy({
+      surface: "media-library-panel-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {
+        previewUrl: "https://cdn.example.com/image.jpg",
+      },
+      storage: {},
+      strictPreviewLadder: false,
+      adaptivePreviewQuality: true,
+      pressureLevel: 1,
+      cardLongEdgePx: 188,
+      devicePixelRatio: 1,
+    });
+
+    expect(result.decision.targetLongEdgePx).toBe(240);
+    expect(result.previewUrl).toContain("w=256");
+  });
+
   it("does not wrap fal media URLs with Next optimizer when adaptive quality is enabled", () => {
     const result = resolveAdaptiveMedia({
       surface: "reference-grid",

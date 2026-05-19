@@ -22,7 +22,7 @@ const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 const HTTP_PROTOCOL_PATTERN = /^https?:\/\//i;
 const ROOT_RELATIVE_PATTERN = /^\//;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
-const NEXT_IMAGE_ALLOWED_WIDTHS = [384, 448, 512, 576, 640, 750, 828, 1080, 1200];
+const NEXT_IMAGE_ALLOWED_WIDTHS = [256, 384, 448, 512, 576, 640, 750, 828, 1080, 1200];
 
 export const isRenderableAdaptiveUrl = (value: string | null | undefined): value is string => {
   if (typeof value !== "string") return false;
@@ -163,10 +163,7 @@ const applyAdaptivePreviewTransform = ({
       return { url: nextUrl, usedOptimizerTransform: true };
     }
 
-    parsed.searchParams.set(
-      "width",
-      String(Math.max(320, Math.min(1280, decision.targetLongEdgePx)))
-    );
+    parsed.searchParams.set("width", String(decision.targetLongEdgePx));
     parsed.searchParams.set("quality", String(decision.qualityParam));
     return {
       url: parsed.toString(),

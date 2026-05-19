@@ -91,6 +91,24 @@ const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
     },
   }) as unknown as DragEvent<HTMLDivElement>;
 
+const dropAndWaitForAttachments = async (
+  result: {
+    current: {
+      handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
+      agentAttachments: unknown[];
+    };
+  },
+  event: DragEvent<HTMLDivElement> = makeDragEvent(),
+  count = 1
+) => {
+  act(() => {
+    result.current.handleAgentAttachmentDrop(event);
+  });
+  await waitFor(() => {
+    expect(result.current.agentAttachments).toHaveLength(count);
+  });
+};
+
 describe("useAiStudioAgentComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -156,7 +174,7 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachmentError).toBeNull();
   });
 
-  it("adds an image attachment on drop and enables session when disabled", () => {
+  it("adds an ephemeral image attachment on drop and enables session when disabled", async () => {
     const ensureAgentSession = vi.fn();
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: "https://example.com/image.png",
@@ -174,19 +192,20 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
 
     expect(ensureAgentSession).toHaveBeenCalledTimes(1);
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: "https://example.com/image.png",
+      modelDataUrl: "https://example.com/image.png",
+      submissionImageUrl: null,
       referenceUrl: null,
       referenceRenderUrl: null,
       text: "Reference note",
+      deliveryStatus: "ready",
     });
   });
 
@@ -224,22 +243,24 @@ describe("useAiStudioAgentComposer", () => {
       expect(ensureAgentSession).toHaveBeenCalledTimes(1);
       expect(result.current.agentAttachments[0]).toMatchObject({
         kind: "image",
+        source: "ephemeral_local",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: null,
+        imageUrl: "blob:resolved-artifact",
+        modelDataUrl: "https://signed.example.com/generated.png",
+        submissionImageUrl: null,
         imageFallbackUrls: [],
-        previewStoragePath: "user-1/generated/preview.png",
-        fullStoragePath: "user-1/generated/full.png",
-        referenceUrl: "https://signed.example.com/generated.png",
+        referenceUrl: null,
         referenceRenderUrl: null,
         text: "Dragged prompt",
+        deliveryStatus: "ready",
       });
     });
     expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
     expect(extractInternalReferenceDragPayloadMock).toHaveBeenCalledTimes(1);
   });
 
-  it("materializes a local blob preview from durable identity when the drag payload preview is remote", async () => {
+  it("stages a remote preview with a signed model URL without durable promotion", async () => {
     const ensureAgentSession = vi.fn();
     const createObjectUrlMock = vi.fn(() => "blob:materialized-composer-preview");
     Object.defineProperty(URL, "createObjectURL", {
@@ -281,14 +302,14 @@ describe("useAiStudioAgentComposer", () => {
     await waitFor(() => {
       expect(result.current.agentAttachments[0]).toMatchObject({
         kind: "image",
+        source: "ephemeral_local",
         referenceId: "out-1",
         mediaId: "media-1",
-        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-        submissionImageUrl: "https://signed.example.com/generated.png",
+        imageUrl: "https://fragile.example.com/preview.png",
+        modelDataUrl: "https://signed.example.com/generated.png",
+        submissionImageUrl: null,
         imageFallbackUrls: [],
-        previewStoragePath: "user-1/generated/preview.png",
-        fullStoragePath: "user-1/generated/full.png",
-        referenceUrl: "https://signed.example.com/generated.png",
+        referenceUrl: null,
         referenceRenderUrl: null,
         text: "Dragged prompt",
         deliveryStatus: "ready",
@@ -296,7 +317,7 @@ describe("useAiStudioAgentComposer", () => {
       });
     });
 
-    expect(global.fetch).toHaveBeenCalledWith("https://signed.example.com/generated.png");
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
@@ -376,23 +397,24 @@ describe("useAiStudioAgentComposer", () => {
     await waitFor(() => {
       expect(result.current.agentAttachments[0]).toMatchObject({
         kind: "image",
+        source: "ephemeral_local",
         referenceId: "out-1",
         mediaId: "media-1",
         imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-        submissionImageUrl: "https://uploaded.example.com/reference-1.png",
-        imageFallbackUrls: ["blob:composer-owned-preview"],
-        previewStoragePath: "user-1/generated/preview.png",
-        fullStoragePath: "uploads/reference-1.png",
-        referenceUrl: "https://uploaded.example.com/reference-1.png",
+        modelDataUrl: "data:image/png;base64,bW9kZWw=",
+        submissionImageUrl: null,
+        imageFallbackUrls: [],
+        referenceUrl: null,
         referenceRenderUrl: null,
         text: "Dragged prompt",
         deliveryStatus: "ready",
         deliveryError: null,
       });
     });
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("dedupes repeated dropped attachments by signature", () => {
+  it("dedupes repeated dropped attachments by signature", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: "https://example.com/image.png",
       promptText: null,
@@ -409,15 +431,17 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
+    await dropAndWaitForAttachments(result);
     act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
-    expect(result.current.agentAttachments).toHaveLength(1);
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(1);
+    });
   });
 
-  it("refreshes an existing image attachment when the same reference is dragged again", () => {
+  it("refreshes an existing image attachment when the same reference is dragged again", async () => {
     extractDragDropPayloadMock
       .mockReturnValueOnce({
         imageUrl: "https://example.com/image-stale.png",
@@ -441,26 +465,26 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-      result.current.handleAgentAttachmentDrop(
-        makeDragEvent({
-          "text/reference-render-url": "https://example.com/image-fresh-preview.png",
-        })
-      );
-    });
+    await dropAndWaitForAttachments(result);
+    await dropAndWaitForAttachments(
+      result,
+      makeDragEvent({
+        "text/reference-render-url": "https://example.com/image-fresh-preview.png",
+      })
+    );
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: "https://example.com/image-fresh-preview.png",
-      submissionImageUrl: "https://example.com/image-fresh.png",
-      imageFallbackUrls: ["https://example.com/image-fresh.png"],
+      modelDataUrl: "https://example.com/image-fresh.png",
+      submissionImageUrl: null,
+      imageFallbackUrls: [],
     });
   });
 
-  it("caps image attachments to the most recent three entries", () => {
+  it("caps image attachments to the most recent three entries", async () => {
     extractDragDropPayloadMock
       .mockReturnValueOnce({
         imageUrl: "https://example.com/1.png",
@@ -501,14 +525,16 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
+    await dropAndWaitForAttachments(result);
+    await dropAndWaitForAttachments(result, makeDragEvent(), 2);
+    await dropAndWaitForAttachments(result, makeDragEvent(), 3);
     act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
-    expect(result.current.agentAttachments).toHaveLength(3);
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(3);
+    });
     expect(result.current.agentAttachments.map((attachment) => attachment.referenceId)).toEqual([
       "out-2",
       "out-3",
@@ -873,7 +899,7 @@ describe("useAiStudioAgentComposer", () => {
     );
   });
 
-  it("falls back to output storage URLs when drop payload omits imageUrl", () => {
+  it("falls back to output storage URLs when drop payload omits imageUrl", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,
       promptText: "Reference note",
@@ -895,18 +921,17 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: "https://example.com/fallback-image.png",
-      submissionImageUrl: "https://example.com/fallback-image.png",
-      fullStoragePath: "https://example.com/fallback-image.png",
+      modelDataUrl: "https://example.com/fallback-image.png",
+      submissionImageUrl: null,
       text: "Reference note",
+      deliveryStatus: "ready",
     });
   });
 
@@ -978,21 +1003,20 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       mediaId: "media-1",
       imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-      submissionImageUrl: "https://uploaded.example.com/reference-1.png",
-      previewStoragePath: "user-1/generated/preview.png",
-      fullStoragePath: "uploads/reference-1.png",
-      referenceUrl: "https://uploaded.example.com/reference-1.png",
+      modelDataUrl: "data:image/png;base64,bW9kZWw=",
+      submissionImageUrl: null,
+      referenceUrl: null,
       referenceRenderUrl: null,
       text: "Resolved prompt",
       deliveryStatus: "ready",
       deliveryError: null,
     });
-    expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).toContain(
-      "https://signed.example.com/stable-preview.png"
-    );
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).toEqual([]);
     expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).not.toContain(
       "https://cdn.example.com/weak-panel-preview.png"
     );
@@ -1104,7 +1128,7 @@ describe("useAiStudioAgentComposer", () => {
     );
   });
 
-  it("ignores raw storage keys and uses the draggable image URL for composer previews", () => {
+  it("ignores raw storage keys and uses the draggable image URL for composer previews", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: "https://signed.example.com/reference-image.png",
       promptText: "Reference note",
@@ -1126,25 +1150,24 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: "https://signed.example.com/reference-image.png",
-      submissionImageUrl: "https://signed.example.com/reference-image.png",
+      modelDataUrl: "https://signed.example.com/reference-image.png",
+      submissionImageUrl: null,
       text: "Reference note",
     });
   });
 
-  it("keeps render-safe drag previews ahead of direct reference URLs", () => {
+  it("keeps render-safe drag previews ahead of direct reference URLs", async () => {
     const optimizerUrl =
-      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+      "https://shortpulse.test/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
     const durableReferenceUrl =
-      "http://localhost:3000/storage/v1/object/sign/media_library/user-1/image.png";
+      "https://shortpulse.test/storage/v1/object/sign/media_library/user-1/image.png";
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: durableReferenceUrl,
       promptText: "Reference note",
@@ -1161,29 +1184,29 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(
-        makeDragEvent({
-          "text/reference-render-url": optimizerUrl,
-        })
-      );
-    });
+    await dropAndWaitForAttachments(
+      result,
+      makeDragEvent({
+        "text/reference-render-url": optimizerUrl,
+      })
+    );
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: optimizerUrl,
-      submissionImageUrl: durableReferenceUrl,
-      imageFallbackUrls: [durableReferenceUrl],
+      modelDataUrl: durableReferenceUrl,
+      submissionImageUrl: null,
+      imageFallbackUrls: [],
       referenceUrl: null,
-      referenceRenderUrl: optimizerUrl,
+      referenceRenderUrl: null,
       text: "Reference note",
     });
   });
 
-  it("keeps drag-provided render snapshots ahead of weaker durable fallbacks for composer previews", () => {
-    const dataRenderUrl = "data:image/jpeg;base64,generated-render";
+  it("keeps drag-provided render snapshots ahead of weaker durable fallbacks for composer previews", async () => {
+    const dataRenderUrl = "data:image/jpeg;base64,Z2VuZXJhdGVkLXJlbmRlcg==";
     const signedReferenceUrl = "https://signed.example.com/reference-image.png";
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: dataRenderUrl,
@@ -1201,29 +1224,29 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(
-        makeDragEvent({
-          "text/reference-render-url": dataRenderUrl,
-          "text/reference-url": signedReferenceUrl,
-        })
-      );
-    });
+    await dropAndWaitForAttachments(
+      result,
+      makeDragEvent({
+        "text/reference-render-url": dataRenderUrl,
+        "text/reference-url": signedReferenceUrl,
+      })
+    );
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: dataRenderUrl,
-      imageFallbackUrls: [signedReferenceUrl],
-      referenceUrl: signedReferenceUrl,
-      referenceRenderUrl: dataRenderUrl,
+      modelDataUrl: signedReferenceUrl,
+      imageFallbackUrls: [],
+      referenceUrl: null,
+      referenceRenderUrl: null,
       text: "Reference note",
     });
   });
 
-  it("keeps drag-provided snapshots ahead of output preview fallbacks", () => {
-    const dataRenderUrl = "data:image/jpeg;base64,generated-render";
+  it("keeps drag-provided snapshots ahead of output preview fallbacks", async () => {
+    const dataRenderUrl = "data:image/jpeg;base64,Z2VuZXJhdGVkLXJlbmRlcg==";
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: dataRenderUrl,
       promptText: "Reference note",
@@ -1245,30 +1268,26 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(
-        makeDragEvent({
-          "text/reference-render-url": dataRenderUrl,
-        })
-      );
-    });
+    await dropAndWaitForAttachments(
+      result,
+      makeDragEvent({
+        "text/reference-render-url": dataRenderUrl,
+      })
+    );
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: dataRenderUrl,
-      imageFallbackUrls: [
-        "https://cdn.example.com/panel-preview.png",
-        "https://cdn.example.com/stale-full.png",
-      ],
-      fullStoragePath: "https://cdn.example.com/stale-full.png",
-      referenceRenderUrl: dataRenderUrl,
+      modelDataUrl: "https://cdn.example.com/stale-full.png",
+      imageFallbackUrls: [],
+      referenceRenderUrl: null,
       text: "Reference note",
     });
   });
 
-  it("keeps extracted drag image URLs ahead of weaker page-resolved output preview fallbacks", () => {
+  it("keeps extracted drag image URLs ahead of weaker page-resolved output preview fallbacks", async () => {
     const durableReferenceUrl = "https://signed.example.com/reference-image.png";
     const resolvedPanelPreviewUrl = "https://cdn.example.com/panel-preview.png";
     extractDragDropPayloadMock.mockReturnValue({
@@ -1287,23 +1306,22 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
 
-    expect(result.current.agentAttachments).toHaveLength(1);
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
+      source: "ephemeral_local",
       referenceId: "out-1",
       imageUrl: durableReferenceUrl,
-      imageFallbackUrls: [resolvedPanelPreviewUrl],
+      modelDataUrl: durableReferenceUrl,
+      imageFallbackUrls: [],
       text: "Reference note",
     });
   });
 
-  it("prefers extracted drag image URLs before output preview fallbacks", () => {
+  it("prefers extracted drag image URLs before output preview fallbacks", async () => {
     const renderedDragUrl =
-      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+      "https://shortpulse.test/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: renderedDragUrl,
       promptText: "Reference note",
@@ -1325,16 +1343,16 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
 
     expect(result.current.agentAttachments).toEqual([
       expect.objectContaining({
         kind: "image",
+        source: "ephemeral_local",
         referenceId: "out-1",
         imageUrl: renderedDragUrl,
-        fullStoragePath: "user-1/media-library/raw-full.png",
+        modelDataUrl: renderedDragUrl,
+        submissionImageUrl: null,
       }),
     ]);
   });
@@ -1427,7 +1445,7 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachmentError).toBeNull();
   });
 
-  it("preserves attachments when composer reset requests preserveAttachments", () => {
+  it("preserves attachments when composer reset requests preserveAttachments", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: "https://example.com/image.png",
       promptText: null,
@@ -1443,9 +1461,7 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    act(() => {
-      result.current.handleAgentAttachmentDrop(makeDragEvent());
-    });
+    await dropAndWaitForAttachments(result);
     act(() => {
       result.current.resetAgentComposer({ preserveInput: true, preserveAttachments: true });
     });

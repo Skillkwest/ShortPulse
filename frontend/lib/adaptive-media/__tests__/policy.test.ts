@@ -55,6 +55,37 @@ describe("adaptive-media policy", () => {
     expect(decision.localTranscodeQuality).toBeCloseTo(0.72, 4);
   });
 
+  it("allows media-library panel grids to request smaller tuned previews", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY", "true");
+    const { resolveAdaptivePolicyDecision } = await importPolicy();
+
+    const panelDecision = resolveAdaptivePolicyDecision({
+      surface: "media-library-panel-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {},
+      storage: {},
+      pressureLevel: 1,
+      cardLongEdgePx: 188,
+      devicePixelRatio: 1,
+      adaptivePreviewQuality: true,
+    });
+    const modalDecision = resolveAdaptivePolicyDecision({
+      surface: "media-library-modal-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {},
+      storage: {},
+      pressureLevel: 1,
+      cardLongEdgePx: 188,
+      devicePixelRatio: 1,
+      adaptivePreviewQuality: true,
+    });
+
+    expect(panelDecision.targetLongEdgePx).toBe(240);
+    expect(modalDecision.targetLongEdgePx).toBe(320);
+  });
+
   it("disables adaptation for detail surfaces", async () => {
     vi.stubEnv("NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY", "true");
     const { resolveAdaptivePolicyDecision } = await importPolicy();

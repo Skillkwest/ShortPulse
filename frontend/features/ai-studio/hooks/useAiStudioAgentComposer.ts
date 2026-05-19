@@ -12,11 +12,11 @@ import {
   EPHEMERAL_IMAGE_UNREADABLE_MESSAGE,
   isEphemeralLocalImageAttachment,
 } from "../logic/ephemeralComposerImage";
+import { isSafeAgentImageMediaUrl } from "../../../prefabs/agent/mediaUrlPolicy";
 import {
   recordCreateWorkflowEvent,
   setCreateWorkflowAttachmentSnapshot,
   summarizeCreateWorkflowAttachment,
-  summarizeCreateWorkflowUrl,
 } from "../logic/createWorkflowDebug";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
@@ -32,8 +32,6 @@ import {
   normalizeReferenceTransferUrlCandidate,
   resolveReferenceTransferUrl,
 } from "../utils/dragDrop";
-import { uploadImageAssetToStorage } from "../utils/imageUpload";
-import type { PrepareImageStageEvent } from "../utils/imageUpload";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
@@ -114,142 +112,122 @@ const buildResolvedInternalImageUrls = (candidates: Array<string | null | undefi
     referenceUrl: null,
   });
 
-const canCreateObjectUrl = () =>
-  typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
+const isLocalInlineImageUrl = (value: string | null | undefined) =>
+  Boolean(value && (value.startsWith("blob:") || value.startsWith("data:image/")));
 
-const COMPOSER_PREVIEW_MAX_WIDTH_PX = 184;
-const COMPOSER_PREVIEW_MAX_HEIGHT_PX = 230;
-const COMPOSER_PREVIEW_JPEG_QUALITY = 0.72;
-
-const downscaleBlobToComposerPreviewUrl = async (
-  blob: Blob
-): Promise<{ url: string; owned: boolean } | null> => {
-  if (!(blob instanceof Blob) || blob.size <= 0 || !canCreateObjectUrl()) {
-    return null;
-  }
-
-  const directObjectUrl = URL.createObjectURL(blob);
-  if (
-    typeof window === "undefined" ||
-    typeof document === "undefined" ||
-    typeof Image === "undefined"
-  ) {
-    return { url: directObjectUrl, owned: true };
-  }
-
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context || typeof canvas.toBlob !== "function") {
-    return { url: directObjectUrl, owned: true };
-  }
-
+const readLocalInlineImageBlob = async (url: string): Promise<Blob | null> => {
+  if (!isLocalInlineImageUrl(url)) return null;
   try {
-    const bitmapUrl = directObjectUrl;
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const nextImage = new Image();
-      nextImage.onload = () => resolve(nextImage);
-      nextImage.onerror = () => reject(new Error("Unable to decode preview image."));
-      nextImage.src = bitmapUrl;
-    });
-
-    const sourceWidth = Math.max(
-      1,
-      image.naturalWidth || image.width || COMPOSER_PREVIEW_MAX_WIDTH_PX
-    );
-    const sourceHeight = Math.max(
-      1,
-      image.naturalHeight || image.height || COMPOSER_PREVIEW_MAX_HEIGHT_PX
-    );
-    const scale = Math.min(
-      1,
-      COMPOSER_PREVIEW_MAX_WIDTH_PX / sourceWidth,
-      COMPOSER_PREVIEW_MAX_HEIGHT_PX / sourceHeight
-    );
-    const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
-    const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
-
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    context.drawImage(image, 0, 0, targetWidth, targetHeight);
-
-    try {
-      const previewDataUrl = canvas.toDataURL("image/jpeg", COMPOSER_PREVIEW_JPEG_QUALITY);
-      if (typeof previewDataUrl === "string" && previewDataUrl.startsWith("data:image/")) {
-        URL.revokeObjectURL(directObjectUrl);
-        return { url: previewDataUrl, owned: false };
-      }
-    } catch {
-      // Fall back to blob-backed thumbnail creation below.
-    }
-
-    const previewBlob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", COMPOSER_PREVIEW_JPEG_QUALITY);
-    });
-
-    if (!(previewBlob instanceof Blob) || previewBlob.size <= 0) {
-      return { url: directObjectUrl, owned: true };
-    }
-
-    URL.revokeObjectURL(directObjectUrl);
-    return {
-      url: URL.createObjectURL(previewBlob),
-      owned: true,
-    };
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return blob instanceof Blob && blob.size > 0 ? blob : null;
   } catch {
-    return { url: directObjectUrl, owned: true };
+    return null;
   }
 };
 
-const materializeComposerPreviewBlobUrl = async (args: {
-  displayArtifactUrl: string | null;
+const resolveStorageBackedDropImageUrl = async ({
+  previewStoragePath,
+  fullStoragePath,
+  referenceUrl,
+}: {
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   referenceUrl?: string | null;
-}): Promise<{
-  previewUrl: string;
-  previewOwned: boolean;
-} | null> => {
-  const displayArtifactUrl = normalizeDroppedImageCandidate(args.displayArtifactUrl);
-  const durableReferenceUrl = normalizeDurableDroppedImageCandidate(args.referenceUrl);
-  const hasDurableIdentity =
-    Boolean(args.previewStoragePath?.trim()) ||
-    Boolean(args.fullStoragePath?.trim()) ||
-    Boolean(durableReferenceUrl);
-  if (!canCreateObjectUrl()) {
-    return displayArtifactUrl?.startsWith("data:") || displayArtifactUrl?.startsWith("blob:")
-      ? {
-          previewUrl: displayArtifactUrl,
-          previewOwned: false,
-        }
-      : null;
+}): Promise<string | null> =>
+  await resolveAgentAttachmentPreviewUrl({
+    previewStoragePath: previewStoragePath ?? null,
+    fullStoragePath: fullStoragePath ?? null,
+    referenceRenderUrl: null,
+    referenceUrl: referenceUrl ?? null,
+    imageUrl: null,
+    submissionImageUrl: null,
+  }).catch(() => null);
+
+const createEphemeralDropImageData = async ({
+  sourceBlob,
+  previewUrl,
+  modelUrl,
+}: {
+  sourceBlob?: Blob | null;
+  previewUrl?: string | null;
+  modelUrl?: string | null;
+}): Promise<{ previewUrl: string; modelUrl: string } | null> => {
+  if (sourceBlob instanceof Blob && sourceBlob.size > 0) {
+    const imageData = await createEphemeralComposerImageData(sourceBlob).catch(() => null);
+    if (imageData) {
+      return {
+        previewUrl: imageData.previewDataUrl,
+        modelUrl: imageData.modelDataUrl,
+      };
+    }
   }
-  const resolvedSource = hasDurableIdentity
-    ? await resolveAgentAttachmentPreviewUrl({
-        previewStoragePath: args.previewStoragePath ?? null,
-        fullStoragePath: args.fullStoragePath ?? null,
-        referenceRenderUrl: null,
-        referenceUrl: durableReferenceUrl,
-        imageUrl: null,
-      }).catch(() => null)
-    : displayArtifactUrl;
-  if (!resolvedSource) return null;
-  try {
-    const response = await fetch(resolvedSource);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    const previewResult = await downscaleBlobToComposerPreviewUrl(blob);
-    return {
-      previewUrl: previewResult?.url ?? resolvedSource,
-      previewOwned: previewResult?.owned ?? true,
-    };
-  } catch {
-    return resolvedSource.startsWith("blob:") || resolvedSource.startsWith("data:")
-      ? {
-          previewUrl: resolvedSource,
-          previewOwned: false,
-        }
-      : null;
+
+  const normalizedPreviewUrl = normalizeDroppedImageCandidate(previewUrl);
+  const normalizedModelUrl = normalizeDroppedImageCandidate(modelUrl) ?? normalizedPreviewUrl;
+  const localModelBlob = normalizedModelUrl
+    ? await readLocalInlineImageBlob(normalizedModelUrl)
+    : null;
+  if (localModelBlob) {
+    const imageData = await createEphemeralComposerImageData(localModelBlob).catch(() => null);
+    if (imageData) {
+      return {
+        previewUrl: imageData.previewDataUrl,
+        modelUrl: imageData.modelDataUrl,
+      };
+    }
   }
+
+  if (!isSafeAgentImageMediaUrl(normalizedModelUrl)) return null;
+  return {
+    previewUrl: normalizedPreviewUrl ?? normalizedModelUrl,
+    modelUrl: normalizedModelUrl,
+  };
+};
+
+const createEphemeralImageAttachment = async ({
+  id,
+  referenceId,
+  mediaId,
+  text,
+  aspect,
+  sourceBlob,
+  previewUrl,
+  modelUrl,
+}: {
+  id: string;
+  referenceId?: string | null;
+  mediaId?: string | null;
+  text?: string | null;
+  aspect?: string | null;
+  sourceBlob?: Blob | null;
+  previewUrl?: string | null;
+  modelUrl?: string | null;
+}): Promise<AgentAttachment | null> => {
+  const imageData = await createEphemeralDropImageData({
+    sourceBlob,
+    previewUrl,
+    modelUrl,
+  });
+  if (!imageData) return null;
+  return {
+    id,
+    kind: "image",
+    source: "ephemeral_local",
+    referenceId: referenceId ?? null,
+    mediaId: mediaId ?? null,
+    referenceUrl: null,
+    referenceRenderUrl: null,
+    imageUrl: imageData.previewUrl,
+    modelDataUrl: imageData.modelUrl,
+    submissionImageUrl: null,
+    imageFallbackUrls: [],
+    text: text ?? null,
+    aspect: aspect ?? null,
+    deliveryStatus: "ready",
+    deliveryError: null,
+  };
 };
 
 type UseAiStudioAgentComposerParams = {
@@ -279,44 +257,6 @@ export const useAiStudioAgentComposer = ({
   const [agentAttachments, setAgentAttachments] = useState<AgentAttachment[]>([]);
   const [isAgentDropActive, setIsAgentDropActive] = useState(false);
   const agentDropDepthRef = useRef(0);
-  const ownedObjectUrlsRef = useRef<Set<string>>(new Set());
-
-  const registerOwnedObjectUrl = useCallback((value: string | null | undefined) => {
-    const normalized = normalizeAttachmentImageUrl(value);
-    if (!normalized?.startsWith("blob:")) return;
-    ownedObjectUrlsRef.current.add(normalized);
-  }, []);
-
-  const revokeOwnedObjectUrl = useCallback((value: string | null | undefined) => {
-    const normalized = normalizeAttachmentImageUrl(value);
-    if (!normalized?.startsWith("blob:")) return;
-    if (!ownedObjectUrlsRef.current.has(normalized)) return;
-    if (typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
-      URL.revokeObjectURL(normalized);
-    }
-    ownedObjectUrlsRef.current.delete(normalized);
-  }, []);
-
-  const revokeOwnedAttachmentUrls = useCallback(
-    (attachment: Pick<AgentAttachment, "kind" | "imageUrl" | "submissionImageUrl"> | null) => {
-      if (!attachment || attachment.kind !== "image") return;
-      revokeOwnedObjectUrl(attachment.imageUrl);
-      revokeOwnedObjectUrl(attachment.submissionImageUrl);
-    },
-    [revokeOwnedObjectUrl]
-  );
-
-  useEffect(() => {
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
-    return () => {
-      ownedObjectUrls.forEach((objectUrl) => {
-        if (typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
-          URL.revokeObjectURL(objectUrl);
-        }
-      });
-      ownedObjectUrls.clear();
-    };
-  }, []);
 
   const linkedPromptReferenceIds = useMemo(
     () =>
@@ -378,246 +318,81 @@ export const useAiStudioAgentComposer = ({
     []
   );
 
-  const patchImageAttachment = useCallback(
-    (id: string, updater: (attachment: AgentAttachment & { kind: "image" }) => AgentAttachment) => {
-      setAgentAttachments((prev) =>
-        prev.map((attachment) => {
-          if (attachment.id !== id || attachment.kind !== "image") return attachment;
-          return updater(attachment as AgentAttachment & { kind: "image" });
-        })
-      );
-    },
-    []
-  );
-
-  const uploadComposerImageBlob = useCallback(async (blob: Blob, attachmentId?: string) => {
-    if (!(blob instanceof Blob) || blob.size <= 0 || !canCreateObjectUrl()) {
-      throw new Error("Could not read that image for upload.");
-    }
-    const objectUrl = URL.createObjectURL(blob);
-    try {
-      return await uploadImageAssetToStorage(objectUrl, {
-        onStage: (event: PrepareImageStageEvent) => {
-          if (!attachmentId) return;
-          recordCreateWorkflowEvent("attachment_delivery_stage", {
-            attachmentId,
-            ...event,
-          });
-        },
-      });
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }, []);
-
-  const promoteAttachmentToDurableSource = useCallback(
-    async ({
-      attachmentId,
-      previewStoragePath,
-      fullStoragePath,
-      referenceUrl,
-      sourceBlob,
-    }: {
-      attachmentId: string;
-      previewStoragePath?: string | null;
-      fullStoragePath?: string | null;
-      referenceUrl?: string | null;
-      sourceBlob?: Blob | null;
-    }) => {
-      recordCreateWorkflowEvent("attachment_delivery_started", {
-        attachmentId,
-        hasSourceBlob: sourceBlob instanceof Blob && sourceBlob.size > 0,
-        previewStoragePath: previewStoragePath ?? null,
-        fullStoragePath: fullStoragePath ?? null,
-        referenceUrl: summarizeCreateWorkflowUrl(referenceUrl),
-      });
-      try {
-        const durableReferenceUrl = await resolveAgentAttachmentPreviewUrl({
-          previewStoragePath: null,
-          fullStoragePath: null,
-          referenceRenderUrl: null,
-          referenceUrl: referenceUrl ?? null,
-          imageUrl: null,
-          submissionImageUrl: null,
-        }).catch(() => null);
-        const durableFullStorageUrl = fullStoragePath
-          ? await resolveAgentAttachmentPreviewUrl({
-              previewStoragePath: null,
-              fullStoragePath,
-              referenceRenderUrl: null,
-              referenceUrl: null,
-              imageUrl: null,
-              submissionImageUrl: null,
-            }).catch(() => null)
-          : null;
-        const durablePreviewStorageUrl =
-          !durableFullStorageUrl && previewStoragePath
-            ? await resolveAgentAttachmentPreviewUrl({
-                previewStoragePath,
-                fullStoragePath: null,
-                referenceRenderUrl: null,
-                referenceUrl: null,
-                imageUrl: null,
-                submissionImageUrl: null,
-              }).catch(() => null)
-            : null;
-        const durableSubmissionUrl =
-          durableReferenceUrl ?? durableFullStorageUrl ?? durablePreviewStorageUrl ?? null;
-
-        if (
-          durableSubmissionUrl &&
-          !durableSubmissionUrl.startsWith("blob:") &&
-          !durableSubmissionUrl.startsWith("data:")
-        ) {
-          patchImageAttachment(attachmentId, (attachment) => ({
-            ...attachment,
-            previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,
-            fullStoragePath: fullStoragePath ?? attachment.fullStoragePath ?? null,
-            referenceUrl: referenceUrl ?? attachment.referenceUrl ?? durableSubmissionUrl,
-            submissionImageUrl: durableSubmissionUrl,
-            deliveryStatus: "ready",
-            deliveryError: null,
-          }));
-          recordCreateWorkflowEvent("attachment_delivery_ready", {
-            attachmentId,
-            source: "durable_identity",
-            submissionImageUrl: summarizeCreateWorkflowUrl(durableSubmissionUrl),
-            previewStoragePath: previewStoragePath ?? null,
-            fullStoragePath: fullStoragePath ?? null,
-          });
-          return;
+  const insertAttachment = useCallback((nextAttachment: AgentAttachment) => {
+    setAgentAttachments((prev) => {
+      const signature = attachmentSignature(nextAttachment);
+      const normalizedAttachment: AgentAttachment = {
+        ...nextAttachment,
+        deliveryStatus:
+          nextAttachment.kind === "prompt"
+            ? "ready"
+            : isEphemeralLocalImageAttachment(nextAttachment)
+              ? (nextAttachment.deliveryStatus ?? "ready")
+              : (nextAttachment.deliveryStatus ?? "pending"),
+        deliveryError:
+          nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
+      };
+      const existingIndex = prev.findIndex((item) => attachmentSignature(item) === signature);
+      if (existingIndex >= 0) {
+        if (nextAttachment.kind !== "image") {
+          return prev;
         }
-
-        if (!(sourceBlob instanceof Blob) || sourceBlob.size <= 0) {
-          throw new Error("Image upload/preparation failed. Remove this image and try again.");
-        }
-
-        const uploaded = await uploadComposerImageBlob(sourceBlob, attachmentId);
-        patchImageAttachment(attachmentId, (attachment) => ({
-          ...attachment,
-          previewStoragePath: previewStoragePath ?? attachment.previewStoragePath ?? null,
-          fullStoragePath: uploaded.path ?? fullStoragePath ?? attachment.fullStoragePath ?? null,
-          referenceUrl: referenceUrl ?? uploaded.url ?? attachment.referenceUrl ?? null,
-          submissionImageUrl: uploaded.url,
-          deliveryStatus: "ready",
-          deliveryError: null,
-        }));
-        recordCreateWorkflowEvent("attachment_delivery_ready", {
-          attachmentId,
-          source: "uploaded_storage",
-          submissionImageUrl: summarizeCreateWorkflowUrl(uploaded.url),
-          fullStoragePath: uploaded.path ?? fullStoragePath ?? null,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error && error.message.trim().length > 0
-            ? error.message.trim()
-            : "Image upload/preparation failed. Remove this image and try again.";
-        patchImageAttachment(attachmentId, (attachment) => ({
-          ...attachment,
-          submissionImageUrl: null,
-          deliveryStatus: "failed",
-          deliveryError: message,
-        }));
-        setAgentAttachmentError(
-          "One or more attached images failed to prepare. Remove failed images and try again."
-        );
-        recordCreateWorkflowEvent("attachment_delivery_failed", {
-          attachmentId,
-          message,
-        });
-      }
-    },
-    [patchImageAttachment, uploadComposerImageBlob]
-  );
-
-  const insertAttachment = useCallback(
-    (nextAttachment: AgentAttachment) => {
-      setAgentAttachments((prev) => {
-        const signature = attachmentSignature(nextAttachment);
-        const normalizedAttachment: AgentAttachment = {
-          ...nextAttachment,
-          deliveryStatus:
-            nextAttachment.kind === "prompt"
-              ? "ready"
-              : isEphemeralLocalImageAttachment(nextAttachment)
-                ? (nextAttachment.deliveryStatus ?? "ready")
-                : (nextAttachment.deliveryStatus ?? "pending"),
-          deliveryError:
-            nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
+        const existingAttachment = prev[existingIndex];
+        const replacementAttachment: AgentAttachment = {
+          ...existingAttachment,
+          ...normalizedAttachment,
+          id: existingAttachment.id,
+          deliveryStatus: isEphemeralLocalImageAttachment(normalizedAttachment)
+            ? (normalizedAttachment.deliveryStatus ?? "ready")
+            : (normalizedAttachment.deliveryStatus ?? "pending"),
+          deliveryError: normalizedAttachment.deliveryError ?? null,
         };
-        const existingIndex = prev.findIndex((item) => attachmentSignature(item) === signature);
-        if (existingIndex >= 0) {
-          if (nextAttachment.kind !== "image") {
-            return prev;
-          }
-          const existingAttachment = prev[existingIndex];
-          if (
-            existingAttachment.kind === "image" &&
-            (existingAttachment.imageUrl !== normalizedAttachment.imageUrl ||
-              existingAttachment.submissionImageUrl !== normalizedAttachment.submissionImageUrl)
-          ) {
-            revokeOwnedAttachmentUrls(existingAttachment);
-          }
-          const replacementAttachment: AgentAttachment = {
-            ...existingAttachment,
-            ...normalizedAttachment,
-            id: existingAttachment.id,
-            deliveryStatus: isEphemeralLocalImageAttachment(normalizedAttachment)
-              ? (normalizedAttachment.deliveryStatus ?? "ready")
-              : (normalizedAttachment.deliveryStatus ?? "pending"),
-            deliveryError: normalizedAttachment.deliveryError ?? null,
-          };
-          recordCreateWorkflowEvent("attachment_replaced", {
-            attachmentId: existingAttachment.id,
-            before: summarizeCreateWorkflowAttachment(existingAttachment),
-            after: summarizeCreateWorkflowAttachment(replacementAttachment),
-          });
-          return prev.map((attachment, index) =>
-            index === existingIndex ? replacementAttachment : attachment
-          );
-        }
-        let next = [...prev, normalizedAttachment];
-        recordCreateWorkflowEvent("attachment_inserted", {
-          attachmentId: normalizedAttachment.id,
-          attachment: summarizeCreateWorkflowAttachment(normalizedAttachment),
+        recordCreateWorkflowEvent("attachment_replaced", {
+          attachmentId: existingAttachment.id,
+          before: summarizeCreateWorkflowAttachment(existingAttachment),
+          after: summarizeCreateWorkflowAttachment(replacementAttachment),
         });
-        if (nextAttachment.kind === "image") {
-          const imageCount = next.filter((item) => item.kind === "image").length;
-          if (imageCount > MAX_AGENT_IMAGE_ATTACHMENTS) {
-            const oldestImageIndex = next.findIndex((item) => item.kind === "image");
-            if (oldestImageIndex >= 0) {
-              const removedAttachment = next[oldestImageIndex];
-              revokeOwnedAttachmentUrls(removedAttachment ?? null);
-              recordCreateWorkflowEvent("attachment_trimmed", {
-                attachmentId: removedAttachment?.id ?? null,
-                attachment: removedAttachment
-                  ? summarizeCreateWorkflowAttachment(removedAttachment)
-                  : null,
-              });
-              next = next.filter((_, index) => index !== oldestImageIndex);
-            }
+        return prev.map((attachment, index) =>
+          index === existingIndex ? replacementAttachment : attachment
+        );
+      }
+      let next = [...prev, normalizedAttachment];
+      recordCreateWorkflowEvent("attachment_inserted", {
+        attachmentId: normalizedAttachment.id,
+        attachment: summarizeCreateWorkflowAttachment(normalizedAttachment),
+      });
+      if (nextAttachment.kind === "image") {
+        const imageCount = next.filter((item) => item.kind === "image").length;
+        if (imageCount > MAX_AGENT_IMAGE_ATTACHMENTS) {
+          const oldestImageIndex = next.findIndex((item) => item.kind === "image");
+          if (oldestImageIndex >= 0) {
+            const removedAttachment = next[oldestImageIndex];
+            recordCreateWorkflowEvent("attachment_trimmed", {
+              attachmentId: removedAttachment?.id ?? null,
+              attachment: removedAttachment
+                ? summarizeCreateWorkflowAttachment(removedAttachment)
+                : null,
+            });
+            next = next.filter((_, index) => index !== oldestImageIndex);
           }
         }
-        if (next.length > MAX_AGENT_ATTACHMENTS) {
-          const trimmedNext = next.slice(next.length - MAX_AGENT_ATTACHMENTS);
-          next
-            .filter((attachment) => !trimmedNext.includes(attachment))
-            .forEach((attachment) => {
-              revokeOwnedAttachmentUrls(attachment);
-              recordCreateWorkflowEvent("attachment_pruned_by_max_total", {
-                attachmentId: attachment.id,
-                attachment: summarizeCreateWorkflowAttachment(attachment),
-              });
+      }
+      if (next.length > MAX_AGENT_ATTACHMENTS) {
+        const trimmedNext = next.slice(next.length - MAX_AGENT_ATTACHMENTS);
+        next
+          .filter((attachment) => !trimmedNext.includes(attachment))
+          .forEach((attachment) => {
+            recordCreateWorkflowEvent("attachment_pruned_by_max_total", {
+              attachmentId: attachment.id,
+              attachment: summarizeCreateWorkflowAttachment(attachment),
             });
-          next = trimmedNext;
-        }
-        return next;
-      });
-      setAgentAttachmentError(null);
-    },
-    [revokeOwnedAttachmentUrls]
-  );
+          });
+        next = trimmedNext;
+      }
+      return next;
+    });
+    setAgentAttachmentError(null);
+  }, []);
 
   const handleAgentAttachmentDragOver = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
@@ -764,71 +539,33 @@ export const useAiStudioAgentComposer = ({
               ])
             : [];
           const normalizedInternalImageUrl = internalImageUrls[0] ?? null;
-          const materializedInternalPreview =
-            resolvedInternalImageSource && canCreateObjectUrl()
-              ? await resolvedInternalImageSource
-                  .loadBlob()
-                  .then(async (blob) => ({
-                    blob,
-                    preview: await downscaleBlobToComposerPreviewUrl(blob),
-                  }))
-                  .catch(() => null)
-              : null;
-          const composerInternalPreviewUrl =
-            materializedInternalPreview?.preview?.url ?? normalizedInternalImageUrl;
-          if (composerInternalPreviewUrl) {
+          const internalSourceBlob = resolvedInternalImageSource
+            ? await resolvedInternalImageSource.loadBlob().catch(() => null)
+            : null;
+          if (normalizedInternalImageUrl || internalSourceBlob) {
             if (!agentSessionEnabled) {
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
-            if (materializedInternalPreview?.preview?.owned) {
-              registerOwnedObjectUrl(materializedInternalPreview.preview.url);
-            }
             const attachmentId = randomId();
-            insertAttachment({
+            const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
-              kind: "image",
               referenceId: droppedReferenceId,
               mediaId:
                 resolvedInternalImageSource?.mediaId ??
                 composerImagePayload.mediaId ??
                 internalPayload?.mediaId ??
                 null,
-              previewStoragePath:
-                resolvedInternalImageSource?.previewStoragePath ??
-                composerImagePayload.previewStoragePath ??
-                null,
-              fullStoragePath:
-                resolvedInternalImageSource?.fullStoragePath ??
-                composerImagePayload.fullStoragePath ??
-                null,
-              referenceUrl: null,
-              referenceRenderUrl: null,
-              imageUrl: composerInternalPreviewUrl,
-              submissionImageUrl: null,
-              imageFallbackUrls:
-                composerInternalPreviewUrl &&
-                composerInternalPreviewUrl !== normalizedInternalImageUrl
-                  ? [normalizedInternalImageUrl, ...internalImageUrls.slice(1)].filter(Boolean)
-                  : internalImageUrls.slice(1),
               text: normalizedPromptText,
               aspect: matchedOutput?.aspect ?? null,
-              deliveryStatus: "preparing",
-              deliveryError: null,
+              sourceBlob: internalSourceBlob,
+              previewUrl: normalizedInternalImageUrl,
+              modelUrl: normalizedInternalImageUrl,
             });
-            void promoteAttachmentToDurableSource({
-              attachmentId,
-              previewStoragePath:
-                resolvedInternalImageSource?.previewStoragePath ??
-                composerImagePayload.previewStoragePath ??
-                null,
-              fullStoragePath:
-                resolvedInternalImageSource?.fullStoragePath ??
-                composerImagePayload.fullStoragePath ??
-                null,
-              sourceBlob: materializedInternalPreview?.blob ?? null,
-            });
-            return;
+            if (ephemeralAttachment) {
+              insertAttachment(ephemeralAttachment);
+              return;
+            }
           }
 
           const displayArtifactUrl = normalizeDroppedImageCandidate(
@@ -845,75 +582,33 @@ export const useAiStudioAgentComposer = ({
             Boolean(composerImagePayload.previewStoragePath?.trim()) ||
             Boolean(composerImagePayload.fullStoragePath?.trim()) ||
             Boolean(durableReferenceUrl);
-          const materializedPreview = await materializeComposerPreviewBlobUrl({
-            displayArtifactUrl,
-            previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-            fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-            referenceUrl: durableReferenceUrl,
-          });
-          if (materializedPreview) {
-            if (!agentSessionEnabled) {
-              ensureAgentSession();
-            }
-            setAgentAttachmentError(null);
-            if (materializedPreview.previewOwned) {
-              registerOwnedObjectUrl(materializedPreview.previewUrl);
-            }
-            const attachmentId = randomId();
-            insertAttachment({
-              id: attachmentId,
-              kind: "image",
-              referenceId: droppedReferenceId,
-              mediaId: composerImagePayload.mediaId ?? null,
-              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-              referenceUrl: durableReferenceUrl,
-              referenceRenderUrl: null,
-              imageUrl: materializedPreview.previewUrl,
-              submissionImageUrl: null,
-              imageFallbackUrls: [],
-              text: normalizedPromptText,
-              aspect: matchedOutput?.aspect ?? null,
-              deliveryStatus: "preparing",
-              deliveryError: null,
-            });
-            void promoteAttachmentToDurableSource({
-              attachmentId,
-              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-              referenceUrl: durableReferenceUrl,
-            });
-            return;
-          }
           if (hasDurableIdentity) {
+            const identityImageUrl =
+              durableReferenceUrl ??
+              (await resolveStorageBackedDropImageUrl({
+                previewStoragePath: composerImagePayload.previewStoragePath ?? null,
+                fullStoragePath: composerImagePayload.fullStoragePath ?? null,
+                referenceUrl: durableReferenceUrl,
+              }));
             if (!agentSessionEnabled) {
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
             const attachmentId = randomId();
-            insertAttachment({
+            const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
-              kind: "image",
               referenceId: droppedReferenceId,
               mediaId: composerImagePayload.mediaId ?? null,
-              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-              referenceUrl: durableReferenceUrl,
-              referenceRenderUrl: null,
-              imageUrl: null,
-              submissionImageUrl: null,
-              imageFallbackUrls: [],
               text: normalizedPromptText,
               aspect: matchedOutput?.aspect ?? null,
-              deliveryStatus: "preparing",
-              deliveryError: null,
+              previewUrl: displayArtifactUrl ?? identityImageUrl,
+              modelUrl: identityImageUrl,
             });
-            void promoteAttachmentToDurableSource({
-              attachmentId,
-              previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-              fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-              referenceUrl: durableReferenceUrl,
-            });
+            if (ephemeralAttachment) {
+              insertAttachment(ephemeralAttachment);
+              return;
+            }
+            setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
           const orderedImageUrls = buildAgentAttachmentImageCandidates({
@@ -933,21 +628,20 @@ export const useAiStudioAgentComposer = ({
             ensureAgentSession();
           }
           setAgentAttachmentError(null);
-          insertAttachment({
+          const fallbackAttachment = await createEphemeralImageAttachment({
             id: randomId(),
-            kind: "image",
             referenceId: droppedReferenceId,
             mediaId: composerImagePayload.mediaId ?? null,
-            previewStoragePath: composerImagePayload.previewStoragePath ?? null,
-            fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-            referenceUrl: durableReferenceUrl,
-            referenceRenderUrl: displayArtifactUrl,
-            imageUrl: normalizedImageUrl,
-            submissionImageUrl: durableReferenceUrl,
-            imageFallbackUrls: orderedImageUrls.slice(1),
             text: normalizedPromptText,
             aspect: matchedOutput?.aspect ?? null,
+            previewUrl: normalizedImageUrl,
+            modelUrl: durableReferenceUrl ?? normalizedImageUrl,
           });
+          if (!fallbackAttachment) {
+            setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
+            return;
+          }
+          insertAttachment(fallbackAttachment);
           return;
         }
 
@@ -975,18 +669,9 @@ export const useAiStudioAgentComposer = ({
               ])
             : [];
           const normalizedInternalImageUrl = internalImageUrls[0] ?? null;
-          const materializedInternalPreview =
-            resolvedInternalImageSource && canCreateObjectUrl()
-              ? await resolvedInternalImageSource
-                  .loadBlob()
-                  .then(async (blob) => ({
-                    blob,
-                    preview: await downscaleBlobToComposerPreviewUrl(blob),
-                  }))
-                  .catch(() => null)
-              : null;
-          const composerInternalPreviewUrl =
-            materializedInternalPreview?.preview?.url ?? normalizedInternalImageUrl;
+          const internalSourceBlob = resolvedInternalImageSource
+            ? await resolvedInternalImageSource.loadBlob().catch(() => null)
+            : null;
           const hasInternalVideoReference =
             payload.mediaKind === "video" ||
             internalPayload.mediaKind === "video" ||
@@ -1005,43 +690,26 @@ export const useAiStudioAgentComposer = ({
             return;
           }
 
-          if (composerInternalPreviewUrl) {
+          if (normalizedInternalImageUrl || internalSourceBlob) {
             if (!agentSessionEnabled) {
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
-            if (materializedInternalPreview?.preview?.owned) {
-              registerOwnedObjectUrl(materializedInternalPreview.preview.url);
-            }
             const attachmentId = randomId();
-            insertAttachment({
+            const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
-              kind: "image",
               referenceId: droppedReferenceId,
               mediaId: resolvedInternalImageSource?.mediaId ?? internalPayload.mediaId ?? null,
-              previewStoragePath: resolvedInternalImageSource?.previewStoragePath ?? null,
-              fullStoragePath: resolvedInternalImageSource?.fullStoragePath ?? null,
-              referenceUrl: null,
-              referenceRenderUrl: null,
-              imageUrl: composerInternalPreviewUrl,
-              submissionImageUrl: null,
-              imageFallbackUrls:
-                composerInternalPreviewUrl &&
-                composerInternalPreviewUrl !== normalizedInternalImageUrl
-                  ? [normalizedInternalImageUrl, ...internalImageUrls.slice(1)].filter(Boolean)
-                  : internalImageUrls.slice(1),
               text: internalPromptText,
               aspect: matchedOutput?.aspect ?? null,
-              deliveryStatus: "preparing",
-              deliveryError: null,
+              sourceBlob: internalSourceBlob,
+              previewUrl: normalizedInternalImageUrl,
+              modelUrl: normalizedInternalImageUrl,
             });
-            void promoteAttachmentToDurableSource({
-              attachmentId,
-              previewStoragePath: resolvedInternalImageSource?.previewStoragePath ?? null,
-              fullStoragePath: resolvedInternalImageSource?.fullStoragePath ?? null,
-              sourceBlob: materializedInternalPreview?.blob ?? null,
-            });
-            return;
+            if (ephemeralAttachment) {
+              insertAttachment(ephemeralAttachment);
+              return;
+            }
           }
 
           if (droppedPromptText) {
@@ -1172,26 +840,20 @@ export const useAiStudioAgentComposer = ({
         setAgentAttachmentError(null);
 
         if (normalizedImageUrl) {
-          insertAttachment({
+          const ephemeralAttachment = await createEphemeralImageAttachment({
             id: randomId(),
-            kind: "image",
             referenceId: droppedReferenceId,
             mediaId: resolvedInternalImageSource?.mediaId ?? mediaLibraryImagePayload?.id ?? null,
-            previewStoragePath:
-              resolvedInternalImageSource?.previewStoragePath ??
-              mediaLibraryImagePayload?.previewStoragePath ??
-              matchedOutput?.previewStoragePath ??
-              null,
-            fullStoragePath:
-              mediaLibraryImagePayload?.fullStoragePath ?? matchedOutput?.fullStoragePath ?? null,
-            referenceUrl: transferReferenceUrl ?? null,
-            referenceRenderUrl: transferRenderUrl ?? null,
-            imageUrl: normalizedImageUrl,
-            submissionImageUrl: normalizedSubmissionImageUrl,
-            imageFallbackUrls: orderedImageUrls.slice(1),
             text: normalizedPromptText,
             aspect: matchedOutput?.aspect ?? null,
+            previewUrl: normalizedImageUrl,
+            modelUrl: normalizedSubmissionImageUrl ?? normalizedImageUrl,
           });
+          if (!ephemeralAttachment) {
+            setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
+            return;
+          }
+          insertAttachment(ephemeralAttachment);
           return;
         }
 
@@ -1212,30 +874,22 @@ export const useAiStudioAgentComposer = ({
       findOutputById,
       insertAttachment,
       maxImageAttachmentsPerDrop,
-      promoteAttachmentToDurableSource,
-      registerOwnedObjectUrl,
       resolveInternalImageDropSource,
       resolveOutputPreviewUrlById,
     ]
   );
 
-  const handleRemoveAgentAttachment = useCallback(
-    (id: string) => {
-      setAgentAttachmentError(null);
-      setAgentAttachments((prev) => {
-        const removedAttachment = prev.find((item) => item.id === id);
-        revokeOwnedAttachmentUrls(removedAttachment ?? null);
-        recordCreateWorkflowEvent("attachment_removed", {
-          attachmentId: removedAttachment?.id ?? id,
-          attachment: removedAttachment
-            ? summarizeCreateWorkflowAttachment(removedAttachment)
-            : null,
-        });
-        return prev.filter((item) => item.id !== id);
+  const handleRemoveAgentAttachment = useCallback((id: string) => {
+    setAgentAttachmentError(null);
+    setAgentAttachments((prev) => {
+      const removedAttachment = prev.find((item) => item.id === id);
+      recordCreateWorkflowEvent("attachment_removed", {
+        attachmentId: removedAttachment?.id ?? id,
+        attachment: removedAttachment ? summarizeCreateWorkflowAttachment(removedAttachment) : null,
       });
-    },
-    [revokeOwnedAttachmentUrls]
-  );
+      return prev.filter((item) => item.id !== id);
+    });
+  }, []);
 
   const handleClearAgentAttachments = useCallback(() => {
     setAgentAttachmentError(null);
@@ -1243,10 +897,9 @@ export const useAiStudioAgentComposer = ({
       recordCreateWorkflowEvent("attachments_cleared", {
         attachmentIds: prev.map((attachment) => attachment.id),
       });
-      prev.forEach((attachment) => revokeOwnedAttachmentUrls(attachment));
       return [];
     });
-  }, [revokeOwnedAttachmentUrls]);
+  }, []);
 
   const handleAgentInputChange = useCallback(
     (value: string) => {
@@ -1258,30 +911,26 @@ export const useAiStudioAgentComposer = ({
     [agentAttachmentError]
   );
 
-  const resetAgentComposer = useCallback(
-    (options?: ResetAgentComposerOptions) => {
-      const preserveInput = options?.preserveInput === true;
-      const preserveAttachments = options?.preserveAttachments === true;
-      setAgentAttachmentError(null);
-      if (!preserveInput) {
-        setAgentInput("");
-      }
-      if (!preserveAttachments) {
-        setAgentAttachments((prev) => {
-          recordCreateWorkflowEvent("attachments_reset", {
-            attachmentIds: prev.map((attachment) => attachment.id),
-            preserveInput,
-            preserveAttachments,
-          });
-          prev.forEach((attachment) => revokeOwnedAttachmentUrls(attachment));
-          return [];
+  const resetAgentComposer = useCallback((options?: ResetAgentComposerOptions) => {
+    const preserveInput = options?.preserveInput === true;
+    const preserveAttachments = options?.preserveAttachments === true;
+    setAgentAttachmentError(null);
+    if (!preserveInput) {
+      setAgentInput("");
+    }
+    if (!preserveAttachments) {
+      setAgentAttachments((prev) => {
+        recordCreateWorkflowEvent("attachments_reset", {
+          attachmentIds: prev.map((attachment) => attachment.id),
+          preserveInput,
+          preserveAttachments,
         });
-      }
-      setIsAgentDropActive(false);
-      agentDropDepthRef.current = 0;
-    },
-    [revokeOwnedAttachmentUrls]
-  );
+        return [];
+      });
+    }
+    setIsAgentDropActive(false);
+    agentDropDepthRef.current = 0;
+  }, []);
 
   return {
     agentInput,

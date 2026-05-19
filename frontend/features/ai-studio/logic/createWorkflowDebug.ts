@@ -14,6 +14,7 @@ export type CreateWorkflowUrlSummary = {
 export type CreateWorkflowAttachmentSnapshot = {
   id: string;
   kind: AgentAttachment["kind"];
+  source?: AgentAttachment["source"] | null;
   referenceId: string | null;
   mediaId: string | null;
   imageUrl: string | null;
@@ -42,6 +43,7 @@ export type CreateWorkflowDebugSnapshot = {
 export type CreateWorkflowAttachmentDiagnosis = {
   id: string;
   kind: AgentAttachment["kind"];
+  source: AgentAttachment["source"] | null;
   deliveryStatus: AgentAttachment["deliveryStatus"] | null;
   deliveryError: string | null;
   imageUrl: CreateWorkflowUrlSummary;
@@ -130,6 +132,7 @@ export const buildCreateWorkflowDiagnosis = (
   const attachments = snapshot.attachments.map((attachment) => ({
     id: attachment.id,
     kind: attachment.kind,
+    source: attachment.source ?? null,
     deliveryStatus: attachment.deliveryStatus,
     deliveryError: attachment.deliveryError,
     imageUrl: summarizeCreateWorkflowUrl(attachment.imageUrl),
@@ -155,6 +158,7 @@ export const buildCreateWorkflowDiagnosis = (
     imageAttachments.some((attachment) => {
       const status = attachment.deliveryStatus ?? "pending";
       return (
+        attachment.source !== "ephemeral_local" &&
         status === "ready" &&
         summarizeCreateWorkflowUrl(attachment.submissionImageUrl).kind !== "https"
       );
@@ -296,6 +300,7 @@ export const summarizeCreateWorkflowAttachment = (
     AgentAttachment,
     | "id"
     | "kind"
+    | "source"
     | "referenceId"
     | "mediaId"
     | "imageUrl"
@@ -311,6 +316,7 @@ export const summarizeCreateWorkflowAttachment = (
 ): CreateWorkflowAttachmentSnapshot => ({
   id: attachment.id,
   kind: attachment.kind,
+  source: attachment.source ?? null,
   referenceId: attachment.referenceId ?? null,
   mediaId: attachment.mediaId ?? null,
   imageUrl: attachment.imageUrl ?? null,

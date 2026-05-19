@@ -29,6 +29,7 @@ Substantive commit/push reports should include:
 
 ## Reports
 
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-19-production-panel-layout-and-preview-contract-run.md`: retained report for the production AI Studio panel-layout, preview-transform, and KPI packet alignment run, including the shared-contract test fan-out lesson.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-ephemeral-agent-image-transport-run.md`: retained report for the production AI Studio ephemeral agent-image transport and adaptive-media tuning run, including the clean two-manifest split between product and support lanes.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-character-media-assignment-and-holomony-onboarding-run.md`: retained report for the production character media-assignment runtime lane plus Holomony onboarding/docs lane, including the manifest-rebuild lesson from repeated leftover audits.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-panel-layout-and-character-library-run.md`: retained report for the production AI Studio panel-layout and character-library flow run, including the coupled panel/CSS/test-manifest lesson.

@@ -1029,3 +1029,47 @@ Next training focus:
 
 - Convert another medium production run with zero preflight fixups.
 - Keep preserving the product/support/retained split even when the worktree looks small enough to compress.
+
+## 2026-05-19 - Production panel layout and preview contract run
+
+Task: publish the production AI Studio panel-layout, structured-drop routing, preview-transform tuning, and media KPI packet alignment lane on `production`.
+
+Actions taken:
+
+- Locked one product manifest and one support manifest under `/tmp/gear-ball-run-2026-05-19/` before the first staging step.
+- Ran `gear-ball:preflight` for the product lane, fixed one formatter-only cleanup, and reran the product slice green before any commit.
+- Ran the shared gates before commit: `npm -C frontend run build`, `npm -C frontend run docs:check`, and `npm -C frontend run test`.
+- After the first full-suite pass surfaced two stale tests outside the initial manifest, aligned `tests/api/media-sign-batch.test.ts` and `scripts/__tests__/media_panel_kpi_capture.test.ts`, reran each file in isolation, then reran the full suite green.
+- Committed the product lane as `77700eed3` and the support lane as `58afc3604`, then kept the retained closeout as the final batch.
+
+Training result:
+
+- The batch structure was right, but the initial manifest under-modeled downstream contract tests for shared preview-profile and KPI packet changes.
+- The current leftover-audit rules worked; the misses were test-scope misses, not staging hygiene misses.
+- No new tool was required. This was a manifest-discipline problem.
+
+Self-rating:
+
+- Run quality: `8/10`
+
+What went well:
+
+- The worktree stayed cleanly split into product, support, and retained closeout lanes.
+- Build, docs check, and the final full suite were green before push.
+- The stale test fixes were kept inside the correct lanes instead of becoming a fourth tail batch.
+
+What slipped:
+
+- The first manifest missed `tests/api/media-sign-batch.test.ts`.
+- The support lane missed `scripts/__tests__/media_panel_kpi_capture.test.ts` until the full suite exposed it.
+
+Capability decision:
+
+- New tool needed: `no`
+- Existing helper or SOP update needed: `yes`
+- Change made: retained memory and repo-visible memory now explicitly call out shared-preview-profile and KPI-contract fan-out when building the first manifest
+
+Next training focus:
+
+- On the next run that touches shared preview-profile constants or KPI packet fields, pull the dependent API/script contract tests into the first manifest on purpose.
+- Convert one more production run with zero full-suite-only stale test rediscoveries.

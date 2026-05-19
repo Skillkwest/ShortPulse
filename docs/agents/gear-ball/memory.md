@@ -46,6 +46,7 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-18: For AI Studio panel-shell or character-library layout runs, keep the component TSX, matching CSS modules, and owning tests in the same manifest. Context-menu positioning, header count moves, and modalized library flows are too coupled to split safely across separate batches.
 - 2026-05-18: On long product runs, rebuild the next manifest from live `git status --short` after every commit. Do not trust the original manifest once lint-staged and inter-batch leftover audits have had a chance to surface omitted helper files or follow-up docs.
 - 2026-05-18: A Gear Ball closeout is only valid for the exact clean worktree that passed the final build/docs/full-suite gates. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate it, finish the new lane, rerun the required validation, and publish a rewritten closeout at the actual end of the run.
+- 2026-05-19: When changing shared preview-profile constants or KPI packet fields, include downstream API/script contract tests in the first manifest. These fan-outs can sit outside the obvious feature lane and otherwise resurface only under the final full suite.
 
 ## Open Follow-Ups
 

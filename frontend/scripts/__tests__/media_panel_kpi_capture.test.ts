@@ -122,7 +122,7 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.surface).toBe("ai-studio-panel");
     expect(packet.sampleCount).toBe(5);
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1668);
-    expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
+    expect(packet.metrics.openToFirstMediaP95Ms).toBe(1668);
     expect(packet.metrics.loadingStateVisibleMsP95).toBe(1162);
     expect(packet.metrics.stableContentSettleMsP95).toBe(1872);
     expect(packet.metrics.stateFlipCountPerOpen).toBe(2);

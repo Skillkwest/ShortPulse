@@ -717,7 +717,7 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       firstMediaPaintP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       loadingStateVisibleMsP95:
         loadingStateVisibleMsP95 == null ? null : Math.round(loadingStateVisibleMsP95),
-      openToFirstMediaP95Ms: null,
+      openToFirstMediaP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       stableContentSettleMsP95:
         stableContentSettleMsP95 == null ? null : Math.round(stableContentSettleMsP95),
       signBatchP95Ms: signAggregate?.signBatchP95Ms ?? null,

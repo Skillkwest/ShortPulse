@@ -9,6 +9,11 @@ import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
 type UseAiStudioCreateRuntimePromptStateParams = {
   activePulsePresetId: string | null;
   expertCreateMode: "standard" | "pulse";
+  setMusicPromptDraftState: Dispatch<SetStateAction<string>>;
+  setMusicLyricsDraftState: Dispatch<SetStateAction<string>>;
+  setSoundEffectsPromptDraftState: Dispatch<SetStateAction<string>>;
+  setVoiceDesignPromptDraftState: Dispatch<SetStateAction<string>>;
+  setVoiceScriptDraftState: Dispatch<SetStateAction<string>>;
   pulsePrompt: string;
   pulseSessionInstanceId: string | null;
   setEditReferenceTextState: Dispatch<SetStateAction<string>>;
@@ -24,6 +29,11 @@ type UseAiStudioCreateRuntimePromptStateParams = {
 export const useAiStudioCreateRuntimePromptState = ({
   activePulsePresetId,
   expertCreateMode,
+  setMusicPromptDraftState,
+  setMusicLyricsDraftState,
+  setSoundEffectsPromptDraftState,
+  setVoiceDesignPromptDraftState,
+  setVoiceScriptDraftState,
   pulsePrompt,
   pulseSessionInstanceId,
   setEditReferenceTextState,
@@ -38,12 +48,22 @@ export const useAiStudioCreateRuntimePromptState = ({
     setPulseCreatePrompt,
     setEditReferenceText,
     setVideoReferenceText,
+    setMusicPromptDraft,
+    setMusicLyricsDraft,
+    setSoundEffectsPromptDraft,
+    setVoiceDesignPromptDraft,
+    setVoiceScriptDraft,
   } = useAiStudioStableTextSetters({
     expertCreateMode,
     setStandardPromptState,
     setPulsePromptState,
     setEditReferenceTextState,
     setVideoReferenceTextState,
+    setMusicPromptDraftState,
+    setMusicLyricsDraftState,
+    setSoundEffectsPromptDraftState,
+    setVoiceDesignPromptDraftState,
+    setVoiceScriptDraftState,
   });
 
   const createStateRuntime = useMemo(
@@ -77,9 +97,14 @@ export const useAiStudioCreateRuntimePromptState = ({
     createStatePrompts,
     createStateRuntime,
     setEditReferenceText,
+    setMusicLyricsDraft,
+    setMusicPromptDraft,
     setPulseCreatePrompt,
     setSharedPrompt,
+    setSoundEffectsPromptDraft,
     setStandardCreatePrompt,
     setVideoReferenceText,
+    setVoiceDesignPromptDraft,
+    setVoiceScriptDraft,
   };
 };

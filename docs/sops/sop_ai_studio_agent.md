@@ -31,7 +31,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Admin control-plane routes: `/api/admin/agent-safety-policy/active`, `/api/admin/agent-safety-policy/activate`, `/api/admin/agent-safety-policy/rollback`, and `/api/admin/agent-safety-policy/version` (admin bearer required, service-role RPC backed).
 - Feature flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI behavior (`undefined` or `true` = enabled, `false` = disabled). `STUDIO_AGENT_ENABLED` is a server override (`true|false`); if unset, server follows `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`, and if both are unset defaults enabled.
 - Size guardrails: body size cap 512 KB (text) / 1.5 MB (mixed/image) plus Next API parser cap (`2mb`).
-- Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
+- Create composer image attachments are chat-only ephemeral inputs: local files and Reference Grid image drops are reduced to small preview/model data URLs when possible, or use an existing safe signed/public `https://` model URL. They are not uploaded or persisted just to support agent vision.
 
 ## Message schema
 

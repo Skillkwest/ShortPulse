@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global document, HTMLElement, performance, setTimeout, window */
 
 import fs from "node:fs";
 import path from "node:path";
@@ -292,7 +293,6 @@ const aggregateSignStats = (capture, phase = "open") => {
       ? totals.totalFailed / (totals.totalSigned + totals.totalFailed)
       : 0;
 
-  const resolvedDenominator = totals.totalResolvedDurable + totals.totalResolvedOriginal;
   const canonicalPreviewCoverageRatio =
     totals.totalPrimaryDurable > 0
       ? totals.totalResolvedDurable / totals.totalPrimaryDurable
@@ -342,7 +342,6 @@ const buildSignTabBreakdown = (capture, phase = "open") => {
 
   return Array.from(byTab.values())
     .map((entry) => {
-      const denominator = entry.totalResolvedDurable + entry.totalResolvedOriginal;
       return {
         tab: entry.tab,
         samples: entry.samples,

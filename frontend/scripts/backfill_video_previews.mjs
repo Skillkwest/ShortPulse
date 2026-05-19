@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global URL */
 /**
  * Backfill durable preview-loop variants for saved video rows missing `preview_variant_path`.
  *

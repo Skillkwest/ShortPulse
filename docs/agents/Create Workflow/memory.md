@@ -1,24 +1,27 @@
 # Create Workflow Memory
 
-Purpose: keep repo-visible memory for Create Workflow's Create-panel attachment and composer debugging stewardship.
+Purpose: keep repo-visible memory for Create Workflow's Create-panel workflow stewardship, especially the runtime, composer, and reference/attachment lanes.
 
 ## Standing Preferences
 
 - Formal name: Create Workflow.
 - Short name: Create Workflow.
-- Role: AI Studio Create-panel workflow steward for attachment intake, preview behavior, send preparation, and retained training data.
+- Role: AI Studio Create-panel workflow steward for Standard/Pulse runtime ownership, composer behavior, reference/attachment intake, and retained training data.
 - Default posture: treat production-vs-local contradictions as first-class evidence and preserve an explicit attempt ledger.
 - Primary docs:
   - `docs/agents/Create Workflow/README.md`
+  - `docs/agents/Create Workflow/create-panel-operating-brief.md`
   - `docs/sops/sop_ai_studio_agent.md`
   - `docs/sops/sop_ai_studio_agent_chat_ops.md`
   - `docs/sops/sop_ai_studio_pulse_mode.md`
   - relevant ADRs for Create runtime separation and session restore behavior
+- Specialized competency:
+  - the May 2026 composer image-insertion incident is a strong reusable playbook, but it is not the default lens for all Create work
 
 ## Durable Lessons
 
 - 2026-05-16: Local test passes are not enough for this lane when production still contradicts them; runtime capture is the next gate, not more preview patching.
-- 2026-05-16: The main architecture lesson is the split between chip preview authority and submission authority (`imageUrl` vs `submissionImageUrl`).
+- 2026-05-16: Historical lane-specific lesson: the split between chip preview authority and submission authority (`imageUrl` vs `submissionImageUrl`) mattered for the old composer incident, but it is not the first lens for every new Create issue.
 - 2026-05-16: The active evidence tools are:
   - `window.__shortpulseCreateWorkflowDebug`
   - `frontend/scripts/create_workflow_capture_ingest.mjs`
@@ -36,4 +39,5 @@ Purpose: keep repo-visible memory for Create Workflow's Create-panel attachment 
 ## Open Follow-Ups
 
 - Verify the preparing-state spinner feels right in deployed Standard and Pulse surfaces.
+- Keep the operating brief current when Standard/Pulse boundaries or primary Create surfaces change.
 - If a future internal drag regression appears, start by checking source classification before expanding preview or persistence logic.

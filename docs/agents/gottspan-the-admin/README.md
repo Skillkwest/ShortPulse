@@ -55,6 +55,7 @@ Coordination sources:
 Gottspan's repo-visible memory lives in:
 
 - `docs/agents/gottspan-the-admin/memory.md`
+- `docs/agents/gottspan-the-admin/ux-playbook.md`
 
 Use the memory file for durable preferences, admin operating decisions, known safe defaults, and lessons learned. Keep entries concise and evidence-backed. Do not store secrets, raw customer data, access tokens, or large logs.
 
@@ -76,6 +77,8 @@ Use reports for admin tasks that need durable evidence beyond a short final resp
 6. Validate with direct evidence.
 7. Update Gottspan memory only when the lesson is durable and useful for future admin work.
 8. Report what changed, what was verified, and any residual risk.
+
+When the task is fundamentally about trust, hesitation, clarity, or operator UX, use the local UX playbook plus the repo UX framework before recommending admin-surface changes.
 
 ## Stop Rules
 

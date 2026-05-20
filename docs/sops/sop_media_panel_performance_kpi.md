@@ -89,6 +89,7 @@ Current capture note:
 
 - `openToFirstMediaP95Ms` should stay `null` unless it was independently measured.
 - The current direct panel capture helper does **not** infer it from `firstMediaPaintP95Ms`, because treating those as two independent metrics would overstate speed evidence.
+- Approved panel mixed-open baselines now include a tiny `/api/media/list` seed on the first page with empty query (`up to two` non-audio preview URLs) before the follow-up lazy sign pass. Treat that seed as part of the canonical hot path, not as anomalous preloading.
 - The direct panel capture helper marks packets as invalid evidence when repeated runs do not meet the minimum retained-run count or when a media-bearing root tab never shows visible media cards. Invalid captures keep their packet for debugging, but the CLI exits non-zero and the packet notes/analysis call out the invalid-capture reason.
 - For media-bearing root tabs, repeated-run validity also requires visible media success on at least 80% of retained runs; a mostly-empty or inconsistent repeated run set is not baseline evidence.
 - The standalone scorer also treats packets marked with invalid-capture analysis as insufficient evidence and caps their score accordingly, even if the raw metric values look strong.

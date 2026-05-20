@@ -1,6 +1,6 @@
-# Create Workflow SOP
+# Create Workflow Incident SOP
 
-Purpose: define the standing supervised workflow for Create Workflow when the Create panel attachment/composer lane is broken or production behavior disagrees with local validation.
+Purpose: define the standing incident-response workflow for Create Workflow when the Create panel attachment/composer lane is broken or production behavior disagrees with local validation.
 
 ## Trigger
 

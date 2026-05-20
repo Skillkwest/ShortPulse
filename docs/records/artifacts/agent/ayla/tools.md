@@ -1,6 +1,6 @@
-# Ayal Tools
+# Ayla Tools
 
-Purpose: retain Ayal's helper inventory and future tooling needs.
+Purpose: retain Ayla's helper inventory and future tooling needs.
 
 ## Current Tools
 

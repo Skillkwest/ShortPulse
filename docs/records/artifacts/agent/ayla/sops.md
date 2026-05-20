@@ -1,6 +1,6 @@
-# Ayal SOP Notes
+# Ayla SOP Notes
 
-Purpose: track Ayal workflow references and emerging SOP needs.
+Purpose: track Ayla workflow references and emerging SOP needs.
 
 ## Current References
 

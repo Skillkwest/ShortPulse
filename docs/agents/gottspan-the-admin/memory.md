@@ -14,6 +14,7 @@ Purpose: keep repo-visible memory for Gottspan The Admin's admin-page management
 ## Durable Lessons
 
 - 2026-05-01: For Admin Errors fresh-start cleanup, clearing the actionable queue means `app_error_logs.status='open'` count is zero and `app_error_events.incident_id is null` count is zero. Preserve raw telemetry history; do not delete event rows just to make recent-volume cards drop immediately.
+- 2026-05-20: For `/admin/pricing`, the truth grid should remain the primary calculator and only live-authoritative editing surface. Supporting modules should read as compact downstream grids, not separate analysis dashboards, and helper text should stay minimal so operators do not hesitate about what actually goes live.
 
 ## Open Follow-Ups
 

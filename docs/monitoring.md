@@ -10,6 +10,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
 - AI Studio generate-click telemetry is emitted as `telemetry.ai_studio.generate_clicked` whenever a signed-in user explicitly starts a generate/regenerate action in AI Studio.
+- Project workspace degraded-save telemetry is emitted as `telemetry.ai_studio.project_workspace.repair_pending` when the durable workspace write succeeds but follow-up project association repair still needs another pass.
 - Growth funnel telemetry is emitted through `/api/telemetry/growth` for:
   - `telemetry.marketing.page_view`
   - `telemetry.marketing.cta_clicked`
@@ -79,6 +80,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `Sales` for pricing intent, checkout, paid conversion, and PQL/high-intent users
 - `growth_attribution_identities` stores first-touch and last-touch source/campaign/landing data plus anonymous-to-user stitching state.
 - Growth telemetry remains telemetry-only in `app_error_events`; it does not create grouped incidents in `app_error_logs`.
+- Project workspace `repair_pending` telemetry also remains telemetry-only in `app_error_events`; operators should use the Admin Event Stream signal filter instead of looking for grouped incidents.
 
 ## AI Studio Pulse runtime monitoring
 

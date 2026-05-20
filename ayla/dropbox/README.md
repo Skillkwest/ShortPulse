@@ -1,6 +1,6 @@
-# Ayal Dropbox
+# Ayla Dropbox
 
-Purpose: isolated handoff area for files the user explicitly sends to Ayal for account-management or customer-service work.
+Purpose: isolated handoff area for files the user explicitly sends to Ayla for account-management or customer-service work.
 
 ## Rules
 

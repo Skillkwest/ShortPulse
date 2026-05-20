@@ -51,7 +51,9 @@ Purpose: track how Create Workflow is trained, what behavior improves, and what 
 - Lesson:
   - Stale hot-path context can degrade debugging by making the agent optimize for an old failure model.
 - Artifact change:
-  - Reorganized the Create Workflow workspace around the current drop-time durable image contract and moved older capture-only context to lookup status.
+  - Reorganized the Create Workflow workspace around the then-active incident model and moved older capture-only context to lookup status.
+- Superseded note:
+  - This pre-resolution workspace framing was superseded on 2026-05-19 by the resolved chat-only ephemeral composer image contract.
 - Next focus:
   - Verify production with delivery state, durable `submissionImageUrl`, visible chip render, and model-send payload evidence in the same capture.
 
@@ -62,7 +64,9 @@ Purpose: track how Create Workflow is trained, what behavior improves, and what 
 - Tool change:
   - Added diagnosis output and send-payload instrumentation to the Create Workflow debug path.
 - Artifact change:
-  - Pruned hot memory away from stale preview-only hypotheses and made `getDiagnosis()` the first triage step.
+  - Pruned hot memory away from stale preview-only hypotheses and temporarily made `getDiagnosis()` the first triage step for the unresolved incident phase.
+- Superseded note:
+  - After the 2026-05-19 resolution, `getDiagnosis()` became a contradiction/debug helper again, not the default first step for ordinary Create work.
 - Next focus:
   - Capture production once and let the diagnosis pick the next failing lane.
 

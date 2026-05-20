@@ -31,3 +31,4 @@ frontend/lib/**/*.js
 frontend/prefabs/**/*.js
 !frontend/tests/**/*.js
 !frontend/next.config.js
+.env*.local

@@ -82,3 +82,10 @@ The first evidence packets should target:
 1. auth confirmation and password reset trust
 2. pricing clarity and hesitation
 3. admin pricing calculator comprehension
+
+## Current packets
+
+- `2026-05-20-auth-recovery-public-origin-trust.md`: production auth email links resolving to `localhost` instead of the real public origin, captured as a trust-surface failure rather than a narrow routing bug.
+- `2026-05-20-admin-pricing-grid-first-clarity.md`: operator evidence showing `/admin/pricing` needed a grid-first calculator model, denser support grids, and less explanatory overhead to reduce hesitation around live pricing edits.
+- `2026-05-20-support-auth-recovery-manual-intervention.md`: support-derived evidence showing that wrong-host production recovery flows should be classified as trust/recovery incidents and escalated instead of treated as ordinary login tickets.
+- `2026-05-20-public-pricing-plan-selection-clarity.md`: customer-facing evidence showing `/pricing` should stay focused on plan selection, credit legibility, and intent-preserving auth handoff rather than internal pricing mechanics.

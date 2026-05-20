@@ -18,7 +18,7 @@ The agent now has:
 
 - `training-history.md`: supervised runs, learned behavior, and next training focus.
 - `reports/`: retained attempt ledgers, incident audits, workflow closeouts, and evidence summaries.
-- `workspace/`: active operational memory, tool inventory, hand-off notes, and live capture templates.
+- `workspace/`: archived operational memory, tool inventory, hand-off notes, and live capture templates for the resolved composer-image incident family.
 - `training-data/`: structured incident, decision, and attempt datasets derived from Create Workflow history.
 
 ## Recommended Read Order
@@ -26,9 +26,10 @@ The agent now has:
 For a substantive Create Workflow run, the shortest high-signal path is:
 
 1. `docs/agents/Create Workflow/README.md`
-2. `docs/agents/Create Workflow/memory.md`
-3. `docs/agents/Create Workflow/standard-operating-procedure.md`
-4. `training-history.md`
+2. `docs/agents/Create Workflow/create-panel-operating-brief.md`
+3. `docs/agents/Create Workflow/memory.md`
+4. `docs/agents/Create Workflow/standard-operating-procedure.md`
+5. `training-history.md`
 
 Read `workspace/` only when a live Create composer incident is active again or when a similar drag/drop contradiction reappears.
 

@@ -17,7 +17,7 @@ Do not treat this folder as the default read path for ordinary Create work.
 - `current-state.md`
   - latest known symptom state, proven fixes, unresolved gaps, and highest-value next move
 - `session-hand-off.md`
-  - concise hand-off notes for the next agent run
+  - deprecated redirect note preserved only for older references
 - `tool-inventory.md`
   - helper code, scripts, skills, and the specific problem each one is meant to reduce
 - `production-capture-template.md`
@@ -30,9 +30,8 @@ Do not treat this folder as the default read path for ordinary Create work.
 For a new incident in this same lane, read only these first:
 
 1. `current-state.md`
-2. `session-hand-off.md`
-3. `production-capture-template.md`
-4. `tool-inventory.md`
+2. `production-capture-template.md`
+3. `tool-inventory.md`
 
 ## Lookup Only
 

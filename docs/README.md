@@ -62,7 +62,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `agent-teaching/operations/create-baseline-kpi.md`
 - `agent-teaching/foundations/agent-maintenance-field-guide.md`
 - `docs/agents/change-impact-auditor.md`
-- `docs/agents/ayal/README.md`
+- `docs/agents/ayla/README.md`
+- `docs/agents/ayla/ux-playbook.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
@@ -71,6 +72,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
 - `docs/agents/Create Workflow/README.md`
+- `docs/agents/Create Workflow/create-panel-operating-brief.md`
+- `docs/agents/Create Workflow/create-panel-system-map.md`
 - `docs/agents/pulse/README.md`
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
@@ -166,6 +169,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/README.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_supabase_auth_email_operations.md`
+- `docs/sops/sop_auth_recovery_trust_smoke.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_ai_studio_media_library_operations.md`

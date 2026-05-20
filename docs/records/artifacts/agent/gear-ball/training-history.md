@@ -17,24 +17,25 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 
 ## Repeated Slips And Shipped Remediations
 
-| Slip class                              | What changed to prevent it                                                                                                              |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Parallel Git/index collisions           | Serialized all index-touching Git commands in SOP and memory.                                                                           |
-| Branch drift before first write         | Added explicit branch + `shortpulse.allowedBranch` verification before any Git mutation.                                                |
-| Repo-root Vitest path mistakes          | Normalized repo-root `frontend/...` paths and added file-backed test manifests.                                                         |
-| Late leftover tails after early commits | Added inter-batch leftover audits after every commit and one final pre-push leftover audit.                                             |
-| Build/docs regressions found too late   | Added early `build` and early `docs:check` triggers for compound-risk lanes.                                                            |
-| Invalid early closeouts                 | Added closeout invalidation rule when later product/docs/test work appears.                                                             |
-| Shared-contract fan-out misses          | Added mandatory shared-contract checklist in the SOP and auto-inferred contract tests in `gear-ball:preflight`.                         |
-| Soft route-smoke behavior               | Added `smoke-incomplete` as a scored failure mode for qualifying runs.                                                                  |
-| Tooling PATH/runtime assumptions        | Switched helper/docs/test invocations and Husky pre-commit lint-staged execution to explicit local binaries or direct Node entrypoints. |
-| Pre-smoke manifest drift                | Rebuild the active manifest from live `git status --short` after smoke/KPI capture steps that generate new retained or support files.   |
+| Slip class                               | What changed to prevent it                                                                                                                |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Parallel Git/index collisions            | Serialized all index-touching Git commands in SOP and memory.                                                                             |
+| Branch drift before first write          | Added explicit branch + `shortpulse.allowedBranch` verification before any Git mutation.                                                  |
+| Repo-root Vitest path mistakes           | Normalized repo-root `frontend/...` paths and added file-backed test manifests.                                                           |
+| Late leftover tails after early commits  | Added inter-batch leftover audits after every commit and one final pre-push leftover audit.                                               |
+| Build/docs regressions found too late    | Added early `build` and early `docs:check` triggers for compound-risk lanes.                                                              |
+| Invalid early closeouts                  | Added closeout invalidation rule when later product/docs/test work appears.                                                               |
+| Shared-contract fan-out misses           | Added mandatory shared-contract checklist in the SOP and auto-inferred contract tests in `gear-ball:preflight`.                           |
+| Soft route-smoke behavior                | Added `smoke-incomplete` as a scored failure mode for qualifying runs.                                                                    |
+| Tooling PATH/runtime assumptions         | Switched helper/docs/test invocations and Husky pre-commit lint-staged execution to explicit local binaries or direct Node entrypoints.   |
+| Broken local wrapper/native-module drift | On wrapper/runtime mismatch, fall back directly to the approved Node 22 binary plus package entrypoints for `build` and full-suite gates. |
+| Pre-smoke manifest drift                 | Rebuild the active manifest from live `git status --short` after smoke/KPI capture steps that generate new retained or support files.     |
 
 ## Current Training Priorities
 
 1. Improve first-manifest fan-out on shared contracts beyond the currently known preview/KPI/layout rules.
-2. Execute route-level browser smoke consistently on qualifying frontend/admin runs instead of leaving it theoretical.
-3. Keep helper and hook execution environment assumptions minimal so preflight and commit gates behave the same way in every Codex run.
+2. Keep route-level browser smoke consistently green on qualifying frontend/admin runs, including the current active surface when legacy triggers disappear.
+3. Keep helper and runtime-entry assumptions minimal so preflight, build, and full-suite gates behave the same way in every Codex run.
 
 ## Current Retained Guidance
 

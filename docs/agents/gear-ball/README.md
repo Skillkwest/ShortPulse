@@ -55,6 +55,7 @@ Gear Ball may not:
 11. Use Vercel tooling or dashboard-backed evidence for Vercel env/deployment changes; do not infer remote state from local scratch files.
 12. Record durable lessons in `memory.md` only when they will help future work.
 13. During active SOP execution, suppress routine progress narration. Only interrupt the user for real blockers, approval/credential problems, branch-contract changes, or materially changed execution plans.
+14. When the user asks Gear Ball to do a task in some amount of time from now, default to creating a wake-up that executes the requested task at that time, not a reminder-only wake-up, unless the user explicitly asks for reminder-only behavior.
 
 ## Coordination Model
 

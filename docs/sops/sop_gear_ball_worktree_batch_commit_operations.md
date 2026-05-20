@@ -94,6 +94,7 @@ Special case:
   - mutate databases
   - make UI/UX/behavior changes unless the user already authorized that broader scope
 - If the user adds narrower constraints such as `explore only`, `do not push`, or `do not commit yet`, the narrower instruction overrides the default `run your SOP` / `we have new changes` ladder.
+- If the user asks Gear Ball to run a task at a future time such as `in 30 minutes` or `in 2 hours`, treat that as authorization to create a wake-up that executes the requested task at that time by default. Do not downgrade that request into a reminder-only wake-up unless the user explicitly asks for a reminder instead of execution.
 
 ## Output Discipline
 
@@ -277,6 +278,7 @@ Treat these as hard escalation triggers, not optional judgment calls:
 
 - If a batch touches shared editor/runtime hooks, shared page shells, `frontend/pages/`, `frontend/pages/api/`, or `frontend/package.json`, run `npm -C frontend run build` before the final full suite.
 - If a batch includes generated or agent-produced docs/packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/`, run `npm -C frontend run docs:check` before staging or before the first commit for that lane.
+- If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
 - If a batch materially changes an interaction-heavy admin or frontend route, route-level browser smoke is a required validation decision, not an optional note.
   - If a local verification target is already available, run the smoke before the final push.
   - If no target is active but starting the canonical local target is feasible within the run, start it and run the smoke.

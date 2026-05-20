@@ -15,6 +15,7 @@ Purpose: keep the retained Gear Ball working memory concise and execution-focuse
 - Lock a batch manifest before the first staging step on large or mixed runs.
 - Prefer file-backed manifests (`--files-from`, `--tests-from`) over long inline arg lists.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.
+- If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
 - Keep execution chatter near zero. Routine command progress, polling, and successful intermediate steps stay internal unless a blocker, approval need, or material plan change appears.
 - Rebuild the next manifest from live `git status --short` after every commit.
 - If validation generates new retained/support artifacts before the first Git write, rebuild the active manifest from live `git status --short` before staging.

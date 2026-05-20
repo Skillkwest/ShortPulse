@@ -14,6 +14,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Env rule: never expose secrets or use temporary env/text copies as source of truth unless the user explicitly names that file for the task.
 - Supabase rule: use Supabase CLI with explicit hosted targets; never use Docker-based Supabase workflows.
 - Vercel rule: validate target environment and source of truth before mutating Vercel env vars or deployment settings.
+- Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 
 ## Durable Lessons
 
@@ -29,6 +30,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.
 - Keep execution chatter near zero. Routine command progress, polling, and successful intermediate steps should stay internal unless a blocker, approval need, or material plan change appears.
 - Shared frontend hooks/pages/API routes and `frontend/package.json` are early-build triggers. Generated docs, evidence packets, and agent artifacts are early-`docs:check` triggers.
+- If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
 - Shared-contract changes require first-manifest fan-out. Include downstream tests for preview delivery, KPI packets, route payloads, shared runtime helpers, and cross-surface layout contracts instead of relying on the final full suite to surface them.
 - Interaction-heavy admin/frontend route changes need one route-level browser smoke before push when feasible. If qualifying smoke cannot be run, classify the run as `smoke-incomplete` and score it accordingly.
 - When route-level smoke fails on a path that no longer exists in the product, treat that as an audit drift bug to classify and repair, not a product regression to cargo-cult back into the UI.

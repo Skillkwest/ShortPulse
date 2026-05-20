@@ -187,6 +187,7 @@ export type PulseCreateAgentRuntimeActions = {
   onClearAgentAttachments: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onClearAgentChat: () => void;
+  onPresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
   onGenerateArtifact: () => void;
   onPresetStart: (
     preset: CreatePulseResolvedPreset,

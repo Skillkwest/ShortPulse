@@ -90,9 +90,10 @@ async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
 
 async function openPulseCatalog(page) {
   const catalogButton = page.getByRole("button", { name: "Pulse Catalog" }).first();
+  const catalogRegion = page.getByRole("region", { name: "Pulse Catalog", exact: true }).first();
   await catalogButton.waitFor({ timeout: 20_000 });
   await catalogButton.click();
-  await page.getByRole("region", { name: "Pulse Catalog" }).waitFor({ timeout: 10_000 });
+  await catalogRegion.waitFor({ timeout: 10_000 });
 }
 
 async function openPulseLibrary(page) {
@@ -242,10 +243,11 @@ async function main() {
   const systemInstructions =
     'Reply in exactly one sentence that begins with "CUSTOM-PULSE-MARKER:" and stay concise.';
   const userTurn = "Give me a quick reply.";
-  const activationSeedExpected = [
+  const activationSeedFragments = [
     `Pulse "${pulseLabel}" was just activated.`,
     "Reply according to the active Pulse instructions.",
-  ].join("\n\n");
+    "If the instructions define startup behavior, run it only on the first assistant turn of this session.",
+  ];
 
   const out = {
     ok: false,
@@ -309,8 +311,10 @@ async function main() {
     if (pulseRequestCount === 1) {
       out.requestChecks.activationSeen = true;
       out.requestChecks.runtimeModePulse = parsedBody?.runtimeMode === "pulse";
-      out.requestChecks.activationSeedMatches =
-        normalizeWhitespace(lastMessage?.content) === normalizeWhitespace(activationSeedExpected);
+      const normalizedActivationSeed = normalizeWhitespace(lastMessage?.content);
+      out.requestChecks.activationSeedMatches = activationSeedFragments.every((fragment) =>
+        normalizedActivationSeed.includes(normalizeWhitespace(fragment))
+      );
       out.requestChecks.customPulseKind = pulseContext?.pulseKind === "custom_gpt";
       out.requestChecks.customSource = pulseContext?.source === "custom";
       out.requestChecks.instructionsMatch = pulseContext?.instructions === systemInstructions;
@@ -368,7 +372,10 @@ async function main() {
     await ensurePulseMode(page);
     await openPulseCatalog(page);
     await page.getByRole("button", { name: pulseLabel, exact: true }).click();
-    await page.getByRole("region", { name: "Pulse Catalog" }).waitFor({ state: "hidden", timeout: 10_000 });
+    await page
+      .getByRole("region", { name: "Pulse Catalog", exact: true })
+      .first()
+      .waitFor({ state: "hidden", timeout: 10_000 });
 
     await page.getByText("CUSTOM-PULSE-MARKER: activation acknowledged.").waitFor({
       timeout: 10_000,

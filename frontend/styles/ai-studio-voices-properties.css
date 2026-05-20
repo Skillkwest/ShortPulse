@@ -1171,7 +1171,7 @@
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
-  width: min(424px, 100%);
+  width: min(540px, 100%);
 }
 
 @media (max-width: 900px) {
@@ -1198,8 +1198,7 @@
 
 @media (max-width: 640px) {
   .voices-properties-mode-switcher {
-    flex-direction: column;
-    gap: 8px;
+    width: 100%;
   }
 }
 
@@ -2712,12 +2711,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
 }
 
 .voices-properties-mode-switcher-label {
   flex: 0 0 auto;
+  display: inline-flex;
   color: rgba(201, 205, 214, 0.68);
   font-size: 11px;
   font-weight: 700;
@@ -2731,6 +2732,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
+  width: 100%;
   min-height: 40px;
   padding: 4px;
   border: 1px solid rgba(201, 205, 214, 0.18);

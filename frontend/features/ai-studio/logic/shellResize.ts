@@ -2,6 +2,8 @@
  * AI Studio shell resize helpers.
  * Computes bounds/defaults for the properties-vs-reference split layout.
  */
+import { isSoundWorkflow } from "./workflowIdentity";
+import type { ToolId } from "../types";
 
 export const AI_SHELL_LEFT_MIN_PX = 640;
 export const AI_SHELL_LEFT_SOUND_MIN_PX = 760;
@@ -133,6 +135,17 @@ export const shouldCollapseAiShellOnToolSelect = (
   previousTool: string | null,
   nextTool: string | null
 ): boolean => nextTool === "video" && nextTool !== previousTool;
+
+/**
+ * Indicates whether entering the Sound workspace should open at minimum width.
+ * Inputs: previous and next tool ids.
+ * Output: true only when crossing into the sound tool family from a non-sound tool.
+ */
+export const shouldCollapseAiShellOnInitialSoundSelection = (
+  previousTool: ToolId | null,
+  nextTool: ToolId | null
+): boolean =>
+  previousTool !== nextTool && isSoundWorkflow(nextTool) && !isSoundWorkflow(previousTool);
 
 /**
  * Indicates whether selecting the next tool should expand the properties column to its maximum.

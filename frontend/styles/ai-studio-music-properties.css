@@ -44,8 +44,8 @@
 .music-properties-topbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  padding: 10px 20px 12px;
+  align-items: start;
+  padding: 2px 20px 12px;
   gap: 16px;
   overflow: hidden;
 }

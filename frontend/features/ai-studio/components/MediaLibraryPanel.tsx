@@ -104,6 +104,7 @@ const MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO = 0.3;
 const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
 const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
+const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
@@ -286,6 +287,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const visibleAudioRows = useMemo(
     () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
+  );
+  const shouldPreferVisualMediaFirstOnRootAll = useMemo(
+    () => isRootFolderSelected && itemType === "all" && normalizedSearch.length === 0,
+    [isRootFolderSelected, itemType, normalizedSearch]
   );
   const signableMediaRows = useMemo(
     () => (itemType === "all" ? mediaRows.filter((row) => !isAudioFile(row.file_type)) : mediaRows),
@@ -916,6 +921,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         visibleMediaIdsRef={visibleMediaIdsRef}
         surface={panelListSurface}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
+        preferVisualMediaFirst={shouldPreferVisualMediaFirstOnRootAll}
+        visualMediaPriorityCount={ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT}
       />
     ),
     [
@@ -939,6 +946,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       optimizerFallbackMediaIds,
       panelBodyRef,
       panelListSurface,
+      shouldPreferVisualMediaFirstOnRootAll,
       refreshSignedUrl,
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,

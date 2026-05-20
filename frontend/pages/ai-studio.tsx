@@ -321,6 +321,10 @@ const useAiStudioCreatePanelRuntime = ({
     displayCreatePulsePresetSnapshot,
     hasActivePulseSession,
   } = createPulsePageRuntime;
+  const handlePulsePresetRestart = useMemo(
+    () => pulseCreateAgentRuntime?.handlePulsePresetRestart ?? (async () => undefined),
+    [pulseCreateAgentRuntime?.handlePulsePresetRestart]
+  );
 
   return useMemo<CreatePanelProps>(() => {
     if (expertCreateMode === "pulse") {
@@ -369,6 +373,7 @@ const useAiStudioCreatePanelRuntime = ({
           onAssistantMessageEdit: handleAssistantMessageEdit,
           onClearAgentChat: handleClearAgentChat,
           onGenerateArtifact: handlePulseCreatePrimarySubmit,
+          onPresetRestart: handlePulsePresetRestart,
           onPresetStart: handleCreatePulsePresetStart,
         },
       });
@@ -505,6 +510,7 @@ const useAiStudioCreatePanelRuntime = ({
     handleOpenModelModal,
     handlePulseCreatePromptChange,
     handlePulseCreatePrimarySubmit,
+    handlePulsePresetRestart,
     handleRemoveAgentAttachment,
     handleStandardCreatePromptChange,
     handleStandardCreatePrimarySubmit,

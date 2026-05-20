@@ -33,6 +33,7 @@ describe("buildPulseCreatePanelProps", () => {
     generationGuardrail: null,
     handleClearAgentChat: vi.fn(),
     handlePulseCreatePrimarySubmit: vi.fn(),
+    handlePulsePresetRestart: vi.fn(async () => undefined),
     pulsePreferenceRuntime: undefined,
   };
 

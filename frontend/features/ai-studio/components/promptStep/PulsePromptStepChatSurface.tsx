@@ -32,6 +32,7 @@ type PulsePromptStepChatSurfaceProps = {
   emptyAgentChatSpacerClassName: string;
   agentMessages: AgentMessage[];
   introMessage: AgentMessage;
+  chatHistoryHeaderContent?: React.ReactNode;
   stagedPrompt: string | null;
   stagedAttachments: AgentAttachment[];
   dropToInputComposer: boolean;
@@ -95,6 +96,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   emptyAgentChatSpacerClassName,
   agentMessages,
   introMessage,
+  chatHistoryHeaderContent = null,
   stagedPrompt,
   stagedAttachments,
   dropToInputComposer,
@@ -191,6 +193,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
         isSending={promptThinking}
         showThinkingIndicator={!isPulseLoading}
         thinkingIndicatorPlacement="history"
+        historyHeaderContent={chatHistoryHeaderContent}
         historyFooterContent={pulseLoadingContent}
         stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
         stagedAttachments={dropToInputComposer ? [] : stagedAttachments}

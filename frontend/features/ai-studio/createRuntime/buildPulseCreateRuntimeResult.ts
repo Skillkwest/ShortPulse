@@ -56,6 +56,7 @@ export const buildPulseCreateRuntimeResult = ({
     isGenerateDisabled: props.isGenerateDisabled,
     generationGuardrail: props.generationGuardrail,
     handleClearAgentChat: actions.onClearAgentChat,
+    handlePulsePresetRestart: actions.onPresetRestart,
     handlePulseCreatePrimarySubmit: actions.onGenerateArtifact,
     pulsePreferenceRuntime: props.pulsePreferenceRuntime,
   }),

@@ -1,5 +1,5 @@
 import React from "react";
-import { Power, Trash } from "phosphor-react";
+import { ArrowCounterClockwise, Power, Trash } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
@@ -15,6 +15,7 @@ import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
 } from "./createPulsePresets";
+import { resolveCreatePulsePresetById } from "./createPulsePresets";
 
 type PulseCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
@@ -38,6 +39,7 @@ type PulseCreatePanelViewProps = {
       deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
+  onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   isPulseActivationBusy?: boolean;
   onOpenPresetsLibrary?: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
@@ -55,6 +57,7 @@ const PulseCreatePanelViewContent = ({
   hasActivePulseSession = Boolean(activePulsePresetId),
   onActivePulsePresetIdChange,
   onPulsePresetStart,
+  onPulsePresetRestart,
   isPulseActivationBusy = false,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
@@ -79,6 +82,11 @@ const PulseCreatePanelViewContent = ({
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
   const costValue = costCredits != null ? costCredits : "—";
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
+  const isPulseSessionLocked = isPulseActivationBusy || isPromptGenerating;
+  const activePulsePreset =
+    activePulsePresetId && hasActivePulseSession
+      ? resolveCreatePulsePresetById(activePulsePresetId, savedPulsePresets, builtInDefinitions)
+      : null;
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
@@ -175,7 +183,7 @@ const PulseCreatePanelViewContent = ({
               activePresetId={activePulsePresetId}
               onActivePresetIdChange={onActivePulsePresetIdChange}
               onPresetStart={onPulsePresetStart}
-              isActivationBusy={isPulseActivationBusy}
+              isActivationBusy={isPulseSessionLocked}
               builtInDefinitions={builtInDefinitions}
               savedPresets={savedPulsePresets}
               onSavedPresetsChange={onSavedPulsePresetsChange}
@@ -187,21 +195,38 @@ const PulseCreatePanelViewContent = ({
           <div className="create-composer-right-panel-inner">
             <div className="create-composer-right-panel-topbar">
               <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
-              {handleClearAgentChat ? (
-                <button
-                  type="button"
-                  className="create-composer-topbar-clear-btn"
-                  onClick={handleClearAgentChat}
-                  aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
-                >
-                  {isActivePulseSession ? (
-                    <Power size={14} weight="bold" aria-hidden />
-                  ) : (
-                    <Trash size={14} weight="bold" aria-hidden />
-                  )}
-                  <span>{isActivePulseSession ? "Deactivate Pulse" : "Clear"}</span>
-                </button>
-              ) : null}
+              <div className="create-composer-topbar-actions">
+                {isActivePulseSession && activePulsePreset && onPulsePresetRestart ? (
+                  <button
+                    type="button"
+                    className="create-composer-topbar-clear-btn"
+                    onClick={() => {
+                      void onPulsePresetRestart(activePulsePreset);
+                    }}
+                    aria-label="Restart pulse"
+                    disabled={isPulseSessionLocked}
+                  >
+                    <ArrowCounterClockwise size={14} weight="bold" aria-hidden />
+                    <span>Restart Pulse</span>
+                  </button>
+                ) : null}
+                {handleClearAgentChat ? (
+                  <button
+                    type="button"
+                    className="create-composer-topbar-clear-btn"
+                    onClick={handleClearAgentChat}
+                    aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
+                    disabled={isPulseSessionLocked}
+                  >
+                    {isActivePulseSession ? (
+                      <Power size={14} weight="bold" aria-hidden />
+                    ) : (
+                      <Trash size={14} weight="bold" aria-hidden />
+                    )}
+                    <span>{isActivePulseSession ? "Deactivate Pulse" : "Clear"}</span>
+                  </button>
+                ) : null}
+              </div>
             </div>
             {isNoHistoryShell ? (
               <div className="create-composer-empty-state-shell">{promptAndControls}</div>

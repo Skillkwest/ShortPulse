@@ -77,6 +77,7 @@ export type PulsePromptStepProps = {
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   pulseLoadingState?: PromptStepPulseLoadingState | null;
   chatHeaderExtraContent?: React.ReactNode;
+  chatHistoryHeaderContent?: React.ReactNode;
   hideHeader?: boolean;
   autoResize?: boolean;
   autoResizeLayoutKey?: string | number;
@@ -146,6 +147,7 @@ export function PulsePromptStep({
   onAgentInputVisualRowCountChange,
   pulseLoadingState = null,
   chatHeaderExtraContent = null,
+  chatHistoryHeaderContent = null,
   hideHeader = false,
   autoResize = false,
   autoResizeLayoutKey,
@@ -410,6 +412,7 @@ export function PulsePromptStep({
                 emptyAgentChatSpacerClassName={emptyAgentChatSpacerClassName}
                 agentMessages={agentMessages}
                 introMessage={introMessage}
+                chatHistoryHeaderContent={chatHistoryHeaderContent}
                 stagedPrompt={stagedPrompt}
                 stagedAttachments={stagedAttachments}
                 dropToInputComposer={dropToInputComposer}

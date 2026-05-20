@@ -331,16 +331,6 @@ export function CharacterPanelWorkspace({
             <div className="character-panel-library-title-stack">
               <h2>Characters</h2>
             </div>
-            <div className="character-panel-library-header-actions">
-              <button
-                type="button"
-                className="character-panel-action-btn"
-                onClick={() => setIsCharacterLibraryModalOpen(true)}
-                disabled={pageBusy}
-              >
-                Characters
-              </button>
-            </div>
           </div>
           {loading || isSwitchingCharacter ? (
             <div className="character-panel-editor-column-panel">
@@ -349,51 +339,63 @@ export function CharacterPanelWorkspace({
           ) : (
             <div className="character-panel-editor-column-panel">
               <div className="character-profile-card">
-                <label
-                  className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
-                  htmlFor="character-panel-name"
-                >
-                  <span className="input-label">Name:</span>
-                  <input
-                    ref={characterNameInputRef}
-                    id="character-panel-name"
-                    className="character-name-input"
-                    type="text"
-                    value={characterName}
-                    maxLength={80}
-                    onChange={(event) => setCharacterName(event.target.value)}
-                    placeholder="Enter character name"
-                    disabled={loading}
-                  />
-                </label>
-
-                <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
-                  <p className="input-label">Looks:</p>
+                <div className="character-panel-profile-top-row">
+                  <button
+                    type="button"
+                    className="character-panel-action-btn character-panel-profile-characters-btn"
+                    onClick={() => setIsCharacterLibraryModalOpen(true)}
+                    disabled={pageBusy}
+                  >
+                    Characters
+                  </button>
+                  <label
+                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field character-panel-profile-name-field--inline"
+                    htmlFor="character-panel-name"
+                  >
+                    <span className="input-label">Name:</span>
+                    <input
+                      ref={characterNameInputRef}
+                      id="character-panel-name"
+                      className="character-name-input"
+                      type="text"
+                      value={characterName}
+                      maxLength={80}
+                      onChange={(event) => setCharacterName(event.target.value)}
+                      placeholder="Enter character name"
+                      disabled={loading}
+                    />
+                  </label>
                 </div>
 
-                <div className="character-sheet-looks-block">
-                  <CharacterSheetPresetTabs
-                    presetIds={visibleCharacterSheetPresetIds}
-                    activePresetId={activeCharacterSheetPresetId}
-                    presetLabels={characterSheetPresetLabels}
-                    onSelectPreset={(presetId) => {
-                      void setActiveCharacterSheetPreset(presetId);
-                    }}
-                    onAddPreset={() => {
-                      void addCharacterSheetPreset();
-                    }}
-                    onRenamePreset={(presetId, nextLabel) => {
-                      void renameCharacterSheetPreset(presetId, nextLabel);
-                    }}
-                    onDeletePreset={(presetId) => {
-                      if (pageBusy || isSavingCharacterSheetPreset) return;
-                      clearMessages();
-                      setDeleteTargetCharacterSheetPresetId(presetId);
-                    }}
-                    panelId="character-panel-preset-panel"
-                    disabled={pageBusy}
-                    idBase="character-panel-preset"
-                  />
+                <div className="character-panel-looks-row">
+                  <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
+                    <p className="input-label">Looks:</p>
+                  </div>
+
+                  <div className="character-sheet-looks-block">
+                    <CharacterSheetPresetTabs
+                      presetIds={visibleCharacterSheetPresetIds}
+                      activePresetId={activeCharacterSheetPresetId}
+                      presetLabels={characterSheetPresetLabels}
+                      onSelectPreset={(presetId) => {
+                        void setActiveCharacterSheetPreset(presetId);
+                      }}
+                      onAddPreset={() => {
+                        void addCharacterSheetPreset();
+                      }}
+                      onRenamePreset={(presetId, nextLabel) => {
+                        void renameCharacterSheetPreset(presetId, nextLabel);
+                      }}
+                      onDeletePreset={(presetId) => {
+                        if (pageBusy || isSavingCharacterSheetPreset) return;
+                        clearMessages();
+                        setDeleteTargetCharacterSheetPresetId(presetId);
+                      }}
+                      panelId="character-panel-preset-panel"
+                      disabled={pageBusy}
+                      idBase="character-panel-preset"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -409,7 +411,7 @@ export function CharacterPanelWorkspace({
                       <CharacterDescriptionEditorCard
                         description={characterDescription}
                         maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                        rows={3}
+                        rows={5}
                         disabled={loading}
                         onChangeDescription={setCharacterDescription}
                       />

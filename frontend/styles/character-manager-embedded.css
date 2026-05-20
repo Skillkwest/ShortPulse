@@ -92,10 +92,8 @@
 }
 
 .character-panel-library-header-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 6px;
   margin-bottom: 8px;
 }
 
@@ -122,6 +120,35 @@
   justify-content: flex-end;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.character-panel-profile-top-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.character-panel-profile-characters-btn {
+  min-width: 88px;
+  flex-shrink: 0;
+}
+
+.character-panel-profile-name-field--inline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.character-panel-profile-name-field--inline .input-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.character-panel-profile-name-field--inline .character-name-input {
+  width: 100%;
 }
 
 .character-panel-action-btn {
@@ -191,7 +218,7 @@
 
 .character-panel-workspace .character-panel-preset-content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
   grid-template-areas: "description references";
   align-items: start;
   gap: 8px;
@@ -244,7 +271,7 @@
 }
 
 .character-panel-workspace .character-description-input {
-  min-height: 44px;
+  min-height: 88px;
   background: transparent;
   color: rgba(233, 242, 248, 0.94);
   font-size: 0.86rem;
@@ -260,6 +287,18 @@
   margin: 0 0 1px;
 }
 
+.character-panel-looks-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto);
+  align-items: center;
+  justify-content: start;
+  gap: 8px;
+}
+
+.character-panel-looks-row .character-sheet-looks-title-row {
+  margin: 0;
+}
+
 .character-panel-workspace
   .character-profile-fields.character-profile-fields--label-serif
   .input-label,
@@ -271,8 +310,16 @@
   margin-bottom: 1px;
 }
 
+.character-panel-workspace
+  .character-panel-profile-name-field--inline.character-simple-field.character-simple-field--label-serif
+  .input-label {
+  margin-bottom: 0;
+}
+
 .character-panel-workspace .character-sheet-looks-block {
   gap: 1px;
+  width: fit-content;
+  min-width: 0;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-rail,
@@ -281,7 +328,7 @@
 }
 
 .character-panel-workspace .character-sheet-preset-tab-row {
-  --character-preset-tab-width: 74px;
+  --character-preset-tab-width: 60px;
   gap: 3px;
   padding: 2px 5px 1px;
   border-radius: 10px 10px 0 0;
@@ -364,7 +411,7 @@
 
 @media (max-width: 900px) {
   .character-panel-library-header-main {
-    grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 
   .character-panel-library-header-actions,
@@ -374,6 +421,26 @@
 
   .character-panel-workspace .character-reference-empty-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-panel-looks-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 4px;
+  }
+
+  .character-panel-profile-top-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .character-panel-profile-name-field--inline {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .character-panel-profile-name-field--inline .input-label {
+    white-space: normal;
   }
 }
 

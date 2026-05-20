@@ -218,9 +218,18 @@ export const useCreateAgentStateCore = ({
         return { response: null, actions: undefined };
       }
 
-      const previousMessages = isolateHistory ? EMPTY_MESSAGES : messagesRef.current;
-      const getResponseBaseMessages = () =>
-        isolateHistory ? previousMessages : messagesRef.current;
+      const originalSessionMessages = messagesRef.current;
+      const previousMessages = isolateHistory ? EMPTY_MESSAGES : originalSessionMessages;
+      const getResponseBaseMessages = ({
+        restoreFallback = false,
+      }: {
+        restoreFallback?: boolean;
+      } = {}) =>
+        restoreFallback && isolateHistory && isNamespaceOverrideSend
+          ? originalSessionMessages
+          : isolateHistory
+            ? previousMessages
+            : messagesRef.current;
       const requestCanonicalPrompt =
         canonicalPromptBySessionIdentityRef.current.get(requestSessionIdentity) ?? null;
       if (!skipUserEcho && !allowContextOnlyTurn) {
@@ -282,14 +291,18 @@ export const useCreateAgentStateCore = ({
               }),
             });
         if (inputPrecheckResult?.outcome === "refusal") {
-          const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
-            id: createAgentMessageId("assistant"),
-            content: SAFETY_REFUSAL_MESSAGE,
-            canUseAsPrompt: false,
-            outcomeClass: "refusal_safety",
-            reasonCode: "SAFETY_INPUT_REFUSAL",
-            decision: "refuse",
-          });
+          restorePreviousSessionIdentity();
+          const nextAssistantMessages = appendAssistantMessage(
+            getResponseBaseMessages({ restoreFallback: true }),
+            {
+              id: createAgentMessageId("assistant"),
+              content: SAFETY_REFUSAL_MESSAGE,
+              canUseAsPrompt: false,
+              outcomeClass: "refusal_safety",
+              reasonCode: "SAFETY_INPUT_REFUSAL",
+              decision: "refuse",
+            }
+          );
           setMessages(nextAssistantMessages);
           messagesRef.current = nextAssistantMessages;
           return {
@@ -337,14 +350,18 @@ export const useCreateAgentStateCore = ({
         if (!transportResult.ok) {
           const failureResolution = resolveStudioAgentTransportFailure(transportResult);
           if (failureResolution.assistantMessage) {
-            const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
-              id: createAgentMessageId("assistant"),
-              content: failureResolution.assistantMessage,
-              canUseAsPrompt: false,
-              outcomeClass: failureResolution.response?.outcome_class ?? null,
-              reasonCode: failureResolution.response?.reason_code ?? null,
-              decision: failureResolution.response?.decision ?? null,
-            });
+            restorePreviousSessionIdentity();
+            const nextAssistantMessages = appendAssistantMessage(
+              getResponseBaseMessages({ restoreFallback: true }),
+              {
+                id: createAgentMessageId("assistant"),
+                content: failureResolution.assistantMessage,
+                canUseAsPrompt: false,
+                outcomeClass: failureResolution.response?.outcome_class ?? null,
+                reasonCode: failureResolution.response?.reason_code ?? null,
+                decision: failureResolution.response?.decision ?? null,
+              }
+            );
             setMessages(nextAssistantMessages);
             messagesRef.current = nextAssistantMessages;
             return {

@@ -376,7 +376,7 @@ describe("CreatePulsePresetPanel", () => {
     expect(screen.getByText("Pulse preset panel is full (max 10).")).toBeInTheDocument();
   });
 
-  it("retries kickoff when the active pulse preset is clicked again", async () => {
+  it("does not restart kickoff when the active pulse preset is clicked again", async () => {
     const onActivePresetIdChange = vi.fn(() => null);
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
@@ -391,25 +391,8 @@ describe("CreatePulsePresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith(
-        "image",
-        expect.objectContaining({
-          forceNewSession: true,
-          preserveWorkflowSession: true,
-          sessionInstanceIdOverride: expect.any(String),
-        })
-      );
-      expect(onPresetStart).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presetId: "image",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-        }),
-        expect.objectContaining({
-          pulseSessionInstanceId: expect.any(String),
-          deferWorkflowSessionCommit: true,
-        })
-      );
+      expect(onActivePresetIdChange).not.toHaveBeenCalled();
+      expect(onPresetStart).not.toHaveBeenCalled();
     });
   });
 

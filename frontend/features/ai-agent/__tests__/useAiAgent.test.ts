@@ -375,6 +375,214 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
+  it("restores the previous Pulse transcript and session identity after a client-side kickoff refusal", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Recovered existing Pulse." }),
+    } as Response);
+
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "pulse",
+        sessionNamespace: "ai-studio:seed:none::pulse:image",
+      })
+    );
+
+    act(() => {
+      result.current.appendUserMessage("Previous Pulse transcript");
+    });
+    expect(result.current.messages).toHaveLength(1);
+
+    let refusalResult!: SendResult;
+    await act(async () => {
+      refusalResult = await result.current.send({
+        text: "graphic sexual intercourse with explicit anatomy",
+        payloadText: "graphic sexual intercourse with explicit anatomy",
+        sessionNamespaceOverride: "ai-studio:seed:none::pulse:story_builder",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(refusalResult.response).toEqual(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+      })
+    );
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual([
+      expect.objectContaining({
+        role: "user",
+        content: "Previous Pulse transcript",
+      }),
+      expect.objectContaining({
+        role: "assistant",
+        content: "I cannot describe this.",
+      }),
+    ]);
+
+    let recoveredSend!: SendResult;
+    await act(async () => {
+      recoveredSend = await result.current.send({
+        text: "continue existing pulse",
+        payloadText: "continue existing pulse",
+        context: {
+          pulse: {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            instructions: "Guide the user through a single-shot workflow.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your image to get the process started :)",
+            workflowStageHints: ["Image Gate"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(recoveredSend.discarded).not.toBe(true);
+    const recoveredBody = JSON.parse(
+      String(fetchWithAuthMock.mock.calls[0]?.[1]?.body ?? "{}")
+    ) as { clientSessionNamespace?: string };
+    expect(recoveredBody.clientSessionNamespace).toBe("ai-studio:seed:none::pulse:image");
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Recovered existing Pulse.",
+      })
+    );
+  });
+
+  it("restores the previous Pulse transcript and session identity after an assistant-visible kickoff refusal", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "I cannot describe this.",
+            decision: "refuse",
+            outcome_class: "refusal_safety",
+            reason_code: "SAFETY_INPUT_REFUSAL",
+            retryable: false,
+          }),
+          {
+            status: 422,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "Recovered existing Pulse." }),
+      } as Response);
+
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "pulse",
+        sessionNamespace: "ai-studio:seed:none::pulse:image",
+      })
+    );
+
+    act(() => {
+      result.current.appendUserMessage("Previous Pulse transcript");
+    });
+    expect(result.current.messages).toHaveLength(1);
+
+    let refusalResult!: SendResult;
+    await act(async () => {
+      refusalResult = await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        sessionNamespaceOverride: "ai-studio:seed:none::pulse:story_builder",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(refusalResult.response).toEqual(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        outcome_class: "refusal_safety",
+      })
+    );
+    expect(result.current.messages).toEqual([
+      expect.objectContaining({
+        role: "user",
+        content: "Previous Pulse transcript",
+      }),
+      expect.objectContaining({
+        role: "assistant",
+        content: "I cannot describe this.",
+      }),
+    ]);
+
+    let recoveredSend!: SendResult;
+    await act(async () => {
+      recoveredSend = await result.current.send({
+        text: "continue existing pulse",
+        payloadText: "continue existing pulse",
+        context: {
+          pulse: {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            instructions: "Guide the user through a single-shot workflow.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your image to get the process started :)",
+            workflowStageHints: ["Image Gate"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(recoveredSend.discarded).not.toBe(true);
+    const recoveredBody = JSON.parse(
+      String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")
+    ) as { clientSessionNamespace?: string };
+    expect(recoveredBody.clientSessionNamespace).toBe("ai-studio:seed:none::pulse:image");
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Recovered existing Pulse.",
+      })
+    );
+  });
+
   it("refuses explicit input in client precheck without transport call", async () => {
     const { result } = renderHook(() =>
       useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })

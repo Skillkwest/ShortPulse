@@ -77,6 +77,8 @@ type MediaLibraryAllItemsGridProps = {
   signedVideoUrlById?: Record<string, string>;
   surface?: "media-library-panel" | "elements-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
+  preferVisualMediaFirst?: boolean;
+  visualMediaPriorityCount?: number;
 };
 
 type MediaLibraryAllItem =
@@ -721,6 +723,8 @@ export function MediaLibraryAllItemsGrid({
   signedVideoUrlById: signedVideoUrlOverrides = {},
   surface = "media-library-panel",
   densityConfig,
+  preferVisualMediaFirst = false,
+  visualMediaPriorityCount = 0,
 }: MediaLibraryAllItemsGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
@@ -760,12 +764,29 @@ export function MediaLibraryAllItemsGrid({
         row,
       })),
     ];
-    return items.sort((left, right) => {
+    const chronologicallySortedItems = items.sort((left, right) => {
       const createdDelta = right.createdAt - left.createdAt;
       if (createdDelta !== 0) return createdDelta;
       return right.key.localeCompare(left.key);
     });
-  }, [mediaRows, promptRows]);
+    if (!preferVisualMediaFirst || visualMediaPriorityCount < 1) {
+      return chronologicallySortedItems;
+    }
+    const prioritizedVisualItems: MediaLibraryAllItem[] = [];
+    const remainingItems: MediaLibraryAllItem[] = [];
+    for (const item of chronologicallySortedItems) {
+      const isPrioritizedVisualItem =
+        item.kind === "media" &&
+        !isAudioFile(item.row.file_type) &&
+        prioritizedVisualItems.length < visualMediaPriorityCount;
+      if (isPrioritizedVisualItem) {
+        prioritizedVisualItems.push(item);
+        continue;
+      }
+      remainingItems.push(item);
+    }
+    return [...prioritizedVisualItems, ...remainingItems];
+  }, [mediaRows, preferVisualMediaFirst, promptRows, visualMediaPriorityCount]);
 
   const {
     containerRef: virtualContainerRef,

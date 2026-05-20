@@ -77,6 +77,7 @@ import {
   AI_SHELL_RIGHT_ELEMENTS_MIN_PX,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
+  shouldCollapseAiShellOnInitialSoundSelection,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
@@ -867,7 +868,6 @@ export function AiStudioPageContent({
     const isEditToolSelected = selectedTool === "edit";
     const isCharacterShellToolSelected =
       selectedTool === "character" || selectedTool === "elements";
-    const isSoundToolSelected = isSoundWorkflow(selectedTool);
     const shouldResetForCharacterShellSelection =
       isCharacterShellToolSelected && previousSelectedTool !== selectedTool;
     if (shouldResetForCharacterShellSelection) {
@@ -907,12 +907,12 @@ export function AiStudioPageContent({
       nextMode: expertCreateMode,
       createModeEnabled: showCreatePropertiesPanel,
     });
-    const isInitialSoundSelection =
-      previousSelectedTool !== selectedTool &&
-      isSoundToolSelected &&
-      !isSoundWorkflow(previousSelectedTool);
+    const isInitialSoundSelection = shouldCollapseAiShellOnInitialSoundSelection(
+      previousSelectedTool,
+      selectedTool
+    );
     if (isInitialSoundSelection) {
-      resetToDefaultWidth();
+      collapseToMin();
       previousSelectedToolRef.current = selectedTool;
       previousExpertCreateModeRef.current = expertCreateMode;
       previousSessionIdRef.current = sessionId;

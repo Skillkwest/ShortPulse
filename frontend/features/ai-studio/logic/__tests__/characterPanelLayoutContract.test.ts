@@ -24,6 +24,15 @@ describe("character panel layout contract", () => {
     );
   });
 
+  it("allows the Character properties panel to shrink narrower than the default shell right-column minimum", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(
+      '.ai-studio-page[data-selected-tool="character"] .ai-shell.ai-shell-resizable,'
+    );
+    expect(css).toContain("--ai-shell-right-min-width: 260px;");
+  });
+
   it("pins the Character split host as the active flex child under the properties rail", () => {
     const css = fs.readFileSync(propertiesCssPath, "utf8");
 
@@ -60,7 +69,7 @@ describe("character panel layout contract", () => {
     const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
 
     expect(css).toContain(".character-panel-workspace .character-panel-preset-content-grid {");
-    expect(css).toContain("grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);");
+    expect(css).toContain("grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);");
     expect(css).toContain('grid-template-areas: "description references";');
     expect(css).toContain(".character-panel-workspace .character-panel-preset-description-column,");
     expect(css).toContain(

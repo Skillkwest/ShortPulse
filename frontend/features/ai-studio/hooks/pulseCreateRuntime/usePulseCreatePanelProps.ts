@@ -4,7 +4,10 @@ import type {
   AgentAttachment,
   AgentMessage,
 } from "../../../../prefabs/agent";
-import type { CreatePulsePresetKind } from "../../components/create/createPulsePresets";
+import type {
+  CreatePulsePresetKind,
+  CreatePulseResolvedPreset,
+} from "../../components/create/createPulsePresets";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
 
@@ -38,6 +41,7 @@ type UsePulseCreatePanelPropsParams = {
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
+  handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
   handlePulseCreatePrimarySubmit: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
@@ -91,6 +95,7 @@ export const buildPulseCreatePanelProps = ({
   isGenerateDisabled,
   generationGuardrail,
   handleClearAgentChat,
+  handlePulsePresetRestart,
   handlePulseCreatePrimarySubmit,
   pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
@@ -124,6 +129,7 @@ export const buildPulseCreatePanelProps = ({
     isGenerateDisabled: isGenerateDisabled || Boolean(imageAttachmentGuardrail),
     guardrailReason: imageAttachmentGuardrail ?? generationGuardrail,
     onClearAgentChat: handleClearAgentChat,
+    onPulsePresetRestart: handlePulsePresetRestart,
     onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
     pulsePreferenceRuntime,
   };

@@ -20,6 +20,7 @@ import {
   parseStoredAiShellLeftWidth,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
+  shouldCollapseAiShellOnInitialSoundSelection,
   shouldCollapseAiShellOnToolSelect,
   shouldExpandAiShellOnToolSelect,
 } from "../shellResize";
@@ -153,6 +154,22 @@ describe("shouldCollapseAiShellOnToolSelect", () => {
     expect(shouldCollapseAiShellOnToolSelect("character", "character")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("edit", null)).toBe(false);
+  });
+});
+
+describe("shouldCollapseAiShellOnInitialSoundSelection", () => {
+  it("collapses when entering the sound workspace from a non-sound tool", () => {
+    expect(shouldCollapseAiShellOnInitialSoundSelection("create", "sound")).toBe(true);
+    expect(shouldCollapseAiShellOnInitialSoundSelection("edit", "music")).toBe(true);
+    expect(shouldCollapseAiShellOnInitialSoundSelection("video", "voice-changer")).toBe(true);
+  });
+
+  it("does not collapse when reselecting sound or switching inside the sound family", () => {
+    expect(shouldCollapseAiShellOnInitialSoundSelection("sound", "sound")).toBe(false);
+    expect(shouldCollapseAiShellOnInitialSoundSelection("sound", "music")).toBe(false);
+    expect(shouldCollapseAiShellOnInitialSoundSelection("voices", "sound-effects")).toBe(false);
+    expect(shouldCollapseAiShellOnInitialSoundSelection("sound", "edit")).toBe(false);
+    expect(shouldCollapseAiShellOnInitialSoundSelection(null, null)).toBe(false);
   });
 });
 

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PulseCreatePanelView } from "../create/PulseCreatePanelView";
 import { StandardCreatePanelView } from "../create/StandardCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
+import { CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS } from "../../../../lib/model-runtime/createPulsePresetDomain";
 
 vi.mock("../../../../prefabs/agent", () => ({
   AgentGenerateButton: ({
@@ -34,6 +35,14 @@ vi.mock("../PromptStep", () => ({
 
 describe("Create generate guardrail messaging", () => {
   const message = "Select a model before generating.";
+  const pulsePreferenceRuntime = {
+    presetPanelIds: ["story_builder"],
+    savedPresets: [],
+    builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+    builtInDefinitionsLoading: false,
+    setPresetPanelIds: vi.fn(async () => true),
+    setSavedPresets: vi.fn(async () => true),
+  };
 
   it("does not show the removed detached expert generate warning", () => {
     render(
@@ -103,6 +112,7 @@ describe("Create generate guardrail messaging", () => {
         isPromptGenerating={false}
         isGenerateDisabled={false}
         activePulsePresetId="multi_shot"
+        pulsePreferenceRuntime={pulsePreferenceRuntime}
       />
     );
 
@@ -113,5 +123,51 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.getByText("Preparing your guided workflow...")).toBeInTheDocument();
     expect(within(startupStatus).getByText(/Multi Sequence Video Prompt/)).toBeInTheDocument();
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+  });
+
+  it("shows explicit restart and deactivate actions for an active Pulse session", () => {
+    render(
+      <PulseCreatePanelView
+        promptStepProps={
+          {
+            onClearAgentChat: vi.fn(),
+          } as unknown as PromptStepProps
+        }
+        onGeneratePulseArtifact={vi.fn()}
+        onPulsePresetRestart={vi.fn()}
+        costCredits={15}
+        isPromptGenerating={false}
+        isGenerateDisabled={false}
+        activePulsePresetId="story_builder"
+        hasActivePulseSession
+        pulsePreferenceRuntime={pulsePreferenceRuntime}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Restart pulse" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
+  });
+
+  it("locks restart and deactivate actions while a Pulse artifact is generating", () => {
+    render(
+      <PulseCreatePanelView
+        promptStepProps={
+          {
+            onClearAgentChat: vi.fn(),
+          } as unknown as PromptStepProps
+        }
+        onGeneratePulseArtifact={vi.fn()}
+        onPulsePresetRestart={vi.fn()}
+        costCredits={15}
+        isPromptGenerating
+        isGenerateDisabled={false}
+        activePulsePresetId="story_builder"
+        hasActivePulseSession
+        pulsePreferenceRuntime={pulsePreferenceRuntime}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Restart pulse" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeDisabled();
   });
 });

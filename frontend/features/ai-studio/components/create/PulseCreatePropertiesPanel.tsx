@@ -72,8 +72,17 @@ export type PulseCreatePropertiesPanelProps = {
       deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
+  onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   onOpenPresetsLibrary?: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
+};
+
+const resolvePulseWorkflowStatusLabel = (
+  status: AgentPulseWorkflowSession["status"] | null | undefined
+): string => {
+  if (status === "completed") return "Completed";
+  if (status === "running") return "In Progress";
+  return "Awaiting Input";
 };
 
 export function PulseCreatePropertiesPanel({
@@ -111,6 +120,7 @@ export function PulseCreatePropertiesPanel({
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
+  onPulsePresetRestart,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
   onGeneratePulseArtifact,
@@ -167,6 +177,56 @@ export function PulseCreatePropertiesPanel({
     pulseWorkflowSession?.status,
   ]);
 
+  const activePulseCurrentStepLabel = pulseWorkflowSession?.currentStepLabel?.trim() || null;
+  const activePulseCurrentStepPrompt = pulseWorkflowSession?.currentStepPrompt?.trim() || null;
+  const activePulseStatus = pulseWorkflowSession?.status ?? null;
+  const activePulseFinalArtifactSource = pulseWorkflowSession?.finalArtifactSource ?? null;
+
+  const activePulseBanner = React.useMemo(() => {
+    if (!activePulsePresetId || !isGuidedWorkflowPulse) {
+      return null;
+    }
+    const presetLabel =
+      activePulsePresetLabel?.trim() || resolveCreatePulsePresetLabelById(activePulsePresetId);
+    const statusLabel = resolvePulseWorkflowStatusLabel(activePulseStatus);
+    const completionSummary =
+      activePulseStatus === "completed"
+        ? activePulseFinalArtifactSource === "apply_prompt"
+          ? "Final prompt ready to generate."
+          : "Final artifact completed."
+        : null;
+
+    return (
+      <div className="create-composer-active-pulse-banner" role="status" aria-label="Active Pulse">
+        <div className="create-composer-active-pulse-banner-row">
+          <span className="create-composer-active-pulse-banner-kicker">Active Pulse</span>
+          <span className="create-composer-active-pulse-banner-status">{statusLabel}</span>
+        </div>
+        <p className="create-composer-active-pulse-banner-title">{presetLabel}</p>
+        {activePulseCurrentStepLabel ? (
+          <p className="create-composer-active-pulse-banner-step">
+            Current Step: {activePulseCurrentStepLabel}
+          </p>
+        ) : null}
+        {activePulseStatus === "completed" ? (
+          completionSummary ? (
+            <p className="create-composer-active-pulse-banner-body">{completionSummary}</p>
+          ) : null
+        ) : activePulseCurrentStepPrompt ? (
+          <p className="create-composer-active-pulse-banner-body">{activePulseCurrentStepPrompt}</p>
+        ) : null}
+      </div>
+    );
+  }, [
+    activePulsePresetId,
+    activePulsePresetLabel,
+    activePulseCurrentStepLabel,
+    activePulseCurrentStepPrompt,
+    activePulseFinalArtifactSource,
+    activePulseStatus,
+    isGuidedWorkflowPulse,
+  ]);
+
   const promptStepProps: React.ComponentProps<typeof PulsePromptStep> = {
     prompt: pulsePrompt,
     onPromptChange: onPulsePromptChange,
@@ -213,6 +273,8 @@ export function PulseCreatePropertiesPanel({
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
     composerLeadingContent: null,
+    chatHistoryHeaderContent: activePulseBanner,
+    hideHeader: true,
   };
 
   return (
@@ -229,6 +291,7 @@ export function PulseCreatePropertiesPanel({
       pulseWorkflowSession={pulseWorkflowSession}
       onActivePulsePresetIdChange={onActivePulsePresetIdChange}
       onPulsePresetStart={onPulsePresetStart}
+      onPulsePresetRestart={onPulsePresetRestart}
       isPulseActivationBusy={agentIsSending}
       onOpenPresetsLibrary={onOpenPresetsLibrary}
       pulsePreferenceRuntime={pulsePreferenceRuntime}

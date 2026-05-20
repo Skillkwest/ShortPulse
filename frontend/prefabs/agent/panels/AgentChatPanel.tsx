@@ -97,6 +97,7 @@ export type AgentChatPanelProps = {
   thinkingIndicatorPlacement?: "panel" | "history";
   dropHintText?: string;
   emptyStateText?: string;
+  historyHeaderContent?: React.ReactNode;
   historyFooterContent?: React.ReactNode;
   stagedAttachments?: AgentAttachment[];
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
@@ -137,6 +138,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   thinkingIndicatorPlacement = "panel",
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
+  historyHeaderContent,
   historyFooterContent,
   stagedAttachments = [],
   assistantBubbleMedia,
@@ -569,6 +571,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           </div>
           {disableOutputGenerate && inlineOutputGenerateGuardrailReason ? (
             <div className="inline-warning-hint">{inlineOutputGenerateGuardrailReason}</div>
+          ) : null}
+          {historyHeaderContent ? (
+            <div className="agent-chat-history-header">{historyHeaderContent}</div>
           ) : null}
           {introMessage ||
           stagedPrompt ||

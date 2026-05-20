@@ -989,6 +989,12 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   transition: none;
 }
 
+.ai-studio-page[data-selected-tool="character"] .ai-shell.ai-shell-resizable,
+.ai-studio-page[data-selected-tool="character"]
+  .ai-shell.ai-shell-resizable.ai-shell-character-open {
+  --ai-shell-right-min-width: 260px;
+}
+
 .ai-shell.ai-shell-resizable.ai-shell-resizing {
   transition: none;
 }

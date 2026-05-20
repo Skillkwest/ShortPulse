@@ -171,6 +171,14 @@
   display: inline-flex;
 }
 
+.create-composer-panel .create-composer-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .create-composer-panel .create-composer-topbar-clear-btn {
   height: 28px;
   padding: 0 10px;

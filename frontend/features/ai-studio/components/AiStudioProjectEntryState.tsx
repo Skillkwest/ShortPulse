@@ -39,7 +39,7 @@ type AiStudioProjectEntryStateProps = {
 type EntryStepState = "complete" | "active" | "pending";
 
 const isExperimentalEntryAnimationEnabled = (requested: boolean): boolean =>
-  requested && process.env.NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT === "true";
+  requested && process.env.NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT !== "false";
 
 export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
   {

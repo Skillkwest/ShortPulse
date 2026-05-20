@@ -89,6 +89,7 @@ export type PromptStepProps = {
   outputGenerateGuardrailReason?: string | null;
   hideOutputGenerateControls?: boolean;
   chatHeaderExtraContent?: React.ReactNode;
+  chatHistoryHeaderContent?: React.ReactNode;
   hideHeader?: boolean;
   autoResize?: boolean;
   autoResizeLayoutKey?: string | number;

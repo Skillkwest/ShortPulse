@@ -153,6 +153,11 @@ export const useCreatePulsePresetRuntime = ({
         } satisfies CreatePulsePresetStartResult;
       }
       clearStatusMessage();
+      if (activePresetId === presetId) {
+        return {
+          status: "started",
+        } satisfies CreatePulsePresetStartResult;
+      }
       const pulseSessionInstanceId = createPulseSessionInstanceId();
       const didStartWorkflowPreset = Boolean(
         resolvedPreset && onPresetStart && resolvedPreset.runtimeMode === "workflow_gpt"

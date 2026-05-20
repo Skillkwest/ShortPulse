@@ -83,6 +83,19 @@ describe("MediaLibraryAllItemsGrid", () => {
     signedVideoUrlById: {},
   });
 
+  const readRenderedMediaCardOrder = (container: HTMLElement): string[] =>
+    Array.from(container.querySelectorAll(".media-library-panel-media-card-shell")).map((shell) => {
+      const image = shell.querySelector("img[alt]");
+      if (image instanceof HTMLImageElement) {
+        return image.alt;
+      }
+      const audioPlayButton = shell.querySelector(".reference-card-audio-play");
+      if (audioPlayButton instanceof HTMLButtonElement) {
+        return audioPlayButton.getAttribute("aria-label") ?? "audio";
+      }
+      return "unknown";
+    });
+
   it("renders video cards as poster-first in the mixed all-media feed", () => {
     const { container } = render(<MediaLibraryAllItemsGrid {...baseProps()} />);
 
@@ -184,6 +197,62 @@ describe("MediaLibraryAllItemsGrid", () => {
         cardLongEdgePx: 188,
       })
     );
+  });
+
+  it("can prioritize preview-bearing visual media ahead of audio-heavy mixed chronology", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-2",
+        filename: "audio-2.mp3",
+        storage_path: "user-1/uploads/audio-2.mp3",
+        preview_storage_path: "user-1/uploads/audio-2.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-10T18:00:00.000Z",
+        signedUrl: null,
+        metadata: null,
+      },
+      {
+        id: "audio-1",
+        filename: "audio-1.mp3",
+        storage_path: "user-1/uploads/audio-1.mp3",
+        preview_storage_path: "user-1/uploads/audio-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-09T18:00:00.000Z",
+        signedUrl: null,
+        metadata: null,
+      },
+      {
+        id: "image-1",
+        filename: "image-1.png",
+        storage_path: "user-1/uploads/image-1.png",
+        preview_storage_path: "user-1/uploads/image-1.png",
+        file_type: "image/png",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/image-1.png",
+      },
+      {
+        id: "video-1",
+        filename: "video-1.mp4",
+        storage_path: "user-1/uploads/video-1.mp4",
+        preview_storage_path: "user-1/uploads/video-1.mp4",
+        file_type: "video/mp4",
+        created_at: "2026-04-07T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/video-1.mp4",
+        poster_variant_path: "https://cdn.example.com/video-1-poster.jpg",
+      },
+    ];
+
+    const { container } = render(
+      <MediaLibraryAllItemsGrid {...props} preferVisualMediaFirst visualMediaPriorityCount={2} />
+    );
+
+    expect(readRenderedMediaCardOrder(container)).toEqual([
+      "image-1.png",
+      "video-1.mp4",
+      "Load audio audio-2.mp3",
+      "Load audio audio-1.mp3",
+    ]);
   });
 
   it("applies virtualized layout styles to prompt cards in the mixed feed", () => {

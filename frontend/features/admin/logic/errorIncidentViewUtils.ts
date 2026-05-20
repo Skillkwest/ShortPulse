@@ -52,6 +52,9 @@ export const eventSignalFilterLabel = (value: AdminErrorEventSignalFilter): stri
   if (value === "provider_running_timeout") {
     return "Generation Recovery: provider running timeout";
   }
+  if (value === "project_workspace_repair_pending") {
+    return "AI Studio Projects: workspace repair pending";
+  }
   return "All event signals";
 };
 

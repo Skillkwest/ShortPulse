@@ -31,13 +31,13 @@ describe("adminErrorsEventsApi", () => {
       severity: "all",
       source: "all",
       synthetic: "exclude",
-      signal: "provider_running_timeout",
+      signal: "project_workspace_repair_pending",
       incident: "actionable",
       search: "  fal  ",
     });
 
     expect(params.toString()).toBe(
-      "page=2&limit=50&scope=generation&synthetic=exclude&signal=provider_running_timeout&incident=actionable&search=fal"
+      "page=2&limit=50&scope=generation&synthetic=exclude&signal=project_workspace_repair_pending&incident=actionable&search=fal"
     );
   });
 
@@ -113,6 +113,10 @@ describe("adminErrorsEventsApi", () => {
             created_at: "2026-01-01T00:00:01Z",
           },
         ],
+        summary: {
+          projectWorkspaceRepairPendingLastHourCount: 2,
+          projectWorkspaceRepairPendingLast24hCount: 7,
+        },
       },
       2
     );
@@ -123,7 +127,11 @@ describe("adminErrorsEventsApi", () => {
       scope: "app",
       severity: "low",
     });
-    expect(result.summary).toEqual(DEFAULT_ERROR_EVENTS_SUMMARY);
+    expect(result.summary).toMatchObject({
+      ...DEFAULT_ERROR_EVENTS_SUMMARY,
+      projectWorkspaceRepairPendingLastHourCount: 2,
+      projectWorkspaceRepairPendingLast24hCount: 7,
+    });
     expect(result.health).toEqual(DEFAULT_ERROR_EVENTS_HEALTH);
     expect(result.pagination.page).toBe(2);
   });

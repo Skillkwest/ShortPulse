@@ -25,6 +25,8 @@ export const GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE =
   "telemetry.generation.recovery.running_hard_timeout";
 export const GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE =
   "telemetry.generation.recovery.media_visible";
+export const PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE =
+  "telemetry.ai_studio.project_workspace.repair_pending";
 
 export const CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT =
   "character_mode_reference_refresh_empty";

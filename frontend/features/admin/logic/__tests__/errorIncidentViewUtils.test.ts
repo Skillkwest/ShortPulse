@@ -47,6 +47,7 @@ describe("errorIncidentViewUtils", () => {
       "reference refresh empty"
     );
     expect(eventSignalFilterLabel("provider_running_timeout")).toContain("running timeout");
+    expect(eventSignalFilterLabel("project_workspace_repair_pending")).toContain("repair pending");
     expect(eventIncidentFilterLabel("actionable")).toContain("Actionable");
     expect(eventIncidentFilterLabel("unlinked")).toContain("Unlinked");
   });

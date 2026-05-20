@@ -26,6 +26,7 @@ export const asSignalFilter = (value: unknown): SignalFilterValue => {
   if (normalized === "character_mode_reference_refresh_empty") return normalized;
   if (normalized === "character_mode_bundle_unavailable_fallback") return normalized;
   if (normalized === "provider_running_timeout") return normalized;
+  if (normalized === "project_workspace_repair_pending") return normalized;
   return "all";
 };
 

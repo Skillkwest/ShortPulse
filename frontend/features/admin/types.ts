@@ -270,6 +270,8 @@ export type AdminErrorEventSummary = {
   characterModeReferenceRefreshEmptyLast24hCount: number;
   characterModeBundleUnavailableFallbackLastHourCount: number;
   characterModeBundleUnavailableFallbackLast24hCount: number;
+  projectWorkspaceRepairPendingLastHourCount: number;
+  projectWorkspaceRepairPendingLast24hCount: number;
   total15mThreshold: number;
   high15mThreshold: number;
   generation15mThreshold: number;
@@ -284,7 +286,8 @@ export type AdminErrorEventSignalFilter =
   | "all"
   | "character_mode_reference_refresh_empty"
   | "character_mode_bundle_unavailable_fallback"
-  | "provider_running_timeout";
+  | "provider_running_timeout"
+  | "project_workspace_repair_pending";
 
 export type AdminErrorEventIncidentFilter =
   | "all"

@@ -218,7 +218,8 @@ export function ErrorEventsStreamSection({
 
         <div className={styles.searchRow}>
           <p className="tiny subdued">
-            Character Mode telemetry frequency: refresh-empty and bundle-unavailable fallback.
+            AI Studio/operator telemetry frequency: Character Mode fallbacks and project workspace
+            repair-pending saves.
           </p>
           <div className={styles.tabRow}>
             <button
@@ -277,6 +278,27 @@ export function ErrorEventsStreamSection({
               disabled={
                 errorEventsLoading ||
                 errorEventSignalFilter === "character_mode_bundle_unavailable_fallback"
+              }
+            >
+              Filter stream
+            </button>
+          </div>
+          <div className={styles.adminCard}>
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>Workspace repair pending</span>
+            </div>
+            <p className={styles.adminMetric}>
+              {errorEventsSummary.projectWorkspaceRepairPendingLast24hCount}
+            </p>
+            <p className={styles.adminSubtext}>
+              {`1h ${errorEventsSummary.projectWorkspaceRepairPendingLastHourCount} · 24h ${errorEventsSummary.projectWorkspaceRepairPendingLast24hCount}`}
+            </p>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => onErrorEventSignalFilterChange("project_workspace_repair_pending")}
+              disabled={
+                errorEventsLoading || errorEventSignalFilter === "project_workspace_repair_pending"
               }
             >
               Filter stream

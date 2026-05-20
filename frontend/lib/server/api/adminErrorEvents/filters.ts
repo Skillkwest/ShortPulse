@@ -8,6 +8,7 @@ import {
   CHARACTER_MODE_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
+  PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE,
   GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
@@ -50,6 +51,8 @@ export const applyEventFilters = (query: EventQuery, filters: EventFilterInput):
     next = next
       .eq("source", GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE)
       .eq("message", GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT);
+  } else if (filters.signal === "project_workspace_repair_pending") {
+    next = next.eq("source", PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE);
   }
 
   if (filters.incident === "open") {

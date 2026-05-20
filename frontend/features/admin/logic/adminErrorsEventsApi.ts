@@ -45,6 +45,8 @@ export const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
   characterModeReferenceRefreshEmptyLast24hCount: 0,
   characterModeBundleUnavailableFallbackLastHourCount: 0,
   characterModeBundleUnavailableFallbackLast24hCount: 0,
+  projectWorkspaceRepairPendingLastHourCount: 0,
+  projectWorkspaceRepairPendingLast24hCount: 0,
   total15mThreshold: 40,
   high15mThreshold: 8,
   generation15mThreshold: 20,
@@ -269,6 +271,14 @@ export const normalizeAdminErrorEventsResponse = (
     ),
     characterModeBundleUnavailableFallbackLast24hCount: toFiniteNumber(
       data.summary?.characterModeBundleUnavailableFallbackLast24hCount,
+      0
+    ),
+    projectWorkspaceRepairPendingLastHourCount: toFiniteNumber(
+      data.summary?.projectWorkspaceRepairPendingLastHourCount,
+      0
+    ),
+    projectWorkspaceRepairPendingLast24hCount: toFiniteNumber(
+      data.summary?.projectWorkspaceRepairPendingLast24hCount,
       0
     ),
     total15mThreshold: toFiniteNumber(data.summary?.total15mThreshold, 40),

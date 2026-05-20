@@ -127,6 +127,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       characterModeReferenceRefreshEmptyLast24hCountResult,
       characterModeBundleUnavailableFallbackLastHourCountResult,
       characterModeBundleUnavailableFallbackLast24hCountResult,
+      projectWorkspaceRepairPendingLastHourCountResult,
+      projectWorkspaceRepairPendingLast24hCountResult,
       admissionDeniedTelemetryRowsResult,
     } = await fetchErrorEventsDataset({
       supabaseAdmin,
@@ -297,6 +299,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       countErrorMessage(characterModeReferenceRefreshEmptyLast24hCountResult),
       countErrorMessage(characterModeBundleUnavailableFallbackLastHourCountResult),
       countErrorMessage(characterModeBundleUnavailableFallbackLast24hCountResult),
+      countErrorMessage(projectWorkspaceRepairPendingLastHourCountResult),
+      countErrorMessage(projectWorkspaceRepairPendingLast24hCountResult),
       admissionDeniedTelemetryRowsResult.error?.message ?? null,
     ].filter((value): value is string => Boolean(value));
 
@@ -359,6 +363,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ),
         characterModeBundleUnavailableFallbackLast24hCount: countOrZero(
           characterModeBundleUnavailableFallbackLast24hCountResult
+        ),
+        projectWorkspaceRepairPendingLastHourCount: countOrZero(
+          projectWorkspaceRepairPendingLastHourCountResult
+        ),
+        projectWorkspaceRepairPendingLast24hCount: countOrZero(
+          projectWorkspaceRepairPendingLast24hCountResult
         ),
         admissionDeniedTelemetry,
         total15mThreshold,

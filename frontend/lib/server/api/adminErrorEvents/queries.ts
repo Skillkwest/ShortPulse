@@ -8,6 +8,7 @@ import {
   CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT,
   CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT,
   CHARACTER_MODE_TELEMETRY_SOURCE,
+  PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE,
 } from "../errorTelemetryPolicy";
 import { applyEventFilters } from "./filters";
 import type { CountQueryResult, EventFilterInput, EventQuery, ListQueryResult } from "./types";
@@ -31,6 +32,8 @@ export type ErrorEventsDatasetResult = {
   characterModeReferenceRefreshEmptyLast24hCountResult: CountQueryResult;
   characterModeBundleUnavailableFallbackLastHourCountResult: CountQueryResult;
   characterModeBundleUnavailableFallbackLast24hCountResult: CountQueryResult;
+  projectWorkspaceRepairPendingLastHourCountResult: CountQueryResult;
+  projectWorkspaceRepairPendingLast24hCountResult: CountQueryResult;
   admissionDeniedTelemetryRowsResult: ListQueryResult;
 };
 
@@ -84,6 +87,8 @@ export const fetchErrorEventsDataset = async (params: {
     characterModeReferenceRefreshEmptyLast24hCountResult,
     characterModeBundleUnavailableFallbackLastHourCountResult,
     characterModeBundleUnavailableFallbackLast24hCountResult,
+    projectWorkspaceRepairPendingLastHourCountResult,
+    projectWorkspaceRepairPendingLast24hCountResult,
     admissionDeniedTelemetryRowsResult,
   ] = await Promise.all([
     eventsQuery,
@@ -193,6 +198,22 @@ export const fetchErrorEventsDataset = async (params: {
       ) as unknown as Promise<CountQueryResult>,
     params.supabaseAdmin
       .from("app_error_events")
+      .select("id", { count: "exact", head: true })
+      .gte("occurred_at", params.sinceHourIso)
+      .eq(
+        "source",
+        PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE
+      ) as unknown as Promise<CountQueryResult>,
+    params.supabaseAdmin
+      .from("app_error_events")
+      .select("id", { count: "exact", head: true })
+      .gte("occurred_at", params.since24hIso)
+      .eq(
+        "source",
+        PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE
+      ) as unknown as Promise<CountQueryResult>,
+    params.supabaseAdmin
+      .from("app_error_events")
       .select("occurred_at, metadata")
       .eq("source", ADMISSION_LIMITED_TELEMETRY_SOURCE)
       .gte("occurred_at", params.since24hIso) as unknown as Promise<ListQueryResult>,
@@ -214,6 +235,8 @@ export const fetchErrorEventsDataset = async (params: {
     characterModeReferenceRefreshEmptyLast24hCountResult,
     characterModeBundleUnavailableFallbackLastHourCountResult,
     characterModeBundleUnavailableFallbackLast24hCountResult,
+    projectWorkspaceRepairPendingLastHourCountResult,
+    projectWorkspaceRepairPendingLast24hCountResult,
     admissionDeniedTelemetryRowsResult,
   };
 };

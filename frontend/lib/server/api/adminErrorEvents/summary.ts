@@ -147,6 +147,8 @@ export const buildDegradedEventsPayload = (params: {
     characterModeReferenceRefreshEmptyLast24hCount: 0,
     characterModeBundleUnavailableFallbackLastHourCount: 0,
     characterModeBundleUnavailableFallbackLast24hCount: 0,
+    projectWorkspaceRepairPendingLastHourCount: 0,
+    projectWorkspaceRepairPendingLast24hCount: 0,
     admissionDeniedTelemetry: createAdmissionSummary(),
     total15mThreshold: params.total15mThreshold,
     high15mThreshold: params.high15mThreshold,

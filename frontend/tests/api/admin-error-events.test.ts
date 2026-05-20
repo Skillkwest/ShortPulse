@@ -41,7 +41,7 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
     };
 
     const query = {
-      select: (columns?: string) => {
+      select: () => {
         ensureSelected();
         return query;
       },
@@ -133,6 +133,8 @@ describe("GET /api/admin/error-events", () => {
           { count: 9, error: null },
           { count: 2, error: null },
           { count: 7, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
           {
             data: [
               {
@@ -364,6 +366,8 @@ describe("GET /api/admin/error-events", () => {
       characterModeReferenceRefreshEmptyLast24hCountResult: { count: 0, error: null },
       characterModeBundleUnavailableFallbackLastHourCountResult: { count: 0, error: null },
       characterModeBundleUnavailableFallbackLast24hCountResult: { count: 0, error: null },
+      projectWorkspaceRepairPendingLastHourCountResult: { count: 0, error: null },
+      projectWorkspaceRepairPendingLast24hCountResult: { count: 0, error: null },
       admissionDeniedTelemetryRowsResult: { data: [], error: null },
     });
     vi.spyOn(errorEventQueries, "fetchActionableErrorEvents").mockResolvedValue({

@@ -38,7 +38,8 @@ export type SignalFilterValue =
   | "all"
   | "character_mode_reference_refresh_empty"
   | "character_mode_bundle_unavailable_fallback"
-  | "provider_running_timeout";
+  | "provider_running_timeout"
+  | "project_workspace_repair_pending";
 
 export type IncidentFilterValue =
   | "all"

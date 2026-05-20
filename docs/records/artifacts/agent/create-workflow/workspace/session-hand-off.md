@@ -1,40 +1,29 @@
 # Session Hand-Off
 
-Purpose: give the next Create Workflow run a concise operational hand-off.
+Purpose: keep the next Create Workflow run from reloading the wrong incident model.
 
 ## Where We Left Off
 
-- The active implementation uses a split attachment contract:
-  - `imageUrl` is preview-only.
-  - `submissionImageUrl` is durable submission authority.
-  - new local image drops upload at drop time and move through `deliveryStatus: "preparing" -> "ready" | "failed"`.
-- Standard Generate, Pulse Generate, and chat send should be blocked while an image attachment is still `preparing` or has `failed`.
-- The runtime capture helper now includes `getDiagnosis()` for first-pass classification, and the ingest tooling carries that diagnosis into reports.
+- The main composer image insertion bug is resolved.
+- The decisive fix was treating internal app drags as app-owned drags even when the browser also supplied a synthetic image file.
+- The lane now uses an ephemeral attachment model with visible `preparing` state in the composer.
 
 ## What Not To Repeat
 
-- Do not start with another blind preview fallback patch if production is still failing.
-- Do not treat local test passes as proof that the production symptom is gone.
-- Do not reintroduce local `blob:` or `data:` URLs as model submission authority.
-- Do not debug the chip visual alone without also checking delivery state and the final model-send payload.
-- Do not widen the lane into unrelated media panel or deployment work unless the runtime capture points there.
+- Do not restart from the old “durable upload first” model for this lane.
+- Do not assume preview bugs are primary before checking drag classification.
+- Do not widen this lane into project persistence, storage promotion, or unrelated media workflows unless the product contract changes.
+- Do not trust raw browser `files` first when structured/internal/reference hints exist on the drag payload.
 
 ## What To Do First Next Time
 
-1. Confirm the deployed build contains the May 18 drop-time upload and readiness-gate code.
-2. Enable `createWorkflowDebug`.
-3. Capture one failing Standard repro and one Pulse repro only if Pulse is still reported broken.
-4. Save the JSON in `workspace/captures/`.
-5. Run the summarizer or ingest CLI.
-6. Decide the next fix from `getDiagnosis()`, `deliveryStatus`, `submissionImageUrl`, rendered `img.src`, and send-payload evidence.
-
-## Likely Remaining Failure Class
-
-Most likely if the issue still exists:
-
-- upload delivery never reaches `ready`,
-- the chip chooses a stale preview source,
-- the storage URL is not renderable in production,
-- or send preparation still rejects a ready attachment.
-
-The runtime helper exists to sort those classes without another speculative patch.
+1. Reconfirm the current product contract:
+   - chat-only
+   - ephemeral
+   - image-only
+2. Determine whether the repro is:
+   - internal drag only
+   - desktop file only
+   - both
+3. If the regression is internal-drag-only, inspect source classification first.
+4. If runtime behavior contradicts the current model, use the archived capture tools and reports.

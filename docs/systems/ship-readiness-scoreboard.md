@@ -4,18 +4,17 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 
 ## Snapshot
 
-- Snapshot date: `2026-05-16`
-- Snapshot freshness as of `2026-05-16`: `current`
+- Snapshot date: `2026-05-19`
+- Snapshot freshness as of `2026-05-19`: `current`
 - Freshness reason:
-  - launch-state fields were refreshed against the full repo-plus-worktree audit on `production`
-  - the active target window, exact queue, and dispatch-ready handoff set were reconciled together
-  - the managed subagent rerun and review packet cleared the remaining active ship-path blocker later the same day
+  - launch-state fields were refreshed against a full repo-plus-worktree audit on `production`
+  - the May 16 rerating package was preserved as historical evidence, not overwritten
+  - a focused May 19 validation pass was run from `frontend/` using the bundled Node runtime to avoid stale shell-path assumptions
 - Primary sources:
   - `docs/systems/catalog.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-16-production-repo-audit-and-dispatch-output.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-16-managed-lane-review-and-reference-grid-clear.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-19-production-baseline-refresh.md`
 
 ## Freshness Rule
 
@@ -41,11 +40,12 @@ For exact sequencing inside a priority band, the handoff queue remains the autho
 | -------------------------------------------------- | ------------- |
 | `P0` systems below floor                           | `3`           |
 | Active ship-path blockers                          | `0`           |
+| Active local regression reviews                    | `0`           |
 | External lanes still running                       | `0`           |
 | Reviewed-complete lanes awaiting broader rerate    | `1`           |
 | Undispatched below-floor lanes with handoffs ready | `2`           |
 | Non-blocking production findings tracked           | `3`           |
-| Score changes made in this refresh                 | `5`           |
+| Score changes made in this refresh                 | `0`           |
 
 Catalog-tool health metrics:
 
@@ -54,6 +54,17 @@ Catalog-tool health metrics:
 ## Active Ship-Path Blocker
 
 - none
+
+## Current Worktree Review Note
+
+The May 19 refresh first surfaced one Create-side attachment seam, but the current worktree now carries the fix and the focused rerun is green:
+
+- `Create workflow`
+  - the attachment staging/refresh hardening landed during the May 19 audit
+  - focused Create + persistence validation reran cleanly at `193/193`
+  - the row stays at `6/10`, but confidence moved up and the seam is no longer the exact next lane
+
+This is not a reopened blocker. It is now a score-held row with better trust, not an active local regression review.
 
 ## Below-Floor Systems
 
@@ -92,24 +103,21 @@ Catalog-tool health metrics:
 
 - reviewed complete, score unchanged pending broader runtime rerate:
   - `generation-recovery-settlement-hardening`
-- closeout received and score held after bounded hardening:
+- score held after bounded review:
   - `project-workspace-persistence-hardening`
   - `edit-workflow-hardening`
-- rerated to at-floor validation:
-  - `reference-grid-styles-runtime-verification`
-  - `billing-credits-runtime-hardening`
-  - `security-boundaries-release-audit`
-  - `generation-submission-polling-hardening`
+- score held after May 19 validation:
+  - `Create workflow`
 - ready next:
   - `characters-workflow-hardening`
-- second lane:
+- second open workflow lane:
   - `elements-workflow-hardening`
 
 ## Non-Blocking Production Findings
 
 - `Media delivery / signing / preview resolution`
-  - a stale signed-thumb path reached production clients in `historical implementation`
-  - current behavior recovered client-side, so this remains follow-up work, not a ship-path blocker
+  - a stale signed-thumb path reached production clients in historical implementation
+  - the May 19 repo refresh hardened delivery/list/signing behavior and focused API tests passed, so the row stays at floor but remains worth watching
 - `Media Library workflow`
   - Uploaded Images no-match search empty-state copy currently misreads a search miss as if no uploads exist
   - this is a real production UX defect, but not a blocker

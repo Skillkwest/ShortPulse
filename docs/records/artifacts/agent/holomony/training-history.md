@@ -2,6 +2,31 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-19: Approved-Panel Baseline Refresh And Classification Reset
+
+Task: rerun fresh approved-surface production baselines after the measurement-tooling fixes and let the new evidence update Holomony's current-state judgment.
+
+Actions taken:
+
+- reran fresh 5-run production KPI captures for:
+  - `ai-studio-panel`
+  - `elements-media-panel`
+- reran same-day production persistence audits for both approved surfaces
+- promoted the new packets and persistence outputs into Holomony's retained reports
+- updated Holomony memory, inventory, and ledger to retire the stale `done enough for now` classification
+- recorded the new active blocker as mixed-open signing cost and first useful media paint, not resolver churn or persistence trust
+
+Training result:
+
+- durable rule recorded: when KPI logic or telemetry attribution changes materially, rerun fresh retained baselines before trusting the prior lane classification
+- durable rule recorded: `persistence green` is not enough to close a runtime lane if fresh repeated KPI still shows fragile browse-open performance
+- Holomony now treats fresh source-of-truth reruns as authority over older optimistic status summaries
+
+Next training focus:
+
+- use the refreshed approved-surface baselines to choose the next real product optimization lane
+- keep Character expansion secondary until the approved-panel hot path is stronger or the evidence changes
+
 ## 2026-05-19: Measurement-Validity Answer Audit
 
 Task: learn from the moment where Holomony answered the measurement-validity question correctly in direction but not at the best decision quality.

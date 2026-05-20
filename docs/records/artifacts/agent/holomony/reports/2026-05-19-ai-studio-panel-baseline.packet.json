@@ -10,7 +10,8 @@
     "Open-phase measurement targeted the All Media root tab.",
     "5 repeated browser captures were aggregated, so direct panel timing p95 fields are derived from repeated-run evidence.",
     "5 of 5 capture runs reached a visible media card during the open-phase measurement.",
-    "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available."
+    "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available.",
+    "Persistence metrics were merged from the same-day production AI Studio media-panel persistence audit."
   ],
   "analysis": {
     "requestedRootTab": "all",
@@ -140,8 +141,8 @@
     "missingPreviewRatio": 0.4,
     "canonicalPreviewCoverageRatio": 1,
     "emptyStateMismatchCount": null,
-    "saveRoundtripFailureRate": null,
-    "saveRoundtripMismatchRate": null,
-    "saveBrowseReadyRatio": null
+    "saveRoundtripFailureRate": 0,
+    "saveRoundtripMismatchRate": 0,
+    "saveBrowseReadyRatio": 1
   }
 }

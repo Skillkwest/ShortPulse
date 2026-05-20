@@ -20,6 +20,12 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-16-operator-brief.md`: source-only backing artifact for the operator brief.
 - `2026-05-16-launch-ready-checklist.md`: simple copy/paste launch-readiness checklist covering current scores, active lanes, and full system status.
 - `2026-05-16-launch-ready-checklist.html`: browser-friendly version of the launch-readiness checklist.
+- `2026-05-19-production-baseline-refresh.md`: new dated full repo-plus-worktree baseline refresh that preserves the original May 6 baseline and updates current launch-control truth.
+- `2026-05-19-production-baseline-refresh.html`: browser-friendly view of the May 19 baseline refresh.
+- `2026-05-19-operator-brief.html`: current rich-format operator brief for the May 19 baseline refresh.
+- `2026-05-19-operator-brief.md`: source-only backing artifact for the May 19 operator brief.
+- `2026-05-19-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist for the May 19 launch snapshot.
+- `2026-05-19-launch-ready-checklist.html`: browser-friendly version of the May 19 launch-ready checklist.
 - `2026-05-16-memory-and-catalog-prune-audit.md`: pruning audit for Copperknot memory, retained context, and launch-focus catalog docs.
 - `2026-05-16-workspace-audit.md`: workspace-structure audit confirming the Copperknot space is self-contained and operational.
 - `external-lane-closeouts/README.md`: intake rules for closeout reports written by execution agents.

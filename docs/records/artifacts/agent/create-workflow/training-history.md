@@ -65,3 +65,16 @@ Purpose: track how Create Workflow is trained, what behavior improves, and what 
   - Pruned hot memory away from stale preview-only hypotheses and made `getDiagnosis()` the first triage step.
 - Next focus:
   - Capture production once and let the diagnosis pick the next failing lane.
+
+### 2026-05-19 (composer image insertion resolved)
+
+- Lesson:
+  - The incident was mainly a drag-intake boundary bug. Internal app drags must prefer structured reference hints over raw browser `files`.
+- Artifact change:
+  - Added a retrospective that compresses the incident into durable debugging heuristics and product-contract lessons.
+- Data change:
+  - Updated the incident case from unresolved to resolved and appended new failure-pattern, decision-episode, and attempt-ledger rows for the decisive pivots.
+- Product lesson:
+  - The Create composer image lane should stay chat-only, ephemeral, and visibly staged while loading.
+- Next focus:
+  - Reuse the snapshot-plus-structured-hints pattern the next time an internal drag/drop lane behaves differently from desktop file drop.

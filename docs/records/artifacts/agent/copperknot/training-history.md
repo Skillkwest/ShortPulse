@@ -219,6 +219,21 @@ Actions taken:
 - added a dedicated retained `metrics/` area under the Copperknot artifacts
 - seeded the first launch-metrics, score-movement, and decision-outcome logs with the current May 7 and May 15 history
 
+## 2026-05-19: Full Repo Baseline Refresh Discipline
+
+Task: run a full repo-plus-worktree audit without replacing the original May 6 baseline, then lock a new dated launch-control snapshot from current repo truth.
+
+Actions taken:
+
+- audited the full `production` repo plus the active worktree with subagent support across AI Studio, platform/runtime, and Copperknot control-surface lanes
+- refreshed the queue, scoreboard, operating package, dispatch log, and May 19 user-facing brief/checklist around a new baseline report instead of rewriting older baseline artifacts
+- corrected the first draft of the May 19 baseline after the live Create attachment seam was no longer reproducing in the current worktree and the focused rerun passed cleanly
+- recorded confidence-only movements for `Create workflow`, `Project / workspace persistence`, and `Media delivery / signing / preview resolution` instead of forcing broad score lifts
+
+Training result:
+
+- Copperknot now has a stronger rule for repo-wide baseline audits: final baseline truth must follow the latest validated worktree state at closeout, not the first failing seam seen mid-audit.
+
 ## 2026-05-16: Copperknot Rename Pass
 
 Task: rename the systems-catalog steward identity to Copperknot and realign the surrounding workspace so the new name is operationally clean.

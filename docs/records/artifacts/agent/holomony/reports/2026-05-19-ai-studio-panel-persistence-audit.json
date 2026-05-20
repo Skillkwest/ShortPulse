@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "surface": "ai-studio-panel",
+  "metrics": {
+    "saveRoundtripFailureRate": 0,
+    "saveRoundtripMismatchRate": 0,
+    "saveBrowseReadyRatio": 1
+  },
+  "steps": {
+    "upload": {
+      "visible": true,
+      "previewLoaded": true,
+      "browseReady": true,
+      "downloadActionVisible": true
+    },
+    "reloadReopen": {
+      "visible": true,
+      "previewLoaded": true,
+      "browseReady": true,
+      "downloadActionVisible": true
+    },
+    "freshContextReopen": {
+      "visible": true,
+      "previewLoaded": true,
+      "browseReady": true,
+      "downloadActionVisible": true
+    }
+  },
+  "cleanup": {
+    "attempted": true,
+    "succeeded": true
+  }
+}

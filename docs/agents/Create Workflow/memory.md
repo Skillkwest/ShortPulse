@@ -23,22 +23,17 @@ Purpose: keep repo-visible memory for Create Workflow's Create-panel attachment 
   - `window.__shortpulseCreateWorkflowDebug`
   - `frontend/scripts/create_workflow_capture_ingest.mjs`
   - `frontend/scripts/create_workflow_training_data.mjs`
-- 2026-05-18: The current Create composer image contract is drop-time durable materialization:
-  - new local images start as `deliveryStatus: "preparing"`
-  - `imageUrl` is preview-only and can be tiny/local
-  - `submissionImageUrl` is the only send authority
-  - Generate/chat-send must block until image attachments are `ready`
-- 2026-05-18: Future debugging should check delivery state, durable URL, rendered preview source, and model-send payload together. A working chip without a durable send URL is still broken.
-- 2026-05-18: Use `window.__shortpulseCreateWorkflowDebug.getDiagnosis()` before forming the next hypothesis. Treat older overwrite/preview-only theories as historical lookup context unless the diagnosis points there.
+- 2026-05-19: The resolved Create composer image lane is chat-only and ephemeral. Do not widen this path into project persistence, storage promotion, or durable media recovery unless the product contract changes.
+- 2026-05-19: The decisive bug was drag-intake classification, not image rendering alone. For internal app drags, prefer structured/internal/reference hints before raw browser `files`.
+- 2026-05-19: The working mental model is:
+  - snapshot drag payload synchronously
+  - rebuild a stable transfer-like object for async work
+  - stage a temporary `preparing` image attachment immediately
+  - replace it with the ready attachment after ephemeral image preparation completes
+- 2026-05-19: Keep the preview/send authority split, but within the composer lane the goal is a lightweight ChatGPT-style reference attachment, not durable asset management.
+- 2026-05-19: Use `window.__shortpulseCreateWorkflowDebug.getDiagnosis()` only when the current runtime contradicts the resolved model; it is a lookup tool, not the default first step for every composer image change.
 
 ## Open Follow-Ups
 
-- Verify one deployed production drag into Standard and one into Pulse if Pulse remains in scope.
-- If production still fails, capture one authoritative trace with:
-  - staged attachment object immediately after drop
-  - staged attachment object after upload resolves or fails
-  - `deliveryStatus`, `deliveryError`, `imageUrl`, `submissionImageUrl`, `previewStoragePath`, and `fullStoragePath`
-  - final rendered `img.src`
-  - storage upload response status
-  - model-send payload source for the image attachment
-  - `window.__shortpulseCreateWorkflowDebug.getDiagnosis()` output
+- Verify the preparing-state spinner feels right in deployed Standard and Pulse surfaces.
+- If a future internal drag regression appears, start by checking source classification before expanding preview or persistence logic.

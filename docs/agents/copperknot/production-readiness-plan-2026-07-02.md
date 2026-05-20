@@ -73,27 +73,32 @@ ShortPulse is ship-ready only when all of these are true:
   - generate initial handoffs
   - reconcile the first production-only launch-state refresh
 
-### Phase 2: Active blocker and hot-path runtime hardening
+### Phase 2: First rerating wave and blocker clearance
 
-- Dates: `2026-05-16` through `2026-05-22`
+- Dates: `2026-05-16` through `2026-05-18`
 - Goal:
-  - close or re-scope `Reference Grid`
-  - move `Edit workflow`
-  - package and start the next ship-critical runtime lanes:
-    - `Billing / credits`
-    - `Security boundaries`
-    - `Generation submission / polling`
+  - clear or narrow the remaining Reference Grid blocker
+  - rerate the first ship-critical lane bundle
+  - move Billing, Security, and Generation Submission to floor where justified
 
-### Phase 3: Workflow stabilization and persistence confidence
+### Phase 3: May 19 baseline refresh and local regression absorption
+
+- Dates: `2026-05-19` through `2026-05-22`
+- Goal:
+  - preserve the May 16 rerating as historical evidence
+  - absorb the active May 19 repo-plus-worktree drift into a fresh baseline snapshot
+  - validate the live `Create workflow` attachment hardening that landed during the baseline review and keep the row held unless broader evidence justifies more
+  - decide whether `Project / workspace persistence` needs a fresh external lane or remains score-held
+
+### Phase 4: Workflow stabilization and persistence confidence
 
 - Dates: `2026-05-23` through `2026-05-29`
 - Goal:
-  - harden `Project / workspace persistence`
   - address concrete `Characters workflow` trust breaks
   - move `Elements workflow`
   - reassess whether the current AI Studio workflow cluster is converging toward floor
 
-### Phase 4: Platform trust and media boundary hardening
+### Phase 5: Platform trust and media boundary hardening
 
 - Dates: `2026-05-30` through `2026-06-12`
 - Goal:
@@ -102,15 +107,15 @@ ShortPulse is ship-ready only when all of these are true:
   - tighten `Storage / file delivery`
   - decide whether `Provider integrations` needs direct hardening before final gates
 
-### Phase 5: Secondary workflow and operator-surface validation
+### Phase 6: Secondary workflow and operator-surface validation
 
 - Dates: `2026-06-13` through `2026-06-19`
 - Goal:
-  - validate or harden `Create workflow`, `Video workflow`, and `Sound workflow`
+  - validate or harden `Video workflow` and `Sound workflow`
   - close remaining `Media Library workflow` and preview follow-ups
   - validate `Observability / incident triage` and `Admin operations`
 
-### Phase 6: Full rerating and release-gate rehearsal
+### Phase 7: Full rerating and release-gate rehearsal
 
 - Dates: `2026-06-20` through `2026-06-26`
 - Goal:
@@ -118,7 +123,7 @@ ShortPulse is ship-ready only when all of these are true:
   - run the release-gate stack end to end
   - identify remaining holds, waivers, or required cut scope
 
-### Phase 7: Final ship decision window
+### Phase 8: Final ship decision window
 
 - Dates: `2026-06-27` through `2026-07-02`
 - Goal:
@@ -128,46 +133,47 @@ ShortPulse is ship-ready only when all of these are true:
 
 ## Priority Lanes
 
-### Lane 1: Active blocker and workflow trust
-
-- Systems:
-  - `Reference Grid`
-  - `Edit workflow`
-  - `Project / workspace persistence`
-- Why:
-  - this is where the clearest user-visible ship-path friction remains concentrated
-  - one active known P0 blocker still lives here
-
-### Lane 2: Runtime and billing integrity
-
-- Systems:
-  - `Generation submission / polling`
-  - `Generation recovery / settlement`
-  - `Billing / credits`
-- Why:
-  - generation correctness and spend correctness still share a high-risk runtime seam
-  - recovery improved, but the broader runtime cluster is not yet at floor
-
-### Lane 3: Platform trust and release safety
-
-- Systems:
-  - `Security boundaries`
-  - `Core data persistence`
-  - `Storage / file delivery`
-  - `Media ingest / save`
-- Why:
-  - these systems decide whether the app can be trusted to launch safely
-
-### Lane 4: Secondary workflow confidence
+### Lane 1: Active local regression and workflow trust
 
 - Systems:
   - `Characters workflow`
   - `Elements workflow`
   - `Create workflow`
-  - `Video workflow`
-  - `Sound workflow`
 - Why:
-  - these workflows should not remain vague or trust-breaking near ship, even when they are not the current P0 set
+  - Characters and Elements remain the next unresolved below-floor workflows after the May 19 baseline refresh
+  - Create reran green in the current worktree and stayed below floor, so it belongs in the workflow trust cluster without reopening a narrow emergency lane
+
+### Lane 2: Persistence and generation-runtime integrity
+
+- Systems:
+  - `Project / workspace persistence`
+  - `Edit workflow`
+  - `Generation recovery / settlement`
+- Why:
+  - these are still below-floor systems on the release path
+  - May 19 improved persistence confidence, but not enough to move the score
+  - recovery remains the biggest shared-runtime holdout
+
+### Lane 3: Platform trust and media boundary hardening
+
+- Systems:
+  - `Media ingest / save`
+  - `Core data persistence`
+  - `Storage / file delivery`
+  - `Provider integrations`
+- Why:
+  - these systems decide whether the app can be trusted to launch safely
+
+### Lane 4: At-floor validation maintenance
+
+- Systems:
+  - `Reference Grid`
+  - `Security boundaries`
+  - `Generation submission / polling`
+  - `Billing / credits`
+  - `Media delivery / signing / preview resolution`
+- Why:
+  - these are no longer the weakest rows, but they need ongoing validation so the ship bar does not regress
 
 ## Non-Goals For This Window
 

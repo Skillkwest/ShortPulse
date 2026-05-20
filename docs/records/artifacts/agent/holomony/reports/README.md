@@ -34,3 +34,8 @@ Use:
 - hotspot or optimization audit reports
 - surface onboarding reports
 - workflow and user-alignment audits
+
+## Recent Reports
+
+- `2026-05-19-holomony-workspace-third-party-audit.md`
+  - external audit of Holomony's workspace, tool validity, evidence freshness, and coverage completeness

@@ -2,9 +2,9 @@
 
 Date: `2026-05-06`
 
-Last updated: `2026-05-16`
+Last updated: `2026-05-19`
 
-Freshness status as of `2026-05-16`: `current`
+Freshness status as of `2026-05-19`: `current`
 
 Purpose: record which handoff packets have already been dispatched to execution agents during the current production-readiness window.
 
@@ -13,6 +13,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
 ### Completed external lanes
 
 1. `Generation recovery / settlement`
+
 - Packet:
   - `docs/systems/next-agent-handoff-generation-recovery-hardening.md`
 - Status:
@@ -25,6 +26,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
 ### Reviewed and rerated lanes
 
 2. `Reference Grid`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-reference-grid-styles-drop-blocker.md`
 - Status:
@@ -40,6 +42,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.md`
 
 3. `Billing / credits`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-16-billing-credits-runtime-hardening.md`
 - Status:
@@ -51,6 +54,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-billing-credits-runtime-hardening-closeout.md`
 
 4. `Generation submission / polling`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-16-generation-submission-polling-hardening.md`
 - Status:
@@ -62,6 +66,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-generation-submission-polling-hardening-closeout.md`
 
 5. `Security boundaries`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-16-security-boundaries-release-audit.md`
 - Status:
@@ -75,6 +80,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
 ### Score-held follow-up lanes
 
 6. `Edit workflow`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-edit-workflow.md`
 - Status:
@@ -89,18 +95,22 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-edit-workflow-hardening-r2-closeout.md`
 
 7. `Project / workspace persistence`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`
 - Status:
   - dispatched through managed Copperknot subagent execution on `2026-05-16`
   - closeout received on `2026-05-16`
-  - targeted repo review confirms one bounded ownership hardening patch landed with focused tests
+  - targeted repo review confirms one bounded ownership-hardening patch landed with focused tests
   - broader Copperknot review completed on `2026-05-16`
+  - May 19 baseline refresh broadened the review scope to the newer unsent Create/Edit/Video/Sound draft exclusion contract
   - score held at `6/10`
+  - confidence moved up on `2026-05-19`
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-project-workspace-persistence-hardening-closeout.md`
 
 8. `Reference Grid runtime verification`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-16-reference-grid-styles-runtime-verification.md`
 - Status:
@@ -117,17 +127,19 @@ Purpose: record which handoff packets have already been dispatched to execution 
 ### Ready next
 
 9. `Characters workflow`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`
 - Status:
-  - ready next
-  - now carries fresh production continuity-trust evidence from Beeper
+  - ready next after the May 19 baseline refresh
+  - still carries fresh production continuity-trust evidence from Beeper
 
 10. `Elements workflow`
+
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`
 - Status:
-  - second lane
+  - second open workflow lane after Characters
 
 ## Refresh Notes
 
@@ -163,7 +175,16 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `Reference Grid runtime verification` reran successfully with canonical local audit credentials and cleared `KI-AI-RG-STYLES-001`
   - `Project / workspace persistence` stayed at `6/10` after bounded ownership hardening review
   - `Edit workflow` stayed at `6/10` after a second bounded seam hardening review
-  - the next exact open lanes are now `Characters workflow` and `Elements workflow`
+  - the next exact open lanes became `Characters workflow` and `Elements workflow`
+- `2026-05-19` production baseline refresh:
+  - preserved the original May 6 baseline and the May 16 rerating packet as historical evidence
+  - audited the full repo plus current worktree on `production`
+  - refreshed the review basis for Create, Video, Sound, Project/workspace persistence, and Media delivery
+  - ran focused validation from `frontend/` with the bundled Node runtime
+  - platform/media/API checks passed
+  - the earlier Create-workflow attachment seam found during the first audit pass no longer reproduced once the current worktree hardening landed, so the focused rerun passed cleanly
+  - `Create workflow` stayed at `6/10` with higher confidence, but no new external lane was opened for it
+  - restored `Characters workflow` and `Elements workflow` as the exact next open dispatch set
 
 ## Operating Note
 

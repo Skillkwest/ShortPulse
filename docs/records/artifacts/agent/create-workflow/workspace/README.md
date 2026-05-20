@@ -2,7 +2,15 @@
 
 Purpose: keep the Create Workflow agent's working memory, operational tools, and live-incident capture materials in one durable repo-visible place.
 
-Use this workspace when a new run needs to continue the Create composer attachment investigation without reconstructing context from chat.
+Status: archived hot-path workspace for the May 2026 composer image insertion incident.
+
+Use this workspace only when:
+
+- a similar Create composer drag/drop incident reappears,
+- production contradicts the current resolved ephemeral model,
+- or deeper historical lookup is needed.
+
+Do not treat this folder as the default read path for ordinary Create work.
 
 ## Contents
 
@@ -19,7 +27,7 @@ Use this workspace when a new run needs to continue the Create composer attachme
 
 ## Hot Read Path
 
-For the next debugging run, read only these first:
+For a new incident in this same lane, read only these first:
 
 1. `current-state.md`
 2. `session-hand-off.md`
@@ -36,6 +44,6 @@ Use broader reports and training data only when the hot path does not answer the
 
 ## Rule
 
-Treat this folder as the operational continuity layer for Create Workflow.
+Treat this folder as archived operational continuity for a resolved incident family.
 
-When the lane changes materially, update this workspace first, then update broader reports only if the change is durable enough to matter outside the immediate incident. Keep stale hypotheses out of the hot path.
+When the lane changes materially again, refresh this workspace so the hot path reflects the current contract. Do not leave unresolved-state instructions in the hot path after the incident model changes.

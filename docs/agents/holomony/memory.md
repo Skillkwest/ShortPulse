@@ -76,13 +76,21 @@ For this milestone, `stable and strong` means:
 - A dedicated persistence-proof path now exists: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`. Use that audit to prove save/reopen browse readiness before reopening runtime tuning.
 - Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
-- Current classification: `done enough for now`.
-- The next justified lane is regression monitoring or an explicitly approved new surface, not more tuning on the current approved media panels without fresh evidence.
+- Current classification: `measured blocker active on approved panels`.
+- The next justified lane is approved-panel mixed-open signing-cost and first-paint optimization, not Character expansion or generic regression monitoring.
 - Active layout lane: `reports/2026-05-18-media-library-five-column-density-plan.md`.
   - Implementation is now in code for AI Studio Media Library panel, Elements embedded Media Library panel, and Character bottom embedded Media Library browser via shared Elements embedding.
   - Treat five columns as a capped wide-container masonry-column contract, not a forced layout everywhere.
   - Exclude the full modal, Character QuickSwap, Reference Grid, Quick Slot Inventory, and standalone `/media-library` unless explicitly reopened.
-  - Code/test validation is complete for the implementation path; direct browser visual proof and fresh KPI proof are still required before calling the lane fully done.
+  - Code/test validation is complete for the implementation path; fresh KPI proof now exists, but direct browser visual proof is still required before calling the lane fully done.
+- Fresh 2026-05-19 production reruns replaced the prior `done enough` read for the approved panels.
+  - both approved surfaces retained same-day persistence proof
+  - the current repeated KPI packets are still `fragile` with low evidence depth
+  - coverage remains below the scorer's stronger-confidence threshold, so the blocker read should stay provisional rather than absolute
+  - current probable blocker: mixed-open signing cost and first useful media paint
+  - exact snapshot metrics belong in the dated retained report:
+    - `reports/2026-05-19-approved-panel-baseline-refresh.md`
+  - direct lesson: persistence-green does not mean the hot-path browse lane is done when fresh repeated KPI still shows fragile mixed-open runtime
 - `character-panel-media-assignment` is now an onboarded Holomony candidate surface.
   - Treat it as a hybrid boundary:
     - shared embedded browse/runtime surface below

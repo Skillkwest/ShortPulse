@@ -1,122 +1,32 @@
 # Production Capture Template
 
-Purpose: standardize the next live failing Create attachment capture so the artifact is useful for debugging and for later training.
+Purpose: use only if the resolved composer image model regresses again.
 
-## Repro Context
+## When To Use This
 
-- Date:
-- Environment:
-- Route / page:
-- Mode:
-  - Standard / Pulse
-- Source surface:
-  - Quick Slot / Reference Grid / Media Library / desktop file drop
-- Media type:
-  - image / audio / video
+Use this template only when:
 
-## Enable Runtime Helper
+- internal drags fail in production again,
+- desktop file drops and internal drags diverge,
+- or the composer staging lifecycle contradicts the current resolved model.
 
-One of:
+## First Questions
 
-```js
-localStorage.setItem("shortpulse.create_workflow.debug", "1");
-location.reload();
-```
+1. Does the issue happen for Reference Grid / Quick Slot / Media Library drags?
+2. Does the same image work when dragged from the desktop?
+3. Does the composer show `preparing`, then `ready`, or does it fail before either state settles?
 
-or load the page with:
+## Minimum Useful Capture
 
-```text
-?createWorkflowDebug=1
-```
+- source surface
+- transfer types
+- whether structured/internal/reference payloads were present
+- whether `DataTransfer.files` was also present
+- staged attachment snapshot while `preparing`
+- staged attachment snapshot after it becomes `ready` or fails
+- final rendered `img.src` if relevant
+- `window.__shortpulseCreateWorkflowDebug.getDiagnosis()` output only if runtime evidence is still needed
 
-## Capture Commands
+## Interpretation Rule
 
-Before repro:
-
-```js
-window.__shortpulseCreateWorkflowDebug?.reset();
-```
-
-After repro:
-
-```js
-copy(
-  JSON.stringify(
-    window.__shortpulseCreateWorkflowDebug?.getSnapshot(),
-    null,
-    2,
-  ),
-);
-```
-
-Also capture the diagnosis:
-
-```js
-copy(
-  JSON.stringify(
-    window.__shortpulseCreateWorkflowDebug?.getDiagnosis(),
-    null,
-    2,
-  ),
-);
-```
-
-## Required Retained Fields
-
-- `attachments`
-- `events`
-- attachment `id`
-- attachment `kind`
-- attachment `deliveryStatus`
-- attachment `deliveryError`
-- attachment `imageUrl` source kind only:
-  - `blob`
-  - `data`
-  - durable URL
-  - empty
-- attachment `submissionImageUrl` source kind and hostname/path summary
-- attachment `previewStoragePath`
-- attachment `fullStoragePath`
-- upload request/response status for storage materialization
-- model-send request/response status if the repro reaches send
-- diagnosis `likelyFailureClass`
-- diagnosis `blockers`
-- screenshot of visible failure state
-- final rendered `img.src` if inspectable
-- console errors if any
-
-## Questions The Capture Must Answer
-
-1. Was the attachment inserted correctly?
-2. Did `deliveryStatus` reach `ready`?
-3. Did `submissionImageUrl` become a durable storage URL?
-4. Was Generate/chat-send blocked while `preparing` or `failed`?
-5. Did the chip render from a valid preview source?
-6. Did the model-send payload use `submissionImageUrl` instead of `imageUrl`?
-7. Did any later event replace, null, or downgrade the attachment?
-
-## Post-Capture Report
-
-Run:
-
-```bash
-node frontend/scripts/create_workflow_debug_report.mjs /path/to/snapshot.json
-```
-
-or use the full ingest tool:
-
-```bash
-cd frontend
-npm run create-workflow:capture:ingest -- /path/to/snapshot.json --incident-id create-workflow-2026-05-composer-attachment-001 --label prod-repro
-```
-
-Store:
-
-- raw snapshot JSON
-- generated markdown/text summary
-- generated analysis JSON
-- screenshot
-
-Recommended retained location:
-
-- `docs/records/artifacts/agent/create-workflow/workspace/captures/`
+If internal drags fail while desktop file drops work, treat source classification as the primary suspect before expanding preview or persistence theories.

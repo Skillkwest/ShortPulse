@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Copperknot Operator Brief - 2026-05-19</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #141516;
+        --bg2: #1b1d20;
+        --panel: #23262b;
+        --panel2: #2a2e34;
+        --border: #3c434c;
+        --text: #f3f4f6;
+        --muted: #c7ccd4;
+        --green: #9be38d;
+        --blue: #9bb8ff;
+        --amber: #f0cf76;
+        --purple: #c7a7ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 18px;
+        background: linear-gradient(180deg, var(--bg), var(--bg2));
+        color: var(--text);
+        font:
+          500 14px/1.38 ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        display: grid;
+        gap: 12px;
+      }
+      .panel,
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+      }
+      .panel {
+        padding: 18px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 8px;
+        line-height: 1.06;
+      }
+      h1 {
+        font-size: 34px;
+      }
+      h2 {
+        font-size: 24px;
+      }
+      h3 {
+        font-size: 18px;
+      }
+      p,
+      li {
+        margin: 0;
+        color: var(--muted);
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 6px;
+      }
+      .grid {
+        display: grid;
+        gap: 12px;
+      }
+      .cards {
+        display: grid;
+        gap: 12px;
+      }
+      .card {
+        padding: 16px;
+        background: var(--panel2);
+      }
+      .badge {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .green {
+        background: rgba(155, 227, 141, 0.14);
+        color: var(--green);
+      }
+      .blue {
+        background: rgba(155, 184, 255, 0.14);
+        color: var(--blue);
+      }
+      .amber {
+        background: rgba(240, 207, 118, 0.14);
+        color: var(--amber);
+      }
+      .purple {
+        background: rgba(199, 167, 255, 0.14);
+        color: var(--purple);
+      }
+      .meta {
+        display: grid;
+        gap: 8px;
+      }
+      .meta strong {
+        color: var(--text);
+      }
+      a {
+        color: #e4eaff;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      code {
+        color: #f5f6f8;
+        font:
+          600 0.98em/1.35 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="panel">
+        <h1>Operator Brief</h1>
+        <div class="meta">
+          <p>
+            <strong>Run:</strong> Full repo + worktree baseline refresh on
+            <code>production</code>
+          </p>
+          <p><strong>Ship target:</strong> July 2, 2026</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>What Changed</h2>
+        <ul>
+          <li>The May 19 baseline refresh is complete.</li>
+          <li>No broad score lifts were made in this refresh.</li>
+          <li>
+            The earlier Create attachment seam is green in the current worktree
+            now.
+          </li>
+          <li>
+            <code>Characters workflow</code> is back to being the exact next
+            open lane.
+          </li>
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h2>Ready To Paste Now</h2>
+        <div class="cards">
+          <article class="card">
+            <span class="badge green">Paste This Next</span>
+            <h3>Characters workflow</h3>
+            <p>Lane: <code>characters-workflow-hardening</code></p>
+            <p>Fresh production continuity-trust evidence still points here.</p>
+            <p>
+              <a
+                href="../../../../../agents/copperknot/handoffs/2026-05-06-characters-workflow.html"
+                >Open handoff</a
+              >
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="badge blue">Second Lane</span>
+            <h3>Elements workflow</h3>
+            <p>Lane: <code>elements-workflow-hardening</code></p>
+            <p>
+              Open this after Characters if you want the second workflow lane.
+            </p>
+            <p>
+              <a
+                href="../../../../../agents/copperknot/handoffs/2026-05-06-elements-workflow.html"
+                >Open handoff</a
+              >
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Held Inside Copperknot</h2>
+        <div class="cards">
+          <article class="card">
+            <span class="badge purple">Score Held</span>
+            <h3>Create workflow</h3>
+            <p>
+              Still <code>6/10</code>, but confidence moved up after the May 19
+              validation reran green.
+            </p>
+          </article>
+          <article class="card">
+            <span class="badge purple">Score Held</span>
+            <h3>Project / workspace persistence</h3>
+            <p>
+              Still <code>6/10</code>, confidence up after the broadened
+              persistence review.
+            </p>
+          </article>
+          <article class="card">
+            <span class="badge purple">Score Held</span>
+            <h3>Edit workflow</h3>
+            <p>Still <code>6/10</code> after the bounded passes.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>What To Do Next</h2>
+        <ul>
+          <li>Paste <code>Characters workflow</code> next.</li>
+          <li>
+            If you want another lane after that, paste
+            <code>Elements workflow</code>.
+          </li>
+          <li>Do not reopen the narrow Create regression handoff right now.</li>
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h2>Open These</h2>
+        <ul>
+          <li>
+            <a href="./2026-05-19-production-baseline-refresh.html"
+              >May 19 baseline refresh</a
+            >
+          </li>
+          <li>
+            <a href="./2026-05-19-launch-ready-checklist.html"
+              >May 19 launch-ready checklist</a
+            >
+          </li>
+          <li>
+            <code
+              >docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md</code
+            >
+          </li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

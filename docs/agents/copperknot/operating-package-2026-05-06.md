@@ -23,7 +23,7 @@ The catalog is a decision tool. It is not the mission.
 - Handoff template: `docs/agents/copperknot/handoff-template.md`
 - Detailed handoffs: `docs/agents/copperknot/handoffs/README.md`
 - Dispatch log: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-- Latest repo-wide audit and dispatch output: `docs/records/artifacts/agent/copperknot/reports/2026-05-16-production-repo-audit-and-dispatch-output.md`
+- Latest repo-wide baseline refresh: `docs/records/artifacts/agent/copperknot/reports/2026-05-19-production-baseline-refresh.md`
 - External lane closeouts: `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 
 ## Authority Rule
@@ -47,9 +47,9 @@ ShortPulse is not considered production-ready until all of the following are tru
 
 ## Active P0 Production Blocker
 
-- `KI-AI-RG-STYLES-001`: Reference Grid -> Styles drop reliability remains broken in `docs/known-issues.md`
+- none
 
-This must be resolved or explicitly re-waived with fresh evidence before final ship signoff.
+The May 16 Reference Grid blocker was cleared and is now historical in `docs/known-issues.md`.
 
 ## Operating Rhythm
 
@@ -63,11 +63,21 @@ This must be resolved or explicitly re-waived with fresh evidence before final s
 
 ## Current Lane Snapshot
 
-As of `2026-05-16`:
+As of `2026-05-19`:
 
-- `Generation recovery / settlement` is treated as execution-complete and reviewed, but its score remains unchanged pending a broader generation-runtime rerate.
-- the 2026-05-16 consolidated rerating pass moved `Billing / credits`, `Security boundaries`, and `Generation submission / polling` to ship floor at `7/10`
-- the same pass moved `Edit workflow` from `5/10` to `6/10`
-- `Reference Grid` stayed at `6/10`, but its next lane narrowed to runtime verification so the blocker can be explicitly cleared or recharacterized
-- `Project / workspace persistence` remains ready but held behind the `Reference Grid` verification follow-up and the still-below-floor `Edit workflow`
-- `Characters workflow` now carries fresh production trust-break evidence, but it remains below the active ship-critical set.
+- `Generation recovery / settlement` is still treated as execution-complete and reviewed, but its score remains unchanged pending a broader generation-runtime rerate.
+- the 2026-05-16 consolidated rerating pass still stands:
+  - `Billing / credits`, `Security boundaries`, and `Generation submission / polling` are at ship floor
+  - `Edit workflow` is at `6/10` after the bounded hardening passes, but still below floor
+  - `Reference Grid` is at ship floor and no longer the active blocker
+- the May 19 baseline refresh found real repo movement in:
+  - `Create workflow`
+  - `Project / workspace persistence`
+  - `Video workflow`
+  - `Sound workflow`
+  - `Media delivery / signing / preview resolution`
+- the May 19 focused validation pass passed docs checks, passed the platform/media/API test bundle, and the rerun focused Create + persistence suite passed cleanly too
+- `Create workflow` stayed at `6/10`, but confidence moved up after the current worktree attachment hardening validated cleanly
+- because the narrow Create seam is no longer open, the exact next lanes are now:
+  - `characters-workflow-hardening`
+  - `elements-workflow-hardening`

@@ -1,6 +1,18 @@
 # Tool Inventory
 
-Purpose: record only the core helper surfaces needed to continue the Create image-chip incident without reloading excess history.
+Purpose: keep only the current high-ROI helper surfaces for this incident family.
+
+## Primary Reuse Pattern
+
+Use the documented drag/drop intake pattern first:
+
+- `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`
+
+Core rule:
+
+- snapshot drag payload synchronously
+- rebuild a stable transfer-like object
+- prefer structured/internal/reference hints before raw browser `files`
 
 ## Runtime Helper
 
@@ -8,19 +20,7 @@ Browser handle:
 
 - `window.__shortpulseCreateWorkflowDebug`
 
-Enable:
-
-- query param: `?createWorkflowDebug=1`
-- or:
-
-```js
-localStorage.setItem("shortpulse.create_workflow.debug", "1");
-```
-
-Use for:
-
-- attachment lifecycle event capture
-- proving whether a failing attachment is blocked by delivery state, preview projection, storage URL renderability, or send-payload preparation
+Use only when the current runtime contradicts the resolved model.
 
 Primary commands:
 
@@ -28,30 +28,6 @@ Primary commands:
 window.__shortpulseCreateWorkflowDebug.getSnapshot();
 window.__shortpulseCreateWorkflowDebug.getDiagnosis();
 ```
-
-The diagnosis is the first-pass triage surface. It classifies the current capture as one of:
-
-- `delivery_failed`
-- `delivery_not_ready`
-- `missing_durable_submission_url`
-- `send_preparation_failed`
-- `send_payload_missing_image`
-- `preview_render_failed`
-- `preview_source_missing`
-- `ready_for_model_send`
-
-## Capture Ingest CLI
-
-Package command:
-
-- `npm run create-workflow:capture:ingest -- /path/to/snapshot.json --incident-id <id> --label <label>`
-
-Use for:
-
-- converting raw runtime snapshot JSON into:
-  - normalized analysis JSON
-  - markdown capture report
-- storing those artifacts in the Create Workflow capture landing area
 
 ## Training Data CLI
 
@@ -63,7 +39,13 @@ Package commands:
 
 Use for:
 
-- validating the structured dataset
-- generating a compact incident brief
-- summarizing the current Create Workflow training corpus
-- tracking recurring failure patterns via `failure-patterns.jsonl`
+- checking whether the incident family already has a known pattern
+- updating retained judgment without rereading long chat history
+
+## Reports Worth Reading
+
+- `../reports/2026-05-19-composer-image-insertion-retrospective.md`
+- `../training-data/failure-patterns.jsonl`
+- `../training-data/decision-episodes.jsonl`
+
+These are higher ROI than the older unresolved-state workspace notes.

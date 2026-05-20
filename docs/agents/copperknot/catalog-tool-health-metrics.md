@@ -80,18 +80,18 @@ This surface answers:
 
 ## Current Snapshot
 
-Snapshot date: `2026-05-15`
+Snapshot date: `2026-05-19`
 
-| Metric | Current state | Notes |
-| --- | --- | --- |
-| Closeout compliance | `0/1 completed lanes with dedicated closeout` | `Generation recovery / settlement` was reconstructed from repo evidence because no external closeout landed in the intake folder. |
-| Evidence-anchor coverage | `strong for current launch-state refresh` | The May 15 refresh used a dated report, targeted repo evidence, and docs validation. |
-| Rerating lead time | `8 days for first completed lane review` | This is too slow for the prelaunch window and should tighten. |
-| Launch-state freshness | `current` | Scoreboard, queue, dispatch log, and launch-facing catalog fields were refreshed together on May 15. |
-| Queue usefulness | `stable` | Fresh production evidence did not dislodge `Reference Grid` as the active blocker or `Edit workflow` as next. |
-| Score-discipline compliance | `100% of score changes this snapshot: 0 changes made` | The May 15 pass correctly used execution-state updates without forcing a score lift. |
-| Weekly learning compliance | `1/1 active production weeks retained so far` | The first weekly review was added for the week ending May 16. |
-| Production backtest coverage | `2/2 retained production findings backtested so far` | The two May 15 Beeper production findings were compared against prior catalog beliefs. |
+| Metric                       | Current state                                             | Notes                                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Closeout compliance          | `7/8 completed lanes with dedicated closeouts`            | All reviewed lanes in the current window except the first recovery lane have dedicated closeouts on file.                                                    |
+| Evidence-anchor coverage     | `strong for May 16 rerating plus May 19 baseline refresh` | The current launch-state surfaces now point to dated reports, targeted validation, and catalog-row review anchors.                                           |
+| Rerating lead time           | `improving`                                               | The first completed lane was slow at 8 days, but the May 16 batch rerated same-day and the May 19 baseline refresh absorbed live worktree drift immediately. |
+| Launch-state freshness       | `current`                                                 | Scoreboard, queue, dispatch log, operator brief, and launch checklist now reflect the May 19 baseline refresh.                                               |
+| Queue usefulness             | `adaptive`                                                | Copperknot suspended stale Characters-first guidance while the Create seam was unresolved, then restored it once current repo truth reran green.             |
+| Score-discipline compliance  | `100% for current-window score changes and score holds`   | The May 19 refresh used confidence-only moves where justified and did not force a score lift from partial evidence.                                          |
+| Weekly learning compliance   | `1/2 active production weeks retained so far`             | The next weekly review entry is now due for the week ending May 23.                                                                                          |
+| Production backtest coverage | `2/2 retained production findings backtested so far`      | No new production-only finding displaced the current backtest set during the May 19 repo-wide baseline refresh.                                              |
 
 Supporting time-series logs:
 

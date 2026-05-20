@@ -47,6 +47,7 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-16: The steward identity is `Copperknot`. The canonical operating surface is `docs/agents/copperknot/` and the retained artifact surface is `docs/records/artifacts/agent/copperknot/`.
 - 2026-05-16: Keep the Copperknot rename focused on identity surfaces, folders, indexes, and live authority docs. Historical date-based report filenames can stay stable when the file purpose is still correct.
 - 2026-05-16: Audit credentials should live only in canonical local env surfaces such as `frontend/.env.local`. Copperknot may remember to use `PLAYWRIGHT_AUDIT_EMAIL` and `PLAYWRIGHT_AUDIT_PASSWORD` from that env file, but should not duplicate raw secrets into repo-visible memory, reports, or handoffs.
+- 2026-05-19: A full repo-plus-worktree audit is only valid at final closeout if Copperknot rechecks the live worktree right before locking the baseline. If a failing seam goes green during the audit, the final baseline should follow the newest validated repo truth, not the first failing snapshot.
 
 ## Open Follow-Ups
 

@@ -5,6 +5,7 @@
 import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
+import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
   backfillProjectGenerationAssociationsForSnapshot,
@@ -30,6 +31,15 @@ export type ProjectWorkspaceStateRecord = {
   snapshot: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  saveOutcome?: ProjectWorkspaceSaveOutcome;
+};
+
+export type ProjectWorkspaceSaveOutcomeStatus = "saved" | "saved_with_repair_pending";
+
+export type ProjectWorkspaceSaveOutcome = {
+  status: ProjectWorkspaceSaveOutcomeStatus;
+  repairStage?: "project_association_backfill";
+  repairMessage?: string | null;
 };
 
 export class InvalidProjectWorkspaceSnapshotError extends Error {
@@ -72,6 +82,31 @@ const logProjectWorkspaceBestEffortFailure = ({
     stage,
     error: toErrorMessage(error, "Unknown error"),
   });
+};
+
+const logProjectWorkspaceRepairPending = async ({
+  userId,
+  projectId,
+  repairStage,
+  repairMessage,
+}: {
+  userId: string;
+  projectId: string;
+  repairStage: "project_association_backfill";
+  repairMessage: string;
+}): Promise<void> => {
+  await writeAppErrorLog({
+    source: "telemetry.ai_studio.project_workspace.repair_pending",
+    message: "Project workspace save completed, but follow-up project repair is still pending.",
+    userId,
+    statusCode: 200,
+    metadata: {
+      project_id: projectId,
+      repair_stage: repairStage,
+      save_outcome: "saved_with_repair_pending",
+      repair_message: repairMessage,
+    },
+  }).catch(() => undefined);
 };
 
 const sanitizeProjectWorkspaceSnapshot = (
@@ -399,17 +434,18 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
   }
 };
 
-const canonicalizeProjectWorkspaceSnapshot = async ({
+const prepareProjectWorkspaceSnapshotForWrite = async ({
   userId,
-  projectId,
   snapshot,
-  backfillAssociations = false,
 }: {
   userId: string;
-  projectId: string;
   snapshot: Record<string, unknown>;
-  backfillAssociations?: boolean;
-}): Promise<Record<string, unknown>> => {
+}): Promise<{
+  snapshot: Record<string, unknown>;
+  ownedMediaFileIds: string[];
+  ownedPromptIds: string[];
+  ownedGenerationIds: string[];
+}> => {
   let ownedMediaFileIds: string[] = [];
   let ownedPromptIds: string[] = [];
   let ownedGenerationIds: string[] = [];
@@ -432,27 +468,35 @@ const canonicalizeProjectWorkspaceSnapshot = async ({
     ownedGenerationIds,
   });
 
-  if (backfillAssociations) {
-    try {
-      await backfillProjectAssetAssociationsForSnapshot({
-        userId,
-        projectId,
-        snapshot: sanitizedOutputsSnapshot,
-      });
-    } catch (error) {
-      throw wrapProjectWorkspaceSaveStageError({
-        stage: "project association backfill",
-        error,
-      });
-    }
-  }
+  return {
+    snapshot: sanitizedOutputsSnapshot,
+    ownedMediaFileIds,
+    ownedPromptIds,
+    ownedGenerationIds,
+  };
+};
 
-  let hydratedSnapshot = sanitizedOutputsSnapshot;
+const hydrateProjectWorkspaceSnapshotAfterSave = async ({
+  userId,
+  projectId,
+  snapshot,
+  ownedMediaFileIds,
+  ownedPromptIds,
+  ownedGenerationIds,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+  ownedMediaFileIds: string[];
+  ownedPromptIds: string[];
+  ownedGenerationIds: string[];
+}): Promise<Record<string, unknown>> => {
+  let hydratedSnapshot = snapshot;
   try {
     hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
       userId,
       projectId,
-      snapshot: sanitizedOutputsSnapshot,
+      snapshot,
     });
   } catch (error) {
     logProjectWorkspaceBestEffortFailure({
@@ -517,15 +561,22 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   }
 };
 
-const toProjectWorkspaceStateRecord = (
-  row: ProjectWorkspaceStateRow
-): ProjectWorkspaceStateRecord => ({
+const toProjectWorkspaceStateRecord = ({
+  row,
+  snapshot,
+  saveOutcome,
+}: {
+  row: ProjectWorkspaceStateRow;
+  snapshot?: Record<string, unknown>;
+  saveOutcome?: ProjectWorkspaceSaveOutcome;
+}): ProjectWorkspaceStateRecord => ({
   projectId: row.project_id,
   userId: row.user_id,
   schemaVersion: row.schema_version,
-  snapshot: row.snapshot,
+  snapshot: snapshot ?? row.snapshot,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  ...(saveOutcome ? { saveOutcome } : {}),
 });
 
 export const getProjectWorkspaceStateForUser = async ({
@@ -547,7 +598,9 @@ export const getProjectWorkspaceStateForUser = async ({
     throw new Error(error.message || "Failed to load project workspace state");
   }
   if (!data) return null;
-  const record = toProjectWorkspaceStateRecord(data as ProjectWorkspaceStateRow);
+  const record = toProjectWorkspaceStateRecord({
+    row: data as ProjectWorkspaceStateRow,
+  });
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(record.snapshot);
   return {
     ...record,
@@ -594,11 +647,9 @@ export const upsertProjectWorkspaceStateForUser = async ({
     throw new InvalidProjectWorkspaceSnapshotError();
   }
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(parsedSnapshot);
-  const canonicalSnapshot = await canonicalizeProjectWorkspaceSnapshot({
+  const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
     userId,
-    projectId,
     snapshot: sanitizedSnapshot,
-    backfillAssociations: true,
   });
 
   const normalizedSchemaVersion =
@@ -614,7 +665,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
         project_id: projectId,
         user_id: userId,
         schema_version: normalizedSchemaVersion,
-        snapshot: canonicalSnapshot,
+        snapshot: preparedSnapshot.snapshot,
         updated_at: new Date().toISOString(),
       },
       {
@@ -636,9 +687,60 @@ export const upsertProjectWorkspaceStateForUser = async ({
       error: new Error("No workspace row returned"),
     });
   }
-  const record = toProjectWorkspaceStateRecord(data as ProjectWorkspaceStateRow);
-  return {
-    ...record,
-    snapshot: canonicalSnapshot,
-  };
+  const savedRow = data as ProjectWorkspaceStateRow;
+
+  try {
+    await backfillProjectAssetAssociationsForSnapshot({
+      userId,
+      projectId,
+      snapshot: preparedSnapshot.snapshot,
+      ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
+      ownedPromptIds: preparedSnapshot.ownedPromptIds,
+    });
+  } catch (error) {
+    const repairMessage = toErrorMessage(
+      wrapProjectWorkspaceSaveStageError({
+        stage: "project association backfill",
+        error,
+      }),
+      "Project workspace save needs project association repair."
+    );
+    logProjectWorkspaceBestEffortFailure({
+      stage: "project association backfill",
+      projectId,
+      error,
+    });
+    await logProjectWorkspaceRepairPending({
+      userId,
+      projectId,
+      repairStage: "project_association_backfill",
+      repairMessage,
+    });
+    return toProjectWorkspaceStateRecord({
+      row: savedRow,
+      snapshot: preparedSnapshot.snapshot,
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "project_association_backfill",
+        repairMessage,
+      },
+    });
+  }
+
+  const returnSnapshot = await hydrateProjectWorkspaceSnapshotAfterSave({
+    userId,
+    projectId,
+    snapshot: preparedSnapshot.snapshot,
+    ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
+    ownedPromptIds: preparedSnapshot.ownedPromptIds,
+    ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
+  });
+
+  return toProjectWorkspaceStateRecord({
+    row: savedRow,
+    snapshot: returnSnapshot,
+    saveOutcome: {
+      status: "saved",
+    },
+  });
 };

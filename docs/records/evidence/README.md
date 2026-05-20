@@ -3,6 +3,7 @@
 Purpose: index retained evidence namespaces that have already moved into the records model.
 
 ## Active migrated namespaces
+
 - `docs/records/evidence/agent/`: retained evidence packet family for the AI Studio Agent hardening/modularization program, with raw payload inputs now split into `docs/records/artifacts/agent/`.
 - `docs/records/evidence/agent-pipeline-remediation/`: retained evidence packet family for the AI Studio agent pipeline regression remediation program, with raw payloads and generated outputs now split into `docs/records/artifacts/agent-pipeline-remediation/`.
 - `docs/records/evidence/architecture/`: retained phase-3 structural modularization packet family for the AI Studio agent modularization program.
@@ -23,7 +24,9 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 - `docs/records/evidence/media-rendering-hardening-v2/`: retained evidence packet family for the media-rendering hardening v2 program.
 - `docs/records/evidence/sql/`: retained STG-02 SQL hardening validation packets and evidence template.
 - `docs/records/evidence/style-adherence/`: retained style-behavior evidence templates and run packets for cross-model AI Studio style adherence checks.
+- `docs/records/evidence/ux/`: retained UX evidence namespace for trust, hesitation, pricing, auth, onboarding, and workflow-friction findings.
 
 ## Usage
+
 - Use this index when you need human-readable evidence packets that no longer belong under active planning.
 - For namespaces that still physically live under `docs/planning/evidence/`, use `docs/records/README.md` and `docs/planning/evidence/README.md` during the transition.

@@ -9,7 +9,6 @@ describe("deriveCreateSelectorViewState", () => {
       isModelModalOpen: false,
       modelModalAnchor: null,
       isGenerateDisabled: false,
-      hasSufficientCreditsForOutputGenerate: true,
       characterModeEnabled: false,
       selectedCharacterId: "",
       imageResolution: "model_default",
@@ -17,7 +16,6 @@ describe("deriveCreateSelectorViewState", () => {
 
     expect(state.isModelSelectionEmpty).toBe(true);
     expect(state.isCreateModelPickerOpen).toBe(false);
-    expect(state.disableOutputGenerate).toBe(true);
   });
 
   it("opens only the create-model picker anchor", () => {
@@ -25,7 +23,6 @@ describe("deriveCreateSelectorViewState", () => {
       mode: "image",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       isGenerateDisabled: false,
-      hasSufficientCreditsForOutputGenerate: true,
       characterModeEnabled: false,
       selectedCharacterId: "",
       imageResolution: "model_default",
@@ -45,20 +42,19 @@ describe("deriveCreateSelectorViewState", () => {
     expect(closedState.isCreateModelPickerOpen).toBe(false);
   });
 
-  it("keeps output-generate disabled when character mode is enabled without a selected character", () => {
+  it("still resolves selector state when character mode is enabled without a selected character", () => {
     const state = deriveCreateSelectorViewState({
       mode: "image",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       isModelModalOpen: false,
       modelModalAnchor: null,
       isGenerateDisabled: false,
-      hasSufficientCreditsForOutputGenerate: true,
       characterModeEnabled: true,
       selectedCharacterId: "",
       imageResolution: "model_default",
     });
 
-    expect(state.disableOutputGenerate).toBe(true);
+    expect(state.isModelSelectionEmpty).toBe(false);
   });
 
   it("clamps invalid image resolution values and keeps selector card visibility policy", () => {
@@ -68,7 +64,6 @@ describe("deriveCreateSelectorViewState", () => {
       isModelModalOpen: false,
       modelModalAnchor: null,
       isGenerateDisabled: false,
-      hasSufficientCreditsForOutputGenerate: true,
       characterModeEnabled: false,
       selectedCharacterId: "",
       imageResolution: "not-a-resolution",
@@ -86,7 +81,6 @@ describe("deriveCreateSelectorViewState", () => {
       isModelModalOpen: false,
       modelModalAnchor: null,
       isGenerateDisabled: false,
-      hasSufficientCreditsForOutputGenerate: true,
       characterModeEnabled: false,
       selectedCharacterId: "",
       imageResolution: "model_default",

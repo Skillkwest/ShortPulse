@@ -18,6 +18,9 @@ import "../styles/globals.css";
 const isAiStudioRoutePath = (pathname: string): boolean =>
   pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
 
+const isExperimentalAiStudioEntryRoute = (pathname: string): boolean =>
+  pathname.startsWith("/ai-studio");
+
 const toRouteLoadMessage = (value: unknown): string => {
   if (typeof value === "string") return value.trim();
   if (value && typeof value === "object" && "message" in value) {
@@ -47,6 +50,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isProtected = PROTECTED_ROUTES.some((route) => router.pathname.startsWith(route));
   const isAiStudioRoute = isAiStudioRoutePath(router.pathname);
+  const shouldUseExperimentalAiStudioEntry = isExperimentalAiStudioEntryRoute(router.pathname);
   const authRedirectPath = useMemo(
     () => `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`,
     [router.asPath]
@@ -194,6 +198,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
+          enableExperimentalAnimation={shouldUseExperimentalAiStudioEntry}
           message="Checking your session before project restore continues."
           activeStepIndex={0}
           stepsAriaLabel="Project loading progress"
@@ -215,6 +220,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
+          enableExperimentalAnimation={shouldUseExperimentalAiStudioEntry}
           message="Checking your media agreement before project restore continues."
           activeStepIndex={1}
           stepsAriaLabel="Project loading progress"
@@ -236,6 +242,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
+          enableExperimentalAnimation={shouldUseExperimentalAiStudioEntry}
           message="Refreshing your session before project restore continues."
           activeStepIndex={0}
           stepsAriaLabel="Project loading progress"

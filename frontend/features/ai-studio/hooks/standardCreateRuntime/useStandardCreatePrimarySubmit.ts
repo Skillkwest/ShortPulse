@@ -16,8 +16,7 @@ type UseStandardCreatePrimarySubmitParams = {
   chatModeEnabled: boolean;
   agentInput: string;
   prompt: string;
-  currentCostCredits: number | null;
-  promptReferenceGenerateCostCredits: number | null;
+  createGenerateCostCredits: number | null;
   handleGenerate: GenerateStandardCreateOutput;
   handleProviderPrimarySubmit: () => void;
   setSharedPrompt: (value: string) => void;
@@ -36,8 +35,7 @@ export const useStandardCreatePrimarySubmit = ({
   chatModeEnabled,
   agentInput,
   prompt,
-  currentCostCredits,
-  promptReferenceGenerateCostCredits,
+  createGenerateCostCredits,
   handleGenerate,
   handleProviderPrimarySubmit,
   setSharedPrompt = () => undefined,
@@ -53,7 +51,7 @@ export const useStandardCreatePrimarySubmit = ({
       void handleGenerate(visibleComposerPrompt, {
         modeOverride: "image",
         toolOverride: "create",
-        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+        costOverrideCredits: createGenerateCostCredits,
       });
       return;
     }
@@ -61,12 +59,11 @@ export const useStandardCreatePrimarySubmit = ({
   }, [
     agentInput,
     chatModeEnabled,
-    currentCostCredits,
+    createGenerateCostCredits,
     enabled,
     handleGenerate,
     handleProviderPrimarySubmit,
     prompt,
-    promptReferenceGenerateCostCredits,
     selectedTool,
     setSharedPrompt,
   ]);

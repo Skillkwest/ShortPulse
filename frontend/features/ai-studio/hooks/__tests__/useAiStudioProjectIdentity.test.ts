@@ -218,6 +218,33 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.project).toBeNull();
   });
 
+  it("normalizes object-shaped project load errors", async () => {
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        query: { projectId: PROJECT_ID },
+      }) as never
+    );
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        error: {
+          message: "Project service unavailable",
+        },
+      }),
+    } as Response);
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.error).toBe("Project service unavailable");
+    expect(result.current.errorKind).toBe("server");
+    expect(result.current.project).toBeNull();
+  });
+
   it("patches the title through the project route and refreshes local project state", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({

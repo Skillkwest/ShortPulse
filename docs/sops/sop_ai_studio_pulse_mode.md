@@ -313,7 +313,7 @@ Pulse runtime config:
 
 ### Project-route restore boundary
 
-- Project routes may preserve the shell mode.
+- Current shipped project routes reset restore back to the Standard/Create shell baseline.
 - Project workspace restore must not hydrate conversational Pulse runtime state.
 - Treat project restore as workspace-shell restore, not Pulse chat restore.
 

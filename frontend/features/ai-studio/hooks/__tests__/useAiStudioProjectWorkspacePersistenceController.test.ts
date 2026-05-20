@@ -10,7 +10,11 @@ import {
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { resetAiStudioOutputStore } from "../aiStudioOutputStore";
-import { resetAiStudioProjectWorkspaceSnapshotViaApi } from "../../logic/projectWorkspaceApiClient";
+import {
+  resetAiStudioProjectWorkspaceSnapshotViaApi,
+  saveAiStudioProjectWorkspaceSnapshotViaApi,
+} from "../../logic/projectWorkspaceApiClient";
+import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 
 vi.mock("../useAiStudioProjectWorkspaceRestoreCandidate", () => ({
   useAiStudioProjectWorkspaceRestoreCandidate: vi.fn(() => ({
@@ -42,6 +46,10 @@ vi.mock("../../logic/projectWorkspaceApiClient", () => ({
   resetAiStudioProjectWorkspaceSnapshotViaApi: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
+}));
+
 const mockedUseAiStudioProjectWorkspaceRestoreCandidate = vi.mocked(
   useAiStudioProjectWorkspaceRestoreCandidate
 );
@@ -50,7 +58,9 @@ const mockedUseAiStudioProjectWorkspaceRestoreHydration = vi.mocked(
 );
 const mockedUseAiStudioSessionAutosave = vi.mocked(useAiStudioSessionAutosave);
 const mockedResetAiStudioOutputStore = vi.mocked(resetAiStudioOutputStore);
+const mockedSaveProjectWorkspaceViaApi = vi.mocked(saveAiStudioProjectWorkspaceSnapshotViaApi);
 const mockedResetProjectWorkspaceViaApi = vi.mocked(resetAiStudioProjectWorkspaceSnapshotViaApi);
+const mockedAddBreadcrumb = vi.mocked(addBreadcrumb);
 
 const createSnapshot = (): AiStudioSessionSnapshot =>
   ({
@@ -61,6 +71,7 @@ const createSnapshot = (): AiStudioSessionSnapshot =>
       expertCreateMode: "pulse",
       activePulsePresetId: "preset-1",
       editReferenceText: "Keep this only while the page session stays open.",
+      videoReferenceText: "Keep this video draft only while the page session stays open.",
     } as AiStudioSessionSnapshot["workspace"],
     outputs: {} as AiStudioSessionSnapshot["outputs"],
     agent: {
@@ -154,7 +165,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     mockedResetAiStudioOutputStore.mockClear();
     restoreHydrationMock.mockClear();
     sessionAutosaveMock.mockClear();
+    mockedSaveProjectWorkspaceViaApi.mockReset();
     mockedResetProjectWorkspaceViaApi.mockClear();
+    mockedAddBreadcrumb.mockClear();
   });
 
   it("keeps project autosave disabled until bootstrap settles", () => {
@@ -232,7 +245,17 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
     expect(lastWriteShadowArgs?.snapshot).toEqual(createAiStudioProjectWorkspaceSnapshot(snapshot));
     expect(lastWriteShadowArgs?.snapshot?.workspace.editReferenceText).toBe("");
+    expect(lastWriteShadowArgs?.snapshot?.workspace.videoReferenceText).toBe("");
     expect(buildSessionSnapshot).toHaveBeenCalledWith("session-1");
+    expect(mockedAddBreadcrumb).toHaveBeenCalledWith({
+      type: "ui",
+      level: "info",
+      message: "ai_studio_project_workspace_bootstrap_settled",
+      data: {
+        project_id: "project-1",
+        runtime_revision: 0,
+      },
+    });
   });
 
   it("invalidates project-owned workspace state immediately when a project route is entered", () => {
@@ -603,6 +626,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         enabled: false,
       })
     );
+    expect(mockedAddBreadcrumb).toHaveBeenCalledWith({
+      type: "ui",
+      level: "warn",
+      message: "ai_studio_project_workspace_bootstrap_failed",
+      data: {
+        project_id: "project-1",
+        runtime_revision: 0,
+        error: "hydrate failed",
+      },
+    });
   });
 
   it("reduces oversized project autosave snapshots before persisting", () => {
@@ -648,6 +681,57 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs?.enabled).toBe(true);
     expect(autosaveArgs?.snapshot?.outputs.archived).toEqual([]);
+  });
+
+  it("surfaces one repair-pending warning when autosave succeeds but project association repair is still pending", async () => {
+    const snapshot = createSnapshot();
+    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const onPersistenceWarning = vi.fn();
+
+    const { rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+        onPersistenceWarning,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender();
+
+    const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(autosaveArgs).toBeTruthy();
+    const autosaveSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: autosaveSnapshot,
+      createdAt: "2026-04-24T18:00:00.000Z",
+      updatedAt: "2026-04-24T18:00:00.000Z",
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "project_association_backfill",
+        repairMessage: "Project workspace save needs project association repair.",
+      },
+    });
+
+    await act(async () => {
+      await autosaveArgs!.persistSnapshot("project-1", autosaveSnapshot);
+      await autosaveArgs!.persistSnapshot("project-1", autosaveSnapshot);
+    });
+
+    expect(onPersistenceWarning).toHaveBeenCalledTimes(1);
+    expect(onPersistenceWarning).toHaveBeenCalledWith(
+      "Project autosave saved the workspace, but project asset repair is pending. Recent outputs may not fully restore until the next successful save."
+    );
   });
 
   it("resets invalid saved workspaces through the project workspace API", async () => {

@@ -3,6 +3,7 @@
  * Orchestrates project-owned restore/apply and debounced autosave against project workspace authority.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   createAiStudioProjectWorkspaceAutosaveCandidates,
@@ -92,6 +93,9 @@ const resolveReducedWorkspaceNotice = (
   return "Project autosave saved a reduced workspace snapshot to stay within size limits.";
 };
 
+const resolveProjectRepairPendingNotice = (): string =>
+  "Project autosave saved the workspace, but project asset repair is pending. Recent outputs may not fully restore until the next successful save.";
+
 /**
  * Returns project-owned persistence wiring for AI Studio page orchestration.
  */
@@ -164,6 +168,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     [baseSessionSnapshot, patchSessionSnapshot]
   );
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
+  const repairPendingNoticeKeyRef = useRef<string | null>(null);
   const autosaveSnapshotSelection = (() => {
     if (!sessionSnapshot) {
       return {
@@ -228,6 +233,15 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   const handleProjectBootstrapSettled = useCallback(
     (activeProjectId: string) => {
+      addBreadcrumb({
+        type: "ui",
+        level: "info",
+        message: "ai_studio_project_workspace_bootstrap_settled",
+        data: {
+          project_id: activeProjectId,
+          runtime_revision: projectRuntimeRevision,
+        },
+      });
       setBootstrappedProject({
         projectId: activeProjectId,
         revision: projectRuntimeRevision,
@@ -239,6 +253,16 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const handleProjectBootstrapFailed = useCallback(
     (activeProjectId: string, error: Error) => {
       const message = error.message || "Failed to apply project workspace.";
+      addBreadcrumb({
+        type: "ui",
+        level: "warn",
+        message: "ai_studio_project_workspace_bootstrap_failed",
+        data: {
+          project_id: activeProjectId,
+          runtime_revision: projectRuntimeRevision,
+          error: message,
+        },
+      });
       setBootstrapError((current) => {
         if (
           current?.projectId === activeProjectId &&
@@ -275,13 +299,25 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: AiStudioSessionSnapshot,
       options?: { keepalive?: boolean }
     ) => {
-      await saveAiStudioProjectWorkspaceSnapshotViaApi({
+      const savedWorkspace = await saveAiStudioProjectWorkspaceSnapshotViaApi({
         projectId: activeProjectId,
         snapshot,
         keepalive: options?.keepalive,
       });
+      if (savedWorkspace.saveOutcome?.status === "saved_with_repair_pending") {
+        const noticeKey = [
+          activeProjectId,
+          snapshot.updatedAt,
+          savedWorkspace.saveOutcome.repairStage ?? "repair_pending",
+          savedWorkspace.saveOutcome.repairMessage ?? "",
+        ].join("|");
+        if (repairPendingNoticeKeyRef.current !== noticeKey) {
+          repairPendingNoticeKeyRef.current = noticeKey;
+          onPersistenceWarning?.(resolveProjectRepairPendingNotice());
+        }
+      }
     },
-    []
+    [onPersistenceWarning]
   );
 
   const writeProjectWorkspaceSnapshot = useCallback(

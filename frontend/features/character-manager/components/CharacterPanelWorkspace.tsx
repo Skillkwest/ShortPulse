@@ -20,7 +20,6 @@ import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard
 import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import type { CharacterSheetDropZoneKey, CharacterSheetPresetId } from "../types";
-import type { MediaLibrarySelectionPayload } from "../../ai-studio/hooks/useMediaLibraryPanelSelectionController";
 import {
   AiStudioPickerCard,
   AiStudioPickerFeedback,
@@ -35,10 +34,6 @@ type CharacterPanelWorkspaceProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   isEmbeddedMediaLibraryMaximized?: boolean;
-  pendingMediaSelection?: {
-    key: number;
-    payload: MediaLibrarySelectionPayload;
-  } | null;
 };
 
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
@@ -49,30 +44,6 @@ const MEDIA_BUCKET = "media_library";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
-
-const fetchSelectionFile = async (payload: MediaLibrarySelectionPayload): Promise<File> => {
-  const candidateUrl = (payload.fullUrl ?? payload.previewUrl ?? payload.url ?? "").trim();
-  if (!candidateUrl) {
-    throw new Error("Selected media is missing a readable source URL.");
-  }
-  const response = await fetch(candidateUrl, {
-    method: "GET",
-    credentials: "omit",
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to load selected media (${response.status}).`);
-  }
-  const blob = await response.blob();
-  const mimeType = (blob.type || "").trim().toLowerCase();
-  if (!mimeType.startsWith("image/")) {
-    throw new Error("Only image media can be assigned to character references.");
-  }
-  const filename = (payload.filename ?? "").trim() || `character-reference-${payload.id}.png`;
-  return new File([blob], filename, {
-    type: mimeType,
-  });
-};
 
 const getCharacterInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -86,7 +57,6 @@ export function CharacterPanelWorkspace({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   isEmbeddedMediaLibraryMaximized = false,
-  pendingMediaSelection = null,
 }: CharacterPanelWorkspaceProps) {
   const {
     characters,
@@ -122,7 +92,6 @@ export function CharacterPanelWorkspace({
     clearMessages,
   } = useCharacterManagerDraft();
 
-  const [armedSlotKey, setArmedSlotKey] = React.useState<CharacterSheetDropZoneKey | null>(null);
   const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = React.useState<string | null>(null);
@@ -139,7 +108,6 @@ export function CharacterPanelWorkspace({
     React.useState<CharacterSheetPresetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
   const lastHandledExternalUploadRequestIdRef = React.useRef(0);
-  const lastHandledMediaSelectionKeyRef = React.useRef(0);
   const characterSheetFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const characterNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const pageBusy =
@@ -189,6 +157,7 @@ export function CharacterPanelWorkspace({
     handleCharacterSheetDragOver,
     clearCharacterSheetAssignment,
     handleCharacterSheetDrop,
+    handleCharacterSheetCardClick,
   } = useCharacterManagerCharacterSheetInteractions({
     pageBusy,
     isDropResolutionBusy,
@@ -225,46 +194,8 @@ export function CharacterPanelWorkspace({
       characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
     });
 
-  const resetActiveSlotAssignment = React.useCallback(() => {
-    setArmedSlotKey(null);
-  }, []);
-
-  const assignMediaSelectionToSlot = React.useCallback(
-    async (payload: MediaLibrarySelectionPayload) => {
-      if (pageBusy || isDropResolutionBusy) return;
-      const targetSlotKey = armedSlotKey;
-      if (!targetSlotKey) {
-        setErrorMessage("Select a character reference slot before assigning media.");
-        return;
-      }
-      try {
-        clearMessages();
-        const file = await fetchSelectionFile(payload);
-        const saved = await setCharacterSheetPresetFile(targetSlotKey, file);
-        if (saved) {
-          setArmedSlotKey(null);
-        }
-      } catch (nextError) {
-        const message =
-          nextError instanceof Error && nextError.message.trim().length
-            ? nextError.message
-            : "Failed to assign media to the selected reference slot.";
-        setErrorMessage(message);
-      }
-    },
-    [
-      armedSlotKey,
-      clearMessages,
-      isDropResolutionBusy,
-      pageBusy,
-      setCharacterSheetPresetFile,
-      setErrorMessage,
-    ]
-  );
-
   const handleCreateNewCharacter = React.useCallback(async () => {
     clearMessages();
-    setArmedSlotKey(null);
     setIsCharacterLibraryModalOpen(false);
     await createCharacter();
     if (typeof window !== "undefined") {
@@ -287,31 +218,25 @@ export function CharacterPanelWorkspace({
         setErrorMessage(FULL_SLOT_UPLOAD_ERROR);
         return;
       }
-      const orderedTargetSlots =
-        armedSlotKey && openSlotQueue.includes(armedSlotKey)
-          ? [armedSlotKey, ...openSlotQueue.filter((slotKey) => slotKey !== armedSlotKey)]
-          : openSlotQueue;
       let assignedCount = 0;
 
       for (const file of nextFiles) {
-        const targetSlotKey = orderedTargetSlots[assignedCount] ?? null;
+        const targetSlotKey = openSlotQueue[assignedCount] ?? null;
         if (!targetSlotKey) break;
         const saved = await setCharacterSheetPresetFile(targetSlotKey, file);
         if (!saved) break;
         assignedCount += 1;
       }
 
-      if (nextFiles.length > orderedTargetSlots.length) {
+      if (nextFiles.length > openSlotQueue.length) {
         setErrorMessage(
-          `Only ${orderedTargetSlots.length} open reference slot${
-            orderedTargetSlots.length === 1 ? " was" : "s were"
+          `Only ${openSlotQueue.length} open reference slot${
+            openSlotQueue.length === 1 ? " was" : "s were"
           } available. Extra uploads were skipped.`
         );
       }
-      setArmedSlotKey(null);
     },
     [
-      armedSlotKey,
       clearMessages,
       resolvedCharacterSheetPresetAssignments,
       setCharacterSheetPresetFile,
@@ -337,22 +262,14 @@ export function CharacterPanelWorkspace({
     void assignFilesToSlots(activeUploadRequest.files);
   }, [assignFilesToSlots, externalUploadRequest, onExternalUploadRequestHandled]);
 
-  React.useEffect(() => {
-    if (!pendingMediaSelection) return;
-    if (lastHandledMediaSelectionKeyRef.current === pendingMediaSelection.key) return;
-    lastHandledMediaSelectionKeyRef.current = pendingMediaSelection.key;
-    void assignMediaSelectionToSlot(pendingMediaSelection.payload);
-  }, [assignMediaSelectionToSlot, pendingMediaSelection]);
-
   const handleCharacterSelection = React.useCallback(
     async (characterId: string) => {
       if (pageBusy) return;
       clearMessages();
-      resetActiveSlotAssignment();
       setIsCharacterLibraryModalOpen(false);
       await selectCharacter(characterId);
     },
-    [clearMessages, pageBusy, resetActiveSlotAssignment, selectCharacter]
+    [clearMessages, pageBusy, selectCharacter]
   );
 
   const confirmDeleteCharacter = React.useCallback(async () => {
@@ -360,18 +277,16 @@ export function CharacterPanelWorkspace({
     const deleted = await deleteCharacter(deleteTargetCharacter.characterId);
     if (deleted) {
       setDeleteTargetCharacter(null);
-      resetActiveSlotAssignment();
     }
-  }, [deleteCharacter, deleteTargetCharacter, resetActiveSlotAssignment]);
+  }, [deleteCharacter, deleteTargetCharacter]);
 
   const confirmDeleteCharacterSheetPreset = React.useCallback(async () => {
     if (!deleteTargetCharacterSheetPresetId) return;
     const deleted = await deleteCharacterSheetPreset(deleteTargetCharacterSheetPresetId);
     if (deleted) {
       setDeleteTargetCharacterSheetPresetId(null);
-      resetActiveSlotAssignment();
     }
-  }, [deleteCharacterSheetPreset, deleteTargetCharacterSheetPresetId, resetActiveSlotAssignment]);
+  }, [deleteCharacterSheetPreset, deleteTargetCharacterSheetPresetId]);
 
   const openSlotPreview = React.useCallback(
     async (slotKey: CharacterSheetDropZoneKey) => {
@@ -411,7 +326,7 @@ export function CharacterPanelWorkspace({
       </p>
 
       <div className="character-panel-library-workspace">
-        <section className="character-panel-library-column">
+        <section className="character-panel-editor-column">
           <div className="character-panel-library-header-main">
             <div className="character-panel-library-title-stack">
               <h2>Characters</h2>
@@ -427,32 +342,12 @@ export function CharacterPanelWorkspace({
               </button>
             </div>
           </div>
-        </section>
-
-        <section className="character-panel-editor-column">
           {loading || isSwitchingCharacter ? (
             <div className="character-panel-editor-column-panel">
               <CharacterProfileLoadingSkeleton surface="panel" />
             </div>
           ) : (
             <div className="character-panel-editor-column-panel">
-              {armedSlotKey ? (
-                <div className="character-panel-profile-status">
-                  <span className="character-panel-slot-armed-pill">
-                    Slot armed:{" "}
-                    {CHARACTER_SHEET_DROP_ZONES.find((slot) => slot.key === armedSlotKey)?.label ??
-                      armedSlotKey}
-                  </span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={resetActiveSlotAssignment}
-                  >
-                    Clear
-                  </button>
-                </div>
-              ) : null}
-
               <div className="character-profile-card">
                 <label
                   className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
@@ -482,11 +377,9 @@ export function CharacterPanelWorkspace({
                     activePresetId={activeCharacterSheetPresetId}
                     presetLabels={characterSheetPresetLabels}
                     onSelectPreset={(presetId) => {
-                      resetActiveSlotAssignment();
                       void setActiveCharacterSheetPreset(presetId);
                     }}
                     onAddPreset={() => {
-                      resetActiveSlotAssignment();
                       void addCharacterSheetPreset();
                     }}
                     onRenamePreset={(presetId, nextLabel) => {
@@ -536,7 +429,6 @@ export function CharacterPanelWorkspace({
                           pendingDropTarget?.target === "character_sheet" &&
                           pendingDropTarget.zoneKey === dropZone.key;
                         const isRequiredSlot = dropZone.key === "portrait";
-                        const isArmed = armedSlotKey === dropZone.key;
                         const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
 
                         return (
@@ -546,16 +438,9 @@ export function CharacterPanelWorkspace({
                               assignedReference ? "is-filled" : "is-empty"
                             } ${isDropActive ? "is-drop-active" : ""} ${
                               draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
-                            } ${isDropPending ? "is-drop-pending" : ""} ${
-                              isArmed ? "is-armed" : ""
-                            }`}
+                            } ${isDropPending ? "is-drop-pending" : ""}`}
                             draggable={!pageBusy && !isDropPending && Boolean(assignedReference)}
-                            onClick={() => {
-                              if (pageBusy || isDropResolutionBusy) return;
-                              setArmedSlotKey((current) =>
-                                current === dropZone.key ? null : dropZone.key
-                              );
-                            }}
+                            onClick={handleCharacterSheetCardClick(dropZone.key)}
                             onDoubleClick={() => {
                               void openSlotPreview(dropZone.key);
                             }}
@@ -570,18 +455,6 @@ export function CharacterPanelWorkspace({
                             onDrop={handleCharacterSheetDrop(dropZone.key)}
                           >
                             <div className="character-panel-slot-actions">
-                              <button
-                                type="button"
-                                className="character-list-delete-btn character-reference-delete-btn character-panel-slot-upload-btn"
-                                aria-label={`Upload ${dropZone.label} reference`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openCharacterSheetPicker(dropZone.key);
-                                }}
-                                disabled={pageBusy}
-                              >
-                                <UploadSimple size={12} weight="bold" />
-                              </button>
                               {assignedReference ? (
                                 <button
                                   type="button"
@@ -632,11 +505,7 @@ export function CharacterPanelWorkspace({
                                     className="character-character-sheet-drop-icon"
                                     aria-hidden="true"
                                   />
-                                  <span>
-                                    {isArmed
-                                      ? "Click media below to assign this slot"
-                                      : "Drag reference here or arm this slot"}
-                                  </span>
+                                  <span>Drag reference here or click to upload</span>
                                   <span
                                     className={`character-character-sheet-drop-requirement ${
                                       isRequiredSlot ? "is-required" : "is-optional"

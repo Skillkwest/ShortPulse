@@ -40,6 +40,25 @@ describe("AgentComposerAttachmentImage", () => {
     expect(img?.getAttribute("src")).toBe("https://example.com/staged.png");
   });
 
+  it("renders a loading shell while an image attachment is still preparing", () => {
+    const attachment = {
+      id: "att-1",
+      kind: "image" as const,
+      referenceId: null,
+      imageUrl: null,
+      imageFallbackUrls: [],
+      text: null,
+      aspect: null,
+      deliveryStatus: "preparing" as const,
+    };
+
+    const { container } = render(<AgentComposerAttachmentImage attachment={attachment} />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".agent-attachment-card-loading")).toBeTruthy();
+    expect(container.querySelector(".agent-attachment-card-spinner")).toBeTruthy();
+  });
+
   it("falls back to the next attachment preview candidate when the first image fails", async () => {
     const attachment = {
       id: "att-1",

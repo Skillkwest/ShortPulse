@@ -74,7 +74,6 @@ vi.mock("../../../logic/createSelectorState", () => ({
     shouldShowImageResolutionCard: false,
     isModelSelectionEmpty: false,
     isCreateModelPickerOpen: false,
-    disableOutputGenerate: false,
   }),
 }));
 

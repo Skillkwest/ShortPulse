@@ -994,30 +994,86 @@ describe("POST /api/media/list", () => {
     );
   });
 
-  it("does not seed initial signed urls for the panel surface", async () => {
-    const row = {
-      id: "panel-media-1",
-      user_id: "user-1",
-      filename: "panel-target.png",
-      storage_path: "user-1/uploads/images/panel-target.png",
-      file_type: "image/png",
-      file_size: 10,
-      source: "upload",
-      source_ref: null,
-      prompt_id: null,
-      metadata: null,
-      thumb_variant_path: null,
-      poster_variant_path: null,
-      preview_variant_path: null,
-      created_at: "2026-02-20T10:00:00.000Z",
-      updated_at: null,
-    } satisfies MediaRow;
-    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([row]);
+  it("seeds initial signed urls for the panel surface on the default mixed open", async () => {
+    const rows = [
+      {
+        id: "audio-1",
+        user_id: "user-1",
+        filename: "audio-1.wav",
+        storage_path: "user-1/uploads/audio/audio-1.wav",
+        file_type: "audio/wav",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T12:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+      {
+        id: "panel-media-1",
+        user_id: "user-1",
+        filename: "panel-target.png",
+        storage_path: "user-1/uploads/images/panel-target.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-1/uploads/images/panel-target-thumb.png",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+      {
+        id: "panel-media-2",
+        user_id: "user-1",
+        filename: "panel-target-2.png",
+        storage_path: "user-1/uploads/images/panel-target-2.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-1/uploads/images/panel-target-2-thumb.png",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+      {
+        id: "panel-media-3",
+        user_id: "user-1",
+        filename: "panel-target-3.png",
+        storage_path: "user-1/uploads/images/panel-target-3.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-1/uploads/images/panel-target-3-thumb.png",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T09:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock(rows);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path
+    );
 
     const req = {
       method: "POST",
       body: {
-        mediaKind: "images",
+        mediaKind: "all",
         cursor: null,
         query: "",
         limit: 36,
@@ -1028,13 +1084,98 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlsMock).toHaveBeenCalledTimes(1);
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      [
+        "user-1/uploads/images/panel-target-thumb.png",
+        "user-1/uploads/images/panel-target-2-thumb.png",
+      ],
+      3600
+    );
     expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "0");
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "2");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        rows: [expect.objectContaining({ id: row.id })],
-        signedById: undefined,
+        rows: expect.arrayContaining([
+          expect.objectContaining({ id: "panel-media-1" }),
+          expect.objectContaining({ id: "panel-media-2" }),
+        ]),
+        signedById: {
+          "panel-media-1": "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-thumb.png",
+          "panel-media-2":
+            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-2-thumb.png",
+        },
+      })
+    );
+  });
+
+  it("seeds initial signed urls for the elements panel surface on the default mixed open", async () => {
+    const rows = [
+      {
+        id: "elements-audio-1",
+        user_id: "user-1",
+        filename: "elements-audio-1.wav",
+        storage_path: "user-1/uploads/audio/elements-audio-1.wav",
+        file_type: "audio/wav",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T12:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+      {
+        id: "elements-media-1",
+        user_id: "user-1",
+        filename: "elements-target.png",
+        storage_path: "user-1/uploads/images/elements-target.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-1/uploads/images/elements-target-thumb.png",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "elements-media-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      ["user-1/uploads/images/elements-target-thumb.png"],
+      3600
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "1");
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedById: {
+          "elements-media-1":
+            "https://signed.test/user-1%2Fuploads%2Fimages%2Felements-target-thumb.png",
+        },
       })
     );
   });

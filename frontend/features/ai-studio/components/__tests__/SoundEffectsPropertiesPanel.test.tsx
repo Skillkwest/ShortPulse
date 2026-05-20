@@ -70,6 +70,36 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
+  it("supports a controlled prompt draft from page state", () => {
+    const onPromptChange = vi.fn();
+    const { rerender } = render(
+      <SoundEffectsPropertiesPanel
+        prompt="Short vinyl crackle burst."
+        onPromptChange={onPromptChange}
+      />
+    );
+
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    expect(promptField).toHaveValue("Short vinyl crackle burst.");
+
+    fireEvent.change(promptField, {
+      target: { value: "Updated controlled sound effect draft." },
+    });
+
+    expect(onPromptChange).toHaveBeenCalledWith("Updated controlled sound effect draft.");
+
+    rerender(
+      <SoundEffectsPropertiesPanel
+        prompt="Updated controlled sound effect draft."
+        onPromptChange={onPromptChange}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "Updated controlled sound effect draft."
+    );
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
 

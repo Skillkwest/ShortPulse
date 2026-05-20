@@ -9,6 +9,7 @@ import {
   deleteProjectWorkspaceStateForUser,
   getProjectWorkspaceStateForUser,
   InvalidProjectWorkspaceSnapshotError,
+  type ProjectWorkspaceSaveOutcome,
   upsertProjectWorkspaceStateForUser,
 } from "../projectWorkspaceStatesService";
 
@@ -20,6 +21,7 @@ type ProjectWorkspaceSuccessResponse = {
     createdAt: string;
     updatedAt: string;
   } | null;
+  saveOutcome?: ProjectWorkspaceSaveOutcome;
 };
 
 type ProjectWorkspaceErrorResponse = {
@@ -108,6 +110,7 @@ export default async function handler(
             updatedAt: workspace.updatedAt,
           }
         : null,
+      ...(workspace?.saveOutcome ? { saveOutcome: workspace.saveOutcome } : {}),
     });
   } catch (error) {
     if (error instanceof InvalidProjectWorkspaceSnapshotError) {

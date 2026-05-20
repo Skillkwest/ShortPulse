@@ -3,7 +3,6 @@ import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/El
 import { useReferenceGridHorizontalSplit } from "../../ai-studio/hooks/useReferenceGridHorizontalSplit";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
-import type { MediaLibrarySelectionPayload } from "../../ai-studio/hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { CharacterPanelWorkspace } from "./CharacterPanelWorkspace";
 
@@ -32,10 +31,6 @@ export function CharacterPanelSplitHost({
   projectId = null,
 }: CharacterPanelSplitHostProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const [pendingMediaSelection, setPendingMediaSelection] = React.useState<{
-    key: number;
-    payload: MediaLibrarySelectionPayload;
-  } | null>(null);
   const split = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -55,7 +50,6 @@ export function CharacterPanelSplitHost({
           externalUploadRequest={externalUploadRequest}
           onExternalUploadRequestHandled={onExternalUploadRequestHandled}
           isEmbeddedMediaLibraryMaximized={split.isAllRefsExpanded}
-          pendingMediaSelection={pendingMediaSelection}
         />
       </div>
 
@@ -71,12 +65,6 @@ export function CharacterPanelSplitHost({
           mediaCardInteractionMode="assignment"
           projectId={projectId}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
-          onSelectMedia={(payload) => {
-            setPendingMediaSelection((current) => ({
-              key: (current?.key ?? 0) + 1,
-              payload,
-            }));
-          }}
         />
       </div>
     </div>

@@ -331,6 +331,21 @@ describe("projects routes", () => {
   });
 
   it("saves one caller-owned project workspace snapshot", async () => {
+    upsertProjectWorkspaceStateForUserMock.mockResolvedValueOnce({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-2",
+      },
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "project_association_backfill",
+        repairMessage: "Project workspace save needs project association repair.",
+      },
+    });
     const req = {
       method: "PUT",
       query: { projectId: "project-1" },
@@ -356,6 +371,23 @@ describe("projects routes", () => {
       },
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      workspace: {
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-2",
+        },
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+      },
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "project_association_backfill",
+        repairMessage: "Project workspace save needs project association repair.",
+      },
+    });
   });
 
   it("returns 400 for invalid project workspace snapshots", async () => {

@@ -777,27 +777,24 @@
   gap: 16px;
 }
 
-.voices-properties-library-actions {
+.voices-properties-library-selector {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-  grid-column: 3;
-  justify-self: end;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  grid-column: 1;
+  justify-self: start;
 }
 
-.voices-properties-library-title {
-  display: flex;
-  align-items: center;
+.voices-properties-library-label {
   margin: 0;
   min-width: 0;
-  min-height: 44px;
-  justify-self: start;
-  color: rgba(242, 247, 255, 0.95);
-  font-size: 18px;
+  color: rgba(201, 205, 214, 0.68);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
 }
 
 .voices-properties-library-open-btn,
@@ -829,6 +826,12 @@
   cursor: pointer;
 }
 
+.voices-properties-library-open-btn {
+  border-color: rgba(149, 235, 228, 0.34);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.16), rgba(132, 226, 218, 0.12));
+  color: rgba(232, 250, 248, 0.96);
+}
+
 .voices-properties-library-delete-btn {
   border-color: rgba(255, 154, 154, 0.28);
   background: rgba(33, 20, 24, 0.84);
@@ -836,6 +839,16 @@
 }
 
 .voices-properties-library-open-btn:hover,
+.voices-properties-library-create-btn:hover {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.voices-properties-library-open-btn:hover {
+  border-color: rgba(149, 235, 228, 0.52);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.24), rgba(132, 226, 218, 0.18));
+  color: rgba(240, 252, 251, 0.98);
+}
+
 .voices-properties-library-create-btn:hover {
   border-color: rgba(245, 221, 174, 0.62);
   background: rgba(28, 32, 37, 0.98);
@@ -1167,20 +1180,19 @@
     justify-items: stretch;
   }
 
-  .voices-properties-library-title,
+  .voices-properties-library-selector,
   .voices-properties-compose-mode-switcher,
   .voices-properties-library-actions {
     grid-column: auto;
     justify-self: stretch;
   }
 
-  .voices-properties-compose-mode-switcher {
-    order: 2;
+  .voices-properties-library-selector {
+    flex-wrap: wrap;
   }
 
-  .voices-properties-library-actions {
-    order: 3;
-    justify-content: flex-start;
+  .voices-properties-compose-mode-switcher {
+    order: 2;
   }
 }
 

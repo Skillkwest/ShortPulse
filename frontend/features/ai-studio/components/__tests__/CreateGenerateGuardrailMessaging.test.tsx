@@ -39,11 +39,6 @@ describe("Create generate guardrail messaging", () => {
     render(
       <StandardCreatePanelView
         promptStepProps={{} as PromptStepProps}
-        onGenerate={vi.fn()}
-        costCredits={15}
-        isPromptGenerating={false}
-        isGenerateDisabled
-        guardrailReason={message}
         characterModeEnabled={false}
         onCharacterModeEnabledToggle={vi.fn()}
         onCharacterPickerOpen={vi.fn()}

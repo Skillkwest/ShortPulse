@@ -423,6 +423,17 @@ export const useAiStudioAgentComposer = ({
     [agentAttachments]
   );
 
+  const resolveStagedAttachmentId = useCallback(
+    (nextAttachment: AgentAttachment) => {
+      const signature = attachmentSignature(nextAttachment);
+      const existingAttachment = agentAttachments.find(
+        (attachment) => attachmentSignature(attachment) === signature
+      );
+      return existingAttachment?.id ?? nextAttachment.id;
+    },
+    [agentAttachments]
+  );
+
   useEffect(() => {
     setCreateWorkflowAttachmentSnapshot(
       agentAttachments.map((attachment) => summarizeCreateWorkflowAttachment(attachment))
@@ -547,6 +558,42 @@ export const useAiStudioAgentComposer = ({
     setAgentAttachmentError(null);
   }, []);
 
+  const replaceAttachmentById = useCallback(
+    (attachmentId: string, nextAttachment: AgentAttachment) => {
+      setAgentAttachments((prev) => {
+        const existingIndex = prev.findIndex((attachment) => attachment.id === attachmentId);
+        if (existingIndex < 0) return prev;
+        const existingAttachment = prev[existingIndex];
+        const normalizedAttachment: AgentAttachment = {
+          ...nextAttachment,
+          id: attachmentId,
+          deliveryStatus:
+            nextAttachment.kind === "prompt"
+              ? "ready"
+              : isEphemeralLocalImageAttachment(nextAttachment)
+                ? (nextAttachment.deliveryStatus ?? "ready")
+                : (nextAttachment.deliveryStatus ?? "pending"),
+          deliveryError:
+            nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
+        };
+        recordCreateWorkflowEvent("attachment_replaced_by_id", {
+          attachmentId,
+          before: summarizeCreateWorkflowAttachment(existingAttachment),
+          after: summarizeCreateWorkflowAttachment(normalizedAttachment),
+        });
+        return prev.map((attachment, index) =>
+          index === existingIndex ? normalizedAttachment : attachment
+        );
+      });
+      setAgentAttachmentError(null);
+    },
+    []
+  );
+
+  const removeAttachmentById = useCallback((attachmentId: string) => {
+    setAgentAttachments((prev) => prev.filter((attachment) => attachment.id !== attachmentId));
+  }, []);
+
   const handleAgentAttachmentDragOver = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       if (!isSupportedAttachmentDrag(event)) return;
@@ -615,7 +662,27 @@ export const useAiStudioAgentComposer = ({
           }
           setAgentAttachmentError(null);
           for (const file of droppedImageFiles) {
+            const preparingAttachment: AgentAttachment = {
+              id: randomId(),
+              kind: "image",
+              source: "ephemeral_local",
+              referenceId: null,
+              mediaId: null,
+              imageUrl: null,
+              modelDataUrl: null,
+              submissionImageUrl: null,
+              text: null,
+              aspect: null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            };
+            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            insertAttachment({
+              ...preparingAttachment,
+              id: attachmentId,
+            });
             const imageData = await createEphemeralComposerImageData(file).catch((error) => {
+              removeAttachmentById(attachmentId);
               const message =
                 error instanceof Error && error.message.trim().length > 0
                   ? error.message.trim()
@@ -634,8 +701,7 @@ export const useAiStudioAgentComposer = ({
               return null;
             });
             if (!imageData) continue;
-            const attachmentId = randomId();
-            insertAttachment({
+            replaceAttachmentById(attachmentId, {
               id: attachmentId,
               kind: "image",
               source: "ephemeral_local",
@@ -708,7 +774,29 @@ export const useAiStudioAgentComposer = ({
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
-            const attachmentId = randomId();
+            const preparingAttachment: AgentAttachment = {
+              id: randomId(),
+              kind: "image",
+              source: "ephemeral_local",
+              referenceId: droppedReferenceId,
+              mediaId:
+                resolvedInternalImageSource?.mediaId ??
+                composerImagePayload.mediaId ??
+                internalPayload?.mediaId ??
+                null,
+              imageUrl: null,
+              modelDataUrl: null,
+              submissionImageUrl: null,
+              text: normalizedPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            };
+            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            insertAttachment({
+              ...preparingAttachment,
+              id: attachmentId,
+            });
             const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
               referenceId: droppedReferenceId,
@@ -724,9 +812,10 @@ export const useAiStudioAgentComposer = ({
               modelUrl: normalizedInternalImageUrl,
             });
             if (ephemeralAttachment) {
-              insertAttachment(ephemeralAttachment);
+              replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
             }
+            removeAttachmentById(attachmentId);
           }
 
           const displayArtifactUrl = normalizeDroppedImageCandidate(
@@ -755,7 +844,25 @@ export const useAiStudioAgentComposer = ({
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
-            const attachmentId = randomId();
+            const preparingAttachment: AgentAttachment = {
+              id: randomId(),
+              kind: "image",
+              source: "ephemeral_local",
+              referenceId: droppedReferenceId,
+              mediaId: composerImagePayload.mediaId ?? null,
+              imageUrl: null,
+              modelDataUrl: null,
+              submissionImageUrl: null,
+              text: normalizedPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            };
+            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            insertAttachment({
+              ...preparingAttachment,
+              id: attachmentId,
+            });
             const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
               referenceId: droppedReferenceId,
@@ -766,9 +873,10 @@ export const useAiStudioAgentComposer = ({
               modelUrl: identityImageUrl,
             });
             if (ephemeralAttachment) {
-              insertAttachment(ephemeralAttachment);
+              replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
             }
+            removeAttachmentById(attachmentId);
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
@@ -789,8 +897,27 @@ export const useAiStudioAgentComposer = ({
             ensureAgentSession();
           }
           setAgentAttachmentError(null);
-          const fallbackAttachment = await createEphemeralImageAttachment({
+          const preparingAttachment: AgentAttachment = {
             id: randomId(),
+            kind: "image",
+            source: "ephemeral_local",
+            referenceId: droppedReferenceId,
+            mediaId: composerImagePayload.mediaId ?? null,
+            imageUrl: null,
+            modelDataUrl: null,
+            submissionImageUrl: null,
+            text: normalizedPromptText,
+            aspect: matchedOutput?.aspect ?? null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          };
+          const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+          insertAttachment({
+            ...preparingAttachment,
+            id: attachmentId,
+          });
+          const fallbackAttachment = await createEphemeralImageAttachment({
+            id: attachmentId,
             referenceId: droppedReferenceId,
             mediaId: composerImagePayload.mediaId ?? null,
             text: normalizedPromptText,
@@ -799,10 +926,11 @@ export const useAiStudioAgentComposer = ({
             modelUrl: durableReferenceUrl ?? normalizedImageUrl,
           });
           if (!fallbackAttachment) {
+            removeAttachmentById(attachmentId);
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
-          insertAttachment(fallbackAttachment);
+          replaceAttachmentById(attachmentId, fallbackAttachment);
           return;
         }
 
@@ -855,7 +983,25 @@ export const useAiStudioAgentComposer = ({
               ensureAgentSession();
             }
             setAgentAttachmentError(null);
-            const attachmentId = randomId();
+            const preparingAttachment: AgentAttachment = {
+              id: randomId(),
+              kind: "image",
+              source: "ephemeral_local",
+              referenceId: droppedReferenceId,
+              mediaId: resolvedInternalImageSource?.mediaId ?? internalPayload.mediaId ?? null,
+              imageUrl: null,
+              modelDataUrl: null,
+              submissionImageUrl: null,
+              text: internalPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+              deliveryStatus: "preparing",
+              deliveryError: null,
+            };
+            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            insertAttachment({
+              ...preparingAttachment,
+              id: attachmentId,
+            });
             const ephemeralAttachment = await createEphemeralImageAttachment({
               id: attachmentId,
               referenceId: droppedReferenceId,
@@ -867,9 +1013,10 @@ export const useAiStudioAgentComposer = ({
               modelUrl: normalizedInternalImageUrl,
             });
             if (ephemeralAttachment) {
-              insertAttachment(ephemeralAttachment);
+              replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
             }
+            removeAttachmentById(attachmentId);
           }
 
           if (droppedPromptText) {
@@ -1001,8 +1148,27 @@ export const useAiStudioAgentComposer = ({
         setAgentAttachmentError(null);
 
         if (normalizedImageUrl) {
-          const ephemeralAttachment = await createEphemeralImageAttachment({
+          const preparingAttachment: AgentAttachment = {
             id: randomId(),
+            kind: "image",
+            source: "ephemeral_local",
+            referenceId: droppedReferenceId,
+            mediaId: resolvedInternalImageSource?.mediaId ?? mediaLibraryImagePayload?.id ?? null,
+            imageUrl: null,
+            modelDataUrl: null,
+            submissionImageUrl: null,
+            text: normalizedPromptText,
+            aspect: matchedOutput?.aspect ?? null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          };
+          const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+          insertAttachment({
+            ...preparingAttachment,
+            id: attachmentId,
+          });
+          const ephemeralAttachment = await createEphemeralImageAttachment({
+            id: attachmentId,
             referenceId: droppedReferenceId,
             mediaId: resolvedInternalImageSource?.mediaId ?? mediaLibraryImagePayload?.id ?? null,
             text: normalizedPromptText,
@@ -1011,10 +1177,11 @@ export const useAiStudioAgentComposer = ({
             modelUrl: normalizedSubmissionImageUrl ?? normalizedImageUrl,
           });
           if (!ephemeralAttachment) {
+            removeAttachmentById(attachmentId);
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
-          insertAttachment(ephemeralAttachment);
+          replaceAttachmentById(attachmentId, ephemeralAttachment);
           return;
         }
 
@@ -1034,6 +1201,9 @@ export const useAiStudioAgentComposer = ({
       ensureAgentSession,
       findOutputById,
       insertAttachment,
+      removeAttachmentById,
+      replaceAttachmentById,
+      resolveStagedAttachmentId,
       maxImageAttachmentsPerDrop,
       resolveInternalImageDropSource,
       resolveOutputPreviewUrlById,

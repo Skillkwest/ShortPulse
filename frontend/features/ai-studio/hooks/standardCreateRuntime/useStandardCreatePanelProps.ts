@@ -55,7 +55,6 @@ type UseStandardCreatePanelPropsParams = {
   isPromptRefining: boolean;
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
-  hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
@@ -139,7 +138,6 @@ export const buildStandardCreatePanelProps = ({
   isPromptRefining,
   describeInFlightCount,
   createGenerateCostCredits,
-  hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
   generationGuardrail,
   handleClearAgentChat,
@@ -211,7 +209,6 @@ export const buildStandardCreatePanelProps = ({
     onPromptChange: handleManualPromptChange,
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
-    hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: isPrimaryGenerateDisabled,
     guardrailReason: primaryGenerateGuardrailReason,
     onClearAgentChat: handleClearAgentChat,

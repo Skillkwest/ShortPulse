@@ -61,7 +61,12 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   setCreateSelectedCharacterLookId: (value: string) => void;
   setIsCreateCharacterModeEnabled: (value: boolean) => void;
   setExpertEditSessionState: (value: AiStudioSessionHydrationPayload["expertEdit"]) => void;
+  setMusicPromptDraft: (value: string) => void;
+  setMusicLyricsDraft: (value: string) => void;
+  setSoundEffectsPromptDraft: (value: string) => void;
   setUiNotice: (message: string | null) => void;
+  setVoiceDesignPromptDraft: (value: string) => void;
+  setVoiceScriptDraft: (value: string) => void;
 };
 
 export const shouldRestoreCreateCharacterModeFromProjectSnapshot = (
@@ -124,7 +129,12 @@ export const useAiStudioPageProjectSessionRuntime = ({
   setCreateSelectedCharacterLookId,
   setIsCreateCharacterModeEnabled,
   setExpertEditSessionState,
+  setMusicPromptDraft,
+  setMusicLyricsDraft,
+  setSoundEffectsPromptDraft,
   setUiNotice,
+  setVoiceDesignPromptDraft,
+  setVoiceScriptDraft,
 }: UseAiStudioPageProjectSessionRuntimeParams) => {
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () =>
@@ -223,6 +233,11 @@ export const useAiStudioPageProjectSessionRuntime = ({
   const applyEmptyProjectState = useCallback(() => {
     const payload = hydrateProjectAwareSessionSnapshot(createEmptyAiStudioSessionSnapshot());
     resetProjectAgentConversation();
+    setMusicPromptDraft("");
+    setMusicLyricsDraft("");
+    setSoundEffectsPromptDraft("");
+    setVoiceDesignPromptDraft("");
+    setVoiceScriptDraft("");
     setExpertEditSessionState(payload.expertEdit);
     hydrateCanvasSessionState(payload.canvas);
   }, [
@@ -230,6 +245,11 @@ export const useAiStudioPageProjectSessionRuntime = ({
     hydrateProjectAwareSessionSnapshot,
     resetProjectAgentConversation,
     setExpertEditSessionState,
+    setMusicLyricsDraft,
+    setMusicPromptDraft,
+    setSoundEffectsPromptDraft,
+    setVoiceDesignPromptDraft,
+    setVoiceScriptDraft,
   ]);
 
   const sessionAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(() => {

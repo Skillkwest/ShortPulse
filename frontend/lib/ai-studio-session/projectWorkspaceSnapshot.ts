@@ -4,6 +4,7 @@ type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
   updatedAt: string;
   workspace?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
   agent?: unknown;
   meta?: unknown;
   agentRuntimes?: unknown;
@@ -22,6 +23,62 @@ const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const shouldPersistOutputInProjectWorkspaceSnapshot = (output: Record<string, unknown>): boolean =>
+  output.taskState !== "fail";
+
+const filterProjectWorkspaceOutputIds = (
+  value: unknown,
+  persistedOutputIds: Set<string>
+): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length > 0 && persistedOutputIds.has(entry))
+    : [];
+
+const stripFailedOutputsFromProjectWorkspaceOutputs = (
+  outputs: unknown
+): Record<string, unknown> => {
+  const outputsRecord = asRecord(outputs);
+  const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
+    .map((output) => asRecord(output))
+    .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
+  const persistedArchivedOutputs = (
+    Array.isArray(outputsRecord.archived) ? outputsRecord.archived : []
+  )
+    .map((output) => asRecord(output))
+    .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
+  const persistedOutputIds = new Set<string>([
+    ...persistedActiveOutputs
+      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0),
+    ...persistedArchivedOutputs
+      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0),
+  ]);
+  const candidateActiveOutputId =
+    typeof outputsRecord.activeOutputId === "string" ? outputsRecord.activeOutputId.trim() : "";
+  const activeOutputId =
+    candidateActiveOutputId.length > 0 && persistedOutputIds.has(candidateActiveOutputId)
+      ? candidateActiveOutputId
+      : null;
+
+  return {
+    ...outputsRecord,
+    active: persistedActiveOutputs,
+    archived: persistedArchivedOutputs,
+    activeOutputId,
+    curatedReferenceIds: filterProjectWorkspaceOutputIds(
+      outputsRecord.curatedReferenceIds,
+      persistedOutputIds
+    ),
+    removedFromAllRefsIds: filterProjectWorkspaceOutputIds(
+      outputsRecord.removedFromAllRefsIds,
+      persistedOutputIds
+    ),
+  };
+};
 
 export const createEmptyAiStudioSessionAgentState = (): MinimalAiStudioSessionAgentState => ({
   messages: [],
@@ -63,11 +120,14 @@ export const createAiStudioProjectWorkspaceSnapshot = <
         prompt: "",
         standardPrompt: "",
         pulsePrompt: "",
+        editReferenceText: "",
+        videoReferenceText: "",
         selectedTool: "create",
         expertCreateMode: "standard",
         activePulsePresetId: null,
         pulseSessionInstanceId: null,
       },
+      outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
       agent: emptyAgentRuntime,
     };
     return {
@@ -86,11 +146,14 @@ export const createAiStudioProjectWorkspaceSnapshot = <
       prompt: "",
       standardPrompt: "",
       pulsePrompt: "",
+      editReferenceText: "",
+      videoReferenceText: "",
       selectedTool: "create",
       expertCreateMode: "standard",
       activePulsePresetId: null,
       pulseSessionInstanceId: null,
     },
+    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;
 };

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { writeAppErrorLog } from "../api/appErrorLogs";
 import {
   getProjectWorkspaceStateForUser,
   InvalidProjectWorkspaceSnapshotError,
@@ -10,7 +11,12 @@ vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: vi.fn(),
 }));
 
+vi.mock("../api/appErrorLogs", () => ({
+  writeAppErrorLog: vi.fn(),
+}));
+
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
+const writeAppErrorLogMock = vi.mocked(writeAppErrorLog);
 
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
@@ -349,6 +355,7 @@ const createSupabaseMock = ({
 describe("projectWorkspaceStatesService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
   it("rejects snapshots that fit the size gate but fail the restore-shape contract", async () => {
@@ -394,8 +401,8 @@ describe("projectWorkspaceStatesService", () => {
         aspect: "9:16",
         referenceImageUrl: null,
         extraImageUrls: [null, null, null],
-        editReferenceText: "",
-        videoReferenceText: "",
+        editReferenceText: "Keep this edit draft local to the page session.",
+        videoReferenceText: "Keep this video draft local to the page session.",
         videoReferenceMode: "standard",
         videoDurationSeconds: 6,
         videoResolution: "1080p",
@@ -488,6 +495,9 @@ describe("projectWorkspaceStatesService", () => {
       projectId: "project-1",
       userId: "user-1",
       schemaVersion: 2,
+      saveOutcome: {
+        status: "saved",
+      },
       snapshot: {
         schemaVersion: 2,
         sessionId: "session-1",
@@ -496,6 +506,8 @@ describe("projectWorkspaceStatesService", () => {
           prompt: "",
           standardPrompt: "",
           pulsePrompt: "",
+          editReferenceText: "",
+          videoReferenceText: "",
         },
         agent: {
           messages: [],
@@ -533,13 +545,18 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(mediaAssociationUpsert).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({
           project_id: "project-1",
           media_file_id: "media-1",
           user_id: "user-1",
         }),
-      ],
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: "media-2",
+          user_id: "user-1",
+        }),
+      ]),
       expect.objectContaining({
         onConflict: "project_id,media_file_id",
       })
@@ -579,8 +596,6 @@ describe("projectWorkspaceStatesService", () => {
                 generationId: "generation-1",
                 promptId: "prompt-1",
                 savedMediaIds: ["media-1"],
-                previewUrl: "https://cdn.example.com/project-output.png",
-                resultUrls: ["https://cdn.example.com/project-output.png"],
               }),
             ],
             archived: [],
@@ -877,50 +892,93 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
-  it("fails loudly when required project association backfill fails", async () => {
-    createSupabaseMock({
+  it("returns repair-pending save outcomes when project association backfill fails after the workspace write", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert } = createSupabaseMock({
       mediaAssociationError: "duplicate key value violates unique constraint",
     });
 
-    await expect(
-      upsertProjectWorkspaceStateForUser({
-        userId: "user-1",
-        projectId: "project-1",
-        schemaVersion: 2,
-        snapshot: {
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
           schemaVersion: 2,
-          sessionId: "session-1",
-          updatedAt: "2026-04-23T01:00:00.000Z",
-          meta: {
-            generatedAt: "2026-04-23T01:00:00.000Z",
-            checksum: "fnv1a32:association-failure",
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:association-failure",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "library-1",
+                  savedMediaIds: ["media-1"],
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
           },
-          workspace: {
-            selectedTool: "create",
-            standardPrompt: "Project prompt",
-          },
+        })
+      ).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved_with_repair_pending",
+          repairStage: "project_association_backfill",
+          repairMessage:
+            "Project workspace save failed during project association backfill: duplicate key value violates unique constraint",
+        },
+        snapshot: {
           outputs: {
             active: [
-              {
+              expect.objectContaining({
                 id: "library-1",
                 savedMediaIds: ["media-1"],
-              },
+              }),
             ],
-            archived: [],
-          },
-          agent: {
-            messages: [],
-            input: "",
-            latestAgentPrompt: null,
-            promptOrigin: "manual",
-            chatModeEnabled: false,
-            pulseWorkflowSession: null,
           },
         },
-      })
-    ).rejects.toThrow(
-      "Project workspace save failed during project association backfill: duplicate key value violates unique constraint"
-    );
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "project association backfill",
+          error: "duplicate key value violates unique constraint",
+        })
+      );
+      expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+        source: "telemetry.ai_studio.project_workspace.repair_pending",
+        message: "Project workspace save completed, but follow-up project repair is still pending.",
+        userId: "user-1",
+        statusCode: 200,
+        metadata: {
+          project_id: "project-1",
+          repair_stage: "project_association_backfill",
+          save_outcome: "saved_with_repair_pending",
+          repair_message:
+            "Project workspace save failed during project association backfill: duplicate key value violates unique constraint",
+        },
+      });
+      expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {

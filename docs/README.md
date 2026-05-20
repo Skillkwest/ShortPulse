@@ -45,6 +45,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agent-playbook.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
+- `docs/ux-decision-framework.md`
+- `docs/product-instrumentation.md`
 - `docs/agents/README.md`
 - `docs/agents/beeper/README.md`
 - `docs/agents/beeper/standard-operating-procedure.md`
@@ -433,6 +435,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 
 - `docs/records/README.md`
 - `docs/records/evidence/README.md`
+- `docs/records/evidence/ux/README.md`
 - `docs/records/evidence-migration-classification-2026-04-27.md`
 - `docs/planning/evidence/README.md` (transition-era physical evidence index; use through the records contract, not as part of the main reading path)
 - `docs/planning/evidence/runtime-v2/README.md` (active Runtime V2 closeout evidence namespace for the Seedream shadow/canary lane)

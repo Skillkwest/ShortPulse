@@ -163,7 +163,7 @@ describe("VoicesPropertiesPanel", () => {
   it("renders the dedicated voices workflow surface", () => {
     const { container } = render(<VoicesPropertiesPanel />);
 
-    expect(screen.getByRole("heading", { name: "Voice" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Select or create new voice" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
@@ -222,6 +222,54 @@ describe("VoicesPropertiesPanel", () => {
         .querySelector(".voices-properties-panel-header")
         ?.contains(screen.getByRole("tablist", { name: "Voice mode" }))
     ).toBe(true);
+  });
+
+  it("supports controlled voice script and voice description drafts from page state", async () => {
+    const onVoiceScriptChange = vi.fn();
+    const onVoicePromptChange = vi.fn();
+    const { rerender } = render(
+      <VoicesPropertiesPanel
+        voiceScript="Read this controlled script."
+        voicePrompt="Confident, polished narrator."
+        onVoiceScriptChange={onVoiceScriptChange}
+        onVoicePromptChange={onVoicePromptChange}
+      />
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
+      target: { value: "Updated controlled script." },
+    });
+    expect(onVoiceScriptChange).toHaveBeenCalledWith("Updated controlled script.");
+
+    const createVoiceModal = await openCreateVoiceModal();
+    const voiceDescriptionField = within(createVoiceModal).getByRole("textbox", {
+      name: "Voice description",
+    });
+
+    expect(voiceDescriptionField).toHaveValue("Confident, polished narrator.");
+
+    fireEvent.change(voiceDescriptionField, {
+      target: { value: "Updated controlled description." },
+    });
+    expect(onVoicePromptChange).toHaveBeenCalledWith("Updated controlled description.");
+
+    rerender(
+      <VoicesPropertiesPanel
+        voiceScript="Updated controlled script."
+        voicePrompt="Updated controlled description."
+        onVoiceScriptChange={onVoiceScriptChange}
+        onVoicePromptChange={onVoicePromptChange}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveValue(
+      "Updated controlled script."
+    );
+    expect(
+      within(screen.getByRole("dialog", { name: "Create New Voice" })).getByRole("textbox", {
+        name: "Voice description",
+      })
+    ).toHaveValue("Updated controlled description.");
   });
 
   it("opens the voices library modal from the header action and restores focus on close", async () => {

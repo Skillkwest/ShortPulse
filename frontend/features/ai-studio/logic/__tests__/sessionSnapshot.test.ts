@@ -1143,7 +1143,7 @@ describe("sessionSnapshot", () => {
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "Make the skyline teal with warm gold rim light.",
-      videoReferenceText: "",
+      videoReferenceText: "Make the camera move like a slow arc around the subject.",
       videoReferenceMode: "standard",
       videoDurationSeconds: 6,
       videoResolution: "1080p",
@@ -1178,6 +1178,7 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.workspace.standardPrompt).toBe("");
     expect(projectSnapshot.workspace.pulsePrompt).toBe("");
     expect(projectSnapshot.workspace.editReferenceText).toBe("");
+    expect(projectSnapshot.workspace.videoReferenceText).toBe("");
     expect(projectSnapshot.agent.input).toBe("");
   });
 

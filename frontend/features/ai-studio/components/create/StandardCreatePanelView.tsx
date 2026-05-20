@@ -8,11 +8,6 @@ import type { AspectOption } from "../../types";
 
 type StandardCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
-  onGenerate: () => void;
-  costCredits?: number | null;
-  isPromptGenerating: boolean;
-  isGenerateDisabled: boolean;
-  guardrailReason?: string | null;
   characterModeEnabled: boolean;
   onCharacterModeEnabledToggle: () => void;
   onCharacterPickerOpen: () => void;

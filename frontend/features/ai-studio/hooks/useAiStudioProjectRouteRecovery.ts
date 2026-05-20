@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { normalizeErrorText } from "../../../lib/errorText";
 import type {
   AiStudioProjectIdentityErrorKind,
   AiStudioProjectIdentityStatus,
@@ -7,8 +8,8 @@ import type {
 
 type ProjectsListPayload = {
   projects?: Array<{ id: string }>;
-  error?: string;
-  details?: string;
+  error?: unknown;
+  details?: unknown;
 };
 
 type UseAiStudioProjectRouteRecoveryOptions = {
@@ -64,7 +65,8 @@ export const useAiStudioProjectRouteRecovery = ({
         const payload = (await response.json().catch(() => ({}))) as ProjectsListPayload;
         if (!response.ok) {
           throw new Error(
-            payload.error?.trim() || payload.details?.trim() || "Failed to load projects."
+            normalizeErrorText(payload?.error, { fallback: "" }) ||
+              normalizeErrorText(payload?.details, { fallback: "Failed to load projects." })
           );
         }
         if (cancelled) return;

@@ -96,6 +96,37 @@ describe("projectWorkspaceApiClient", () => {
     expect(addBreadcrumbMock).not.toHaveBeenCalled();
   });
 
+  it("normalizes object-shaped project workspace save errors without throwing while formatting", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "Workspace dependency misconfigured",
+          },
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Workspace dependency misconfigured"
+    );
+  });
+
   it("opts project workspace saves into one-time network retry", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
@@ -111,6 +142,11 @@ describe("projectWorkspaceApiClient", () => {
             createdAt: "2026-04-25T00:00:00.000Z",
             updatedAt: "2026-04-25T00:00:00.000Z",
           },
+          saveOutcome: {
+            status: "saved_with_repair_pending",
+            repairStage: "project_association_backfill",
+            repairMessage: "Project asset repair pending",
+          },
         }),
         {
           status: 200,
@@ -121,13 +157,22 @@ describe("projectWorkspaceApiClient", () => {
       )
     );
 
-    await saveAiStudioProjectWorkspaceSnapshotViaApi({
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).resolves.toMatchObject({
       projectId: "project-1",
-      snapshot: {
-        schemaVersion: 2,
-        sessionId: "session-1",
-        updatedAt: "2026-04-25T00:00:00.000Z",
-      } as never,
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "project_association_backfill",
+        repairMessage: "Project asset repair pending",
+      },
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
@@ -146,6 +191,17 @@ describe("projectWorkspaceApiClient", () => {
       keepalive: false,
       shortpulseLogScope: "app",
       shortpulseRetryNetworkOnce: true,
+    });
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "warn",
+      message: "ai_studio_project_workspace_save_repair_pending",
+      data: {
+        project_id: "project-1",
+        save_status: "saved_with_repair_pending",
+        repair_stage: "project_association_backfill",
+        repair_message: "Project asset repair pending",
+      },
     });
   });
 

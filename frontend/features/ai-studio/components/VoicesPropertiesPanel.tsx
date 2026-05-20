@@ -259,8 +259,12 @@ export type VoicesPropertiesPanelProps = {
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
+  onVoicePromptChange?: (value: string) => void;
+  onVoiceScriptChange?: (value: string) => void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
+  voicePrompt?: string;
+  voiceScript?: string;
 };
 
 export type ActiveVoiceChangerSourceVideo = {
@@ -304,8 +308,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   pricingPolicyReady = true,
   selectedTool = null,
   onGenerate,
+  onVoicePromptChange: onControlledVoicePromptChange,
+  onVoiceScriptChange: onControlledVoiceScriptChange,
   onActiveVoiceChangerSourceVideoChange,
   resolveVoiceChangerInternalReferenceSource,
+  voicePrompt: controlledVoicePrompt,
+  voiceScript: controlledVoiceScript,
 }: VoicesPropertiesPanelProps) {
   void _balanceCredits;
   const {
@@ -324,7 +332,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [voicesLoadError, setVoicesLoadError] = React.useState<string | null>(null);
   const [voicesLoadNotice, setVoicesLoadNotice] = React.useState<string | null>(null);
   const [voiceName, setVoiceName] = React.useState(createVoiceDefaultName);
-  const [voicePrompt, setVoicePrompt] = React.useState("");
+  const [voicePromptState, setVoicePromptState] = React.useState("");
   const [voiceDesignPreviews, setVoiceDesignPreviews] = React.useState<CreateVoiceModalPreview[]>(
     []
   );
@@ -349,10 +357,32 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   );
   const [isVoicesLibraryModalOpen, setIsVoicesLibraryModalOpen] = React.useState(false);
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
-  const [voiceScript, setVoiceScript] = React.useState("");
+  const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
+  );
+  const voicePrompt = controlledVoicePrompt ?? voicePromptState;
+  const voiceScript = controlledVoiceScript ?? voiceScriptState;
+  const setVoicePrompt = React.useCallback(
+    (value: string) => {
+      if (onControlledVoicePromptChange) {
+        onControlledVoicePromptChange(value);
+        return;
+      }
+      setVoicePromptState(value);
+    },
+    [onControlledVoicePromptChange]
+  );
+  const setVoiceScript = React.useCallback(
+    (value: string) => {
+      if (onControlledVoiceScriptChange) {
+        onControlledVoiceScriptChange(value);
+        return;
+      }
+      setVoiceScriptState(value);
+    },
+    [onControlledVoiceScriptChange]
   );
 
   const voiceNameInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -539,7 +569,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setIsCloneConsentChecked(false);
     setCloneVoiceError(null);
     setIsCloningVoice(false);
-  }, [stopActiveDesignedPreview]);
+  }, [setVoicePrompt, stopActiveDesignedPreview]);
 
   const handleVoiceChangerSourceChange = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
@@ -1531,7 +1561,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           <div ref={splitContainerRef} className="voices-properties-main">
             <section className="voices-properties-topbar" style={topSectionStyle}>
               <div className="voices-properties-panel-header">
-                <h2 className="panel-title voices-properties-library-title">Voice</h2>
+                <div className="voices-properties-library-selector">
+                  <button
+                    ref={voicesLibraryTriggerRef}
+                    type="button"
+                    className="voices-properties-library-open-btn"
+                    aria-label="Voices"
+                    onClick={handleOpenVoicesLibraryModal}
+                  >
+                    <span>Voices</span>
+                  </button>
+                  <h2 className="voices-properties-library-label">Select or create new voice</h2>
+                </div>
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
                     <span className="voices-properties-mode-switcher-label">Voice Mode</span>
@@ -1569,17 +1610,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       </button>
                     </div>
                   </div>
-                </div>
-                <div className="voices-properties-library-actions">
-                  <button
-                    ref={voicesLibraryTriggerRef}
-                    type="button"
-                    className="voices-properties-library-open-btn"
-                    aria-label="Voices"
-                    onClick={handleOpenVoicesLibraryModal}
-                  >
-                    <span>Voices</span>
-                  </button>
                 </div>
               </div>
             </section>

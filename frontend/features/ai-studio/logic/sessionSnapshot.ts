@@ -36,6 +36,7 @@ import {
   PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
+import { createAiStudioProjectWorkspaceSnapshot as createProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
 import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
 import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
@@ -549,60 +550,6 @@ const shouldPersistOutputInSnapshot = (output: StudioOutput): boolean => {
   return hasSettledSnapshotOutputPayload(output);
 };
 
-const shouldPersistOutputInProjectWorkspaceSnapshot = (
-  output: Pick<StudioOutput, "taskState">
-): boolean => output.taskState !== "fail";
-
-const filterProjectWorkspaceOutputIds = (
-  value: unknown,
-  persistedOutputIds: Set<string>
-): string[] =>
-  Array.isArray(value)
-    ? value
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length > 0 && persistedOutputIds.has(entry))
-    : [];
-
-const stripFailedOutputsFromProjectWorkspaceOutputs = (
-  outputs: AiStudioSessionSnapshot["outputs"]
-): AiStudioSessionSnapshot["outputs"] => {
-  const persistedActiveOutputs = (outputs.active ?? []).filter(
-    shouldPersistOutputInProjectWorkspaceSnapshot
-  );
-  const persistedArchivedOutputs = (outputs.archived ?? []).filter(
-    shouldPersistOutputInProjectWorkspaceSnapshot
-  );
-  const persistedOutputIds = new Set<string>([
-    ...persistedActiveOutputs
-      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
-      .filter((id) => id.length > 0),
-    ...persistedArchivedOutputs
-      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
-      .filter((id) => id.length > 0),
-  ]);
-  const candidateActiveOutputId =
-    typeof outputs.activeOutputId === "string" ? outputs.activeOutputId.trim() : "";
-  const activeOutputId =
-    candidateActiveOutputId.length > 0 && persistedOutputIds.has(candidateActiveOutputId)
-      ? candidateActiveOutputId
-      : null;
-
-  return {
-    ...outputs,
-    active: persistedActiveOutputs,
-    archived: persistedArchivedOutputs,
-    activeOutputId,
-    curatedReferenceIds: filterProjectWorkspaceOutputIds(
-      outputs.curatedReferenceIds,
-      persistedOutputIds
-    ),
-    removedFromAllRefsIds: filterProjectWorkspaceOutputIds(
-      outputs.removedFromAllRefsIds,
-      persistedOutputIds
-    ),
-  };
-};
-
 const sanitizePulseWorkflowStatus = (
   value: AgentPulseWorkflowSession["status"] | null | undefined
 ): AgentPulseWorkflowSession["status"] => {
@@ -984,62 +931,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
  */
 export const createAiStudioProjectWorkspaceSnapshot = (
   snapshot: AiStudioSessionSnapshot
-): AiStudioSessionSnapshot => {
-  const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
-  if (snapshot.schemaVersion >= 2) {
-    const baseSnapshot = {
-      ...(snapshot as AiStudioSessionSnapshotV2 & {
-        agentRuntimes?: AiStudioSessionAgentRuntimesV2;
-      }),
-    };
-    delete (baseSnapshot as Partial<AiStudioSessionSnapshotV2>).meta;
-    delete (
-      baseSnapshot as Partial<AiStudioSessionSnapshotV2> & {
-        agentRuntimes?: AiStudioSessionAgentRuntimesV2;
-      }
-    ).agentRuntimes;
-    const normalizedSnapshot = {
-      ...baseSnapshot,
-      workspace: {
-        ...baseSnapshot.workspace,
-        prompt: "",
-        standardPrompt: "",
-        pulsePrompt: "",
-        editReferenceText: "",
-        selectedTool: "create" as ToolId,
-        expertCreateMode: "standard" as const,
-        activePulsePresetId: null,
-        pulseSessionInstanceId: null,
-      },
-      outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
-      agent: emptyAgentRuntime,
-    };
-    return {
-      ...normalizedSnapshot,
-      meta: {
-        generatedAt: snapshot.updatedAt,
-        checksum: computeChecksum(normalizedSnapshot),
-      },
-    } satisfies AiStudioSessionSnapshotV2;
-  }
-
-  return {
-    ...snapshot,
-    workspace: {
-      ...snapshot.workspace,
-      prompt: "",
-      standardPrompt: "",
-      pulsePrompt: "",
-      editReferenceText: "",
-      selectedTool: "create" as ToolId,
-      expertCreateMode: "standard" as const,
-      activePulsePresetId: null,
-      pulseSessionInstanceId: null,
-    },
-    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
-    agent: emptyAgentRuntime,
-  };
-};
+): AiStudioSessionSnapshot => createProjectWorkspaceSnapshot(snapshot);
 
 const rebuildV2SnapshotMeta = (
   snapshot: Omit<AiStudioSessionSnapshotV2, "meta"> & { updatedAt: string }

@@ -15,6 +15,11 @@
   overflow: hidden;
 }
 
+.ai-studio-project-entry-page--experimental {
+  flex-direction: column;
+  padding: 32px 24px;
+}
+
 .ai-studio-project-entry-card {
   position: relative;
   width: min(656px, 100%);
@@ -31,6 +36,55 @@
 
 .ai-studio-project-entry-orb {
   display: none;
+}
+
+.ai-studio-project-entry-visual-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(927px, calc(100vw - 48px));
+  max-width: 100%;
+}
+
+.ai-studio-project-entry-visual-fallback-copy {
+  position: relative;
+  z-index: 1;
+  width: min(560px, calc(100vw - 48px));
+  margin-top: 18px;
+  text-align: center;
+}
+
+.ai-studio-project-entry-visual-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 927 / 224;
+  overflow: hidden;
+}
+
+.ai-studio-project-entry-bg-image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ai-studio-project-entry-pulse-runner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 9.385%;
+  height: 100%;
+  animation: ai-studio-project-entry-pulse-run 3.4s linear infinite;
+  will-change: transform, opacity;
+}
+
+.ai-studio-project-entry-pulse-image {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .ai-studio-project-entry-copy,
@@ -190,9 +244,45 @@
   }
 }
 
+@keyframes ai-studio-project-entry-pulse-run {
+  0% {
+    opacity: 0;
+    transform: translate3d(-82%, 0, 0);
+  }
+
+  6% {
+    opacity: 1;
+    transform: translate3d(-66%, 0, 0);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate3d(980%, 0, 0);
+  }
+
+  19% {
+    opacity: 0;
+    transform: translate3d(980%, 0, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(980%, 0, 0);
+  }
+}
+
 @media (max-width: 720px) {
   .ai-studio-project-entry-page {
     padding: 24px 16px;
+  }
+
+  .ai-studio-project-entry-page--experimental {
+    padding: 24px 16px;
+  }
+
+  .ai-studio-project-entry-visual-fallback-copy {
+    width: min(560px, calc(100vw - 32px));
+    margin-top: 16px;
   }
 
   .ai-studio-project-entry-card {
@@ -214,8 +304,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ai-studio-project-entry-card,
-  .ai-studio-project-entry-step {
+  .ai-studio-project-entry-step,
+  .ai-studio-project-entry-pulse-runner {
     animation: none;
     transition: none;
+  }
+
+  .ai-studio-project-entry-pulse-runner {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0);
   }
 }

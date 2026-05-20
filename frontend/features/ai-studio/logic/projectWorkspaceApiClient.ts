@@ -3,8 +3,15 @@
  * Encapsulates authenticated reads/writes to `/api/projects/:projectId/workspace`.
  */
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { normalizeErrorText } from "../../../lib/errorText";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
+
+export type AiStudioProjectWorkspaceSaveOutcome = {
+  status: "saved" | "saved_with_repair_pending";
+  repairStage?: "project_association_backfill";
+  repairMessage?: string | null;
+};
 
 export type AiStudioProjectWorkspaceApiRecord = {
   projectId: string;
@@ -12,24 +19,40 @@ export type AiStudioProjectWorkspaceApiRecord = {
   snapshot: unknown;
   createdAt: string;
   updatedAt: string;
+  saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
 };
 
 type AiStudioProjectWorkspaceApiPayload = {
   workspace: AiStudioProjectWorkspaceApiRecord | null;
-  error?: string;
-  details?: string;
+  saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
+  error?: unknown;
+  details?: unknown;
 };
 
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
+
+const resolveProjectWorkspacePayloadMessage = ({
+  payload,
+  preferDetails,
+}: {
+  payload: AiStudioProjectWorkspaceApiPayload | null;
+  preferDetails?: boolean;
+}): string => {
+  const primary = preferDetails ? payload?.details : payload?.error;
+  const secondary = preferDetails ? payload?.error : payload?.details;
+  return (
+    normalizeErrorText(primary, { fallback: "" }) || normalizeErrorText(secondary, { fallback: "" })
+  );
+};
 
 const resolveProjectWorkspaceApiErrorMessage = (
   response: Response,
   payload: AiStudioProjectWorkspaceApiPayload | null
 ): string => {
-  const payloadMessage =
-    response.status >= 500
-      ? payload?.details?.trim() || payload?.error?.trim()
-      : payload?.error?.trim() || payload?.details?.trim();
+  const payloadMessage = resolveProjectWorkspacePayloadMessage({
+    payload,
+    preferDetails: response.status >= 500,
+  });
   if (payloadMessage) return payloadMessage;
 
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim();
@@ -45,7 +68,7 @@ const maybeLogInvalidProjectWorkspaceSnapshotResponse = ({
   status: number;
   payload: AiStudioProjectWorkspaceApiPayload | null;
 }) => {
-  const message = payload?.error?.trim() || payload?.details?.trim() || "";
+  const message = resolveProjectWorkspacePayloadMessage({ payload });
   if (status !== 400 || !INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN.test(message)) {
     return;
   }
@@ -58,6 +81,28 @@ const maybeLogInvalidProjectWorkspaceSnapshotResponse = ({
       project_id: projectId,
       status,
       error: message,
+    },
+  });
+};
+
+const maybeLogProjectWorkspaceSaveOutcome = ({
+  projectId,
+  saveOutcome,
+}: {
+  projectId: string;
+  saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
+}) => {
+  if (saveOutcome?.status !== "saved_with_repair_pending") return;
+
+  addBreadcrumb({
+    type: "network",
+    level: "warn",
+    message: "ai_studio_project_workspace_save_repair_pending",
+    data: {
+      project_id: projectId,
+      save_status: saveOutcome.status,
+      repair_stage: saveOutcome.repairStage ?? null,
+      repair_message: saveOutcome.repairMessage ?? null,
     },
   });
 };
@@ -86,7 +131,12 @@ export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
     throw new Error(`Failed to load project workspace snapshot: ${message}`);
   }
 
-  return payload?.workspace ?? null;
+  return payload?.workspace
+    ? {
+        ...payload.workspace,
+        ...(payload.saveOutcome ? { saveOutcome: payload.saveOutcome } : {}),
+      }
+    : null;
 };
 
 export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
@@ -129,7 +179,15 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
     throw new Error(`Failed to save project workspace snapshot: ${message}`);
   }
 
-  return payload.workspace;
+  maybeLogProjectWorkspaceSaveOutcome({
+    projectId,
+    saveOutcome: payload.saveOutcome,
+  });
+
+  return {
+    ...payload.workspace,
+    ...(payload.saveOutcome ? { saveOutcome: payload.saveOutcome } : {}),
+  };
 };
 
 export const resetAiStudioProjectWorkspaceSnapshotViaApi = async ({

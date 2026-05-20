@@ -12,6 +12,7 @@ import {
 
 const setCharacterSheetPresetFileMock = vi.fn();
 const setErrorMessageMock = vi.fn();
+const handleCharacterSheetCardClickMock = vi.fn();
 
 const createDraftState = () => ({
   characters: [
@@ -95,6 +96,7 @@ vi.mock("../../hooks/useCharacterManagerCharacterSheetInteractions", () => ({
     handleCharacterSheetDragOver: () => () => undefined,
     clearCharacterSheetAssignment: async () => undefined,
     handleCharacterSheetDrop: () => () => undefined,
+    handleCharacterSheetCardClick: () => handleCharacterSheetCardClickMock,
   }),
 }));
 
@@ -122,6 +124,7 @@ describe("CharacterPanelWorkspace", () => {
     vi.clearAllMocks();
     currentDraftState = createDraftState();
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
+    handleCharacterSheetCardClickMock.mockReset();
   });
 
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
@@ -155,12 +158,16 @@ describe("CharacterPanelWorkspace", () => {
     expect(
       screen.queryByText("Drag media into a slot or arm a slot and click media below to assign it.")
     ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Slot armed/i)).not.toBeInTheDocument();
     expect(screen.queryByText("QuickSwap Deck")).not.toBeInTheDocument();
     expect(screen.queryByText("Manage Characters")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         "Tip: Character description will be used as part of consistency generation."
       )
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upload portrait reference/i })
     ).not.toBeInTheDocument();
   });
 
@@ -177,46 +184,13 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
   });
 
-  it("assigns media-library selections to the armed slot", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        blob: async () => new Blob(["image"], { type: "image/png" }),
-      })
-    );
+  it("opens the direct slot picker when an empty reference slot is clicked", () => {
+    render(<CharacterPanelWorkspace />);
 
-    const { rerender } = render(<CharacterPanelWorkspace />);
     const portraitCard = screen.getByText("Portrait").closest("article");
     expect(portraitCard).not.toBeNull();
     fireEvent.click(portraitCard!);
-
-    rerender(
-      <CharacterPanelWorkspace
-        pendingMediaSelection={{
-          key: 1,
-          payload: {
-            id: "media-1",
-            url: "https://example.com/ref.png",
-            fullUrl: "https://example.com/ref.png",
-            fileType: "image",
-            filename: "ref.png",
-          },
-        }}
-      />
-    );
-
-    await waitFor(() => {
-      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
-    });
-    expect(setCharacterSheetPresetFileMock).toHaveBeenCalledWith(
-      "portrait",
-      expect.objectContaining({
-        name: "ref.png",
-        type: "image/png",
-      })
-    );
+    expect(handleCharacterSheetCardClickMock).toHaveBeenCalledTimes(1);
   });
 
   it("blocks external uploads when all reference slots are already filled", async () => {

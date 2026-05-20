@@ -52,8 +52,6 @@ describe("character panel layout contract", () => {
     expect(css).toContain(".character-panel-library-workspace {");
     expect(css).toContain("display: flex;");
     expect(css).toContain("flex-direction: column;");
-    expect(css).toContain(".character-panel-library-column {");
-    expect(css).toContain("flex: 0 0 auto;");
     expect(css).toContain(".character-panel-editor-column {");
     expect(css).toContain("flex: 1 1 auto;");
   });
@@ -96,8 +94,19 @@ describe("character panel layout contract", () => {
 
     expect(css).toContain(".character-panel-library-workspace {");
     expect(css).toContain("gap: 0;");
-    expect(css).toContain(".character-panel-library-column {");
+    expect(css).toContain("background: var(--character-panel-wrapper-bg);");
+    expect(css).toContain(".character-panel-editor-column {");
     expect(css).toContain("border: 0;");
     expect(css).toContain("background: transparent;");
+  });
+
+  it("matches the Character wrapper background to the Create panel surface and removes its border", () => {
+    const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+
+    expect(css).toContain("--character-panel-wrapper-bg: rgba(201, 205, 214, 0.02);");
+    expect(css).toContain(".character-panel-library-workspace {");
+    expect(css).toContain("padding: 8px 12px 10px;");
+    expect(css).toContain(".character-panel-editor-column {");
+    expect(css).toContain("border: 0;");
   });
 });

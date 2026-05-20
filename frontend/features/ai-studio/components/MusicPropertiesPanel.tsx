@@ -29,8 +29,12 @@ export type MusicPropertiesPanelProps = {
   balanceCredits?: number | null;
   isGenerating?: boolean;
   onGenerate?: (request: MusicGenerateRequest) => Promise<boolean | void> | boolean | void;
+  onLyricsChange?: (value: string) => void;
+  onPromptChange?: (value: string) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  lyrics?: string;
+  prompt?: string;
 };
 
 type MusicComposerMode = "simple" | "custom";
@@ -136,8 +140,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   balanceCredits: _balanceCredits = null,
   isGenerating = false,
   onGenerate,
+  onLyricsChange,
+  onPromptChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  lyrics: controlledLyrics,
+  prompt: controlledPrompt,
 }: MusicPropertiesPanelProps) {
   void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -148,8 +156,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const inspirationDidDragRef = React.useRef(false);
   const suppressChipClickRef = React.useRef(false);
   const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const [prompt, setPrompt] = React.useState("");
-  const [lyrics, setLyrics] = React.useState("");
+  const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
+  const [uncontrolledLyrics, setUncontrolledLyrics] = React.useState("");
   const [composerMode, setComposerMode] = React.useState<MusicComposerMode>("simple");
   const [singerEnabled, setSingerEnabled] = React.useState(false);
   const [songBatchCount, setSongBatchCount] = React.useState<MusicSongBatchCount>(2);
@@ -159,6 +167,35 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     canScrollBack: false,
     canScrollForward: false,
   });
+  const prompt = controlledPrompt ?? uncontrolledPrompt;
+  const lyrics = controlledLyrics ?? uncontrolledLyrics;
+  const resolveTextAction = React.useCallback(
+    (current: string, action: React.SetStateAction<string>) =>
+      typeof action === "function" ? (action as (value: string) => string)(current) : action,
+    []
+  );
+  const setPrompt = React.useCallback(
+    (action: React.SetStateAction<string>) => {
+      const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      if (onPromptChange) {
+        onPromptChange(nextPrompt);
+        return;
+      }
+      setUncontrolledPrompt(nextPrompt);
+    },
+    [onPromptChange, prompt, resolveTextAction]
+  );
+  const setLyrics = React.useCallback(
+    (action: React.SetStateAction<string>) => {
+      const nextLyrics = resolveTextAction(lyrics, action).slice(0, maxPromptCharacters);
+      if (onLyricsChange) {
+        onLyricsChange(nextLyrics);
+        return;
+      }
+      setUncontrolledLyrics(nextLyrics);
+    },
+    [lyrics, onLyricsChange, resolveTextAction]
+  );
   const inspirationChips = React.useMemo(() => shuffleChipOrder(musicGenreChips), []);
   const composerModeToggleStyle = React.useMemo(
     () =>
@@ -251,14 +288,17 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     };
   }, [isSongBatchMenuOpen]);
 
-  const handleInspirationClick = React.useCallback((chip: string) => {
-    if (suppressChipClickRef.current) return;
-    setPrompt((current) => {
-      const trimmed = current.trim();
-      const nextPrompt = trimmed ? `${trimmed}, ${chip}` : chip;
-      return nextPrompt.slice(0, maxPromptCharacters);
-    });
-  }, []);
+  const handleInspirationClick = React.useCallback(
+    (chip: string) => {
+      if (suppressChipClickRef.current) return;
+      setPrompt((current) => {
+        const trimmed = current.trim();
+        const nextPrompt = trimmed ? `${trimmed}, ${chip}` : chip;
+        return nextPrompt.slice(0, maxPromptCharacters);
+      });
+    },
+    [setPrompt]
+  );
 
   const scrollInspirationRail = React.useCallback(
     (direction: "backward" | "forward") => {

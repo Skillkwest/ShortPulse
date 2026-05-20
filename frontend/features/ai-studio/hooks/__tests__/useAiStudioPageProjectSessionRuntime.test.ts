@@ -226,4 +226,71 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
 
     expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(false);
   });
+
+  it("clears session-only sound drafts when applying empty project state", () => {
+    const setMusicPromptDraft = vi.fn();
+    const setMusicLyricsDraft = vi.fn();
+    const setSoundEffectsPromptDraft = vi.fn();
+    const setVoiceDesignPromptDraft = vi.fn();
+    const setVoiceScriptDraft = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageProjectSessionRuntime({
+        activeCreateAgentKind: "standard",
+        activeCreatePulsePresetId: null,
+        activeSessionPersistenceSessionId: "session-1",
+        buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+        canvasSessionState: null,
+        createSelectedCharacterId: "",
+        createSelectedCharacterLookId: "",
+        expertCreateMode: "standard",
+        expertEditSessionRevision: 0,
+        getExpertEditSessionState: vi.fn(() => null),
+        hasActivePulseSession: false,
+        hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+        hydrateCanvasSessionState: vi.fn(),
+        hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
+          createHydrationPayload(snapshot)
+        ),
+        pendingCreateRuntimeAgentHydrationRef: { current: null },
+        persistedAgentRuntime: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        projectId: "project-1",
+        projectRouteRequested: true,
+        pulseWorkflowSession: null,
+        resetActiveProjectAgentConversation: vi.fn(),
+        sessionPersistenceTitleOverride: null,
+        setCreateSelectedCharacterId: vi.fn(),
+        setCreateSelectedCharacterLookId: vi.fn(),
+        setIsCreateCharacterModeEnabled: vi.fn(),
+        setExpertEditSessionState: vi.fn(),
+        setMusicPromptDraft,
+        setMusicLyricsDraft,
+        setSoundEffectsPromptDraft,
+        setUiNotice: vi.fn(),
+        setVoiceDesignPromptDraft,
+        setVoiceScriptDraft,
+      })
+    );
+
+    const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
+      applyEmptyProjectState: () => void;
+    };
+
+    act(() => {
+      capturedArgs.applyEmptyProjectState();
+    });
+
+    expect(setMusicPromptDraft).toHaveBeenCalledWith("");
+    expect(setMusicLyricsDraft).toHaveBeenCalledWith("");
+    expect(setSoundEffectsPromptDraft).toHaveBeenCalledWith("");
+    expect(setVoiceDesignPromptDraft).toHaveBeenCalledWith("");
+    expect(setVoiceScriptDraft).toHaveBeenCalledWith("");
+  });
 });

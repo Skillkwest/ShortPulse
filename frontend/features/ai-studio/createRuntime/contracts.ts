@@ -87,8 +87,6 @@ export type StandardCreateRuntimeProps = {
   isPromptRefining: boolean;
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
-  promptReferenceGenerateCostCredits: number | null;
-  hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   useReferenceImageIndicator: boolean;

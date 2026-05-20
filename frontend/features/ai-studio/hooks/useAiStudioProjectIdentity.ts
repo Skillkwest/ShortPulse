@@ -5,6 +5,7 @@
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { normalizeErrorText } from "../../../lib/errorText";
 
 type AiStudioProjectRouteRecord = {
   id: string;
@@ -15,8 +16,8 @@ type AiStudioProjectRouteRecord = {
 
 type AiStudioProjectRoutePayload = {
   project?: AiStudioProjectRouteRecord;
-  error?: string;
-  details?: string;
+  error?: unknown;
+  details?: unknown;
 };
 
 export type AiStudioProjectIdentityRecord = {
@@ -111,7 +112,9 @@ const resolveProjectLoadError = (
     return { message: "Project not found.", kind: "not_found" };
   }
   return {
-    message: payload?.error?.trim() || payload?.details?.trim() || "Failed to load project.",
+    message:
+      normalizeErrorText(payload?.error, { fallback: "" }) ||
+      normalizeErrorText(payload?.details, { fallback: "Failed to load project." }),
     kind: "server",
   };
 };
@@ -134,7 +137,8 @@ const resolveProjectUpdateError = (
   }
   return {
     message:
-      payload?.error?.trim() || payload?.details?.trim() || "Failed to update project title.",
+      normalizeErrorText(payload?.error, { fallback: "" }) ||
+      normalizeErrorText(payload?.details, { fallback: "Failed to update project title." }),
     kind: "server",
   };
 };

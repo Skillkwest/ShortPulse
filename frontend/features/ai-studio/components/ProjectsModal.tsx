@@ -5,6 +5,7 @@
 import React from "react";
 import { Folders, Sparkle, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { normalizeErrorText } from "../../../lib/errorText";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -21,8 +22,8 @@ type ProjectListRecord = {
 
 type ProjectsModalPayload = {
   projects?: ProjectListRecord[];
-  error?: string;
-  details?: string;
+  error?: unknown;
+  details?: unknown;
 };
 
 type ProjectsModalProps = {
@@ -56,7 +57,10 @@ const resolveProjectsLoadErrorMessage = (
   if (status === 401) {
     return "Session expired. Retry project load.";
   }
-  return payload?.error?.trim() || payload?.details?.trim() || "Failed to load projects.";
+  return (
+    normalizeErrorText(payload?.error, { fallback: "" }) ||
+    normalizeErrorText(payload?.details, { fallback: "Failed to load projects." })
+  );
 };
 
 const resolveProjectDeleteErrorMessage = (
@@ -69,7 +73,10 @@ const resolveProjectDeleteErrorMessage = (
   if (status === 404) {
     return "Project no longer exists.";
   }
-  return payload?.error?.trim() || payload?.details?.trim() || "Failed to delete project.";
+  return (
+    normalizeErrorText(payload?.error, { fallback: "" }) ||
+    normalizeErrorText(payload?.details, { fallback: "Failed to delete project." })
+  );
 };
 
 export function ProjectsModal({

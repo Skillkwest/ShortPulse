@@ -1154,6 +1154,16 @@ export function AiStudioPageContent({
     },
   });
 
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.notice_banner",
+    scope: "app",
+    severity: "low",
+    message: uiNotice,
+    metadata: {
+      selected_tool: selectedTool,
+    },
+  });
+
   const visibleFailureIds = React.useMemo(
     () => visibleFailures.map((item) => item.id).slice(0, 20),
     [visibleFailures]

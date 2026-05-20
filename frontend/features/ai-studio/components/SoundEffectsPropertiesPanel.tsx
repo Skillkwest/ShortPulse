@@ -24,8 +24,10 @@ export type SoundEffectsPropertiesPanelProps = {
   balanceCredits?: number | null;
   isGenerating?: boolean;
   onGenerate?: (request: SoundEffectsGenerateRequest) => Promise<void> | void;
+  onPromptChange?: (value: string) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  prompt?: string;
 };
 
 const soundEffectPromptPlaceholder =
@@ -74,8 +76,10 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   balanceCredits: _balanceCredits = null,
   isGenerating = false,
   onGenerate,
+  onPromptChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  prompt: controlledPrompt,
 }: SoundEffectsPropertiesPanelProps) {
   void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -85,13 +89,30 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const inspirationDragStartScrollLeftRef = React.useRef(0);
   const inspirationDidDragRef = React.useRef(false);
   const suppressChipClickRef = React.useRef(false);
-  const [prompt, setPrompt] = React.useState("");
+  const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [loopEnabled, setLoopEnabled] = React.useState(false);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
     canScrollBack: false,
     canScrollForward: false,
   });
+  const prompt = controlledPrompt ?? uncontrolledPrompt;
+  const resolveTextAction = React.useCallback(
+    (current: string, action: React.SetStateAction<string>) =>
+      typeof action === "function" ? (action as (value: string) => string)(current) : action,
+    []
+  );
+  const setPrompt = React.useCallback(
+    (action: React.SetStateAction<string>) => {
+      const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      if (onPromptChange) {
+        onPromptChange(nextPrompt);
+        return;
+      }
+      setUncontrolledPrompt(nextPrompt);
+    },
+    [onPromptChange, prompt, resolveTextAction]
+  );
 
   const durationSeconds = null;
   const generateCost =
@@ -157,13 +178,16 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     [syncInspirationScrollState]
   );
 
-  const appendInspirationChip = React.useCallback((chip: string) => {
-    setPrompt((currentPrompt) => {
-      const trimmedPrompt = currentPrompt.trim();
-      const nextPrompt = trimmedPrompt.length > 0 ? `${trimmedPrompt}, ${chip}` : chip;
-      return nextPrompt.slice(0, maxPromptCharacters);
-    });
-  }, []);
+  const appendInspirationChip = React.useCallback(
+    (chip: string) => {
+      setPrompt((currentPrompt) => {
+        const trimmedPrompt = currentPrompt.trim();
+        const nextPrompt = trimmedPrompt.length > 0 ? `${trimmedPrompt}, ${chip}` : chip;
+        return nextPrompt.slice(0, maxPromptCharacters);
+      });
+    },
+    [setPrompt]
+  );
 
   const handleInspirationChipClick = React.useCallback(
     (chip: string) => {

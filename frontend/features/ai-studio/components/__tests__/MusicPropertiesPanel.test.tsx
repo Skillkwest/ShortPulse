@@ -76,6 +76,50 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
   });
 
+  it("supports controlled prompt and lyrics drafts from page state", () => {
+    const onPromptChange = vi.fn();
+    const onLyricsChange = vi.fn();
+    const { rerender } = render(
+      <MusicPropertiesPanel
+        prompt="Warm melodic house cue."
+        lyrics="Stay with me."
+        onPromptChange={onPromptChange}
+        onLyricsChange={onLyricsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "Warm melodic house cue."
+    );
+    expect(screen.getByRole("textbox", { name: "Song lyrics" })).toHaveValue("Stay with me.");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Updated cue direction." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Song lyrics" }), {
+      target: { value: "Updated lyric line." },
+    });
+
+    expect(onPromptChange).toHaveBeenCalledWith("Updated cue direction.");
+    expect(onLyricsChange).toHaveBeenCalledWith("Updated lyric line.");
+
+    rerender(
+      <MusicPropertiesPanel
+        prompt="Updated cue direction."
+        lyrics="Updated lyric line."
+        onPromptChange={onPromptChange}
+        onLyricsChange={onLyricsChange}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "Updated cue direction."
+    );
+    expect(screen.getByRole("textbox", { name: "Song lyrics" })).toHaveValue("Updated lyric line.");
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
 

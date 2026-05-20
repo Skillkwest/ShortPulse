@@ -258,6 +258,10 @@ const useAiStudioCreatePanelRuntime = ({
     standardCreateAgentRuntime?.chatModeEnabled ?? STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
+  const createGenerateCostCredits =
+    mode === "text" && !chatModeEnabled
+      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
+      : currentCostCredits;
   const handleProviderPrimarySubmit = useCallback(() => {
     void handleGenerate();
   }, [handleGenerate]);
@@ -266,8 +270,7 @@ const useAiStudioCreatePanelRuntime = ({
     chatModeEnabled,
     agentInput,
     prompt: standardPrompt,
-    currentCostCredits,
-    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+    createGenerateCostCredits,
     handleGenerate,
     handleProviderPrimarySubmit,
     setSharedPrompt: setStandardCreatePrompt,
@@ -312,10 +315,6 @@ const useAiStudioCreatePanelRuntime = ({
     handleGenerate,
     setUiNotice,
   });
-  const createGenerateCostCredits =
-    mode === "text" && !chatModeEnabled
-      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
-      : currentCostCredits;
   const {
     pulsePreferenceRuntime,
     displayCreatePulsePresetId,
@@ -401,8 +400,6 @@ const useAiStudioCreatePanelRuntime = ({
         isPromptRefining,
         describeInFlightCount,
         createGenerateCostCredits,
-        promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-        hasSufficientCreditsForPromptReferenceGenerate,
         isGenerateDisabled: effectiveIsGenerateDisabled,
         generationGuardrail: effectiveGenerationGuardrail,
         useReferenceImageIndicator,
@@ -514,7 +511,6 @@ const useAiStudioCreatePanelRuntime = ({
     handleCreatePulsePresetStart,
     handleExpertCreateModeChangeForPage,
     hasActivePulseSession,
-    hasSufficientCreditsForPromptReferenceGenerate,
     imageResolution,
     isAgentDropActive,
     isCharacterOptionsLoading,
@@ -524,7 +520,6 @@ const useAiStudioCreatePanelRuntime = ({
     model,
     modelModalAnchor,
     persistedAgentRuntime,
-    promptReferenceGenerateCostCredits,
     pulseArtifactGenerateDisabled,
     pulseArtifactGenerateGuardrail,
     pulseGenerateCostCredits,
@@ -1277,7 +1272,12 @@ const AiStudioPageRuntimeBody = ({
     setCreateSelectedCharacterLookId,
     setIsCreateCharacterModeEnabled,
     setExpertEditSessionState,
+    setMusicPromptDraft: base.setMusicPromptDraft,
+    setMusicLyricsDraft: base.setMusicLyricsDraft,
+    setSoundEffectsPromptDraft: base.setSoundEffectsPromptDraft,
     setUiNotice,
+    setVoiceDesignPromptDraft: base.setVoiceDesignPromptDraft,
+    setVoiceScriptDraft: base.setVoiceScriptDraft,
   });
   useAiStudioMediaAutosaveOrchestrator({
     enabled: !projectRouteRequested || (projectStatus === "ready" && projectBootstrapApplied),
@@ -1547,22 +1547,32 @@ const AiStudioPageRuntimeBody = ({
       balanceCredits,
       isGenerating: musicIsGenerating,
       onGenerate: handleMusicGenerate,
+      onLyricsChange: base.setMusicLyricsDraft,
+      onPromptChange: base.setMusicPromptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      lyrics: base.musicLyricsDraft,
+      prompt: base.musicPromptDraft,
     },
     propertiesSoundEffects: {
       balanceCredits,
       isGenerating: soundEffectsIsGenerating,
       onGenerate: handleSoundEffectsGenerate,
+      onPromptChange: base.setSoundEffectsPromptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      prompt: base.soundEffectsPromptDraft,
     },
     propertiesVoices: {
       balanceCredits,
       isGenerating: voicesIsGenerating,
       onGenerate: handleVoicesGenerate,
+      onVoicePromptChange: base.setVoiceDesignPromptDraft,
+      onVoiceScriptChange: base.setVoiceScriptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      voicePrompt: base.voiceDesignPromptDraft,
+      voiceScript: base.voiceScriptDraft,
     },
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,

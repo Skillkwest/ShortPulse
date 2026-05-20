@@ -209,6 +209,71 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
+  it("shows a preparing image attachment while a local drop is still being staged", async () => {
+    const ensureAgentSession = vi.fn();
+    let resolveImageData:
+      | ((value: {
+          previewDataUrl: string;
+          modelDataUrl: string;
+          width: number;
+          height: number;
+        }) => void)
+      | null = null;
+    createEphemeralComposerImageDataMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveImageData = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({}, [new File(["preview"], "preview.png", { type: "image/png" })])
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(1);
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        source: "ephemeral_local",
+        imageUrl: null,
+        modelDataUrl: null,
+        deliveryStatus: "preparing",
+      });
+    });
+
+    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      resolveImageData?.({
+        previewDataUrl: "data:image/png;base64,cHJldmlldw==",
+        modelDataUrl: "data:image/png;base64,bW9kZWw=",
+        width: 512,
+        height: 512,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        source: "ephemeral_local",
+        imageUrl: "data:image/png;base64,cHJldmlldw==",
+        modelDataUrl: "data:image/png;base64,bW9kZWw=",
+        deliveryStatus: "ready",
+      });
+    });
+  });
+
   it("stages composer image payload previews directly without generic drag reconstruction", async () => {
     const ensureAgentSession = vi.fn();
     extractComposerImageDropPayloadMock.mockReturnValue({
@@ -473,14 +538,16 @@ describe("useAiStudioAgentComposer", () => {
       })
     );
 
-    expect(result.current.agentAttachments[0]).toMatchObject({
-      kind: "image",
-      source: "ephemeral_local",
-      referenceId: "out-1",
-      imageUrl: "https://example.com/image-fresh-preview.png",
-      modelDataUrl: "https://example.com/image-fresh.png",
-      submissionImageUrl: null,
-      imageFallbackUrls: [],
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        source: "ephemeral_local",
+        referenceId: "out-1",
+        imageUrl: "https://example.com/image-fresh-preview.png",
+        modelDataUrl: "https://example.com/image-fresh.png",
+        submissionImageUrl: null,
+        imageFallbackUrls: [],
+      });
     });
   });
 

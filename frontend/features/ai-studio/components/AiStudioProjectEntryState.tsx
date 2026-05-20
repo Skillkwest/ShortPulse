@@ -3,6 +3,7 @@
  * Renders the full-page loading and error experience shown while project identity and
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
+import Image from "next/image";
 import React from "react";
 
 export type AiStudioProjectEntryPhase =
@@ -20,6 +21,7 @@ export type AiStudioProjectEntryStep = {
 type AiStudioProjectEntryStateProps = {
   variant: "loading" | "error";
   phase: AiStudioProjectEntryPhase;
+  enableExperimentalAnimation?: boolean;
   projectTitle?: string | null;
   title?: string;
   message?: string;
@@ -35,6 +37,9 @@ type AiStudioProjectEntryStateProps = {
 };
 
 type EntryStepState = "complete" | "active" | "pending";
+
+const isExperimentalEntryAnimationEnabled = (requested: boolean): boolean =>
+  requested && process.env.NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT === "true";
 
 export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
   {
@@ -139,6 +144,7 @@ const getMessage = ({
 export function AiStudioProjectEntryState({
   variant,
   phase,
+  enableExperimentalAnimation = false,
   projectTitle = null,
   title,
   message,
@@ -158,6 +164,61 @@ export function AiStudioProjectEntryState({
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
   const liveMode = variant === "error" ? "assertive" : "polite";
+  const shouldUseExperimentalAnimation =
+    variant === "loading" && isExperimentalEntryAnimationEnabled(enableExperimentalAnimation);
+
+  if (shouldUseExperimentalAnimation) {
+    return (
+      <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
+        <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
+          <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
+            <div className="ai-studio-project-entry-pulse-runner">
+              <Image
+                src="/loading-entry/pulse.png"
+                alt=""
+                aria-hidden="true"
+                width={87}
+                height={224}
+                priority
+                className="ai-studio-project-entry-pulse-image"
+              />
+            </div>
+            <Image
+              src="/loading-entry/bg.png"
+              alt=""
+              aria-hidden="true"
+              width={927}
+              height={224}
+              priority
+              className="ai-studio-project-entry-bg-image"
+            />
+          </div>
+        </section>
+
+        <section
+          className="ai-studio-project-entry-visual-fallback-copy"
+          role={liveRole}
+          aria-live={liveMode}
+          aria-atomic="true"
+        >
+          <h1 className="ai-studio-project-entry-title">{resolvedTitle}</h1>
+          <p className="ai-studio-project-entry-message">{resolvedMessage}</p>
+        </section>
+
+        <ol className="sr-only" aria-label={stepsAriaLabel ?? "Project restore progress"}>
+          {resolvedSteps.map((step, index) => {
+            const stepState = getStepState(index, currentStepIndex, variant);
+            return (
+              <li key={step.id} data-step-state={stepState}>
+                <span>{step.label}</span>
+                <span>{step.hint}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </main>
+    );
+  }
 
   return (
     <main className="page page-wide ai-studio-project-entry-page">

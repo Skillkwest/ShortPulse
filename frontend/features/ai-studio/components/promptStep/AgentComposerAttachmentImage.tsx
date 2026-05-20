@@ -29,6 +29,7 @@ export const AgentComposerAttachmentImage: React.FC<AgentComposerAttachmentImage
       sources={projectedAttachment?.preview.candidates ?? null}
       repairAttachment={attachment}
       debugLabel={debugLabel}
+      deliveryStatus={attachment.deliveryStatus ?? "pending"}
     />
   );
 };

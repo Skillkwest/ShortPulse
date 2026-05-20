@@ -14,8 +14,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "standard draft",
         prompt: "fallback prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt,
@@ -47,8 +46,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "",
         prompt: "standard prompt fallback",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit: vi.fn(),
         setSharedPrompt,
@@ -74,8 +72,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: false,
         agentInput: "standard draft",
         prompt: "standard prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt,
@@ -108,8 +105,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "image-mode standard draft",
         prompt: "fallback prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt,
@@ -142,8 +138,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: false,
         agentInput: "transient agent draft",
         prompt: "image-mode authored prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt,
@@ -175,8 +170,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: false,
         agentInput: "ignored",
         prompt: "edit prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt: vi.fn(),
@@ -202,8 +196,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "pulse draft that must not submit",
         prompt: "standard prompt",
-        currentCostCredits: 3,
-        promptReferenceGenerateCostCredits: null,
+        createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
         setSharedPrompt: vi.fn(),
@@ -216,5 +209,33 @@ describe("useStandardCreatePrimarySubmit", () => {
 
     expect(handleGenerate).not.toHaveBeenCalled();
     expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
+  });
+
+  it("uses the same displayed Standard create cost for the primary submit override", async () => {
+    const handleGenerate = vi.fn();
+
+    const { result } = renderHook(() =>
+      useStandardCreatePrimarySubmit({
+        selectedTool: "create",
+        chatModeEnabled: true,
+        agentInput: "visible composer prompt",
+        prompt: "fallback prompt",
+        createGenerateCostCredits: 7,
+        handleGenerate,
+        handleProviderPrimarySubmit: vi.fn(),
+        setSharedPrompt: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      result.current();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledWith(
+      "visible composer prompt",
+      expect.objectContaining({
+        costOverrideCredits: 7,
+      })
+    );
   });
 });

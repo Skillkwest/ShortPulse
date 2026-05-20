@@ -92,9 +92,29 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "elements-media-panel": 36,
 };
 
-const shouldSeedInitialSignedUrls = ({ countOnly }: { countOnly: boolean }): boolean => {
+const INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE: Partial<Record<MediaListSurface, number>> = {
+  "media-library-panel": 2,
+  "elements-media-panel": 2,
+};
+
+const shouldSeedInitialSignedUrls = ({
+  countOnly,
+  cursor,
+  query,
+  surface,
+  mediaKind,
+}: {
+  countOnly: boolean;
+  cursor: MediaListCursor | null;
+  query: string;
+  surface: MediaListSurface;
+  mediaKind: MediaListMediaKind | null;
+}): boolean => {
   if (countOnly) return false;
-  return false;
+  if (cursor) return false;
+  if (query) return false;
+  if (mediaKind !== "all") return false;
+  return typeof INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE[surface] === "number";
 };
 
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
@@ -388,13 +408,17 @@ const resolveInitialSignedById = async ({
   rows,
   userId,
   surface,
+  seedLimit,
 }: {
   rows: MediaListRow[];
   userId: string;
   surface: MediaListSurface;
+  seedLimit: number;
 }): Promise<Record<string, string | null>> => {
   const previewProfile = resolvePreviewProfileForSurface(surface);
-  const seedRows = rows.slice(0, 0);
+  const seedRows = rows
+    .filter((row) => !isAudioFileType(row.file_type))
+    .slice(0, Math.max(0, Math.trunc(seedLimit)));
   if (!seedRows.length) return {};
 
   const primaryCandidateById = new Map<string, string>();
@@ -684,11 +708,19 @@ export default async function handler(
       });
       nextCursor = buildCursor(rows);
       hasMore = rows.length === limit && Boolean(nextCursor);
-      if (shouldSeedInitialSignedUrls({ countOnly })) {
+      const shouldSeedSignedUrls = shouldSeedInitialSignedUrls({
+        countOnly,
+        cursor,
+        query,
+        surface,
+        mediaKind,
+      });
+      if (shouldSeedSignedUrls) {
         signedById = await resolveInitialSignedById({
           rows,
           userId: user.id,
           surface,
+          seedLimit: INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE[surface] ?? 0,
         });
       }
     }

@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiStudioProjectEntryState } from "../AiStudioProjectEntryState";
 
 describe("AiStudioProjectEntryState", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("renders the project restore loading state with resolved project context", () => {
     render(
       <AiStudioProjectEntryState
@@ -23,6 +27,44 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.getByText("Load workspace")).toBeInTheDocument();
     expect(screen.getByText("Prepare studio")).toBeInTheDocument();
     expect(screen.queryByText("Workspace snapshot loading")).not.toBeInTheDocument();
+  });
+
+  it("renders the experimental loading animation while preserving accessible progress copy", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
+
+    const { container } = render(
+      <AiStudioProjectEntryState
+        variant="loading"
+        phase="loading-workspace"
+        enableExperimentalAnimation
+        projectTitle="Spring Campaign"
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Opening Spring Campaign");
+    expect(
+      screen.getByText("Loading the latest workspace snapshot for Spring Campaign.")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
+    expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
+    expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
+  });
+
+  it("keeps the legacy loader when the experimental flag is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "false");
+
+    const { container } = render(
+      <AiStudioProjectEntryState
+        variant="loading"
+        phase="loading-workspace"
+        enableExperimentalAnimation
+        projectTitle="Spring Campaign"
+      />
+    );
+
+    expect(container.querySelector(".ai-studio-project-entry-loader")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-visual-stage")).toBeNull();
+    expect(screen.getByText("Verify session")).toBeInTheDocument();
   });
 
   it("renders the error state actions and forwards button events", () => {

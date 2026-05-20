@@ -121,6 +121,20 @@
   display: block;
 }
 
+.agent-attachment-card-loading {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 26% 24%, rgba(52, 200, 255, 0.16), transparent 42%),
+    linear-gradient(155deg, rgba(17, 22, 33, 0.96), rgba(8, 11, 16, 0.96));
+}
+
+.agent-attachment-card-spinner {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
 .agent-attachment-card-prompt {
   width: 100%;
   height: 100%;

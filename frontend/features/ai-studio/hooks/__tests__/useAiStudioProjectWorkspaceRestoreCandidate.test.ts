@@ -47,7 +47,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
           editReferenceText: "Make the background moodier without changing the face.",
-          videoReferenceText: "",
+          videoReferenceText: "Add a slow handheld push-in with softer practical light.",
           videoReferenceMode: "standard",
           videoDurationSeconds: 6,
           videoResolution: "1080p",
@@ -137,6 +137,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
     expect(result.current.snapshot?.workspace.pulsePrompt).toBe("");
     expect(result.current.snapshot?.workspace.editReferenceText).toBe("");
+    expect(result.current.snapshot?.workspace.videoReferenceText).toBe("");
     expect(result.current.snapshot?.workspace.activePulsePresetId).toBeNull();
     expect(result.current.snapshot?.workspace.pulseSessionInstanceId).toBeNull();
     expect(result.current.snapshot?.agent).toEqual({

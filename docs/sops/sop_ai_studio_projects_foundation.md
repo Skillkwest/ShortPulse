@@ -16,23 +16,25 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 5. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
 6. The visible Media Library project title now reads from and writes to `projects.title`.
 7. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
-8. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes conversational runtime such as agent transcripts, draft agent input, unsent Create composer text, unsent Edit composer text, chat-mode state, Pulse workflow progress, and split agent runtime lanes.
+8. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes conversational runtime such as agent transcripts, draft agent input, unsent Create composer text, unsent Edit composer text, unsent Video composer text, unsent Sound workflow text drafts, chat-mode state, Pulse workflow progress, and split agent runtime lanes.
 9. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state.
 10. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
 11. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
 12. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
-13. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
-14. On project routes, the Media Library custom-folder area is scoped to the active project and does not bleed across projects.
-15. `All Media` remains the user-global inventory even on project routes.
-16. Project folder membership currently supports saved media and saved prompts.
-17. Project folder canvas persistence now uses project-scoped authority on project routes.
-18. Broader live generated-output authority cleanup is still follow-up work.
-19. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, supports in-modal project creation through `POST /api/projects/create`, and routes project selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
-20. The dashboard `Open Projects` surface is a pure modal-launch action; it does not render project previews or inline saved-project state.
-21. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project also removes its project-owned workspace, folder canvas state, and project-only organization rows through database cascade.
-22. Project cards in the shared Projects modal now render up to four snapshot-derived thumbnails. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
-23. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
-24. Fresh AI Studio startup no longer auto-hydrates user-global generated outputs on plain `/ai-studio?sid=...` routes unless explicitly re-enabled by env flag, so new project and fresh-session startup can fail closed to empty workspace state while `All Media` remains global.
+13. Project workspace saves now use a two-phase contract: the sanitized workspace snapshot is written durably first, then project asset/generation association repair runs as a follow-up stage.
+14. If that follow-up repair fails, the save returns `saved_with_repair_pending` instead of failing the durable workspace write, and the UI surfaces a warning that recent outputs may not fully restore until a later successful save.
+15. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
+16. On project routes, the Media Library custom-folder area is scoped to the active project and does not bleed across projects.
+17. `All Media` remains the user-global inventory even on project routes.
+18. Project folder membership currently supports saved media and saved prompts.
+19. Project folder canvas persistence now uses project-scoped authority on project routes.
+20. Broader live generated-output authority cleanup is still follow-up work.
+21. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, supports in-modal project creation through `POST /api/projects/create`, and routes project selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
+22. The dashboard `Open Projects` surface is a pure modal-launch action; it does not render project previews or inline saved-project state.
+23. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project also removes its project-owned workspace, folder canvas state, and project-only organization rows through database cascade.
+24. Project cards in the shared Projects modal now render up to four snapshot-derived thumbnails. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
+25. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
+26. Fresh AI Studio startup no longer auto-hydrates user-global generated outputs on plain `/ai-studio?sid=...` routes unless explicitly re-enabled by env flag, so new project and fresh-session startup can fail closed to empty workspace state while `All Media` remains global.
 
 ## Primary repo surfaces
 
@@ -140,11 +142,14 @@ Behavior:
 4. `GET` returns the current caller-owned project workspace snapshot or `workspace: null` when none exists yet.
 5. `PUT` validates the posted snapshot through the shared AI Studio snapshot parser before upsert.
 6. Current storage contract intentionally reuses the AI Studio session snapshot envelope as a parser boundary, but project persistence sanitizes conversational runtime out of the stored payload.
-7. `GET` refreshes generated-output delivery only from generation rows explicitly associated to the active project.
-8. Returns:
-   - `400` for invalid project id
-   - `404` for missing or non-owned project
-   - `500` for unexpected server failure
+7. `PUT` writes the sanitized workspace snapshot before association repair runs, so a later backfill failure does not discard the workspace save.
+8. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
+9. `GET` refreshes generated-output delivery only from generation rows explicitly associated to the active project.
+10. Returns:
+
+- `400` for invalid project id
+- `404` for missing or non-owned project
+- `500` for unexpected server failure
 
 ### `/api/projects/:projectId/media/folders/*`
 
@@ -206,12 +211,13 @@ Behavior:
 
 1. When AI Studio is opened with `?projectId=<uuid>`, project routes read/write workspace snapshots through `GET|PUT /api/projects/:projectId/workspace`.
 2. The current workspace storage contract reuses the AI Studio session snapshot envelope as a temporary migration schema boundary, but project persistence sanitizes the project payload before write and ignores legacy conversational fields on restore.
-3. Unsent Standard Create composer drafts and unsent Edit composer drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
+3. Unsent Standard Create composer drafts, unsent Edit composer drafts, unsent Video composer drafts, and unsent Sound workflow text drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
 4. Project routes do not use the legacy remote `sid` session snapshot API as their primary durable authority.
 5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage; project reopen resets conversational runtime instead of restoring it from project workspace state.
-6. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
-7. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
-8. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.
+6. Project workspace writes now reset the project shell back to the shipped Standard/Create baseline and do not preserve Pulse shell selection or Pulse session instance ids.
+7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
+8. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
+9. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.
 
 ## AI Studio Media Library folder authority
 

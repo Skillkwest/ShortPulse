@@ -1,5 +1,5 @@
 import React from "react";
-import type { AgentAttachment } from "../types";
+import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../types";
 import {
   formatPerfAuditDebugLine,
   isPerfAuditRuntimeEnabled,
@@ -21,6 +21,7 @@ type AgentImageAttachmentPreviewProps = {
   > | null;
   alt?: string;
   debugLabel?: string | null;
+  deliveryStatus?: AgentAttachmentDeliveryStatus | null;
 };
 
 export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewProps> = ({
@@ -29,6 +30,7 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
   repairAttachment = null,
   alt = "",
   debugLabel = null,
+  deliveryStatus = null,
 }) => {
   const showPerfAuditDebug = isPerfAuditRuntimeEnabled();
   const candidateSources = React.useMemo(
@@ -121,9 +123,15 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
   }, [activeSourceIndex, allSources.length, resolvedSrc]);
 
   if (!resolvedSrc) {
+    const isLoading = deliveryStatus === "pending" || deliveryStatus === "preparing";
     return (
       <>
-        <div className="agent-attachment-card-media" aria-hidden="true" />
+        <div
+          className={`agent-attachment-card-media ${isLoading ? "agent-attachment-card-loading" : ""}`.trim()}
+          aria-hidden="true"
+        >
+          {isLoading ? <span className="agent-send-spinner agent-attachment-card-spinner" /> : null}
+        </div>
         {showPerfAuditDebug ? (
           <div
             aria-label={resolvedDebugLabel}

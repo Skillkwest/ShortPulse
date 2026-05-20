@@ -8,10 +8,6 @@ import {
   clampImageResolutionForModel,
   getImageResolutionOptions,
 } from "./imageResolution";
-import {
-  hasMissingCreateGenerationTarget,
-  shouldDisableCreatePanelOutputGenerate,
-} from "./createGenerationGuards";
 
 type DeriveCreateSelectorStateParams = {
   mode: StudioMode;
@@ -19,7 +15,6 @@ type DeriveCreateSelectorStateParams = {
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   isGenerateDisabled: boolean;
-  hasSufficientCreditsForOutputGenerate: boolean;
   characterModeEnabled: boolean;
   selectedCharacterId: string;
   imageResolution?: string;
@@ -31,7 +26,6 @@ type CreateSelectorViewState = {
   shouldShowImageResolutionCard: boolean;
   isModelSelectionEmpty: boolean;
   isCreateModelPickerOpen: boolean;
-  disableOutputGenerate: boolean;
 };
 
 /**
@@ -43,11 +37,14 @@ export const deriveCreateSelectorViewState = ({
   isModelModalOpen,
   modelModalAnchor,
   isGenerateDisabled,
-  hasSufficientCreditsForOutputGenerate,
   characterModeEnabled,
   selectedCharacterId,
   imageResolution,
 }: DeriveCreateSelectorStateParams): CreateSelectorViewState => {
+  void mode;
+  void isGenerateDisabled;
+  void characterModeEnabled;
+  void selectedCharacterId;
   const imageResolutionOptions = getImageResolutionOptions(modelId);
   const imageResolutionValue = clampImageResolutionForModel(modelId, imageResolution);
   const shouldShowImageResolutionCard =
@@ -55,20 +52,6 @@ export const deriveCreateSelectorViewState = ({
     imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
   const isModelSelectionEmpty = !modelId;
   const isCreateModelPickerOpen = isModelModalOpen && modelModalAnchor === "create-model";
-  const disableOutputGenerate =
-    hasMissingCreateGenerationTarget({
-      modelId,
-      characterModeEnabled,
-      selectedCharacterId,
-    }) ||
-    shouldDisableCreatePanelOutputGenerate({
-      mode,
-      isGenerateDisabled,
-      hasSufficientCreditsForOutputGenerate,
-      modelId,
-      characterModeEnabled,
-      selectedCharacterId,
-    });
 
   return {
     imageResolutionOptions,
@@ -76,6 +59,5 @@ export const deriveCreateSelectorViewState = ({
     shouldShowImageResolutionCard,
     isModelSelectionEmpty,
     isCreateModelPickerOpen,
-    disableOutputGenerate,
   };
 };

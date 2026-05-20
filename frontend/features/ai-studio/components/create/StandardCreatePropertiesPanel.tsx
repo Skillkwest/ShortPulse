@@ -68,7 +68,6 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
-  hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
   onAgentInputChange?: (value: string) => void;
@@ -556,7 +555,6 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
-  hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
   imageResolution,
   onImageResolutionChange,
@@ -578,7 +576,6 @@ export function StandardCreatePropertiesPanel({
   stylesCatalog,
   createModeToggle = null,
   onGenerate,
-  guardrailReason,
 }: StandardCreatePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = modelLabel;
@@ -659,14 +656,12 @@ export function StandardCreatePropertiesPanel({
         isModelModalOpen,
         modelModalAnchor,
         isGenerateDisabled,
-        hasSufficientCreditsForOutputGenerate,
         characterModeEnabled,
         selectedCharacterId,
         imageResolution,
       }),
     [
       characterModeEnabled,
-      hasSufficientCreditsForOutputGenerate,
       imageResolution,
       isGenerateDisabled,
       isModelModalOpen,
@@ -772,11 +767,6 @@ export function StandardCreatePropertiesPanel({
     <>
       <StandardCreatePanelView
         promptStepProps={promptStepProps}
-        onGenerate={onGenerate}
-        costCredits={costCredits}
-        isPromptGenerating={isPromptGenerating}
-        isGenerateDisabled={isGenerateDisabled}
-        guardrailReason={guardrailReason}
         characterModeEnabled={characterModeEnabled}
         onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
         onCharacterPickerOpen={openCharacterPicker}

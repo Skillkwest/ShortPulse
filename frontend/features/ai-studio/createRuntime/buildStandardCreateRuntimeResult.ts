@@ -63,8 +63,6 @@ export const buildStandardCreateRuntimeResult = ({
     isPromptRefining: props.isPromptRefining,
     describeInFlightCount: props.describeInFlightCount,
     createGenerateCostCredits: props.createGenerateCostCredits,
-    hasSufficientCreditsForPromptReferenceGenerate:
-      props.hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: props.isGenerateDisabled,
     generationGuardrail: props.generationGuardrail,
     handleClearAgentChat: actions.onClearAgentChat,

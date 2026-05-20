@@ -24,10 +24,7 @@ const CHECKPOINTS = {
     title: "Phase 0 Baseline",
     description:
       "Captures the retained prep packet, probe, and AI Studio media-surface baseline before deeper browse-path changes.",
-    commands: [
-      "npm run media:phase0",
-      "npm run test:e2e:media-library-runtime",
-    ],
+    commands: ["npm run media:phase0", "npm run test:e2e:media-library-runtime"],
     doneHint:
       "Done when at least one retained baseline packet exists for the AI Studio panel/modal surfaces and derivative health comparison.",
   },
@@ -36,9 +33,9 @@ const CHECKPOINTS = {
     description:
       "Use after the count checkpoint to simplify which layer decides the preview URL for visible AI Studio media rows.",
     commands: [
-      "npm test -- tests/api/media-list.test.ts --testNamePattern=\"does not seed initial signed urls for the modal surface|does not seed initial signed urls for the panel surface|supports panel mediaKind queries without tab|supports audio mediaKind queries without tab\"",
-      "npm test -- tests/api/media-resolve-previews.test.ts --testNamePattern=\"does not apply transforms by default when surface is media-library-panel|prefers trusted direct preview urls over storage lookup on browse surfaces|narrows browse-surface storage lookup to preferred and original candidates\"",
-      "npm test -- features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts --testNamePattern=\"limits panel resolver escalation to visible unresolved rows|limits modal resolver escalation to visible unresolved rows|prefers durable direct preview urls over signing for panel rows|prefers durable direct preview urls over signing for modal rows|does not blind-prefetch beyond the initial slice before visibility is known|keeps dense panel-style signing bounded across initial open and load-more append|does not schedule deferred offscreen prefetch work for panel signing\"",
+      'npm test -- tests/api/media-list.test.ts --testNamePattern="does not seed initial signed urls for the modal surface|seeds initial signed urls for the panel surface on the default mixed open|seeds initial signed urls for the elements panel surface on the default mixed open|supports panel mediaKind queries without tab|supports audio mediaKind queries without tab"',
+      'npm test -- tests/api/media-resolve-previews.test.ts --testNamePattern="does not apply transforms by default when surface is media-library-panel|prefers trusted direct preview urls over storage lookup on browse surfaces|narrows browse-surface storage lookup to preferred and original candidates"',
+      'npm test -- features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts --testNamePattern="limits panel resolver escalation to visible unresolved rows|limits modal resolver escalation to visible unresolved rows|prefers durable direct preview urls over signing for panel rows|prefers durable direct preview urls over signing for modal rows|does not blind-prefetch beyond the initial slice before visibility is known|keeps dense panel-style signing bounded across initial open and load-more append|does not schedule deferred offscreen prefetch work for panel signing"',
       "npm test -- features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx",
     ],
     doneHint:
@@ -52,7 +49,7 @@ const CHECKPOINTS = {
       "npm test -- features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx",
       "npm test -- features/media-library/runtime/__tests__/store.test.ts",
       "npm test -- features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts",
-      "npm test -- features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx --testNamePattern=\"auto-loads the next media page when scrolling near the bottom|auto-loads the next prompt page when scrolling near the bottom on Prompts tab|switches All Media root tabs between mixed media, image-only, video-only, and prompts|passes panel-specific preview resolver callback to media grid|opens preview modal on all-media media double-click without ingest side effects|drops internal references into the active custom folder and refreshes its rows\"",
+      'npm test -- features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx --testNamePattern="auto-loads the next media page when scrolling near the bottom|auto-loads the next prompt page when scrolling near the bottom on Prompts tab|switches All Media root tabs between mixed media, image-only, video-only, and prompts|passes panel-specific preview resolver callback to media grid|opens preview modal on all-media media double-click without ingest side effects|drops internal references into the active custom folder and refreshes its rows"',
     ],
     doneHint:
       "Done when panel refresh, append, and signed-preview paths validate without broad panel-suite noise and without redundant runtime row churn.",
@@ -63,7 +60,7 @@ const normalizeString = (value) => (typeof value === "string" ? value.trim() : "
 
 export const getCheckpoint = (checkpointId) => {
   const normalized = normalizeString(checkpointId).toLowerCase();
-  return normalized ? CHECKPOINTS[normalized] ?? null : null;
+  return normalized ? (CHECKPOINTS[normalized] ?? null) : null;
 };
 
 export const parseArgs = (argv) => {

@@ -8,6 +8,10 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 - Current working band: `8.5/10` to `9/10`
 - Main gap to `10/10`: first-manifest fan-out completeness on shared contracts
 
+## Recent Run Notes
+
+- 2026-05-20: another production SOP run stayed inside the `8.5/10` band. Preflight/build/full-suite discipline was solid, but the browser-smoke lane overran user preference and then ended as `smoke-incomplete by user direction`.
+
 ## Structural Milestones
 
 - 2026-05-13: added the retained self-audit loop, retained artifacts area, baseline KPI, report template, and helper-tool decision rule.

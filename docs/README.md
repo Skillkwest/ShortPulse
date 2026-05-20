@@ -63,6 +63,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `agent-teaching/foundations/agent-maintenance-field-guide.md`
 - `docs/agents/change-impact-auditor.md`
 - `docs/agents/ayla/README.md`
+- `docs/agents/ayla/memory.md`
+- `docs/agents/ayla/standard-operating-procedure.md`
 - `docs/agents/ayla/ux-playbook.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`

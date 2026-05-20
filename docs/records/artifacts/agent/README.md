@@ -18,6 +18,10 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/ayla/reports/README.md`
 - `docs/records/artifacts/agent/ayla/run-log.md`
 - `docs/records/artifacts/agent/ayla/sops.md`
+- `docs/records/artifacts/agent/ayla/templates/README.md`
+- `docs/records/artifacts/agent/ayla/templates/support-reply-template.md`
+- `docs/records/artifacts/agent/ayla/templates/outbound-approval-checklist.md`
+- `docs/records/artifacts/agent/ayla/templates/escalation-rubric.md`
 - `docs/records/artifacts/agent/ayla/training-history.md`
 - `docs/records/artifacts/agent/ayla/tools.md`
 - `docs/records/artifacts/agent/d-bug/README.md`

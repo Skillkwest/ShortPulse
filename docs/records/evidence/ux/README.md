@@ -42,6 +42,7 @@ Recommended sections:
 4. `Supporting evidence`
 
 - event signals, support examples, interview notes, or session observations
+  - redact or anonymize customer-identifying details before retaining support examples or session observations
 
 5. `Recommended decision`
 
@@ -74,6 +75,7 @@ Agents should read from this namespace when they need real UX evidence for:
 - onboarding or admin UX critiques
 
 Agents should add to this namespace only when the finding is durable enough to matter beyond one chat reply.
+When support-derived evidence is retained here, keep it anonymized and minimized.
 
 ## Current starting focus
 

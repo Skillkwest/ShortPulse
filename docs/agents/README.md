@@ -23,8 +23,11 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/bopper/standard-operating-procedure.md`: standing SOP for Bopper first-impression, CTA trust, and naive-user workflow audits.
   - `bopper/PERSONA.md`: active ICP card for Bopper's paying Studio-plan average-user persona.
   - `bopper/TRAINING-SYSTEM.md`: required run-packet, report, and rollup checklist for Bopper training data.
-- `docs/agents/ayla/README.md`: Ayla user-account management and customer-service steward contract and memory entrypoint.
+- `docs/agents/ayla/README.md`: Ayla, Kirk's primary AI personal assistant for ShortPulse, contract and authority surface.
+  - `docs/agents/ayla/memory.md`: Ayla's repo-visible durable memory entrypoint.
+  - `docs/agents/ayla/standard-operating-procedure.md`: Ayla's standing SOP for support replies, approval-sensitive outbound drafts, escalation, and retention.
   - `docs/agents/ayla/ux-playbook.md`: Ayla's applied UX lens for support trust, hesitation, auth recovery, pricing confusion, and escalation clarity.
+  - `ayla/README.md`: Ayla's temporary workspace and intake surface.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.

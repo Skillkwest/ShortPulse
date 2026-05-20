@@ -1,12 +1,10 @@
 # Ayla Agent Artifacts
 
-Purpose: store non-authoritative retained artifacts for Ayla's user-account management and customer-service support work.
+Purpose: store non-authoritative retained artifacts for Ayla's support, assistant, and approval-sensitive operational drafting work.
 
 ## Status
 
-Ayla is currently at `Level 0: Setup complete`.
-
-The agent has a durable contract, repo-visible memory, retained artifact area, and owned workspace folder. Ayla is ready for future supervised support runs and training.
+The agent has a durable contract, repo-visible memory, retained artifact area, and owned workspace folder. See `training-history.md` for the current supervised-run status instead of duplicating setup-state notes here.
 
 ## Artifact Layout
 
@@ -16,10 +14,17 @@ The agent has a durable contract, repo-visible memory, retained artifact area, a
 - `tools.md`: helper inventory and future tooling needs.
 - `training-history.md`: supervised setup and future training runs.
 - `reports/`: dated support run reports, templates, and retained summaries when a run needs durable detail.
+- `templates/`: reusable drafting, approval, and escalation scaffolds.
 
 ## Authority
 
 These artifacts support training, traceability, and workflow continuity. They do not override canonical repo rules, SOPs, ADRs, user instructions, current code, or direct validation evidence.
+
+Retention standard:
+
+- retain sanitized summaries by default, not raw customer records,
+- redact personally identifying and secret-bearing details before storing durable artifacts,
+- and keep customer-identifiable retained records only with explicit Kirk approval.
 
 ## Canonical Entry Points
 

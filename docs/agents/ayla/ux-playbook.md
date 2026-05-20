@@ -72,6 +72,7 @@ When Ayla sees durable support-derived UX friction:
 - store a retained packet under `docs/records/evidence/ux/`
 - frame the finding as a trust, hesitation, recovery, pricing, or continuity issue when appropriate
 - link the packet to the affected route, docs, and runtime files
+- anonymize support examples and redact customer-identifying details before retaining the packet
 
 Do not leave recurring support lessons only in chat history or private operator memory.
 

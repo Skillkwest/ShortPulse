@@ -7,17 +7,20 @@ import type { PromptStepProps } from "../PromptStep";
 import { CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS } from "../../../../lib/model-runtime/createPulsePresetDomain";
 
 vi.mock("../../../../prefabs/agent", () => ({
-  AgentGenerateButton: ({
+  AgentResponseInlineGenerateButton: ({
     onClick,
     disabled,
     ariaLabel,
+    className,
   }: {
     onClick?: () => void;
     disabled?: boolean;
     ariaLabel?: string;
+    className?: string;
   }) => (
     <button
       type="button"
+      className={`agent-response-inline-generate-prefab ${className ?? ""}`.trim()}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel ?? "Generate"}
@@ -146,6 +149,9 @@ describe("Create generate guardrail messaging", () => {
 
     expect(screen.getByRole("button", { name: "Restart pulse" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveClass(
+      "agent-response-inline-generate-prefab"
+    );
   });
 
   it("locks restart and deactivate actions while a Pulse artifact is generating", () => {

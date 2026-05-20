@@ -185,6 +185,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
     expect(screen.getByText("Voice Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Voice Clone" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(
       "aria-selected",

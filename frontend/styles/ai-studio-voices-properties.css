@@ -1166,12 +1166,33 @@
 .voices-properties-compose-mode-switcher {
   display: flex;
   justify-content: center;
+  justify-self: center;
+  width: min(620px, 100%);
   min-width: 0;
   grid-column: 2;
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
-  width: min(540px, 100%);
+  width: 100%;
+  align-items: stretch;
+}
+
+.voices-properties-compose-mode-switcher .voices-properties-mode-switcher-label {
+  justify-content: center;
+}
+
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab {
+  padding-inline: 18px;
+}
+
+.voices-properties-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  grid-column: 3;
+  justify-self: end;
 }
 
 @media (max-width: 900px) {
@@ -1182,7 +1203,7 @@
 
   .voices-properties-library-selector,
   .voices-properties-compose-mode-switcher,
-  .voices-properties-library-actions {
+  .voices-properties-header-actions {
     grid-column: auto;
     justify-self: stretch;
   }
@@ -1193,6 +1214,11 @@
 
   .voices-properties-compose-mode-switcher {
     order: 2;
+  }
+
+  .voices-properties-header-actions {
+    order: 3;
+    justify-content: flex-start;
   }
 }
 

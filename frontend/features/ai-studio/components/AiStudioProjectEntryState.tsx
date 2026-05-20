@@ -166,13 +166,22 @@ export function AiStudioProjectEntryState({
   const liveMode = variant === "error" ? "assertive" : "polite";
   const shouldUseExperimentalAnimation =
     variant === "loading" && isExperimentalEntryAnimationEnabled(enableExperimentalAnimation);
+  const [backgroundImageReady, setBackgroundImageReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!shouldUseExperimentalAnimation) {
+      setBackgroundImageReady(false);
+    }
+  }, [shouldUseExperimentalAnimation]);
 
   if (shouldUseExperimentalAnimation) {
     return (
       <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
-            <div className="ai-studio-project-entry-pulse-runner">
+            <div
+              className={`ai-studio-project-entry-pulse-runner${backgroundImageReady ? " is-visible" : ""}`}
+            >
               <Image
                 src="/loading-entry/pulse.png"
                 alt=""
@@ -191,6 +200,9 @@ export function AiStudioProjectEntryState({
               height={224}
               priority
               className="ai-studio-project-entry-bg-image"
+              onLoad={() => {
+                setBackgroundImageReady(true);
+              }}
             />
           </div>
         </section>

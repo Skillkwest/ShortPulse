@@ -1611,6 +1611,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     </div>
                   </div>
                 </div>
+                <div className="voices-properties-header-actions">
+                  <button type="button" className="voices-properties-library-create-btn">
+                    Voice Clone
+                  </button>
+                </div>
               </div>
             </section>
 

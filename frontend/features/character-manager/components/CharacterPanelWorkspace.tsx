@@ -327,11 +327,6 @@ export function CharacterPanelWorkspace({
 
       <div className="character-panel-library-workspace">
         <section className="character-panel-editor-column">
-          <div className="character-panel-library-header-main">
-            <div className="character-panel-library-title-stack">
-              <h2>Characters</h2>
-            </div>
-          </div>
           {loading || isSwitchingCharacter ? (
             <div className="character-panel-editor-column-panel">
               <CharacterProfileLoadingSkeleton surface="panel" />

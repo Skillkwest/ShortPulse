@@ -77,8 +77,15 @@
   z-index: 1;
   width: 9.385%;
   height: 100%;
+  visibility: hidden;
   animation: ai-studio-project-entry-pulse-run 3.4s linear infinite;
+  animation-play-state: paused;
   will-change: transform, opacity;
+}
+
+.ai-studio-project-entry-pulse-runner.is-visible {
+  visibility: visible;
+  animation-play-state: running;
 }
 
 .ai-studio-project-entry-pulse-image {
@@ -311,7 +318,12 @@
   }
 
   .ai-studio-project-entry-pulse-runner {
-    opacity: 0.9;
+    visibility: hidden;
     transform: translate3d(0, 0, 0);
+  }
+
+  .ai-studio-project-entry-pulse-runner.is-visible {
+    visibility: visible;
+    opacity: 0.9;
   }
 }

@@ -30,7 +30,7 @@ describe("character panel layout contract", () => {
     expect(css).toContain(
       '.ai-studio-page[data-selected-tool="character"] .ai-shell.ai-shell-resizable,'
     );
-    expect(css).toContain("--ai-shell-right-min-width: 260px;");
+    expect(css).toContain("--ai-shell-right-min-width: 220px;");
   });
 
   it("pins the Character split host as the active flex child under the properties rail", () => {

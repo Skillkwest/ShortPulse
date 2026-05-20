@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowCounterClockwise, Power, Trash } from "phosphor-react";
-import { AgentGenerateButton } from "../../../../prefabs/agent";
+import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
@@ -80,7 +80,6 @@ const PulseCreatePanelViewContent = ({
   const shouldShowPulseStartupShell =
     isNoHistoryShell && pulseLoadingState?.phase === "starting_pulse";
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
-  const costValue = costCredits != null ? costCredits : "—";
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const isPulseSessionLocked = isPulseActivationBusy || isPromptGenerating;
   const activePulsePreset =
@@ -150,11 +149,11 @@ const PulseCreatePanelViewContent = ({
         <PulsePromptStep {...promptStepLayoutProps} />
         <div className="create-composer-secondary-row create-composer-generate-row">
           <div className="create-composer-inline-generate">
-            <AgentGenerateButton
+            <AgentResponseInlineGenerateButton
               onClick={onGeneratePulseArtifact}
               disabled={isGenerateDisabled}
               isBusy={isPromptGenerating}
-              cost={costValue}
+              costCredits={costCredits ?? null}
             />
             {isGenerateDisabled && guardrailReason ? (
               <div className="inline-warning-hint">{guardrailReason}</div>

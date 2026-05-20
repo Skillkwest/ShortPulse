@@ -130,7 +130,7 @@ describe("CharacterPanelWorkspace", () => {
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
     render(<CharacterPanelWorkspace />);
 
-    expect(screen.getByRole("heading", { name: "Characters" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Characters" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Characters Library" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Character Profile" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Characters" })).toBeInTheDocument();

@@ -11,6 +11,7 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 ## Recent Run Notes
 
 - 2026-05-20: another production SOP run stayed inside the `8.5/10` band. Preflight/build/full-suite discipline was solid, but the browser-smoke lane overran user preference and then ended as `smoke-incomplete by user direction`.
+- 2026-05-20: a later production SOP run stayed below `9/10` because a `build`-only type failure was fixed after the full suite had already started, which forced Gear Ball to treat the earlier suite as stale and rerun final validation on the corrected tree.
 
 ## Structural Milestones
 

@@ -279,6 +279,7 @@ Treat these as hard escalation triggers, not optional judgment calls:
 - If a batch touches shared editor/runtime hooks, shared page shells, `frontend/pages/`, `frontend/pages/api/`, or `frontend/package.json`, run `npm -C frontend run build` before the final full suite.
 - If a batch includes generated or agent-produced docs/packets under `beeper/`, `bopper/`, `docs/records/artifacts/agent/`, or `docs/records/evidence/`, run `npm -C frontend run docs:check` before staging or before the first commit for that lane.
 - If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
+- If a blocking validation failure is fixed while a long-running build or full-suite session is still running, treat that older session as stale. Rerun the required build/test gates against the final post-fix tree before staging or pushing.
 - If a batch materially changes an interaction-heavy admin or frontend route, route-level browser smoke is a required validation decision, not an optional note.
   - If a local verification target is already available, run the smoke before the final push.
   - If no target is active but starting the canonical local target is feasible within the run, start it and run the smoke.

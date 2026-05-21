@@ -1,78 +1,26 @@
 # Gear Ball Reports
 
-Purpose: index durable evidence reports for Gear Ball worktree, commit, branch, environment, Vercel, database, release, and merge coordination tasks.
+Purpose: keep the active Gear Ball report surface minimal. Historical retained reports belong under `docs/records/artifacts/agent/gear-ball/reports/`.
 
-## Report Rules
+## Use
 
-- Keep reports concise, dated, and evidence-backed.
-- Do not store secrets, raw customer data, access tokens, full env dumps, or large logs.
-- Prefer links to canonical docs, commands run, validation outcomes, target branches, target environments, and residual risks.
-- Use reports when a task needs more durable evidence than a short final response.
+Use a report when a Gear Ball run:
 
-## Worktree Batch Report Template
+- spans multiple commits
+- exposes a new recurring failure mode
+- needs durable validation evidence
+- changes Gear Ball tools, SOPs, or operating contract
 
-Use this compact template for substantial worktree organization, commit, push, or PR handoff runs:
+## Active Template
 
-```markdown
-# Gear Ball <task> Report - YYYY-MM-DD
+Use the retained template:
 
-Purpose: <one sentence describing the operational run>.
+- `docs/records/artifacts/agent/gear-ball/reports/run-report-template.md`
 
-## Prompt Cadence
+## Canonical Archive
 
-- <authorization gate 1>
-- <authorization gate 2>
-- <authorization gate 3>
+Historical Gear Ball run evidence lives in:
 
-## Batch Manifest
+- `docs/records/artifacts/agent/gear-ball/reports/`
 
-| Commit              | Batch       | Files/Scope      | Risk Notes | Validation Evidence |
-| ------------------- | ----------- | ---------------- | ---------- | ------------------- |
-| `<hash or pending>` | `<subject>` | `<paths/groups>` | `<risk>`   | `<checks>`          |
-
-## Validation Results
-
-- `<command>`: <pass/fail and exact summary>
-
-## Self Audit
-
-- Score out of 10:
-- What went well:
-- What slipped:
-
-## Failure Signals Found
-
-- <failing file/test/signal, or "None">
-
-## Fix Constraints
-
-- <what was allowed>
-- <what was deliberately not changed>
-
-## Final State
-
-- Branch:
-- Allowed branch:
-- Worktree:
-- Remote/PR:
-
-## Unverified Or Deferred
-
-- <human review, CI, deploy, env, database, or merge gaps>
-
-## Capability Improvement Decision
-
-- New tool/helper needed?: <yes/no and why>
-- SOP/doc update needed?: <yes/no and why>
-- Training history updated?: <yes/no>
-```
-
-## Reports
-
-Helper commands:
-
-- Preflight a candidate batch: `npm -C frontend run gear-ball:preflight -- --files <paths...> --tests <tests...>`
-- Generate a batch manifest from the staged index: `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
-
-- `docs/agents/gear-ball/reports/2026-05-01-agentic-github-operations-research.md`: source-backed synthesis for Gear Ball's GitHub PR, review, merge, and agent-governance workflow.
-- `docs/agents/gear-ball/reports/2026-05-01-worktree-batch-commit-and-push.md`: evidence and lessons from Gear Ball's first full worktree batch, validation, commit, and push run.
+Start there if you need examples or prior run evidence.

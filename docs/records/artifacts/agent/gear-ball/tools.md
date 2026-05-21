@@ -20,3 +20,7 @@ After every full commit/push SOP run, Gear Ball should decide whether:
 - a new helper is justified by repeated mechanical friction
 
 Do not build new tooling for one-time discomfort unless it protects a high-risk gate.
+
+## Training Data Rule
+
+When behavior is corrected repeatedly, update `conversation-training-dataset.jsonl` instead of adding more narrative memory.

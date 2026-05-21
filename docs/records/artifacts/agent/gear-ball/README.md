@@ -10,12 +10,11 @@ The agent has a durable contract, repo-visible memory, helper tooling, and a ret
 
 ## Artifact Layout
 
-- `memory.md`: retained working memory that supports the repo-visible memory surface.
 - `run-log.md`: append-only ledger of substantive Gear Ball runs.
 - `baseline-kpi.md`: frozen baseline for future Gear Ball quality comparisons.
-- `sops.md`: Gear Ball workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.
-- `training-history.md`: compact synthesis of recurring slips, shipped remediations, and current training priorities. Detailed run narratives stay in `run-log.md` and `reports/`.
+- `training-history.md`: current score band, failure classes, and priorities. Detailed narratives stay in `run-log.md` and `reports/`.
+- `conversation-training-dataset.jsonl`: structured conversation-derived training examples with trigger, failure mode, correct behavior, control, and metric.
 - `reports/`: dated run reports, templates, and evidence summaries when a Gear Ball run needs durable retained detail.
 
 ## Authority
@@ -28,6 +27,7 @@ Every substantive Gear Ball run that ends in commit and push should produce reta
 
 - always append the run to `run-log.md`
 - always update `training-history.md` with the self-audit, score out of 10, friction found, and capability-improvement decision
+- when a recurring user correction or instruction pattern appears, encode it into `conversation-training-dataset.jsonl`
 - create a dated report when the run is large, multi-batch, operationally risky, or exposes a new recurring failure mode
 - prefer using the Gear Ball report template for substantial runs
 
@@ -35,6 +35,7 @@ Every substantive Gear Ball run that ends in commit and push should produce reta
 
 - Agent contract: `docs/agents/gear-ball/README.md`
 - Repo-visible memory: `docs/agents/gear-ball/memory.md`
+- Hot-path execution checklist: `docs/agents/gear-ball/hot-path-checklist.md`
 - Worktree batch SOP: `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
 - GitHub operations SOP: `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - Shared-risk map: `docs/agents/gear-ball/shared-file-risk-map.md`

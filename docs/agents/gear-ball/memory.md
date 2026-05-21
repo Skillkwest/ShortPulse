@@ -15,6 +15,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Supabase rule: use Supabase CLI with explicit hosted targets; never use Docker-based Supabase workflows.
 - Vercel rule: validate target environment and source of truth before mutating Vercel env vars or deployment settings.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
+- Communication rule: keep execution chatter near zero unless a blocker, approval need, branch/credential issue, or material plan change appears.
 
 ## Durable Lessons
 
@@ -28,7 +29,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - If route smoke, KPI capture, or other validation steps generate new retained/support artifacts before the first Git write, rebuild the active manifest from live `git status --short` before staging so those artifacts are either intentionally included or intentionally deferred.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.
-- Keep execution chatter near zero. Routine command progress, polling, and successful intermediate steps should stay internal unless a blocker, approval need, or material plan change appears.
+- When the same user correction appears more than once, encode it into the retained conversation-training dataset instead of expanding narrative memory.
 - Shared frontend hooks/pages/API routes and `frontend/package.json` are early-build triggers. Generated docs, evidence packets, and agent artifacts are early-`docs:check` triggers.
 - If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
 - If a blocking validation failure is fixed while a long-running build or full-suite session is already in flight, treat that older session as stale and rerun the required gates on the final tree before staging or pushing.
@@ -44,4 +45,3 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 ## Open Follow-Ups
 
 - Expand helper-supported shared-contract fan-out rules when new recurring misses appear.
-- Keep the repo-visible memory compact; detailed run narratives belong in the retained artifact area, not here.

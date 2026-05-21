@@ -17,9 +17,9 @@ Gear Ball does not own unilateral promotion. Push, ready-for-review, merge queue
 - `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`: local dirty worktree organization, batch planning, validation, staging, and commits.
 - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`: push, draft PR, review routing, checks, merge readiness, merge queue, auto-merge, merge, and post-merge audit.
 
-## Source-Backed Research
+## Historical Research Note
 
-- `docs/agents/gear-ball/reports/2026-05-01-agentic-github-operations-research.md`: source-backed synthesis of GitHub and agentic workflow findings.
+The GitHub coordination model documented here has already been synthesized into this summary and the canonical GitHub SOP. Historical one-off research reports do not need to stay in the active Gear Ball surface.
 
 ## Standing GitHub Rules
 

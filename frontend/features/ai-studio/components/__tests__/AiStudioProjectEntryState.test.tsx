@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiStudioProjectEntryState } from "../AiStudioProjectEntryState";
 
@@ -47,11 +47,12 @@ describe("AiStudioProjectEntryState", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-pulse-lane")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-mark-svg")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-motion")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 
-  it("waits for the background image before showing the pulse sweep", async () => {
+  it("renders the masked sweep without the old image-based layers", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
 
     const { container } = render(
@@ -63,21 +64,11 @@ describe("AiStudioProjectEntryState", () => {
       />
     );
 
-    const pulseRunner = container.querySelector(".ai-studio-project-entry-pulse-runner");
-    const backgroundImage = container.querySelector(
-      ".ai-studio-project-entry-bg-image"
-    ) as HTMLElement | null;
-
-    expect(pulseRunner?.classList.contains("is-visible")).toBe(false);
-    expect(backgroundImage).not.toBeNull();
-
-    if (backgroundImage) {
-      fireEvent.load(backgroundImage);
-    }
-
-    await waitFor(() => {
-      expect(pulseRunner?.classList.contains("is-visible")).toBe(true);
-    });
+    expect(container.querySelector(".ai-studio-project-entry-mark-svg")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-bloom")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-sweep")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-runner")).toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-bg-image")).toBeNull();
   });
 
   it("keeps the legacy loader when the experimental flag is disabled", () => {

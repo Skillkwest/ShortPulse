@@ -59,46 +59,32 @@
   position: relative;
   width: 100%;
   aspect-ratio: 976 / 310;
-  overflow: hidden;
+  overflow: visible;
 }
 
-.ai-studio-project-entry-bg-image {
-  position: relative;
-  z-index: 2;
+.ai-studio-project-entry-mark-svg {
   display: block;
   width: 100%;
   height: auto;
 }
 
-.ai-studio-project-entry-pulse-lane {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  z-index: 1;
-  width: 8.914%;
-  height: 72.258%;
-  transform: translateY(-50%);
-}
-
-.ai-studio-project-entry-pulse-runner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  visibility: hidden;
-  animation: ai-studio-project-entry-pulse-run 3.4s linear infinite;
-  animation-play-state: paused;
+.ai-studio-project-entry-pulse-motion {
+  animation: ai-studio-project-entry-pulse-run 3.6s linear infinite;
   will-change: transform, opacity;
 }
 
-.ai-studio-project-entry-pulse-runner.is-visible {
-  visibility: visible;
-  animation-play-state: running;
+.ai-studio-project-entry-pulse-bloom {
+  opacity: 0.62;
+  will-change: opacity;
 }
 
-.ai-studio-project-entry-pulse-image {
-  display: block;
-  width: 100%;
-  height: 100%;
+.ai-studio-project-entry-pulse-sweep {
+  opacity: 1;
+  will-change: opacity;
+}
+
+.ai-studio-project-entry-mark-outline {
+  opacity: 0;
 }
 
 .ai-studio-project-entry-copy,
@@ -261,27 +247,27 @@
 @keyframes ai-studio-project-entry-pulse-run {
   0% {
     opacity: 0;
-    transform: translate3d(-84%, 0, 0);
+    transform: translate3d(0, 0, 0);
   }
 
   6% {
     opacity: 1;
-    transform: translate3d(-68%, 0, 0);
+    transform: translate3d(56px, 0, 0);
   }
 
   18% {
     opacity: 1;
-    transform: translate3d(1048%, 0, 0);
+    transform: translate3d(1268px, 0, 0);
   }
 
   19% {
     opacity: 0;
-    transform: translate3d(1048%, 0, 0);
+    transform: translate3d(1268px, 0, 0);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(1048%, 0, 0);
+    transform: translate3d(1268px, 0, 0);
   }
 }
 
@@ -319,18 +305,13 @@
 @media (prefers-reduced-motion: reduce) {
   .ai-studio-project-entry-card,
   .ai-studio-project-entry-step,
-  .ai-studio-project-entry-pulse-runner {
+  .ai-studio-project-entry-pulse-motion {
     animation: none;
     transition: none;
   }
 
-  .ai-studio-project-entry-pulse-runner {
-    visibility: hidden;
+  .ai-studio-project-entry-pulse-motion {
+    opacity: 0;
     transform: translate3d(0, 0, 0);
-  }
-
-  .ai-studio-project-entry-pulse-runner.is-visible {
-    visibility: visible;
-    opacity: 0.9;
   }
 }

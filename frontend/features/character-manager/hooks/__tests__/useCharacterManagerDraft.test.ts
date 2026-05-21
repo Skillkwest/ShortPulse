@@ -299,7 +299,7 @@ describe("useCharacterManagerDraft", () => {
     expect(saveCharacterManagerDraftMock).toHaveBeenCalledWith({
       name: "Fresh Save",
       activeCharacterSheetPresetId: "1",
-      visibleCharacterSheetPresetIds: ["1"],
+      visibleCharacterSheetPresetIds: createDefaultCharacterSheetPresetState().tabOrder,
       characterSheetPresetLabels: expect.objectContaining({ "1": "1" }),
       characterSheetPresetDescriptions: expect.objectContaining({ "1": "Saved description" }),
     });
@@ -572,8 +572,11 @@ describe("useCharacterManagerDraft", () => {
       expect(added).toBe(true);
     });
 
-    expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "2"]);
-    expect(result.current.activeCharacterSheetPresetId).toBe("2");
+    expect(result.current.visibleCharacterSheetPresetIds).toEqual([
+      ...createDefaultCharacterSheetPresetState().tabOrder,
+      "6",
+    ]);
+    expect(result.current.activeCharacterSheetPresetId).toBe("6");
 
     await act(async () => {
       const switched = await result.current.setActiveCharacterSheetPreset("1");

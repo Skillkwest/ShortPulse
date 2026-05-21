@@ -1,6 +1,5 @@
 import React from "react";
 import { ArrowCounterClockwise, Power, Trash } from "phosphor-react";
-import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
@@ -19,11 +18,7 @@ import { resolveCreatePulsePresetById } from "./createPulsePresets";
 
 type PulseCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
-  onGeneratePulseArtifact: () => void;
-  costCredits?: number | null;
   isPromptGenerating: boolean;
-  isGenerateDisabled: boolean;
-  guardrailReason?: string | null;
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
   hasActivePulseSession?: boolean;
@@ -47,11 +42,7 @@ type PulseCreatePanelViewProps = {
 
 const PulseCreatePanelViewContent = ({
   promptStepProps,
-  onGeneratePulseArtifact,
-  costCredits,
   isPromptGenerating,
-  isGenerateDisabled,
-  guardrailReason,
   createModeToggle = null,
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
@@ -95,7 +86,6 @@ const PulseCreatePanelViewContent = ({
       : "",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
-    composerLeadingContent: null,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
 
@@ -147,19 +137,6 @@ const PulseCreatePanelViewContent = ({
       ) : null}
       <div className="create-composer-bottom-block">
         <PulsePromptStep {...promptStepLayoutProps} />
-        <div className="create-composer-secondary-row create-composer-generate-row">
-          <div className="create-composer-inline-generate">
-            <AgentResponseInlineGenerateButton
-              onClick={onGeneratePulseArtifact}
-              disabled={isGenerateDisabled}
-              isBusy={isPromptGenerating}
-              costCredits={costCredits ?? null}
-            />
-            {isGenerateDisabled && guardrailReason ? (
-              <div className="inline-warning-hint">{guardrailReason}</div>
-            ) : null}
-          </div>
-        </div>
       </div>
     </>
   );

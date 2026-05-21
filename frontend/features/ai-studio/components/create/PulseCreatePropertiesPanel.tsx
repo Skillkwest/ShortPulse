@@ -9,6 +9,7 @@ import type {
   AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
+import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
 import { PulsePromptStep } from "../PulsePromptStep";
 import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
@@ -227,6 +228,22 @@ export function PulseCreatePropertiesPanel({
     hasActivePulseSession,
     isGuidedWorkflowPulse,
   ]);
+  const pulseGenerateControl = (
+    <div className="create-composer-inline-leading-controls">
+      <div className="create-composer-inline-generate">
+        <AgentResponseInlineGenerateButton
+          onClick={onGeneratePulseArtifact}
+          costCredits={costCredits}
+          disabled={isGenerateDisabled}
+          isBusy={isPromptGenerating}
+        />
+      </div>
+    </div>
+  );
+  const pulseGenerateGuardrail =
+    isGenerateDisabled && guardrailReason ? (
+      <div className="inline-warning-hint">{guardrailReason}</div>
+    ) : null;
 
   const promptStepProps: React.ComponentProps<typeof PulsePromptStep> = {
     prompt: pulsePrompt,
@@ -269,11 +286,12 @@ export function PulseCreatePropertiesPanel({
     highlightLatestAssistantOnly: true,
     CreateChatPanel: PulseCreateChatPanel,
     useFlowComposerLayout: true,
+    composerMiddleContent: pulseGenerateGuardrail,
+    composerLeadingContent: pulseGenerateControl,
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
-    composerLeadingContent: null,
     chatHistoryHeaderContent: activePulseBanner,
     hideHeader: true,
   };
@@ -281,11 +299,6 @@ export function PulseCreatePropertiesPanel({
   return (
     <PulseCreatePanelView
       promptStepProps={promptStepProps}
-      onGeneratePulseArtifact={onGeneratePulseArtifact}
-      costCredits={costCredits}
-      isPromptGenerating={isPromptGenerating}
-      isGenerateDisabled={isGenerateDisabled}
-      guardrailReason={guardrailReason}
       createModeToggle={createModeToggle}
       activePulsePresetId={activePulsePresetId}
       hasActivePulseSession={hasActivePulseSession}

@@ -342,9 +342,9 @@ describe("associateGenerationWithProjectForUser", () => {
     });
     const recentAssociationBuilder = createAwaitableSelectBuilder({
       data: [
-        { generation_id: "gen-oldest", updated_at: "2026-04-18T16:30:00.000Z" },
-        { generation_id: "gen-newest", updated_at: "2026-04-18T16:30:00.000Z" },
-        { generation_id: "gen-middle", updated_at: "2026-04-18T16:30:00.000Z" },
+        { generation_id: "gen-newest", updated_at: "2026-04-18T16:13:00.000Z" },
+        { generation_id: "gen-middle", updated_at: "2026-04-18T16:12:00.000Z" },
+        { generation_id: "gen-oldest", updated_at: "2026-04-18T16:11:00.000Z" },
       ],
       error: null,
     });
@@ -353,7 +353,26 @@ describe("associateGenerationWithProjectForUser", () => {
       error: null,
     });
     const recentProjectionBuilder = createAwaitableSelectBuilder({
-      data: [],
+      data: [
+        {
+          generation_id: "gen-newest",
+          started_at: "2026-04-18T16:13:00.000Z",
+          created_at: "2026-04-18T16:13:00.000Z",
+          updated_at: "2026-04-18T16:13:05.000Z",
+        },
+        {
+          generation_id: "gen-middle",
+          started_at: "2026-04-18T16:12:00.000Z",
+          created_at: "2026-04-18T16:12:00.000Z",
+          updated_at: "2026-04-18T16:12:05.000Z",
+        },
+        {
+          generation_id: "gen-oldest",
+          started_at: "2026-04-18T16:11:00.000Z",
+          created_at: "2026-04-18T16:11:00.000Z",
+          updated_at: "2026-04-18T16:11:05.000Z",
+        },
+      ],
       error: null,
     });
     const projectionDetailsBuilder = createAwaitableSelectBuilder({
@@ -409,7 +428,9 @@ describe("associateGenerationWithProjectForUser", () => {
     });
     generationProjectionSelectMock.mockImplementation((columns: string) => {
       if (columns === "generation_id") return associationProjectionBuilder;
-      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
       return projectionDetailsBuilder;
     });
 
@@ -493,7 +514,9 @@ describe("associateGenerationWithProjectForUser", () => {
       return associationBuilder;
     });
     generationProjectionSelectMock.mockImplementation((columns: string) => {
-      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
       return projectionDetailsBuilder;
     });
 
@@ -594,7 +617,9 @@ describe("associateGenerationWithProjectForUser", () => {
       return associationBuilder;
     });
     generationProjectionSelectMock.mockImplementation((columns: string) => {
-      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
       return projectionDetailsBuilder;
     });
 
@@ -705,7 +730,9 @@ describe("associateGenerationWithProjectForUser", () => {
       return associationBuilder;
     });
     generationProjectionSelectMock.mockImplementation((columns: string) => {
-      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
       return projectionDetailsBuilder;
     });
     mediaOwnershipSelectMock.mockImplementation((columns: string) => {
@@ -751,5 +778,104 @@ describe("associateGenerationWithProjectForUser", () => {
         }),
       })
     );
+  });
+
+  it("keeps project snapshot generated outputs newest-first by addition or generation recency", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "gen-added-latest" }, { generation_id: "gen-started-latest" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        { generation_id: "gen-added-latest", updated_at: "2026-04-18T16:20:00.000Z" },
+        { generation_id: "gen-started-latest", updated_at: "2026-04-18T16:05:00.000Z" },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-started-latest",
+          started_at: "2026-04-18T16:15:00.000Z",
+          created_at: "2026-04-18T16:15:00.000Z",
+          updated_at: "2026-04-18T16:15:05.000Z",
+        },
+        {
+          generation_id: "gen-added-latest",
+          started_at: "2026-04-18T15:00:00.000Z",
+          created_at: "2026-04-18T15:00:00.000Z",
+          updated_at: "2026-04-18T15:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-started-latest",
+          started_at: "2026-04-18T16:15:00.000Z",
+          created_at: "2026-04-18T16:15:00.000Z",
+          updated_at: "2026-04-18T16:15:05.000Z",
+          request_id: "req-started-latest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Started latest",
+          preview_url: "https://fal.test/started-latest.png",
+          result_urls: ["https://fal.test/started-latest.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-added-latest",
+          started_at: "2026-04-18T15:00:00.000Z",
+          created_at: "2026-04-18T15:00:00.000Z",
+          updated_at: "2026-04-18T15:10:00.000Z",
+          request_id: "req-added-latest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Added latest",
+          preview_url: "https://fal.test/added-latest.png",
+          result_urls: ["https://fal.test/added-latest.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            { id: "local-started-latest", generationId: "gen-started-latest" },
+            { id: "local-added-latest", generationId: "gen-added-latest" },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const outputs = snapshot.outputs as { active: Array<{ id: string }> };
+    expect(outputs.active.map((row) => row.id)).toEqual([
+      "local-added-latest",
+      "local-started-latest",
+    ]);
   });
 });

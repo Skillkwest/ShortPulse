@@ -198,7 +198,6 @@ export type PulseCreateAgentRuntimeActions = {
 export type PulseCreateRuntimeProps = {
   pulsePrompt: string;
   hasActiveSession: boolean;
-  isPulseStartupPending: boolean;
   activePresetId: string | null;
   activePresetLabel: string | null;
   activePresetKind: CreatePulsePresetKind | null;

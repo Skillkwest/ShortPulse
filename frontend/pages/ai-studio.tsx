@@ -334,7 +334,6 @@ const useAiStudioCreatePanelRuntime = ({
         props: {
           pulsePrompt,
           hasActiveSession: hasActivePulseSession,
-          isPulseStartupPending,
           activePresetId: displayCreatePulsePresetId,
           activePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
           activePresetKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,

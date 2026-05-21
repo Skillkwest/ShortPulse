@@ -30,6 +30,8 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_replay",
   "character_context",
   "style_context",
+  "started_at",
+  "created_at",
   "updated_at",
   "hidden_in_reference_grid",
   "reference_grid_visible",
@@ -64,6 +66,8 @@ type ProjectGenerationProjectionRow = {
   generation_replay?: unknown;
   character_context?: unknown;
   style_context?: unknown;
+  started_at?: unknown;
+  created_at?: unknown;
   updated_at?: unknown;
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
@@ -100,6 +104,12 @@ const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length ? normalized : null;
+};
+
+const parseIsoTimestampMs = (value: unknown): number | null => {
+  const iso = asTrimmedString(value);
+  const parsed = Date.parse(iso ?? "");
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const asTrimmedStringArray = (value: unknown): string[] => {
@@ -254,9 +264,11 @@ const readRecentProjectAssociatedGenerationIds = async ({
 
   const { data: projectionData, error: projectionError } = await supabaseAdmin
     .from("generation_projection")
-    .select("generation_id, updated_at")
+    .select("generation_id, started_at, created_at, updated_at")
     .eq("user_id", userId)
     .eq("project_id", projectId)
+    .order("started_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
     .order("updated_at", { ascending: false })
     .limit(boundedLimit);
 
@@ -264,18 +276,18 @@ const readRecentProjectAssociatedGenerationIds = async ({
     throw new Error(projectionError.message || "Failed to load project-scoped projection ids");
   }
 
-  const generationIdsByUpdatedAt = new Map<string, string | null>();
+  const generationRecencyById = new Map<string, number | null>();
   (Array.isArray(data) ? data : [])
     .map((row) => {
       const record = asRecord(row);
       return {
         generationId: asTrimmedString(record.generation_id),
-        updatedAt: asTrimmedString(record.updated_at),
+        recencyMs: parseIsoTimestampMs(record.updated_at),
       };
     })
-    .forEach(({ generationId, updatedAt }) => {
+    .forEach(({ generationId, recencyMs }) => {
       if (!generationId) return;
-      generationIdsByUpdatedAt.set(generationId, updatedAt);
+      generationRecencyById.set(generationId, recencyMs);
     });
 
   (Array.isArray(projectionData) ? projectionData : [])
@@ -283,21 +295,28 @@ const readRecentProjectAssociatedGenerationIds = async ({
       const record = asRecord(row);
       return {
         generationId: asTrimmedString(record.generation_id),
-        updatedAt: asTrimmedString(record.updated_at),
+        recencyMs:
+          parseIsoTimestampMs(record.started_at) ??
+          parseIsoTimestampMs(record.created_at) ??
+          parseIsoTimestampMs(record.updated_at),
       };
     })
-    .forEach(({ generationId, updatedAt }) => {
+    .forEach(({ generationId, recencyMs }) => {
       if (!generationId) return;
-      generationIdsByUpdatedAt.set(
+      const existingRecencyMs = generationRecencyById.get(generationId) ?? null;
+      generationRecencyById.set(
         generationId,
-        updatedAt ?? generationIdsByUpdatedAt.get(generationId) ?? null
+        Math.max(
+          existingRecencyMs ?? Number.NEGATIVE_INFINITY,
+          recencyMs ?? Number.NEGATIVE_INFINITY
+        )
       );
     });
 
-  return [...generationIdsByUpdatedAt.entries()]
-    .sort(([, aUpdatedAt], [, bUpdatedAt]) => {
-      const aMs = Date.parse(aUpdatedAt ?? "");
-      const bMs = Date.parse(bUpdatedAt ?? "");
+  return [...generationRecencyById.entries()]
+    .sort(([, aRecencyMs], [, bRecencyMs]) => {
+      const aMs = aRecencyMs ?? Number.NEGATIVE_INFINITY;
+      const bMs = bRecencyMs ?? Number.NEGATIVE_INFINITY;
       return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
     })
     .slice(0, boundedLimit)
@@ -911,12 +930,14 @@ const createSnapshotOutputRowFromProjection = ({
 const areSnapshotRowsSameOrder = (left: SnapshotRecord[], right: SnapshotRecord[]): boolean =>
   left.length === right.length && left.every((row, index) => row === right[index]);
 
-const projectionUpdatedAtMs = (
+const projectionRecencyMs = (
   projection: ProjectGenerationProjectionRow | undefined
 ): number | null => {
-  const updatedAt = asTrimmedString(projection?.updated_at);
-  const updatedAtMs = Date.parse(updatedAt ?? "");
-  return Number.isFinite(updatedAtMs) ? updatedAtMs : null;
+  return (
+    parseIsoTimestampMs(projection?.started_at) ??
+    parseIsoTimestampMs(projection?.created_at) ??
+    parseIsoTimestampMs(projection?.updated_at)
+  );
 };
 
 const orderActiveSnapshotRowsByProjectGenerationRecency = ({
@@ -936,7 +957,7 @@ const orderActiveSnapshotRowsByProjectGenerationRecency = ({
     row: SnapshotRecord;
     index: number;
     rank: number | null;
-    updatedAtMs: number | null;
+    recencyMs: number | null;
   }> = [];
   const unrankedRows: SnapshotRecord[] = [];
 
@@ -947,9 +968,9 @@ const orderActiveSnapshotRowsByProjectGenerationRecency = ({
       return;
     }
     const rank = generationRankById.get(generationId) ?? null;
-    const updatedAtMs = projectionUpdatedAtMs(projectionByGenerationId.get(generationId));
-    if (updatedAtMs !== null || rank !== null) {
-      rankedRows.push({ row, index, rank, updatedAtMs });
+    const recencyMs = projectionRecencyMs(projectionByGenerationId.get(generationId));
+    if (rank !== null || recencyMs !== null) {
+      rankedRows.push({ row, index, rank, recencyMs });
       return;
     }
     unrankedRows.push(row);
@@ -959,11 +980,11 @@ const orderActiveSnapshotRowsByProjectGenerationRecency = ({
   return [
     ...rankedRows
       .sort((left, right) => {
-        const leftUpdatedAtMs = left.updatedAtMs ?? Number.NEGATIVE_INFINITY;
-        const rightUpdatedAtMs = right.updatedAtMs ?? Number.NEGATIVE_INFINITY;
+        const leftRecencyMs = left.recencyMs ?? Number.NEGATIVE_INFINITY;
+        const rightRecencyMs = right.recencyMs ?? Number.NEGATIVE_INFINITY;
         return (
-          rightUpdatedAtMs - leftUpdatedAtMs ||
           (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) ||
+          rightRecencyMs - leftRecencyMs ||
           left.index - right.index
         );
       })

@@ -3,7 +3,6 @@
  * Renders the full-page loading and error experience shown while project identity and
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
-import Image from "next/image";
 import React from "react";
 
 export type AiStudioProjectEntryPhase =
@@ -37,6 +36,9 @@ type AiStudioProjectEntryStateProps = {
 };
 
 type EntryStepState = "complete" | "active" | "pending";
+const ENTRY_MARK_VIEWBOX_WIDTH = 976;
+const ENTRY_MARK_VIEWBOX_HEIGHT = 310;
+const ENTRY_MARK_SVG_PATH = "/loading-entry/bgsvg.svg";
 
 const isExperimentalEntryAnimationEnabled = (requested: boolean): boolean =>
   requested && process.env.NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT !== "false";
@@ -166,46 +168,70 @@ export function AiStudioProjectEntryState({
   const liveMode = variant === "error" ? "assertive" : "polite";
   const shouldUseExperimentalAnimation =
     variant === "loading" && isExperimentalEntryAnimationEnabled(enableExperimentalAnimation);
-  const [backgroundImageReady, setBackgroundImageReady] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!shouldUseExperimentalAnimation) {
-      setBackgroundImageReady(false);
-    }
-  }, [shouldUseExperimentalAnimation]);
+  const clipPathId = React.useId().replace(/:/g, "_");
+  const pulseGradientId = `${clipPathId}_pulse_gradient`;
+  const bloomGradientId = `${clipPathId}_bloom_gradient`;
+  const bloomFilterId = `${clipPathId}_bloom_filter`;
 
   if (shouldUseExperimentalAnimation) {
     return (
       <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
-            <div className="ai-studio-project-entry-pulse-lane">
-              <div
-                className={`ai-studio-project-entry-pulse-runner${backgroundImageReady ? " is-visible" : ""}`}
-              >
-                <Image
-                  src="/loading-entry/pulse.png"
-                  alt=""
-                  aria-hidden="true"
-                  width={87}
-                  height={224}
-                  priority
-                  className="ai-studio-project-entry-pulse-image"
-                />
-              </div>
-            </div>
-            <Image
-              src="/loading-entry/bgsvg.svg"
-              alt=""
-              aria-hidden="true"
-              width={976}
-              height={310}
-              priority
-              className="ai-studio-project-entry-bg-image"
-              onLoad={() => {
-                setBackgroundImageReady(true);
-              }}
-            />
+            <svg
+              className="ai-studio-project-entry-mark-svg"
+              viewBox={`0 0 ${ENTRY_MARK_VIEWBOX_WIDTH} ${ENTRY_MARK_VIEWBOX_HEIGHT}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <clipPath id={clipPathId} clipPathUnits="userSpaceOnUse">
+                  <use href={`${ENTRY_MARK_SVG_PATH}#entry-mark-outer`} />
+                  <use href={`${ENTRY_MARK_SVG_PATH}#entry-mark-inner`} />
+                </clipPath>
+                <linearGradient id={pulseGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ed145b" stopOpacity="0" />
+                  <stop offset="20%" stopColor="#ed145b" stopOpacity="0.15" />
+                  <stop offset="50%" stopColor="#ff437c" stopOpacity="0.98" />
+                  <stop offset="78%" stopColor="#ed145b" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#ed145b" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id={bloomGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ed145b" stopOpacity="0" />
+                  <stop offset="30%" stopColor="#ed145b" stopOpacity="0.1" />
+                  <stop offset="50%" stopColor="#ff588e" stopOpacity="0.5" />
+                  <stop offset="70%" stopColor="#ed145b" stopOpacity="0.14" />
+                  <stop offset="100%" stopColor="#ed145b" stopOpacity="0" />
+                </linearGradient>
+                <filter id={bloomFilterId} x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="18" />
+                </filter>
+              </defs>
+              <g clipPath={`url(#${clipPathId})`}>
+                <g className="ai-studio-project-entry-pulse-motion">
+                  <rect
+                    className="ai-studio-project-entry-pulse-bloom"
+                    x="-320"
+                    y="0"
+                    width="320"
+                    height={ENTRY_MARK_VIEWBOX_HEIGHT}
+                    fill={`url(#${bloomGradientId})`}
+                    filter={`url(#${bloomFilterId})`}
+                  />
+                  <rect
+                    className="ai-studio-project-entry-pulse-sweep"
+                    x="-220"
+                    y="0"
+                    width="220"
+                    height={ENTRY_MARK_VIEWBOX_HEIGHT}
+                    fill={`url(#${pulseGradientId})`}
+                  />
+                </g>
+              </g>
+              <g className="ai-studio-project-entry-mark-outline">
+                <use href={`${ENTRY_MARK_SVG_PATH}#entry-mark-outer`} />
+                <use href={`${ENTRY_MARK_SVG_PATH}#entry-mark-inner`} />
+              </g>
+            </svg>
           </div>
         </section>
 

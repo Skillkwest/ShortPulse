@@ -82,10 +82,7 @@ describe("Create generate guardrail messaging", () => {
     render(
       <PulseCreatePanelView
         promptStepProps={{} as PromptStepProps}
-        onGeneratePulseArtifact={vi.fn()}
-        costCredits={15}
         isPromptGenerating={false}
-        isGenerateDisabled={false}
         activePulsePresetId="story_builder"
       />
     );
@@ -110,10 +107,7 @@ describe("Create generate guardrail messaging", () => {
             },
           } as unknown as PromptStepProps
         }
-        onGeneratePulseArtifact={vi.fn()}
-        costCredits={15}
         isPromptGenerating={false}
-        isGenerateDisabled={false}
         activePulsePresetId="multi_shot"
         pulsePreferenceRuntime={pulsePreferenceRuntime}
       />
@@ -136,11 +130,8 @@ describe("Create generate guardrail messaging", () => {
             onClearAgentChat: vi.fn(),
           } as unknown as PromptStepProps
         }
-        onGeneratePulseArtifact={vi.fn()}
         onPulsePresetRestart={vi.fn()}
-        costCredits={15}
         isPromptGenerating={false}
-        isGenerateDisabled={false}
         activePulsePresetId="story_builder"
         hasActivePulseSession
         pulsePreferenceRuntime={pulsePreferenceRuntime}
@@ -149,9 +140,6 @@ describe("Create generate guardrail messaging", () => {
 
     expect(screen.getByRole("button", { name: "Restart pulse" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate" })).toHaveClass(
-      "agent-response-inline-generate-prefab"
-    );
   });
 
   it("locks restart and deactivate actions while a Pulse artifact is generating", () => {
@@ -162,11 +150,8 @@ describe("Create generate guardrail messaging", () => {
             onClearAgentChat: vi.fn(),
           } as unknown as PromptStepProps
         }
-        onGeneratePulseArtifact={vi.fn()}
         onPulsePresetRestart={vi.fn()}
-        costCredits={15}
         isPromptGenerating
-        isGenerateDisabled={false}
         activePulsePresetId="story_builder"
         hasActivePulseSession
         pulsePreferenceRuntime={pulsePreferenceRuntime}

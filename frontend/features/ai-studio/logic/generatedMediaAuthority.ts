@@ -58,6 +58,8 @@ type GenerationProjectionDeliveryRow = {
   generation_replay?: unknown;
   character_context?: unknown;
   style_context?: unknown;
+  started_at?: unknown;
+  created_at?: unknown;
   updated_at?: unknown;
 };
 
@@ -84,6 +86,8 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "generation_replay",
   "character_context",
   "style_context",
+  "started_at",
+  "created_at",
   "updated_at",
 ].join(", ");
 
@@ -145,6 +149,17 @@ const asTrimmedString = (value: unknown): string | null => {
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
 };
+
+const parseIsoTimestampMs = (value: unknown): number | null => {
+  const iso = asTrimmedString(value);
+  const parsed = Date.parse(iso ?? "");
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveGenerationProjectionRecencyMs = (row: Record<string, unknown>): number | null =>
+  parseIsoTimestampMs(row.started_at) ??
+  parseIsoTimestampMs(row.created_at) ??
+  parseIsoTimestampMs(row.updated_at);
 
 const resolveProjectId = (value: string | null | undefined): string | null =>
   asTrimmedString(value);
@@ -1450,22 +1465,38 @@ export const listVisibleGeneratedOutputs = async ({
         .eq("project_id", normalizedProjectId)
         .order("updated_at", { ascending: false })
         .limit(boundedLimit);
-      const projectGenerationIds =
+      const projectGenerationRows =
         projectGenerationError || !Array.isArray(projectGenerationData)
           ? []
           : projectGenerationData
-              .map((row) =>
-                row && typeof row === "object" && !Array.isArray(row)
-                  ? asTrimmedString((row as Record<string, unknown>).generation_id)
-                  : null
-              )
-              .filter((generationId): generationId is string => Boolean(generationId));
+              .map((row) => {
+                const record =
+                  row && typeof row === "object" && !Array.isArray(row)
+                    ? (row as Record<string, unknown>)
+                    : null;
+                return {
+                  generationId: record ? asTrimmedString(record.generation_id) : null,
+                  associatedAtMs: record ? parseIsoTimestampMs(record.updated_at) : null,
+                };
+              })
+              .filter((row): row is { generationId: string; associatedAtMs: number | null } =>
+                Boolean(row.generationId)
+              );
+      const projectGenerationIds = projectGenerationRows.map((row) => row.generationId);
+      const projectAssociationRecencyById = new Map(
+        projectGenerationRows.map(({ generationId, associatedAtMs }) => [
+          generationId,
+          associatedAtMs,
+        ])
+      );
 
       const directProjectQuery = supabase
         .from("generation_projection")
         .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
         .eq("user_id", userId)
         .eq("project_id", normalizedProjectId)
+        .order("started_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(boundedLimit);
       const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
@@ -1477,6 +1508,8 @@ export const listVisibleGeneratedOutputs = async ({
                 .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
                 .eq("user_id", userId)
                 .in("generation_id", projectGenerationIds)
+                .order("started_at", { ascending: false, nullsFirst: false })
+                .order("created_at", { ascending: false })
                 .order("updated_at", { ascending: false })
                 .limit(boundedLimit)
             : Promise.resolve({ data: [], error: null }),
@@ -1498,15 +1531,29 @@ export const listVisibleGeneratedOutputs = async ({
       });
       data = [...rowsByGenerationId.values()]
         .sort((a, b) => {
-          const aUpdatedAt = Date.parse(
-            asTrimmedString((a as Record<string, unknown>).updated_at) ?? ""
+          const aRecord = a as Record<string, unknown>;
+          const bRecord = b as Record<string, unknown>;
+          const aGenerationId = asTrimmedString(aRecord.generation_id);
+          const bGenerationId = asTrimmedString(bRecord.generation_id);
+          const aProjectionRecencyMs = resolveGenerationProjectionRecencyMs(aRecord);
+          const bProjectionRecencyMs = resolveGenerationProjectionRecencyMs(bRecord);
+          const aAssociationRecencyMs = aGenerationId
+            ? (projectAssociationRecencyById.get(aGenerationId) ?? null)
+            : null;
+          const bAssociationRecencyMs = bGenerationId
+            ? (projectAssociationRecencyById.get(bGenerationId) ?? null)
+            : null;
+          const aRecencyMs = Math.max(
+            aProjectionRecencyMs ?? Number.NEGATIVE_INFINITY,
+            aAssociationRecencyMs ?? Number.NEGATIVE_INFINITY
           );
-          const bUpdatedAt = Date.parse(
-            asTrimmedString((b as Record<string, unknown>).updated_at) ?? ""
+          const bRecencyMs = Math.max(
+            bProjectionRecencyMs ?? Number.NEGATIVE_INFINITY,
+            bAssociationRecencyMs ?? Number.NEGATIVE_INFINITY
           );
           return (
-            (Number.isFinite(bUpdatedAt) ? bUpdatedAt : 0) -
-            (Number.isFinite(aUpdatedAt) ? aUpdatedAt : 0)
+            (Number.isFinite(bRecencyMs) ? bRecencyMs : 0) -
+            (Number.isFinite(aRecencyMs) ? aRecencyMs : 0)
           );
         })
         .slice(0, boundedLimit);
@@ -1515,11 +1562,28 @@ export const listVisibleGeneratedOutputs = async ({
         .from("generation_projection")
         .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
         .eq("user_id", userId)
+        .order("started_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(boundedLimit);
       const projectionResult = await projectionQuery;
       if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
-      data = projectionResult.data;
+      data = [...projectionResult.data].sort((a, b) => {
+        const aRecencyMs =
+          a && typeof a === "object" && !Array.isArray(a)
+            ? resolveGenerationProjectionRecencyMs(a as Record<string, unknown>)
+            : null;
+        const bRecencyMs =
+          b && typeof b === "object" && !Array.isArray(b)
+            ? resolveGenerationProjectionRecencyMs(b as Record<string, unknown>)
+            : null;
+        const normalizedARecencyMs = aRecencyMs ?? 0;
+        const normalizedBRecencyMs = bRecencyMs ?? 0;
+        return (
+          (Number.isFinite(normalizedBRecencyMs) ? normalizedBRecencyMs : 0) -
+          (Number.isFinite(normalizedARecencyMs) ? normalizedARecencyMs : 0)
+        );
+      });
     }
 
     const outputs = data

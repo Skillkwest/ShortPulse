@@ -49,7 +49,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characterSheetAssignments: createEmptyCharacterSheetAssignments(),
     activeCharacterSheetPresetId: "1",
     characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
-    visibleCharacterSheetPresetIds: ["1"],
+    visibleCharacterSheetPresetIds: createDefaultCharacterSheetPresetState().tabOrder,
     characterSheetPresetLabels: Object.fromEntries(
       CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
         presetId,

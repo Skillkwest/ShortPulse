@@ -1181,12 +1181,39 @@
   justify-content: center;
 }
 
-.voices-properties-compose-mode-switcher .voices-properties-mode-tab {
-  padding-inline: 18px;
+.voices-properties-compose-mode-switcher .voices-properties-mode-control-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 14px;
+  background: rgba(16, 19, 24, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 6px 14px rgba(0, 0, 0, 0.14);
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-column: 1 / span 2;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab,
+.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab {
+  min-width: 0;
+  padding-inline: 18px;
+}
+
+.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab {
+  grid-column: 3;
 }
 
 @media (max-width: 900px) {
@@ -2789,6 +2816,14 @@
 }
 
 .voices-properties-mode-tab.is-active[data-voice-mode="voice-changer"] {
+  background: linear-gradient(135deg, rgba(255, 186, 114, 0.95), rgba(255, 124, 124, 0.9));
+  color: rgba(18, 14, 12, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 220, 0.16),
+    0 0 0 1px rgba(255, 186, 114, 0.22);
+}
+
+.voices-properties-mode-tab.is-active[data-voice-mode="voice-clone"] {
   background: linear-gradient(135deg, rgba(255, 186, 114, 0.95), rgba(255, 124, 124, 0.9));
   color: rgba(18, 14, 12, 0.94);
   box-shadow:

@@ -929,6 +929,96 @@ describe("generatedMediaAuthority", () => {
     ]);
   });
 
+  it("orders generated outputs newest-first by generation recency instead of projection updated_at", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-older-touched-late",
+          request_id: "req-older-touched-late",
+          source_ref: "source-older-touched-late",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Older generation touched later",
+          preview_url: "https://fal.test/older.png",
+          result_urls: ["https://fal.test/older.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          started_at: "2026-04-18T16:00:00.000Z",
+          created_at: "2026-04-18T16:00:00.000Z",
+          updated_at: "2026-04-18T16:20:00.000Z",
+        },
+        {
+          generation_id: "gen-newest-started",
+          request_id: "req-newest-started",
+          source_ref: "source-newest-started",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Newest generation",
+          preview_url: "https://fal.test/newest.png",
+          result_urls: ["https://fal.test/newest.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          started_at: "2026-04-18T16:10:00.000Z",
+          created_at: "2026-04-18T16:10:00.000Z",
+          updated_at: "2026-04-18T16:10:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({ generationId: "gen-newest-started" }),
+      expect.objectContaining({ generationId: "gen-older-touched-late" }),
+    ]);
+  });
+
   it("hydrates completed generated videos with published poster storage paths", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([
@@ -1600,6 +1690,96 @@ describe("generatedMediaAuthority", () => {
     ]);
     expect(projectGenerationBuilder.eq).toHaveBeenCalledWith("project_id", "project-1");
     expect(projectionBuilder.in).toHaveBeenCalledWith("generation_id", ["gen-project-visible-1"]);
+  });
+
+  it("orders project generated outputs by newest addition or generation start", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-added-latest",
+          updated_at: "2026-04-18T16:20:00.000Z",
+        },
+        {
+          generation_id: "gen-started-latest",
+          updated_at: "2026-04-18T16:05:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-started-latest",
+          request_id: "req-started-latest",
+          source_ref: "source-started-latest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Started latest",
+          preview_url: "https://fal.test/started-latest.png",
+          result_urls: ["https://fal.test/started-latest.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          started_at: "2026-04-18T16:15:00.000Z",
+          created_at: "2026-04-18T16:15:00.000Z",
+          updated_at: "2026-04-18T16:15:05.000Z",
+        },
+        {
+          generation_id: "gen-added-latest",
+          request_id: "req-added-latest",
+          source_ref: "source-added-latest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Added latest",
+          preview_url: "https://fal.test/added-latest.png",
+          result_urls: ["https://fal.test/added-latest.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          started_at: "2026-04-18T15:00:00.000Z",
+          created_at: "2026-04-18T15:00:00.000Z",
+          updated_at: "2026-04-18T15:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([
+      expect.objectContaining({ generationId: "gen-added-latest" }),
+      expect.objectContaining({ generationId: "gen-started-latest" }),
+    ]);
   });
 
   it("lists project-scoped projection outputs when association rows are missing", async () => {

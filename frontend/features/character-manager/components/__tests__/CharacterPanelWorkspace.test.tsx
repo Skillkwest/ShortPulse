@@ -35,7 +35,7 @@ const createDraftState = () => ({
   characterSheetAssignments: createEmptyCharacterSheetAssignments(),
   activeCharacterSheetPresetId: "1" as const,
   characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
-  visibleCharacterSheetPresetIds: ["1"],
+  visibleCharacterSheetPresetIds: createDefaultCharacterSheetPresetState().tabOrder,
   characterSheetPresetLabels: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
       presetId,
@@ -138,6 +138,7 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "5" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Description:" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Saved characters" })).not.toBeInTheDocument();
     expect(screen.queryByText("No saved characters yet.")).not.toBeInTheDocument();

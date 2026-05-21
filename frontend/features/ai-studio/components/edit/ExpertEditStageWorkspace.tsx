@@ -140,7 +140,7 @@ export function ExpertEditStageWorkspace({
                 <div className="edit-expert-stage-overlay-ui">
                   <button
                     type="button"
-                    className="edit-expert-layer-delete-btn edit-expert-stage-delete-btn"
+                    className="edit-expert-stage-delete-btn"
                     aria-label={`Delete selected layer (${selectedLayerName})`}
                     onClick={onDeleteSelectedLayer}
                   >

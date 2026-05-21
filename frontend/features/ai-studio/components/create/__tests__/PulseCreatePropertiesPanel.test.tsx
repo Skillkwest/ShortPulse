@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PulseCreatePropertiesPanel } from "../PulseCreatePropertiesPanel";
 
@@ -12,6 +12,8 @@ vi.mock("../PulseCreatePanelView", () => ({
       pulseLoadingState?: { message?: string | null } | null;
       hideHeader?: boolean;
       chatHistoryHeaderContent?: React.ReactNode;
+      composerLeadingContent?: React.ReactNode;
+      composerMiddleContent?: React.ReactNode;
     };
     onPulsePresetRestart?: unknown;
   }) => (
@@ -21,6 +23,8 @@ vi.mock("../PulseCreatePanelView", () => ({
       </span>
       <span data-testid="pulse-hide-header">{String(Boolean(promptStepProps.hideHeader))}</span>
       <div data-testid="pulse-history-header">{promptStepProps.chatHistoryHeaderContent}</div>
+      <div data-testid="pulse-leading-content">{promptStepProps.composerLeadingContent}</div>
+      <div data-testid="pulse-middle-content">{promptStepProps.composerMiddleContent}</div>
       <span data-testid="pulse-restart-wired">{String(Boolean(onPulsePresetRestart))}</span>
     </div>
   ),
@@ -125,6 +129,29 @@ describe("PulseCreatePropertiesPanel", () => {
     );
 
     expect(screen.getByTestId("pulse-restart-wired")).toHaveTextContent("true");
+  });
+
+  it("mounts Pulse generate in composer-leading content and keeps guardrail copy separate", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        costCredits={4}
+        isPromptGenerating
+        isGenerateDisabled
+        guardrailReason="Complete the active Pulse before generating."
+      />
+    );
+
+    expect(
+      within(screen.getByTestId("pulse-leading-content")).getByRole("button", {
+        name: "Generate",
+      })
+    ).toHaveAttribute("aria-busy", "true");
+    expect(
+      within(screen.getByTestId("pulse-middle-content")).getByText(
+        "Complete the active Pulse before generating."
+      )
+    ).toBeInTheDocument();
   });
 
   it("uses a concise completion summary instead of rendering the full final artifact in the banner", () => {

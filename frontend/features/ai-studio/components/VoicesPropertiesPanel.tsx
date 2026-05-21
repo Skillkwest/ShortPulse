@@ -390,6 +390,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const voiceCloneShortcutTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const previewAudioVoiceIdRef = React.useRef<string | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
@@ -398,10 +399,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const previousCloneVoiceSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
   const shouldRestoreVoicesLibraryTriggerFocusRef = React.useRef(false);
+  const shouldRestoreCreateVoiceTriggerFocusRef = React.useRef(false);
+  const createVoiceTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const voiceChangerSourceRequestIdRef = React.useRef(0);
   const cloneVoiceSourceRequestIdRef = React.useRef(0);
   const requiresProviderVoice = Boolean(onGenerate);
-  const isCreateVoiceModalOpen = isCreatePanelOpen && surfaceMode === "create";
+  const isCreateVoiceModalOpen = isCreatePanelOpen;
   const isSelectedVoiceProviderReady =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
   const normalizedVoicePromptLength = voicePrompt.trim().length;
@@ -522,6 +525,20 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
   }, [isVoicesLibraryModalOpen]);
 
+  React.useEffect(() => {
+    if (isCreateVoiceModalOpen) {
+      return;
+    }
+    if (!shouldRestoreCreateVoiceTriggerFocusRef.current) {
+      return;
+    }
+    queueMicrotask(() => {
+      createVoiceTriggerRef.current?.focus();
+      createVoiceTriggerRef.current = null;
+    });
+    shouldRestoreCreateVoiceTriggerFocusRef.current = false;
+  }, [isCreateVoiceModalOpen]);
+
   const stopActiveDesignedPreview = React.useCallback(() => {
     const activeAudio = designedPreviewAudioRef.current;
     const activeInstanceKey = designedPreviewAudioIdRef.current
@@ -550,26 +567,29 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setActiveDesignedPreviewId(null);
   }, []);
 
-  const resetCreateVoiceModalState = React.useCallback(() => {
-    stopActiveDesignedPreview();
-    releaseVoiceChangerSource(previousCloneVoiceSourceRef.current);
-    previousCloneVoiceSourceRef.current = null;
-    setVoiceName(createVoiceDefaultName);
-    setVoicePrompt("");
-    setCreateVoiceMode("generate");
-    setVoiceDesignPreviews([]);
-    setSelectedVoiceDesignPreviewId(null);
-    setPlayedVoiceDesignPreviewIds([]);
-    setVoiceDesignPreviewText(null);
-    setVoiceDesignError(null);
-    setSaveVoiceError(null);
-    setIsDesigningVoice(false);
-    setIsSavingDesignedVoice(false);
-    setCloneVoiceSource(null);
-    setIsCloneConsentChecked(false);
-    setCloneVoiceError(null);
-    setIsCloningVoice(false);
-  }, [setVoicePrompt, stopActiveDesignedPreview]);
+  const resetCreateVoiceModalState = React.useCallback(
+    (nextMode: CreateVoiceMode = "generate") => {
+      stopActiveDesignedPreview();
+      releaseVoiceChangerSource(previousCloneVoiceSourceRef.current);
+      previousCloneVoiceSourceRef.current = null;
+      setVoiceName(createVoiceDefaultName);
+      setVoicePrompt("");
+      setCreateVoiceMode(nextMode);
+      setVoiceDesignPreviews([]);
+      setSelectedVoiceDesignPreviewId(null);
+      setPlayedVoiceDesignPreviewIds([]);
+      setVoiceDesignPreviewText(null);
+      setVoiceDesignError(null);
+      setSaveVoiceError(null);
+      setIsDesigningVoice(false);
+      setIsSavingDesignedVoice(false);
+      setCloneVoiceSource(null);
+      setIsCloneConsentChecked(false);
+      setCloneVoiceError(null);
+      setIsCloningVoice(false);
+    },
+    [setVoicePrompt, stopActiveDesignedPreview]
+  );
 
   const handleVoiceChangerSourceChange = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
@@ -1094,14 +1114,43 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     event.dataTransfer.dropEffect = "copy";
   };
 
+  const openCreateVoiceModal = React.useCallback(
+    (
+      initialMode: CreateVoiceMode,
+      options?: {
+        nextSurfaceMode?: VoicesSurfaceMode | null;
+        restoreFocusTo?: HTMLButtonElement | null;
+      }
+    ) => {
+      const nextSurfaceMode = options?.nextSurfaceMode ?? null;
+      const restoreFocusTo = options?.restoreFocusTo ?? null;
+
+      shouldFocusCreateControlsRef.current = true;
+      shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
+      shouldRestoreCreateVoiceTriggerFocusRef.current = restoreFocusTo !== null;
+      createVoiceTriggerRef.current = restoreFocusTo;
+      setIsVoicesLibraryModalOpen(false);
+      if (nextSurfaceMode) {
+        handleSurfaceModeChange(nextSurfaceMode);
+      }
+      resetCreateVoiceModalState(initialMode);
+      setIsCreatePanelOpen(true);
+    },
+    [handleSurfaceModeChange, resetCreateVoiceModalState]
+  );
+
   const handleCreateVoiceEntry = React.useCallback(() => {
-    shouldFocusCreateControlsRef.current = true;
-    shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
-    setIsVoicesLibraryModalOpen(false);
-    handleSurfaceModeChange("create");
-    resetCreateVoiceModalState();
-    setIsCreatePanelOpen(true);
-  }, [handleSurfaceModeChange, resetCreateVoiceModalState]);
+    openCreateVoiceModal("generate", {
+      nextSurfaceMode: "create",
+      restoreFocusTo: voicesLibraryTriggerRef.current,
+    });
+  }, [openCreateVoiceModal]);
+
+  const handleVoiceCloneShortcutEntry = React.useCallback(() => {
+    openCreateVoiceModal("clone", {
+      restoreFocusTo: voiceCloneShortcutTriggerRef.current,
+    });
+  }, [openCreateVoiceModal]);
 
   const handleCloseCreatePanel = React.useCallback(() => {
     resetCreateVoiceModalState();
@@ -1576,44 +1625,49 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
                     <span className="voices-properties-mode-switcher-label">Voice Mode</span>
-                    <div
-                      className="voices-properties-mode-tabs"
-                      role="tablist"
-                      aria-label="Voice mode"
-                    >
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={surfaceMode === "create"}
-                        data-voice-mode="voiceover"
-                        className={`voices-properties-mode-tab ${
-                          surfaceMode === "create" ? "is-active" : ""
-                        }`}
-                        onClick={() => handleSurfaceModeChange("create")}
+                    <div className="voices-properties-mode-control-row">
+                      <div
+                        className="voices-properties-mode-tabs"
+                        role="tablist"
+                        aria-label="Voice mode"
                       >
-                        Voiceover
-                      </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={surfaceMode === "create"}
+                          data-voice-mode="voiceover"
+                          className={`voices-properties-mode-tab ${
+                            surfaceMode === "create" ? "is-active" : ""
+                          }`}
+                          onClick={() => handleSurfaceModeChange("create")}
+                        >
+                          Voiceover
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={surfaceMode === "edit"}
+                          data-voice-mode="voice-changer"
+                          className={`voices-properties-mode-tab ${
+                            surfaceMode === "edit" ? "is-active" : ""
+                          }`}
+                          onClick={() => {
+                            handleSurfaceModeChange("edit");
+                            setIsCreatePanelOpen(false);
+                          }}
+                        >
+                          Voice Changer
+                        </button>
+                      </div>
                       <button
+                        ref={voiceCloneShortcutTriggerRef}
                         type="button"
-                        role="tab"
-                        aria-selected={surfaceMode === "edit"}
-                        data-voice-mode="voice-changer"
-                        className={`voices-properties-mode-tab ${
-                          surfaceMode === "edit" ? "is-active" : ""
-                        }`}
-                        onClick={() => {
-                          handleSurfaceModeChange("edit");
-                          setIsCreatePanelOpen(false);
-                        }}
-                      >
-                        Voice Changer
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected="false"
                         data-voice-mode="voice-clone"
-                        className="voices-properties-mode-tab"
+                        aria-haspopup="dialog"
+                        className={`voices-properties-mode-tab voices-properties-mode-shortcut-tab ${
+                          isCreateVoiceModalOpen && createVoiceMode === "clone" ? "is-active" : ""
+                        }`}
+                        onClick={handleVoiceCloneShortcutEntry}
                       >
                         Voice Clone
                       </button>

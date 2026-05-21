@@ -299,6 +299,7 @@ export function PulseCreatePropertiesPanel({
   return (
     <PulseCreatePanelView
       promptStepProps={promptStepProps}
+      isPromptGenerating={isPromptGenerating}
       createModeToggle={createModeToggle}
       activePulsePresetId={activePulsePresetId}
       hasActivePulseSession={hasActivePulseSession}

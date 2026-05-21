@@ -1398,7 +1398,7 @@ describe("VoicesPropertiesPanel", () => {
     });
   });
 
-  it("closes the create modal without inserting a fake local voice", () => {
+  it("closes the create modal without inserting a fake local voice", async () => {
     render(<VoicesPropertiesPanel />);
 
     const voicesButton = screen.getByRole("button", { name: "Voices" });
@@ -1414,11 +1414,14 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close create voice modal" }));
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(voicesButton).toHaveFocus();
+    });
     fireEvent.click(voicesButton);
     expect(screen.queryByRole("button", { name: /beacon voice/i })).not.toBeInTheDocument();
   });
 
-  it("closes the clone shortcut modal without leaving it mounted", async () => {
+  it("restores focus to the voice clone shortcut when its modal is closed", async () => {
     render(<VoicesPropertiesPanel />);
 
     const voiceCloneButton = screen.getByRole("button", { name: "Voice Clone" });
@@ -1431,7 +1434,7 @@ describe("VoicesPropertiesPanel", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     });
-    expect(voiceCloneButton).toBeInTheDocument();
+    expect(voiceCloneButton).toHaveFocus();
   });
 
   it("generates previews and saves the selected provider voice into the voices grid", async () => {

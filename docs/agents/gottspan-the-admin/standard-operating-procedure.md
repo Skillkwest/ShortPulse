@@ -28,12 +28,21 @@ This SOP governs:
 - agent-surface stewardship and routing
 - Gottspan memory/report/artifact maintenance
 
+## Default Recurring Workflow
+
+When no narrower task is specified, Gottspan's default recurring workflow is:
+
+- `docs/agents/gottspan-the-admin/weekly-repo-steward-run.md`
+
+Use that weekly run to create one concise repo-state report instead of broadening the scope into multiple overlapping governance tasks.
+
 ## Canonical Surfaces
 
 ### Gottspan authority
 
 - `docs/agents/gottspan-the-admin/README.md`
 - `docs/agents/gottspan-the-admin/memory.md`
+- `docs/agents/gottspan-the-admin/runtime-load-policy.md`
 - `docs/agents/gottspan-the-admin/ux-playbook.md`
 
 ### Retained artifacts
@@ -88,7 +97,7 @@ Use when another task-specific agent's contract, memory, artifact surface, or ro
 ### Step 1. Start with repo rules
 
 - Follow the root `AGENTS.md` startup contract.
-- Load Gottspan's contract and memory.
+- Load Gottspan's contract, memory, and runtime-load policy.
 - Load only the smallest relevant docs and code for the actual lane.
 
 ### Step 2. Audit repo posture first
@@ -142,7 +151,7 @@ Do not create sprawl when a smaller durable fix will solve the problem.
 Route deliberately when the issue is primarily:
 
 - board/work-queue state -> Ophestivus
-- branch/PR/worktree execution -> Gear Ball
+- branch/PR/worktree execution, staging, or commits -> Gear Ball
 - environment ladder / Vercel / Supabase project posture -> Nuclo
 - system rating / queue priority / ship-floor scoring -> Copperknot
 
@@ -180,6 +189,7 @@ A Gottspan run is done only when:
 Stop and ask for human review when:
 
 - the next action would require branch changes, promotion, deployment, or destructive operations without explicit instruction,
+- the next action would require staging or committing changes, because commit ownership belongs to Gear Ball,
 - credentials or security boundaries block verification,
 - the issue cannot be resolved without a different specialized authority,
 - or the repo evidence is too weak to support a safe conclusion.

@@ -1,6 +1,6 @@
 # Gear Ball Hot Path Checklist
 
-Purpose: give Gear Ball a compact execution checklist for normal worktree batching and publish runs. Use this as the hot path. Use the full SOP when a step is unclear or the run is unusual.
+Purpose: give Gear Ball the compact execution checklist for its real job: analyze the worktree, validate the intended batch enough, commit it, and push it.
 
 ## Before First Edit Or Git Write
 
@@ -12,7 +12,8 @@ Purpose: give Gear Ball a compact execution checklist for normal worktree batchi
    - `docs-only`
    - `product-targeted`
    - `shared-runtime`
-   - `production-critical`
+   - `production-targeted`
+   - `production-broad`
 6. If the run is large or mixed, lock a file-backed manifest before staging.
 
 ## Default Profiles
@@ -48,7 +49,19 @@ Purpose: give Gear Ball a compact execution checklist for normal worktree batchi
 7. Commit.
 8. Push if asked.
 
-### `production-critical`
+### `production-targeted`
+
+1. Inventory the diff.
+2. Default to one commit unless a real risk boundary exists.
+3. Run `gear-ball:preflight`.
+4. Run targeted tests.
+5. Run `build`.
+6. Run stricter leftover audits.
+7. Run smoke only when the changed route and profile require it.
+8. Commit.
+9. Push if asked.
+
+### `production-broad`
 
 1. Inventory the diff.
 2. Default to one commit unless a real risk boundary exists.
@@ -69,24 +82,13 @@ Purpose: give Gear Ball a compact execution checklist for normal worktree batchi
 4. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
 5. Before push, rerun only the final required validation on the exact final tree.
 6. Push only the approved branch.
+7. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 
-Always:
-
 1. Self-audit the run.
 2. Score it out of 10.
-
-Only when exception-triggered:
-
-3. Update retained reports/training/KPIs/process docs if:
-   - the run was `production-critical`
-   - the score was below threshold
-   - a new recurring failure mode appeared
-   - or the process/tooling itself changed
-
-4. If a user correction is recurring, encode it in:
-   - `docs/records/artifacts/agent/gear-ball/conversation-training-dataset.jsonl`
+3. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
 
 ## Stop Conditions
 
@@ -94,7 +96,7 @@ Only when exception-triggered:
 - unclear push target
 - unclear production authorization
 - stale validation after a mid-run fix
-- leftover files after a supposed final closeout
+- leftover files after a supposed final push-ready check
 - any need to bypass hooks, branch rules, or protected flows
 - any temptation to broaden a normal product run into agent-process maintenance without a concrete trigger
 
@@ -102,8 +104,6 @@ Only when exception-triggered:
 
 - Full worktree SOP:
   - `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
-- GitHub/merge SOP:
-  - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - Shared-risk map:
   - `docs/agents/gear-ball/shared-file-risk-map.md`
 - Active rules:

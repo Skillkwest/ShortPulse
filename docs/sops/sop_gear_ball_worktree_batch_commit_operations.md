@@ -1,6 +1,6 @@
 # Gear Ball Worktree Batch Commit Operations SOP
 
-Purpose: define Gear Ball's repeatable workflow for organizing a dirty worktree into logical, reviewable batches and committing those batches safely.
+Purpose: define Gear Ball's repeatable workflow for analyzing a dirty worktree, organizing it into logical batches, validating those batches enough, and committing/pushing them safely.
 
 ## Scope
 
@@ -12,16 +12,14 @@ This SOP covers:
 - Logical batch planning.
 - Per-batch review and validation.
 - Staging and committing approved batches.
-- Commit evidence recording.
-- Post-run self-audit and exception-triggered retained training updates for full commit/push runs.
+- Push-readiness checks and push execution when the user authorized it.
+- Post-run self-audit.
 
 This SOP does not cover:
 
-- Pushing, opening PRs, merging, branch promotion, deployment, Vercel env mutation, or database mutation. Those actions require explicit user instruction in the current thread.
+- Opening PRs, merging, branch promotion, deployment, Vercel env mutation, or database mutation. Those actions require explicit user instruction in the current thread.
 - Rewriting history, rebasing shared work, force pushing, or destructive cleanup.
 - Deciding product intent for ambiguous mixed changes without user review.
-
-For push, pull request, review-routing, merge queue, auto-merge, merge, and post-merge coordination, use `docs/sops/sop_gear_ball_github_pr_merge_operations.md` after this SOP has produced reviewed commits.
 
 ## Sources Of Truth
 
@@ -33,7 +31,6 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gear-ball/memory.md`
 - `docs/agents/gear-ball/shared-file-risk-map.md`
-- `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - Current Git state and direct diff evidence.
 
 ## Run Profiles
@@ -75,9 +72,22 @@ Minimum ladder:
 - `build`
 - full suite only when escalation triggers or instability demand it
 
-### `production-critical`
+### `production-targeted`
 
-Use for `production` work or changes with direct production-risk posture.
+Use for `production` work with limited blast radius and credible targeted-validation boundaries.
+
+Minimum ladder:
+
+- inventory
+- `gear-ball:preflight`
+- targeted validation
+- `build`
+- stricter leftover audits
+- stronger stop/go discipline than non-production profiles
+
+### `production-broad`
+
+Use for `production` work that is shared-runtime, cross-cutting, or unstable enough to need the heaviest publish ladder.
 
 Minimum ladder:
 
@@ -87,17 +97,9 @@ Minimum ladder:
 - `build`
 - usually full suite
 - stricter leftover audits
-- stronger stop/go discipline
+- strongest stop/go discipline
 
-### Separate Lane: `process/meta`
-
-Use for Gear Ball/Gottspan/SOP/tooling/training maintenance.
-
-Rules:
-
-- do not mix into normal product runs unless the process/tooling itself blocked the run
-- or the user explicitly asked for process work
-- or the run scored below threshold and needs one concrete remediation
+Gear Ball process/tooling maintenance is not a normal run profile. Treat it as an explicit separate request.
 
 ## Required Preconditions
 
@@ -113,6 +115,7 @@ Rules:
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - For large or mixed worktrees, create the batch manifest before the first staging step. Do not let the first commit become the place where batch boundaries are discovered.
 - If validation steps before the first Git write generate new retained/support artifacts (for example KPI packets, route-smoke captures, or agent evidence files), rebuild the active manifest from live `git status --short` before staging.
+- If the worktree changes materially after manifest lock, rebuild the manifest once before the first commit. If new adjacent lanes appear again after that rebuild, stop treating the run as stable and explicitly re-scope or stop.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
 - Do not push directly to `main`.
 - Do not expose secrets, env values, tokens, customer-private data, or temporary env copies.
@@ -168,7 +171,6 @@ Default to minimal user-facing output.
 - Do not proactively summarize every batch.
 - For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
 - For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
-- Create or update a durable report only when the run is substantial or the SOP already requires one.
 - During active execution, do not narrate routine progress. Keep polling, command-by-command status, and successful intermediate steps internal.
 - Only emit an in-flight update when:
   - progress is blocked and user action may be needed
@@ -186,6 +188,7 @@ Default bias:
 
 - start from one intended commit
 - split only when the diff proves the boundary is real
+- prefer deferring adjacent late-appearing lanes unless they are required for correctness of the current publish
 
 Good batch boundaries:
 
@@ -202,7 +205,7 @@ Avoid these batch shapes:
 - SQL/security changes bundled with unrelated UI polish.
 - Generated artifacts or dependency directories.
 - Secret or env-value changes.
-- Partial commits that leave tests or type contracts knowingly broken unless the commit message and final report call out an intentional checkpoint.
+- Partial commits that leave tests or type contracts knowingly broken unless the commit message and final response call out an intentional checkpoint.
 
 ## Default Batch Taxonomy
 
@@ -282,6 +285,7 @@ Rules:
 - If a single file contains unrelated changes from multiple logical batches, mark it as `mixed-file`.
 - Do not split a mixed file blindly. Prefer a single coherent combined batch, or stop for user review if combining would hide risk.
 - For shared docs indexes, shared CSS, app shells, or route files that span multiple batches, either stage by hunk with immediate staged-diff verification or defer them to a final reconciliation batch.
+- If the batch count grows past three real commits, pause and ask whether the worktree is still one publish lane. Do not let a moving scope silently expand into a long multi-lane publish.
 - If a file's dominant owner is clear but it contains supporting references for another batch, document the dominant-owner decision in the batch plan.
 - If the batch changes a shared contract, write the dependency fan-out into the batch plan before the first preflight. Shared-contract triggers include:
   - preview transform profiles or signed-preview policy
@@ -350,17 +354,17 @@ Escalation triggers:
 - If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
 - If a blocking validation failure is fixed while a long-running build or full-suite session is still running, treat that older session as stale. Rerun the required build/test gates against the final post-fix tree before staging or pushing.
 - If a batch materially changes an interaction-heavy admin or frontend route, route-level browser smoke is required only when:
-  - the selected profile is `production-critical`
+  - the selected profile is `production-broad`
   - the user explicitly asks for smoke coverage
   - or the run has already shown route-level instability that targeted tests did not cover
-    If required smoke truly cannot run, classify the run as `smoke-incomplete` in the report/final audit and treat that as a scoring slip rather than a neutral skip.
+    If required smoke truly cannot run, classify the run as `smoke-incomplete` in the final audit and treat that as a scoring slip rather than a neutral skip.
 - If both triggers fire in the same run, treat `build` and `docs:check` as early gates before the first Git write.
 
 Full suite trigger:
 
 Run the full suite only when one of these is true:
 
-1. the profile is `production-critical`
+1. the profile is `production-broad`
 2. the run is `shared-runtime` and cross-cutting enough that targeted validation is not a credible boundary
 3. targeted validation failed in a way that widened risk
 4. the user explicitly asked for full-suite confidence
@@ -368,7 +372,7 @@ Run the full suite only when one of these is true:
 If tests fail, do not commit. Report exact failing files, tests, expected/actual values, and whether the failures are deterministic.
 Default to test-only or otherwise non-behavioral fixes. If green tests appear to require a UI/UX/behavior change, stop and ask unless the user already authorized that broader scope.
 
-If validation is skipped or unavailable, record the reason in the final report and, when committing, in the commit body if the risk is material.
+If validation is skipped or unavailable, record the reason in the final response and, when committing, in the commit body if the risk is material.
 
 ### 6. Stage Only The Batch
 
@@ -412,8 +416,6 @@ For substantial batches, generate a compact manifest from the staged index befor
 ```bash
 npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"
 ```
-
-Append it to a durable report when the run is large enough to warrant repo-visible evidence.
 
 ### 8. Commit
 
@@ -481,16 +483,16 @@ After the final requested commit batch:
    ```bash
    git status --short
    ```
-   Before push-readiness, classify every remaining path. Do not carry unexplained leftovers past this step. If a new adjacent lane is still dirty and belongs to the same user-approved run, commit it before the first push.
+   Before push-readiness, classify every remaining path. Do not carry unexplained leftovers past this step. If a new adjacent lane is still dirty and belongs to the same user-approved run, commit it before the first push only when it is required for correctness of the current publish; otherwise defer it explicitly.
 5. Verify branch guard alignment:
    ```bash
    git branch --show-current
    git config --local --get shortpulse.allowedBranch
    ```
 
-Do not proceed to push-readiness if post-series validation is failing, incomplete, or inconsistent with the commit report.
+Do not proceed to push-readiness if post-series validation is failing, incomplete, or inconsistent with the commit record.
 
-### 11. Post-Push Self Audit And Retained Updates
+### 11. Post-Push Self Audit
 
 After a full SOP run that ends in commit and push:
 
@@ -500,29 +502,8 @@ After a full SOP run that ends in commit and push:
    - what evidence proves this run was complete
    - what repeated friction showed up
    - what was assumed but not verified
-   - what smallest improvement would make the next run cleaner
-   - whether current helper tooling is enough
-   - whether an existing helper needs enhancement
-   - whether a new helper is justified
-4. If a small, low-risk, clearly useful helper or doc change is warranted, implement at most one meaningful process improvement in the same run.
-5. If the run scores below `9/10`, ship or explicitly reject one concrete mechanical remediation before the run is considered closed. Valid remediation types:
-   - SOP hardening
-   - helper-tool behavior change
-   - manifest/checklist rule change
-   - retained memory/risk-map rule that changes future execution behavior
-     A memory-only note is not enough unless the report explains why no stronger mechanical change was possible.
-6. Retained artifacts are exception-triggered, not mandatory on every ordinary run. Update them when one of these is true:
-   - the profile was `production-critical`
-   - the run scored below `9/10`
-   - a new recurring failure mode appeared
-   - the process/tooling itself changed
-   - the user explicitly asked for process hardening or retained records
-7. When retained updates are triggered:
-   - append `docs/records/artifacts/agent/gear-ball/run-log.md`
-   - update `docs/records/artifacts/agent/gear-ball/training-history.md`
-   - create or update a retained report only when the run is substantial, risky, or produced a new durable lesson
-8. Update repo-visible memory only when the lesson is durable and broadly useful.
-9. Treat the retained closeout as valid only for the exact clean worktree that passed the final validation ladder. If any product, docs, or test file changes after the closeout draft or closeout commit, invalidate that closeout, finish the new lane, rerun the required validation gates, and publish a rewritten closeout at the real end of the run.
+   - what smallest operational improvement would make the next run cleaner
+4. Do not broaden the run into Gear Ball process maintenance unless the user explicitly asked for that separate lane.
 
 ### 12. Repeat Or Stop
 
@@ -541,17 +522,6 @@ After the workflow, report only the minimum needed for the current rung:
 - Commit: commit hashes/subjects, validation result, and deferred work.
 - Push: pushed branch, validation result if rerun, and deferred work.
 - Include skipped validation or residual risk only when it changes the stop/go decision.
-
-For substantial multi-batch, production-critical, sub-threshold, or process-changing worktree operations, create or update a retained Gear Ball report using the template in `docs/records/artifacts/agent/gear-ball/reports/run-report-template.md`. Include:
-
-- Prompt cadence followed.
-- Batch manifest with file groups, risks, validation, and commit hashes.
-- Failure signals found during validation.
-- Self-audit and score out of 10.
-- Tooling or SOP decisions made after the run.
-- Fix constraints and what was deliberately not changed.
-- Post-commit and post-push state, when applicable.
-- Unverified assumptions and human-review requirements.
 
 If files were staged successfully, final response must include the app git-stage directive. If commits were created successfully, final response must include the app git-commit directive.
 

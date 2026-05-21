@@ -14,6 +14,8 @@ Holomony does not treat a media-heavy surface as first-class until it has:
 - explicit correctness checks,
 - and either a retained baseline packet or a retained baseline audit note.
 
+Character panel media assignment remains outside the active approved-panel ownership boundary until it has its own direct audit/KPI contract and retained baseline evidence.
+
 ## Inventory
 
 | Surface                          | Surface ID                         | Current status                | System row                                                                 | Primary owner files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Current measurement path                                                                                                                                            | Correctness gates                                                                                                                                                                                                                                                                        | Baseline state                                                                                                                                                                                                                                                                                                                                                                                                                   | Next highest-ROI need                                                                                                                                                |
@@ -51,6 +53,7 @@ Holomony does not treat a media-heavy surface as first-class until it has:
   - shared embedded browse/runtime below
   - character-owned assignment, copy, persistence, and restore path above
 - Its first-class promotion depends on character-specific evidence, not just panel-open KPI results.
+- Until that contract exists, it stays adjacent to Holomony's approved-panel work rather than inside the active approved-panel source of truth.
 
 ### AI Studio Media modal
 
@@ -78,6 +81,11 @@ Holomony's current workspace milestone is:
 
 - make the approved media panels `stable and strong`
 
+Current approved-panel ownership means:
+
+- `ai-studio-panel`
+- `elements-media-panel`
+
 Canonical current-state read lives in:
 
 - `docs/agents/holomony/memory.md`
@@ -85,6 +93,7 @@ Canonical current-state read lives in:
 Exact snapshot metrics and scores live in dated retained reports, especially:
 
 - `reports/2026-05-19-approved-panel-baseline-refresh.md`
+- `reports/2026-05-20-ai-studio-media-library-incident-hotfix.md`
 - `reports/2026-05-18-media-library-five-column-density-plan.md`
 
 ## Required Additions Before Holomony Can Fully Own Cross-Surface Work

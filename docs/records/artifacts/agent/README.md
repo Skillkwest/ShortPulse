@@ -74,6 +74,8 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/gear-ball/sops.md`
 - `docs/records/artifacts/agent/gear-ball/training-history.md`
 - `docs/records/artifacts/agent/gear-ball/tools.md`
+- `docs/records/artifacts/agent/gottspan-the-admin/README.md`
+- `docs/records/artifacts/agent/gottspan-the-admin/training-history.md`
 - `docs/records/artifacts/agent/holomony/README.md`
 - `docs/records/artifacts/agent/holomony/reports/README.md`
 - `docs/records/artifacts/agent/holomony/sops.md`

@@ -7,6 +7,14 @@ Surfaces:
 - `ai-studio-panel`
 - `elements-media-panel`
 
+## Superseded Note
+
+This remains the retained 2026-05-19 cross-surface baseline refresh.
+
+For the newer AI Studio incident/hotfix runtime read after the media-list retry repair, use:
+
+- `reports/2026-05-20-ai-studio-media-library-incident-hotfix.md`
+
 ## Purpose
 
 Refresh the approved-surface source of truth after the KPI honesty and telemetry-attribution fixes.

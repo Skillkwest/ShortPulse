@@ -69,6 +69,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
+- `docs/agents/gottspan-the-admin/standard-operating-procedure.md`
 - `docs/agents/ledger/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`

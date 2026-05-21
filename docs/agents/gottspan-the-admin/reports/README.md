@@ -1,6 +1,6 @@
 # Gottspan Reports
 
-Purpose: index durable reports for Gottspan The Admin admin-page management work.
+Purpose: index durable reports for Gottspan The Admin repo-stewardship work, including admin-surface work when that work needs a standalone durable summary.
 
 ## Report Rules
 

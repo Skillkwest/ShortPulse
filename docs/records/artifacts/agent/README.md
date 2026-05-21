@@ -26,8 +26,17 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/Money Stuff/`
 - `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/d-bug/`
+- `docs/records/artifacts/agent/create-workflow/`
+- `docs/records/artifacts/agent/ophestivus/`
 
 Use the folder directly when you need that agent's retained state. Do not treat this index as a complete inventory ledger.
+
+## Naming And Status Notes
+
+- `docs/records/artifacts/agent/create-workflow/` is the retained artifact home for the contract directory `docs/agents/Create Workflow/`. The artifact side uses a slugged folder name even though the contract side keeps the display name with a space.
+- `docs/records/artifacts/agent/ophestivus/` is an active retained artifact area for the file-based contract at `docs/agents/ophestivus.md`.
+- `docs/records/artifacts/agent/phase-5/` is a retained historical rollout namespace, not an active agent contract.
+- `docs/records/artifacts/agent/system-catalog-agent/` is a retained legacy namespace that predates the active `docs/agents/copperknot/` system-catalog stewardship lane.
 
 ## Companion evidence
 

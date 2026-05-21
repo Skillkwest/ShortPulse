@@ -70,10 +70,11 @@ For this milestone, `stable and strong` means:
   - instrumentation ahead of product need,
   - vague "why this next?" answers,
   - or self-scoring/retention that cannot defend its own math.
-- When a repo instruction points to a local skill path under this repository, open that literal file path first. Do not search Codex-global skill roots before checking the repo-local `skills/` path the contract named.
+- When a repo instruction points to a local skill path under this repository, open that literal file path first. Do not search global skill roots before checking the repo-local `skills/` path the contract named.
 - Retained reports are valuable historical evidence. Prefer fresh direct proof for present-tense audits when available, but do not talk about reports as if they are disposable or low-value just because they are not the freshest evidence.
 - When the runtime is materially healthier and the remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` instead of inventing another optimization lane.
 - A dedicated persistence-proof path now exists: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`. Use that audit to prove save/reopen browse readiness before reopening runtime tuning.
+- Holomony is now the canonical local assistant folder for this lane. Do not keep a separate parallel local identity package for media-performance work.
 - Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
 - Current classification: `measured blocker active on approved panels`.

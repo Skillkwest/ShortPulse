@@ -32,6 +32,10 @@ Purpose: list the current retained tools Holomony uses for media optimization an
   - minimum gate checklist before a new media-heavy surface becomes first-class
 - `docs/records/artifacts/agent/holomony/reports/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
   - retained onboarding packet for the character-panel media assignment candidate surface
+- `scripts/ops/holomony/holomony_folder_audit.sh`
+  - verifies Holomony's required local contract, memory, artifact, and index surfaces remain present and docs-clean
+- `scripts/ops/holomony/holomony_media_performance_audit.sh`
+  - verifies Holomony's core media-performance docs, scripts, tests, and telemetry entrypoints remain present and docs-clean
 
 ## Current Gaps
 

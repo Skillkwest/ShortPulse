@@ -37,6 +37,7 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
 - `docs/agents/ophestivus.md`: admin board steward contract.
+  - retained artifacts live under `docs/records/artifacts/agent/ophestivus/`.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
   - `docs/agents/gottspan-the-admin/ux-playbook.md`: Gottspan's applied UX review lens for admin surfaces, especially trust, hesitation, pricing clarity, and grid-first operator workflows.
   - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`: Gottspan's standing SOP for repo-state audits, docs governance, admin subsystem stewardship, release-risk review, and agent-surface routing.
@@ -45,10 +46,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/gottspan-the-admin/runtime-load-policy.md`: Gottspan's default always-load versus conditional-load policy for keeping runtime context lean.
   - `docs/agents/gottspan-the-admin/prompts/README.md`: Gottspan's reusable prompt library for repo-steward and maintenance workflows.
   - commit/push execution is intentionally out of scope for Gottspan and belongs to Gear Ball.
-- `docs/agents/codex/README.md`: minimal repo-side operating contract for the current Codex assistant.
-  - `docs/agents/codex/AGENTS.md`: Codex-local execution overlay for keeping the self folder lean and non-duplicative.
-  - `docs/agents/codex/memory.md`: Codex's lean repo-visible local memory for assistant-specific deltas only.
-- `docs/agents/Money Stuff/README.md`: Money Stuff commerce billing steward contract, memory entrypoint, and source-of-truth map.
+- `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
@@ -56,6 +54,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/Create Workflow/create-panel-operating-brief.md`: compact current-state brief for Create panel runtime ownership, composer contract, and workflow boundaries.
   - `docs/agents/Create Workflow/create-panel-system-map.md`: compact system map for Create page orchestration, Standard/Pulse runtime boundaries, composer intake, and reference-feed ownership.
   - `docs/agents/Create Workflow/standard-operating-procedure.md`: standing SOP for Create-panel attachment/composer incident handling and training-data capture.
+  - retained artifacts live under the slugged path `docs/records/artifacts/agent/create-workflow/`.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/copperknot/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
   - `docs/agents/copperknot/operating-package-2026-05-06.md`: current operating package entrypoint for the July 2 production-readiness window.

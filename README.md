@@ -184,6 +184,12 @@ Auth/public-origin contract:
 - `docs/`: documentation
 - `scripts/`: validation, deployment, and operator tooling
 - `sql/`: Supabase bootstrap scripts
+- `ayla/`, `beeper/`, `bopper/`, `nuclo/`: repo-root operational workspaces for agent-owned scratch, testing, handoffs, and temporary drafts
+- `research/`: non-canonical deep research and hardening writeups
+- `supabase/`: Supabase CLI config and local temp metadata
+- `agent-teaching/`: local agent-training curriculum and setup material
+- `skills/`: repo-local skill helpers used by the startup contract and specialized lanes
+- `mini-ecosystem/`: separate entity; exclude from default audits unless the task explicitly includes it
 
 ## Roadmap / changelog
 

@@ -27,6 +27,30 @@ Next training focus:
 - use the refreshed approved-surface baselines to choose the next real product optimization lane
 - keep Character expansion secondary until the approved-panel hot path is stronger or the evidence changes
 
+## 2026-05-20: Holomony Identity Consolidation
+
+Task: consolidate the assistant-owned local package so Holomony, not a separate temporary local folder, is the canonical local identity for media-performance work.
+
+Actions taken:
+
+- audited the newer temporary assistant-local surfaces against the existing Holomony corpus
+- migrated the unique assistant-specific rules and helper-script concept into Holomony's contract, local instructions, memory, tools, and artifact README
+- created Holomony-owned helper audits under:
+  - `scripts/ops/holomony/holomony_folder_audit.sh`
+  - `scripts/ops/holomony/holomony_media_performance_audit.sh`
+- retired the redundant temporary local identity surfaces after preserving the useful lessons
+
+Training result:
+
+- Holomony is now the single local assistant folder for this lane
+- the media-performance corpus stays in one canonical identity instead of being split across Holomony history and parallel local overlays
+- durable lesson recorded: when an existing specialist already owns the real corpus, merge new self-governance into that specialist instead of creating a second parallel identity
+
+Next training focus:
+
+- use Holomony's own helper audits and retained tools as the default package on future media-performance runs
+- do not recreate a separate parallel local folder for this lane unless the workflow later splits materially
+
 ## 2026-05-19: Measurement-Validity Answer Audit
 
 Task: learn from the moment where Holomony answered the measurement-validity question correctly in direction but not at the best decision quality.
@@ -652,5 +676,5 @@ Durable lesson:
 
 - one current-state surface is better than many competing "semi-current" summaries
 - self-scoring that violates its own rubric is a trust bug, not a documentation nit
-- repo-local skill paths should be opened literally before checking Codex-global skill roots
+- repo-local skill paths should be opened literally before checking global skill roots
 - retained reports are valuable historical evidence and should be described that way even when fresher proof would outrank them for a present-tense audit

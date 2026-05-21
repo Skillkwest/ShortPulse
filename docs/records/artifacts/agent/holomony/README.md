@@ -23,6 +23,10 @@ The agent has a durable contract, repo-visible memory, and a retained artifact a
 - `training-history.md`: supervised runs, learned behavior, and next training focus.
 - `reports/`: full reports, KPI snapshots, and media-performance evidence summaries.
 
+Holomony-owned helper scripts live under:
+
+- `scripts/ops/holomony/`
+
 ## Recommended Read Order
 
 For a substantive Holomony run, the shortest high-signal path is:
@@ -31,9 +35,10 @@ For a substantive Holomony run, the shortest high-signal path is:
 2. `docs/agents/holomony/AGENTS.md`
 3. `docs/agents/holomony/standard-operating-procedure.md`
 4. `docs/agents/holomony/memory.md`
-5. `performance-scorecard.md`
-6. `media-surface-inventory.md`
-7. the one or two retained reports relevant to the current surface
+5. `docs/agents/holomony/ownership-manifest.md`
+6. `performance-scorecard.md`
+7. `media-surface-inventory.md`
+8. the one or two retained reports relevant to the current surface
 
 Ignore by default unless the current run specifically needs them:
 

@@ -74,9 +74,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gottspan-the-admin/weekly-repo-steward-run.md`
 - `docs/agents/gottspan-the-admin/runtime-load-policy.md`
 - `docs/agents/gottspan-the-admin/prompts/README.md`
-- `docs/agents/codex/README.md`
-- `docs/agents/codex/AGENTS.md`
-- `docs/agents/codex/memory.md`
+- `docs/agents/holomony/README.md`
+- `docs/agents/holomony/AGENTS.md`
+- `docs/agents/holomony/memory.md`
 - `docs/agents/Money Stuff/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`

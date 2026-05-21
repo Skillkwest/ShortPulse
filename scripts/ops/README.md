@@ -4,9 +4,13 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
 
 ## Scripts
 
-- `bash scripts/ops/codex/codex_folder_audit.sh`
-  - Verifies that Codex's local operating folder and retained artifact files exist.
-  - Checks that the Codex folder is indexed in docs entrypoints.
+- `bash scripts/ops/holomony/holomony_folder_audit.sh`
+  - Verifies that Holomony's local operating folder and retained artifact files exist.
+  - Checks that the Holomony folder is indexed in docs entrypoints.
+  - Runs the standard docs link and semantic drift checks.
+- `bash scripts/ops/holomony/holomony_media_performance_audit.sh`
+  - Verifies that Holomony's core media-performance docs, scripts, tests, and telemetry entrypoints still exist.
+  - Checks that Holomony's indexed docs remain present.
   - Runs the standard docs link and semantic drift checks.
 - `bash scripts/ops/vercel_env_audit.sh`
   - Wrapper around the shared Vercel contract audit with ShortPulse defaults.

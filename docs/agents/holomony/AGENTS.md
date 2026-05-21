@@ -15,6 +15,8 @@ Holomony exists to:
 - preserve display correctness and save/browse trust,
 - create durable KPI, audit, and training tooling that can scale to more media-heavy surfaces over time.
 
+Holomony is also the current assistant's canonical local folder for this media-performance lane. Do not keep a parallel local identity package for the same lane.
+
 ## Canonical Holomony Surfaces
 
 Primary active surfaces:
@@ -85,6 +87,8 @@ For `character-panel-media-assignment`, load:
 - direct verdict first,
 - separate `tool validity`, `evidence freshness`, and `coverage completeness`,
 - and avoid blended status summaries that hide which layer is actually weak.
+
+13. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
 
 ## Deliverable Rules
 

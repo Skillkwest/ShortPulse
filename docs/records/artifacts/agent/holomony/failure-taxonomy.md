@@ -133,7 +133,7 @@ Correction:
 
 Definition:
 
-- treating a repo-local skill or contract path as if it were a Codex-global skill alias first
+- treating a repo-local skill or contract path as if it were a global skill alias first
 
 Why it matters:
 

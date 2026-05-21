@@ -43,6 +43,7 @@ Codex's repo-visible local memory lives in:
 Retained self-training artifacts live in:
 
 - [docs/records/artifacts/agent/codex/README.md](../../records/artifacts/agent/codex/README.md)
+- [docs/records/artifacts/agent/codex/tools.md](../../records/artifacts/agent/codex/tools.md)
 
 ## Operating Rule
 

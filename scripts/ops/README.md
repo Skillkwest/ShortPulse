@@ -4,6 +4,10 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
 
 ## Scripts
 
+- `bash scripts/ops/codex/codex_folder_audit.sh`
+  - Verifies that Codex's local operating folder and retained artifact files exist.
+  - Checks that the Codex folder is indexed in docs entrypoints.
+  - Runs the standard docs link and semantic drift checks.
 - `bash scripts/ops/vercel_env_audit.sh`
   - Wrapper around the shared Vercel contract audit with ShortPulse defaults.
   - Default scope: `development` + `preview` + `production`.

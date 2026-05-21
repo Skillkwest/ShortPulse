@@ -66,8 +66,9 @@ Purpose: give Gear Ball a compact execution checklist for normal worktree batchi
 1. Start from one intended commit and split only on real boundaries.
 2. Use `gear-ball:preflight` for substantial or risky batches, not every tiny docs-only edit.
 3. Run `git status --short` after every commit before staging the next batch.
-4. Before push, rerun only the final required validation on the exact final tree.
-5. Push only the approved branch.
+4. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
+5. Before push, rerun only the final required validation on the exact final tree.
+6. Push only the approved branch.
 
 ## Closeout
 

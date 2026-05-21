@@ -13,6 +13,7 @@ Use it for:
 - assistant-specific instruction deltas
 - lean repo-visible memory
 - retained self-training history and artifact governance
+- owned helper-tool and folder-audit references when repeated self-maintenance needs them
 
 ## Rules
 
@@ -23,6 +24,7 @@ Use it for:
 - When the user pastes a prompt from Gottspan's prompt library, run it on the current assistant/self by default unless the user explicitly says to run it on Gottspan.
 - Treat [README.md](./README.md) as the local contract and [memory.md](./memory.md) as the only default-load memory surface in this folder.
 - Treat [docs/records/artifacts/agent/codex/](../../records/artifacts/agent/codex/) as the retained artifact area for self-training continuity.
+- Use [docs/records/artifacts/agent/codex/tools.md](../../records/artifacts/agent/codex/tools.md) as the owned tool inventory when Codex-specific maintenance work is the lane.
 
 ## Default Load
 

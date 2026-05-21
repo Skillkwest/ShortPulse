@@ -5,6 +5,7 @@ Purpose: store non-authoritative retained self-training artifacts for the curren
 ## Layout
 
 - `training-history.md`: supervised self-correction history and durable lessons from explicit self-audit or behavior-adjustment runs
+- `tools.md`: owned tool inventory and helper-script map for Codex folder maintenance
 
 Do not add more retained surfaces speculatively. Add them only after repeated use proves they are necessary.
 

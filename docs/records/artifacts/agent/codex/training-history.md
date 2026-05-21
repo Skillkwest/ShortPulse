@@ -21,3 +21,12 @@ Purpose: track supervised self-correction runs, durable behavior changes, and re
 - Tool changes: none.
 - Remaining friction: the root `AGENTS.md` still carries the global cross-agent prompt policy, which is correct, but it means Codex-local memory must stay careful not to duplicate repo-global rules.
 - Next training focus: when auditing "what belongs to me," separate authorship from ownership before moving anything.
+
+### 2026-05-20 - Codex folder completeness audit
+
+- Prompt used: audit your folder. you should have memory, artifacts, agent instruction for yourself, tools, script etc etc that you own here.
+- Behavior learned: a minimal self folder still needs a practical tool inventory and one owned helper script if the folder is going to be maintained repeatably. The right answer is the smallest useful tool surface, not a larger meta-framework.
+- SOP or template updates: none.
+- Tool changes: added `tools.md` and `scripts/ops/codex/codex_folder_audit.sh`.
+- Remaining friction: the Codex folder still intentionally lacks SOP, KPI, and report surfaces because repeated real use has not justified them yet.
+- Next training focus: only add new Codex-owned surfaces when a repeated maintenance lane proves the need.

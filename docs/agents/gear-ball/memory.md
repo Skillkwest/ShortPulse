@@ -29,7 +29,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
   - verify the approved branch and `shortpulse.allowedBranch`
   - lock a batch manifest
   - run `gear-ball:preflight`
-- Serialize all index-touching Git operations. Never parallelize `git add`, `git status`, `git commit`, or similar commands.
+- Serialize all Git activity once the commit phase starts. Do not parallelize even read-only Git commands (`git status`, `git diff --cached`, `git show`, `git log`) alongside `git add`/`git commit`, because the mixed call pattern still produces avoidable `index.lock` churn in this repo.
 - On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
 - If route smoke, KPI capture, or other validation steps generate new retained/support artifacts before the first Git write, rebuild the active manifest from live `git status --short` before staging so those artifacts are either intentionally included or intentionally deferred.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.

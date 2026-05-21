@@ -17,22 +17,22 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-20` on `production`
-- Score: `8.5/10`
-- What went well: three logical batches stayed clean, preflight caught the only real product issue before commit, and the final tree cleared both `build` and the full suite without rerun churn.
-- What slipped: route-level browser smoke remained `smoke-incomplete by prior user direction`, and one dead prop thread survived until the product preflight lint pass.
-- Capability decision: no new tool or SOP change was needed; the freshly pruned Gear Ball hot path and retained-surface cleanup were the right improvements for this run.
+- Score: `8/10`
+- What went well: Gear Ball still got a mixed moving worktree to a clean push through four coherent commits, and the expanded product manifest cleared targeted preflight after catching the real `VoicesPropertiesPanel` regression before publish.
+- What slipped: new files kept appearing mid-run, the first product manifest underreached twice, and parallel Git inspection during the commit phase reintroduced avoidable `index.lock` friction.
+- Capability decision: shipped one mechanical remediation by tightening Gear Ball's hot path and memory to forbid parallel Git calls once the commit phase starts.
 
 ## Current Failure Classes
 
-1. First-manifest fan-out misses on uncatalogued shared contracts.
+1. First-manifest fan-out misses when the worktree keeps moving during the run.
 2. Validation drift when a fix lands after a long-running gate has already started.
-3. Unnecessary active/retained documentation overlap that slows rule lookup.
+3. Commit-phase Git contention from overlapping status/add/diff calls.
 
 ## Current Training Priorities
 
-1. Improve first-manifest fan-out on shared contracts beyond the currently catalogued cases.
+1. Re-lock manifests from live `git status --short` any time new files appear mid-run before the next commit boundary.
 2. Keep validation bound to the exact final tree after any mid-run fix.
-3. Keep the active Gear Ball surface minimal and fast to load.
+3. Keep the commit phase strictly serialized on Git operations.
 
 ## Working Guidance
 

@@ -2,7 +2,7 @@
  * AI Studio workspace page.
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { AiStudioPageShell } from "../features/ai-studio/components/AiStudioPageShell";
 import type { AiStudioPageContentProps } from "../features/ai-studio/components/AiStudioPageContent";
 import {
@@ -68,6 +68,8 @@ type CreatePanelGenerateOptions = {
   toolOverride?: ToolId | null;
   costOverrideCredits?: number | null;
   suppressStyle?: boolean;
+  suppressCharacter?: boolean;
+  ignoreGenerationGuardrail?: boolean;
 };
 type CreatePanelGenerateResult = {
   accepted: boolean;
@@ -92,7 +94,6 @@ type UseAiStudioCreatePanelRuntimeParams = {
   pulseArtifactTarget: Parameters<typeof resolvePulseArtifactGenerationRoute>[0];
   pulseCurrentCostCredits: number | null;
   pulsePromptReferenceGenerateCostCredits: number | null;
-  pulseGenerationGuardrail: string | null;
   pulseGenerateCostCredits: number | null;
   handleStandardCreatePromptChange: (value: string) => void;
   handlePulseCreatePromptChange: (value: string) => void;
@@ -173,7 +174,6 @@ const useAiStudioCreatePanelRuntime = ({
   pulseArtifactTarget,
   pulseCurrentCostCredits,
   pulsePromptReferenceGenerateCostCredits,
-  pulseGenerationGuardrail,
   pulseGenerateCostCredits,
   handleStandardCreatePromptChange,
   handlePulseCreatePromptChange,
@@ -295,8 +295,6 @@ const useAiStudioCreatePanelRuntime = ({
     setPromptOrigin,
     handleGenerate,
   });
-  const pulsePrimarySubmitGuardrail =
-    pulseArtifactTarget != null ? pulseGenerationGuardrail : effectiveGenerationGuardrail;
   const pulsePrimarySubmitCostCredits =
     pulseArtifactTarget != null ? pulseCurrentCostCredits : currentCostCredits;
   const {
@@ -317,7 +315,6 @@ const useAiStudioCreatePanelRuntime = ({
     pulseWorkflowSession: base.pulseWorkflowSession,
     latestAgentPrompt: pulseCreateAgentRuntime?.latestAgentPrompt ?? null,
     artifactTarget: pulseArtifactTarget,
-    effectiveGenerationGuardrail: pulsePrimarySubmitGuardrail,
     promptReferenceGenerateCostCredits: pulsePromptReferenceGenerateCostCredits ?? null,
     currentCostCredits: pulsePrimarySubmitCostCredits,
     handleGenerate,
@@ -1302,7 +1299,14 @@ const AiStudioPageRuntimeBody = ({
   }, [referenceGridFileInputRef]);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
+  useEffect(() => {
+    if (expertCreateMode !== "pulse") return;
+    if (isCreateCharacterModeEnabled) {
+      setIsCreateCharacterModeEnabled(false);
+    }
+  }, [expertCreateMode, isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled]);
   const { effectiveUiNotice } = useAiStudioPageUiNotices({
+    expertCreateMode,
     uiNotice,
     mediaAutosaveError,
     mediaAutosaveSyncState,
@@ -1337,7 +1341,6 @@ const AiStudioPageRuntimeBody = ({
     pulseArtifactTarget,
     pulseCurrentCostCredits,
     pulseGenerateCostCredits,
-    pulseGenerationGuardrail,
     pulsePromptReferenceGenerateCostCredits,
     referenceImageWarning,
     resolveModelPickerCredits,
@@ -1471,7 +1474,6 @@ const AiStudioPageRuntimeBody = ({
     pulseArtifactTarget,
     pulseCurrentCostCredits,
     pulsePromptReferenceGenerateCostCredits,
-    pulseGenerationGuardrail,
     pulseGenerateCostCredits,
     handleStandardCreatePromptChange,
     handlePulseCreatePromptChange,

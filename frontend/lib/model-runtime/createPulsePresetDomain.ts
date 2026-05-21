@@ -5,7 +5,7 @@
  */
 import { CREATE_PULSE_SEEDED_BUILT_IN_METADATA } from "./createPulseBuiltInMetadata";
 
-export const CREATE_PULSE_MORE_LABEL = "Pulse Catalog" as const;
+export const CREATE_PULSE_MORE_LABEL = "More Pulses" as const;
 export const CREATE_PULSE_PANEL_MAX = 10;
 export const CREATE_PULSE_PRESET_DRAG_MIME =
   "application/x-shortpulse-create-pulse-preset" as const;

@@ -369,7 +369,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Custom 8" }));
 
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
@@ -423,7 +423,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("Preset name"), {
       target: { value: "Hook Builder" },
@@ -460,7 +460,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
 
     expect(
       screen.queryByRole("button", { name: "Edit DFY Story Builder preset" })
@@ -491,7 +491,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("System instructions"), {
       target: { value: "Use only these visible instructions." },
@@ -507,7 +507,7 @@ describe("CreatePulsePresetPanel", () => {
 
     render(<CreatePulsePresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
@@ -535,7 +535,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
     expect(within(pulsesSurface).queryByText("Built-in")).not.toBeInTheDocument();
@@ -562,7 +562,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
     expect(within(pulsesSurface).queryByText("Custom Pulses")).not.toBeInTheDocument();
@@ -579,7 +579,7 @@ describe("CreatePulsePresetPanel", () => {
   it("keeps pinned rail Pulses visible inside the Pulse Catalog grid", () => {
     render(<CreatePulsePresetPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
     expect(
@@ -613,7 +613,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
     expect(
@@ -646,7 +646,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
 
     expect(screen.getByLabelText("System instructions")).toBeInTheDocument();
@@ -670,7 +670,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const surfaceChip = screen.getByRole("button", { name: "Multi Sequence Video Prompt" });
     const panelDropzone = screen.getByLabelText("Pulse preset panel list");
 
@@ -697,7 +697,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
 
     await waitFor(() => {
@@ -740,7 +740,7 @@ describe("CreatePulsePresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
 
     expect(await screen.findByText("Unable to save the Pulse rail right now.")).toBeInTheDocument();

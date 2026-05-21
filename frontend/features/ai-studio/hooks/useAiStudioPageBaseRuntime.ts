@@ -408,6 +408,7 @@ export const useAiStudioPageBaseRuntime = () => {
     createSelectedCharacterLookId,
     editCharacterModeInjectionBundle,
     editSelectedCharacterId,
+    expertCreateMode,
     isCreateCharacterBundleLoading,
     isCreateCharacterModeEnabled,
     isEditCharacterBundleLoading,

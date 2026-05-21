@@ -26,6 +26,8 @@ type GenerateOptions = {
   toolOverride?: ToolId | null;
   costOverrideCredits?: number | null;
   suppressStyle?: boolean;
+  suppressCharacter?: boolean;
+  ignoreGenerationGuardrail?: boolean;
 };
 
 type GenerateResult = {
@@ -201,9 +203,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     async (promptOverride?: string | null, options?: GenerateOptions): Promise<GenerateResult> => {
       const effectiveTool = options?.toolOverride ?? selectedTool;
       const effectiveMode = options?.modeOverride ?? mode;
-      const isCharacterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
-        ? resolveIsCharacterModeEnabledForTool(effectiveTool)
-        : isCharacterModeEnabled;
+      const isCharacterModeEnabledForTool = options?.suppressCharacter
+        ? false
+        : resolveIsCharacterModeEnabledForTool
+          ? resolveIsCharacterModeEnabledForTool(effectiveTool)
+          : isCharacterModeEnabled;
       const effectiveModelId = resolveEffectiveSubmitModelId(effectiveTool);
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;
@@ -235,7 +239,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         requiredCredits,
         upfrontRunCredits: options?.costOverrideCredits,
         availableBalanceCredits: balanceCredits,
-        isGenerateDisabled,
+        isGenerateDisabled: options?.ignoreGenerationGuardrail ? false : isGenerateDisabled,
         isCreditGuardrail,
         alwaysCheckCreditGuardrailWhenEnabled: false,
         ensureFreshCreditsForRun,
@@ -298,6 +302,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
         suppressStyle: options?.suppressStyle,
+        suppressCharacter: options?.suppressCharacter,
+        ignoreGenerationGuardrail: options?.ignoreGenerationGuardrail,
         ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
         ...(characterModeOverrides?.characterContextOverride
           ? { characterContextOverride: characterModeOverrides.characterContextOverride }

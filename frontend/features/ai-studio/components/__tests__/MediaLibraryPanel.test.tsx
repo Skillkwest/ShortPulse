@@ -977,6 +977,18 @@ describe("MediaLibraryPanel", () => {
     expect(latestSigningArgs?.surface).toBe("elements-media-panel");
   });
 
+  it("passes the fixed 4:5 assignment ratio through the embedded Elements all-media grid", async () => {
+    render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.surface).toBe("elements-media-panel");
+    expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
+  });
+
   it("passes the fixed 4:5 assignment ratio through the embedded Elements image grid", async () => {
     render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
 

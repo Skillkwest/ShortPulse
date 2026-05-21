@@ -44,6 +44,32 @@ const MEDIA_BUCKET = "media_library";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
+const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  minWidth: "172px",
+  minHeight: "56px",
+  padding: "0 24px",
+  borderRadius: "16px",
+  fontSize: "0.98rem",
+  flexShrink: 0,
+};
+const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1.08fr) minmax(0, 0.92fr)",
+  columnGap: "18px",
+  rowGap: "6px",
+  alignItems: "start",
+};
+const CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
+  margin: 0,
+};
+const CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE: React.CSSProperties = {
+  minWidth: 0,
+};
+const CHARACTER_LOOKS_BLOCK_INLINE_STYLE: React.CSSProperties = {
+  minWidth: 0,
+  width: "100%",
+  paddingTop: 0,
+};
 
 const getCharacterInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -337,7 +363,8 @@ export function CharacterPanelWorkspace({
                 <div className="character-panel-profile-top-row">
                   <button
                     type="button"
-                    className="character-panel-action-btn character-panel-profile-characters-btn"
+                    className="character-panel-action-btn"
+                    style={CHARACTER_BUTTON_INLINE_STYLE}
                     onClick={() => setIsCharacterLibraryModalOpen(true)}
                     disabled={pageBusy}
                   >
@@ -345,12 +372,26 @@ export function CharacterPanelWorkspace({
                   </button>
                 </div>
 
-                <div className="character-panel-profile-fields-row">
+                <div
+                  className="character-panel-profile-fields-row"
+                  style={CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE}
+                >
                   <label
-                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
+                    className="character-profile-fields character-profile-fields--label-serif"
                     htmlFor="character-panel-name"
+                    style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
                   >
                     <span className="input-label">Name:</span>
+                  </label>
+
+                  <div
+                    className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
+                    style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                  >
+                    <p className="input-label">Looks:</p>
+                  </div>
+
+                  <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
                     <input
                       ref={characterNameInputRef}
                       id="character-panel-name"
@@ -362,37 +403,34 @@ export function CharacterPanelWorkspace({
                       placeholder="Enter character name"
                       disabled={loading}
                     />
-                  </label>
+                  </div>
 
-                  <div className="character-panel-looks-row">
-                    <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
-                      <p className="input-label">Looks:</p>
-                    </div>
-
-                    <div className="character-sheet-looks-block">
-                      <CharacterSheetPresetTabs
-                        presetIds={visibleCharacterSheetPresetIds}
-                        activePresetId={activeCharacterSheetPresetId}
-                        presetLabels={characterSheetPresetLabels}
-                        onSelectPreset={(presetId) => {
-                          void setActiveCharacterSheetPreset(presetId);
-                        }}
-                        onAddPreset={() => {
-                          void addCharacterSheetPreset();
-                        }}
-                        onRenamePreset={(presetId, nextLabel) => {
-                          void renameCharacterSheetPreset(presetId, nextLabel);
-                        }}
-                        onDeletePreset={(presetId) => {
-                          if (pageBusy || isSavingCharacterSheetPreset) return;
-                          clearMessages();
-                          setDeleteTargetCharacterSheetPresetId(presetId);
-                        }}
-                        panelId="character-panel-preset-panel"
-                        disabled={pageBusy}
-                        idBase="character-panel-preset"
-                      />
-                    </div>
+                  <div
+                    className="character-sheet-looks-block"
+                    style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
+                  >
+                    <CharacterSheetPresetTabs
+                      presetIds={visibleCharacterSheetPresetIds}
+                      activePresetId={activeCharacterSheetPresetId}
+                      presetLabels={characterSheetPresetLabels}
+                      onSelectPreset={(presetId) => {
+                        void setActiveCharacterSheetPreset(presetId);
+                      }}
+                      onAddPreset={() => {
+                        void addCharacterSheetPreset();
+                      }}
+                      onRenamePreset={(presetId, nextLabel) => {
+                        void renameCharacterSheetPreset(presetId, nextLabel);
+                      }}
+                      onDeletePreset={(presetId) => {
+                        if (pageBusy || isSavingCharacterSheetPreset) return;
+                        clearMessages();
+                        setDeleteTargetCharacterSheetPresetId(presetId);
+                      }}
+                      panelId="character-panel-preset-panel"
+                      disabled={pageBusy}
+                      idBase="character-panel-preset"
+                    />
                   </div>
                 </div>
               </div>

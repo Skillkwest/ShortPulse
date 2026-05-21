@@ -295,6 +295,7 @@ describe("VoicesPropertiesPanel", () => {
     );
     expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
 
@@ -2032,6 +2033,87 @@ describe("VoicesPropertiesPanel", () => {
         name: /play bella - professional, bright, warm sample/i,
       })
     ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps the voices modal open after selecting a voice and closes only from the footer action", async () => {
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    const voicesButton = screen.getByRole("button", { name: "Voices" });
+    await openVoicesLibraryModal();
+
+    fireEvent.click(screen.getByRole("button", { name: /talia voice/i }));
+
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /talia voice/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select voice" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Voices" })).not.toBeInTheDocument();
+    });
+    expect(voicesButton).toHaveFocus();
+  });
+
+  it("does not close the voices modal when previewing a sample from the chip play button", async () => {
+    const playMock = vi.fn().mockResolvedValue(undefined);
+    class MockAudio {
+      src: string;
+      preload = "";
+      currentTime = 0;
+      ended = false;
+      onplay: (() => void) | null = null;
+      onpause: (() => void) | null = null;
+      onended: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor(src: string) {
+        this.src = src;
+      }
+
+      play() {
+        playMock(this.src);
+        this.onplay?.();
+        return Promise.resolve();
+      }
+
+      pause() {
+        this.onpause?.();
+      }
+    }
+    vi.stubGlobal("Audio", MockAudio as unknown as typeof Audio);
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_bella_123",
+            name: "Bella - Professional, Bright, Warm",
+            previewUrl: "https://cdn.elevenlabs.test/bella.mp3",
+            description: "professional",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /play bella - professional, bright, warm sample/i,
+      })
+    );
+
+    await waitFor(() => {
+      expect(playMock).toHaveBeenCalledWith("https://cdn.elevenlabs.test/bella.mp3");
+    });
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
   });
 
   it("shows only the base voice name on chips when provider names include descriptors", async () => {

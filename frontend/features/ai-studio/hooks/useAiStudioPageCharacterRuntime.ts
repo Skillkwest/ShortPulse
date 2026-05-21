@@ -16,6 +16,7 @@ type UseAiStudioPageCharacterRuntimeParams = {
   createSelectedCharacterLookId: string;
   editCharacterModeInjectionBundle: CharacterModeInjectionBundle | null;
   editSelectedCharacterId: string;
+  expertCreateMode: "standard" | "pulse";
   isCreateCharacterBundleLoading: boolean;
   isCreateCharacterModeEnabled: boolean;
   isEditCharacterBundleLoading: boolean;
@@ -47,6 +48,7 @@ export const useAiStudioPageCharacterRuntime = ({
   createSelectedCharacterLookId,
   editCharacterModeInjectionBundle,
   editSelectedCharacterId,
+  expertCreateMode,
   isCreateCharacterBundleLoading,
   isCreateCharacterModeEnabled,
   isEditCharacterBundleLoading,
@@ -98,11 +100,14 @@ export const useAiStudioPageCharacterRuntime = ({
 
   const resolveIsCharacterModeEnabledForTool = useCallback(
     (tool: ToolId | null): boolean => {
-      if (tool === "create" || tool === "text") return isCreateCharacterModeEnabled;
+      if (tool === "create" || tool === "text") {
+        if (expertCreateMode === "pulse") return false;
+        return isCreateCharacterModeEnabled;
+      }
       if (tool === "edit" || tool === "image") return isEditCharacterModeEnabled;
       return false;
     },
-    [isCreateCharacterModeEnabled, isEditCharacterModeEnabled]
+    [expertCreateMode, isCreateCharacterModeEnabled, isEditCharacterModeEnabled]
   );
 
   const resolveSelectedCharacterIdForTool = useCallback(

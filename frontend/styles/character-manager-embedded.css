@@ -106,15 +106,6 @@
   margin-bottom: 10px;
 }
 
-.character-panel-profile-characters-btn {
-  min-width: 172px;
-  min-height: 56px;
-  padding: 0 24px;
-  border-radius: 16px;
-  font-size: 0.98rem;
-  flex-shrink: 0;
-}
-
 .character-panel-profile-fields-row {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
@@ -176,6 +167,15 @@
 .character-panel-action-btn--danger {
   border-color: rgba(255, 108, 108, 0.42);
   color: rgba(255, 196, 196, 0.96);
+}
+
+.character-panel-action-btn.character-panel-profile-characters-btn {
+  min-width: 172px;
+  min-height: 56px;
+  padding: 0 24px;
+  border-radius: 16px;
+  font-size: 0.98rem;
+  flex-shrink: 0;
 }
 
 .character-panel-slot-actions {

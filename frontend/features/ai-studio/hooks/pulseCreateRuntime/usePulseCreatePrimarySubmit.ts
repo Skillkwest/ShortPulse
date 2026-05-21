@@ -10,6 +10,8 @@ type GeneratePulseArtifact = (
     toolOverride?: ToolId | null;
     costOverrideCredits?: number | null;
     suppressStyle?: boolean;
+    suppressCharacter?: boolean;
+    ignoreGenerationGuardrail?: boolean;
   }
 ) => void | Promise<unknown>;
 
@@ -20,7 +22,6 @@ type UsePulseCreatePrimarySubmitParams = {
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   latestAgentPrompt: string | null;
   artifactTarget: CreatePulseArtifactTarget | null;
-  effectiveGenerationGuardrail: string | null;
   promptReferenceGenerateCostCredits: number | null;
   currentCostCredits: number | null;
   handleGenerate: GeneratePulseArtifact;
@@ -96,7 +97,6 @@ export const usePulseCreatePrimarySubmit = ({
   pulseWorkflowSession,
   latestAgentPrompt,
   artifactTarget,
-  effectiveGenerationGuardrail,
   promptReferenceGenerateCostCredits,
   currentCostCredits,
   handleGenerate,
@@ -148,19 +148,16 @@ export const usePulseCreatePrimarySubmit = ({
     pulseKind === "guided_workflow" && pulseCompletedArtifactPrompt
       ? resolvePulseArtifactTargetGuardrail(artifactTarget)
       : null;
-  const pulseArtifactGenerateGuardrail = effectiveGenerationGuardrail
-    ? effectiveGenerationGuardrail
-    : isPulseStartupPending
-      ? PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL
-      : pulseCompletedArtifactPrompt
-        ? unsupportedArtifactTargetGuardrail
-        : guidedWorkflowNeedsPromptArtifact
-          ? PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL
-          : pulseKind === "guided_workflow"
-            ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
-            : PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL;
+  const pulseArtifactGenerateGuardrail = isPulseStartupPending
+    ? PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL
+    : pulseCompletedArtifactPrompt
+      ? unsupportedArtifactTargetGuardrail
+      : guidedWorkflowNeedsPromptArtifact
+        ? PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL
+        : pulseKind === "guided_workflow"
+          ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+          : PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL;
   const pulseArtifactGenerateDisabled =
-    Boolean(effectiveGenerationGuardrail) ||
     isPulseStartupPending ||
     Boolean(unsupportedArtifactTargetGuardrail) ||
     !pulseCompletedArtifactPrompt;
@@ -191,6 +188,8 @@ export const usePulseCreatePrimarySubmit = ({
       toolOverride: pulseArtifactGenerationRoute?.toolOverride,
       costOverrideCredits: pulseArtifactCostOverrideCredits,
       suppressStyle: true,
+      suppressCharacter: true,
+      ignoreGenerationGuardrail: true,
     });
   }, [
     handleGenerate,

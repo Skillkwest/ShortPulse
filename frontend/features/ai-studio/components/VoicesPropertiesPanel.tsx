@@ -1768,6 +1768,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             </button>
           </>
         }
+        footerActions={
+          <button
+            type="button"
+            className="voices-properties-save-btn voices-library-modal-select-btn"
+            onClick={handleCloseVoicesLibraryModal}
+            disabled={!selectedLibraryVoice}
+          >
+            Select voice
+          </button>
+        }
       >
         <section className="voices-library-modal-content" aria-label="Available voices">
           <VoiceLibraryContent

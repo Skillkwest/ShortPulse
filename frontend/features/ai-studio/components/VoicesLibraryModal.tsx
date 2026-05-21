@@ -13,6 +13,7 @@ type VoicesLibraryModalProps = {
   title: string;
   subtitle: string;
   headerActions?: React.ReactNode;
+  footerActions?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -25,6 +26,7 @@ export function VoicesLibraryModal({
   title,
   subtitle,
   headerActions,
+  footerActions,
   children,
 }: VoicesLibraryModalProps) {
   useAiStudioModalActivity("voices-library-modal", isOpen);
@@ -70,6 +72,11 @@ export function VoicesLibraryModal({
           <div className="voices-library-modal-scroll">
             <div className="voices-library-modal-body">{children}</div>
           </div>
+          {footerActions ? (
+            <div className="voices-library-modal-footer">
+              <div className="voices-library-modal-footer-actions">{footerActions}</div>
+            </div>
+          ) : null}
         </div>
       </div>
     </AiStudioModalLayer>

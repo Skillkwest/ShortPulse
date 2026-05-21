@@ -17,6 +17,8 @@ export type AiStudioGenerateSubmissionOverrides = {
   inpaintOverride?: InpaintSubmissionOverride | null;
   hideOutputFromReferenceGrid?: boolean;
   suppressStyle?: boolean;
+  suppressCharacter?: boolean;
+  ignoreGenerationGuardrail?: boolean;
 };
 
 export type AiStudioGenerateOutputOptions = AiStudioGenerateSubmissionOverrides & {

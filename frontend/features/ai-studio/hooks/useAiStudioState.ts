@@ -158,6 +158,7 @@ export const useAiStudioState = ({
           ? `session:${sessionId}`
           : "session:pending";
   const runtimeAuthorityKey = baseRuntimeAuthorityKey;
+  const createModeRuntimeAuthorityKey = `${baseRuntimeAuthorityKey}:create:${expertCreateMode}`;
 
   const {
     activeOutputState,
@@ -189,7 +190,7 @@ export const useAiStudioState = ({
       activeOutputId,
       baseRuntimeAuthorityKey,
       referenceProjectionState,
-      runtimeAuthorityKey,
+      runtimeAuthorityKey: createModeRuntimeAuthorityKey,
       saved,
       sessionHydrationSigningRevisionRef,
       setActiveOutputId,
@@ -254,7 +255,7 @@ export const useAiStudioState = ({
     closeModelModal,
   } = useAiStudioReferenceSelectionState({
     activeOutputPreviewUrl,
-    authorityKey: runtimeAuthorityKey,
+    authorityKey: createModeRuntimeAuthorityKey,
   });
 
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =

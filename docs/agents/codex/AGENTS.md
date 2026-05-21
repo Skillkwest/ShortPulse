@@ -20,6 +20,7 @@ Use it for:
 - Prefer updating root `AGENTS.md` when a rule is truly repo-global.
 - Do not duplicate other agents' contracts, SOPs, or prompt libraries here.
 - Do not add self-SOPs, KPI files, report indexes, or extra helper docs unless repeated real use proves they are necessary.
+- When the user pastes a prompt from Gottspan's prompt library, run it on the current assistant/self by default unless the user explicitly says to run it on Gottspan.
 - Treat [README.md](./README.md) as the local contract and [memory.md](./memory.md) as the only default-load memory surface in this folder.
 - Treat [docs/records/artifacts/agent/codex/](../../records/artifacts/agent/codex/) as the retained artifact area for self-training continuity.
 

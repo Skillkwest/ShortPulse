@@ -77,7 +77,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/codex/README.md`
 - `docs/agents/codex/AGENTS.md`
 - `docs/agents/codex/memory.md`
-- `docs/agents/ledger/README.md`
+- `docs/agents/Money Stuff/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`

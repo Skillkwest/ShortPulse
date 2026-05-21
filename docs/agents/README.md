@@ -48,7 +48,7 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/codex/README.md`: minimal repo-side operating contract for the current Codex assistant.
   - `docs/agents/codex/AGENTS.md`: Codex-local execution overlay for keeping the self folder lean and non-duplicative.
   - `docs/agents/codex/memory.md`: Codex's lean repo-visible local memory for assistant-specific deltas only.
-- `docs/agents/ledger/README.md`: Ledger commerce billing steward contract, memory entrypoint, and source-of-truth map.
+- `docs/agents/Money Stuff/README.md`: Money Stuff commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.

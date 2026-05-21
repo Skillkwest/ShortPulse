@@ -23,6 +23,7 @@ Not every agent needs every file.
 
 - `docs/records/artifacts/agent/gear-ball/`
 - `docs/records/artifacts/agent/gottspan-the-admin/`
+- `docs/records/artifacts/agent/Money Stuff/`
 - `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/d-bug/`
 

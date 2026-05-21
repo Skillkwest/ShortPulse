@@ -11,4 +11,3 @@ Purpose: keep only the smallest durable repo-visible memory for the current Code
 ## Durable Lessons
 
 - 2026-05-20: If a dedicated repo-side self folder does not exist, create a minimal one rather than repurposing another agent's contract or memory.
-- 2026-05-20: Special exception: when the user pastes a prompt from Gottspan's prompt library, run it on the current assistant/self by default unless the user explicitly says to run it on Gottspan instead.

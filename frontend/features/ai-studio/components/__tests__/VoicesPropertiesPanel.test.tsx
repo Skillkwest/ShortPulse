@@ -1401,7 +1401,8 @@ describe("VoicesPropertiesPanel", () => {
   it("closes the create modal without inserting a fake local voice", () => {
     render(<VoicesPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+    const voicesButton = screen.getByRole("button", { name: "Voices" });
+    fireEvent.click(voicesButton);
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Beacon" },
@@ -1413,7 +1414,7 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close create voice modal" }));
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+    fireEvent.click(voicesButton);
     expect(screen.queryByRole("button", { name: /beacon voice/i })).not.toBeInTheDocument();
   });
 

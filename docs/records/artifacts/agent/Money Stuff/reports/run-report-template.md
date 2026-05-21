@@ -1,6 +1,6 @@
-# Ledger Run Report Template
+# Money Stuff Run Report Template
 
-Purpose: provide a reusable report skeleton for substantive Ledger runs.
+Purpose: provide a reusable report skeleton for substantive Money Stuff runs.
 
 ## Report Metadata
 

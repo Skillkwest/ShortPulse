@@ -1,6 +1,6 @@
-# Ledger Reports
+# Money Stuff Reports
 
-Purpose: store dated retained reports and evidence summaries for Ledger billing runs.
+Purpose: store dated retained reports and evidence summaries for Money Stuff billing runs.
 
 Create a dated report when a run:
 

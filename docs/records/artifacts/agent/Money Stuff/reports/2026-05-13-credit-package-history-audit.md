@@ -1,12 +1,12 @@
 # 2026-05-13 Credit Package History Audit
 
-Purpose: retain Ledger's first substantive one-time-commerce audit covering credit package catalog, Stripe checkout, webhook grant behavior, and unified billing history projection.
+Purpose: retain Money Stuff's first substantive one-time-commerce audit covering credit package catalog, Stripe checkout, webhook grant behavior, and unified billing history projection.
 
 ## Report Metadata
 
 - Date: 2026-05-13
 - Lane: credit packages
-- Requested trigger phrase: continue Ledger training on one-time commerce
+- Requested trigger phrase: continue Money Stuff training on one-time commerce
 - Operator intent: verify whether credit packages are labeled and charged correctly and identify the next real one-time billing risk
 
 ## Starting State
@@ -98,7 +98,7 @@ Profile credits currently load packages from `/api/billing/catalog`, not `/api/b
 - Tooling gap(s):
   - no explicit one-time-commerce reconciliation check yet exists for historical top-up display parity
 - SOP/doc updates needed:
-  - add a one-time-commerce history/parity check to Ledger's future audit checklist once that checklist exists
+  - add a one-time-commerce history/parity check to Money Stuff's future audit checklist once that checklist exists
 
 ## Follow-Ups
 

@@ -1,10 +1,10 @@
-# Ledger SOP Notes
+# Money Stuff SOP Notes
 
-Purpose: track Ledger's workflow references and smaller operational notes that do not belong in the formal contract.
+Purpose: track Money Stuff's workflow references and smaller operational notes that do not belong in the formal contract.
 
 ## Canonical SOP
 
-The authoritative Ledger SOP lives at:
+The authoritative Money Stuff SOP lives at:
 
 - `docs/sops/sop_billing_credits_operations.md`
 
@@ -22,4 +22,4 @@ The authoritative Ledger SOP lives at:
 - Treat customer commerce billing as four truths that must agree: public, commercial, billing/runtime, and support.
 - Treat subscriptions and storage add-ons as one recurring-commerce lane.
 - Treat credit packages as a one-time-commerce lane.
-- Keep AI usage billing as a separate adjacent lane unless the user explicitly expands Ledger into that scope.
+- Keep AI usage billing as a separate adjacent lane unless the user explicitly expands Money Stuff into that scope.

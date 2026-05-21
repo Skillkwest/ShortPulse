@@ -1,10 +1,10 @@
-# Ledger Source Of Truth Map
+# Money Stuff Source Of Truth Map
 
-Purpose: define where Ledger should look first for billing authority across subscriptions, credit packages, and recurring storage/media add-ons.
+Purpose: define where Money Stuff should look first for billing authority across subscriptions, credit packages, and recurring storage/media add-ons.
 
 ## Truth Layers
 
-Ledger should reason about billing in this order:
+Money Stuff should reason about billing in this order:
 
 1. Stripe/runtime billing truth
 2. subscriber contract truth
@@ -121,7 +121,7 @@ Ledger should reason about billing in this order:
 - public card display <-> live catalog row
 - paid event <-> credit grant / contract update / account projection
 
-## Canonical Checks Ledger Should Expect
+## Canonical Checks Money Stuff Should Expect
 
 - Is the customer-facing price the same as the live sellable offer?
 - Is the displayed interval actually purchasable?

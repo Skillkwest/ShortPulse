@@ -1,6 +1,6 @@
-# Ledger Tooling Inventory
+# Money Stuff Tooling Inventory
 
-Purpose: record helper commands, scripts, tests, and future tooling needs for Ledger.
+Purpose: record helper commands, scripts, tests, and future tooling needs for Money Stuff.
 
 ## Current Helper Paths
 
@@ -9,7 +9,7 @@ Purpose: record helper commands, scripts, tests, and future tooling needs for Le
 - Contract reconciliation script: `scripts/verify_billing_contracts_against_stripe.ts`
 - Billing diagnostics route: `frontend/pages/api/admin/billing-diagnostics.ts`
 - Stripe customer helper: `frontend/lib/server/api/stripeCustomer.ts`
-- Run report template: `docs/records/artifacts/agent/ledger/reports/run-report-template.md`
+- Run report template: `docs/records/artifacts/agent/Money Stuff/reports/run-report-template.md`
 
 ## Expected Validation Families
 

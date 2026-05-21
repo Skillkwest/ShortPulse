@@ -1,11 +1,11 @@
-# Ledger Memory
+# Money Stuff Memory
 
-Purpose: keep repo-visible memory for Ledger's customer commerce billing stewardship.
+Purpose: keep repo-visible memory for Money Stuff's customer commerce billing stewardship.
 
 ## Standing Preferences
 
-- Formal name: Ledger.
-- Short name: Ledger.
+- Formal name: Money Stuff.
+- Short name: Money Stuff.
 - Role: ShortPulse commerce billing steward.
 - Default posture: preserve alignment across public truth, sellable catalog truth, billing/runtime truth, and support truth.
 - Primary docs:
@@ -19,8 +19,8 @@ Purpose: keep repo-visible memory for Ledger's customer commerce billing steward
 
 ## Durable Lessons
 
-- 2026-05-13: Ledger was established as the repo-visible steward for ShortPulse customer commerce billing: subscriptions, credit packages, and recurring storage/media add-ons.
-- 2026-05-13: Billing work in this repo naturally splits into recurring commerce and one-time commerce. AI generation usage billing is adjacent but should stay a separate lane unless the user explicitly expands Ledger into it.
+- 2026-05-13: Money Stuff was established as the repo-visible steward for ShortPulse customer commerce billing: subscriptions, credit packages, and recurring storage/media add-ons.
+- 2026-05-13: Billing work in this repo naturally splits into recurring commerce and one-time commerce. AI generation usage billing is adjacent but should stay a separate lane unless the user explicitly expands Money Stuff into it.
 - 2026-05-13: Subscription truth alignment must be checked across four layers: public truth, commercial/sellable truth, billing/runtime truth, and support truth.
 - 2026-05-13: Public pricing surfaces must be live-catalog driven. Hardcoded commercial numbers and customer-facing `free` language are recurring drift risks.
 - 2026-05-13: Hidden internal `free` remains a backend/runtime billing contract even when the public product ladder prefers `starter`, `media`, `studio`, and `business`.
@@ -33,6 +33,6 @@ Purpose: keep repo-visible memory for Ledger's customer commerce billing steward
 
 ## Open Follow-Ups
 
-- Freeze a Ledger baseline KPI after a few more real supervised billing runs.
-- Add a reusable Ledger run report template once the first substantial end-to-end Stripe walkthrough is complete.
-- Decide whether Ledger needs a separate production verification policy doc if live billing checks become frequent.
+- Freeze a Money Stuff baseline KPI after a few more real supervised billing runs.
+- Add a reusable Money Stuff run report template once the first substantial end-to-end Stripe walkthrough is complete.
+- Decide whether Money Stuff needs a separate production verification policy doc if live billing checks become frequent.

@@ -5,7 +5,7 @@
 - Date: 2026-05-13
 - Lane: storage add-ons
 - Requested trigger phrase: `continue with your next steps`
-- Operator intent: continue Ledger training on recurring storage/media add-ons after the credit-package history fix
+- Operator intent: continue Money Stuff training on recurring storage/media add-ons after the credit-package history fix
 
 ## Starting State
 
@@ -45,7 +45,7 @@
   - storage add-on purchases no longer trust stale local rows alone when deciding whether an add-on is already active
 - Support/admin result: unchanged
 - Docs/index updates:
-  - retained report added under Ledger artifacts
+  - retained report added under Money Stuff artifacts
 
 ## Lessons Learned
 
@@ -53,7 +53,7 @@
   - direct recurring upsell routes must not report success while Stripe is still in an incomplete payment state
   - when local entitlement rows are webhook-projected, duplicate protection for self-serve add flows must check live Stripe subscription items, not only local mirrored rows
 - Tooling gap(s):
-  - the storage action lane still has no real Stripe test-mode walkthrough locked into Ledger history
+  - the storage action lane still has no real Stripe test-mode walkthrough locked into Money Stuff history
 - SOP/doc updates needed:
   - none required for this patch
 

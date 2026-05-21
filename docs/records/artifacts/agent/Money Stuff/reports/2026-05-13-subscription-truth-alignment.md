@@ -1,12 +1,12 @@
 # 2026-05-13 Subscription Truth Alignment
 
-Purpose: retain the first substantive Ledger run covering recurring subscription truth alignment across public pricing, Stripe/Supabase support safety, and post-checkout projection.
+Purpose: retain the first substantive Money Stuff run covering recurring subscription truth alignment across public pricing, Stripe/Supabase support safety, and post-checkout projection.
 
 ## Report Metadata
 
 - Date: 2026-05-13
 - Lane: subscriptions
-- Requested trigger phrase: recurring supervised billing work prior to formal Ledger setup
+- Requested trigger phrase: recurring supervised billing work prior to formal Money Stuff setup
 - Operator intent: make the public subscription experience truthful, safe, and supportable before finalizing plan pricing
 
 ## Starting State
@@ -90,7 +90,7 @@ Purpose: retain the first substantive Ledger run covering recurring subscription
   - integrated end-to-end subscription funnel test still missing
   - deeper production annual-renewal verification still needs a stronger access path
 - SOP/doc updates needed:
-  - if Ledger keeps owning recurring subscription truth, add a recurring subscription checklist or rubric after a few more runs
+  - if Money Stuff keeps owning recurring subscription truth, add a recurring subscription checklist or rubric after a few more runs
 
 ## Follow-Ups
 

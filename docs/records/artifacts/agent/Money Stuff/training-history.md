@@ -1,10 +1,10 @@
-# Ledger Training History
+# Money Stuff Training History
 
-Purpose: record supervised Ledger runs, learned behavior, SOP/template updates, tool changes, remaining friction, and next training focus.
+Purpose: record supervised Money Stuff runs, learned behavior, SOP/template updates, tool changes, remaining friction, and next training focus.
 
 ## 2026-05-13: Agent Setup
 
-Task: establish Ledger as the ShortPulse commerce billing steward.
+Task: establish Money Stuff as the ShortPulse commerce billing steward.
 
 Prompt summary:
 
@@ -18,23 +18,23 @@ Actions taken:
 - Loaded the agent-teaching setup and maintenance references.
 - Audited the existing agent package patterns already used in the repo.
 - Loaded the billing SOP, billing pricing catalog doc, billing ADRs, and billing route inventory.
-- Created Ledger's contract, repo-visible memory, source-of-truth map, and retained artifact area.
-- Indexed Ledger in the main agent docs and retained-artifact indexes.
+- Created Money Stuff's contract, repo-visible memory, source-of-truth map, and retained artifact area.
+- Indexed Money Stuff in the main agent docs and retained-artifact indexes.
 
 Training result:
 
-- Ledger is initialized at `Level 1: Supervised`.
-- Ledger now has a durable billing scope, memory surface, and initial training area.
+- Money Stuff is initialized at `Level 1: Supervised`.
+- Money Stuff now has a durable billing scope, memory surface, and initial training area.
 
 Next training focus:
 
-- Run Ledger on a real subscriptions/credits/storage billing task.
+- Run Money Stuff on a real subscriptions/credits/storage billing task.
 - Freeze a baseline KPI after a few more supervised billing runs.
 - Add a dated report template after the first major billing audit or end-to-end Stripe walkthrough.
 
 ## 2026-05-13: First Real Subscription Truth-Alignment Run Backfilled
 
-Task: absorb the completed subscription truth-alignment lane into Ledger's durable operating memory.
+Task: absorb the completed subscription truth-alignment lane into Money Stuff's durable operating memory.
 
 Actions taken:
 
@@ -44,7 +44,7 @@ Actions taken:
   - support/runtime safety,
   - post-purchase sync,
   - annual renewal verification.
-- Added Ledger's first reusable run report template.
+- Added Money Stuff's first reusable run report template.
 - Preserved the main remaining blockers:
   - real Stripe test-mode walkthrough,
   - integrated automated subscription funnel test,
@@ -52,18 +52,18 @@ Actions taken:
 
 Training result:
 
-- Ledger now has its first real supervised billing run in retained form.
-- Ledger's artifact area now contains both a report template and one substantive recurring-commerce report.
+- Money Stuff now has its first real supervised billing run in retained form.
+- Money Stuff's artifact area now contains both a report template and one substantive recurring-commerce report.
 
 Next training focus:
 
-- Run Ledger on a real credit-package or storage add-on lane.
-- Decide whether Ledger now needs a scoring rubric before the next major billing pass.
+- Run Money Stuff on a real credit-package or storage add-on lane.
+- Decide whether Money Stuff now needs a scoring rubric before the next major billing pass.
 - Freeze a baseline KPI after a few more stable runs.
 
 ## 2026-05-13: First One-Time-Commerce Audit Captured
 
-Task: train Ledger on the credit-package lane and capture the first one-time-commerce lesson.
+Task: train Money Stuff on the credit-package lane and capture the first one-time-commerce lesson.
 
 Actions taken:
 
@@ -74,20 +74,20 @@ Actions taken:
 
 Training result:
 
-- Ledger now has supervised retained history for both:
+- Money Stuff now has supervised retained history for both:
   - recurring commerce,
   - one-time commerce.
-- Ledger's first clear one-time-commerce implementation target is now defined.
+- Money Stuff's first clear one-time-commerce implementation target is now defined.
 
 Next training focus:
 
 - Fix the historical credit-purchase snapshot drift.
-- Then run Ledger on the storage add-on lane.
+- Then run Money Stuff on the storage add-on lane.
 - Reassess after that whether a rubric or baseline KPI is justified.
 
 ## 2026-05-13: First One-Time-Commerce Fix Completed
 
-Task: implement the historical credit-purchase snapshot fix identified by Ledger's one-time-commerce audit.
+Task: implement the historical credit-purchase snapshot fix identified by Money Stuff's one-time-commerce audit.
 
 Actions taken:
 
@@ -102,19 +102,19 @@ Actions taken:
 
 Training result:
 
-- Ledger has now completed both:
+- Money Stuff has now completed both:
   - one-time-commerce audit,
   - one-time-commerce implementation.
-- Ledger's first one-time-commerce implementation pattern is now durable and reusable.
+- Money Stuff's first one-time-commerce implementation pattern is now durable and reusable.
 
 Next training focus:
 
-- Run Ledger on the storage add-on lane.
-- Then decide whether Ledger has enough repeated patterns to justify a rubric or baseline KPI.
+- Run Money Stuff on the storage add-on lane.
+- Then decide whether Money Stuff has enough repeated patterns to justify a rubric or baseline KPI.
 
 ## 2026-05-13: First Storage Add-On Fix Completed
 
-Task: implement the first concrete storage add-on billing fix uncovered during Ledger's recurring add-on audit.
+Task: implement the first concrete storage add-on billing fix uncovered during Money Stuff's recurring add-on audit.
 
 Actions taken:
 
@@ -125,14 +125,14 @@ Actions taken:
 
 Training result:
 
-- Ledger has now completed implementation runs in:
+- Money Stuff has now completed implementation runs in:
   - subscriptions,
   - credit packages,
   - storage add-ons.
-- Ledger's first recurring add-on lesson is now durable:
+- Money Stuff's first recurring add-on lesson is now durable:
   - direct recurring upsell flows must validate against live Stripe truth, not just local mirrored rows.
 
 Next training focus:
 
 - Run a real Stripe test-mode walkthrough for top-ups and recurring storage if approval is available.
-- Reassess whether Ledger now has enough repeated patterns to justify a rubric, reconciliation checklist, or baseline KPI.
+- Reassess whether Money Stuff now has enough repeated patterns to justify a rubric, reconciliation checklist, or baseline KPI.

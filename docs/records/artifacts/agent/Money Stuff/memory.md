@@ -1,10 +1,10 @@
-# Ledger Retained Memory
+# Money Stuff Retained Memory
 
-Purpose: retain non-authoritative working memory for Ledger's billing workflows.
+Purpose: retain non-authoritative working memory for Money Stuff's billing workflows.
 
 ## Current Notes
 
-- Ledger's primary job is customer commerce billing truth alignment, not AI usage-billing policy by default.
+- Money Stuff's primary job is customer commerce billing truth alignment, not AI usage-billing policy by default.
 - The highest-risk recurring billing surfaces are:
   - public pricing truth,
   - Stripe customer repair,

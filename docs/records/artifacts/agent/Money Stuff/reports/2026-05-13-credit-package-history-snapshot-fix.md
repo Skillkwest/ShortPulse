@@ -1,12 +1,12 @@
 # 2026-05-13 Credit Package History Snapshot Fix
 
-Purpose: retain Ledger's first one-time-commerce implementation run fixing historical credit-purchase display drift after package repricing or renaming.
+Purpose: retain Money Stuff's first one-time-commerce implementation run fixing historical credit-purchase display drift after package repricing or renaming.
 
 ## Report Metadata
 
 - Date: 2026-05-13
 - Lane: credit packages
-- Requested trigger phrase: continue with Ledger's next one-time-commerce implementation step
+- Requested trigger phrase: continue with Money Stuff's next one-time-commerce implementation step
 - Operator intent: preserve truthful historical credit-purchase history even when current package catalog values later change
 
 ## Starting State
@@ -66,14 +66,14 @@ Purpose: retain Ledger's first one-time-commerce implementation run fixing histo
   - one-time-commerce history needs immutable purchase snapshots just as much as recurring commerce needs immutable subscriber contracts
   - Stripe-session lookups are helpful but should not be the only historical truth source
 - Tooling gap(s):
-  - a live Stripe test-mode top-up walkthrough is still needed to complete Ledger's one-time-commerce proof path
+  - a live Stripe test-mode top-up walkthrough is still needed to complete Money Stuff's one-time-commerce proof path
 - SOP/doc updates needed:
-  - add a one-time-commerce historical-fallback check to a future Ledger checklist or rubric
+  - add a one-time-commerce historical-fallback check to a future Money Stuff checklist or rubric
 
 ## Follow-Ups
 
 - Immediate next step:
-  - run Ledger on the storage add-on lane
+  - run Money Stuff on the storage add-on lane
 - Deferred validation:
   - run a real Stripe test-mode top-up purchase and confirm the new snapshot metadata lands end to end
 - Remaining risk:

@@ -240,4 +240,35 @@ describe("usePulseCreatePrimarySubmit", () => {
       "This Pulse has not produced a generation-ready prompt yet."
     );
   });
+
+  it("uses the guided workflow guardrail when the visible Pulse is guided but startup is not active yet", () => {
+    const handleGenerate = vi.fn();
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePulseCreatePrimarySubmit({
+        hasActivePulseSession: false,
+        pulseKind: "guided_workflow",
+        pulseWorkflowSession: null,
+        latestAgentPrompt: null,
+        artifactTarget: "image_prompt",
+        effectiveGenerationGuardrail: null,
+        promptReferenceGenerateCostCredits: null,
+        currentCostCredits: 20,
+        handleGenerate,
+        setUiNotice,
+      })
+    );
+
+    expect(result.current.pulseArtifactGenerateGuardrail).toBe(
+      "Complete the active Pulse before generating."
+    );
+
+    act(() => {
+      result.current.handlePulseCreatePrimarySubmit();
+    });
+
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Complete the active Pulse before generating.");
+  });
 });

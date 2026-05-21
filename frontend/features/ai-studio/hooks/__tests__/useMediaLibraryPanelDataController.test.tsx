@@ -6,9 +6,16 @@ const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
 const fetchMediaPromptListPageMock = vi.hoisted(() => vi.fn());
 const setSignedUrlsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../media-library/logic/mediaListApi", () => ({
-  fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
-}));
+vi.mock("../../../media-library/logic/mediaListApi", async () => {
+  const actual = await vi.importActual<typeof import("../../../media-library/logic/mediaListApi")>(
+    "../../../media-library/logic/mediaListApi"
+  );
+
+  return {
+    ...actual,
+    fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
+  };
+});
 
 vi.mock("../../logic/mediaLibraryPanelApi", () => ({
   fetchMediaPromptListPage: (...args: unknown[]) => fetchMediaPromptListPageMock(...args),

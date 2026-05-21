@@ -127,4 +127,54 @@ describe("buildAgentContext media filtering", () => {
       schemaVersion: 3,
     });
   });
+
+  it("preserves built-in guided workflow pulse context when instructions are resolved server-side", () => {
+    const context = buildAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: " story_builder ",
+        label: " Story Builder ",
+        instructions: "   ",
+        pulseKind: "guided_workflow",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
+        source: "builtin",
+        workflowSession: {
+          presetId: "story_builder",
+          status: "running",
+          currentStepIndex: 1,
+          currentStepLabel: "Upload Characters",
+          currentStepPrompt: "Upload your characters first.",
+          collectedInputs: [],
+          lastArtifact: null,
+          finalArtifactSource: "chat_reply",
+        },
+      },
+    });
+
+    expect(context.pulse).toEqual({
+      presetId: "story_builder",
+      label: "Story Builder",
+      description: null,
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      source: "builtin",
+      workflowSession: {
+        presetId: "story_builder",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Upload Characters",
+        currentStepPrompt: "Upload your characters first.",
+        collectedInputs: [],
+        lastArtifact: null,
+        finalArtifactSource: "chat_reply",
+      },
+    });
+  });
 });

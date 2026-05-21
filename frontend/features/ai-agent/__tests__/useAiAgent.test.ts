@@ -10,6 +10,7 @@ import type { SendResult, CreateAgentStateOptions } from "../createAgentStateTyp
 import { buildPulseCreateAgentContext } from "../logic/pulseCreateAgentContextBuilder";
 import { buildStandardCreateAgentContext } from "../logic/standardContextBuilder";
 import { useCreateAgentStateCore } from "../useCreateAgentStateCore";
+import * as safetyInputPrecheckModule from "../../agent-runtime/studioAgentSafetyInputPrecheck";
 
 vi.mock("../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -56,6 +57,7 @@ const useCreateAgentStateTestHarness = ({
 
 describe("useCreateAgentStateCore", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     window.sessionStorage.clear();
     delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
@@ -155,6 +157,127 @@ describe("useCreateAgentStateCore", () => {
       content: "pulse_activation_seed:story_builder",
     });
     expect(result.current.messages.some((message) => message.role === "user")).toBe(false);
+  });
+
+  it("keeps built-in pulse context in kickoff requests when instructions are empty client-side", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Pulse activated." }),
+    } as Response);
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "",
+            pulseKind: "guided_workflow",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            outputMode: "chat_reply",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      context?: { pulse?: Record<string, unknown> };
+    };
+    expect(body.context?.pulse).toEqual({
+      presetId: "story_builder",
+      label: "Story Builder",
+      description: null,
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage: null,
+      workflowSession: null,
+      workflowStageHints: null,
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      source: "builtin",
+    });
+  });
+
+  it("preserves pulse context when input precheck rewrites the request context without pulse metadata", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Pulse activated." }),
+    } as Response);
+    vi.spyOn(safetyInputPrecheckModule, "runStudioAgentSafetyInputPrecheck").mockImplementation(
+      ({ messages, canonicalPrompt }) => ({
+        outcome: "pass",
+        messages,
+        context: { activePrompt: "rewritten safe prompt" },
+        canonicalPrompt,
+        rewrittenFieldCount: 1,
+        providerCallSkipped: false,
+        scopeTelemetry: {
+          refusalField: null,
+          rewrittenFields: ["active_prompt"],
+          nonBlockingSignalCount: 1,
+          fieldModes: {
+            latest_user_turn: "enforce",
+            history_user_turn: "rewrite_only",
+            active_prompt: "rewrite_only",
+            last_assistant_message: "rewrite_only",
+            reference_prompt_snippet: "rewrite_only",
+            reference_caption: "rewrite_only",
+            canonical_prompt: "enforce",
+          },
+        },
+      })
+    );
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:image",
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            instructions: "",
+            pulseKind: "guided_workflow",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            outputMode: "chat_reply",
+            source: "builtin",
+          },
+          activePrompt: "describe this image",
+        },
+      });
+    });
+
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      context?: { pulse?: Record<string, unknown>; activePrompt?: string };
+    };
+    expect(body.context?.activePrompt).toBe("rewritten safe prompt");
+    expect(body.context?.pulse).toEqual(
+      expect.objectContaining({
+        presetId: "image",
+        label: "Video Prompt Magic",
+        pulseKind: "guided_workflow",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
+        source: "builtin",
+      })
+    );
   });
 
   it("keeps a pulse activation reply when the hook namespace switches to the override before the response resolves", async () => {

@@ -1205,15 +1205,17 @@ describe("useAiStudioAgentComposer", () => {
 
     await dropAndWaitForAttachments(result);
 
-    expect(result.current.agentAttachments[0]).toMatchObject({
-      kind: "image",
-      source: "ephemeral_local",
-      referenceId: "out-1",
-      imageUrl: "https://example.com/fallback-image.png",
-      modelDataUrl: "https://example.com/fallback-image.png",
-      submissionImageUrl: null,
-      text: "Reference note",
-      deliveryStatus: "ready",
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        source: "ephemeral_local",
+        referenceId: "out-1",
+        imageUrl: "https://example.com/fallback-image.png",
+        modelDataUrl: "https://example.com/fallback-image.png",
+        submissionImageUrl: null,
+        text: "Reference note",
+        deliveryStatus: "ready",
+      });
     });
   });
 

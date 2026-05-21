@@ -37,6 +37,7 @@ import {
 import { resolveStudioAgentTransportFailure } from "./client/transportFailureResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
 import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./createAgentStateTypes";
+import { resolveOutboundAgentContext } from "./logic/pulseContextPreservation";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
 type CreateAgentTransportSuccess = {
@@ -321,13 +322,11 @@ export const useCreateAgentStateCore = ({
               };
             })
           : apiMessages;
-        const outboundContext = inputPrecheckResult
-          ? Object.keys(inputPrecheckResult.context).length > 0
-            ? inputPrecheckResult.context
-            : undefined
-          : safeContext && Object.keys(safeContext).length > 0
-            ? safeContext
-            : undefined;
+        const outboundContext = resolveOutboundAgentContext({
+          requestRuntimeMode,
+          safeContext,
+          precheckedContext: inputPrecheckResult?.context,
+        });
 
         const body: AgentApiRequest = {
           messages: outboundMessages,

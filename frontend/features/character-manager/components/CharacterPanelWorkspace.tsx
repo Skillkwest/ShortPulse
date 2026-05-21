@@ -343,8 +343,11 @@ export function CharacterPanelWorkspace({
                   >
                     Characters
                   </button>
+                </div>
+
+                <div className="character-panel-profile-fields-row">
                   <label
-                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field character-panel-profile-name-field--inline"
+                    className="control-row character-simple-field character-simple-field--label-serif character-panel-profile-name-field"
                     htmlFor="character-panel-name"
                   >
                     <span className="input-label">Name:</span>
@@ -360,36 +363,36 @@ export function CharacterPanelWorkspace({
                       disabled={loading}
                     />
                   </label>
-                </div>
 
-                <div className="character-panel-looks-row">
-                  <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
-                    <p className="input-label">Looks:</p>
-                  </div>
+                  <div className="character-panel-looks-row">
+                    <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
+                      <p className="input-label">Looks:</p>
+                    </div>
 
-                  <div className="character-sheet-looks-block">
-                    <CharacterSheetPresetTabs
-                      presetIds={visibleCharacterSheetPresetIds}
-                      activePresetId={activeCharacterSheetPresetId}
-                      presetLabels={characterSheetPresetLabels}
-                      onSelectPreset={(presetId) => {
-                        void setActiveCharacterSheetPreset(presetId);
-                      }}
-                      onAddPreset={() => {
-                        void addCharacterSheetPreset();
-                      }}
-                      onRenamePreset={(presetId, nextLabel) => {
-                        void renameCharacterSheetPreset(presetId, nextLabel);
-                      }}
-                      onDeletePreset={(presetId) => {
-                        if (pageBusy || isSavingCharacterSheetPreset) return;
-                        clearMessages();
-                        setDeleteTargetCharacterSheetPresetId(presetId);
-                      }}
-                      panelId="character-panel-preset-panel"
-                      disabled={pageBusy}
-                      idBase="character-panel-preset"
-                    />
+                    <div className="character-sheet-looks-block">
+                      <CharacterSheetPresetTabs
+                        presetIds={visibleCharacterSheetPresetIds}
+                        activePresetId={activeCharacterSheetPresetId}
+                        presetLabels={characterSheetPresetLabels}
+                        onSelectPreset={(presetId) => {
+                          void setActiveCharacterSheetPreset(presetId);
+                        }}
+                        onAddPreset={() => {
+                          void addCharacterSheetPreset();
+                        }}
+                        onRenamePreset={(presetId, nextLabel) => {
+                          void renameCharacterSheetPreset(presetId, nextLabel);
+                        }}
+                        onDeletePreset={(presetId) => {
+                          if (pageBusy || isSavingCharacterSheetPreset) return;
+                          clearMessages();
+                          setDeleteTargetCharacterSheetPresetId(presetId);
+                        }}
+                        panelId="character-panel-preset-panel"
+                        disabled={pageBusy}
+                        idBase="character-panel-preset"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

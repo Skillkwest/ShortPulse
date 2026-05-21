@@ -1608,13 +1608,17 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       >
                         Voice Changer
                       </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        data-voice-mode="voice-clone"
+                        className="voices-properties-mode-tab"
+                      >
+                        Voice Clone
+                      </button>
                     </div>
                   </div>
-                </div>
-                <div className="voices-properties-header-actions">
-                  <button type="button" className="voices-properties-library-create-btn">
-                    Voice Clone
-                  </button>
                 </div>
               </div>
             </section>

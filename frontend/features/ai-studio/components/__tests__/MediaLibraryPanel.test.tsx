@@ -108,9 +108,16 @@ vi.mock("../../../media-library/logic/mediaLibraryDataEffects", async () => {
   };
 });
 
-vi.mock("../../../media-library/logic/mediaListApi", () => ({
-  fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
-}));
+vi.mock("../../../media-library/logic/mediaListApi", async () => {
+  const actual = await vi.importActual<typeof import("../../../media-library/logic/mediaListApi")>(
+    "../../../media-library/logic/mediaListApi"
+  );
+
+  return {
+    ...actual,
+    fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
+  };
+});
 
 vi.mock("../../../media-library/logic/mediaPreviewResolver", () => ({
   resolveSignedSelectionUrl: async ({ row }: { row: { signedUrl?: string | null } }) =>

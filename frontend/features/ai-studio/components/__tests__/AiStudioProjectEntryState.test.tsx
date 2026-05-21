@@ -47,6 +47,7 @@ describe("AiStudioProjectEntryState", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-lane")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 

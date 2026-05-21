@@ -125,7 +125,8 @@ const pickPulseRuntime = (
     typeof pulse.schemaVersion === "number" && Number.isFinite(pulse.schemaVersion)
       ? Math.trunc(pulse.schemaVersion)
       : undefined;
-  if (!presetId || !label || !instructions) return undefined;
+  const hasInstructionPayload = instructions.length > 0;
+  if (!presetId || !label || (!hasInstructionPayload && source !== "builtin")) return undefined;
   const artifactTarget = normalizePulseArtifactTarget(pulse.artifactTarget);
   if (pulseKind === CUSTOM_PULSE_KIND) {
     return {
@@ -142,7 +143,7 @@ const pickPulseRuntime = (
     presetId,
     label,
     description,
-    instructions,
+    ...(hasInstructionPayload ? { instructions } : {}),
     pulseKind,
     runtimeMode: GUIDED_PULSE_RUNTIME_MODE,
     activationMode: GUIDED_PULSE_ACTIVATION_MODE,

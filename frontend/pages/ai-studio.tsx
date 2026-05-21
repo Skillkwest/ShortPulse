@@ -300,12 +300,18 @@ const useAiStudioCreatePanelRuntime = ({
   const pulsePrimarySubmitCostCredits =
     pulseArtifactTarget != null ? pulseCurrentCostCredits : currentCostCredits;
   const {
+    pulsePreferenceRuntime,
+    displayCreatePulsePresetId,
+    displayCreatePulsePresetSnapshot,
+    hasActivePulseSession,
+  } = createPulsePageRuntime;
+  const {
     pulseArtifactGenerateGuardrail,
     pulseArtifactGenerateDisabled,
     handlePulseCreatePrimarySubmit,
   } = usePulseCreatePrimarySubmit({
     hasActivePulseSession: createPulsePageRuntime.hasActivePulseSession,
-    pulseKind: createPulsePageRuntime.activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+    pulseKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
     pulseWorkflowSession: base.pulseWorkflowSession,
     latestAgentPrompt: pulseCreateAgentRuntime?.latestAgentPrompt ?? null,
     artifactTarget: pulseArtifactTarget,
@@ -315,12 +321,6 @@ const useAiStudioCreatePanelRuntime = ({
     handleGenerate,
     setUiNotice,
   });
-  const {
-    pulsePreferenceRuntime,
-    displayCreatePulsePresetId,
-    displayCreatePulsePresetSnapshot,
-    hasActivePulseSession,
-  } = createPulsePageRuntime;
   const handlePulsePresetRestart = useMemo(
     () => pulseCreateAgentRuntime?.handlePulsePresetRestart ?? (async () => undefined),
     [pulseCreateAgentRuntime?.handlePulsePresetRestart]
@@ -1342,7 +1342,7 @@ const AiStudioPageRuntimeBody = ({
     voicesIsGenerating,
   } = useAiStudioPageGenerationRuntime({
     activeCreatePrompt,
-    activeCreatePulsePresetSnapshot,
+    activeCreatePulsePresetSnapshot: createPulsePageRuntime.displayCreatePulsePresetSnapshot,
     activeOutput,
     activeOutputId,
     addCharacterReferences,

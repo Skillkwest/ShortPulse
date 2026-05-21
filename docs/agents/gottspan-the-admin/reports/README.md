@@ -11,4 +11,5 @@ Purpose: index durable reports for Gottspan The Admin repo-stewardship work, inc
 
 ## Reports
 
+- `run-report-template.md`: compact template for durable Gottspan repo-steward run summaries.
 - No standalone Gottspan reports yet.

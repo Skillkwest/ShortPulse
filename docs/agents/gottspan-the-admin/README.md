@@ -109,6 +109,7 @@ Gottspan's repo-visible memory lives in:
 Standing operating procedure lives in:
 
 - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`
+- `docs/agents/gottspan-the-admin/repo-state-audit-checklist.md`
 
 Retained artifacts live in:
 
@@ -142,6 +143,10 @@ Use local reports for compact role-owned summaries. Use the retained artifact ar
 9. Report what changed, what was verified, any residual risk, and the next best stewarded action.
 
 When the task is fundamentally about trust, hesitation, clarity, or operator UX inside admin surfaces, use the local UX playbook plus the repo UX framework before recommending changes.
+
+Default audit helper:
+
+- `docs/agents/gottspan-the-admin/repo-state-audit-checklist.md`
 
 ## Stop Rules
 

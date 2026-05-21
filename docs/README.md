@@ -70,6 +70,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
 - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`
+- `docs/agents/gottspan-the-admin/repo-state-audit-checklist.md`
 - `docs/agents/ledger/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`

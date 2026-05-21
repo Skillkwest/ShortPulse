@@ -12,6 +12,7 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 
 - 2026-05-20: another production SOP run stayed inside the `8.5/10` band. Preflight/build/full-suite discipline was solid, but the browser-smoke lane overran user preference and then ended as `smoke-incomplete by user direction`.
 - 2026-05-20: a later production SOP run stayed below `9/10` because a `build`-only type failure was fixed after the full suite had already started, which forced Gear Ball to treat the earlier suite as stale and rerun final validation on the corrected tree.
+- 2026-05-20: the Gottspan/media-library hotfix run landed at `8/10`. The remaining miss was first-manifest fan-out again: `mediaLibraryErrorText` / `mediaListApi` changes also needed the downstream `useAiStudioAgentComposer` consumer test, not just panel/controller tests.
 
 ## Structural Milestones
 
@@ -31,6 +32,7 @@ Purpose: keep the current training synthesis short and actionable. Detailed run 
 | Build/docs regressions found too late    | Added early `build` and early `docs:check` triggers for compound-risk lanes.                                                              |
 | Invalid early closeouts                  | Added closeout invalidation rule when later product/docs/test work appears.                                                               |
 | Shared-contract fan-out misses           | Added mandatory shared-contract checklist in the SOP and auto-inferred contract tests in `gear-ball:preflight`.                           |
+| Media-library error contract fan-out     | Explicitly treat `mediaLibraryErrorText.ts` and `mediaListApi.ts` as fan-out triggers for panel, controller, and composer consumer tests. |
 | Soft route-smoke behavior                | Added `smoke-incomplete` as a scored failure mode for qualifying runs.                                                                    |
 | Tooling PATH/runtime assumptions         | Switched helper/docs/test invocations and Husky pre-commit lint-staged execution to explicit local binaries or direct Node entrypoints.   |
 | Broken local wrapper/native-module drift | On wrapper/runtime mismatch, fall back directly to the approved Node 22 binary plus package entrypoints for `build` and full-suite gates. |

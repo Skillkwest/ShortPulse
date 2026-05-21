@@ -23,6 +23,5 @@ Purpose: keep repo-visible memory for Gottspan The Admin's repo-stewardship work
 
 ## Open Follow-Ups
 
-- Define a repeatable Gottspan report template after the first substantial repo-steward run.
 - Create Gottspan's baseline KPI after the repo-steward workflow has completed real supervised runs.
 - Get an explicit human decision on how the current `production` dirty-worktree posture should be reconciled with the documented `working-development -> staging-preview -> production` ladder.

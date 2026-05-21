@@ -40,6 +40,7 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
   - `docs/agents/gottspan-the-admin/ux-playbook.md`: Gottspan's applied UX review lens for admin surfaces, especially trust, hesitation, pricing clarity, and grid-first operator workflows.
   - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`: Gottspan's standing SOP for repo-state audits, docs governance, admin subsystem stewardship, release-risk review, and agent-surface routing.
+  - `docs/agents/gottspan-the-admin/repo-state-audit-checklist.md`: Gottspan's compact checklist for branch/worktree posture, docs integrity, repo-risk review, and closeout discipline during repo audits.
 - `docs/agents/ledger/README.md`: Ledger commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.

@@ -24,6 +24,7 @@ Purpose: keep the retained Gear Ball working memory concise and execution-focuse
 - Treat shared hooks/pages/API routes and `frontend/package.json` as automatic early-build triggers.
 - Treat generated docs, evidence packets, and agent artifacts as automatic early-`docs:check` triggers.
 - For shared-contract changes, include downstream dependent tests in the first manifest. `gear-ball:preflight` now auto-infers preview-delivery, media-KPI, and character-layout fan-out, but manual review is still required for uncatalogued contracts.
+- For AI Studio media-library contract changes, manually include controller, panel, and composer consumer tests when touching `mediaLibraryErrorText.ts` or `mediaListApi.ts`.
 - Scope suite-hot admin/UI selectors to the owning card or dialog instead of broad page-level name matches.
 - Qualifying route-smoke skips count as `smoke-incomplete`, not neutral.
 - When route-level smoke fails on a route path that no longer exists, classify and repair the audit instead of treating the removed path as a product regression.

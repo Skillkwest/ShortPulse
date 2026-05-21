@@ -11,6 +11,7 @@ This artifact area is for training continuity, run notes, and future stewardship
 ## Artifact Layout
 
 - `training-history.md`: supervised pivot and future training runs
+- local report template lives under `docs/agents/gottspan-the-admin/reports/run-report-template.md`
 - future `run-log.md`: append-only ledger for substantive Gottspan runs when needed
 - future `reports/`: retained repo-steward reports, templates, and governance packets when local `docs/agents/gottspan-the-admin/reports/` is not enough
 - future `tools.md`: helper inventory and repeatable repo-steward scripts/checks if they become necessary

@@ -10,6 +10,7 @@ import type {
 } from "../../components/create/createPulsePresets";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
+import { shouldShowPassivePulseGenerationGuardrail } from "./usePulseCreatePrimarySubmit";
 
 type UsePulseCreatePanelPropsParams = {
   pulsePrompt: string;
@@ -100,6 +101,11 @@ export const buildPulseCreatePanelProps = ({
   pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
   const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
+  const visibleGuardrailReason = imageAttachmentGuardrail
+    ? imageAttachmentGuardrail
+    : shouldShowPassivePulseGenerationGuardrail(generationGuardrail)
+      ? generationGuardrail
+      : null;
   return {
     pulsePrompt,
     activePulsePresetKind,
@@ -127,7 +133,7 @@ export const buildPulseCreatePanelProps = ({
     isPromptGenerating: createIsGenerating,
     costCredits: currentCostCredits,
     isGenerateDisabled: isGenerateDisabled || Boolean(imageAttachmentGuardrail),
-    guardrailReason: imageAttachmentGuardrail ?? generationGuardrail,
+    guardrailReason: visibleGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onPulsePresetRestart: handlePulsePresetRestart,
     onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,

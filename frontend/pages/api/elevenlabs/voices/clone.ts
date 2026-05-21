@@ -4,10 +4,7 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { createElevenLabsClonedVoice } from "../../../../lib/server/elevenlabs";
-import {
-  probeMediaDurationSeconds,
-  readStoredMediaBuffer,
-} from "../../../../lib/server/mediaAudioExtraction";
+import { readStoredMediaBuffer } from "../../../../lib/server/mediaAudioExtraction";
 
 type VoiceCloneRequestBody = {
   voiceName?: unknown;
@@ -33,7 +30,6 @@ type VoiceCloneErrorResponse = {
 };
 
 const MAX_VOICE_CLONE_SOURCE_BYTES = 100 * 1024 * 1024;
-const MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS = 60;
 const SUPPORTED_VOICE_CLONE_AUDIO_MIME_TYPES = new Set([
   "audio/aac",
   "audio/flac",
@@ -138,26 +134,6 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid request",
         details: "Voice clone source must be a supported audio file.",
-      });
-    }
-
-    const sourceDurationSeconds = await probeMediaDurationSeconds({
-      buffer: storedSource.buffer,
-      filename: sourceFilename,
-      mimeType: storedSource.contentType,
-    });
-
-    if (!sourceDurationSeconds) {
-      return res.status(422).json({
-        error: "Invalid request",
-        details: "Unable to determine the voice clone source duration.",
-      });
-    }
-
-    if (sourceDurationSeconds < MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS) {
-      return res.status(422).json({
-        error: "Invalid request",
-        details: "Voice clone source must be at least 1 minute long.",
       });
     }
 

@@ -6,7 +6,6 @@ import { PulseCreatePropertiesPanel } from "../PulseCreatePropertiesPanel";
 vi.mock("../PulseCreatePanelView", () => ({
   PulseCreatePanelView: ({
     promptStepProps,
-    onPulsePresetRestart,
   }: {
     promptStepProps: {
       pulseLoadingState?: { message?: string | null } | null;
@@ -15,7 +14,6 @@ vi.mock("../PulseCreatePanelView", () => ({
       composerLeadingContent?: React.ReactNode;
       composerMiddleContent?: React.ReactNode;
     };
-    onPulsePresetRestart?: unknown;
   }) => (
     <div data-testid="pulse-panel-view">
       <span data-testid="pulse-loading-message">
@@ -25,7 +23,6 @@ vi.mock("../PulseCreatePanelView", () => ({
       <div data-testid="pulse-history-header">{promptStepProps.chatHistoryHeaderContent}</div>
       <div data-testid="pulse-leading-content">{promptStepProps.composerLeadingContent}</div>
       <div data-testid="pulse-middle-content">{promptStepProps.composerMiddleContent}</div>
-      <span data-testid="pulse-restart-wired">{String(Boolean(onPulsePresetRestart))}</span>
     </div>
   ),
 }));
@@ -75,9 +72,10 @@ describe("PulseCreatePropertiesPanel", () => {
     );
 
     expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pulse-history-header")).toBeEmptyDOMElement();
   });
 
-  it("omits helper startup messaging for built-in workflows", () => {
+  it("keeps the Pulse history header empty for built-in workflows", () => {
     render(
       <PulseCreatePropertiesPanel
         {...baseProps}
@@ -98,9 +96,8 @@ describe("PulseCreatePropertiesPanel", () => {
 
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
     expect(screen.getByTestId("pulse-hide-header")).toHaveTextContent("true");
-    expect(screen.getByLabelText("Active Pulse")).toHaveTextContent("DFY Story Builder");
-    expect(screen.getByText("Current Step: Upload Characters")).toBeInTheDocument();
-    expect(screen.getByText("Upload your characters.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pulse-history-header")).toBeEmptyDOMElement();
   });
 
   it("treats an in-flight send as startup loading when the first pulse response has not landed yet", () => {
@@ -116,19 +113,6 @@ describe("PulseCreatePropertiesPanel", () => {
     );
 
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
-  });
-
-  it("wires an explicit restart action into the Pulse panel view", () => {
-    render(
-      <PulseCreatePropertiesPanel
-        {...baseProps}
-        activePulsePresetKind="custom_gpt"
-        pulseWorkflowSession={null}
-        onPulsePresetRestart={vi.fn()}
-      />
-    );
-
-    expect(screen.getByTestId("pulse-restart-wired")).toHaveTextContent("true");
   });
 
   it("mounts Pulse generate in composer-leading content and keeps guardrail copy separate", () => {
@@ -154,7 +138,20 @@ describe("PulseCreatePropertiesPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("uses a concise completion summary instead of rendering the full final artifact in the banner", () => {
+  it("does not render passive startup guardrail copy before the user triggers generation", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        costCredits={4}
+        isGenerateDisabled
+        guardrailReason={null}
+      />
+    );
+
+    expect(screen.getByTestId("pulse-middle-content")).toBeEmptyDOMElement();
+  });
+
+  it("keeps the Pulse history header empty after workflow completion", () => {
     render(
       <PulseCreatePropertiesPanel
         {...baseProps}
@@ -175,11 +172,7 @@ describe("PulseCreatePropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByLabelText("Active Pulse")).toHaveTextContent("Final artifact completed.");
-    expect(
-      screen.queryByText(
-        "This is a very long final artifact that should stay out of the compact Active Pulse banner."
-      )
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pulse-history-header")).toBeEmptyDOMElement();
   });
 });

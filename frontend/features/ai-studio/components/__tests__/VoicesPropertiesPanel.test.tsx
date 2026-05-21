@@ -1635,7 +1635,20 @@ describe("VoicesPropertiesPanel", () => {
     );
   }, 15000);
 
-  it("blocks cloned voice creation when the staged sample is under one minute", async () => {
+  it("allows shorter cloned voice samples through to the clone request", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        voice: {
+          voiceId: "voice_cloned_short_123",
+          name: "Short Clone",
+          previewUrl: "https://cdn.elevenlabs.test/short-clone.mp3",
+          description: null,
+          isFallback: false,
+        },
+      }),
+    });
+
     render(<VoicesPropertiesPanel />);
 
     await openCreateVoiceModal();
@@ -1654,14 +1667,31 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Voice clone source must be at least 1 minute long.")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Ready to clone")).toBeInTheDocument();
     });
 
+    const cloneButton = screen.getByRole("button", { name: "Create cloned voice" });
+    expect(cloneButton).toBeDisabled();
     fireEvent.click(screen.getByLabelText("I have permission to clone this voice."));
-    expect(screen.getByRole("button", { name: "Create cloned voice" })).toBeDisabled();
-    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(cloneButton).toBeEnabled();
+    fireEvent.click(cloneButton);
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/clone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voiceName: "Short Clone",
+          voiceDescription: null,
+          sourceStoragePath: "user-1/voice-clone/source-audio/short-sample.mp3",
+          sourceName: "short-sample.mp3",
+          removeBackgroundNoise: true,
+        }),
+        shortpulseLogScope: "generation",
+      });
+    });
   });
 
   it("keeps generate previews available while preview generation is running", async () => {

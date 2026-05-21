@@ -30,7 +30,7 @@ type UsePulseCreatePrimarySubmitParams = {
 const PULSE_INCOMPLETE_GENERATION_GUARDRAIL = "Complete the active Pulse before generating.";
 const PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL =
   "This Pulse is still starting. Wait for the first Pulse response before generating.";
-const PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL =
+const PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL =
   "This Pulse has not produced a generation-ready prompt yet.";
 const PULSE_TEXT_ARTIFACT_GENERATION_GUARDRAIL =
   "This Pulse creates a text artifact. Generation is not available for this artifact target yet.";
@@ -38,6 +38,16 @@ const PULSE_STORYBOARD_GENERATION_GUARDRAIL =
   "This Pulse creates a storyboard artifact. Export is not available for this artifact target yet.";
 const PULSE_MISSING_ARTIFACT_TARGET_GUARDRAIL =
   "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse.";
+
+const PASSIVE_PULSE_GENERATION_GUARDRAILS = new Set<string>([
+  PULSE_INCOMPLETE_GENERATION_GUARDRAIL,
+  PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL,
+  PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL,
+]);
+
+export const shouldShowPassivePulseGenerationGuardrail = (
+  guardrailReason: string | null | undefined
+): boolean => Boolean(guardrailReason && !PASSIVE_PULSE_GENERATION_GUARDRAILS.has(guardrailReason));
 
 export const resolvePulseArtifactGenerationRoute = (
   artifactTarget: CreatePulseArtifactTarget | null
@@ -93,10 +103,12 @@ export const usePulseCreatePrimarySubmit = ({
   setUiNotice,
 }: UsePulseCreatePrimarySubmitParams) => {
   const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
+  const pulseWorkflowFinalArtifactSource = pulseWorkflowSession?.finalArtifactSource ?? null;
   const pulseCompletedArtifactPrompt = useMemo(() => {
     if (!hasActivePulseSession) return null;
     if (pulseKind === "guided_workflow") {
       if (pulseWorkflowSession?.status !== "completed") return null;
+      if (pulseWorkflowFinalArtifactSource !== "apply_prompt") return null;
       if (typeof pulseWorkflowLastArtifact !== "string") return null;
       const artifact = pulseWorkflowLastArtifact.trim();
       return artifact.length > 0 ? artifact : null;
@@ -107,9 +119,15 @@ export const usePulseCreatePrimarySubmit = ({
     hasActivePulseSession,
     latestAgentPrompt,
     pulseKind,
+    pulseWorkflowFinalArtifactSource,
     pulseWorkflowLastArtifact,
     pulseWorkflowSession?.status,
   ]);
+  const guidedWorkflowNeedsPromptArtifact =
+    hasActivePulseSession &&
+    pulseKind === "guided_workflow" &&
+    pulseWorkflowSession?.status === "completed" &&
+    pulseWorkflowFinalArtifactSource !== "apply_prompt";
   const pulseArtifactGenerationRoute = useMemo(
     () =>
       pulseKind === "guided_workflow" ? resolvePulseArtifactGenerationRoute(artifactTarget) : null,
@@ -136,9 +154,11 @@ export const usePulseCreatePrimarySubmit = ({
       ? PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL
       : pulseCompletedArtifactPrompt
         ? unsupportedArtifactTargetGuardrail
-        : pulseKind === "guided_workflow"
-          ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
-          : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL;
+        : guidedWorkflowNeedsPromptArtifact
+          ? PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL
+          : pulseKind === "guided_workflow"
+            ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+            : PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL;
   const pulseArtifactGenerateDisabled =
     Boolean(effectiveGenerationGuardrail) ||
     isPulseStartupPending ||
@@ -152,8 +172,10 @@ export const usePulseCreatePrimarySubmit = ({
     if (!pulseCompletedArtifactPrompt) {
       setUiNotice(
         pulseKind === "guided_workflow"
-          ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
-          : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL
+          ? guidedWorkflowNeedsPromptArtifact
+            ? PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL
+            : PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+          : PULSE_MISSING_GENERATION_READY_PROMPT_GUARDRAIL
       );
       return;
     }
@@ -172,6 +194,7 @@ export const usePulseCreatePrimarySubmit = ({
     });
   }, [
     handleGenerate,
+    guidedWorkflowNeedsPromptArtifact,
     pulseArtifactCostOverrideCredits,
     pulseArtifactGenerationRoute,
     pulseCompletedArtifactPrompt,

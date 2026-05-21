@@ -14,6 +14,7 @@ import {
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import {
+  isAudioFile,
   isVideoFile,
   type MediaFileRow,
   type MediaCardRefCallback,
@@ -56,6 +57,7 @@ type MediaLibraryMediaGridProps = {
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
+  fixedVisualAspectRatio?: number | null;
 };
 
 export function MediaLibraryMediaGrid({
@@ -83,6 +85,7 @@ export function MediaLibraryMediaGrid({
   onSignedUrlLoaded,
   surface = "media-library-modal",
   densityConfig,
+  fixedVisualAspectRatio = null,
 }: MediaLibraryMediaGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
@@ -97,6 +100,14 @@ export function MediaLibraryMediaGrid({
     items: activeMedia,
     getItemId: (item) => item.id,
     getAspectRatio: (item) => {
+      if (
+        !isAudioFile(item.file_type) &&
+        typeof fixedVisualAspectRatio === "number" &&
+        Number.isFinite(fixedVisualAspectRatio) &&
+        fixedVisualAspectRatio > 0
+      ) {
+        return fixedVisualAspectRatio;
+      }
       const cachedRatio = aspectRatioById[item.id];
       if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
       return resolveMediaCardAspectRatio({
@@ -172,13 +183,18 @@ export function MediaLibraryMediaGrid({
             canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio =
-            aspectRatioById[file.id] ??
-            resolveMediaCardAspectRatio({
-              fileType: file.file_type,
-              width: file.width ?? null,
-              height: file.height ?? null,
-              metadata: file.metadata,
-            });
+            !isAudioFile(file.file_type) &&
+            typeof fixedVisualAspectRatio === "number" &&
+            Number.isFinite(fixedVisualAspectRatio) &&
+            fixedVisualAspectRatio > 0
+              ? fixedVisualAspectRatio
+              : (aspectRatioById[file.id] ??
+                resolveMediaCardAspectRatio({
+                  fileType: file.file_type,
+                  width: file.width ?? null,
+                  height: file.height ?? null,
+                  metadata: file.metadata,
+                }));
           const cardPreviewUrl = resolveCardPreviewUrl
             ? resolveCardPreviewUrl({
                 signedUrl: file.signedUrl,

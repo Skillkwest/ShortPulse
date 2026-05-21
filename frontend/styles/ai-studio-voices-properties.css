@@ -360,17 +360,30 @@
 }
 
 .voices-create-modal-clone-source .voices-properties-voice-changer-dropzone-shell {
-  min-height: 360px;
+  min-height: 300px;
 }
 
 .voices-create-modal-consent {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   color: rgba(225, 233, 242, 0.84);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.45;
+}
+
+.voices-create-modal-clone-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.voices-create-modal-clone-submit-btn {
+  flex: 0 0 auto;
 }
 
 .voices-create-modal-consent input {
@@ -3219,6 +3232,15 @@
 
   .voices-properties-generated-preview-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .voices-create-modal-clone-actions-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .voices-create-modal-clone-submit-btn {
+    width: 100%;
   }
 }
 

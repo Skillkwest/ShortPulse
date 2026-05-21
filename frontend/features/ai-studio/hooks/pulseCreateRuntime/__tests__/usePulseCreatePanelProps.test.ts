@@ -76,4 +76,41 @@ describe("buildPulseCreatePanelProps", () => {
     expect(props.isGenerateDisabled).toBe(true);
     expect(props.guardrailReason).toBe("Resolve failed image attachments before generating.");
   });
+
+  it("suppresses passive custom Pulse guardrail copy before the user acts", () => {
+    const props = buildPulseCreatePanelProps({
+      ...baseParams,
+      isGenerateDisabled: true,
+      generationGuardrail: "This Pulse has not produced a generation-ready prompt yet.",
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBeNull();
+  });
+
+  it("suppresses passive guided Pulse prompt-missing guardrail copy before the user acts", () => {
+    const props = buildPulseCreatePanelProps({
+      ...baseParams,
+      activePulsePresetKind: "guided_workflow",
+      isGenerateDisabled: true,
+      generationGuardrail: "This Pulse has not produced a generation-ready prompt yet.",
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBeNull();
+  });
+
+  it("keeps non-passive Pulse guardrails visible", () => {
+    const props = buildPulseCreatePanelProps({
+      ...baseParams,
+      isGenerateDisabled: true,
+      generationGuardrail:
+        "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse.",
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBe(
+      "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse."
+    );
+  });
 });

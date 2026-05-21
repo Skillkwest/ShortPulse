@@ -79,6 +79,7 @@ type MediaLibraryAllItemsGridProps = {
   densityConfig?: MediaLibraryGridDensityConfig;
   preferVisualMediaFirst?: boolean;
   visualMediaPriorityCount?: number;
+  fixedVisualAspectRatio?: number | null;
 };
 
 type MediaLibraryAllItem =
@@ -725,6 +726,7 @@ export function MediaLibraryAllItemsGrid({
   densityConfig,
   preferVisualMediaFirst = false,
   visualMediaPriorityCount = 0,
+  fixedVisualAspectRatio = null,
 }: MediaLibraryAllItemsGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
@@ -799,6 +801,13 @@ export function MediaLibraryAllItemsGrid({
     getAspectRatio: (item) => {
       if (item.kind === "prompt") return PROMPT_CARD_ASPECT_RATIO;
       if (isAudioFile(item.row.file_type)) return PROMPT_CARD_ASPECT_RATIO;
+      if (
+        typeof fixedVisualAspectRatio === "number" &&
+        Number.isFinite(fixedVisualAspectRatio) &&
+        fixedVisualAspectRatio > 0
+      ) {
+        return fixedVisualAspectRatio;
+      }
       const cachedRatio = aspectRatioById[item.id];
       if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
       return resolveMediaCardAspectRatio({
@@ -877,13 +886,18 @@ export function MediaLibraryAllItemsGrid({
           canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
         const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
         const previewAspectRatio =
-          aspectRatioById[file.id] ??
-          resolveMediaCardAspectRatio({
-            fileType: file.file_type,
-            width: file.width ?? null,
-            height: file.height ?? null,
-            metadata: file.metadata,
-          });
+          !isAudioFile(file.file_type) &&
+          typeof fixedVisualAspectRatio === "number" &&
+          Number.isFinite(fixedVisualAspectRatio) &&
+          fixedVisualAspectRatio > 0
+            ? fixedVisualAspectRatio
+            : (aspectRatioById[file.id] ??
+              resolveMediaCardAspectRatio({
+                fileType: file.file_type,
+                width: file.width ?? null,
+                height: file.height ?? null,
+                metadata: file.metadata,
+              }));
         const cardPreviewUrl = resolveCardPreviewUrl
           ? resolveCardPreviewUrl({
               signedUrl: file.signedUrl,

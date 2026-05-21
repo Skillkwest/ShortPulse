@@ -106,11 +106,11 @@
 }
 
 .character-panel-profile-characters-btn {
-  min-width: 118px;
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 13px;
-  font-size: 0.82rem;
+  min-width: 154px;
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 15px;
+  font-size: 0.92rem;
   flex-shrink: 0;
 }
 
@@ -298,11 +298,12 @@
   gap: 1px;
   width: fit-content;
   min-width: 0;
+  padding-top: 5px;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-rail,
 .character-panel-workspace .character-sheet-preset-tab-row {
-  min-height: 40px;
+  min-height: 36px;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-row {
@@ -325,16 +326,16 @@
 }
 
 .character-panel-workspace .character-sheet-preset-tab {
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 6px;
   border-radius: 9px 9px 0 0;
   font-size: 10px;
 }
 
 .character-panel-workspace .character-sheet-preset-add-btn {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
   margin-bottom: 0;
 }
 

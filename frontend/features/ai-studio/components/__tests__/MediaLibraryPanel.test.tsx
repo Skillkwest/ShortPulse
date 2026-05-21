@@ -185,6 +185,7 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       storage_path?: string;
     }) => void;
     densityConfig?: unknown;
+    fixedVisualAspectRatio?: number | null;
   }) => {
     mediaGridPropsSpy(props);
     return (
@@ -287,6 +288,9 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       row: { id: string; filename: string; signedUrl?: string | null }
     ) => void;
     densityConfig?: unknown;
+    preferVisualMediaFirst?: boolean;
+    visualMediaPriorityCount?: number;
+    fixedVisualAspectRatio?: number | null;
   }) => {
     allItemsGridPropsSpy(props);
     return (
@@ -964,8 +968,30 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps.visibleMediaIdsRef.current).toBeInstanceOf(Set);
     expect(latestProps.surface).toBe("elements-media-panel");
     expect(latestProps.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
+    expect(latestProps.preferVisualMediaFirst).toBe(true);
+    expect(latestProps.visualMediaPriorityCount).toBe(
+      MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount
+    );
+    expect(latestProps.fixedVisualAspectRatio).toBeNull();
     const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
     expect(latestSigningArgs?.surface).toBe("elements-media-panel");
+  });
+
+  it("passes the fixed 4:5 assignment ratio through the embedded Elements image grid", async () => {
+    render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+
+    await waitFor(() => {
+      expect(mediaGridPropsSpy).toHaveBeenCalled();
+    });
+    const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.surface).toBe("elements-media-panel");
+    expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
   });
 
   it("passes panel density config to media-only grids", async () => {

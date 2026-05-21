@@ -199,6 +199,41 @@ describe("MediaLibraryAllItemsGrid", () => {
     );
   });
 
+  it("uses a fixed visual aspect ratio when the assignment layout contract is enabled", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "image-1",
+        filename: "portrait.png",
+        storage_path: "user-1/uploads/portrait.png",
+        preview_storage_path: "user-1/uploads/portrait.png",
+        file_type: "image/png",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/portrait.png",
+        width: 1024,
+        height: 2048,
+      },
+    ];
+
+    const { container } = render(
+      <MediaLibraryAllItemsGrid {...props} fixedVisualAspectRatio={4 / 5} />
+    );
+
+    const latestVirtualizationArgs = useMediaMasonryVirtualizationMock.mock.calls.at(-1)?.[0];
+    expect(
+      latestVirtualizationArgs?.getAspectRatio({
+        key: "media:image-1",
+        kind: "media",
+        id: "image-1",
+        createdAt: 0,
+        row: props.mediaRows[0],
+      })
+    ).toBe(4 / 5);
+
+    const frame = container.querySelector(".media-library-panel-media-frame");
+    expect(frame).toHaveStyle({ aspectRatio: "0.8" });
+  });
+
   it("can prioritize preview-bearing visual media ahead of audio-heavy mixed chronology", () => {
     const props = baseProps();
     props.mediaRows = [

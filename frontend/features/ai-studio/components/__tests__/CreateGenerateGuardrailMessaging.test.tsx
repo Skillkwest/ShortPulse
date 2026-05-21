@@ -122,7 +122,7 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 
-  it("shows explicit restart and deactivate actions for an active Pulse session", () => {
+  it("shows the deactivate action for an active Pulse session without a restart control", () => {
     render(
       <PulseCreatePanelView
         promptStepProps={
@@ -138,11 +138,11 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Restart pulse" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restart pulse" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
   });
 
-  it("locks restart and deactivate actions while a Pulse artifact is generating", () => {
+  it("locks deactivate while a Pulse artifact is generating", () => {
     render(
       <PulseCreatePanelView
         promptStepProps={
@@ -158,7 +158,6 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Restart pulse" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeDisabled();
   });
 });

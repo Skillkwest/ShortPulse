@@ -193,15 +193,26 @@ export function CreateVoiceModal({
               ) : null}
 
               {isCloneMode ? (
-                <label className="voices-create-modal-consent">
-                  <input
-                    type="checkbox"
-                    checked={isCloneConsentChecked}
-                    onChange={(event) => onCloneConsentChange(event.target.checked)}
-                    disabled={isCloningVoice}
-                  />
-                  <span>I have permission to clone this voice.</span>
-                </label>
+                <div className="voices-create-modal-clone-actions-row">
+                  <label className="voices-create-modal-consent">
+                    <input
+                      type="checkbox"
+                      checked={isCloneConsentChecked}
+                      onChange={(event) => onCloneConsentChange(event.target.checked)}
+                      disabled={isCloningVoice}
+                    />
+                    <span>I have permission to clone this voice.</span>
+                  </label>
+
+                  <button
+                    type="button"
+                    className="voices-properties-save-btn voices-create-modal-save-btn voices-create-modal-clone-submit-btn"
+                    onClick={onCloneVoice}
+                    disabled={!isCloneVoiceEnabled}
+                  >
+                    {isCloningVoice ? "Creating cloned voice..." : "Create cloned voice"}
+                  </button>
+                </div>
               ) : null}
 
               {isCloneMode && cloneVoiceError ? (
@@ -311,20 +322,16 @@ export function CreateVoiceModal({
             ) : null}
 
             <div className="voices-create-modal-footer">
-              <button
-                type="button"
-                className="voices-properties-save-btn voices-create-modal-save-btn"
-                onClick={isCloneMode ? onCloneVoice : onSaveVoice}
-                disabled={isCloneMode ? !isCloneVoiceEnabled : !isSaveVoiceEnabled}
-              >
-                {isCloneMode
-                  ? isCloningVoice
-                    ? "Creating cloned voice..."
-                    : "Create cloned voice"
-                  : isSavingDesignedVoice
-                    ? "Saving…"
-                    : "Save voice"}
-              </button>
+              {!isCloneMode ? (
+                <button
+                  type="button"
+                  className="voices-properties-save-btn voices-create-modal-save-btn"
+                  onClick={onSaveVoice}
+                  disabled={!isSaveVoiceEnabled}
+                >
+                  {isSavingDesignedVoice ? "Saving…" : "Save voice"}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

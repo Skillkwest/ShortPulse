@@ -4,7 +4,8 @@ import type { AgentPulseWorkflowSession } from "../../../../../prefabs/agent";
 import { usePulseCreatePrimarySubmit } from "../usePulseCreatePrimarySubmit";
 
 const createCompletedWorkflowSession = (
-  lastArtifact: string | null = "Completed Pulse artifact"
+  lastArtifact: string | null = "Completed Pulse artifact",
+  finalArtifactSource: AgentPulseWorkflowSession["finalArtifactSource"] = "apply_prompt"
 ): AgentPulseWorkflowSession => ({
   presetId: "story_builder",
   status: "completed",
@@ -13,11 +14,11 @@ const createCompletedWorkflowSession = (
   currentStepPrompt: null,
   collectedInputs: ["tone", "scene"],
   lastArtifact,
-  finalArtifactSource: "chat_reply",
+  finalArtifactSource,
 });
 
 describe("usePulseCreatePrimarySubmit", () => {
-  it("generates only from a completed Pulse artifact", () => {
+  it("generates only from a completed Pulse prompt artifact", () => {
     const handleGenerate = vi.fn();
     const setUiNotice = vi.fn();
 
@@ -50,7 +51,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     expect(setUiNotice).not.toHaveBeenCalled();
   });
 
-  it("routes video Pulse artifacts to video generation", () => {
+  it("routes completed apply-prompt Pulse artifacts to video generation", () => {
     const handleGenerate = vi.fn();
     const setUiNotice = vi.fn();
 
@@ -176,6 +177,44 @@ describe("usePulseCreatePrimarySubmit", () => {
 
     expect(handleGenerate).not.toHaveBeenCalled();
     expect(setUiNotice).toHaveBeenCalledWith("Complete the active Pulse before generating.");
+  });
+
+  it("keeps guided Pulse generation disabled for completed chat-reply artifacts", () => {
+    const handleGenerate = vi.fn();
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePulseCreatePrimarySubmit({
+        hasActivePulseSession: true,
+        isPulseStartupPending: false,
+        pulseKind: "guided_workflow",
+        pulseWorkflowSession: createCompletedWorkflowSession(
+          "This is just a completed chat reply.",
+          "chat_reply"
+        ),
+        latestAgentPrompt: null,
+        artifactTarget: "image_prompt",
+        effectiveGenerationGuardrail: null,
+        promptReferenceGenerateCostCredits: 12,
+        currentCostCredits: 20,
+        handleGenerate,
+        setUiNotice,
+      })
+    );
+
+    expect(result.current.pulseArtifactGenerateDisabled).toBe(true);
+    expect(result.current.pulseArtifactGenerateGuardrail).toBe(
+      "This Pulse has not produced a generation-ready prompt yet."
+    );
+
+    act(() => {
+      result.current.handlePulseCreatePrimarySubmit();
+    });
+
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "This Pulse has not produced a generation-ready prompt yet."
+    );
   });
 
   it("generates custom Pulses from the latest generated prompt without artifact routing", () => {

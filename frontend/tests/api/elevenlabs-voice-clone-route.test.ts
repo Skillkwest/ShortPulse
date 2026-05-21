@@ -5,7 +5,6 @@ const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const saveVoiceForUserMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
-const probeMediaDurationSecondsMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -25,7 +24,6 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 }));
 
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
-  probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
 }));
 
@@ -43,7 +41,6 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       contentType: "audio/mpeg",
       size: 12,
     });
-    probeMediaDurationSecondsMock.mockResolvedValue(72);
     createElevenLabsClonedVoiceMock.mockResolvedValue({
       voiceId: "cloned-voice-1",
       name: "Cloned Narrator",
@@ -81,11 +78,6 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       storagePath: "user-1/voice-clone/source-audio/sample.mp3",
       maxBytes: 100 * 1024 * 1024,
     });
-    expect(probeMediaDurationSecondsMock).toHaveBeenCalledWith({
-      buffer: Buffer.from("voice-sample"),
-      filename: "sample.mp3",
-      mimeType: "audio/mpeg",
-    });
     expect(createElevenLabsClonedVoiceMock).toHaveBeenCalledWith({
       voiceName: "Cloned Narrator",
       voiceDescription: "Warm cloned narrator",
@@ -115,8 +107,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     });
   });
 
-  it("rejects samples shorter than the clone quality floor", async () => {
-    probeMediaDurationSecondsMock.mockResolvedValue(5);
+  it("allows shorter samples through to the ElevenLabs clone request", async () => {
     const req = {
       method: "POST",
       body: {
@@ -128,11 +119,23 @@ describe("POST /api/elevenlabs/voices/clone", () => {
 
     await handler(req as never, res as never);
 
-    expect(createElevenLabsClonedVoiceMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(422);
+    expect(createElevenLabsClonedVoiceMock).toHaveBeenCalledWith({
+      voiceName: "Too Short",
+      voiceDescription: null,
+      sourceBuffer: Buffer.from("voice-sample"),
+      sourceFilename: "short.mp3",
+      sourceMimeType: "audio/mpeg",
+      removeBackgroundNoise: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Invalid request",
-      details: "Voice clone source must be at least 1 minute long.",
+      voice: {
+        voiceId: "cloned-voice-1",
+        name: "Cloned Narrator",
+        previewUrl: "https://cdn.example/cloned.mp3",
+        description: "Warm cloned narrator",
+        isFallback: false,
+      },
     });
   });
 
@@ -161,7 +164,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     });
   });
 
-  it("rejects non-audio staged sources before duration probing", async () => {
+  it("rejects non-audio staged sources before the ElevenLabs clone request", async () => {
     readStoredMediaBufferMock.mockResolvedValueOnce({
       buffer: Buffer.from("video"),
       contentType: "video/mp4",
@@ -179,7 +182,6 @@ describe("POST /api/elevenlabs/voices/clone", () => {
 
     await handler(req as never, res as never);
 
-    expect(probeMediaDurationSecondsMock).not.toHaveBeenCalled();
     expect(createElevenLabsClonedVoiceMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({

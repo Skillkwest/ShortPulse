@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowCounterClockwise, Power, Trash } from "phosphor-react";
+import { Power, Trash } from "phosphor-react";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
@@ -14,7 +14,6 @@ import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
 } from "./createPulsePresets";
-import { resolveCreatePulsePresetById } from "./createPulsePresets";
 
 type PulseCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
@@ -48,7 +47,6 @@ const PulseCreatePanelViewContent = ({
   hasActivePulseSession = Boolean(activePulsePresetId),
   onActivePulsePresetIdChange,
   onPulsePresetStart,
-  onPulsePresetRestart,
   isPulseActivationBusy = false,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
@@ -73,10 +71,6 @@ const PulseCreatePanelViewContent = ({
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const isPulseSessionLocked = isPulseActivationBusy || isPromptGenerating;
-  const activePulsePreset =
-    activePulsePresetId && hasActivePulseSession
-      ? resolveCreatePulsePresetById(activePulsePresetId, savedPulsePresets, builtInDefinitions)
-      : null;
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
@@ -172,20 +166,6 @@ const PulseCreatePanelViewContent = ({
             <div className="create-composer-right-panel-topbar">
               <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
               <div className="create-composer-topbar-actions">
-                {isActivePulseSession && activePulsePreset && onPulsePresetRestart ? (
-                  <button
-                    type="button"
-                    className="create-composer-topbar-clear-btn"
-                    onClick={() => {
-                      void onPulsePresetRestart(activePulsePreset);
-                    }}
-                    aria-label="Restart pulse"
-                    disabled={isPulseSessionLocked}
-                  >
-                    <ArrowCounterClockwise size={14} weight="bold" aria-hidden />
-                    <span>Restart Pulse</span>
-                  </button>
-                ) : null}
                 {handleClearAgentChat ? (
                   <button
                     type="button"

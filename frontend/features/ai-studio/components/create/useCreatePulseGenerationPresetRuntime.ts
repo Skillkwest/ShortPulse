@@ -137,12 +137,10 @@ export const useCreatePulseGenerationPresetRuntime = ({
     [builtInDefinitions, isSavedPresetsControlled, onSavedPresetsChange, savedPresets]
   );
 
-  const availablePresets = React.useMemo(() => {
-    const selectedPresetIdSet = new Set(selectedPresetIds);
-    return resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions).filter(
-      (preset) => !selectedPresetIdSet.has(preset.presetId)
-    );
-  }, [builtInDefinitions, savedPresets, selectedPresetIds]);
+  const catalogPresets = React.useMemo(
+    () => resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions),
+    [builtInDefinitions, savedPresets]
+  );
 
   const selectedPanelPresets = React.useMemo(
     () =>
@@ -161,10 +159,11 @@ export const useCreatePulseGenerationPresetRuntime = ({
   }, []);
 
   return {
-    availablePresets,
+    catalogPresets,
     hasSelectedPresetIds: selectedPresetIds.length > 0,
     isMorePresetsSurfaceOpen,
     savedPresets,
+    selectedPresetIds,
     selectedPanelPresets,
     setIsMorePresetsSurfaceOpen,
     toggleMorePresetsSurface,

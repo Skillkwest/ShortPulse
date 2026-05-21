@@ -132,4 +132,31 @@ describe("MediaLibraryMediaGrid", () => {
     expect(video).not.toBeNull();
     expect(video).toHaveAttribute("src", "https://cdn.example.com/clip-1-preview.mp4");
   });
+
+  it("uses a fixed visual aspect ratio when the assignment layout contract is enabled", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        id: "image-1",
+        filename: "portrait.png",
+        storage_path: "user-1/uploads/portrait.png",
+        file_type: "image/png",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/portrait.png",
+        width: 1024,
+        height: 2048,
+      },
+    ];
+
+    const { container } = render(
+      <MediaLibraryMediaGrid {...props} fixedVisualAspectRatio={4 / 5} />
+    );
+
+    const latestVirtualizationArgs = useMediaMasonryVirtualizationMock.mock.calls.at(-1)?.[0];
+    expect(latestVirtualizationArgs?.getAspectRatio(props.activeMedia[0])).toBe(4 / 5);
+
+    const image = screen.getByAltText("portrait.png");
+    expect(image).toHaveStyle({ aspectRatio: "0.8" });
+    expect(container.querySelector(".media-library-modal-grid")).toBeInTheDocument();
+  });
 });

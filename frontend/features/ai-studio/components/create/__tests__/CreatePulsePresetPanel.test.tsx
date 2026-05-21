@@ -576,6 +576,23 @@ describe("CreatePulsePresetPanel", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps pinned rail Pulses visible inside the Pulse Catalog grid", () => {
+    render(<CreatePulsePresetPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+
+    expect(
+      within(pulsesSurface).getByRole("button", { name: "Video Prompt Magic" })
+    ).toBeInTheDocument();
+    expect(
+      within(pulsesSurface).getByRole("button", { name: "Multi Sequence Video Prompt" })
+    ).toBeInTheDocument();
+    expect(
+      within(pulsesSurface).getByRole("button", { name: "DFY Story Builder" })
+    ).toBeInTheDocument();
+  });
+
   it("hides built-in Pulses from the catalog when the user has removed them", () => {
     render(
       <CreatePulsePresetPanel

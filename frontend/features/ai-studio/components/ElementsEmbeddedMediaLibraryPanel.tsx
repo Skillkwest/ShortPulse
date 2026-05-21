@@ -71,6 +71,8 @@ const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
 type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 const EMPTY_SET = new Set<string>();
 const ELEMENTS_MEDIA_PANEL_SURFACE = "elements-media-panel" as const;
+const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
+const ASSIGNMENT_VISUAL_ASPECT_RATIO = 4 / 5;
 
 export function ElementsEmbeddedMediaLibraryPanel({
   projectId = null,
@@ -105,6 +107,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
 
   const normalizedSearch = "";
   const itemType = rootTab;
+  const shouldPreferVisualMediaFirstOnRootAll = React.useMemo(
+    () => itemType === "all" && normalizedSearch.length === 0,
+    [itemType, normalizedSearch]
+  );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   const showFolderCanvas = false;
@@ -314,6 +320,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     signStoragePath,
   });
   const mediaCardUsesAssignment = mediaCardInteractionMode === "assignment";
+  const fixedVisualAspectRatio = mediaCardUsesAssignment ? ASSIGNMENT_VISUAL_ASPECT_RATIO : null;
   const activeSelectedMediaIds = mediaCardUsesAssignment ? EMPTY_SET : selectedIds;
 
   React.useEffect(() => {
@@ -621,6 +628,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
         surface={ELEMENTS_MEDIA_PANEL_SURFACE}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
+        fixedVisualAspectRatio={fixedVisualAspectRatio}
       />
     ),
     [
@@ -641,6 +649,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
+      fixedVisualAspectRatio,
       previewRuntime.visibleMediaIdsRef,
     ]
   );
@@ -697,6 +706,9 @@ export function ElementsEmbeddedMediaLibraryPanel({
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
         surface={ELEMENTS_MEDIA_PANEL_SURFACE}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
+        preferVisualMediaFirst={shouldPreferVisualMediaFirstOnRootAll}
+        visualMediaPriorityCount={ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT}
+        fixedVisualAspectRatio={fixedVisualAspectRatio}
       />
     ),
     [
@@ -721,6 +733,8 @@ export function ElementsEmbeddedMediaLibraryPanel({
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
+      shouldPreferVisualMediaFirstOnRootAll,
+      fixedVisualAspectRatio,
       visiblePromptRows,
       previewRuntime.visibleMediaIdsRef,
     ]

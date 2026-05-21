@@ -14,6 +14,14 @@ Canonical detailed surfaces:
 - Current working band: `8.5/10` to `9/10`
 - Main gap to `10/10`: first-manifest fan-out completeness on shared contracts
 
+## Latest Run
+
+- `2026-05-20` on `production`
+- Score: `8.5/10`
+- What went well: three logical batches stayed clean, preflight caught the only real product issue before commit, and the final tree cleared both `build` and the full suite without rerun churn.
+- What slipped: route-level browser smoke remained `smoke-incomplete by prior user direction`, and one dead prop thread survived until the product preflight lint pass.
+- Capability decision: no new tool or SOP change was needed; the freshly pruned Gear Ball hot path and retained-surface cleanup were the right improvements for this run.
+
 ## Current Failure Classes
 
 1. First-manifest fan-out misses on uncatalogued shared contracts.

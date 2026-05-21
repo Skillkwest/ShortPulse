@@ -102,6 +102,7 @@
 .character-panel-profile-top-row {
   display: flex;
   align-items: center;
+  padding-top: 6px;
   margin-bottom: 6px;
 }
 
@@ -230,7 +231,7 @@
 
 .character-panel-workspace .character-reference-empty-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  gap: 8px;
 }
 
 .character-panel-workspace .character-sheet-description-card {

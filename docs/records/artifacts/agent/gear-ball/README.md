@@ -23,10 +23,22 @@ These artifacts support training, traceability, and workflow continuity. They do
 
 ## Recordkeeping Rule
 
-Every substantive Gear Ball run that ends in commit and push should produce retained evidence:
+Retained evidence is exception-triggered, not mandatory on every ordinary run.
 
-- always append the run to `run-log.md`
-- always update `training-history.md` with the self-audit, score out of 10, friction found, and capability-improvement decision
+Always:
+
+- keep the final response self-audit and score in chat
+
+Update retained surfaces when one of these is true:
+
+- the run was `production-critical`
+- the run scored below `9/10`
+- a new recurring failure mode appeared
+- the process/tooling itself changed
+- the user explicitly asked for process hardening or retained records
+
+- append the run to `run-log.md`
+- update `training-history.md` with the self-audit, score out of 10, friction found, and capability-improvement decision
 - when a recurring user correction or instruction pattern appears, encode it into `conversation-training-dataset.jsonl`
 - create a dated report when the run is large, multi-batch, operationally risky, or exposes a new recurring failure mode
 - prefer using the Gear Ball report template for substantial runs

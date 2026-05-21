@@ -47,6 +47,7 @@ npm run build
 - For system inventory, system rating, workflow-boundary, or panel-to-system mapping questions, use `docs/systems/README.md`, `docs/systems/catalog.md`, and `docs/systems/rating-rubric.md` as the primary references.
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
 - Subagent audit/research policy: when the user asks to audit, inspect, investigate, or do online research, run `skills/skill-subagent-audit-research/SKILL.md` and use subagents for substantive audit/research lanes when they are available, allowed, and useful. The agent may decide subagents are unnecessary for narrow scopes and may close unused subagents at will.
+- Cross-agent prompt policy: do not run a prompt from one agent's prompt library against a different agent by default. Interpret agent-scoped prompts as targeting the exact agent named by their containing folder unless the user explicitly instructs a different target in the same message. Special rule: when the user pastes a prompt from Gottspan's prompt library, run it on the current assistant/self by default unless the user explicitly says to run it on Gottspan instead.
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)

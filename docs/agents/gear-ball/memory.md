@@ -16,6 +16,11 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Vercel rule: validate target environment and source of truth before mutating Vercel env vars or deployment settings.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 - Communication rule: keep execution chatter near zero unless a blocker, approval need, branch/credential issue, or material plan change appears.
+- Run-profile rule: default to the cheapest valid profile (`docs-only`, `product-targeted`, `shared-runtime`, `production-critical`) instead of loading the heaviest ladder by habit.
+- Batching rule: default to one intended commit. Split only when there is a real risk boundary, ownership boundary, or review boundary.
+- Meta-work rule: do not mix Gear Ball/Gottspan/SOP/tooling maintenance into normal product runs unless the process/tooling itself blocked the run or the user explicitly asked for it.
+- Gottspan-scope rule: Gottspan files remain normal in-scope files for staging, commit, and push when they are part of the current worktree, but Gear Ball should not proactively suggest Gottspan cleanup or process work unless explicitly asked.
+- Retained-artifact rule: reports, training-history updates, KPI updates, and other process artifacts are exception-triggered, not mandatory for every ordinary run.
 
 ## Durable Lessons
 
@@ -35,10 +40,12 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - If a blocking validation failure is fixed while a long-running build or full-suite session is already in flight, treat that older session as stale and rerun the required gates on the final tree before staging or pushing.
 - Shared-contract changes require first-manifest fan-out. Include downstream tests for preview delivery, KPI packets, route payloads, shared runtime helpers, and cross-surface layout contracts instead of relying on the final full suite to surface them.
 - For AI Studio media-library contract changes, treat `frontend/features/ai-studio/logic/mediaLibraryErrorText.ts` and `frontend/features/media-library/logic/mediaListApi.ts` as fan-out triggers for controller, panel, and composer consumer tests.
-- Interaction-heavy admin/frontend route changes need one route-level browser smoke before push when feasible. If qualifying smoke cannot be run, classify the run as `smoke-incomplete` and score it accordingly.
+- Interaction-heavy admin/frontend route changes need route-level browser smoke only when the selected profile or the user explicitly requires it. If qualifying smoke is required but cannot run, classify the run as `smoke-incomplete` and score it accordingly.
 - When route-level smoke fails on a path that no longer exists in the product, treat that as an audit drift bug to classify and repair, not a product regression to cargo-cult back into the UI.
 - A closeout is only valid for the exact clean worktree that passed the final validation ladder. Any later product/docs/test change invalidates that closeout and requires a rewritten one at the real end of the run.
 - Sub-`9/10` runs should usually ship one concrete mechanical remediation in the same run rather than only recording a narrative lesson.
+- Cap self-improvement bandwidth to one meaningful process/tooling/SOP change per run unless the user explicitly asks for deeper process work.
+- Historical one-off scars should be reviewed for demotion or expiry instead of staying permanent hot-path cost forever.
 - When promoting the same result across multiple role branches, the retained closeout lane is part of the promoted result too.
 - When agent contracts point at `CURRENT-HANDOFF.md`, commit the referenced handoff files with the contract change.
 

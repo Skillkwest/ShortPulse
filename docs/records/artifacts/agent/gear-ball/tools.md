@@ -13,13 +13,16 @@ Purpose: keep a retained inventory of the helper commands and tooling that impro
 
 ## Tooling Decision Rule
 
-After every full commit/push SOP run, Gear Ball should decide whether:
+After a full commit/push run, Gear Ball should decide whether:
 
 - current helpers are enough
 - an existing helper needs a safer mode or better output
 - a new helper is justified by repeated mechanical friction
 
-Do not build new tooling for one-time discomfort unless it protects a high-risk gate.
+Defaults:
+
+- do not build new tooling for one-time discomfort unless it protects a high-risk gate
+- cap process/tooling change to one meaningful improvement per run unless the user explicitly asked for deeper process work
 
 ## Training Data Rule
 

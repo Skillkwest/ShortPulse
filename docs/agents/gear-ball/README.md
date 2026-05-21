@@ -50,6 +50,30 @@ Use the full SOPs only when the run is unusual or a step is unclear:
 - `npm -C frontend run gear-ball:preflight -- --files-from <manifest> --tests-from <manifest>`
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
 
+## Run Profiles
+
+Gear Ball should choose the cheapest valid run profile first.
+
+- `docs-only`
+  - docs, indexes, SOPs, agent surfaces, or retained artifacts only
+  - cheapest path: inventory, docs validation, commit, push if asked
+- `product-targeted`
+  - feature or test changes with limited blast radius
+  - default product path: targeted validation, one intended commit, push if asked
+- `shared-runtime`
+  - shared page/runtime/API/auth/billing/env/deploy-sensitive changes
+  - elevated path: preflight, broader validation, usually `build`, escalate to full suite only when profile rules require it
+- `production-critical`
+  - `production` branch work or changes with direct production-risk posture
+  - strictest path: preflight, broader validation, cleaner leftover audits, and stronger stop/go discipline
+
+Separate lane:
+
+- `process/meta`
+  - Gear Ball/Gottspan/SOP/tooling/training maintenance
+  - do not mix into normal product runs unless the process/tooling itself blocked the run or the user explicitly asked for process work
+  - Gottspan-owned files remain ordinary in-scope worktree files for commit/push when they are part of the current run; Gear Ball should simply avoid volunteering Gottspan-specific cleanup or process refactors unless explicitly asked
+
 ## Shorthand Rules
 
 - `run your SOP` means execute the full authorized Gear Ball ladder on the current approved branch.
@@ -66,6 +90,7 @@ Use the full SOPs only when the run is unusual or a step is unclear:
 
 - default to near-silent execution
 - interrupt only for blockers, approvals, credential issues, branch-contract problems, or material plan changes
+- optimize for time-to-clean-push, not process richness
 
 ## Stop Rule
 

@@ -75,3 +75,21 @@ Purpose: track supervised Gottspan runs, learned behavior, SOP changes, and next
 - Tool changes: none.
 - Remaining friction: none at the governance level; only a future explicit rewrite request would reopen this lane.
 - Next training focus: keep weekly reports focused on repo posture and drift, not branch-policy speculation.
+
+### 2026-05-20 - Second audit-and-prune pass
+
+- Prompt used: run the audit-and-prune prompt again against Gottspan's own operating space and prune more aggressively where justified.
+- Behavior learned: the highest remaining drag was not missing docs but over-retention in default memory; admin-specific operational details should not stay in always-loaded repo-steward memory when they already belong in SOP or UX surfaces.
+- SOP or template updates: added `runtime-load-policy.md` and tightened default-load rules across Gottspan surfaces; pruned admin-specific lessons from default memory.
+- Tool changes: none.
+- Remaining friction: contract and SOP still overlap somewhat, but not enough yet to justify more churn.
+- Next training focus: observe one more real Gottspan run under the stricter load policy before attempting deeper structural compression.
+
+### 2026-05-20 - Third audit-and-prune pass
+
+- Prompt used: run the audit-and-prune prompt against Gottspan's operating space again and execute the needed pruning.
+- Behavior learned: the remaining drag was narrower than expected. The biggest issues were a mislabeled memory contract, duplicate scope/coordination facts in always-loaded memory, and speculative artifact placeholders that encouraged sprawl without current value.
+- SOP or template updates: none.
+- Tool changes: none.
+- Remaining friction: dated reports still overlap on the same branch-policy story, but they are not default-loaded and still serve distinct governance roles, so more pruning there would be churn.
+- Next training focus: do not reopen structural cleanup unless a future run shows real drift, slower startup, or conflicting status surfaces again.

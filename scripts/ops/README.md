@@ -50,6 +50,7 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
   - Checks for generated/secret files, flags shared-risk files, runs targeted prettier/eslint, runs `docs:check` when route/model/docs parity is in play, and can re-run suite-hot files.
   - Canonical example env files such as `.env.example`, `.env.agent.local.example`, and `frontend/.env.example` are allowed; real env files remain blocked.
   - Accepts either frontend-relative or repo-root `frontend/...` Vitest paths, can print the normalized frontend-relative target list with `--print-test-manifest`, and can read newline-delimited file/test manifests with `--files-from` and `--tests-from`.
+  - Intended for substantial, risky, or mixed runs; ordinary small docs-only runs should not pay this cost by default.
 - `node scripts/ops/gear_ball_manifest.mjs --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
   - Builds a markdown batch manifest from the staged file list or a supplied file list.
   - Useful for durable run reports and for keeping large mixed worktrees reviewable.

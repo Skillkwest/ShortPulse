@@ -101,9 +101,12 @@ Gottspan should not absorb those roles. Gottspan should route to them when their
 
 ## Memory Contract
 
-Gottspan's repo-visible memory lives in:
+Gottspan's repo-visible durable memory lives in:
 
 - `docs/agents/gottspan-the-admin/memory.md`
+
+Specialized guidance that should not be treated as default memory lives in:
+
 - `docs/agents/gottspan-the-admin/ux-playbook.md`
 
 Standing operating procedure lives in:
@@ -123,7 +126,7 @@ Retained artifacts live in:
 
 - `docs/records/artifacts/agent/gottspan-the-admin/`
 
-Use the memory file for durable preferences, repo-management decisions, safe defaults, and concise lessons learned. Use retained artifacts for training history, run logs, reports, and future stewardship helpers.
+Use the memory file for durable preferences, repo-management decisions, safe defaults, and concise lessons learned. Use retained artifacts only for justified retained history or helper surfaces that cannot live cleanly in the contract, SOP, or local reports area.
 
 ## Report Contract
 

@@ -15,6 +15,7 @@ type GeneratePulseArtifact = (
 
 type UsePulseCreatePrimarySubmitParams = {
   hasActivePulseSession: boolean;
+  isPulseStartupPending: boolean;
   pulseKind: "guided_workflow" | "custom_gpt" | null;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   latestAgentPrompt: string | null;
@@ -27,6 +28,8 @@ type UsePulseCreatePrimarySubmitParams = {
 };
 
 const PULSE_INCOMPLETE_GENERATION_GUARDRAIL = "Complete the active Pulse before generating.";
+const PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL =
+  "This Pulse is still starting. Wait for the first Pulse response before generating.";
 const PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL =
   "This Pulse has not produced a generation-ready prompt yet.";
 const PULSE_TEXT_ARTIFACT_GENERATION_GUARDRAIL =
@@ -78,6 +81,7 @@ const resolvePulseArtifactTargetGuardrail = (
  */
 export const usePulseCreatePrimarySubmit = ({
   hasActivePulseSession,
+  isPulseStartupPending,
   pulseKind,
   pulseWorkflowSession,
   latestAgentPrompt,
@@ -126,16 +130,25 @@ export const usePulseCreatePrimarySubmit = ({
     pulseKind === "guided_workflow" && pulseCompletedArtifactPrompt
       ? resolvePulseArtifactTargetGuardrail(artifactTarget)
       : null;
-  const pulseArtifactGenerateGuardrail = pulseCompletedArtifactPrompt
-    ? (effectiveGenerationGuardrail ?? unsupportedArtifactTargetGuardrail)
-    : pulseKind === "guided_workflow"
-      ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
-      : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL;
+  const pulseArtifactGenerateGuardrail = effectiveGenerationGuardrail
+    ? effectiveGenerationGuardrail
+    : isPulseStartupPending
+      ? PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL
+      : pulseCompletedArtifactPrompt
+        ? unsupportedArtifactTargetGuardrail
+        : pulseKind === "guided_workflow"
+          ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+          : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL;
   const pulseArtifactGenerateDisabled =
     Boolean(effectiveGenerationGuardrail) ||
+    isPulseStartupPending ||
     Boolean(unsupportedArtifactTargetGuardrail) ||
     !pulseCompletedArtifactPrompt;
   const handlePulseCreatePrimarySubmit = useCallback(() => {
+    if (isPulseStartupPending) {
+      setUiNotice(PULSE_STARTUP_PENDING_GENERATION_GUARDRAIL);
+      return;
+    }
     if (!pulseCompletedArtifactPrompt) {
       setUiNotice(
         pulseKind === "guided_workflow"
@@ -162,6 +175,7 @@ export const usePulseCreatePrimarySubmit = ({
     pulseArtifactCostOverrideCredits,
     pulseArtifactGenerationRoute,
     pulseCompletedArtifactPrompt,
+    isPulseStartupPending,
     pulseKind,
     setUiNotice,
     unsupportedArtifactTargetGuardrail,

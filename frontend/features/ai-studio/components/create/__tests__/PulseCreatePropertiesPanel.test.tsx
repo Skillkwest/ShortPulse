@@ -50,6 +50,29 @@ describe("PulseCreatePropertiesPanel", () => {
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 
+  it("does not show the active Pulse banner while startup is still pending", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        activePulsePresetId="story_builder"
+        activePulsePresetLabel="DFY Story Builder"
+        activePulsePresetKind="guided_workflow"
+        hasActivePulseSession={false}
+        pulseWorkflowSession={{
+          presetId: "story_builder",
+          status: "running",
+          currentStepIndex: 1,
+          currentStepLabel: "Upload Characters",
+          currentStepPrompt: "Upload your characters.",
+          collectedInputs: [],
+          lastArtifact: null,
+        }}
+      />
+    );
+
+    expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
+  });
+
   it("omits helper startup messaging for built-in workflows", () => {
     render(
       <PulseCreatePropertiesPanel

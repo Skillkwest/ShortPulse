@@ -183,7 +183,7 @@ export function PulseCreatePropertiesPanel({
   const activePulseFinalArtifactSource = pulseWorkflowSession?.finalArtifactSource ?? null;
 
   const activePulseBanner = React.useMemo(() => {
-    if (!activePulsePresetId || !isGuidedWorkflowPulse) {
+    if (!hasActivePulseSession || !activePulsePresetId || !isGuidedWorkflowPulse) {
       return null;
     }
     const presetLabel =
@@ -224,6 +224,7 @@ export function PulseCreatePropertiesPanel({
     activePulseCurrentStepPrompt,
     activePulseFinalArtifactSource,
     activePulseStatus,
+    hasActivePulseSession,
     isGuidedWorkflowPulse,
   ]);
 

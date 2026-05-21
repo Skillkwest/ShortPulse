@@ -195,7 +195,7 @@ export function AiStudioProjectEntryState({
               </div>
             </div>
             <Image
-              src="/loading-entry/bg.png"
+              src="/loading-entry/bgsvg.svg"
               alt=""
               aria-hidden="true"
               width={976}

@@ -304,6 +304,7 @@ const useAiStudioCreatePanelRuntime = ({
     displayCreatePulsePresetId,
     displayCreatePulsePresetSnapshot,
     hasActivePulseSession,
+    isPulseStartupPending,
   } = createPulsePageRuntime;
   const {
     pulseArtifactGenerateGuardrail,
@@ -311,6 +312,7 @@ const useAiStudioCreatePanelRuntime = ({
     handlePulseCreatePrimarySubmit,
   } = usePulseCreatePrimarySubmit({
     hasActivePulseSession: createPulsePageRuntime.hasActivePulseSession,
+    isPulseStartupPending: createPulsePageRuntime.isPulseStartupPending,
     pulseKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
     pulseWorkflowSession: base.pulseWorkflowSession,
     latestAgentPrompt: pulseCreateAgentRuntime?.latestAgentPrompt ?? null,
@@ -332,6 +334,7 @@ const useAiStudioCreatePanelRuntime = ({
         props: {
           pulsePrompt,
           hasActiveSession: hasActivePulseSession,
+          isPulseStartupPending,
           activePresetId: displayCreatePulsePresetId,
           activePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
           activePresetKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
@@ -383,6 +386,7 @@ const useAiStudioCreatePanelRuntime = ({
         pulse: {
           ...pulseRuntime.panelProps,
           hasActivePulseSession,
+          isPulseStartupPending,
           pulseWorkflowSession: base.pulseWorkflowSession,
           activePulsePresetId: displayCreatePulsePresetId,
           activePulsePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
@@ -517,6 +521,7 @@ const useAiStudioCreatePanelRuntime = ({
     handleCreatePulsePresetStart,
     handleExpertCreateModeChangeForPage,
     hasActivePulseSession,
+    isPulseStartupPending,
     imageResolution,
     isAgentDropActive,
     isCharacterOptionsLoading,

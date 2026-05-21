@@ -24,6 +24,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: createCompletedWorkflowSession("  Completed Pulse artifact  "),
         latestAgentPrompt: null,
@@ -56,6 +57,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: createCompletedWorkflowSession("  Video prompt  "),
         latestAgentPrompt: null,
@@ -88,6 +90,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: createCompletedWorkflowSession("Final text artifact"),
         latestAgentPrompt: null,
@@ -119,6 +122,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: createCompletedWorkflowSession("Final artifact"),
         latestAgentPrompt: null,
@@ -153,6 +157,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: createCompletedWorkflowSession("   "),
         latestAgentPrompt: null,
@@ -180,6 +185,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "custom_gpt",
         pulseWorkflowSession: null,
         latestAgentPrompt: "  Dreamy dusk skyline with cinematic lighting  ",
@@ -214,6 +220,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: true,
+        isPulseStartupPending: false,
         pulseKind: "custom_gpt",
         pulseWorkflowSession: null,
         latestAgentPrompt: "   ",
@@ -248,6 +255,7 @@ describe("usePulseCreatePrimarySubmit", () => {
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
         hasActivePulseSession: false,
+        isPulseStartupPending: false,
         pulseKind: "guided_workflow",
         pulseWorkflowSession: null,
         latestAgentPrompt: null,
@@ -270,5 +278,40 @@ describe("usePulseCreatePrimarySubmit", () => {
 
     expect(handleGenerate).not.toHaveBeenCalled();
     expect(setUiNotice).toHaveBeenCalledWith("Complete the active Pulse before generating.");
+  });
+
+  it("shows a startup-specific guardrail while Pulse startup is pending", () => {
+    const handleGenerate = vi.fn();
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePulseCreatePrimarySubmit({
+        hasActivePulseSession: false,
+        isPulseStartupPending: true,
+        pulseKind: "guided_workflow",
+        pulseWorkflowSession: null,
+        latestAgentPrompt: null,
+        artifactTarget: "image_prompt",
+        effectiveGenerationGuardrail: null,
+        promptReferenceGenerateCostCredits: null,
+        currentCostCredits: 20,
+        handleGenerate,
+        setUiNotice,
+      })
+    );
+
+    expect(result.current.pulseArtifactGenerateDisabled).toBe(true);
+    expect(result.current.pulseArtifactGenerateGuardrail).toBe(
+      "This Pulse is still starting. Wait for the first Pulse response before generating."
+    );
+
+    act(() => {
+      result.current.handlePulseCreatePrimarySubmit();
+    });
+
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "This Pulse is still starting. Wait for the first Pulse response before generating."
+    );
   });
 });

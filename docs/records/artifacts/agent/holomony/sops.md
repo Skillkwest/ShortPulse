@@ -15,7 +15,7 @@ Purpose: track the SOPs and operating documents Holomony relies on most often.
 
 ## SOP Synthesis Evidence
 
-- `docs/records/artifacts/agent/holomony/reports/2026-05-15-holomony-sop-synthesis.md`
+- `docs/records/artifacts/agent/holomony/reports/archive/2026-05-15-holomony-sop-synthesis.md`
 
 ## Primary Operating Rules
 

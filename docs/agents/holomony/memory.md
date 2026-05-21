@@ -79,7 +79,7 @@ For this milestone, `stable and strong` means:
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
 - Current classification: `measured blocker active on approved panels`.
 - The next justified lane is approved-panel mixed-open signing-cost and first-paint optimization, not Character expansion or generic regression monitoring.
-- Active layout lane: `reports/2026-05-18-media-library-five-column-density-plan.md`.
+- Active layout lane: `reports/current/2026-05-18-media-library-five-column-density-plan.md`.
   - Implementation is now in code for AI Studio Media Library panel, Elements embedded Media Library panel, and Character bottom embedded Media Library browser via shared Elements embedding.
   - Treat five columns as a capped wide-container masonry-column contract, not a forced layout everywhere.
   - Exclude the full modal, Character QuickSwap, Reference Grid, Quick Slot Inventory, and standalone `/media-library` unless explicitly reopened.
@@ -90,7 +90,7 @@ For this milestone, `stable and strong` means:
   - coverage remains below the scorer's stronger-confidence threshold, so the blocker read should stay provisional rather than absolute
   - current probable blocker: mixed-open signing cost and first useful media paint
   - exact snapshot metrics belong in the dated retained report:
-    - `reports/2026-05-19-approved-panel-baseline-refresh.md`
+    - `reports/current/2026-05-19-approved-panel-baseline-refresh.md`
   - direct lesson: persistence-green does not mean the hot-path browse lane is done when fresh repeated KPI still shows fragile mixed-open runtime
 - `character-panel-media-assignment` is now an onboarded Holomony candidate surface.
   - Treat it as a hybrid boundary:

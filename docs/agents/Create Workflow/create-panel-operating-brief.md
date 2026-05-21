@@ -161,8 +161,8 @@ Relevant docs:
 ## Best First Read Order For Create Work
 
 1. `docs/agents/Create Workflow/README.md`
-2. `docs/agents/Create Workflow/memory.md`
-3. This brief
+2. This brief
+3. `docs/agents/Create Workflow/memory.md`
 4. `docs/sops/sop_ai_studio_agent.md`
 5. `docs/sops/sop_ai_studio_agent_chat_ops.md`
 

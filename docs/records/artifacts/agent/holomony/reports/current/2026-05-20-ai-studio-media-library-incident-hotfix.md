@@ -77,6 +77,6 @@ This report is the current AI Studio-only runtime read after the incident hotfix
 
 It does not replace the cross-surface retained baseline for Elements. Use:
 
-- `reports/2026-05-19-approved-panel-baseline-refresh.md`
+- `reports/current/2026-05-19-approved-panel-baseline-refresh.md`
 
 for the last paired approved-surface baseline refresh.

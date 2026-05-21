@@ -179,7 +179,7 @@ Actions taken:
 Training result:
 
 - Holomony now has a retained retrospective for this lane:
-  - `docs/records/artifacts/agent/holomony/reports/2026-05-15-media-panel-optimization-retrospective.md`
+  - `docs/records/artifacts/agent/holomony/reports/archive/2026-05-15-media-panel-optimization-retrospective.md`
 - Durable lesson recorded: upstream preview/readiness work and honest KPI tooling are the highest-value pattern for this media surface.
 - Durable lesson recorded: dead-surface drift and environment-language drift are repeatable failure modes to avoid.
 
@@ -391,7 +391,7 @@ Actions taken:
   - reload + reopen browse-ready visibility
   - fresh signed-in context browse-ready visibility
   - cleanup of the audit fixture
-- retained the result in `docs/records/artifacts/agent/holomony/reports/2026-05-16-production-media-panel-persistence-audit.md`
+- retained the result in `docs/records/artifacts/agent/holomony/reports/archive/2026-05-16-production-media-panel-persistence-audit.md`
 
 Training result:
 
@@ -657,7 +657,7 @@ Actions taken:
 - identified a real KPI integrity gap in open-phase list-response selection and repaired it
 - audited the conversation patterns for user approval/disapproval signals
 - corrected stale artifact references, tightened memory, removed dynamic status from the standing SOP, and repaired the scorecard/ledger contract drift
-- retained the detailed synthesis in `reports/2026-05-17-holomony-workflow-audit-and-training-synthesis.md`
+- retained the detailed synthesis in `reports/archive/2026-05-17-holomony-workflow-audit-and-training-synthesis.md`
 
 Training result:
 

@@ -33,7 +33,11 @@ done
 
 echo "Checking Holomony indexes..."
 grep -q 'docs/agents/holomony/README.md' "${repo_root}/docs/agents/README.md"
+grep -q 'docs/agents/holomony/standard-operating-procedure.md' "${repo_root}/docs/agents/README.md"
+grep -q 'docs/agents/holomony/ownership-manifest.md' "${repo_root}/docs/agents/README.md"
 grep -q 'docs/agents/holomony/README.md' "${repo_root}/docs/README.md"
+grep -q 'docs/agents/holomony/standard-operating-procedure.md' "${repo_root}/docs/README.md"
+grep -q 'docs/agents/holomony/ownership-manifest.md' "${repo_root}/docs/README.md"
 
 echo "Running docs validation..."
 (

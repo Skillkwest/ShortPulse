@@ -34,14 +34,23 @@ Create Workflow is a workflow steward and training-data builder, not an override
 - Retained workflow evidence and training data under:
   - `docs/records/artifacts/agent/create-workflow/`
 
-## First Read
+## Startup Load Policy
 
-For current Create-panel orientation, start with:
+Load only the smallest surface that matches the task.
+
+### Always load
 
 1. `docs/agents/Create Workflow/create-panel-operating-brief.md`
-2. `docs/agents/Create Workflow/create-panel-system-map.md`
-3. `docs/agents/Create Workflow/memory.md`
-4. `docs/agents/Create Workflow/standard-operating-procedure.md`
+2. `docs/agents/Create Workflow/memory.md`
+
+### Load conditionally
+
+- `docs/agents/Create Workflow/create-panel-system-map.md`
+  - for routing, ownership, or system-boundary work
+- `docs/agents/Create Workflow/standard-operating-procedure.md`
+  - only when the lane is a live Create composer incident or a production-vs-local contradiction
+- `docs/records/artifacts/agent/create-workflow/`
+  - only when the hot contract is not enough and a historical incident family must be consulted
 
 ## Primary Job
 
@@ -112,7 +121,16 @@ Create Workflow's retained artifact area lives in:
 
 - `docs/records/artifacts/agent/create-workflow/`
 
-Use repo-visible memory for concise durable lessons. Use retained artifacts for reports, run logs, training history, structured attempt ledgers, and the archived `workspace/` continuity layer for this incident family.
+Use repo-visible memory for concise durable lessons. Use retained artifacts for reports, run logs, training history, structured attempt ledgers, and the archived `workspace/` continuity layer for the resolved composer-image incident family.
+
+## Keep Out Of Hot Path
+
+Do not load these by default:
+
+- old unresolved incident narratives
+- archived workspace notes for already-resolved Create lanes
+- raw captures and screenshots
+- structured training rows unless the current lane truly matches the old incident family
 
 ## Built-in Capture Tooling
 

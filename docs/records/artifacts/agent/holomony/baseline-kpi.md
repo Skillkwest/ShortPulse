@@ -99,7 +99,7 @@ Any of these conditions override raw score:
 Use these retained artifacts as the baseline evidence set:
 
 - Holomony lane retrospective:
-  - `docs/records/artifacts/agent/holomony/reports/2026-05-15-media-panel-optimization-retrospective.md`
+  - `docs/records/artifacts/agent/holomony/reports/archive/2026-05-15-media-panel-optimization-retrospective.md`
 - Holomony KPI tooling:
   - `frontend/scripts/media_panel_kpi_score.mjs`
   - `frontend/scripts/media_panel_kpi_capture.mjs`

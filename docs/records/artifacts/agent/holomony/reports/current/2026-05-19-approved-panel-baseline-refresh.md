@@ -13,7 +13,7 @@ This remains the retained 2026-05-19 cross-surface baseline refresh.
 
 For the newer AI Studio incident/hotfix runtime read after the media-list retry repair, use:
 
-- `reports/2026-05-20-ai-studio-media-library-incident-hotfix.md`
+- `reports/current/2026-05-20-ai-studio-media-library-incident-hotfix.md`
 
 ## Purpose
 
@@ -27,9 +27,9 @@ This run was meant to answer one question cleanly:
 
 Ran:
 
-- `node ./scripts/media_panel_kpi_capture.mjs --surface ai-studio-panel --base-url https://www.shortpulse.ai --format markdown --write-packet ../docs/records/artifacts/agent/holomony/reports/2026-05-19-ai-studio-panel-baseline.packet.json`
+- `node ./scripts/media_panel_kpi_capture.mjs --surface ai-studio-panel --base-url https://www.shortpulse.ai --format markdown --write-packet ../docs/records/artifacts/agent/holomony/reports/current/2026-05-19-ai-studio-panel-baseline.packet.json`
 - `PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL=https://www.shortpulse.ai PLAYWRIGHT_MEDIA_PANEL_SURFACE=ai-studio-panel node ./tests/e2e/media-panel-persistence.audit.js`
-- `node ./scripts/media_panel_kpi_capture.mjs --surface elements-media-panel --base-url https://www.shortpulse.ai --format markdown --write-packet ../docs/records/artifacts/agent/holomony/reports/2026-05-19-elements-media-panel-baseline.packet.json`
+- `node ./scripts/media_panel_kpi_capture.mjs --surface elements-media-panel --base-url https://www.shortpulse.ai --format markdown --write-packet ../docs/records/artifacts/agent/holomony/reports/current/2026-05-19-elements-media-panel-baseline.packet.json`
 - `PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL=https://www.shortpulse.ai PLAYWRIGHT_MEDIA_PANEL_SURFACE=elements-media-panel node ./tests/e2e/media-panel-persistence.audit.js --surface elements-media-panel`
 
 The KPI runs used:

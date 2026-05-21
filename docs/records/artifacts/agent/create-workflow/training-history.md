@@ -4,81 +4,37 @@ Purpose: track how Create Workflow is trained, what behavior improves, and what 
 
 ## History
 
-### 2026-05-16
+### 2026-05-16 to 2026-05-18 (incident foundation and tooling)
 
 - Lesson:
-  - Preserve an explicit attempt ledger whenever production keeps contradicting local fixes.
+  - When production keeps contradicting local fixes, the agent needs an explicit attempt ledger and capture-first discipline instead of another speculative patch loop.
 - Artifact change:
-  - Created the Create Workflow contract, memory, and initial incident audit.
-- Next focus:
-  - Capture the real production attachment lifecycle before more code changes.
-
-### 2026-05-16 (workspace + tooling pass)
-
-- Lesson:
-  - Build evidence-capture tooling when the lane is stuck in production-vs-local contradiction.
-- Artifact change:
-  - Added the Create Workflow workspace bundle.
+  - Created the Create Workflow contract, memory, incident audit, workspace bundle, and structured training-data layer.
 - Tool change:
-  - Added `createWorkflowDebug`, the summarizer, and the capture skill.
-- Next focus:
-  - Capture one failing production drag with the runtime helper.
+  - Added `createWorkflowDebug`, the capture summarizer, the capture-ingest path, and the training-data CLI.
+- Retained caution:
+  - These materials were created during the unresolved phase and should not be treated as the default hot path after resolution.
+- Next focus at the time:
+  - capture one authoritative production repro instead of deepening local-only fixes
 
-### 2026-05-16 (structured training-data pass)
-
-- Lesson:
-  - Training value comes from incident rows, decision pivots, and attempt families, not raw transcript alone.
-- Artifact change:
-  - Added the structured training-data layer.
-- Tool change:
-  - Added the training-data CLI and package commands.
-- Next focus:
-  - Append the first production-capture-derived rows after the next failing repro.
-
-### 2026-05-16 (toolchain pass)
+### 2026-05-18 (mid-incident maintenance)
 
 - Lesson:
-  - Training data is operational only when the repo can validate, summarize, brief, and ingest new captures.
+  - Stale hot-path incident context can degrade judgment by keeping the agent locked onto an outdated failure model.
 - Artifact change:
-  - Added failure patterns and capture workflow docs.
-- Tool change:
-  - Added the capture-ingest CLI.
-- Next focus:
-  - Capture one failing production snapshot and run the ingest loop end to end.
-
-### 2026-05-18 (workspace refresh)
-
-- Lesson:
-  - Stale hot-path context can degrade debugging by making the agent optimize for an old failure model.
-- Artifact change:
-  - Reorganized the Create Workflow workspace around the then-active incident model and moved older capture-only context to lookup status.
+  - Reorganized the workspace and diagnosis tooling so unresolved-state materials became easier to consult selectively.
 - Superseded note:
-  - This pre-resolution workspace framing was superseded on 2026-05-19 by the resolved chat-only ephemeral composer image contract.
-- Next focus:
-  - Verify production with delivery state, durable `submissionImageUrl`, visible chip render, and model-send payload evidence in the same capture.
-
-### 2026-05-18 (flight-recorder pass)
-
-- Lesson:
-  - The Create image issue needs a deterministic diagnosis surface, not another screenshot-derived UI patch.
-- Tool change:
-  - Added diagnosis output and send-payload instrumentation to the Create Workflow debug path.
-- Artifact change:
-  - Pruned hot memory away from stale preview-only hypotheses and temporarily made `getDiagnosis()` the first triage step for the unresolved incident phase.
-- Superseded note:
-  - After the 2026-05-19 resolution, `getDiagnosis()` became a contradiction/debug helper again, not the default first step for ordinary Create work.
-- Next focus:
-  - Capture production once and let the diagnosis pick the next failing lane.
+  - This phase was still operating before the final chat-only ephemeral contract was locked in.
+- Next focus at the time:
+  - use runtime capture to distinguish preview issues from source-classification and send-preparation failures
 
 ### 2026-05-19 (composer image insertion resolved)
 
 - Lesson:
-  - The incident was mainly a drag-intake boundary bug. Internal app drags must prefer structured reference hints over raw browser `files`.
+  - The decisive bug was a drag-intake boundary problem. Internal app drags must prefer structured reference hints over raw browser `files`.
 - Artifact change:
-  - Added a retrospective that compresses the incident into durable debugging heuristics and product-contract lessons.
-- Data change:
-  - Updated the incident case from unresolved to resolved and appended new failure-pattern, decision-episode, and attempt-ledger rows for the decisive pivots.
+  - Added the retrospective and updated the incident case, failure patterns, decision episodes, and attempt ledger to reflect the resolved model.
 - Product lesson:
   - The Create composer image lane should stay chat-only, ephemeral, and visibly staged while loading.
-- Next focus:
+- Ongoing reusable rule:
   - Reuse the snapshot-plus-structured-hints pattern the next time an internal drag/drop lane behaves differently from desktop file drop.

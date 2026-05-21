@@ -16,8 +16,6 @@ Do not treat this folder as the default read path for ordinary Create work.
 
 - `current-state.md`
   - latest known symptom state, proven fixes, unresolved gaps, and highest-value next move
-- `session-hand-off.md`
-  - deprecated redirect note preserved only for older references
 - `tool-inventory.md`
   - helper code, scripts, skills, and the specific problem each one is meant to reduce
 - `production-capture-template.md`

@@ -1,0 +1,147 @@
+{
+  "packetVersion": 2,
+  "measuredAt": "2026-05-21T14:41:36.452Z",
+  "environment": "production",
+  "captureMode": "playwright-panel-audit+live-perf-handle",
+  "sampleCount": 5,
+  "surface": "ai-studio-panel",
+  "notes": [
+    "Derived automatically from the AI Studio media panel KPI capture helper.",
+    "Open-phase measurement targeted the All Media root tab.",
+    "5 repeated browser captures were aggregated, so direct panel timing p95 fields are derived from repeated-run evidence.",
+    "5 of 5 capture runs reached a visible media card during the open-phase measurement.",
+    "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available."
+  ],
+  "analysis": {
+    "requestedRootTab": "all",
+    "captureValidity": {
+      "valid": true,
+      "reasons": [],
+      "visibleMediaSuccessRatio": 1,
+      "minimumRunsForDerivedP95": 5,
+      "minimumVisibleMediaSuccessRatio": 0.8,
+      "firstVisibleMediaRunCount": 5,
+      "visibleMediaCardCount": 45
+    },
+    "signStatsPhaseUsed": "open",
+    "openPhaseListSummary": {
+      "samples": 5,
+      "dominantMediaKind": "all",
+      "dominantProfile": "expanded",
+      "includeLibraryTotalCount": true,
+      "averageRowCount": 20,
+      "averageSignedSeedCount": 2,
+      "averageWithThumbVariantCount": 6,
+      "averageWithPosterVariantCount": 2,
+      "averageWithPreviewVariantCount": 2,
+      "averageWithAnyDurablePreviewCount": 8,
+      "averageCountsByKind": {
+        "image": 6,
+        "video": 2,
+        "audio": 12,
+        "other": 0
+      },
+      "representativeFirstRows": [
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        },
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        },
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        },
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        },
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        },
+        {
+          "fileType": "audio",
+          "source": "ai_studio",
+          "hasThumbVariant": false,
+          "hasPosterVariant": false,
+          "hasPreviewVariant": false
+        }
+      ]
+    },
+    "openPhaseVisiblePreviewSummary": {
+      "samples": 5,
+      "visibleMediaCardCount": 45,
+      "visiblePreviewReadyCount": 45,
+      "visibleMissingPreviewCount": 0,
+      "missingPreviewRatio": 0
+    },
+    "openPhaseSignTabBreakdown": [
+      {
+        "tab": "uploaded_images",
+        "samples": 5,
+        "signBatchP95Ms": 1181,
+        "totalSigned": 10,
+        "totalFailed": 0,
+        "totalPrimaryDurable": 10,
+        "totalPrimaryOriginal": 0,
+        "totalResolvedDurable": 10,
+        "totalResolvedOriginal": 0,
+        "canonicalPreviewCoverageRatio": 1
+      }
+    ],
+    "postTabSignTabBreakdown": [
+      {
+        "tab": "uploaded_images",
+        "samples": 6,
+        "signBatchP95Ms": 1181,
+        "totalSigned": 13,
+        "totalFailed": 0,
+        "totalPrimaryDurable": 13,
+        "totalPrimaryOriginal": 0,
+        "totalResolvedDurable": 13,
+        "totalResolvedOriginal": 0,
+        "canonicalPreviewCoverageRatio": 1
+      }
+    ]
+  },
+  "metrics": {
+    "firstMediaPaintP95Ms": 1621,
+    "loadingStateVisibleMsP95": null,
+    "openToFirstMediaP95Ms": null,
+    "stableContentSettleMsP95": 2030,
+    "signBatchP95Ms": 1181,
+    "resolveCallsPerOpen": 0,
+    "fallbackCallsPerOpen": null,
+    "stateFlipCountPerOpen": 1,
+    "extraListCallsPerOpen": 0,
+    "signFailedRatio": 0,
+    "resolveFailedRatio": null,
+    "fallbackFailedRatio": null,
+    "consoleErrorsPerOpen": 0,
+    "visualRegressionCount": null,
+    "missingPreviewRatio": 0,
+    "canonicalPreviewCoverageRatio": 1,
+    "emptyStateMismatchCount": null,
+    "saveRoundtripFailureRate": null,
+    "saveRoundtripMismatchRate": null,
+    "saveBrowseReadyRatio": null
+  }
+}

@@ -50,7 +50,9 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
-- `docs/agents/Create Workflow/README.md`: Create Workflow Create-panel attachment/composer workflow steward contract and memory entrypoint.
+  - `docs/agents/holomony/standard-operating-procedure.md`: Holomony's standing SOP for media-surface performance audits, optimization lanes, KPI discipline, and training updates.
+  - `docs/agents/holomony/ownership-manifest.md`: Holomony's ownership boundary map for local instructions, artifacts, helper scripts, and shared dependencies.
+- `docs/agents/Create Workflow/README.md`: Create Workflow Create-panel stewardship contract and memory entrypoint for Standard/Pulse runtime boundaries, composer behavior, and retained workflow training.
   - `docs/agents/Create Workflow/create-panel-operating-brief.md`: compact current-state brief for Create panel runtime ownership, composer contract, and workflow boundaries.
   - `docs/agents/Create Workflow/create-panel-system-map.md`: compact system map for Create page orchestration, Standard/Pulse runtime boundaries, composer intake, and reference-feed ownership.
   - `docs/agents/Create Workflow/standard-operating-procedure.md`: standing SOP for Create-panel attachment/composer incident handling and training-data capture.

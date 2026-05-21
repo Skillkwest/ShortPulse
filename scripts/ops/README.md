@@ -1,6 +1,6 @@
-# Nuclo Ops Toolkit
+# Ops Toolkit
 
-Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverable in one place.
+Purpose: keep shared ShortPulse operations scripts and agent-specific helper audits discoverable in one place.
 
 ## Scripts
 

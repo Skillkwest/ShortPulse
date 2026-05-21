@@ -448,7 +448,7 @@ describe("PromptStep agent actions", () => {
         pulseLoadingState={{
           phase: "generating_step",
           title: "Generating...",
-          message: "Preparing the next Pulse response.",
+          message: "",
         }}
       />
     );

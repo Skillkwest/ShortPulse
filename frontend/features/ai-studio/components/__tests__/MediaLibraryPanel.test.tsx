@@ -2700,7 +2700,7 @@ describe("MediaLibraryPanel", () => {
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
     const rectSpy = vi
       .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: HTMLElement) {
         if (this.classList.contains("media-library-panel-folder-context-menu")) {
           return {
             x: 0,

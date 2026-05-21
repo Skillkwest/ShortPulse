@@ -102,16 +102,16 @@
 .character-panel-profile-top-row {
   display: flex;
   align-items: center;
-  padding-top: 6px;
-  margin-bottom: 6px;
+  padding-top: 14px;
+  margin-bottom: 10px;
 }
 
 .character-panel-profile-characters-btn {
-  min-width: 154px;
-  min-height: 50px;
-  padding: 0 20px;
-  border-radius: 15px;
-  font-size: 0.92rem;
+  min-width: 172px;
+  min-height: 56px;
+  padding: 0 24px;
+  border-radius: 16px;
+  font-size: 0.98rem;
   flex-shrink: 0;
 }
 
@@ -231,7 +231,7 @@
 
 .character-panel-workspace .character-reference-empty-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .character-panel-workspace .character-sheet-description-card {
@@ -299,7 +299,7 @@
   gap: 1px;
   width: fit-content;
   min-width: 0;
-  padding-top: 5px;
+  padding-top: 10px;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-rail,

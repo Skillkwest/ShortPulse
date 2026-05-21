@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiStudioProjectEntryState } from "../AiStudioProjectEntryState";
@@ -47,7 +49,8 @@ describe("AiStudioProjectEntryState", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-mask-surface")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-mask-blocker")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-motion")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
@@ -64,11 +67,22 @@ describe("AiStudioProjectEntryState", () => {
       />
     );
 
-    expect(container.querySelector(".ai-studio-project-entry-mask-surface")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-mask-blocker")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-bloom")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-sweep")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-runner")).toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-bg-image")).toBeNull();
+  });
+
+  it("keeps the PNG blocker asset aligned with the page background contract", () => {
+    const bgPath = path.join(process.cwd(), "public/loading-entry/bg.png");
+    const bgBuffer = fs.readFileSync(bgPath);
+
+    expect(bgBuffer.length).toBeGreaterThan(0);
+    expect(bgBuffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(
+      true
+    );
   });
 
   it("keeps the legacy loader when the experimental flag is disabled", () => {

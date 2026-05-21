@@ -152,7 +152,7 @@ export function PulseCreatePropertiesPanel({
           ? stepLabel
             ? `Building the next instruction for ${stepLabel}.`
             : "Building the next instruction for your workflow."
-          : "Preparing the next Pulse response.",
+          : "",
         presetLabel,
         stepLabel,
       };

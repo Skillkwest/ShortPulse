@@ -4,6 +4,10 @@ import os from "os";
 import path from "path";
 import { promisify } from "util";
 import ffmpegStatic from "ffmpeg-static";
+import {
+  MIN_VOICE_CLONE_DURATION_SECONDS,
+  VOICE_CLONE_MIN_DURATION_ERROR,
+} from "../voiceCloneContract";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { detectAudioMimeType } from "./uploadSignature";
 
@@ -247,6 +251,7 @@ export const probeMediaDurationSeconds = async ({
   if (!ffmpegStatic) {
     throw new Error("FFmpeg runtime is unavailable.");
   }
+  const ffmpegBinary = ffmpegStatic;
 
   const sourceHandle = await makeTempFileHandle({
     buffer,
@@ -254,14 +259,29 @@ export const probeMediaDurationSeconds = async ({
   });
   try {
     try {
-      const { stdout, stderr } = await execFileAsync(ffmpegStatic, [
-        "-hide_banner",
-        "-i",
-        sourceHandle.path,
-        "-f",
-        "null",
-        "-",
-      ]);
+      const { stdout, stderr } = await new Promise<{ stdout: string; stderr: string }>(
+        (resolve, reject) => {
+          execFile(
+            ffmpegBinary,
+            ["-hide_banner", "-i", sourceHandle.path, "-f", "null", "-"],
+            (error, nextStdout, nextStderr) => {
+              if (error) {
+                reject(
+                  Object.assign(error, {
+                    stdout: nextStdout,
+                    stderr: nextStderr,
+                  })
+                );
+                return;
+              }
+              resolve({
+                stdout: nextStdout,
+                stderr: nextStderr,
+              });
+            }
+          );
+        }
+      );
       return parseDurationSeconds(`${stdout}\n${stderr}`);
     } catch (error) {
       const stderr =
@@ -329,8 +349,21 @@ export const normalizeAudioForVoiceClone = async ({
       throw new MediaAudioExtractionInputError(VOICE_CLONE_OVERSIZE_ERROR_MESSAGE, 413);
     }
 
+    const normalizedBuffer = await fs.readFile(outputPath);
+    const normalizedDurationSeconds = await probeMediaDurationSeconds({
+      buffer: normalizedBuffer,
+      filename: "voice-clone-source.wav",
+      mimeType: "audio/wav",
+    });
+    if (!normalizedDurationSeconds || normalizedDurationSeconds <= 0) {
+      throw new MediaAudioExtractionInputError(VOICE_CLONE_PREPARATION_ERROR_MESSAGE);
+    }
+    if (normalizedDurationSeconds < MIN_VOICE_CLONE_DURATION_SECONDS) {
+      throw new MediaAudioExtractionInputError(VOICE_CLONE_MIN_DURATION_ERROR, 400);
+    }
+
     return {
-      buffer: await fs.readFile(outputPath),
+      buffer: normalizedBuffer,
       filename: `${resolveAudioBaseName(filename, "voice-clone-source")}.wav`,
       mimeType: "audio/wav",
     };

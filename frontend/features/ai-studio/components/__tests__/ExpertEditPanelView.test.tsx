@@ -4054,18 +4054,25 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(modalAfterRecenter?.offsetY ?? 0)).toBeLessThan(0.01);
   });
 
-  it("keeps inline stage pan and zoom active from the primary surface without a loaded image", async () => {
-    render(<ExpertEditPanelView {...baseProps} referenceText="prompt text" />);
+  it("keeps inline stage pan and zoom active from the blank canvas frame without a loaded image", async () => {
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} referenceText="prompt text" />
+    );
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
 
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
     const primaryStage = screen.getByLabelText("Primary edit stage");
+    const frameStack = container.querySelector(
+      '[data-testid="edit-expert-primary-canvas-frame-stack"]'
+    ) as HTMLDivElement | null;
+    expect(frameStack).toBeTruthy();
     const inlineRect = createSquareRect(320);
     mockElementRect(primaryStage, inlineRect);
+    mockElementRect(frameStack as HTMLDivElement, inlineRect);
 
-    dispatchNativeWheelEvent(primaryStage, {
+    dispatchNativeWheelEvent(frameStack as HTMLDivElement, {
       deltaY: -120,
       clientX: 30,
       clientY: 30,
@@ -4074,20 +4081,20 @@ describe("ExpertEditPanelView", () => {
     expect(afterZoom).not.toBeNull();
     expect(afterZoom?.scale ?? 0).toBeGreaterThan(1);
 
-    fireEvent.pointerDown(primaryStage, {
+    fireEvent.pointerDown(frameStack as HTMLDivElement, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,
       clientX: 120,
       clientY: 124,
     });
-    fireEvent.pointerMove(primaryStage, {
+    fireEvent.pointerMove(frameStack as HTMLDivElement, {
       pointerId: 901,
       pointerType: "mouse",
       clientX: 198,
       clientY: 214,
     });
-    fireEvent.pointerUp(primaryStage, {
+    fireEvent.pointerUp(frameStack as HTMLDivElement, {
       pointerId: 901,
       pointerType: "mouse",
       button: 1,

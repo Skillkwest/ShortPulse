@@ -60,13 +60,23 @@ describe("normalizeAudioForVoiceClone", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     detectAudioMimeTypeMock.mockReturnValue("audio/webm");
-    mkdtempMock.mockResolvedValueOnce("/tmp/source-dir").mockResolvedValueOnce("/tmp/output-dir");
+    let mkdtempCallCount = 0;
+    mkdtempMock.mockImplementation(async () => {
+      mkdtempCallCount += 1;
+      if (mkdtempCallCount === 1) return "/tmp/source-dir";
+      if (mkdtempCallCount === 2) return "/tmp/output-dir";
+      return `/tmp/probe-dir-${mkdtempCallCount}`;
+    });
     writeFileMock.mockResolvedValue(undefined);
     statMock.mockResolvedValue({ size: 1024 });
     readFileMock.mockResolvedValue(Buffer.from("normalized-wav"));
     unlinkMock.mockResolvedValue(undefined);
     rmMock.mockResolvedValue(undefined);
-    execFileMock.mockImplementation((_command, _args, callback) => {
+    execFileMock.mockImplementation((_command, args, callback) => {
+      if (Array.isArray(args) && args.includes("-f") && args.includes("null")) {
+        callback(null, "", "Duration: 00:01:12.00");
+        return;
+      }
       callback(null, "", "");
     });
   });
@@ -127,6 +137,29 @@ describe("normalizeAudioForVoiceClone", () => {
       })
     ).rejects.toMatchObject({
       message: "Unable to prepare the selected voice sample for cloning. Try MP3 or WAV.",
+      statusCode: 400,
+    });
+  });
+
+  it("rejects clone samples that are shorter than the minimum supported duration", async () => {
+    execFileMock.mockImplementation((_command, args, callback) => {
+      if (Array.isArray(args) && args.includes("-f") && args.includes("null")) {
+        callback(null, "", "Duration: 00:00:05.00");
+        return;
+      }
+      callback(null, "", "");
+    });
+
+    const rejection = normalizeAudioForVoiceClone({
+      buffer: Buffer.from("source-audio"),
+      filename: "voice.webm",
+      mimeType: "audio/webm",
+    });
+
+    await expect(rejection).rejects.toThrow(
+      "Voice clone samples must be at least 1 minute long. Record a longer clip and try again."
+    );
+    await expect(rejection).rejects.toMatchObject({
       statusCode: 400,
     });
   });

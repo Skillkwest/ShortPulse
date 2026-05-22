@@ -122,7 +122,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     });
   });
 
-  it("allows shorter samples through to the ElevenLabs clone request", async () => {
+  it("passes staged clone samples through to the ElevenLabs clone request", async () => {
     const req = {
       method: "POST",
       body: {
@@ -176,6 +176,34 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to clone voice",
       details: "Voice clone source audio is too short.",
+    });
+  });
+
+  it("returns local duration validation details before provider submit", async () => {
+    createElevenLabsClonedVoiceMock.mockRejectedValueOnce(
+      new MockMediaAudioExtractionInputError(
+        "Voice clone samples must be at least 1 minute long. Record a longer clip and try again."
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Too Short Local",
+        sourceStoragePath: "user-1/voice-clone/source-audio/recording.webm",
+        sourceName: "recording.webm",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details:
+        "Voice clone samples must be at least 1 minute long. Record a longer clip and try again.",
     });
   });
 

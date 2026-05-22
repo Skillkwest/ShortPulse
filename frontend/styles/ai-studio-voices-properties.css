@@ -69,7 +69,7 @@
 .voices-properties-topbar {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0;
   min-height: 0;
   padding-bottom: 18px;
@@ -976,9 +976,10 @@
 
 .voices-properties-panel-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: flex-start;
-  gap: 16px;
+  gap: 22px;
 }
 
 .voices-properties-library-selector {
@@ -989,7 +990,9 @@
   gap: 8px;
   min-width: 0;
   grid-column: 1;
+  grid-row: 1;
   justify-self: start;
+  align-self: start;
 }
 
 .voices-properties-library-label {
@@ -1033,9 +1036,17 @@
 }
 
 .voices-properties-library-open-btn {
-  border-color: rgba(149, 235, 228, 0.34);
-  background: linear-gradient(135deg, rgba(149, 235, 228, 0.16), rgba(132, 226, 218, 0.12));
-  color: rgba(232, 250, 248, 0.96);
+  min-width: 172px;
+  min-height: 56px;
+  padding: 0 24px;
+  border-color: rgba(105, 220, 203, 0.58);
+  border-radius: 16px;
+  background: rgba(28, 32, 37, 0.94);
+  color: rgba(149, 235, 228, 0.96);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
 }
 
 .voices-properties-library-delete-btn {
@@ -1050,9 +1061,10 @@
 }
 
 .voices-properties-library-open-btn:hover {
-  border-color: rgba(149, 235, 228, 0.52);
-  background: linear-gradient(135deg, rgba(149, 235, 228, 0.24), rgba(132, 226, 218, 0.18));
-  color: rgba(240, 252, 251, 0.98);
+  border-color: rgba(105, 220, 203, 0.58);
+  background: rgba(28, 32, 37, 0.98);
+  color: rgba(149, 235, 228, 0.96);
+  transform: none;
 }
 
 .voices-properties-library-create-btn:hover {
@@ -1375,7 +1387,8 @@
   justify-self: center;
   width: min(760px, 100%);
   min-width: 0;
-  grid-column: 2;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {

@@ -120,7 +120,7 @@ export function ExpertEditInlineStageSurface({
           isPopulated={isPopulated}
           isDragActive={isDragActive}
           style={frameStyle}
-          onWheel={shouldRenderInteractive ? onStageWheel : undefined}
+          onWheel={onStageWheel}
           onDrop={onDrop}
           onDragEnter={onDragEnter}
           onDragOver={onDragOver}

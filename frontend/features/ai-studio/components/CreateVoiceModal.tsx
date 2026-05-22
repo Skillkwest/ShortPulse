@@ -30,6 +30,7 @@ type CreateVoiceModalProps = {
   isCloneConsentChecked: boolean;
   isCloneVoiceEnabled: boolean;
   isCloningVoice: boolean;
+  cloneSourceNotice: string | null;
   voiceDesignPreviewText: string | null;
   voiceDesignPreviews: CreateVoiceModalPreview[];
   selectedVoiceDesignPreviewId: string | null;
@@ -76,6 +77,7 @@ export function CreateVoiceModal({
   isCloneConsentChecked,
   isCloneVoiceEnabled,
   isCloningVoice,
+  cloneSourceNotice,
   voiceDesignPreviews,
   selectedVoiceDesignPreviewId,
   activeDesignedPreviewId,
@@ -98,6 +100,7 @@ export function CreateVoiceModal({
   const hasPreviewOptions = voiceDesignPreviews.length > 0;
   const isCloneMode = createMode === "clone";
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
+  const topRowSaveLabel = isSavingDesignedVoice ? "Saving…" : "Save voice";
 
   return (
     <div className="voices-create-modal-backdrop" {...backdropDismiss}>
@@ -160,7 +163,7 @@ export function CreateVoiceModal({
                   onClick={onSaveVoice}
                   disabled={!isSaveVoiceEnabled}
                 >
-                  {isSavingDesignedVoice ? "Saving…" : "Save voice"}
+                  {topRowSaveLabel}
                 </button>
               ) : null}
             </div>
@@ -181,7 +184,7 @@ export function CreateVoiceModal({
 
               <label className="voices-properties-field">
                 <span className="voices-properties-field-label">
-                  {isCloneMode ? "Voice description (optional)" : "Voice prompt"}
+                  {isCloneMode ? "Voice description (optional)" : "Enter your prompt"}
                 </span>
                 <textarea
                   ref={voicePromptRef}
@@ -194,7 +197,7 @@ export function CreateVoiceModal({
                   placeholder={
                     isCloneMode ? "Optional notes for this cloned voice." : voicePromptPlaceholder
                   }
-                  aria-label={isCloneMode ? "Voice description" : "Voice prompt"}
+                  aria-label={isCloneMode ? "Voice description" : "Enter your prompt"}
                 />
                 {!isCloneMode ? (
                   <div className="voices-create-modal-description-footer" aria-live="polite">
@@ -214,6 +217,11 @@ export function CreateVoiceModal({
                 <section className="voices-create-modal-clone-source" aria-label="Voice sample">
                   <p className="voices-properties-field-label">Voice sample</p>
                   {cloneSourceIntake}
+                  {cloneSourceNotice ? (
+                    <p className="voices-create-modal-helper" role="status" aria-live="polite">
+                      {cloneSourceNotice}
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 

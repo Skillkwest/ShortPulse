@@ -14,67 +14,67 @@ Generated: April 29, 2026
 
 ## Lines By System
 
-| System | Files | Lines | Nonblank Lines | Share |
-| --- | ---: | ---: | ---: | ---: |
-| Frontend Tests | 653 | 168,693 | 152,197 | 32.8% |
-| Frontend Feature Modules | 711 | 166,712 | 157,140 | 32.4% |
-| Frontend Styles | 76 | 51,865 | 45,410 | 10.1% |
-| Frontend Shared Libraries | 208 | 47,371 | 43,689 | 9.2% |
-| Supabase SQL | 225 | 23,622 | 21,614 | 4.6% |
-| Frontend API Routes | 135 | 18,614 | 16,991 | 3.6% |
-| Repo Scripts | 52 | 11,925 | 10,642 | 2.3% |
-| Repo Config | 33 | 8,759 | 8,677 | 1.7% |
-| Frontend Pages | 26 | 8,650 | 8,241 | 1.7% |
-| Database Schema Reference | 1 | 2,385 | 2,101 | 0.5% |
-| Frontend Shared UI & Prefabs | 16 | 2,128 | 1,998 | 0.4% |
-| GitHub Automation | 10 | 1,598 | 1,449 | 0.3% |
-| Frontend Scripts | 5 | 837 | 747 | 0.2% |
-| Supabase Config | 1 | 388 | 340 | 0.1% |
-| Frontend Config | 5 | 308 | 296 | 0.1% |
-| Frontend Other Source | 5 | 149 | 132 | 0.0% |
-| Frontend Types | 1 | 36 | 29 | 0.0% |
-| Git Hooks | 2 | 6 | 6 | 0.0% |
+| System                       | Files |   Lines | Nonblank Lines | Share |
+| ---------------------------- | ----: | ------: | -------------: | ----: |
+| Frontend Tests               |   653 | 168,693 |        152,197 | 32.8% |
+| Frontend Feature Modules     |   711 | 166,712 |        157,140 | 32.4% |
+| Frontend Styles              |    76 |  51,865 |         45,410 | 10.1% |
+| Frontend Shared Libraries    |   208 |  47,371 |         43,689 |  9.2% |
+| Supabase SQL                 |   225 |  23,622 |         21,614 |  4.6% |
+| Frontend API Routes          |   135 |  18,614 |         16,991 |  3.6% |
+| Repo Scripts                 |    52 |  11,925 |         10,642 |  2.3% |
+| Repo Config                  |    33 |   8,759 |          8,677 |  1.7% |
+| Frontend Pages               |    26 |   8,650 |          8,241 |  1.7% |
+| Database Schema Reference    |     1 |   2,385 |          2,101 |  0.5% |
+| Frontend Shared UI & Prefabs |    16 |   2,128 |          1,998 |  0.4% |
+| GitHub Automation            |    10 |   1,598 |          1,449 |  0.3% |
+| Frontend Scripts             |     5 |     837 |            747 |  0.2% |
+| Supabase Config              |     1 |     388 |            340 |  0.1% |
+| Frontend Config              |     5 |     308 |            296 |  0.1% |
+| Frontend Other Source        |     5 |     149 |            132 |  0.0% |
+| Frontend Types               |     1 |      36 |             29 |  0.0% |
+| Git Hooks                    |     2 |       6 |              6 |  0.0% |
 
 ## Lines By Language / File Type
 
-| Language / Type | Files | Lines | Nonblank Lines | Share |
-| --- | ---: | ---: | ---: | ---: |
-| TypeScript | 1,428 | 300,718 | 276,876 | 58.5% |
-| TSX | 320 | 109,946 | 102,018 | 21.4% |
-| CSS | 76 | 51,865 | 45,410 | 10.1% |
-| SQL | 226 | 26,007 | 23,715 | 5.1% |
-| JavaScript | 55 | 14,154 | 12,674 | 2.8% |
-| JSON | 30 | 8,321 | 8,320 | 1.6% |
-| YAML | 14 | 1,596 | 1,449 | 0.3% |
-| Shell | 10 | 978 | 835 | 0.2% |
-| TOML | 1 | 388 | 340 | 0.1% |
-| TypeScript Declarations | 2 | 42 | 34 | 0.0% |
-| Config / Hook | 3 | 31 | 28 | 0.0% |
+| Language / Type         | Files |   Lines | Nonblank Lines | Share |
+| ----------------------- | ----: | ------: | -------------: | ----: |
+| TypeScript              | 1,428 | 300,718 |        276,876 | 58.5% |
+| TSX                     |   320 | 109,946 |        102,018 | 21.4% |
+| CSS                     |    76 |  51,865 |         45,410 | 10.1% |
+| SQL                     |   226 |  26,007 |         23,715 |  5.1% |
+| JavaScript              |    55 |  14,154 |         12,674 |  2.8% |
+| JSON                    |    30 |   8,321 |          8,320 |  1.6% |
+| YAML                    |    14 |   1,596 |          1,449 |  0.3% |
+| Shell                   |    10 |     978 |            835 |  0.2% |
+| TOML                    |     1 |     388 |            340 |  0.1% |
+| TypeScript Declarations |     2 |      42 |             34 |  0.0% |
+| Config / Hook           |     3 |      31 |             28 |  0.0% |
 
 ## Largest Source Files
 
-| Rank | File | System | Lines | Nonblank Lines |
-| ---: | --- | --- | ---: | ---: |
-| 1 | `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` | Frontend Tests | 8,067 | 7,158 |
-| 2 | `frontend/styles/ai-studio-edit-expert.css` | Frontend Styles | 5,973 | 5,254 |
-| 3 | `docs/change_log.md` | Documentation | 3,363 | 3,085 |
-| 4 | `frontend/styles/ai-studio-voices-properties.css` | Frontend Styles | 3,202 | 2,836 |
-| 5 | `frontend/pages/ai-studio.tsx` | Frontend Pages | 3,149 | 3,102 |
-| 6 | `frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx` | Frontend Tests | 3,119 | 2,728 |
-| 7 | `frontend/styles/character-manager.css` | Frontend Styles | 2,859 | 2,480 |
-| 8 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts` | Frontend Tests | 2,791 | 2,606 |
-| 9 | `docs/supabase_full_schema.sql` | Database Schema Reference | 2,779 | 2,449 |
-| 10 | `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx` | Frontend Tests | 2,526 | 2,288 |
-| 11 | `frontend/styles/admin.module.css` | Frontend Styles | 2,515 | 2,160 |
-| 12 | `frontend/styles/ai-studio-layout.css` | Frontend Styles | 2,494 | 2,199 |
-| 13 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTasks.test.ts` | Frontend Tests | 2,284 | 1,993 |
-| 14 | `frontend/tests/api/fal-status-proxy.test.ts` | Frontend Tests | 2,273 | 2,075 |
-| 15 | `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx` | Frontend Tests | 2,265 | 2,049 |
-| 16 | `frontend/styles/ai-studio-video-theme.css` | Frontend Styles | 2,231 | 1,971 |
-| 17 | `frontend/features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx` | Frontend Tests | 2,206 | 1,930 |
-| 18 | `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` | Frontend Feature Modules | 2,148 | 2,007 |
-| 19 | `frontend/features/ai-studio/components/__tests__/VoicesPropertiesPanel.test.tsx` | Frontend Tests | 1,989 | 1,703 |
-| 20 | `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx` | Frontend Feature Modules | 1,825 | 1,776 |
+| Rank | File                                                                                        | System                    | Lines | Nonblank Lines |
+| ---: | ------------------------------------------------------------------------------------------- | ------------------------- | ----: | -------------: |
+|    1 | `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx`             | Frontend Tests            | 8,067 |          7,158 |
+|    2 | `frontend/styles/ai-studio-edit-expert.css`                                                 | Frontend Styles           | 5,973 |          5,254 |
+|    3 | `docs/change_log.md`                                                                        | Documentation             | 3,363 |          3,085 |
+|    4 | `frontend/styles/ai-studio-voices-properties.css`                                           | Frontend Styles           | 3,202 |          2,836 |
+|    5 | `frontend/pages/ai-studio.tsx`                                                              | Frontend Pages            | 3,149 |          3,102 |
+|    6 | `frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx`               | Frontend Tests            | 3,119 |          2,728 |
+|    7 | `frontend/styles/character-manager.css`                                                     | Frontend Styles           | 2,859 |          2,480 |
+|    8 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts`             | Frontend Tests            | 2,791 |          2,606 |
+|    9 | `docs/supabase_full_schema.sql`                                                             | Database Schema Reference | 2,779 |          2,449 |
+|   10 | `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`           | Frontend Tests            | 2,526 |          2,288 |
+|   11 | `frontend/styles/admin.module.css`                                                          | Frontend Styles           | 2,515 |          2,160 |
+|   12 | `frontend/styles/ai-studio-layout.css`                                                      | Frontend Styles           | 2,494 |          2,199 |
+|   13 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTasks.test.ts`                      | Frontend Tests            | 2,284 |          1,993 |
+|   14 | `frontend/tests/api/fal-status-proxy.test.ts`                                               | Frontend Tests            | 2,273 |          2,075 |
+|   15 | `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`           | Frontend Tests            | 2,265 |          2,049 |
+|   16 | `frontend/styles/ai-studio-video-theme.css`                                                 | Frontend Styles           | 2,231 |          1,971 |
+|   17 | `frontend/features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx` | Frontend Tests            |   274 |            248 |
+|   18 | `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx`                          | Frontend Feature Modules  | 2,148 |          2,007 |
+|   19 | `frontend/features/ai-studio/components/__tests__/VoicesPropertiesPanel.test.tsx`           | Frontend Tests            | 1,989 |          1,703 |
+|   20 | `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`                           | Frontend Feature Modules  | 1,825 |          1,776 |
 
 ## Notes
 

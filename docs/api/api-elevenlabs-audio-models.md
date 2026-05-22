@@ -76,7 +76,7 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
     - `POST /api/elevenlabs/voices/clone`
   - input family: staged local audio sample or trusted storage-backed internal audio sample plus voice name and optional description
   - output: reusable provider voice persisted in the user-scoped saved-voice cache
-  - notes: ShortPulse does not enforce a minimum-duration gate for clone samples. Before the ElevenLabs IVC submit, the server validates and normalizes clone audio into one provider-safe payload shape.
+  - notes: ShortPulse requires clone samples to contain at least 1 minute of audio before the ElevenLabs IVC submit. The server validates and normalizes clone audio into one provider-safe payload shape before provider submit.
   - Billing basis: metadata-only provider voice creation workflow, not part of shared user-billable runtime pricing
 
 ## Runtime pricing notes

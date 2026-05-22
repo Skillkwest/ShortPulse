@@ -79,6 +79,8 @@ describe("createElevenLabsClonedVoice", () => {
       previewUrl: null,
       description: "Personal narration voice",
       isFallback: false,
+      providerCategory: "cloned",
+      providerVoiceType: null,
     });
   });
 

@@ -126,8 +126,9 @@ export const primaryToolList: ToolConfig[] = [
   { id: "create", label: "Create", desc: "Show create tools" },
 ];
 
-export const editToolList: ToolConfig[] = [
+export const workflowToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
+  { id: "character", label: "Characters", desc: "Create and manage character references" },
   { id: "video", label: "Video", desc: "Generate video content" },
   { id: "sound", label: "Sound", desc: "Open sound properties" },
 ];
@@ -140,7 +141,6 @@ export const soundChildTools: ToolConfig[] = [
 
 export const librariesToolList: ToolConfig[] = [
   { id: "media-library", label: "Media", desc: "Browse library media and prompts" },
-  { id: "character", label: "Characters", desc: "Create and manage character references" },
   { id: "elements", label: "Elements", desc: "Create and manage reusable scene elements" },
   {
     id: "presets",

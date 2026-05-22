@@ -102,7 +102,7 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
 };
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
-  padding: "18px 34px 0",
+  padding: "18px 28px 0",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
 const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {

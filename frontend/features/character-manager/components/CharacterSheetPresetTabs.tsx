@@ -133,10 +133,10 @@ export function CharacterSheetPresetTabs({
     : undefined;
   const compactTabStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "28px",
-        height: "28px",
-        minWidth: "74px",
-        padding: "0 12px",
+        minHeight: "26px",
+        height: "26px",
+        minWidth: "70px",
+        padding: "0 10px",
         fontSize: "11px",
         borderRadius: "9px 9px 0 0",
         border: "1px solid rgba(38, 43, 51, 0.95)",
@@ -184,7 +184,7 @@ export function CharacterSheetPresetTabs({
       compact
         ? {
             position: "absolute",
-            top: "5px",
+            top: "4px",
             right: "6px",
             width: "14px",
             height: "14px",
@@ -205,9 +205,9 @@ export function CharacterSheetPresetTabs({
   );
   const compactAddButtonStyle: CSSProperties | undefined = compact
     ? {
-        width: "28px",
-        minWidth: "28px",
-        height: "28px",
+        width: "26px",
+        minWidth: "26px",
+        height: "26px",
         borderRadius: "9px 9px 0 0",
         border: "1px solid rgba(38, 43, 51, 0.95)",
         background: "rgba(14, 17, 23, 0.96)",

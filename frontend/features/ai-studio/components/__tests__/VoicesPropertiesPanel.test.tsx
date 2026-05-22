@@ -1596,6 +1596,7 @@ describe("VoicesPropertiesPanel", () => {
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     await openVoicesLibraryModal();
+    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /lantern voice/i })).toHaveAttribute(
       "aria-pressed",
@@ -1626,10 +1627,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByText("Drop a voice sample")).toBeInTheDocument();
     expect(screen.getByText("Record a voice sample to create a cloned voice.")).toBeInTheDocument();
     expect(
-      screen.getByText("Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM. Record at least 1 minute.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("For reliable voice cloning, record at least 1 minute of clear speech.")
+      screen.getByText("Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM.")
     ).toBeInTheDocument();
     expect(within(createDialog).queryByText(/voice changer/i)).not.toBeInTheDocument();
 
@@ -1641,7 +1639,7 @@ describe("VoicesPropertiesPanel", () => {
       ".voices-create-modal .voices-properties-voice-changer-file-input"
     ) as HTMLInputElement | null;
     expect(fileInput).not.toBeNull();
-    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(72_000);
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(7_000);
     const file = new File(["audio"], "clone-sample.mp3", { type: "audio/mpeg" });
     fireEvent.change(fileInput as HTMLInputElement, {
       target: { files: [file] },
@@ -1683,6 +1681,7 @@ describe("VoicesPropertiesPanel", () => {
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     await openVoicesLibraryModal();
+    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toHaveAttribute(
       "aria-pressed",
@@ -1690,7 +1689,20 @@ describe("VoicesPropertiesPanel", () => {
     );
   }, 15000);
 
-  it("blocks shorter cloned voice samples before submit", async () => {
+  it("allows shorter cloned voice samples to submit", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        voice: {
+          voiceId: "voice_short_123",
+          name: "Short Clone",
+          previewUrl: "https://cdn.elevenlabs.test/short-clone.mp3",
+          description: null,
+          isFallback: false,
+        },
+      }),
+    });
+
     render(<VoicesPropertiesPanel />);
 
     await openCreateVoiceModal();
@@ -1711,23 +1723,32 @@ describe("VoicesPropertiesPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Ready to clone")).toBeInTheDocument();
     });
-    expect(
-      screen.getByText(
-        "Voice clone samples must be at least 1 minute long. Record a longer clip and try again."
-      )
-    ).toBeInTheDocument();
 
     const cloneButton = screen.getByRole("button", { name: "Create cloned voice" });
     expect(cloneButton).toBeDisabled();
     fireEvent.click(screen.getByLabelText("I have permission to clone this voice."));
-    expect(cloneButton).toBeDisabled();
-    expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
-      "/api/elevenlabs/voices/clone",
-      expect.anything()
-    );
+    expect(cloneButton).toBeEnabled();
+    fireEvent.click(cloneButton);
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/clone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voiceName: "Short Clone",
+          voiceDescription: null,
+          sourceStoragePath: "user-1/voice-clone/source-audio/short-sample.mp3",
+          sourceName: "short-sample.mp3",
+          removeBackgroundNoise: true,
+        }),
+        shortpulseLogScope: "generation",
+      });
+    });
   });
 
-  it("records and stages a clone sample before enabling the clone submit path", async () => {
+  it("records and stages a short clone sample before enabling the clone submit path", async () => {
     const mediaStreamTrackStop = vi.fn();
     const getUserMediaMock = vi.fn().mockResolvedValue({
       getTracks: () => [{ stop: mediaStreamTrackStop }],
@@ -1762,7 +1783,7 @@ describe("VoicesPropertiesPanel", () => {
     }
 
     vi.stubGlobal("MediaRecorder", MockMediaRecorder);
-    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(72_000);
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(7_000);
 
     render(<VoicesPropertiesPanel />);
 

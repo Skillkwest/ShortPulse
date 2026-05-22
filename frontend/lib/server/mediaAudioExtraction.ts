@@ -4,10 +4,6 @@ import os from "os";
 import path from "path";
 import { promisify } from "util";
 import ffmpegStatic from "ffmpeg-static";
-import {
-  MIN_VOICE_CLONE_DURATION_SECONDS,
-  VOICE_CLONE_MIN_DURATION_ERROR,
-} from "../voiceCloneContract";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { detectAudioMimeType } from "./uploadSignature";
 
@@ -357,9 +353,6 @@ export const normalizeAudioForVoiceClone = async ({
     });
     if (!normalizedDurationSeconds || normalizedDurationSeconds <= 0) {
       throw new MediaAudioExtractionInputError(VOICE_CLONE_PREPARATION_ERROR_MESSAGE);
-    }
-    if (normalizedDurationSeconds < MIN_VOICE_CLONE_DURATION_SECONDS) {
-      throw new MediaAudioExtractionInputError(VOICE_CLONE_MIN_DURATION_ERROR, 400);
     }
 
     return {

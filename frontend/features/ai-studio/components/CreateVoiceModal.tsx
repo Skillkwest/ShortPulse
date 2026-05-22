@@ -30,7 +30,6 @@ type CreateVoiceModalProps = {
   isCloneConsentChecked: boolean;
   isCloneVoiceEnabled: boolean;
   isCloningVoice: boolean;
-  cloneSourceNotice: string | null;
   voiceDesignPreviewText: string | null;
   voiceDesignPreviews: CreateVoiceModalPreview[];
   selectedVoiceDesignPreviewId: string | null;
@@ -77,7 +76,6 @@ export function CreateVoiceModal({
   isCloneConsentChecked,
   isCloneVoiceEnabled,
   isCloningVoice,
-  cloneSourceNotice,
   voiceDesignPreviews,
   selectedVoiceDesignPreviewId,
   activeDesignedPreviewId,
@@ -217,11 +215,6 @@ export function CreateVoiceModal({
                 <section className="voices-create-modal-clone-source" aria-label="Voice sample">
                   <p className="voices-properties-field-label">Voice sample</p>
                   {cloneSourceIntake}
-                  {cloneSourceNotice ? (
-                    <p className="voices-create-modal-helper" role="status" aria-live="polite">
-                      {cloneSourceNotice}
-                    </p>
-                  ) : null}
                 </section>
               ) : null}
 

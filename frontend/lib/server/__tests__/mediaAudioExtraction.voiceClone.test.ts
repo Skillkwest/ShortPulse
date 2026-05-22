@@ -141,7 +141,7 @@ describe("normalizeAudioForVoiceClone", () => {
     });
   });
 
-  it("rejects clone samples that are shorter than the minimum supported duration", async () => {
+  it("accepts clone samples that are shorter than one minute once normalization succeeds", async () => {
     execFileMock.mockImplementation((_command, args, callback) => {
       if (Array.isArray(args) && args.includes("-f") && args.includes("null")) {
         callback(null, "", "Duration: 00:00:05.00");
@@ -150,17 +150,16 @@ describe("normalizeAudioForVoiceClone", () => {
       callback(null, "", "");
     });
 
-    const rejection = normalizeAudioForVoiceClone({
-      buffer: Buffer.from("source-audio"),
-      filename: "voice.webm",
-      mimeType: "audio/webm",
-    });
-
-    await expect(rejection).rejects.toThrow(
-      "Voice clone samples must be at least 1 minute long. Record a longer clip and try again."
-    );
-    await expect(rejection).rejects.toMatchObject({
-      statusCode: 400,
+    await expect(
+      normalizeAudioForVoiceClone({
+        buffer: Buffer.from("source-audio"),
+        filename: "voice.webm",
+        mimeType: "audio/webm",
+      })
+    ).resolves.toEqual({
+      buffer: Buffer.from("normalized-wav"),
+      filename: "voice.wav",
+      mimeType: "audio/wav",
     });
   });
 });

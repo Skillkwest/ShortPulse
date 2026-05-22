@@ -160,6 +160,8 @@ export const resolveVoiceLibraryEntry = ({
   if (!baseVoice) return null;
 
   const originKind = resolveOriginKind({ providerVoice, savedVoice });
+  const librarySection: "default" | "my" =
+    savedVoice || originKind === "provider-user-created" ? "my" : "default";
   const canRemoveFromLibrary = Boolean(savedVoice);
   const canDeleteFromProvider = resolveProviderDeleteEligibility({
     providerVoice,
@@ -173,7 +175,7 @@ export const resolveVoiceLibraryEntry = ({
     previewUrl: baseVoice.previewUrl ?? null,
     description: baseVoice.description ?? null,
     isFallback: Boolean(providerVoice?.isFallback ?? baseVoice.isFallback),
-    librarySection: savedVoice ? "my" : "default",
+    librarySection,
     provider: "elevenlabs",
     providerCategory: providerVoice?.providerCategory ?? null,
     providerVoiceType: providerVoice?.providerVoiceType ?? null,

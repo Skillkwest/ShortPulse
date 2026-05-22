@@ -5,11 +5,6 @@
 import React from "react";
 import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import {
-  MIN_VOICE_CLONE_DURATION_LABEL,
-  VOICE_CLONE_MIN_DURATION_GUIDANCE,
-  resolveVoiceCloneDurationError,
-} from "../../../lib/voiceCloneContract";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import {
   resolveRequiredAudioVoiceChangerModelId,
@@ -88,7 +83,7 @@ const cloneVoiceSourceDropzoneCopy = {
   recordButtonRecordingAriaLabel: "Stop recording your voice sample",
   dropTitle: "Drop a voice sample",
   dropHelper: "Drag one audio file from your computer or the Reference Grid. Click to browse.",
-  caption: `Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM. Record at least ${MIN_VOICE_CLONE_DURATION_LABEL}.`,
+  caption: "Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM.",
   unableReferenceError: "Unable to use this reference as a voice clone sample.",
   readyTitle: "Ready to clone",
   uploadingAudioDetail: "Staging the voice sample so it is ready for cloning.",
@@ -466,19 +461,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     selectedVoiceDesignPreviewId !== null &&
     !isDesigningVoice &&
     !isSavingDesignedVoice;
-  const cloneVoiceDurationError =
-    cloneVoiceSource?.status === "ready"
-      ? resolveVoiceCloneDurationError(
-          cloneVoiceSource.durationMs != null ? cloneVoiceSource.durationMs / 1000 : null
-        )
-      : null;
-  const cloneSourceNotice = cloneVoiceDurationError ?? VOICE_CLONE_MIN_DURATION_GUIDANCE;
+  // Voice Clone intentionally has no app-enforced minimum duration. Once the sample
+  // is staged successfully, short clips should still be allowed to reach Instant Voice Cloning.
   const isCloneVoiceEnabled =
     createVoiceMode === "clone" &&
     voiceName.trim().length > 0 &&
     cloneVoiceSource?.status === "ready" &&
     Boolean(cloneVoiceSource.storagePath) &&
-    !cloneVoiceDurationError &&
     isCloneConsentChecked &&
     !isCloningVoice;
   const isSelectedVoiceVisibleInActiveLibrarySection =
@@ -1475,6 +1464,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
+      setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
     } catch (error) {
@@ -1541,6 +1531,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
+      setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
     } catch (error) {
@@ -1949,7 +1940,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             isCloneConsentChecked={isCloneConsentChecked}
             isCloneVoiceEnabled={isCloneVoiceEnabled}
             isCloningVoice={isCloningVoice}
-            cloneSourceNotice={cloneSourceNotice}
             voiceDesignPreviewText={voiceDesignPreviewText}
             voiceDesignPreviews={voiceDesignPreviews}
             selectedVoiceDesignPreviewId={selectedVoiceDesignPreviewId}

@@ -1,548 +1,474 @@
 # AI Studio Audio Companion Art Plan (2026-05-11)
 
-Status: proposed  
+Status: audited and updated on 2026-05-22  
 Scope: AI Studio generated audio refs and their audio-card surfaces  
 Audience: follow-on implementation agent, product reviewer, docs/runtime reviewers
 
 ## Purpose
 
-Define the implementation plan for audio companion art: a hidden branded image derived from the same user prompt that created a generated audio output, normalized for image generation, and rendered behind the audio ref card so audio refs are easier to distinguish visually.
+Define the current execution plan for AI Studio audio companion art after the first rollout shipped.
 
-This plan is the execution source of truth for the lane. It is intentionally strict about scope, decision gates, and stop rules so implementation does not drift into a second visible generation system by accident.
+This document is no longer a greenfield implementation plan. The repo already ships hidden audio
+companion art across the core generation, projection, restore, and rendering seams. The remaining
+work is to harden that system, shrink delivery/storage cost, and close cleanup/ownership gaps
+without widening scope into a visible image feature.
 
 ## Executive Summary
 
 Recommended posture:
 
-1. Treat this as `audio-owned companion art`, not as a normal image generation.
-2. Scope the first rollout to newly generated AI Studio audio outputs only.
-3. Generate the art asynchronously after audio success.
-4. Trigger the art from a durable server-side seam owned by the audio routes, not from a client follow-up request or best-effort response-tail async.
-5. Store the result in an explicit audio companion-art contract, not the existing video-poster contract.
-6. Keep the art hidden from normal generation history, project preview selection, Media Library counts, and visible ref/output lists unless a later product decision widens scope.
-7. Preserve the current gradient as the default fallback for pending, failed, uploaded, and out-of-scope audio surfaces.
+1. Keep companion art as `audio-owned hidden decoration`, not a user-visible image asset.
+2. Preserve the current generated-audio-only rollout.
+3. Keep companion art fully asynchronous and non-fatal to audio completion.
+4. Reframe the remaining lane around `delivery asset hardening`, not initial feature creation.
+5. Replace the current full-size browse asset with a lightweight audio-card delivery asset.
+6. Close lifecycle cleanup gaps so hidden companion-art objects do not orphan on delete.
+7. Freeze ownership/quota semantics explicitly before changing storage behavior.
 
 ## Repo-Backed Current-State Audit
 
-### Trusted facts
+### Trusted shipped facts
 
-1. `StudioOutput` has no dedicated companion-art contract today in `frontend/features/ai-studio/types.ts`.
-2. Audio generation currently creates audio outputs without visual companion fields in `frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts`.
-3. Audio cards already share a reusable shell through `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`, `frontend/features/ai-studio/components/shared/ReferenceAudioPlayer.tsx`, and `frontend/features/ai-studio/components/media-library-modal/MediaLibraryAllItemsGrid.tsx`.
-4. Shared audio-card styling is a static fallback gradient today in `frontend/styles/ai-studio-canvas.css`.
-5. Generated audio persistence in `frontend/lib/server/elevenlabs.ts` stores the audio generation/media row only and does not create a companion image or generic visual derivative.
-6. `previewPosterUrl` and related poster fields are effectively treated as video-owned, including in `frontend/features/ai-studio/reference-ingestion/prepareLibraryMediaIngestionPayload.ts`.
-7. Session restore only preserves explicitly serialized output fields in `frontend/features/ai-studio/logic/sessionSnapshot.ts` and `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`.
-8. The repo already has the correct prompt seam for hidden transformation:
-   - prompt composition in `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`
-   - branded hidden style adaptation in `frontend/features/ai-studio/logic/stylePromptAdapter.ts`
-9. Audio routes already persist enough metadata to support deterministic visual normalization:
-   - voiceover metadata in `frontend/pages/api/elevenlabs/text-to-speech.ts`
-   - music metadata in `frontend/pages/api/elevenlabs/music.ts`
-   - sound-effect metadata in `frontend/pages/api/elevenlabs/sound-effects.ts`
-10. The public image route in `frontend/pages/api/openai/image-generate.ts` is a normal visible billed lane and should not be reused unchanged for hidden companion art.
-11. Uploaded/library audio currently has no poster parity and leaves `previewPosterUrl` null in `frontend/features/ai-studio/logic/stateParsers.ts`.
+1. `StudioOutput` already has a dedicated companion-art contract in
+   `frontend/features/ai-studio/types.ts`:
+   - `companionArtUrl`
+   - `companionArtStoragePath`
+   - `companionArtStatus`
+2. Audio generation already returns pending companion-art fields through:
+   - `frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts`
+   - `frontend/pages/api/elevenlabs/text-to-speech.ts`
+   - `frontend/pages/api/elevenlabs/music.ts`
+   - `frontend/pages/api/elevenlabs/sound-effects.ts`
+   - `frontend/pages/api/elevenlabs/speech-to-speech.ts`
+3. The hidden async generation lane already exists in:
+   - `frontend/lib/server/audioCompanionArt/promptCompiler.ts`
+   - `frontend/lib/server/audioCompanionArt/processing.ts`
+4. `generation_projection` already carries companion-art fields and retry state through migration
+   `sql/migrations/123_add_audio_companion_art_projection_fields.sql`.
+5. Reference Grid and AI Studio Media Library audio cards already render companion art through:
+   - `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`
+   - `frontend/features/ai-studio/components/shared/ReferenceAudioPlayer.tsx`
+   - `frontend/features/ai-studio/components/media-library-modal/MediaLibraryAllItemsGrid.tsx`
+6. Session save/restore and generated-output hydration already understand companion-art fields:
+   - `frontend/features/ai-studio/logic/sessionSnapshot.ts`
+   - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
+   - `frontend/features/ai-studio/logic/sessionRestoreMediaSigning.ts`
+   - `frontend/features/ai-studio/logic/generatedOutputHydration.ts`
+7. Project-scoped output refresh also preserves companion-art projection fields through
+   `frontend/lib/server/projectGenerationAssociationsService.ts`.
+
+### Trusted current problems
+
+1. The prompt compiler hard-codes companion-art generation to `1024x1024` at `low` quality in
+   `frontend/lib/server/audioCompanionArt/promptCompiler.ts`.
+2. The processor uploads the generated image directly as a raw PNG browse asset at
+   `<uid>/generations/audio/<generationId>/companion-art/cover.png` in
+   `frontend/lib/server/audioCompanionArt/processing.ts`.
+3. Audio-card surfaces currently consume the signed original companion-art object instead of a
+   dedicated lightweight delivery asset.
+4. The rendered audio-card surface is much smaller than the stored asset:
+   - audio cards are `4 / 5` tiles in `frontend/styles/ai-studio-canvas.css`
+   - waveform/time content is capped to `78px` wide in the same stylesheet
+5. Companion art bypasses the normal `media_files` row path and the existing image-derivative
+   pipeline, so it is not covered by ordinary media-row deletion and does not reuse the repo’s
+   thumbnail conventions.
+6. Media Library delete currently removes the audio media row and its known variants, but companion
+   art is projection-owned and not part of that delete target set.
+7. The current storage/quota posture is implicit rather than explicitly frozen:
+   hidden companion-art bytes live outside the canonical `media_files.file_size` quota contract.
 
 ### Audit conclusion
 
-The repo already has the right seams for:
+The repo no longer needs a plan for creating companion art from scratch.
 
-- hidden prompt transformation,
-- shared audio-card rendering,
-- and generated-audio metadata capture.
+The repo now needs a plan for:
 
-The repo does not yet have:
+- shrinking the delivery asset,
+- making cleanup deterministic,
+- clarifying storage ownership/quota semantics,
+- and optionally repairing old full-size assets.
 
-- an explicit audio companion-art contract,
-- a hidden companion-image pipeline,
-- or a persistence/read-model story for such an asset.
+UI rollout is already shipped. The follow-on lane should avoid re-solving prompt compilation,
+projection fields, or rendering wiring unless required by the new lightweight delivery contract.
 
-Those are the real implementation foundations. UI work is downstream of them.
+## Product Contract
+
+### In scope for this follow-on lane
+
+- newly generated AI Studio audio outputs only
+- Reference Grid audio cards
+- AI Studio Media Library inline audio cards where those generated outputs surface
+- hidden async companion-art generation after audio success
+- replacement of the current full-size browse asset with a small delivery asset
+- cleanup of hidden companion-art storage on relevant delete/remove paths
+- explicit ownership/quota policy for hidden companion-art storage
+- optional bounded compatibility/backfill strategy for older full-size assets
+
+### Explicitly out of scope
+
+- uploaded audio parity
+- existing non-generated library audio parity
+- companion art as a visible standalone image output
+- project-card preview usage of companion art
+- reuse of video-poster semantics as the long-term audio solution
+- full visual redesign of audio cards
+- generic hidden-image infrastructure for unrelated surfaces
+- expansion into remuxed video surfaces unless a separate product decision widens scope
+
+### Required behavior
+
+- Audio appears immediately with the existing fallback gradient.
+- Companion art upgrades the card asynchronously when ready.
+- Companion-art generation or resize failure never blocks audio playback or audio success.
+- Companion art remains hidden from normal image-output surfaces, project previews, and visible
+  output counting.
+- The delivery asset is intentionally low-cost relative to the audio-card surface.
+- Delete, restore, and cleanup behavior are explicit rather than incidental.
 
 ## Authority Map
 
-These are the primary code seams the implementation lane will likely need to touch or explicitly rule out.
+These are the primary seams for the follow-on lane.
 
-### Output creation and client runtime
+### Existing generation and prompt seams
 
-- `frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts`
-- `frontend/features/ai-studio/hooks/__tests__/useAiStudioAudioGeneration.test.ts`
-
-### Server persistence and media contracts
-
-- `frontend/lib/server/elevenlabs.ts`
+- `frontend/lib/server/audioCompanionArt/promptCompiler.ts`
+- `frontend/lib/server/audioCompanionArt/processing.ts`
 - `frontend/lib/server/openaiImageGeneration.ts`
-- `frontend/pages/api/openai/image-generate.ts`
 - `frontend/pages/api/elevenlabs/text-to-speech.ts`
 - `frontend/pages/api/elevenlabs/music.ts`
 - `frontend/pages/api/elevenlabs/sound-effects.ts`
+- `frontend/pages/api/elevenlabs/speech-to-speech.ts`
 
-### Session/project durability and output hydration
+### Existing output and read-model seams
+
+- `frontend/features/ai-studio/types.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioGeneratedOutputMaintenance.ts`
+- `frontend/features/ai-studio/logic/generatedMediaAuthority.ts`
+- `frontend/lib/server/projectGenerationAssociationsService.ts`
+- `frontend/pages/api/media/list.ts`
+
+### Existing restore/session seams
 
 - `frontend/features/ai-studio/logic/sessionSnapshot.ts`
 - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
-- `frontend/features/ai-studio/hooks/useAiStudioSessionReferenceDurability.ts`
-- `frontend/lib/server/projectGenerationAssociationsService.ts`
+- `frontend/features/ai-studio/logic/sessionRestoreMediaSigning.ts`
+- `frontend/features/ai-studio/logic/generatedOutputHydration.ts`
 
-### Rendering surfaces
+### Existing UI seams
 
 - `frontend/features/ai-studio/components/shared/ReferenceAudioPlayer.tsx`
 - `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`
 - `frontend/features/ai-studio/components/media-library-modal/MediaLibraryAllItemsGrid.tsx`
 - `frontend/styles/ai-studio-canvas.css`
+- `frontend/styles/ai-studio-media-library-panel.css`
 
-## Product Contract
+### Existing derivative and cleanup seams to prefer
 
-### In scope for phase-one rollout
-
-- newly generated AI Studio audio outputs only
-- Reference Grid audio cards
-- AI Studio Media Library inline audio cards where those generated outputs appear
-- hidden async companion-art generation after audio success
-- audio-card outputs only, not video/remux-preview surfaces
-
-### Explicitly out of scope for phase-one rollout
-
-- uploaded audio parity
-- existing library audio parity
-- historical backfill for older generated audio outputs unless a separate replay lane is approved
-- companion art as a visible standalone generated image
-- reuse of the existing video-poster contract as the long-term audio solution
-- speech-to-speech or voice-changer remuxed video outputs that render as video surfaces rather than audio cards
-- non-AI Studio media surfaces unless they intentionally adopt the same audio-card contract later
-
-### Required behavior
-
-- Audio appears immediately with the existing gradient fallback.
-- Companion art upgrades the card asynchronously when ready.
-- Companion-art failure never fails the audio output.
-- Companion art is hidden from normal generation history and visible output accounting.
-- Delete, reroll, abandon, restore, retry, and replay rules must be explicit before implementation.
-
-### Scope clarification
-
-`voice-changer` remains relevant to prompt-normalization inventory if the lane later wants broad audio-source coverage, but phase-one UI rollout is limited to outputs that actually render through the shared audio-card shell. If a source mode routes through remuxed video with `previewPosterUrl`, it is out of this rollout unless the product explicitly widens scope.
+- `frontend/lib/server/mediaDerivatives/processMediaDerivative.ts`
+- `frontend/lib/mediaPreviewTransformProfile.ts`
+- `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`
 
 ## Decision Register
 
-These decisions must be frozen in Phase 0. Defaults below are the recommended values if product does not override them.
+Freeze these before code changes.
 
-| Decision | Options | Recommended default |
-| --- | --- | --- |
-| Rollout scope | Generated audio only / broader parity | Generated audio only |
-| Historical posture | New generations only / bounded backfill | New generations only |
-| Ownership model | Hidden companion decoration / visible first-class asset | Hidden companion decoration |
-| Billing policy | Bundled / separate / internal non-billable | Must be explicitly decided before route work |
-| Async trigger model | Durable server-side enqueue / client follow-up / same-request best-effort async | Durable server-side enqueue |
-| Persistence model | Hidden linked generation / audio-owned media metadata | Audio-owned hidden contract |
-| Storage/privacy | Shared authority with audio / separate authority | Same authority as owning audio |
-| Restore behavior | Durable across restore / runtime-only | Explicit decision required before serializer work |
+| Decision               | Options                                                                                    | Recommended default                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Rollout scope          | Generated audio only / broader parity                                                      | Generated audio only                                                               |
+| Storage representation | Small delivery asset only / raw source + small delivery asset                              | Small delivery asset only unless a raw source has a concrete future use            |
+| Delivery format        | PNG / JPEG / WebP                                                                          | WebP delivery asset                                                                |
+| Delivery size target   | 240px / 480px / larger                                                                     | 240-480px browse asset                                                             |
+| Historical posture     | Leave old rows / lazy upgrade / bounded backfill                                           | Leave old rows or lazy-upgrade by touch unless storage evidence justifies backfill |
+| Ownership model        | Projection-owned hidden asset / media-file-owned hidden asset / formal derivative contract | Hidden asset with explicit authoritative cleanup seam                              |
+| Quota posture          | Internal hidden storage exempt from quota / count toward user quota                        | Must be explicitly frozen before rollout                                           |
+| Async trigger model    | Existing server-side enqueue / client follow-up                                            | Keep existing server-side enqueue                                                  |
+| Restore behavior       | Durable by storage-path authority / runtime-only                                           | Keep current durable storage-path authority                                        |
+| Cleanup authority      | Media delete only / generation delete only / shared explicit cleanup helper                | Shared explicit cleanup helper                                                     |
+| Rollout safety         | Direct cutover / flag-gated cutover                                                        | Flag-gated cutover if asset format/path changes materially                         |
 
-## Proposed Data Contract
+## Proposed Target Contract
 
-Do not overload `previewPosterUrl`.
+### Companion-art runtime contract
 
-Recommended first-pass `StudioOutput` additions:
+Keep the current public field names unless a rename is required for clarity:
 
 - `companionArtUrl?: string | null`
 - `companionArtStoragePath?: string | null`
-- `companionArtStatus?: "pending" | "ready" | "failed" | null`
-- `companionArtGenerationId?: string | null`
+- `companionArtStatus?: "pending" | "processing" | "ready" | "failed" | null`
 
-Why this shape:
+Interpretation after this lane:
 
-- it is small,
-- it covers async lifecycle states cleanly,
-- and it keeps the art clearly attached to the audio output rather than pretending the output itself became a video/poster-bearing media type.
+- `companionArtStoragePath` should point to the lightweight card-delivery asset, not an
+  unnecessarily large browse image.
+- If a raw source asset is retained, it should remain internal implementation detail rather than
+  the default UI authority field.
 
-## Proposed Runtime Model
+### Delivery contract
 
-1. User generates audio.
-2. Audio output is created and returned immediately.
-3. Output starts with fallback styling and `companionArtStatus: "pending"`.
-4. A hidden internal companion-art lane compiles a visual prompt from the audio prompt plus route metadata.
-5. The lane generates/persists the companion image under audio-owned authority.
-6. The output is updated to `ready` or `failed`.
-7. Audio-card surfaces rerender accordingly.
+1. Audio success returns immediately with `companionArtStatus: "pending"`.
+2. The hidden lane generates art asynchronously.
+3. The hidden lane persists a lightweight audio-card asset.
+4. UI surfaces consume the lightweight signed asset.
+5. Failure leaves the audio card on the fallback gradient.
 
-## Recommended Orchestration Seam
-
-Phase one should treat the audio routes as the authority for starting companion-art work.
-
-Recommended posture:
-
-1. `text-to-speech`, `music`, and `sound-effects` complete their normal audio billing/persistence path first.
-2. After the audio output is durably recorded and the audio billing path is settled, the server creates or enqueues exactly one companion-art job keyed to the audio output identity.
-3. The companion-art job runs through an internal hidden image-generation seam and updates the owning audio output state asynchronously.
-
-Why this is the right trigger seam:
-
-- the audio routes already own the authoritative generated-audio metadata
-- the client hook is not durable enough to be the source of truth
-- a best-effort unawaited task at the end of the request is too fragile for a persisted feature
-- audio billing capture should finish independently of companion-art success or failure
-
-## Rejected Implementation Shapes
+## Rejected Shapes
 
 Do not do these:
 
-- do not trigger companion art from a second client-side request in `useAiStudioAudioGeneration`
-- do not reuse `/api/openai/image-generate` as-is and let it create a visible billed image output
-- do not overload `previewPosterUrl` or general video-poster semantics
-- do not rely on untracked response-tail async work after the API response returns
-- do not attach companion art to remuxed video derivatives just because a voice-changer route also emits a video output
+- do not re-open this as a visible image-generation feature
+- do not widen into uploaded/library audio parity in the same lane
+- do not keep serving full-size `1024x1024` PNGs to tiny card backgrounds once the replacement path
+  exists
+- do not create a second ad hoc resize pipeline when the repo already has derivative conventions
+- do not leave cleanup ownership implicit across `media_files` delete and projection-owned storage
+- do not let companion art leak into project preview selection
 
-## Phase Plan
+## Updated Phase Plan
 
-### Phase 0: Contract Freeze
-
-Objective:
-
-- lock the product, lifecycle, billing, and ownership model before code.
-
-Entry criteria:
-
-- current-state audit accepted
-- phase-one scope understood
-
-Work:
-
-- choose rollout scope
-- choose historical backfill posture
-- choose billing posture
-- choose async trigger model
-- choose ownership/persistence model
-- choose restore behavior
-- choose delete/reroll/abandon/retry/replay behavior
-
-Audit questions:
-
-- Is generated-only scope explicit, or are uploads/library audio drifting into assumed parity?
-- Is historical replay/backfill explicit?
-- Is the async trigger durable and server-owned, or is the plan still relying on client or best-effort request-tail behavior?
-- Can companion art accidentally appear in project previews, counts, or visible histories?
-- Is the feature hidden decoration or a visible asset?
-
-Exit criteria:
-
-- every row in the Decision Register is frozen
-
-Stop rule:
-
-- do not start persistence or route work until the decision register is complete
-
-### Phase 1: Prompt Compiler And Brand Profile
+### Phase 0: Contract Reset
 
 Objective:
 
-- build the prompt-transformation contract for audio-to-image conversion.
-
-Entry criteria:
-
-- Phase 0 decisions frozen
+- freeze the follow-on lane as `shipped baseline + optimization/hardening`, not initial rollout
 
 Work:
 
-- create one helper that transforms `audio prompt -> normalized image prompt`
-- create source-mode rules for:
-  - voiceover
-  - music
-  - sound-effects
-  - voice-changer
-- attach one consistent internal brand style profile/prompt
-
-Audit questions:
-
-- Are raw audio prompts being forwarded blindly into image generation?
-- Are audio-only instructions stripped or rewritten when they do not map visually?
-- Is the visible user prompt still separate from the hidden submission prompt?
-- Is the brand style controlled by one authority seam?
+- confirm generated-audio-only scope remains correct
+- freeze storage representation (`small delivery asset only` vs `raw + small`)
+- freeze quota posture
+- freeze cleanup authority
+- freeze historical posture for old full-size assets
+- freeze rollback/flag posture if delivery-path format changes
 
 Exit criteria:
 
-- prompt compiler can deterministically produce a branded hidden image prompt for every in-scope audio source mode
+- every row in the updated Decision Register is frozen
 
 Stop rule:
 
-- do not start generation wiring if the prompt compiler still has undefined behavior for one of the in-scope source modes
+- do not change storage or UI delivery until storage representation and cleanup authority are
+  explicit
 
-### Phase 2: Output Contract And Persistence
+### Phase 1: Lightweight Write Path
 
 Objective:
 
-- add the explicit audio companion-art state model.
-
-Entry criteria:
-
-- Phase 1 compiler behavior accepted
+- stop producing oversized browse assets for audio-card backgrounds
 
 Work:
 
-- add `StudioOutput` companion-art fields
-- extend serializers/hydrators if restore durability is in scope
-- choose and implement the persistence representation
-- define storage/privacy inheritance from the owning audio asset
-- define whether project/workspace save flows and session-reference durability should upload/preserve companion-art assets or intentionally drop them when out of scope
+- update the processor to emit a lightweight delivery asset
+- prefer reuse of the existing derivative strategy/pattern
+- keep audio companion-art generation asynchronous and non-fatal
+- keep prompt-compiler behavior unchanged unless visual quality evidence requires retuning
 
 Audit questions:
 
-- Is the implementation trying to reuse the video-poster contract?
-- Can the companion image inherit weaker privacy than the audio?
-- Does restore silently drop the fields?
-- Do saved/read-model parsers understand pending, ready, and failed states?
-- Do project/workspace durability paths preserve the contract intentionally rather than by accidental poster-field reuse?
+- Is the delivery asset materially smaller than the current raw PNG?
+- Is the new asset still visually acceptable behind the audio-card shell?
+- Did we accidentally create a second source of truth for companion-art storage?
 
 Exit criteria:
 
-- the runtime and persistence layers can represent companion-art state without ambiguity
+- newly generated companion art persists as a lightweight delivery asset
 
 Stop rule:
 
-- do not start async generation if the persistence/read model cannot distinguish pending, ready, and failed states cleanly
+- do not cut UI delivery over until the new asset path is stable and measurable
 
-### Phase 3: Hidden Generation Pipeline
+### Phase 2: Read-Model And UI Delivery Cutover
 
 Objective:
 
-- implement the async internal companion-art lane.
-
-Entry criteria:
-
-- output contract exists
-- persistence model is frozen
-- async trigger model is frozen
+- make all in-scope surfaces consume the lightweight asset
 
 Work:
 
-- add an internal helper/route boundary for hidden companion-art generation
-- connect the enqueue/trigger seam to the authoritative audio routes
-- persist/update companion-art state on the owning audio output
-- make failure non-fatal for audio
-- add telemetry/logging for companion-art outcomes
-- make retries and replays idempotent by owning audio output identity
+- update generated-output delivery signing paths
+- update media-list enrichment for generated audio rows
+- confirm session snapshot/restore continues to rely on storage-path authority
+- preserve current fallback styling and interaction behavior
 
 Audit questions:
 
-- Is the lane accidentally using the public visible image-generation route unchanged?
-- Does the trigger happen after audio persistence/billing settlement instead of entangling companion-art success with audio completion?
-- Can retries or replay create duplicate hidden images?
-- Can companion art leak into visible refs, outputs, or media queries?
-- Is moderation/failure handling explicit for the normalized image prompt?
+- Are Reference Grid and Media Library both loading the small asset?
+- Are signed URL paths still stable across restore/hydration?
+- Are project previews still ignoring companion art?
 
 Exit criteria:
 
-- one audio output can produce at most one owned companion-art result for the active contract
+- the shipped surfaces no longer request the large original asset for audio-card backgrounds
 
 Stop rule:
 
-- do not move to UI rollout if duplicate creation or visible-surface leakage is still possible
+- do not widen surface scope if one of the two shipped surfaces still uses the old path
 
-### Phase 4: Surface Rendering Rollout
+### Phase 3: Cleanup And Ownership Hardening
 
 Objective:
 
-- render companion art behind the shared audio-card shell without changing audio behavior.
-
-Entry criteria:
-
-- async lane is stable
-- output state transitions are observable from the UI
+- ensure hidden companion-art storage is removed when the owning audio is removed
 
 Work:
 
-- update `frontend/features/ai-studio/components/shared/ReferenceAudioPlayer.tsx` to support art-underlay rendering
-- wire the Reference Grid path in `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`
-- wire AI Studio Media Library inline audio-card parity where generated outputs surface there
-- preserve fallback styling in `frontend/styles/ai-studio-canvas.css`
+- add explicit cleanup for companion-art objects on relevant delete flows
+- clear projection companion-art metadata when the owning asset/generation is deleted or suppressed
+- define behavior for project delete, generation delete, abandon, and permanent library delete
 
 Audit questions:
 
-- Does the art reduce control legibility or block interaction?
-- Does the pending/failed fallback still look intentional?
-- Has the one-sound-at-a-time audio policy regressed?
-- Are uploaded/library audio surfaces now half-supported visually without an explicit policy?
+- Can hidden companion-art storage survive `Delete from library` today?
+- Which seam is authoritative for deleting companion art when media rows and projection rows both
+  exist?
+- Do cleanup failures degrade safely and observably?
 
 Exit criteria:
 
-- in-scope generated audio cards can show companion art while all fallback and playback behavior remains correct
+- in-scope delete paths remove hidden companion-art storage deterministically
 
 Stop rule:
 
-- do not widen surface scope until the first two in-scope surfaces are stable
+- do not treat storage optimization as complete if cleanup still leaves orphaned hidden assets
 
-### Phase 5: Validation, Docs, And Closeout
+### Phase 4: Compatibility Repair
 
 Objective:
 
-- prove the lane is stable and document the final contract.
-
-Entry criteria:
-
-- UI rollout complete for the approved surfaces
+- decide how to handle already-generated full-size assets
 
 Work:
 
-- add prompt-compiler tests
-- add persistence/restore tests if durability is in scope
-- add async success/failure UI tests
-- add browser-level validation for generated audio ref appearance and fallback behavior
-- update docs for the final companion-art contract and any persistence/billing semantics
+- choose leave-alone, lazy-upgrade, or bounded backfill
+- optionally add an orphan-repair or old-asset repair helper
+- avoid repo-wide churn unless storage evidence justifies it
 
 Audit questions:
 
-- Is failure-path fallback covered?
-- Is restore covered when restore is in scope?
-- Are doc indexes and any schema/data-dictionary implications updated?
-- Is the final behavior still hidden-decoration rather than visible-output drift?
+- Is the volume of existing full-size companion art large enough to justify repair work now?
+- Can we safely repair by touch instead of running a one-off migration?
 
 Exit criteria:
 
-- generated audio refs reliably gain branded background art without visible asset leakage and with safe fallback on failure
+- historical posture is explicit and documented
 
 Stop rule:
 
-- stop when the hidden companion-art contract is stable; do not continue by adjacency into upload parity or historical backfill without a new problem statement
+- skip backfill if the repo lacks evidence that repair has better ROI than stopping
+
+### Phase 5: Validation, Metrics, And Docs
+
+Objective:
+
+- prove the lane reduces cost without changing product behavior
+
+Work:
+
+- add or update tests for processor output, delivery signing, restore, and delete cleanup
+- capture before/after byte-size evidence
+- update this doc and any relevant SOP notes with the final contract
+
+Validation targets:
+
+- no full-size companion-art PNGs requested for audio-card backgrounds after cutover
+- typical delivery asset is materially smaller than the current raw asset
+- fallback gradient remains correct for pending and failed states
+- one-sound-at-a-time behavior remains unchanged
+- delete cleanup removes companion-art storage
+
+Exit criteria:
+
+- companion art remains visually correct while reducing storage/delivery cost and closing cleanup
+  gaps
+
+Stop rule:
+
+- stop when the hidden lightweight contract is stable; do not continue by adjacency into upload
+  parity or generic hidden-image systems
 
 ## Validation Matrix
 
-The implementation lane should lock these checks before closeout.
+### Unit and server coverage
 
-### Unit and hook coverage
+- prompt compiler continues to normalize by source mode
+- processor emits the new lightweight asset shape
+- failure marks `failed` without harming audio success
+- cleanup helper removes companion-art storage and clears metadata
 
-- prompt compiler normalization by source mode
-- `useAiStudioAudioGeneration` output creation with companion-art pending state
-- serializer/hydrator coverage if restore durability is in scope
+### Hydration and restore coverage
 
-### Server/persistence coverage
-
-- one audio output yields at most one companion-art record for the active contract
-- failure marks `failed` without harming the audio output
-- privacy/storage inheritance matches the owning audio asset
-- audio billing settlement remains correct even when companion-art generation fails
-- companion-art trigger runs for in-scope audio outputs but not remuxed video derivatives
+- generated-output hydration preserves the new companion-art storage authority
+- session save prefers storage-path authority over raw signed URLs
+- restore re-signs the lightweight asset correctly
 
 ### UI coverage
 
-- Reference Grid audio card upgrades from fallback to ready art
-- AI Studio Media Library inline audio card parity for generated outputs
-- fallback remains intact for pending and failed states
-- one-sound-at-a-time audio behavior remains unchanged
+- Reference Grid audio card uses the lightweight asset
+- AI Studio Media Library inline audio card uses the lightweight asset
+- pending/failed fallback remains intact
+- playback behavior remains unchanged
 
 ### Explicit non-regression checks
 
 - no visible extra image refs are added to normal output surfaces
-- project preview/counting behavior does not accidentally include companion art
-- out-of-scope video/remux surfaces remain unchanged
-- no client-only retry path becomes the hidden source of truth for companion-art generation
+- project preview/counting behavior still ignores companion art
+- out-of-scope remuxed video surfaces remain unchanged
+- delete from `All Media` does not leave hidden companion-art storage behind
 
-## Cross-Phase Risks
+## Risks
 
-### Risk 1: Visible-surface leakage
-
-Why it matters:
-
-- users would see mystery images they did not ask for
-
-Mitigation:
-
-- keep the persistence contract explicitly hidden/audio-owned
-- audit projections, counts, and preview selectors before rollout
-
-### Risk 2: Bad visual prompt normalization
+### Risk 1: Cleanup still leaks hidden storage
 
 Why it matters:
 
-- raw audio prompts are often poor image prompts
+- storage savings are undermined if old hidden assets persist
 
 Mitigation:
 
-- use source-mode normalization
-- centralize the branded hidden style profile
+- add one explicit cleanup authority seam and test it
 
-### Risk 3: Audio latency regression
+### Risk 2: Small assets look too degraded
 
 Why it matters:
 
-- audio is the primary user action
+- users still need the cards to feel polished
 
 Mitigation:
 
-- keep companion art fully asynchronous after audio success
+- keep a measurable size target and a rollback path
 
-### Risk 4: Restore-state drift
+### Risk 3: Quota semantics stay ambiguous
 
 Why it matters:
 
-- serializer omissions would silently drop the feature
+- hidden storage can drift away from product expectations
 
 Mitigation:
 
-- explicitly choose restore durability and implement serializer work only if in scope
+- freeze quota posture in Phase 0 and document it
 
-### Risk 5: Generated-only rollout looks partial by accident
+### Risk 4: Scope creep into a general media system rewrite
 
 Why it matters:
 
-- users can read inconsistency as brokenness if scope is not visible in behavior
+- this lane can easily expand into unrelated image/storage cleanup work
 
 Mitigation:
 
-- document generated-only scope
-- keep the fallback gradient intentional for out-of-scope audio surfaces
-
-### Risk 6: Duplicate hidden image creation
-
-Why it matters:
-
-- retries, replays, and refresh races can create multiple hidden companions for one audio output
-
-Mitigation:
-
-- make the server lane idempotent by owning audio output id
-
-### Risk 7: Privacy/storage mismatch
-
-Why it matters:
-
-- companion art should not become less protected than the owning audio
-
-Mitigation:
-
-- inherit storage/privacy authority from the owning audio asset
-- audit signed URL and query behavior
-
-## Implementation Entry Checklist
-
-- rollout scope frozen
-- historical posture frozen
-- billing posture frozen
-- ownership model frozen
-- restore posture frozen
-- prompt compiler contract frozen
-- storage/privacy inheritance frozen
-- output contract defined
-- idempotency strategy defined
-- validation matrix drafted before code
+- keep the non-goals explicit and stop after the audio-card contract is hardened
 
 ## Suggested Build Order
 
-1. freeze the Decision Register
-2. build the prompt compiler and brand profile
-3. add the output contract and persistence shape
-4. build the hidden async generation lane with idempotency
-5. wire the shared audio-card surfaces
-6. add tests and docs closeout
-
-## Final Audit Summary
-
-What changed from the previous draft:
-
-- phase boundaries are tighter
-- decision freezing is now explicit instead of implied
-- entry/exit criteria are defined per phase
-- historical backfill, idempotency, and privacy inheritance are treated as first-class concerns
-- the stop rules now explicitly prevent scope creep into visible image-generation behavior
+1. freeze the updated Decision Register
+2. implement the lightweight write path
+3. cut read-model and UI delivery over to the lightweight asset
+4. harden delete/cleanup ownership
+5. decide and document historical posture
+6. capture validation evidence and doc closeout
 
 ## Closeout
 
-This lane is ready for implementation once the Phase 0 decisions are confirmed. The plan is intentionally biased toward the smallest safe version of the feature: generated-audio-only, hidden, async, branded, and attached to the owning audio output rather than elevated into a second visible asset system.
+This lane is ready for implementation as a targeted hardening pass.
+
+The repo already ships the companion-art feature. The remaining work is to make that shipped system
+smaller, cleaner, and more explicitly owned without changing the visible product contract.

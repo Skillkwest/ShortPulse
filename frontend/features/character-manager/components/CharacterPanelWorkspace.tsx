@@ -73,7 +73,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "10px",
+  gap: "6px",
   marginTop: "8px",
   padding: "14px 8px 16px",
   borderRadius: "18px",
@@ -146,14 +146,15 @@ const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
-  gridTemplateRows: "auto 22px",
-  minHeight: "176px",
+  aspectRatio: "4 / 5",
+  gridTemplateRows: "minmax(0, 1fr) 22px",
   borderRadius: "10px",
   border: "1px solid rgba(30, 34, 41, 0.96)",
   background: "rgba(12, 14, 19, 0.96)",
   overflow: "hidden",
   position: "relative",
   boxSizing: "border-box",
+  alignSelf: "start",
 };
 const CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -174,11 +175,13 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   padding: 0,
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
-  aspectRatio: "4 / 4.35",
+  height: "100%",
+  minHeight: 0,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "18px 10px 14px",
+  padding: "14px 10px 8px",
+  borderBottom: "none",
   boxSizing: "border-box",
 };
 const CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
@@ -186,7 +189,7 @@ const CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
-  gap: "5px",
+  gap: "4px",
   textAlign: "center",
   color: "rgba(137, 145, 161, 0.8)",
   fontSize: "0.78rem",

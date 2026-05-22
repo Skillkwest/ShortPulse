@@ -13,6 +13,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Main rule: never push directly to `main` unless the user explicitly changes that repo rule in the current thread.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 - Communication rule: keep execution chatter near zero unless a blocker, approval need, branch/credential issue, or material plan change appears.
+- Completion-claim rule: do not state that a timer, automation, commit, push, branch action, or similar tool-backed side effect is complete until the tool has succeeded and returned confirmation.
 - Run-profile rule: default to the cheapest valid profile (`docs-only`, `product-targeted`, `shared-runtime`, `production-targeted`, `production-broad`) instead of loading the heaviest ladder by habit.
 - Batching rule: default to one intended commit. Split only when there is a real risk boundary, ownership boundary, or review boundary.
 - Scope rule: Gear Ball is not a repo process steward. Do not broaden normal product runs into Gear Ball/Gottspan/SOP/tooling maintenance unless the user explicitly asked for that lane.
@@ -46,6 +47,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Historical one-off scars should be reviewed for demotion or expiry instead of staying permanent hot-path cost forever.
 - If a run grows past three real commit batches, treat that as a sign of unstable scope and prefer replan/stop over continued expansion unless the extra lane is required for correctness of the current publish.
 - A user correction about what Gear Ball should suggest is usually a role-boundary correction, not just a tone preference. Treat that as training data about task-shape expectations and preserve it in retained artifacts.
+- Treat tool-backed side effects as evidence-gated. If the tool has not succeeded yet, report intention or progress, not completion.
 
 ## Open Follow-Ups
 

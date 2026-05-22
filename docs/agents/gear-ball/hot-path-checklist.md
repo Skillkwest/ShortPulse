@@ -84,7 +84,8 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 5. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
 6. Before push, rerun only the final required validation on the exact final tree.
 7. Push only the approved branch.
-8. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+8. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+9. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 

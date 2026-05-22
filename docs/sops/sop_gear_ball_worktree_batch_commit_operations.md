@@ -171,6 +171,10 @@ Default to minimal user-facing output.
 - Do not proactively summarize every batch.
 - For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
 - For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
+- Treat tool-backed side effects as evidence-gated:
+  - if a timer, automation, commit, push, branch action, or similar operation has not yet succeeded
+  - do not report it as complete
+  - describe the intended action or in-progress state instead
 - If suggesting next steps after a normal SOP run, keep those suggestions inside Gear Ball's lane by default:
   - SOP/process improvements
   - self-scoring/training-loop improvements

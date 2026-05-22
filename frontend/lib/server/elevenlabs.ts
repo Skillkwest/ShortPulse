@@ -451,6 +451,7 @@ export const listElevenLabsVoices = async (): Promise<ElevenLabsVoice[]> => {
     ?.map((voice) => {
       const normalizedVoice = normalizeElevenLabsVoice(voice);
       if (!normalizedVoice) return null;
+      return normalizedVoice;
     })
     .filter((entry): entry is ElevenLabsVoice => Boolean(entry));
 
@@ -644,6 +645,8 @@ export const createElevenLabsClonedVoice = async ({
     previewUrl: null,
     description: voiceDescription?.trim() || null,
     isFallback: false,
+    providerCategory: "cloned",
+    providerVoiceType: null,
   };
 };
 

@@ -10,14 +10,14 @@ const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
   border: "1px solid rgba(34, 40, 49, 0.96)",
   borderRadius: "16px",
   background: "rgba(12, 14, 19, 0.96)",
-  minHeight: "144px",
+  minHeight: "142px",
   boxSizing: "border-box",
 };
 
 const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
   padding: "6px 4px",
   width: "100%",
-  minHeight: "112px",
+  minHeight: "110px",
   border: "none",
   outline: "none",
   resize: "none",

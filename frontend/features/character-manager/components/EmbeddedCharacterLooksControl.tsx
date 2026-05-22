@@ -29,14 +29,23 @@ const CONTROL_ROW_STYLE: React.CSSProperties = {
   minWidth: 0,
 };
 
+const TAB_VIEWPORT_STYLE: React.CSSProperties = {
+  width: "100%",
+  maxWidth: "100%",
+  minHeight: "36px",
+  overflowX: "auto",
+  overflowY: "hidden",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  cursor: "grab",
+};
+
 const TAB_RAIL_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
   gap: "8px",
   alignItems: "end",
   minHeight: "36px",
-  width: "100%",
-  maxWidth: "100%",
+  width: "fit-content",
   padding: "3px 6px 0",
   borderRadius: "12px 12px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
@@ -44,7 +53,6 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   background: "rgba(12, 14, 19, 0.96)",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
-  overflow: "hidden",
 };
 
 const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
@@ -87,6 +95,34 @@ const ACTION_BUTTON_STYLE: React.CSSProperties = {
   flexShrink: 0,
 };
 
+const TAB_SHELL_STYLE: React.CSSProperties = {
+  position: "relative",
+  minWidth: 0,
+  width: "100%",
+};
+
+const buildDeleteButtonStyle = (isVisible: boolean): React.CSSProperties => ({
+  position: "absolute",
+  top: "5px",
+  right: "6px",
+  width: "14px",
+  height: "14px",
+  border: "none",
+  background: "transparent",
+  color: "rgba(198, 206, 216, 0.92)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  fontSize: "12px",
+  fontWeight: 700,
+  lineHeight: 1,
+  opacity: isVisible ? 1 : 0,
+  pointerEvents: isVisible ? "auto" : "none",
+  transition: "opacity 0.16s ease",
+  cursor: "pointer",
+});
+
 export function EmbeddedCharacterLooksControl({
   presetIds,
   activePresetId,
@@ -96,9 +132,19 @@ export function EmbeddedCharacterLooksControl({
   disabled = false,
   onSelectPreset,
   onAddPreset,
+  onDeletePreset,
 }: EmbeddedCharacterLooksControlProps) {
   const canAddPreset =
     Boolean(onAddPreset) && presetIds.length < MAX_CHARACTER_SHEET_PRESET_TAB_COUNT;
+  const [hoveredPresetId, setHoveredPresetId] = React.useState<CharacterSheetPresetId | null>(null);
+  const railViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const pointerDragStateRef = React.useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = React.useRef(false);
 
   const handleArrowNavigation = React.useCallback(
     (direction: 1 | -1) => {
@@ -113,78 +159,166 @@ export function EmbeddedCharacterLooksControl({
     [activePresetId, onSelectPreset, presetIds]
   );
 
+  const handlePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const viewport = railViewportRef.current;
+    const dragState = pointerDragStateRef.current;
+    if (!viewport || !dragState || dragState.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - dragState.startX;
+    if (Math.abs(deltaX) > 3) {
+      dragState.moved = true;
+      suppressClickRef.current = true;
+    }
+    viewport.scrollLeft = dragState.startScrollLeft - deltaX;
+  }, []);
+
+  const endPointerDrag = React.useCallback((pointerId?: number) => {
+    const viewport = railViewportRef.current;
+    const dragState = pointerDragStateRef.current;
+    if (!dragState) return;
+    if (pointerId != null && dragState.pointerId !== pointerId) return;
+    if (viewport) {
+      try {
+        viewport.releasePointerCapture(dragState.pointerId);
+      } catch {
+        // Ignore release failures when capture was never established.
+      }
+    }
+    pointerDragStateRef.current = null;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  }, []);
+
   return (
     <div style={ROOT_STYLE}>
       <div style={CONTROL_ROW_STYLE}>
         <div
-          role="tablist"
-          aria-label="Character looks"
-          aria-orientation="horizontal"
-          style={{
-            ...TAB_RAIL_STYLE,
-            gridTemplateColumns: canAddPreset
-              ? `repeat(${Math.max(presetIds.length, 1)}, minmax(56px, 68px)) auto`
-              : `repeat(${Math.max(presetIds.length, 1)}, minmax(56px, 68px))`,
+          ref={railViewportRef}
+          style={TAB_VIEWPORT_STYLE}
+          onPointerDown={(event) => {
+            const viewport = railViewportRef.current;
+            if (!viewport || event.pointerType === "touch") return;
+            pointerDragStateRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startScrollLeft: viewport.scrollLeft,
+              moved: false,
+            };
+            viewport.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={(event) => {
+            endPointerDrag(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            endPointerDrag(event.pointerId);
+          }}
+          onPointerLeave={(event) => {
+            if ((event.buttons & 1) === 0) {
+              endPointerDrag(event.pointerId);
+            }
           }}
         >
-          {presetIds.map((presetId) => {
-            const label = presetLabels[presetId] ?? presetId;
-            const isActive = activePresetId === presetId;
-            return (
+          <div
+            role="tablist"
+            aria-label="Character looks"
+            aria-orientation="horizontal"
+            style={{
+              ...TAB_RAIL_STYLE,
+              gridTemplateColumns: canAddPreset
+                ? `repeat(${Math.max(presetIds.length, 1)}, 68px) 26px`
+                : `repeat(${Math.max(presetIds.length, 1)}, 68px)`,
+            }}
+          >
+            {presetIds.map((presetId) => {
+              const label = presetLabels[presetId] ?? presetId;
+              const isActive = activePresetId === presetId;
+              const canDeletePreset = Boolean(onDeletePreset) && presetId !== "1";
+              const showDeleteButton = canDeletePreset && hoveredPresetId === presetId;
+              return (
+                <div
+                  key={presetId}
+                  style={TAB_SHELL_STYLE}
+                  onMouseEnter={() => {
+                    setHoveredPresetId(presetId);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredPresetId((current) => (current === presetId ? null : current));
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    id={getCharacterSheetPresetTabId(idBase, presetId)}
+                    aria-selected={isActive}
+                    aria-controls={panelId}
+                    tabIndex={isActive ? 0 : -1}
+                    style={buildTabStyle(isActive)}
+                    onClick={() => {
+                      if (suppressClickRef.current) return;
+                      void onSelectPreset(presetId);
+                    }}
+                    onKeyDown={(event) => {
+                      if (disabled || !presetIds.length) return;
+                      if (event.key === "ArrowRight") {
+                        event.preventDefault();
+                        handleArrowNavigation(1);
+                        return;
+                      }
+                      if (event.key === "ArrowLeft") {
+                        event.preventDefault();
+                        handleArrowNavigation(-1);
+                        return;
+                      }
+                      if (event.key === "Home") {
+                        event.preventDefault();
+                        void onSelectPreset(presetIds[0] ?? activePresetId);
+                        return;
+                      }
+                      if (event.key === "End") {
+                        event.preventDefault();
+                        void onSelectPreset(presetIds[presetIds.length - 1] ?? activePresetId);
+                      }
+                    }}
+                    disabled={disabled}
+                    title={label}
+                  >
+                    {label}
+                  </button>
+                  {canDeletePreset ? (
+                    <button
+                      type="button"
+                      aria-label={`Delete look ${label}`}
+                      style={buildDeleteButtonStyle(showDeleteButton)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void onDeletePreset?.(presetId);
+                      }}
+                      disabled={disabled}
+                      title={`Delete look ${label}`}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+            {canAddPreset ? (
               <button
-                key={presetId}
                 type="button"
-                role="tab"
-                id={getCharacterSheetPresetTabId(idBase, presetId)}
-                aria-selected={isActive}
-                aria-controls={panelId}
-                tabIndex={isActive ? 0 : -1}
-                style={buildTabStyle(isActive)}
+                aria-label="Add character look"
+                style={ACTION_BUTTON_STYLE}
                 onClick={() => {
-                  void onSelectPreset(presetId);
-                }}
-                onKeyDown={(event) => {
-                  if (disabled || !presetIds.length) return;
-                  if (event.key === "ArrowRight") {
-                    event.preventDefault();
-                    handleArrowNavigation(1);
-                    return;
-                  }
-                  if (event.key === "ArrowLeft") {
-                    event.preventDefault();
-                    handleArrowNavigation(-1);
-                    return;
-                  }
-                  if (event.key === "Home") {
-                    event.preventDefault();
-                    void onSelectPreset(presetIds[0] ?? activePresetId);
-                    return;
-                  }
-                  if (event.key === "End") {
-                    event.preventDefault();
-                    void onSelectPreset(presetIds[presetIds.length - 1] ?? activePresetId);
-                  }
+                  if (suppressClickRef.current) return;
+                  void onAddPreset?.();
                 }}
                 disabled={disabled}
-                title={label}
               >
-                {label}
+                <Plus size={14} weight="bold" />
               </button>
-            );
-          })}
-          {canAddPreset ? (
-            <button
-              type="button"
-              aria-label="Add character look"
-              style={ACTION_BUTTON_STYLE}
-              onClick={() => {
-                void onAddPreset?.();
-              }}
-              disabled={disabled}
-            >
-              <Plus size={14} weight="bold" />
-            </button>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

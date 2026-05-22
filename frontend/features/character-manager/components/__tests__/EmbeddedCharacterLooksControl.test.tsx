@@ -25,6 +25,7 @@ function Harness({
   initialPresetIds: CharacterSheetPresetId[];
   initialActivePresetId?: CharacterSheetPresetId;
 }) {
+  const [presetIds, setPresetIds] = React.useState(initialPresetIds);
   const [activePresetId, setActivePresetId] = React.useState<CharacterSheetPresetId>(
     initialActivePresetId ?? initialPresetIds[0] ?? "1"
   );
@@ -32,7 +33,7 @@ function Harness({
 
   return (
     <EmbeddedCharacterLooksControl
-      presetIds={initialPresetIds}
+      presetIds={presetIds}
       activePresetId={activePresetId}
       presetLabels={labels}
       onSelectPreset={(presetId) => {
@@ -47,7 +48,8 @@ function Harness({
       }}
       onDeletePreset={(presetId) => {
         if (presetId === "1") return;
-        const remainingPresetIds = initialPresetIds.filter((id) => id !== presetId);
+        const remainingPresetIds = presetIds.filter((id) => id !== presetId);
+        setPresetIds(remainingPresetIds);
         setActivePresetId(remainingPresetIds[0] ?? "1");
       }}
       panelId="looks-panel"
@@ -88,5 +90,21 @@ describe("EmbeddedCharacterLooksControl", () => {
 
     expect(screen.getByRole("button", { name: "Add character look" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage looks" })).not.toBeInTheDocument();
+  });
+
+  it("shows the delete affordance on hover for deletable tabs", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    const tabTwo = screen.getByRole("tab", { name: "2" });
+    fireEvent.mouseEnter(tabTwo.parentElement as HTMLElement);
+
+    const deleteButton = await screen.findByRole("button", { name: "Delete look 2" });
+    expect(deleteButton).toBeInTheDocument();
+
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    });
   });
 });

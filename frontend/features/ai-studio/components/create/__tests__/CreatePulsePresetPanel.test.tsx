@@ -271,6 +271,40 @@ describe("CreatePulsePresetPanel", () => {
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
   });
 
+  it("does not show a warning when kickoff is discarded as stale", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue({
+      status: "failed",
+      reason: "scope_discarded",
+      message: "Pulse session changed before kickoff completed. Try again.",
+    });
+
+    render(
+      <CreatePulsePresetPanel
+        activePresetId="image"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({ presetId: "story_builder" }),
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
+      );
+    });
+
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("Pulse session changed before kickoff completed. Try again.")
+    ).not.toBeInTheDocument();
+  });
+
   it("does not activate a catalog Pulse when the rail is already full", async () => {
     const onActivePresetIdChange = vi.fn();
     const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(true);
@@ -396,7 +430,7 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
-  it("opens the Pulse Catalog surface and saves a custom preset override without hidden workflow metadata", async () => {
+  it("opens the Pulses surface and saves a custom preset override without hidden workflow metadata", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -448,7 +482,7 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
-  it("does not expose built-in preset editing from the Pulse Catalog surface", async () => {
+  it("does not expose built-in preset editing from the Pulses surface", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -468,7 +502,7 @@ describe("CreatePulsePresetPanel", () => {
     expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });
 
-  it("keeps the Pulse Catalog editor open when saving fails", async () => {
+  it("keeps the Pulses editor open when saving fails", async () => {
     const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
     const savedPresets = [
       {
@@ -502,7 +536,7 @@ describe("CreatePulsePresetPanel", () => {
     expect(screen.getByRole("dialog", { name: "Edit pulse preset" })).toBeInTheDocument();
   });
 
-  it("opens the Pulse Library modal from the Pulse Catalog surface", () => {
+  it("opens the Pulse Library modal from the Pulses surface", () => {
     const onOpenPresetsLibrary = vi.fn();
 
     render(<CreatePulsePresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
@@ -511,11 +545,11 @@ describe("CreatePulsePresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("region", { name: "Pulse Catalog" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Pulse Library" })).not.toBeInTheDocument();
   });
 
-  it("hides built-in ownership badges in the Pulse Catalog activation surface", () => {
+  it("hides built-in ownership badges in the Pulses activation surface", () => {
     render(
       <CreatePulsePresetPanel
         selectedPresetIds={[]}
@@ -536,10 +570,11 @@ describe("CreatePulsePresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
     expect(within(pulsesSurface).queryByText("Built-in")).not.toBeInTheDocument();
-    expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
+    expect(within(pulsesSurface).queryByText("Custom")).not.toBeInTheDocument();
+    expect(within(pulsesSurface).getByRole("button", { name: "Storyboard" })).toBeInTheDocument();
   });
 
   it("renders custom and built-in Pulses inside one catalog grid", () => {
@@ -563,7 +598,7 @@ describe("CreatePulsePresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
     expect(within(pulsesSurface).queryByText("Custom Pulses")).not.toBeInTheDocument();
     expect(within(pulsesSurface).queryByText("Built-in Guided Workflows")).not.toBeInTheDocument();
@@ -576,11 +611,11 @@ describe("CreatePulsePresetPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps pinned rail Pulses visible inside the Pulse Catalog grid", () => {
+  it("keeps pinned rail Pulses visible inside the Pulses grid", () => {
     render(<CreatePulsePresetPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
     expect(
       within(pulsesSurface).getByRole("button", { name: "Video Prompt Magic" })
@@ -614,7 +649,7 @@ describe("CreatePulsePresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
     expect(
       within(pulsesSurface).queryByRole("button", { name: "Video Prompt Magic" })
@@ -624,7 +659,7 @@ describe("CreatePulsePresetPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the Pulse Catalog editor limited to name and system instructions", () => {
+  it("keeps the Pulses editor limited to name and system instructions", () => {
     const savedPresets = [
       {
         presetId: "custom_storyboard",
@@ -659,7 +694,7 @@ describe("CreatePulsePresetPanel", () => {
     expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
-  it("pins a preset from the Pulse Catalog surface into the panel via drag and drop", async () => {
+  it("pins a preset from the Pulses surface into the panel via drag and drop", async () => {
     const onSelectedPresetIdsChange = vi.fn();
     const transfer = new MockDataTransfer();
 
@@ -683,7 +718,7 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
-  it("activates and pins a pulse directly from the Pulse Catalog surface", async () => {
+  it("pins a pulse from the Pulses surface without starting it", async () => {
     const onActivePresetIdChange = vi.fn();
     const onSelectedPresetIdsChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -702,31 +737,14 @@ describe("CreatePulsePresetPanel", () => {
 
     await waitFor(() => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
-      expect(onActivePresetIdChange).toHaveBeenCalledWith(
-        "multi_shot",
-        expect.objectContaining({
-          forceNewSession: true,
-          preserveWorkflowSession: true,
-          sessionInstanceIdOverride: expect.any(String),
-        })
-      );
-      expect(onPresetStart).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presetId: "multi_shot",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-        }),
-        expect.objectContaining({
-          pulseSessionInstanceId: expect.any(String),
-          deferWorkflowSessionCommit: true,
-        })
-      );
     });
 
-    expect(screen.queryByRole("region", { name: "Pulse Catalog" })).not.toBeInTheDocument();
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(onPresetStart).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
   });
 
-  it("surfaces Pulse rail save failures when pinning from the Pulse Catalog surface", async () => {
+  it("surfaces Pulse rail save failures when pinning from the Pulses surface", async () => {
     const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(false);
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn();

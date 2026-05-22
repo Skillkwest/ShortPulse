@@ -118,4 +118,26 @@ describe("pulsePresetRestart", () => {
       })
     );
   });
+
+  it("does not show a restart notice when the restart has already been invalidated", async () => {
+    const setUiNotice = vi.fn();
+    const startPulsePresetMock = vi.fn(async () => ({ status: "started" as const }));
+
+    await restartCreatePulsePreset({
+      preset: resolvedPreset,
+      restartPulse: () => null,
+      resetAgentChat: vi.fn(),
+      resetAgentComposer: vi.fn(),
+      setLatestAgentPrompt: vi.fn(),
+      setPromptOrigin: vi.fn(),
+      setPulseWorkflowSession: vi.fn(),
+      setUiNotice,
+      trackAgentUiEvent: vi.fn(),
+      startPulsePreset: startPulsePresetMock,
+      activationIsCurrent: () => false,
+    });
+
+    expect(setUiNotice).not.toHaveBeenCalled();
+    expect(startPulsePresetMock).not.toHaveBeenCalled();
+  });
 });

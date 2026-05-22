@@ -174,6 +174,10 @@ export const useCreatePulsePresetRuntime = ({
         return startResult;
       }
       if (startResult.status === "failed") {
+        if (startResult.reason === "scope_discarded") {
+          clearStatusMessage();
+          return startResult;
+        }
         showPersistentStatus(startResult.message, "warning");
         return startResult;
       }
@@ -205,24 +209,9 @@ export const useCreatePulsePresetRuntime = ({
 
   const handleSurfacePresetSelect = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      const addResult = await addPresetToPanel(presetId);
-      if (addResult === "panel_full") {
-        return {
-          status: "failed",
-          reason: "panel_full",
-          message: CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST,
-        } satisfies CreatePulsePresetStartResult;
-      }
-      if (addResult === "save_failed") {
-        return {
-          status: "failed",
-          reason: "preference_save_failed",
-          message: "Unable to save this Pulse to the rail right now.",
-        } satisfies CreatePulsePresetStartResult;
-      }
-      return handlePanelPresetApply(presetId);
+      return addPresetToPanel(presetId);
     },
-    [addPresetToPanel, handlePanelPresetApply]
+    [addPresetToPanel]
   );
 
   const handleCustomPresetSave = React.useCallback(

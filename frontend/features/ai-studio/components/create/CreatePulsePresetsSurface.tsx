@@ -178,7 +178,7 @@ export const CreatePulsePresetsSurface = ({
       ref={surfaceRef}
       className={`create-composer-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
       role="region"
-      aria-label="Pulse Catalog"
+      aria-label="Pulses"
       tabIndex={-1}
       onClick={(event) => event.stopPropagation()}
       onPointerDownCapture={(event) => {
@@ -204,10 +204,11 @@ export const CreatePulsePresetsSurface = ({
     >
       <div className="create-composer-presets-surface-header">
         <div className="create-composer-presets-surface-title-group">
-          <h3 className="create-composer-presets-surface-title">Pulse Catalog</h3>
+          <h3 className="create-composer-presets-surface-title">Pulses</h3>
           <p className="create-composer-presets-surface-subtitle">
-            Custom and built-in Pulses share the same grid. Click to activate and pin a Pulse. Drag
-            to pin without switching. Switching or deactivating starts a fresh Pulse session.
+            Custom and built-in Pulses share the same grid. Click to pin a Pulse to the rail. Drag
+            to pin without closing this view. Activating or deactivating from the rail starts a
+            fresh Pulse session.
           </p>
         </div>
         <div className="create-composer-presets-surface-actions">
@@ -229,7 +230,7 @@ export const CreatePulsePresetsSurface = ({
         </div>
       </div>
       <div className="create-composer-presets-surface-scroll">
-        <section aria-label="Pulse Catalog presets">
+        <section aria-label="Pulses presets">
           <div
             className="create-composer-presets-chip-grid"
             role="list"
@@ -259,19 +260,6 @@ export const CreatePulsePresetsSurface = ({
                   onDragEnd={onPresetDragEnd}
                 >
                   <span className="create-composer-presets-chip-label">{preset.label}</span>
-                  <span className="create-composer-presets-chip-meta" aria-hidden="true">
-                    {preset.isCustom ? (
-                      <span className="create-composer-presets-chip-badge create-composer-presets-chip-badge--ownership is-custom">
-                        Custom
-                      </span>
-                    ) : null}
-                    {activePresetId === preset.presetId ? (
-                      <span className="create-composer-presets-chip-badge is-active">Active</span>
-                    ) : null}
-                    {selectedPresetIds.includes(preset.presetId) ? (
-                      <span className="create-composer-presets-chip-badge">Pinned</span>
-                    ) : null}
-                  </span>
                 </button>
                 {preset.isEditable ? (
                   <button

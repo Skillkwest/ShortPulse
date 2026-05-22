@@ -1235,7 +1235,7 @@ const AiStudioPageRuntimeBody = ({
           return {
             status: "failed" as const,
             reason: "scope_discarded" as const,
-            message: "Pulse runtime is inactive.",
+            message: "Pulse session changed before kickoff completed. Try again.",
           };
         }
         if (result.status !== "started") {

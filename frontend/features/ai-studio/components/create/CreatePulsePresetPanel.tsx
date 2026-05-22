@@ -196,8 +196,8 @@ export function CreatePulsePresetPanel({
 
   const handleSurfacePresetSelectAndClose = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      const startResult = await handleSurfacePresetSelect(presetId);
-      if (!startResult || startResult.status === "started") {
+      const addResult = await handleSurfacePresetSelect(presetId);
+      if (addResult === "added" || addResult === "already_present") {
         closeMorePresetsSurface();
       }
     },

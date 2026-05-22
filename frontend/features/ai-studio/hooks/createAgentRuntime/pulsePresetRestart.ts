@@ -47,6 +47,7 @@ export const restartCreatePulsePreset = async ({
   startPulsePreset,
   activationIsCurrent,
 }: RestartCreatePulsePresetParams): Promise<void> => {
+  if (activationIsCurrent?.() === false) return;
   trackAgentUiEvent("studio_agent_pulse_restart_requested", {
     preset_id: preset.presetId,
     runtime_mode: preset.runtimeMode,
@@ -61,6 +62,7 @@ export const restartCreatePulsePreset = async ({
   const pulseSessionInstanceId =
     restartedPulse?.presetId === preset.presetId ? restartedPulse.sessionInstanceId : null;
   if (!pulseSessionInstanceId) {
+    if (activationIsCurrent?.() === false) return;
     setUiNotice("Pulse restart could not create a fresh session. Start the Pulse again.");
     trackAgentUiEvent("studio_agent_pulse_restart_blocked_missing_session", {
       preset_id: preset.presetId,

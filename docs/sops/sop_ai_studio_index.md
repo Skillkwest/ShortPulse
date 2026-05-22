@@ -39,6 +39,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating, plus local image/video/audio file intake into playable reference cards).
 - Replay snapshot contract + guards: `frontend/features/ai-studio/logic/generationReplay.ts` (card-level re-roll eligibility and validation).
 - Character panel layout contract: AI Studio owns the only live character-management surface through `frontend/features/ai-studio/components/CharacterPanel.tsx`, `frontend/features/character-manager/components/CharacterPanelSplitHost.tsx`, and `frontend/features/character-manager/components/CharacterPanelWorkspace.tsx`.
+- Left-rail placement contract: `Characters` stays under `Libraries` in the AI Studio toolbar even though the embedded Character panel remains the only live character-management surface.
 
 ## Create startup model precedence
 

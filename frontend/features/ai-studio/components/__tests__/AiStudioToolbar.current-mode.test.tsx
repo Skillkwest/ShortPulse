@@ -50,7 +50,7 @@ describe("AiStudioToolbar current mode", () => {
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
 
-  it("renders Characters as a primary workflow instead of a Libraries entry", () => {
+  it("renders Characters in Libraries instead of the primary workflow section", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -72,7 +72,7 @@ describe("AiStudioToolbar current mode", () => {
     const librariesSection = screen.getByText("Libraries").closest(".toolbar-lower");
     expect(librariesSection).not.toBeNull();
     expect(
-      within(librariesSection as HTMLElement).queryByRole("button", { name: "Characters" })
-    ).toBeNull();
+      within(librariesSection as HTMLElement).getByRole("button", { name: "Characters" })
+    ).toBeTruthy();
   });
 });

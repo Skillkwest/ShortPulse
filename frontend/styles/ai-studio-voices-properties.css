@@ -34,6 +34,9 @@
   width: 100%;
   min-height: 0;
   height: 100%;
+  padding: 12px;
+  background: #131518;
+  box-sizing: border-box;
   overflow: hidden;
 }
 
@@ -1385,14 +1388,15 @@
   display: flex;
   justify-content: center;
   justify-self: center;
-  width: min(760px, 100%);
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   grid-column: 1;
   grid-row: 2;
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-switcher {
-  width: 100%;
+  width: auto;
   align-items: stretch;
 }
 

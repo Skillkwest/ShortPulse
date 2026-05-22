@@ -95,7 +95,7 @@ describe("useAiStudioPageCharacterRuntime", () => {
     expect(result.current.resolveIsCharacterModeEnabledForTool("text")).toBe(true);
   });
 
-  it("opens Characters as the primary AI Studio surface for create and library entry actions", () => {
+  it("opens Characters for both create and library entry actions", () => {
     const setSelectedToolWithEditIntentReset = vi.fn();
     const setCharacterCreateRequestKey = vi.fn();
 

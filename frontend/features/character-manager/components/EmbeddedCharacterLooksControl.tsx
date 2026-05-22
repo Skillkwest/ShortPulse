@@ -25,10 +25,7 @@ const ROOT_STYLE: React.CSSProperties = {
 };
 
 const CONTROL_ROW_STYLE: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto",
-  gap: "8px",
-  alignItems: "start",
+  display: "block",
   minWidth: 0,
 };
 
@@ -76,7 +73,6 @@ const ACTION_BUTTON_STYLE: React.CSSProperties = {
   width: "26px",
   minWidth: "26px",
   height: "26px",
-  alignSelf: "end",
   borderRadius: "9px 9px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
   background: "rgba(14, 17, 23, 0.96)",
@@ -123,7 +119,9 @@ export function EmbeddedCharacterLooksControl({
           aria-orientation="horizontal"
           style={{
             ...TAB_RAIL_STYLE,
-            gridTemplateColumns: `repeat(${Math.max(presetIds.length, 1)}, minmax(0, 1fr))`,
+            gridTemplateColumns: canAddPreset
+              ? `repeat(${Math.max(presetIds.length, 1)}, minmax(0, 1fr)) auto`
+              : `repeat(${Math.max(presetIds.length, 1)}, minmax(0, 1fr))`,
           }}
         >
           {presetIds.map((presetId) => {
@@ -171,21 +169,20 @@ export function EmbeddedCharacterLooksControl({
               </button>
             );
           })}
+          {canAddPreset ? (
+            <button
+              type="button"
+              aria-label="Add character look"
+              style={ACTION_BUTTON_STYLE}
+              onClick={() => {
+                void onAddPreset?.();
+              }}
+              disabled={disabled}
+            >
+              <Plus size={14} weight="bold" />
+            </button>
+          ) : null}
         </div>
-
-        {canAddPreset ? (
-          <button
-            type="button"
-            aria-label="Add character look"
-            style={ACTION_BUTTON_STYLE}
-            onClick={() => {
-              void onAddPreset?.();
-            }}
-            disabled={disabled}
-          >
-            <Plus size={14} weight="bold" />
-          </button>
-        ) : null}
       </div>
     </div>
   );

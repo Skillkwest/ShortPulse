@@ -120,20 +120,17 @@ function AiStudioToolbarComponent({
   const isSoundSelected = isSoundWorkflow(selectedTool);
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
   const isLibrarySelected = librariesToolList.some((tool) => tool.id === selectedTool);
-  const activePrimary: "create" | "character" | "video" | "sound" | "edit" | "library" | null =
-    isCreateSelected
-      ? "create"
-      : isCharacterSelected
-        ? "character"
-        : isVideoSelected
-          ? "video"
-          : isSoundSelected
-            ? "sound"
-            : isEditSelected
-              ? "edit"
-              : isLibrarySelected
-                ? "library"
-                : null;
+  const activePrimary: "create" | "video" | "sound" | "edit" | "library" | null = isCreateSelected
+    ? "create"
+    : isVideoSelected
+      ? "video"
+      : isSoundSelected
+        ? "sound"
+        : isEditSelected
+          ? "edit"
+          : isLibrarySelected
+            ? "library"
+            : null;
 
   return (
     <aside
@@ -201,13 +198,11 @@ function AiStudioToolbarComponent({
           const isActive =
             tool.id === "video"
               ? isVideoSelected
-              : tool.id === "character"
-                ? isCharacterSelected
-                : tool.id === "sound"
-                  ? isSoundSelected
-                  : tool.id === "edit"
-                    ? isEditSelected
-                    : selectedTool === tool.id;
+              : tool.id === "sound"
+                ? isSoundSelected
+                : tool.id === "edit"
+                  ? isEditSelected
+                  : selectedTool === tool.id;
           return (
             <React.Fragment key={tool.id}>
               <button
@@ -224,8 +219,7 @@ function AiStudioToolbarComponent({
                     onSelectTool("voices");
                     return;
                   }
-                  const isToggleablePrimary =
-                    tool.id === "video" || tool.id === "edit" || tool.id === "character";
+                  const isToggleablePrimary = tool.id === "video" || tool.id === "edit";
                   if (isToggleablePrimary && isActive) {
                     onToggleCreateTools(false);
                     onSelectTool(null);

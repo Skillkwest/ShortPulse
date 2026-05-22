@@ -100,6 +100,18 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setActivePulsePresetId: Dispatch<SetStateAction<string | null>>;
   setPulseSessionInstanceId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
+  setReferenceSelectionStateForCreateMode: (
+    createMode: "standard" | "pulse",
+    nextState: {
+      selectedTool: ToolId | null;
+      showCreateTools?: boolean;
+      referenceImageUrl: string | null;
+      extraImageUrls: [string | null, string | null, string | null];
+      motionReferenceVideoUrl: string | null;
+      useReferenceImageIndicator?: boolean;
+      detailOutputId?: string | null;
+    }
+  ) => void;
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
@@ -199,6 +211,7 @@ export const useAiStudioSessionSnapshotController = ({
   setActivePulsePresetId,
   setPulseSessionInstanceId,
   setReferenceImageUrl,
+  setReferenceSelectionStateForCreateMode,
   setExtraImageUrl,
   setEditReferenceText,
   setVideoReferenceText,
@@ -266,6 +279,12 @@ export const useAiStudioSessionSnapshotController = ({
       }
 
       setMode(workspace.mode);
+      setReferenceSelectionStateForCreateMode(workspace.expertCreateMode, {
+        selectedTool: workspace.selectedTool,
+        referenceImageUrl: workspace.referenceImageUrl,
+        extraImageUrls: workspace.extraImageUrls,
+        motionReferenceVideoUrl: workspace.motionReferenceVideoUrl,
+      });
       setSelectedTool(workspace.selectedTool);
       setStandardCreatePrompt(workspace.standardPrompt);
       setPulseCreatePrompt(workspace.pulsePrompt);
@@ -405,6 +424,7 @@ export const useAiStudioSessionSnapshotController = ({
       setOutputsState,
       setPulseSessionInstanceId,
       setReferenceImageUrl,
+      setReferenceSelectionStateForCreateMode,
       setRuntimeUiStateForCreateMode,
       setSelectedTool,
       setPulseCreatePrompt,

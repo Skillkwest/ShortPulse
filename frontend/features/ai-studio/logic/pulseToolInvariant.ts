@@ -43,8 +43,6 @@ export const normalizeSelectedToolForAuthorityKey = (
   authorityKey: string,
   selectedTool: ToolId | null
 ): ToolId | null => {
-  if (isPulseCreateAuthorityKey(authorityKey)) {
-    return "create";
-  }
+  void authorityKey;
   return selectedTool;
 };

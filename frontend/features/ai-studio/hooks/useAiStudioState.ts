@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { StudioOutput } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
@@ -253,10 +260,32 @@ export const useAiStudioState = ({
     setModelModalAnchor,
     openModelModal,
     closeModelModal,
+    setAuthorityState: setReferenceSelectionAuthorityState,
   } = useAiStudioReferenceSelectionState({
     activeOutputPreviewUrl,
     authorityKey: createModeRuntimeAuthorityKey,
   });
+
+  const setReferenceSelectionStateForCreateMode = useCallback(
+    (
+      createMode: "standard" | "pulse",
+      nextState: {
+        selectedTool: ToolId | null;
+        showCreateTools?: boolean;
+        referenceImageUrl: string | null;
+        extraImageUrls: [string | null, string | null, string | null];
+        motionReferenceVideoUrl: string | null;
+        useReferenceImageIndicator?: boolean;
+        detailOutputId?: string | null;
+      }
+    ) => {
+      setReferenceSelectionAuthorityState(
+        `${baseRuntimeAuthorityKey}:create:${createMode}`,
+        nextState
+      );
+    },
+    [baseRuntimeAuthorityKey, setReferenceSelectionAuthorityState]
+  );
 
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
     useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
@@ -537,6 +566,7 @@ export const useAiStudioState = ({
     setPulseCreatePrompt,
     setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
     setReferenceImageUrl,
+    setReferenceSelectionStateForCreateMode,
     setRuntimeUiStateForCreateMode,
     setSaved,
     setSeedance2InputMode,

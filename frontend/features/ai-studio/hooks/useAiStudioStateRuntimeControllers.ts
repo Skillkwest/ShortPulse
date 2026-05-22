@@ -94,6 +94,18 @@ type UseAiStudioStateRuntimeControllersParams = {
   setPulseCreatePrompt: (value: string) => void;
   setPulseSessionInstanceId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
+  setReferenceSelectionStateForCreateMode: (
+    createMode: "standard" | "pulse",
+    nextState: {
+      selectedTool: ToolId | null;
+      showCreateTools?: boolean;
+      referenceImageUrl: string | null;
+      extraImageUrls: [string | null, string | null, string | null];
+      motionReferenceVideoUrl: string | null;
+      useReferenceImageIndicator?: boolean;
+      detailOutputId?: string | null;
+    }
+  ) => void;
   setRuntimeUiStateForCreateMode: (
     createMode: "standard" | "pulse",
     nextState: {

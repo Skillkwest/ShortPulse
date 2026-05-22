@@ -28,6 +28,16 @@ type ReferenceSelectionAuthorityState = {
   detailOutputId: string | null;
 };
 
+type ReferenceSelectionAuthorityStateSeed = {
+  selectedTool: ToolId | null;
+  showCreateTools?: boolean;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
+  motionReferenceVideoUrl: string | null;
+  useReferenceImageIndicator?: boolean;
+  detailOutputId?: string | null;
+};
+
 const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthorityState => ({
   selectedTool: "create",
   showCreateTools: false,
@@ -39,6 +49,29 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
   useReferenceImageIndicator: false,
   detailOutputId: null,
 });
+
+const buildReferenceSelectionAuthorityStateFromSeed = ({
+  selectedTool,
+  showCreateTools = false,
+  referenceImageUrl,
+  extraImageUrls,
+  motionReferenceVideoUrl,
+  useReferenceImageIndicator = false,
+  detailOutputId = null,
+}: ReferenceSelectionAuthorityStateSeed): ReferenceSelectionAuthorityState => {
+  const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
+  return {
+    selectedTool,
+    showCreateTools,
+    imageReferenceImageUrl: isVideoReferenceTool ? null : referenceImageUrl,
+    imageExtraImageUrls: isVideoReferenceTool ? [null, null, null] : extraImageUrls,
+    videoReferenceImageUrl: isVideoReferenceTool ? referenceImageUrl : null,
+    videoExtraImageUrls: isVideoReferenceTool ? extraImageUrls : [null, null, null],
+    motionReferenceVideoUrl,
+    useReferenceImageIndicator,
+    detailOutputId,
+  };
+};
 
 /**
  * Returns reference and selection state helpers used by AI Studio orchestration.
@@ -211,6 +244,24 @@ export const useAiStudioReferenceSelectionState = ({
     setModelModalContext(null);
   }, []);
 
+  const setAuthorityState = useCallback(
+    (nextAuthorityKey: string, nextState: ReferenceSelectionAuthorityStateSeed) => {
+      const resolvedState = buildReferenceSelectionAuthorityStateFromSeed(nextState);
+      stateByAuthorityKeyRef.current[nextAuthorityKey] = resolvedState;
+      if (activeAuthorityKeyRef.current !== nextAuthorityKey) return;
+      setSelectedTool(resolvedState.selectedTool);
+      setShowCreateTools(resolvedState.showCreateTools);
+      setImageReferenceImageUrlState(resolvedState.imageReferenceImageUrl);
+      setImageExtraImageUrls(resolvedState.imageExtraImageUrls);
+      setVideoReferenceImageUrl(resolvedState.videoReferenceImageUrl);
+      setVideoExtraImageUrls(resolvedState.videoExtraImageUrls);
+      setMotionReferenceVideoUrl(resolvedState.motionReferenceVideoUrl);
+      setUseReferenceImageIndicator(resolvedState.useReferenceImageIndicator);
+      setDetailOutputId(resolvedState.detailOutputId);
+    },
+    []
+  );
+
   return {
     selectedTool,
     setSelectedTool,
@@ -245,5 +296,6 @@ export const useAiStudioReferenceSelectionState = ({
     setModelModalAnchor,
     openModelModal,
     closeModelModal,
+    setAuthorityState,
   };
 };

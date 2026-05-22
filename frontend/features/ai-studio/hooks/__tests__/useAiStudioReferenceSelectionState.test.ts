@@ -115,7 +115,7 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.useReferenceImageIndicator).toBe(false);
   });
 
-  it("restores Pulse authority with the Create tool even after leaving Pulse on an off-Create tool", () => {
+  it("preserves an off-Create tool when returning to Pulse authority", () => {
     const { result, rerender } = renderHook(
       ({ authorityKey }: { authorityKey: string }) =>
         useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
@@ -134,7 +134,7 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     rerender({ authorityKey: "session:test:create:pulse" });
 
-    expect(result.current.selectedTool).toBe("create");
+    expect(result.current.selectedTool).toBe("edit");
   });
 
   it("preserves an off-Create tool when leaving Pulse for Standard mode", () => {

@@ -121,7 +121,7 @@ describe("AI Studio model session persistence", () => {
     });
   });
 
-  it("re-enters Pulse mode on the Create tool after leaving for Edit", async () => {
+  it("preserves the active workflow when Pulse mode remains active behind another tool", async () => {
     const { result } = renderHook(() => useHarness());
 
     await waitFor(() => {
@@ -162,7 +162,7 @@ describe("AI Studio model session persistence", () => {
 
     await waitFor(() => {
       expect(result.current.expertCreateMode).toBe("pulse");
-      expect(result.current.selectedTool).toBe("create");
+      expect(result.current.selectedTool).toBe("edit");
     });
   });
 });

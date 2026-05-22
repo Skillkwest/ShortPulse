@@ -1,11 +1,7 @@
 /**
  * Shared types for Character Manager draft intake and slot state.
- * Defines the canonical reference-slot schema and UI assignment types.
+ * Defines the canonical reference-slot schema and AI Studio character asset types.
  */
-
-export type CharacterWorkflowTab = "create" | "manage";
-
-export type CharacterManagerShellSurface = "page" | "panel";
 
 export type CharacterReferenceSlotKey =
   | "front_full"

@@ -803,7 +803,7 @@ jobs:
               - 'frontend/features/ai-studio/components/ReferenceGrid.tsx'
               - 'frontend/features/ai-studio/logic/referenceGridMedia.ts'
               - 'frontend/features/ai-studio/components/MediaLibraryModal.tsx'
-              - 'frontend/features/character-manager/components/CharacterManagerShell.tsx'
+              - 'frontend/features/character-manager/components/CharacterPanelWorkspace.tsx'
               - 'frontend/features/ai-studio/components/DetailModal.tsx'
               - 'frontend/features/ai-studio/logic/stateParsers.ts'
               - 'frontend/features/ai-studio/hooks/useAiStudioState.ts'

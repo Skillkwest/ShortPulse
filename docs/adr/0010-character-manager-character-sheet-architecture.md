@@ -39,7 +39,7 @@ Current constraints:
 
 Implementation note:
 
-- The active character workflow is now owned by AI Studio, with deprecated `/character` and `/character-soon` aliases redirecting into `/ai-studio`.
+- The active character workflow is now owned by AI Studio.
 - Current character workflow behavior is governed by `docs/sops/sop_character_manager_operations.md`:
   - unlimited QuickSwap persistence per character (newest 500 active, overflow archived),
   - persisted Character Sheet drop-zone assignments and preset tabs used for generation wiring.
@@ -55,7 +55,7 @@ Implementation note:
 - Negative:
   - Adds schema complexity and migration ordering requirements.
   - Introduces new source values that downstream queries must account for.
-  - Requires continued compatibility handling for deprecated `/character*` aliases while AI Studio remains the only live character-management surface.
+  - Requires compatibility handling for stale auth/bookmark `/character*` destinations while AI Studio remains the only live character-management surface.
 - Follow-ups:
   - Add payload validation guardrails for Seedream edit submit.
   - Add Character Manager cost preview and insufficient-credit UX.

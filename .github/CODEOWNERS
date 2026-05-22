@@ -22,4 +22,4 @@
 /frontend/features/ai-studio/components/ReferenceGrid.tsx @sleepyseamonster
 /frontend/features/ai-studio/logic/referenceGridMedia.ts @sleepyseamonster
 /frontend/features/ai-studio/components/MediaLibraryModal.tsx @sleepyseamonster
-/frontend/features/character-manager/components/CharacterManagerShell.tsx @sleepyseamonster
+/frontend/features/character-manager/components/CharacterPanelWorkspace.tsx @sleepyseamonster

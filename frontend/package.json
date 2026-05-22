@@ -40,7 +40,7 @@
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:adaptive-media-runtime": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts MediaLibraryModal.test.tsx CharacterManagerShell.behavior.test.tsx lib/adaptive-media/__tests__/policy.test.ts lib/adaptive-media/__tests__/flags.test.ts",
+    "test:adaptive-media-runtime": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts MediaLibraryModal.test.tsx features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx lib/adaptive-media/__tests__/policy.test.ts lib/adaptive-media/__tests__/flags.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pulse-custom-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-custom-contract.audit.js",
     "test:pulse-custom-contract:release-check": "node ./scripts/pulse-custom-contract-release-check.mjs",

@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAiStudioPageCharacterRuntime } from "../useAiStudioPageCharacterRuntime";
 
@@ -93,5 +93,49 @@ describe("useAiStudioPageCharacterRuntime", () => {
 
     expect(result.current.resolveIsCharacterModeEnabledForTool("create")).toBe(true);
     expect(result.current.resolveIsCharacterModeEnabledForTool("text")).toBe(true);
+  });
+
+  it("opens Characters as the primary AI Studio surface for create and library entry actions", () => {
+    const setSelectedToolWithEditIntentReset = vi.fn();
+    const setCharacterCreateRequestKey = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioPageCharacterRuntime({
+        createCharacterModeInjectionBundle: null,
+        createSelectedCharacterLookId: "",
+        editCharacterModeInjectionBundle: null,
+        editSelectedCharacterId: "",
+        expertCreateMode: "standard",
+        isCreateCharacterBundleLoading: false,
+        isCreateCharacterModeEnabled: true,
+        isEditCharacterBundleLoading: false,
+        isEditCharacterModeEnabled: false,
+        projectId: null,
+        projectRouteRequested: false,
+        selectedTool: "create",
+        setCharacterCreateRequestKey,
+        setCreateCharacterModeInjectionBundle: vi.fn(),
+        setCreateSelectedCharacterLookId: vi.fn(),
+        setEditCharacterModeInjectionBundle: vi.fn(),
+        setElementCreateRequestKey: vi.fn(),
+        setIsCreateCharacterBundleLoading: vi.fn(),
+        setIsEditCharacterBundleLoading: vi.fn(),
+        setSelectedToolWithEditIntentReset,
+        setUiError: vi.fn(),
+        trackCharacterModeEvent: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.handleOpenCharacterCreate();
+    });
+    act(() => {
+      result.current.handleOpenCharacterLibrary();
+    });
+
+    expect(setSelectedToolWithEditIntentReset).toHaveBeenNthCalledWith(1, "character");
+    expect(setSelectedToolWithEditIntentReset).toHaveBeenNthCalledWith(2, "character");
+    expect(setCharacterCreateRequestKey).toHaveBeenCalledTimes(1);
+    expect(setCharacterCreateRequestKey.mock.calls[0]?.[0](4)).toBe(5);
   });
 });

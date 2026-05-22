@@ -7,27 +7,60 @@ const REPO_ROOT = process.cwd();
 
 const ENFORCED_BUDGETS = [
   { file: "frontend/pages/ai-studio.tsx", maxLines: 1700 },
-  { file: "frontend/features/ai-studio/hooks/useAiStudioState.ts", maxLines: 1400 },
-  { file: "frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts", maxLines: 650 },
-  { file: "frontend/features/ai-studio/components/PromptStep.tsx", maxLines: 720 },
-  { file: "frontend/features/ai-agent/useCreateAgentStateCore.ts", maxLines: 500 },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioState.ts",
+    maxLines: 1400,
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts",
+    maxLines: 650,
+  },
+  {
+    file: "frontend/features/ai-studio/components/PromptStep.tsx",
+    maxLines: 720,
+  },
+  {
+    file: "frontend/features/ai-agent/useCreateAgentStateCore.ts",
+    maxLines: 500,
+  },
 ];
 
 const REFERENCE_GRID_TARGET_BUDGETS = [
-  { file: "frontend/features/ai-studio/components/ReferenceGrid.tsx", maxLines: 900 },
-  { file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx", maxLines: 800 },
-  { file: "frontend/features/ai-studio/hooks/useAiStudioState.ts", maxLines: 750 },
+  {
+    file: "frontend/features/ai-studio/components/ReferenceGrid.tsx",
+    maxLines: 900,
+  },
+  {
+    file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx",
+    maxLines: 800,
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioState.ts",
+    maxLines: 750,
+  },
 ];
 
 const EXPERT_EDIT_TARGET_BUDGETS = [
-  { file: "frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx", maxLines: 1800 },
-  { file: "frontend/features/ai-studio/components/edit/useInpaintMaskController.ts", maxLines: 1250 },
-  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1550 },
+  {
+    file: "frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx",
+    maxLines: 1800,
+  },
+  {
+    file: "frontend/features/ai-studio/components/edit/useInpaintMaskController.ts",
+    maxLines: 1250,
+  },
+  {
+    file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx",
+    maxLines: 1550,
+  },
 ];
 
 const AI_STUDIO_RUNTIME_TARGET_BUDGETS = [
   { file: "frontend/pages/ai-studio.tsx", maxLines: 3000 },
-  { file: "frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts", maxLines: 1000 },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts",
+    maxLines: 1000,
+  },
   {
     file: "frontend/features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts",
     maxLines: 450,
@@ -35,14 +68,29 @@ const AI_STUDIO_RUNTIME_TARGET_BUDGETS = [
 ];
 
 const CHARACTER_MANAGER_TARGET_BUDGETS = [
-  { file: "frontend/features/character-manager/components/CharacterManagerShell.tsx", maxLines: 2200 },
+  {
+    file: "frontend/features/character-manager/components/CharacterPanelWorkspace.tsx",
+    maxLines: 2200,
+  },
 ];
 
 const MEDIA_RENDERING_TARGET_BUDGETS = [
-  { file: "frontend/features/ai-studio/components/ReferenceGrid.tsx", maxLines: 1050 },
-  { file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx", maxLines: 700 },
-  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1500 },
-  { file: "frontend/features/ai-studio/logic/referenceGridMedia.ts", maxLines: 420 },
+  {
+    file: "frontend/features/ai-studio/components/ReferenceGrid.tsx",
+    maxLines: 1050,
+  },
+  {
+    file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx",
+    maxLines: 700,
+  },
+  {
+    file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx",
+    maxLines: 1500,
+  },
+  {
+    file: "frontend/features/ai-studio/logic/referenceGridMedia.ts",
+    maxLines: 420,
+  },
   {
     file: "frontend/features/media-library/hooks/useMediaPreviewSigningController.ts",
     maxLines: 400,
@@ -67,7 +115,9 @@ function resolveMode(inputMode, fallbackMode = "warn") {
     return inputMode;
   }
   if (inputMode) {
-    console.warn(`Unknown mode '${inputMode}'. Falling back to '${fallbackMode}'.`);
+    console.warn(
+      `Unknown mode '${inputMode}'. Falling back to '${fallbackMode}'.`,
+    );
   }
   return fallbackMode;
 }
@@ -84,7 +134,7 @@ function collectBudgetErrors(budgets) {
     const lines = countLines(text);
     if (lines > budget.maxLines) {
       errors.push(
-        `${budget.file} exceeds size budget (${lines} lines > ${budget.maxLines} lines).`
+        `${budget.file} exceeds size budget (${lines} lines > ${budget.maxLines} lines).`,
       );
     }
   }
@@ -92,7 +142,12 @@ function collectBudgetErrors(budgets) {
   return errors;
 }
 
-function reportTargetBudgetGroup(modeEnvName, headerPrefix, budgets, hardErrors) {
+function reportTargetBudgetGroup(
+  modeEnvName,
+  headerPrefix,
+  budgets,
+  hardErrors,
+) {
   const mode = resolveMode(process.env[modeEnvName], "warn");
   const errors = collectBudgetErrors(budgets);
   if (!errors.length) return;
@@ -117,17 +172,26 @@ function run() {
     hardErrors.push(...enforcedErrors);
   }
 
-  const referenceGridMode = resolveMode(process.env.REFERENCE_GRID_SIZE_BUDGET_MODE, "warn");
-  const referenceGridErrors = collectBudgetErrors(REFERENCE_GRID_TARGET_BUDGETS);
+  const referenceGridMode = resolveMode(
+    process.env.REFERENCE_GRID_SIZE_BUDGET_MODE,
+    "warn",
+  );
+  const referenceGridErrors = collectBudgetErrors(
+    REFERENCE_GRID_TARGET_BUDGETS,
+  );
   if (referenceGridErrors.length) {
     if (referenceGridMode === "enforce") {
       hardErrors.push(...referenceGridErrors);
-      console.error("Reference-grid target size budget checks failed (enforce mode):");
+      console.error(
+        "Reference-grid target size budget checks failed (enforce mode):",
+      );
       for (const error of referenceGridErrors) {
         console.error(`- ${error}`);
       }
     } else {
-      console.warn("Reference-grid target size budget checks failed in warn mode:");
+      console.warn(
+        "Reference-grid target size budget checks failed in warn mode:",
+      );
       for (const error of referenceGridErrors) {
         console.warn(`- ${error}`);
       }
@@ -138,31 +202,31 @@ function run() {
     "AI_STUDIO_RUNTIME_SIZE_BUDGET_MODE",
     "AI Studio runtime target",
     AI_STUDIO_RUNTIME_TARGET_BUDGETS,
-    hardErrors
+    hardErrors,
   );
   reportTargetBudgetGroup(
     "EXPERT_EDIT_SIZE_BUDGET_MODE",
     "Expert Edit target",
     EXPERT_EDIT_TARGET_BUDGETS,
-    hardErrors
+    hardErrors,
   );
   reportTargetBudgetGroup(
     "CHARACTER_MANAGER_SIZE_BUDGET_MODE",
     "Character Manager target",
     CHARACTER_MANAGER_TARGET_BUDGETS,
-    hardErrors
+    hardErrors,
   );
   reportTargetBudgetGroup(
     "MEDIA_RENDERING_SIZE_BUDGET_MODE",
     "Media Rendering target",
     MEDIA_RENDERING_TARGET_BUDGETS,
-    hardErrors
+    hardErrors,
   );
   reportTargetBudgetGroup(
     "ADMIN_HEALTH_SIZE_BUDGET_MODE",
     "Admin/Health target",
     ADMIN_HEALTH_TARGET_BUDGETS,
-    hardErrors
+    hardErrors,
   );
 
   if (hardErrors.length) {

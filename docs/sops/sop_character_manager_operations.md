@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define the operational contract for the AI Studio-owned Character surfaces, including current upload behavior, persisted character-sheet preset assignments, and support runbooks for deprecated `/character` alias compatibility.
+Define the operational contract for the AI Studio-owned Character surfaces, including current upload behavior and persisted character-sheet preset assignments.
 
 ## Scope
 
@@ -106,7 +106,6 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`
 - QuickSwap state orchestration: `frontend/features/character-manager/hooks/useCharacterQuickSwapDeck.ts`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
-- Deprecated `/character` alias redirect: `frontend/pages/character.tsx`
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
 - AI Studio internal drag payload + parser: `frontend/features/ai-studio/utils/dragDrop.ts`
 - AI Studio drop resolver seam: `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
@@ -212,7 +211,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 ## Change Management Rules
 
-- Any change to AI Studio Character surface behavior or deprecated `/character` alias behavior must update:
+- Any change to AI Studio Character surface behavior must update:
   - `docs/routes.md` (if route behavior changes),
   - this SOP,
   - relevant ADR(s) for durable architecture changes.

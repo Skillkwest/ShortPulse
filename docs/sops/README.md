@@ -32,7 +32,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 
 ## Active SOPs
 
-- `docs/sops/sop_character_manager_operations.md` (AI Studio-owned Characters runbook; deprecated `/character*` aliases redirect into `/ai-studio`)
+- `docs/sops/sop_character_manager_operations.md` (AI Studio-owned Characters runbook)
 - `docs/sops/sop_supabase_auth_email_operations.md` (Supabase Auth custom SMTP setup, Google Workspace interim posture, auth callback validation, and launch-rate guardrails)
 - `docs/sops/sop_auth_recovery_trust_smoke.md` (minimum signup/reset/email-change trust smoke for canonical auth callback hosts)
 - `docs/sops/sop_ai_studio_index.md`

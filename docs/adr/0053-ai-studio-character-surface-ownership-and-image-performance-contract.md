@@ -10,8 +10,6 @@ The repo now has one live character-management product surface:
 
 1. The AI Studio Character panel.
 
-Deprecated `/character` and `/character-soon` paths remain only as compatibility aliases that redirect into `/ai-studio`.
-
 The AI Studio panel already embeds the shared character workflow, but the surrounding product model historically left room for ambiguity about which surface was primary. That ambiguity made it harder to design the character experience as the main place where users manage references, profiles, and reusable character assets.
 
 The character surface also contains image-dense regions:
@@ -25,7 +23,7 @@ The Media Library already solved several related performance problems in-repo wi
 ## Decision
 
 1. Treat the AI Studio Character panel as the primary management surface for character work.
-2. Treat `/character` and `/character-soon` as redirect-only compatibility aliases into `/ai-studio`, not as secondary product entrypoints or standalone homes.
+2. Remove standalone `/character*` product-route ownership and keep only AI Studio-owned character entry surfaces.
 3. Keep Create/Edit character pickers separate and selection-only.
 4. For image-dense character regions, prefer Media Library-style performance patterns:
    - width-aware column budgets,
@@ -46,7 +44,7 @@ The Media Library already solved several related performance problems in-repo wi
   - Gives the character surface a known internal reference for image-heavy performance work without forcing runtime convergence where it is not warranted.
   - Preserves separate picker surfaces for lightweight selection flows.
 - Negative:
-  - Deprecated `/character*` aliases still need explicit route docs, auth handling, and audit expectations so compatibility does not revive the impression of a standalone product surface.
+  - Legacy auth/bookmark recovery handling still needs to normalize stale `/character*` destinations into `/ai-studio` so old recovery links do not revive a separate surface model.
   - Image-performance decisions become more deliberate because the primary surface must stay readable and fast while preserving the existing delivery-policy split.
 - Follow-ups:
   - Keep the implementation plan aligned with this ADR.

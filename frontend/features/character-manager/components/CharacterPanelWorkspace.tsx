@@ -63,6 +63,7 @@ const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   fontWeight: 600,
+  cursor: "pointer",
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
@@ -147,7 +148,7 @@ const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
   gridTemplateRows: "auto 22px",
   minHeight: "176px",
-  borderRadius: "16px",
+  borderRadius: "10px",
   border: "1px solid rgba(30, 34, 41, 0.96)",
   background: "rgba(12, 14, 19, 0.96)",
   overflow: "hidden",
@@ -188,11 +189,11 @@ const CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
   gap: "5px",
   textAlign: "center",
   color: "rgba(137, 145, 161, 0.8)",
-  fontSize: "0.84rem",
+  fontSize: "0.78rem",
   lineHeight: 1.32,
 };
 const CHARACTER_REFERENCE_DROP_REQUIREMENT_BASE_STYLE: React.CSSProperties = {
-  fontSize: "0.82rem",
+  fontSize: "0.76rem",
   fontWeight: 700,
 };
 const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
@@ -201,6 +202,7 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   justifyContent: "center",
   minHeight: "22px",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
+  background: "rgba(11, 13, 18, 0.98)",
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",
   fontWeight: 600,

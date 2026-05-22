@@ -27,7 +27,6 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Only use anon key on the client; never check in service-role keys or `.env.local`.
 - Enforce per-user isolation: RLS on `saved_creators`, `media_files`, and private `media_library` bucket paths (`auth.uid()` scoped).
 - Protected routes: `/performance*`, `/saved-creators`, `/profile`, `/ai-studio`, `/creator-studio`, and `/admin`.
-- Deprecated `/character*` aliases redirect into `/ai-studio` and should not be treated as standalone protected surfaces.
 - Reuse `frontend/lib/supabaseClient` and `useProtectedRoute` instead of ad-hoc clients.
 - Use Supabase CLI for Supabase access and avoid Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 

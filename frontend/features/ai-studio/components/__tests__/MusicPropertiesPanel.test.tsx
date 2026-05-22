@@ -387,6 +387,27 @@ describe("MusicPropertiesPanel", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears the inspiration overflow error after the draft changes", () => {
+    const { rerender } = render(
+      <MusicPropertiesPanel prompt={"p".repeat(1920)} lyrics={"l".repeat(25)} />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    fireEvent.click(screen.getByRole("button", { name: "west coast rap" }));
+
+    expect(
+      screen.getByText("This inspiration will not fit. Shorten the prompt or lyrics and try again.")
+    ).toBeInTheDocument();
+
+    rerender(<MusicPropertiesPanel prompt="Shorter prompt" lyrics={"l".repeat(25)} />);
+
+    expect(
+      screen.queryByText(
+        "This inspiration will not fit. Shorten the prompt or lyrics and try again."
+      )
+    ).not.toBeInTheDocument();
+  });
+
   it("suppresses chip insertion after a real drag gesture on the inspiration rail", () => {
     const { container } = render(<MusicPropertiesPanel />);
     const scroller = container.querySelector(".music-properties-inspiration-chips");

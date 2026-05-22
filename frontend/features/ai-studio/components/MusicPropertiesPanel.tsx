@@ -266,6 +266,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [composerMode, syncInspirationScrollState]);
 
   React.useEffect(() => {
+    setInspirationInsertError(null);
+  }, [composerMode, lyrics, prompt]);
+
+  React.useEffect(() => {
     if (!isSongBatchMenuOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       if (!songBatchMenuRef.current?.contains(event.target as Node)) {

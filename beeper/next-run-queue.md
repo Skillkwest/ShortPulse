@@ -13,16 +13,16 @@ Purpose: keep the highest-value next testing lanes visible so Beeper spends less
 
 ## Ranked Queue
 
-### 1. Character route retest or deeper manage/create path
+### 1. AI Studio Characters deeper manage/create path
 
 - Why this is next:
-  - AI Studio just gained a validated success path, so lower-coverage routes should win next
-  - Character coverage improved, but continuity is still broken and the route still lacks clean reuse validation
+  - AI Studio Characters is now the only live character-management surface, so deeper coverage should stay on the owned workflow
+  - character coverage improved, but reuse and continuity still need stronger end-to-end validation
 - Entry surface:
-  - production `/character`
+  - production `/ai-studio` Characters tool
 - Success condition:
-  - either confirm reload/re-entry continuity in a more standard browser surface
-  - or validate a cleaner manage-list/create-save workflow than this checkpoint reached once continuity is trustworthy
+  - either confirm reload/re-entry continuity in the AI Studio Characters tool
+  - or validate a cleaner manage-list/create-save workflow than the current checkpoint reached once continuity is trustworthy
 
 ### 2. Dashboard deeper control or announcement behavior
 

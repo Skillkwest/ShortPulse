@@ -16,7 +16,7 @@
 ## Matrix Results
 | Dimension | Values Covered | Pass/Fail | Notes |
 | --- | --- | --- | --- |
-| Zoom | `0.5`, `1`, `2` | PARTIAL | `4` coverage not yet captured in baseline artifact. |
+| Zoom | `0.5`, `1`, `2` | PARTIAL | Current clamp values are exercised in targeted tests, but the packet still lacks one consolidated max-zoom threshold rollup across both surfaces. |
 | Pan | non-zero pan covered in existing flatten/panel tests | PARTIAL | Required canonical pan set `(0,0)`, `(37,-19)`, `(-120,80)` not fully recorded yet. |
 | Stage Aspect | `1:1`, `16:9`, `9:16` | PARTIAL | `4:3` not yet captured in baseline artifact. |
 | Image Aspect | partial via existing fixtures | PARTIAL | Full required set not yet explicitly captured in one matrix packet. |
@@ -35,7 +35,7 @@ Use this checklist to finish the missing baseline slices before moving `CP-004` 
 
 | Gap | Required Coverage | Capture Method | Evidence Output | Owner | Status |
 | --- | --- | --- | --- | --- | --- |
-| Zoom max | `4x` at inline + modal | Run existing deterministic test bundle, then perform interactive draw checks at `zoom=4` in both surfaces | Add observed threshold max values to this packet + supporting captures | AI Studio FE + QA | OPEN |
+| Zoom max | current clamp max (`2x`) at inline + modal | Run existing deterministic test bundle, then perform interactive draw checks at max zoom in both surfaces | Add observed threshold max values to this packet + supporting captures | AI Studio FE + QA | OPEN |
 | Canonical pan tuples | `(0,0)`, `(37,-19)`, `(-120,80)` | Interactive characterization pass at each tuple with fixed anchor strokes (markup + inpaint) | Add per-tuple deltas and pass/fail row updates in this packet | AI Studio FE + QA | OPEN |
 | Stage aspect `4:3` | stage viewport `4:3` with parity checks | Capture with a `4:3` stage viewport pass (for example `1200x900`) for inline + modal | Add `4:3` matrix row evidence and threshold max values in this packet | AI Studio FE + QA | OPEN |
 | DPR matrix | `1`, `2`, `3` | Repeat the same characterization pass at each DPR profile | Add DPR max-threshold rollup and pass/fail decision in this packet | AI Studio FE + QA | OPEN |
@@ -48,7 +48,7 @@ Use this checklist to finish the missing baseline slices before moving `CP-004` 
 ### Remaining Capture Sequence
 1. Re-run deterministic baseline command bundle (below) and attach pass/fail outcomes.
 2. Run interactive characterization across the remaining matrix:
-   - zoom: `4`
+   - zoom: current clamp max (`2`)
    - pan tuples: `(0,0)`, `(37,-19)`, `(-120,80)`
    - stage aspect: include `4:3`
    - DPR: `1`, `2`, `3`
@@ -72,7 +72,7 @@ Use this checklist to finish the missing baseline slices before moving `CP-004` 
 1. Waiver ID: `CP-004-W1`
 2. Decision: approved by user request to skip remaining CP-004 baseline slices and proceed.
 3. Accepted residual scope:
-   - zoom `4`
+   - max zoom (`2`)
    - canonical pan tuples `(0,0)`, `(37,-19)`, `(-120,80)`
    - stage aspect `4:3`
    - DPR `1`, `2`, `3`
@@ -107,7 +107,7 @@ Use this checklist to finish the missing baseline slices before moving `CP-004` 
 
 ## Regressions / Incidents
 1. Description: CP-004 not yet complete because required full matrix capture is still partial.
-2. Matrix slice: zoom `4`, stage aspect `4:3`, DPR `1/2/3`, canonical pan tuple set.
+2. Matrix slice: max zoom (`2`), stage aspect `4:3`, DPR `1/2/3`, canonical pan tuple set.
 3. Severity: Medium (readiness gate blocker, not a production incident)
 4. Mitigation: finish remaining matrix captures and publish max-threshold rollup.
 5. Rollback triggered: no

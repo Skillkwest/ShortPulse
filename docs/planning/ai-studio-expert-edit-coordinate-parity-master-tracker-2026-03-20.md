@@ -40,7 +40,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `CP-102` | `P1` | Surface contract | Inline interaction surface parity with modal ownership rule | AI Studio FE | `PENDING` | `CP-101` | High | Shared core merged | Inline and modal pointer mapping paths unified | `TBD` | Event target elements remain untransformed |
 | `CP-103` | `P1` | Rect authority | Remove wrapper rect authority from draw/export math | AI Studio FE | `PENDING` | `CP-102` | Medium | Authoritative refs locked | Only stage refs used for authoritative rects | `TBD` | Guard against wrapper padding offsets |
 | `CP-201` | `P2` | Markup | Align markup pointer sampling and stroke placement with shared core | AI Studio FE | `PENDING` | `CP-101`,`CP-102`,`CP-103` | High | P1 complete | Pointer-to-stroke thresholds pass for markup | `TBD` | Includes coalesced sample parity |
-| `CP-202` | `P2` | Inpaint brush | Align brush reticle/paint radius parity using mask-space contract | AI Studio FE | `PENDING` | `CP-101`,`CP-102`,`CP-103` | High | P1 complete | Reticle vs painted diameter thresholds pass | `TBD` | Includes zoom set `{0.5,1,2,4}` |
+| `CP-202` | `P2` | Inpaint brush | Align brush reticle/paint radius parity using mask-space contract | AI Studio FE | `PENDING` | `CP-101`,`CP-102`,`CP-103` | High | P1 complete | Reticle vs painted diameter thresholds pass | `TBD` | Includes zoom set `{0.5,1,2}` |
 | `CP-203` | `P2` | Inpaint lasso | Apply explicit `evenodd` lasso fill and self-intersection characterization | AI Studio FE | `PENDING` | `CP-101`,`CP-102`,`CP-103` | Medium | P1 complete | Figure-eight and nested-loop deterministic parity tests pass | `TBD` | Remove implicit default rule ambiguity |
 | `CP-301` | `P3` | Mask mapping | Align mask canonical resolution and scene-to-mask conversion | AI Studio FE | `DONE` | `CP-201`,`CP-202`,`CP-203` | High | P2 complete | Mask mapping invariants pass across aspects | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp301-cp302-mask-export-contract-progress.md` | Canonical selected-layer mask resolution + scene-preserving remap contract validated in local Phase 3 command suite (commits `ba8c5120`, `f357db5d`) |
 | `CP-302` | `P3` | Export parity | Align submit mask export camera/crop with base flatten contract | AI Studio FE | `DONE` | `CP-301` | High | P3 mapping complete | Export alignment threshold passes under matrix | `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp301-cp302-mask-export-contract-progress.md` | User-approved waiver accepted to skip browser-backed matrix/formal closeout evidence; residual risk acknowledged in decision log |
@@ -54,7 +54,7 @@ Track execution status for the coordinate-parity hardening roadmap, including ph
 | `CP-503` | `P5` | Closeout | Final closeout packet and de-risk cleanup | AI Studio FE | `PENDING` | `CP-502` | Low | Production evidence accepted | Program marked complete | `TBD` | Remove temporary guardrails |
 
 ## Current Blockers
-1. Residual risk accepted by waiver: CP-004 missing baseline slices (`zoom=4`, canonical pan tuples, `4:3` stage, DPR `1/2/3`) remain unmeasured in this workspace due credential-gated Playwright capture.
+1. Residual risk accepted by waiver: CP-004 missing baseline slices (max zoom evidence, canonical pan tuples, `4:3` stage, DPR `1/2/3`) remain unmeasured in this workspace due credential-gated Playwright capture.
 2. Residual risk accepted by waiver: CP-302 browser-backed matrix and formal closeout evidence were explicitly skipped by user decision.
 
 ## Immediate Next Actions

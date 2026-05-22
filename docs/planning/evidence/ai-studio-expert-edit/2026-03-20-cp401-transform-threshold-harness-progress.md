@@ -11,7 +11,7 @@
 ## Scope
 1. Surfaces covered: shared stage geometry + markup pointer mapping + inpaint interaction mapping + flatten camera normalization.
 2. Modes covered: deterministic transform/unit invariants only (no browser visual capture in this packet).
-3. Matrix slices covered: canonical zoom set `{0.5,1,2,4}` and canonical pan tuple set `{(0,0),(37,-19),(-120,80)}` in unit tests.
+3. Matrix slices covered: canonical zoom set `{0.5,1,2}` and canonical pan tuple set `{(0,0),(37,-19),(-120,80)}` in unit tests.
 
 ## Implementation Evidence
 1. Added canonical zoom/pan round-trip test coverage in:

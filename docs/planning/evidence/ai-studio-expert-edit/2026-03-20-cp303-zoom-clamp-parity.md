@@ -41,7 +41,7 @@
 
 ## Threshold Notes
 1. CP-303 acceptance target is shared clamp parity between viewport and flatten camera.
-2. Clamp parity is now enforced by one authority (`EXPERT_EDIT_CAMERA_SCALE_MIN/MAX`) and unit-tested at both ends (`0.5`, `4`).
+2. Clamp parity is now enforced by one authority (`EXPERT_EDIT_CAMERA_SCALE_MIN/MAX`) and unit-tested at the current contract boundaries.
 3. Full export alignment matrix verification remains in CP-302/CP-301 closure scope.
 
 ## Follow-up Required

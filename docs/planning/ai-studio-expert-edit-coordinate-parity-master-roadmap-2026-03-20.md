@@ -70,7 +70,7 @@ Exit criteria:
 3. Apply explicit `evenodd` lasso fill semantics and deterministic self-intersection behavior.
 
 Exit criteria:
-1. Tool parity assertions pass at zoom set `{0.5, 1, 2, 4}` and non-zero pans.
+1. Tool parity assertions pass at zoom set `{0.5, 1, 2}` and non-zero pans.
 2. Lasso deterministic parity tests pass for figure-eight and nested loops.
 
 ### Phase 3: Mask and Export Camera Parity
@@ -108,7 +108,7 @@ Exit criteria:
 4. Lasso fill deterministic parity: exact area parity for test fixtures.
 
 ## Validation Matrix
-1. Zoom: `0.5`, `1`, `2`, `4`.
+1. Zoom: `0.5`, `1`, `2`.
 2. Pan: `(0,0)`, `(37,-19)`, `(-120,80)`.
 3. Stage aspect: `1:1`, `4:3`, `16:9`.
 4. Image aspect: `1:1`, `4:3`, `16:9`, `9:16`.

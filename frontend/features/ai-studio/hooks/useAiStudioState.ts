@@ -6,7 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { StudioOutput } from "../types";
+import { StudioOutput, type ToolId } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
 import { useAiStudioClearGenerationOutput } from "./useAiStudioClearGenerationOutput";

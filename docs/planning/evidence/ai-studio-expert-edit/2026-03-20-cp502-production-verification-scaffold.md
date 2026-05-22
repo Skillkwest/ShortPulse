@@ -33,7 +33,7 @@
    - Inpaint brush
    - Inpaint lasso
 3. Camera slices:
-   - Zoom `{0.5,1,2,4}`
+   - Zoom `{0.5,1,2}`
    - Pan `{(0,0),(37,-19),(-120,80)}`
 4. Aspect / DPR slices:
    - Stage aspect `{1:1,4:3,16:9}`

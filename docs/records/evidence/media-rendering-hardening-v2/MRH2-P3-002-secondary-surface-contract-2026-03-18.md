@@ -13,7 +13,7 @@
 - Confirm the Media Library file modal remains on the direct signed focused-file path without introducing new preview-transform behavior.
 
 ## Code Changes
-- [CharacterManagerShell.tsx](../../../../frontend/features/character-manager/components/CharacterManagerShell.tsx)
+- [CharacterPanelWorkspace.tsx](../../../../frontend/features/character-manager/components/CharacterPanelWorkspace.tsx)
 - [characterGridPreviewUrl.ts](../../../../frontend/features/character-manager/logic/characterGridPreviewUrl.ts)
 
 ## Tests Added Or Updated

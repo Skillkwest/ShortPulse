@@ -32,7 +32,7 @@
    - Inline stage
    - Modal stage
 3. Camera slices:
-   - Zoom: `{0.5, 1, 2, 4}`
+   - Zoom: `{0.5, 1, 2}`
    - Pan: `{(0,0), (37,-19), (-120,80)}`
 4. Acceptance thresholds:
    - Pointer-to-stroke center error <= `0.75 CSS px`

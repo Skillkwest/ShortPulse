@@ -32,13 +32,13 @@ This artifact supports:
 ### Inline/modal viewport zoom propagation
 1. Inline wheel zoom and modal viewport state propagation are covered:
    - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx:2887`
-2. Move-panel zoom slider behavior is covered for slider max (`value=100`), but this does not by itself assert `scale=4`:
+2. Move-panel zoom slider behavior is covered for slider max (`value=100`), but this does not by itself close a consolidated max-zoom threshold rollup:
    - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx:3254`
    - `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx:3287`
 
 ## Remaining CP-004 Blocking Gaps
-### Gap A: Explicit `zoom=4` parity evidence
-1. Existing tests exercise non-default zoom, but CP-004 requires explicit baseline matrix closure at `zoom=4`.
+### Gap A: Explicit max-zoom parity evidence
+1. Existing tests exercise non-default zoom, including the current shared max clamp (`2`), but CP-004 still lacks one consolidated max-zoom threshold rollup in the baseline packet.
 2. This remains open in baseline packet + tracker.
 
 ### Gap B: Canonical pan tuple closure
@@ -59,10 +59,8 @@ This artifact supports:
 4. In this workspace the harness is blocked by missing `PLAYWRIGHT_AUDIT_EMAIL` (empty in `frontend/.env.local`), so DPR matrix closure remains open.
 
 ## Additional Readiness Risk To Keep Visible
-1. Viewport scale cap allows `4`, while flatten camera clamps at `3`:
-   - `frontend/features/ai-studio/components/edit/expertEditViewportUtils.ts:7`
-   - `frontend/features/ai-studio/logic/expertEditStageFlatten.ts:68`
-2. This is already tracked in the coordinate-parity plan as a dedicated phase item, but it should be considered during baseline interpretation at high zoom.
+1. The shared zoom clamp contract is now centralized, but several parity planning artifacts still describe an older wider zoom envelope.
+2. Keep baseline and rollout docs aligned with `frontend/features/ai-studio/logic/expertEditCameraContract.ts` so verification does not chase stale matrix rows.
 
 ## Required Next Action
 1. Execute the CP-004 remaining closure run sheet in:

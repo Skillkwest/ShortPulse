@@ -38,8 +38,9 @@ npm run build
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
-- Branch isolation policy: work only on the current user-approved branch. Do not switch branches, commit on another branch, push another branch, merge into another branch, or promote work to another branch unless the user explicitly instructs that specific branch action in the current thread. Never push directly to `main`.
-- Branch enforcement policy: keep `git config --local shortpulse.allowedBranch` set to the current user-approved branch. Husky `pre-commit` and `pre-push` must block commit/push activity when the current branch or push target does not match that allowed branch.
+- Pre-launch branch policy: ShortPulse is in a pre-launch production-readiness phase through the Copperknot effective launch decision window ending `2026-07-02` (`docs/agents/copperknot/production-readiness-plan-2026-07-02.md` and `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`). During this pre-launch phase, all repo work must be performed on the local `production` branch, and any GitHub branch operations must target the GitHub `production` branch.
+- Pre-launch branch isolation policy: work only on `production`. Do not switch branches, create feature branches, commit on another branch, push another branch, merge into another branch, promote work to another branch, or open GitHub work against another branch unless the user explicitly rewrites this pre-launch policy in the current thread. Never push directly to `main`.
+- Branch enforcement policy: keep `git config --local shortpulse.allowedBranch` set to `production` during the pre-launch phase. Husky `pre-commit` and `pre-push` must block commit/push activity when the current branch or push target does not match `production`.
 - Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
@@ -100,8 +101,8 @@ Follow this startup sequence at the start of every new task/session in this repo
 
 - Keep diffs minimal and scoped to the request.
 - Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
-- Stay on the current user-approved branch for all edits, commits, and pushes unless the user explicitly authorizes a different branch action in the current thread.
-- Before changing the working branch by instruction, update `git config --local shortpulse.allowedBranch <branch>` first so local hooks keep enforcing the active branch contract.
+- During the pre-launch phase, stay on `production` for all edits, commits, pushes, and GitHub branch operations unless the user explicitly rewrites the pre-launch branch policy in the current thread.
+- Keep `git config --local shortpulse.allowedBranch production` set so local hooks enforce the active pre-launch branch contract.
 - Do not push to `main` directly under any circumstances unless the user explicitly changes this rule.
 - Run relevant validation checks for touched areas.
 - Perform a final self-audit for missed high-value updates and provide suggested next steps.

@@ -21,10 +21,11 @@ Use this document to keep the expectations clear whenever I’m making changes i
 17. **Treat `npm run db:reset` as blocked by policy.** The script intentionally exits non-zero to prevent local reset workflows that violate this repo's Supabase operations policy.
 18. **Do not continue by adjacency or momentum.** New work must start from a concrete problem statement and a repo-backed reason it is a better use of time than stopping; nearby files or easy-to-add tests are not enough.
 19. **Do not commit transpiled JS sidecars for frontend source modules.** Under `frontend/features/`, `frontend/lib/`, and `frontend/prefabs/`, `.ts/.tsx` files are the source of truth; generated CommonJS/compiled `.js` siblings should be removed or ignored rather than committed.
-20. **Use the branch ladder deliberately.** `working-development` is the only active coding branch. Promote changes forward with PRs or explicit branch promotion in this order: `working-development` -> `staging-preview` -> `production`. Keep `staging-preview` and `production` protected so they stay integration/release branches, and create a tag for checkpoints instead of spawning extra long-lived branches.
+20. **Use the pre-launch production branch deliberately.** During the current pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, `production` is the only active local and GitHub branch for repo work. Keep `git config --local shortpulse.allowedBranch` set to `production`, do not create or promote feature/staging branches, and never push directly to `main`.
 21. **Use canonical active Seedance 2 IDs.** The active Kie Seedance 2 lanes are `kie-ai/seedance-2` and `kie-ai/seedance-2-fast`. Treat those IDs as canonical in code, docs, validation, and support assumptions; do not reintroduce the stale `seedance-2.0` naming or quarantine guidance.
 
 ## Canonical run commands (always respond with these)
+
 - **Frontend startup** (new terminal):
   ```
   cd frontend
@@ -33,6 +34,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 - **Install steps are one-time** (or when dependencies change): `npm install` only when setting up a new environment or after package changes; do not repeat on every restart. If asked for the frontend command, provide `npm run dev` (plus the one-time `npm install` note only when relevant).
 
 _Suggestions for future rules_
+
 - Define how to handle large assets (where to store example data or design exports).
 - Specify when to add a runbook/sop entry alongside new features.
 - Outline branch naming or commit conventions for multi-contributor work.

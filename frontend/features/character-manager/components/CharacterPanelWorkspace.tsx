@@ -737,7 +737,7 @@ export function CharacterPanelWorkspace({
             </button>
             <button
               type="button"
-              className="character-panel-action-btn character-panel-action-btn--primary"
+              className="character-panel-action-btn character-panel-action-btn--picker-accent"
               onClick={() => {
                 void handleCreateNewCharacter();
               }}

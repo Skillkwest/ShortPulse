@@ -63,7 +63,7 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  padding: 8px 12px 10px;
+  padding: 4px 12px 10px;
   background: var(--character-panel-wrapper-bg);
 }
 
@@ -108,7 +108,7 @@
 .character-panel-profile-top-row {
   display: flex;
   align-items: center;
-  padding-top: 2px;
+  padding-top: 0;
   margin-bottom: 4px;
 }
 
@@ -238,7 +238,7 @@
   grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
   grid-template-areas: "description references";
   align-items: start;
-  gap: 8px;
+  gap: 14px;
 }
 
 .character-panel-workspace .character-panel-preset-description-column,
@@ -287,8 +287,8 @@
 .character-panel-workspace .character-name-input {
   border-color: rgba(201, 205, 214, 0.08);
   background: var(--character-panel-tab-tray-bg);
-  min-height: 40px;
-  padding: 8px 10px;
+  min-height: 36px;
+  padding: 6px 10px;
   font-size: 0.96rem;
 }
 
@@ -368,16 +368,16 @@
 }
 
 .character-panel-workspace .character-sheet-preset-tab {
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 8px;
   border-radius: 9px 9px 0 0;
   font-size: 11px;
 }
 
 .character-panel-workspace .character-sheet-preset-add-btn {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
   margin-bottom: 0;
 }
 
@@ -391,7 +391,7 @@
 }
 
 .character-panel-workspace .character-reference-empty-hint {
-  font-size: 9px;
+  font-size: 10px;
   padding: 0 6px;
 }
 

@@ -114,7 +114,7 @@ describe("character panel layout contract", () => {
 
     expect(css).toContain("--character-panel-wrapper-bg: rgba(201, 205, 214, 0.02);");
     expect(css).toContain(".character-panel-library-workspace {");
-    expect(css).toContain("padding: 8px 12px 10px;");
+    expect(css).toContain("padding: 4px 12px 10px;");
     expect(css).toContain(".character-panel-editor-column {");
     expect(css).toContain("border: 0;");
   });

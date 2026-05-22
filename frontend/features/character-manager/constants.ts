@@ -124,7 +124,6 @@ export const DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER = [
   "2",
   "3",
   "4",
-  "5",
 ] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
 export const DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL = DEFAULT_CHARACTER_SHEET_PRESET_ID;
 

@@ -1,14 +1,17 @@
 # SOP: Character Manager Operations
 
 ## Purpose
+
 Define the operational contract for the `/character` Character Manager surface, including current upload behavior, persisted character-sheet preset assignments, and support runbooks for alias-compatibility drift.
 
 ## Scope
+
 - Applies to `frontend/features/character-manager/*` and `frontend/pages/character.tsx`.
 - Covers the active Character Manager implementation only.
 - Does not cover legacy `features/character/*` identity-token workflows.
 
 ## Current Product Contract
+
 1. Users can upload reference images by drag/drop or file picker in the Drop References card.
 2. QuickSwap Deck persists an unlimited number of references per character:
    - Active deck keeps newest 500 references.
@@ -18,7 +21,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - `Create New Character` opens a local unsaved Character Profile draft only.
    - The character is first created in Supabase and added to the library when the user presses `Save Character`.
    - Until the first save, persistence-dependent actions stay blocked (for example profile image uploads, QuickSwap uploads, and preset/shot uploads).
-   - New users start with one visible preset tab (`1`) labeled `Double click me` to prompt rename.
+   - New users start with four visible preset tabs (`1`..`4`).
    - A `+` control at the end of the tab rail appends the next preset id and activates it.
    - Double-clicking a tab enters rename mode; `Enter`/blur autosaves and `Escape` cancels.
    - Tabs after `1` expose a delete (`X`) control.
@@ -70,23 +73,29 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Submit-time character bundle refresh must fail closed when selected character is no longer available.
    - Cached bundle reuse is allowed only for transient refresh failures.
 10. Create-workspace layout order contract:
-   - Desktop (`>1100px`): Character Sheet renders on the left and QuickSwap Deck renders on the right.
-   - Tablet/mobile (`<=1100px`): sections stack in order `QuickSwap Deck -> Character Sheet`.
-   - DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
-   - The legacy Identity section is removed from create mode.
-   - The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
-  - In AI Studio embedded Character Properties (`surface='panel'`), the QuickSwap section uses leaner chrome than the standalone route: the legacy helper paragraph is hidden, the QuickSwap collapse toggle is hidden, the deck stays expanded, and the panel lands on `Character Profile` by default.
+
+- Desktop (`>1100px`): Character Sheet renders on the left and QuickSwap Deck renders on the right.
+- Tablet/mobile (`<=1100px`): sections stack in order `QuickSwap Deck -> Character Sheet`.
+- DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
+- The legacy Identity section is removed from create mode.
+- The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
+- In AI Studio embedded Character Properties (`surface='panel'`), the QuickSwap section uses leaner chrome than the standalone route: the legacy helper paragraph is hidden, the QuickSwap collapse toggle is hidden, the deck stays expanded, and the panel lands on `Character Profile` by default.
+
 11. Internal drag observability contract:
-   - Emit `character_drop_attempt` for every internal drop parsed at target boundary.
-   - Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.
-   - Emit `character_drop_rejected` on malformed payloads, unsupported targets, or policy rejection.
-   - Emit `character_drop_failed_autosave` when the internal resolver path throws before assignment can proceed.
+
+- Emit `character_drop_attempt` for every internal drop parsed at target boundary.
+- Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.
+- Emit `character_drop_rejected` on malformed payloads, unsupported targets, or policy rejection.
+- Emit `character_drop_failed_autosave` when the internal resolver path throws before assignment can proceed.
+
 12. Character panel media isolation contract:
-   - Character panel uploads persist to `character_media_assets`.
-   - Character Sheet and QuickSwap internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
-   - `character_media_id` is the required persisted reference for Character Manager assets. Legacy metadata keys and row-level `media_file_id` linkage are retired from the live runtime path.
+
+- Character panel uploads persist to `character_media_assets`.
+- Character Sheet and QuickSwap internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
+- `character_media_id` is the required persisted reference for Character Manager assets. Legacy metadata keys and row-level `media_file_id` linkage are retired from the live runtime path.
 
 ## Architecture Map
+
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
 - Create layout wrapper: `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
 - Character sheet preset tabs UI/a11y seam: `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`
@@ -103,18 +112,22 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Historical alias drift / retirement-readiness SQL: `sql/check_character_sheet_alias_drift.sql`
 
 ## Operational Flow
+
 1. Character bootstrap
+
 - Load the preferred/latest persisted character draft on entry when one exists; otherwise stage a local unsaved Character Profile draft.
 - Prefer the persisted selected character id when available.
 - Hydrate profile image, name, description, and persisted QuickSwap active/archive state.
 
 2. Reference intake
+
 - Accept only `image/*` MIME files.
 - Enforce max file size using `CHARACTER_MANAGER_MAX_IMAGE_BYTES`.
 - Persist quickswap metadata through `appendQuickSwapFiles(...)`.
 - Enforce active-limit archive semantics (500 active, oldest overflow archived).
 
 3. Character Sheet presets and drag/drop (persisted)
+
 - Keep per-character preset state in Character Manager draft state.
 - Persist active tab id, visible tab ids, tab labels, and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
@@ -122,21 +135,25 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Keep preset media lifecycle independent from QuickSwap Deck entries.
 
 4. Character lifecycle
+
 - Create character: stage a new local unsaved draft in the editor without persisting.
 - Save character: create the persisted character + sheet, refresh the rail, and select the newly saved character.
 - Select character: load selected snapshot + refresh rail.
 - Delete character: delete target and load next available snapshot (or fall back to a local unsaved draft when the library is empty).
 
 ## Security And Data Isolation Checks
+
 - RLS must be enabled on Character Manager tables and scoped to `auth.uid()`.
 - Storage paths for character media must remain user-scoped.
 - Client must only use Supabase anon key; service-role keys are never allowed in client code.
 - Character Manager APIs and persistence must continue to route through authenticated Supabase client paths.
 
 ## Drift And Compatibility Runbook
+
 Use this when Character Sheet data looks inconsistent across environments or after migrations.
 
 1. Confirm migrations are applied through:
+
 - `sql/migrations/008_add_character_manager_foundation.sql`
 - `sql/migrations/010_harden_character_reference_media_integrity.sql`
 - `sql/migrations/011_add_character_description_to_characters.sql`
@@ -145,18 +162,22 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - `sql/migrations/068_add_character_media_assets_isolation.sql`
 
 2. Run drift diagnostics:
+
 - Execute `sql/check_character_sheet_alias_drift.sql`.
 - Execute `sql/check_character_media_isolation_backfill.sql` when auditing historical Character Manager rows for legacy-link normalization.
 
 3. Evaluate output:
+
 - Expected steady-state: every `mismatch_count` is `0`.
 
 4. If mismatches exist:
+
 - Re-run `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`.
 - Verify alias-sync triggers exist and are healthy.
 - Escalate unresolved mismatches and log incident notes in `docs/change_log.md`.
 
 ## QA Checklist (Before Ship)
+
 - Upload from file picker works and persists after refresh.
 - Multi-file drag/drop upload works and appends all valid references.
 - Non-image files are rejected with clear message.
@@ -174,8 +195,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - QuickSwap active/archive virtualization keeps only viewport-visible rows mounted and still preserves drag/drop, remove/restore, and preview behavior.
 - Uploading beyond 500 active references archives oldest active references.
 - Archived references can be restored back into active deck.
-- New users start with one visible preset tab (`1`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
-- New users see preset tab `1` labeled `Double click me` until renamed.
+- New users start with four visible preset tabs (`1`..`4`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
 - Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.
 - Editing Character Profile description on one preset tab does not mutate descriptions on other preset tabs.
 - Deleting a tab (`X`) shows confirmation; selecting `Yes` removes the tab and its saved preset references.
@@ -190,6 +210,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - If selected character is deleted/archived, Character Mode submit path does not reuse stale cached bundle injection.
 
 ## Change Management Rules
+
 - Any change to `/character` behavior must update:
   - `docs/routes.md` (if route behavior changes),
   - this SOP,
@@ -197,4 +218,5 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Character Sheet active preset assignments are generation-driving for AI Studio Create Character Mode; keep integration contracts in this SOP and `docs/sops/sop_image_generation.md` in sync when changing preset semantics.
 
 ## Legacy SOP Status
+
 - `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.

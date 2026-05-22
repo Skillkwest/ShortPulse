@@ -659,9 +659,9 @@ describe("useCharacterManagerDraft", () => {
 
     expect(result.current.visibleCharacterSheetPresetIds).toEqual([
       ...createDefaultCharacterSheetPresetState().tabOrder,
-      "6",
+      "5",
     ]);
-    expect(result.current.activeCharacterSheetPresetId).toBe("6");
+    expect(result.current.activeCharacterSheetPresetId).toBe("5");
 
     await act(async () => {
       const switched = await result.current.setActiveCharacterSheetPreset("1");

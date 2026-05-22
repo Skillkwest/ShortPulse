@@ -73,9 +73,9 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "14px",
+  gap: "10px",
   marginTop: "8px",
-  padding: "14px 12px 16px",
+  padding: "14px 8px 16px",
   borderRadius: "18px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: "rgba(201, 205, 214, 0.05)",
@@ -114,7 +114,7 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
 };
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
-  padding: "14px 22px 0",
+  padding: "14px 16px 0",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
 const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {

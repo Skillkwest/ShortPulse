@@ -65,7 +65,7 @@ Use that weekly run to create one concise repo-state report instead of broadenin
 
 ### Specialized coordination surfaces
 
-- `docs/agents/ophestivus.md`
+- `docs/agents/ophestivus/README.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/copperknot/README.md`

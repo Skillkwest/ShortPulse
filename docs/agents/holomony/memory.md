@@ -43,6 +43,9 @@ For this milestone, `stable and strong` means:
 - Mixed-open sign-budget cuts must be judged by first paint and settle, not just signed-row count. The `1/2/1` experiment reduced signed rows but regressed both surfaces badly; keep the mixed-open budget at the less aggressive `2/3/2` profile unless new evidence says otherwise.
 - When the user interrupts to ask why a lane is happening, treat it as a trust-and-ROI checkpoint. Re-explain the current diagnosis, what evidence changed, and whether the lane is still the highest-value real product work before continuing.
 - Mixed-grid video browse signing is a separate lane from the main preview-sign budget. Always check whether `MediaLibraryAllItemsGrid` is passing `visibleMediaIdsRef`; if not, poster/hover-video signing can fan out across the loaded batch and distort mixed-open performance evidence.
+- Treat production as the only valid verification environment during pre-launch unless the user explicitly changes that rule. Do not run local or staging tests, audits, or validation passes for Holomony work.
+- Canonical production URL for verification work is `https://shortpulse.ai`.
+- Supabase and Vercel access are available for production diagnostics when required.
 
 ## Notes
 
@@ -74,6 +77,9 @@ For this milestone, `stable and strong` means:
 - Retained reports are valuable historical evidence. Prefer fresh direct proof for present-tense audits when available, but do not talk about reports as if they are disposable or low-value just because they are not the freshest evidence.
 - When the runtime is materially healthier and the remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` instead of inventing another optimization lane.
 - A dedicated persistence-proof path now exists: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`. Use that audit to prove save/reopen browse readiness before reopening runtime tuning.
+- Runtime verification is production-only right now. Even when local tooling or credentials are available, do not run localhost or staging panel diagnostics unless the user explicitly reauthorizes them.
+- When a runtime/base URL is needed for production verification, default to `https://shortpulse.ai` unless the user explicitly points at a different production origin.
+- When production debugging requires environment or data checks, using Supabase and Vercel is allowed within the production-only verification rule.
 - Holomony is now the canonical local assistant folder for this lane. Do not keep a separate parallel local identity package for media-performance work.
 - Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.

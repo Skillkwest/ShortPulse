@@ -5,6 +5,7 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 ## Authority
 
 - This folder is non-authoritative working memory.
+- This folder is Ophestivus's canonical local working home for agent-specific instructions, retained memory, artifact indexes, and run reports.
 - Canonical SOPs stay in `docs/sops/`.
 - Runnable helper commands stay in `frontend/scripts/` and `frontend/package.json`.
 - This folder links and summarizes those assets so Ophestivus can find them quickly.
@@ -12,6 +13,8 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 
 ## Contents
 
+- `AGENTS.md`: folder-scoped Ophestivus working instructions and context-load rules.
+- `ownership-manifest.md`: map of what belongs in Ophestivus local space versus shared repo surfaces.
 - `memory.md`: local retained memory for the Ophestivus working identity and stable repo workflow facts.
 - `baseline-kpi.md`: frozen historical KPI baseline for measuring future Ophestivus workflow performance.
 - `error-capability-map.md`: pattern-level capability map showing what incident classes I can handle, which need guardrails, and which remain human-first.
@@ -32,6 +35,7 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 
 ## Maintenance
 
+- Put future Ophestivus-only instructions, memory, retained SOP indexes, and artifact summaries in this folder by default.
 - Update this folder when Ophestivus gains a durable helper, SOP, trigger phrase, or operating constraint.
 - Keep secrets, tokens, customer private data, and temporary env values out of this folder.
 - Prefer links and concise summaries over duplicating full canonical SOP text.

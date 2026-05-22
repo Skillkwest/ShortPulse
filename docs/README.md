@@ -90,7 +90,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
-- `docs/agents/ophestivus.md`
+- `docs/agents/ophestivus/README.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`

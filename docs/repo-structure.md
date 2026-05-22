@@ -26,7 +26,7 @@ This document describes the canonical layout of the ShortPulse product repo and 
 
 ShortPulse uses three distinct agent-facing layers:
 
-- `docs/agents/<name>/` or a file-based contract such as `docs/agents/ophestivus.md`:
+- `docs/agents/<name>/`:
   durable contract, memory entrypoint, and standing instructions.
 - `docs/records/artifacts/agent/<name>/`:
   retained non-authoritative run artifacts, reports, KPIs, and training history.

@@ -36,8 +36,8 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/gear-ball/github-operations.md`: Gear Ball's local GitHub push, PR, review, and merge coordination summary.
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
-- `docs/agents/ophestivus.md`: admin board steward contract.
-  - retained artifacts live under `docs/records/artifacts/agent/ophestivus/`.
+- `docs/agents/ophestivus/README.md`: admin board steward contract.
+  - Ophestivus local instructions, retained memory, and artifacts live under `docs/records/artifacts/agent/ophestivus/`.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
   - `docs/agents/gottspan-the-admin/ux-playbook.md`: Gottspan's applied UX review lens for admin surfaces, especially trust, hesitation, pricing clarity, and grid-first operator workflows.
   - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`: Gottspan's standing SOP for repo-state audits, docs governance, admin subsystem stewardship, release-risk review, and agent-surface routing.

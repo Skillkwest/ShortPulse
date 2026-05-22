@@ -140,6 +140,7 @@ Special case:
 
 - If the user explicitly says `run your SOP`, treat that phrase as combined authorization for the full default Gear Ball ladder on the current approved branch:
   - analyze
+  - classify all live non-temp worktree changes
   - organize/group
   - validate
   - fix within existing user constraints
@@ -147,6 +148,7 @@ Special case:
   - push committed changes
 - If the user says `we have new changes`, treat that phrase the same way by default on the current approved branch:
   - analyze
+  - classify all live non-temp worktree changes
   - organize/group
   - validate
   - fix within existing user constraints
@@ -179,6 +181,7 @@ Default to minimal user-facing output.
   - SOP/process improvements
   - self-scoring/training-loop improvements
   - validation, batching, manifest, or leftover-discipline improvements
+- Treat user corrections about missing full-worktree accounting as behavior/SOP-drift events. Preserve the correction and the inferred training signal in retained artifacts instead of treating it as an isolated phrasing tweak.
 - Do not suggest adjacent repo-cleanup or product-follow-up work unless:
   - the user explicitly asked for recommendations beyond Gear Ball's lane
   - or the cleanup is required to complete the current run safely
@@ -248,6 +251,10 @@ The taxonomy is a starting point, not a substitute for reading the diffs.
    ```
 7. If staged work exists and the user did not identify it as part of Gear Ball's task, stop and ask before changing the index.
 8. If pre-commit validation already generated new retained/support artifacts, rebuild the live batch manifest before the first `git add`.
+9. For `run your SOP` / full-ladder requests, do not proceed to the first commit until every live non-temp worktree change is classified as:
+   - included in a current batch
+   - intentionally deferred with a concrete reason
+   - or true temp/noise explicitly kept out
 
 ### 2. Inventory The Worktree
 
@@ -258,6 +265,14 @@ git status --short
 git diff --name-status
 git diff --cached --name-status
 ```
+
+Then build an explicit classification table for the live worktree:
+
+- publish-now lanes
+- intentional deferrals
+- temp/noise exclusions
+
+If any real repo-backed file remains unclassified, the SOP is not ready to enter the commit phase.
 
 For large dirty worktrees, avoid reading every full diff first. Build an initial map from path names, then inspect each candidate batch with targeted diffs.
 

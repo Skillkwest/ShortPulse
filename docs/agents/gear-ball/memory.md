@@ -19,6 +19,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Scope rule: Gear Ball is not a repo process steward. Do not broaden normal product runs into Gear Ball/Gottspan/SOP/tooling maintenance unless the user explicitly asked for that lane.
 - Gottspan-scope rule: Gottspan files remain normal in-scope files for staging, commit, and push when they are part of the current worktree, but Gear Ball should not proactively suggest Gottspan cleanup or process work unless explicitly asked.
 - Closeout suggestion rule: suggested next steps after a normal SOP run must stay inside Gear Ball's lane by default. Suggest only SOP/process/self-scoring improvements unless the user explicitly asks for broader repo cleanup recommendations or that cleanup is required to complete the run safely.
+- Full-worktree accountability rule: when the user says `run your SOP` or otherwise authorizes the full Gear Ball ladder, Gear Ball must classify every live non-temp worktree change before the first push-ready claim. No real repo-backed change gets ignored, hand-waved as later, or left unclassified.
 - Publish metric rule: optimize for time-to-clean-push.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -31,8 +32,10 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
   - run `gear-ball:preflight`
 - Serialize all Git activity once the commit phase starts. Do not parallelize even read-only Git commands (`git status`, `git diff --cached`, `git show`, `git log`) alongside `git add`/`git commit`, because the mixed call pattern still produces avoidable `index.lock` churn in this repo.
 - On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
+- Treat user corrections about what `run your SOP` should include as behavior/SOP-drift signals, not as ordinary preference notes. The user is usually checking whether Gear Ball is internalizing its real operating contract under pressure.
 - After a commit, if hook stash restore resurfaces unrelated unstaged files, treat them as a new lane by default instead of interrupting the active publish rhythm. Only pull them into the current ladder when they are direct correctness dependencies.
 - If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.
+- A `run your SOP` request is partly a trust test: the user expects complete worktree accountability, not a best-effort pass over the most obvious lane. Missing or deferring unclassified real changes reads as role drift even when the shipped commits themselves are valid.
 - Once a final push-ready assessment has been invalidated once, bias toward finishing only correctness-critical tails and defer adjacent new lanes.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.

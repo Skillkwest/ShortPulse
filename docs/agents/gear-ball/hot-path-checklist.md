@@ -14,8 +14,12 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - `shared-runtime`
    - `production-targeted`
    - `production-broad`
-6. If the run is large or mixed, lock a file-backed manifest before staging.
-7. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
+6. Build a full live-worktree inventory and classify every non-temp repo-backed change into:
+   - publish now
+   - defer intentionally
+   - ignore as temp/noise
+7. If the run is large or mixed, lock a file-backed manifest before staging.
+8. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Profiles
 
@@ -81,11 +85,12 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 2. Use `gear-ball:preflight` for substantial or risky batches, not every tiny docs-only edit.
 3. Run `git status --short` after every commit before staging the next batch.
 4. If post-commit stash restore resurfaces unrelated files, treat them as a new lane by default and defer them unless they are required for correctness.
-5. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
-6. Before push, rerun only the final required validation on the exact final tree.
-7. Push only the approved branch.
-8. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
-9. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+5. Before any push or push-ready claim, rerun `git status --short` and confirm that every remaining non-temp change has been explicitly classified.
+6. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
+7. Before push, rerun only the final required validation on the exact final tree.
+8. Push only the approved branch.
+9. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+10. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 
@@ -96,6 +101,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - self-scoring or training-loop improvements
    - validation/manifest/leftover-discipline improvements
 4. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
+5. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
 
 ## Stop Conditions
 

@@ -17,9 +17,9 @@ Good paperwork cannot compensate for weak scope control, stale validation, or sl
 
 ### 1. Scope control (`2.0`)
 
-- `2.0`: split the worktree at the right boundaries, deferred adjacent tails, and kept each commit lane coherent.
-- `1.0`: mostly coherent, but one lane was broader or messier than it should have been.
-- `0.0`: absorbed unrelated work or lost the intended lane.
+- `2.0`: classified the whole live worktree correctly, split it at the right boundaries, deferred adjacent tails explicitly, and kept each commit lane coherent.
+- `1.0`: mostly coherent, but one lane was broader or messier than it should have been, or one real leftover needed a late classification pass.
+- `0.0`: absorbed unrelated work, left real repo-backed changes unclassified, or lost the intended lane.
 
 ### 2. Validation discipline (`2.0`)
 
@@ -81,6 +81,10 @@ If smoke or visual QA is unavailable and the run still implies it was completed,
 
 If Gear Ball says a timer, automation, commit, push, branch change, or similar tool-backed side effect already happened before the tool confirmation exists, the total score is capped at `6.4`.
 
+### Gate 6. No partial-worktree SOP claims
+
+If Gear Ball presents a `run your SOP` execution as complete before classifying all live non-temp repo-backed worktree changes, the total score is capped at `7.2`.
+
 ## Confidence Tag
 
 Each scored run should also carry a confidence tag:
@@ -119,5 +123,7 @@ When a substantive run scores below `9.0`, Gear Ball should record:
 - the weakest category
 - the smallest mechanical change that would raise it
 - whether the fix belongs in a helper, checklist, SOP, or training note
+
+User corrections that redefine what `run your SOP` is supposed to cover should be treated as behavior/SOP-drift supervision and synthesized into those same operating surfaces.
 
 When the same weakest category appears in `3` consecutive substantive runs, escalate to one concrete system fix.

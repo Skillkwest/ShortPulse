@@ -73,7 +73,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "6px",
+  gap: "2px",
   marginTop: "8px",
   padding: "14px 8px 16px",
   borderRadius: "18px",
@@ -173,6 +173,7 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   padding: 0,
+  cursor: "pointer",
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   height: "100%",
@@ -182,7 +183,19 @@ const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   justifyContent: "center",
   padding: "14px 10px 8px",
   borderBottom: "none",
+  aspectRatio: "auto",
   boxSizing: "border-box",
+};
+const CHARACTER_REFERENCE_MEDIA_FILLED_INLINE_STYLE: React.CSSProperties = {
+  alignItems: "stretch",
+  justifyContent: "stretch",
+  padding: 0,
+};
+const CHARACTER_REFERENCE_IMAGE_INLINE_STYLE: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  display: "block",
+  objectFit: "cover",
 };
 const CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
@@ -708,6 +721,19 @@ export function CharacterPanelWorkspace({
                                           className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
                                           style={CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE}
                                           aria-label={`Clear ${dropZone.label} reference`}
+                                          draggable={false}
+                                          onPointerDown={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                          }}
+                                          onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                          }}
+                                          onDragStart={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                          }}
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             void clearCharacterSheetAssignment(dropZone.key);
@@ -720,7 +746,12 @@ export function CharacterPanelWorkspace({
                                     </div>
                                     <div
                                       className="character-character-sheet-media"
-                                      style={CHARACTER_REFERENCE_MEDIA_INLINE_STYLE}
+                                      style={{
+                                        ...CHARACTER_REFERENCE_MEDIA_INLINE_STYLE,
+                                        ...(assignedReference
+                                          ? CHARACTER_REFERENCE_MEDIA_FILLED_INLINE_STYLE
+                                          : null),
+                                      }}
                                     >
                                       {assignedReference?.previewUrl ? (
                                         <Image
@@ -737,6 +768,7 @@ export function CharacterPanelWorkspace({
                                           className="character-character-sheet-image"
                                           width={240}
                                           height={300}
+                                          style={CHARACTER_REFERENCE_IMAGE_INLINE_STYLE}
                                           onError={(event) => {
                                             refreshCardPreviewSignedUrl(
                                               assignedReference.previewStoragePath ??

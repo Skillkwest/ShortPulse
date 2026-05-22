@@ -246,6 +246,9 @@ export const useCanvasViewportDropHandlers = ({
                     mediaLibraryPayload.payload.promptText ||
                     "Canvas audio"
                   ).trim() || null,
+                companionArtUrl: mediaLibraryPayload.payload.companionArtUrl ?? null,
+                companionArtStoragePath:
+                  mediaLibraryPayload.payload.companionArtStoragePath ?? null,
                 width: CANVAS_AUDIO_ITEM_WIDTH,
                 height: CANVAS_AUDIO_ITEM_HEIGHT,
               },

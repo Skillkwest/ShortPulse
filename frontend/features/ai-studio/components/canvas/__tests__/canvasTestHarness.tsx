@@ -43,6 +43,8 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
       mediaId: "media-audio-1",
       audioUrl: "https://example.com/reference-audio.mp3",
       title: "Reference audio",
+      companionArtUrl: "https://example.com/reference-audio-cover.webp",
+      companionArtStoragePath: "user-1/audio/reference-audio-cover.webp",
       durationMs: 4_500,
       waveformPeaks: [20, 40, 60, 45, 30],
       width: 160,

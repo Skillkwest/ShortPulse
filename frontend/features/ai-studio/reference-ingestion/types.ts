@@ -42,6 +42,8 @@ export type ReferenceIngestionInput =
         previewPosterUrl?: string | null;
         previewPosterStoragePath?: string | null;
         fullUrl?: string | null;
+        companionArtUrl?: string | null;
+        companionArtStoragePath?: string | null;
         width?: number;
         height?: number;
       };

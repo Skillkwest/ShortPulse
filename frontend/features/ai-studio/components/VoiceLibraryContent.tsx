@@ -19,6 +19,7 @@ type VoiceLibraryContentProps = {
   onActiveLibrarySectionChange: (nextSection: "default" | "my") => void;
   onSelectVoice: (voiceId: string) => void;
   onPreviewVoice: (voiceId: string, previewUrl: string | null | undefined) => void;
+  primaryAction?: React.ReactNode;
 };
 
 /**
@@ -37,6 +38,7 @@ export function VoiceLibraryContent({
   onActiveLibrarySectionChange,
   onSelectVoice,
   onPreviewVoice,
+  primaryAction,
 }: VoiceLibraryContentProps) {
   const defaultVoices = React.useMemo(
     () => libraryVoices.filter((voice) => voice.librarySection === "default"),
@@ -80,6 +82,9 @@ export function VoiceLibraryContent({
       </div>
       {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
       {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
+      {primaryAction ? (
+        <div className="voices-library-modal-primary-action-row">{primaryAction}</div>
+      ) : null}
       <div
         id={
           activeLibrarySection === "my" ? "voices-library-panel-my" : "voices-library-panel-default"

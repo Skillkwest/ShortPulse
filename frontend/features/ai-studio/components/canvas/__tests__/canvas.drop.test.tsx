@@ -163,6 +163,10 @@ describe("Canvas drop behavior", () => {
         "text/shortpulse-media-library-url": "https://example.com/library-audio.mp3",
         "text/shortpulse-media-library-file-type": "audio",
         "text/shortpulse-media-library-filename": "Library Audio",
+        "text/shortpulse-media-library-companion-art-url":
+          "https://example.com/library-audio-cover.webp",
+        "text/shortpulse-media-library-companion-art-storage-path":
+          "user-1/audio/library-audio-cover.webp",
       }),
       clientX: 300,
       clientY: 200,
@@ -173,6 +177,9 @@ describe("Canvas drop behavior", () => {
     expect(Number(item.getAttribute("data-width"))).toBe(160);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
     expect(screen.getByRole("button", { name: "Play Library Audio" })).toBeInTheDocument();
+    expect(
+      item.querySelector(".reference-card-audio-shell")?.getAttribute("style") ?? ""
+    ).toContain("library-audio-cover.webp");
   });
 
   it("routes media-library prompt drops through the async library-drop preparer when provided", async () => {
@@ -301,6 +308,9 @@ describe("Canvas drop behavior", () => {
     expect(Number(item.getAttribute("data-width"))).toBe(160);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
     expect(screen.getByRole("button", { name: "Play Reference audio" })).toBeInTheDocument();
+    expect(
+      item.querySelector(".reference-card-audio-shell")?.getAttribute("style") ?? ""
+    ).toContain("reference-audio-cover.webp");
   });
 
   it("measures viewport geometry only once for internal reference-grid drops", async () => {

@@ -1658,6 +1658,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       copy={cloneVoiceSourceDropzoneCopy}
     />
   );
+  const voiceModeTabsStyle = React.useMemo(
+    () =>
+      ({
+        ["--voices-properties-mode-index" as string]:
+          isCreateVoiceModalOpen && createVoiceMode === "clone"
+            ? 2
+            : surfaceMode === "edit"
+              ? 1
+              : 0,
+      }) as React.CSSProperties,
+    [createVoiceMode, isCreateVoiceModalOpen, surfaceMode]
+  );
 
   return (
     <section className="voices-properties-panel tool-properties" aria-label="Voices properties">
@@ -1681,7 +1693,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
                     <span className="voices-properties-mode-switcher-label">Voice Mode</span>
-                    <div className="voices-properties-mode-control-row">
+                    <div className="voices-properties-mode-control-row" style={voiceModeTabsStyle}>
+                      <span className="voices-properties-mode-indicator" aria-hidden="true" />
                       <div
                         className="voices-properties-mode-tabs"
                         role="tablist"
@@ -1840,16 +1853,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             </button>
           </>
         }
-        footerActions={
-          <button
-            type="button"
-            className="voices-properties-save-btn voices-library-modal-select-btn"
-            onClick={handleCloseVoicesLibraryModal}
-            disabled={!isSelectedVoiceVisibleInActiveLibrarySection}
-          >
-            Select voice
-          </button>
-        }
       >
         <section className="voices-library-modal-content" aria-label="Available voices">
           <VoiceLibraryContent
@@ -1865,6 +1868,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             onActiveLibrarySectionChange={setActiveVoicesLibrarySection}
             onSelectVoice={setSelectedLibraryVoice}
             onPreviewVoice={handleVoicePreviewPlay}
+            primaryAction={
+              <button
+                type="button"
+                className="voices-properties-save-btn voices-library-modal-select-btn"
+                onClick={handleCloseVoicesLibraryModal}
+                disabled={!isSelectedVoiceVisibleInActiveLibrarySection}
+              >
+                Select voice
+              </button>
+            }
           />
         </section>
       </VoicesLibraryModal>

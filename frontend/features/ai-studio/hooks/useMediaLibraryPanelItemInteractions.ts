@@ -89,6 +89,10 @@ export const useMediaLibraryPanelItemInteractions = ({
           previewPosterUrl: posterPreviewUrl,
           previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
           fullUrl: transferUrl,
+          companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
+          companionArtStoragePath: isAudioFile(file.file_type)
+            ? (file.companion_art_storage_path ?? null)
+            : null,
           width: dragDimensions.width,
           height: dragDimensions.height,
         },

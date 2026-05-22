@@ -418,8 +418,26 @@ describe("VoicesPropertiesPanel", () => {
       screen.getByText("Use at least 20 characters to generate voice previews.")
     ).toBeInTheDocument();
     expect(screen.getByText("0 / 20 minimum")).toBeInTheDocument();
-    expect(within(createVoiceModal).getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save voice" })).toBeInTheDocument();
+    const createModalTopRow = createVoiceModal.querySelector(".voices-create-modal-top-row");
+    const createModalActionsRow = createVoiceModal.querySelector(".voices-create-modal-actions");
+    expect(createModalTopRow).not.toBeNull();
+    expect(createModalActionsRow).not.toBeNull();
+    expect(
+      within(createModalTopRow as HTMLElement).getByRole("tablist", {
+        name: "Voice creation method",
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(createModalTopRow as HTMLElement).getByRole("button", { name: "Save voice" })
+    ).toBeInTheDocument();
+    expect(
+      within(createModalActionsRow as HTMLElement).getByRole("button", { name: "Generate" })
+    ).toHaveTextContent("Generate");
+    expect(
+      within(createModalActionsRow as HTMLElement).queryByRole("button", {
+        name: "Generate previews",
+      })
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Voiceover output format" })

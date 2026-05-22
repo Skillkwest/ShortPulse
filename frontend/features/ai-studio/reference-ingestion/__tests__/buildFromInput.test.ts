@@ -308,6 +308,8 @@ describe("buildStudioOutputsFromReferenceInput", () => {
           url: "https://example.com/library-audio.mp3",
           fileType: "audio",
           filename: "Library Audio",
+          companionArtUrl: "https://example.com/library-audio-cover.webp",
+          companionArtStoragePath: "user/library-audio-cover.webp",
           previewStoragePath: "user/library-audio.mp3",
           fullStoragePath: "user/library-audio.mp3",
         },
@@ -321,6 +323,8 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.previewTier).toBe("full");
     expect(output?.previewUrl).toBe("https://example.com/library-audio.mp3");
     expect(output?.resultUrls).toEqual(["https://example.com/library-audio.mp3"]);
+    expect(output?.companionArtUrl).toBe("https://example.com/library-audio-cover.webp");
+    expect(output?.companionArtStoragePath).toBe("user/library-audio-cover.webp");
     expect(output?.savedMediaIds).toEqual(["media-audio-1"]);
   });
 

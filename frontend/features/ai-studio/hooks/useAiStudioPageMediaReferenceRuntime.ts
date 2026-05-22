@@ -3,7 +3,7 @@
  * Owns quick-slot drop handling, canvas reference resolution, voice-changer internal references,
  * and dual-canvas workspace wiring for the page shell.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
@@ -135,6 +135,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
           audioUrl,
           title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
+          companionArtUrl: output.companionArtUrl ?? null,
+          companionArtStoragePath: output.companionArtStoragePath ?? null,
           durationMs: output.durationMs ?? null,
           waveformPeaks: output.waveformPeaks ?? null,
           width: CANVAS_AUDIO_ITEM_WIDTH,
@@ -250,6 +252,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             title:
               (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() ||
               null,
+            companionArtUrl: payload.payload.companionArtUrl ?? null,
+            companionArtStoragePath: payload.payload.companionArtStoragePath ?? null,
             width: CANVAS_AUDIO_ITEM_WIDTH,
             height: CANVAS_AUDIO_ITEM_HEIGHT,
           };
@@ -299,6 +303,35 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     prepareCanvasMediaLibraryDrop,
     onPinTextReference: addPastedPromptReference,
   });
+
+  useEffect(() => {
+    let changed = false;
+    const nextItems = canvasSessionState.items.map((item) => {
+      if (item.kind !== "audio" || !item.outputId) return item;
+      const output = getOutputById(item.outputId);
+      if (!output || output.mode !== "audio") return item;
+      const nextCompanionArtUrl = output.companionArtUrl ?? item.companionArtUrl ?? null;
+      const nextCompanionArtStoragePath =
+        output.companionArtStoragePath ?? item.companionArtStoragePath ?? null;
+      if (
+        nextCompanionArtUrl === (item.companionArtUrl ?? null) &&
+        nextCompanionArtStoragePath === (item.companionArtStoragePath ?? null)
+      ) {
+        return item;
+      }
+      changed = true;
+      return {
+        ...item,
+        companionArtUrl: nextCompanionArtUrl,
+        companionArtStoragePath: nextCompanionArtStoragePath,
+      };
+    });
+    if (!changed) return;
+    hydrateCanvasSessionState({
+      ...canvasSessionState,
+      items: nextItems,
+    });
+  }, [canvasSessionState, getOutputById, hydrateCanvasSessionState]);
 
   return {
     canvasSessionState,

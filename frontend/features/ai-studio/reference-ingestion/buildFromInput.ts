@@ -127,6 +127,10 @@ const buildLibraryMediaOutput = ({
   const fullStoragePath = asCanonicalStoragePath(payload.fullStoragePath) ?? previewStoragePath;
   const previewPosterUrl =
     payload.fileType === "video" ? payload.previewPosterUrl?.trim() || null : null;
+  const companionArtUrl =
+    payload.fileType === "audio" ? payload.companionArtUrl?.trim() || null : null;
+  const companionArtStoragePath =
+    payload.fileType === "audio" ? asCanonicalStoragePath(payload.companionArtStoragePath) : null;
   const resultUrls = fullUrl ? [fullUrl] : undefined;
 
   return {
@@ -143,6 +147,8 @@ const buildLibraryMediaOutput = ({
     previewPosterStoragePath,
     fullStoragePath,
     previewPosterUrl,
+    companionArtUrl,
+    companionArtStoragePath,
     mediaSource: payload.source === "ai_studio" ? "generated" : "library",
     previewTier:
       payload.fileType === "video"

@@ -48,6 +48,8 @@ export type CanvasAudioItem = CanvasSceneItemBase & {
   mediaId: string | null;
   audioUrl: string;
   title: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   width: number;
@@ -79,6 +81,8 @@ export type CanvasDropResolution =
       mediaId: string | null;
       audioUrl: string;
       title?: string | null;
+      companionArtUrl?: string | null;
+      companionArtStoragePath?: string | null;
       durationMs?: number | null;
       waveformPeaks?: number[] | null;
       width?: number;

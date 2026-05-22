@@ -35,6 +35,7 @@ export function CanvasAudioCard({ item }: { item: CanvasAudioItem }) {
         <ReferenceAudioPlayer
           audioId={item.id}
           audioUrl={item.audioUrl}
+          backgroundImageUrl={item.companionArtUrl ?? null}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel={`Play ${title}`}

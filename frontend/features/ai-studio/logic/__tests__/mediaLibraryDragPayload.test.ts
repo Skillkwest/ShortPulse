@@ -97,6 +97,8 @@ describe("mediaLibraryDragPayload", () => {
         previewPosterUrl: null,
         previewPosterStoragePath: null,
         fullUrl: null,
+        companionArtUrl: null,
+        companionArtStoragePath: null,
         width: undefined,
         height: undefined,
       },
@@ -133,6 +135,8 @@ describe("mediaLibraryDragPayload", () => {
         previewPosterUrl: null,
         previewPosterStoragePath: null,
         fullUrl: null,
+        companionArtUrl: null,
+        companionArtStoragePath: null,
         width: undefined,
         height: undefined,
       },
@@ -238,5 +242,42 @@ describe("mediaLibraryDragPayload", () => {
       "text/shortpulse-media-library-url",
       "https://example.com/safe-write.png"
     );
+  });
+
+  it("serializes and parses companion-art payload fields for audio library media", () => {
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryDragPayload(transfer, {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-audio-1",
+        url: "https://cdn.test/audio.mp3",
+        fileType: "audio",
+        companionArtUrl: "https://cdn.test/audio-cover.webp",
+        companionArtStoragePath: "user-1/generations/audio/media-audio-1/companion-art/cover.webp",
+      },
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-companion-art-url",
+      "https://cdn.test/audio-cover.webp"
+    );
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: expect.objectContaining({
+        id: "media-audio-1",
+        fileType: "audio",
+        companionArtUrl: "https://cdn.test/audio-cover.webp",
+        companionArtStoragePath: "user-1/generations/audio/media-audio-1/companion-art/cover.webp",
+      }),
+    });
   });
 });

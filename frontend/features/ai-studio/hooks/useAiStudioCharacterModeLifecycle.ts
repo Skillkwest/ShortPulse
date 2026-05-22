@@ -216,7 +216,7 @@ export const useAiStudioCharacterModeLifecycle = ({
         const message =
           error instanceof Error && error.message.trim().length
             ? error.message
-            : "Failed to load Character Manager profiles.";
+            : "Failed to load AI Studio character profiles.";
         const normalized = message.toLowerCase();
         const isSessionTransitionError =
           normalized.includes("no active session") || normalized.includes("not authenticated");

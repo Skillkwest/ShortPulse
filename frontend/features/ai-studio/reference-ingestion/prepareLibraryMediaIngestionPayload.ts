@@ -188,6 +188,8 @@ export const prepareLibraryMediaIngestionPayload = async (
     payload.fileType === "video" ? asCanonicalStoragePath(payload.previewPosterStoragePath) : null;
   const initialFullStoragePath =
     asCanonicalStoragePath(payload.fullStoragePath) ?? initialPreviewStoragePath;
+  const initialCompanionArtStoragePath =
+    payload.fileType === "audio" ? asCanonicalStoragePath(payload.companionArtStoragePath) : null;
   const needsMediaIdFallback =
     !initialPreviewStoragePath ||
     !initialFullStoragePath ||
@@ -212,17 +214,20 @@ export const prepareLibraryMediaIngestionPayload = async (
     fullStoragePath: normalizedFullStoragePath,
   });
 
-  const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl] = await Promise.all([
-    signStoragePath(normalizedPreviewStoragePath),
-    signStoragePath(normalizedPreviewPosterStoragePath),
-    signStoragePath(normalizedFullStoragePath),
-  ]);
+  const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl, signedCompanionArtUrl] =
+    await Promise.all([
+      signStoragePath(normalizedPreviewStoragePath),
+      signStoragePath(normalizedPreviewPosterStoragePath),
+      signStoragePath(normalizedFullStoragePath),
+      signStoragePath(initialCompanionArtStoragePath),
+    ]);
 
   const urlRefreshCache = new Map<string, string>();
   const normalizedPayloadUrl = normalizeText(payload.url);
   const normalizedPreviewUrl = normalizeText(payload.previewUrl);
   const normalizedPreviewPosterUrl = normalizeText(payload.previewPosterUrl);
   const normalizedFullUrl = normalizeText(payload.fullUrl);
+  const normalizedCompanionArtUrl = normalizeText(payload.companionArtUrl);
 
   const fallbackPreviewUrl = signedPreviewUrl
     ? null
@@ -242,6 +247,8 @@ export const prepareLibraryMediaIngestionPayload = async (
   const resolvedFullUrl =
     signedFullUrl ?? fallbackFullUrl ?? fallbackPreviewUrl ?? signedPreviewUrl;
   const resolvedUrl = resolvedFullUrl ?? resolvedPreviewUrl ?? normalizedPayloadUrl ?? payload.url;
+  const resolvedCompanionArtUrl =
+    payload.fileType === "audio" ? (signedCompanionArtUrl ?? normalizedCompanionArtUrl) : null;
 
   return {
     ...payload,
@@ -252,5 +259,7 @@ export const prepareLibraryMediaIngestionPayload = async (
     previewUrl: resolvedPreviewUrl ?? null,
     previewPosterUrl: resolvedPreviewPosterUrl ?? null,
     fullUrl: resolvedFullUrl ?? null,
+    companionArtUrl: resolvedCompanionArtUrl,
+    companionArtStoragePath: initialCompanionArtStoragePath,
   };
 };

@@ -71,7 +71,7 @@ export const ExpertEditCharacterPickerModal = ({
       activityId="edit-character-picker-modal"
       ariaLabel="Choose character"
       title="Character Picker"
-      subtitle="Select a character profile from Character Manager."
+      subtitle="Select a character profile from AI Studio Characters."
       onClose={onClose}
     >
       {characterOptions.length > 0 ? (

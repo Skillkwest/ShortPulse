@@ -26,6 +26,10 @@ const MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_URL_TYPE =
 const MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_STORAGE_PATH_TYPE =
   "text/shortpulse-media-library-preview-poster-storage-path";
 const MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE = "text/shortpulse-media-library-full-url";
+const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_URL_TYPE =
+  "text/shortpulse-media-library-companion-art-url";
+const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE =
+  "text/shortpulse-media-library-companion-art-storage-path";
 const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
 const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height";
 const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
@@ -175,6 +179,12 @@ const readFallbackMediaLibraryDragPayload = (
           transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_STORAGE_PATH_TYPE)
         ),
         fullUrl: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE)),
+        companionArtUrl: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_COMPANION_ART_URL_TYPE)
+        ),
+        companionArtStoragePath: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE)
+        ),
         width: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE)),
         height: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE)),
       },
@@ -314,6 +324,16 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE,
       payload.payload.fullUrl
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_COMPANION_ART_URL_TYPE,
+      payload.payload.companionArtUrl
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE,
+      payload.payload.companionArtStoragePath
     );
     setTransferNumberIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE, payload.payload.width);
     setTransferNumberIfPresent(

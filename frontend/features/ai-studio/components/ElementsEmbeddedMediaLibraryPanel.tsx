@@ -431,6 +431,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
           fullStoragePath: file.storage_path,
           previewUrl: signedUrl,
           fullUrl: signedUrl,
+          companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
+          companionArtStoragePath: isAudioFile(file.file_type)
+            ? (file.companion_art_storage_path ?? null)
+            : null,
           width: dragDimensions.width,
           height: dragDimensions.height,
         },

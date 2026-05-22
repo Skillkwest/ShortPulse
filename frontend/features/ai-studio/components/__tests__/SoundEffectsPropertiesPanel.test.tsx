@@ -33,6 +33,8 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByText("Auto")).toBeInTheDocument();
     expect(screen.getByText("Inspiration")).toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect inspiration")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "cinematic boom" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "vinyl crackle" })).toBeInTheDocument();
     expect(container.querySelector(".sound-effects-properties-divider-wrap")).not.toBeNull();
     expect(container.querySelector(".sound-effects-properties-divider")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
@@ -148,14 +150,44 @@ describe("SoundEffectsPropertiesPanel", () => {
     );
   });
 
-  it("appends inspiration chips into the prompt", () => {
+  it("appends authored inspiration prompts into the prompt", () => {
     render(<SoundEffectsPropertiesPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "cinematic boom" }));
 
     expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
-      "cinematic boom"
+      "Huge cinematic boom with a deep sub impact, long trailer-style decay, and a cavernous low-end tail that feels massive and dramatic."
     );
+  });
+
+  it("appends authored inspiration prompts through the controlled draft path", () => {
+    const onPromptChange = vi.fn();
+    const nextPrompt =
+      "Base layer.\n\nWarm vinyl crackle bed with soft dusty texture, subtle needle noise, and an intimate lo-fi character without harsh distortion.";
+    const { rerender } = render(
+      <SoundEffectsPropertiesPanel prompt="Base layer." onPromptChange={onPromptChange} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "vinyl crackle" }));
+
+    expect(onPromptChange).toHaveBeenCalledWith(nextPrompt);
+
+    rerender(<SoundEffectsPropertiesPanel prompt={nextPrompt} onPromptChange={onPromptChange} />);
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(nextPrompt);
+  });
+
+  it("fails closed when an inspiration prompt would exceed the SFX prompt budget", () => {
+    render(<SoundEffectsPropertiesPanel prompt={"p".repeat(420)} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "glass shatter" }));
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "p".repeat(420)
+    );
+    expect(
+      screen.getByText("This inspiration will not fit. Shorten the prompt and try again.")
+    ).toBeInTheDocument();
   });
 
   it("keeps generate enabled while generation is running", () => {

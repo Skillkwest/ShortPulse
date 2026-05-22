@@ -29,6 +29,10 @@ export type SoundEffectsPropertiesPanelProps = {
   pricingPolicyReady?: boolean;
   prompt?: string;
 };
+type SoundEffectInspirationEntry = {
+  label: string;
+  prompt: string;
+};
 
 const soundEffectPromptPlaceholder =
   "Describe the sound effect you want to generate with detail, texture, space, and motion.";
@@ -36,28 +40,38 @@ const maxPromptCharacters = 450;
 const defaultSoundEffectsFormat: SoundEffectFormat = "mp3_44100_128";
 const minTopSpacerHeightPx = 112;
 const minBottomComposerHeightPx = 360;
-const soundEffectInspirationChips = [
-  "cinematic boom",
-  "whoosh sweep",
-  "thunder crack",
-  "vinyl crackle",
-  "crowd cheer",
-  "glass shatter",
-  "door slam",
-  "engine rev",
-  "sword clash",
-  "heartbeat pulse",
-  "rain ambience",
-  "ocean waves",
-  "footsteps gravel",
-  "keyboard typing",
-  "camera shutter",
-  "drone hum",
-  "fire crackle",
-  "radio static",
-  "phone vibration",
-  "magic sparkle",
-] as const;
+const soundEffectInspirationEntries = [
+  {
+    label: "cinematic boom",
+    prompt:
+      "Huge cinematic boom with a deep sub impact, long trailer-style decay, and a cavernous low-end tail that feels massive and dramatic.",
+  },
+  {
+    label: "whoosh sweep",
+    prompt:
+      "Fast whoosh sweep with a clean airy rise, glossy stereo motion, and a tight finish for transitions, reveals, or logo moments.",
+  },
+  {
+    label: "thunder crack",
+    prompt:
+      "Sharp thunder crack with a bright initial snap, rolling storm body, and a wide atmospheric tail that feels natural and powerful.",
+  },
+  {
+    label: "vinyl crackle",
+    prompt:
+      "Warm vinyl crackle bed with soft dusty texture, subtle needle noise, and an intimate lo-fi character without harsh distortion.",
+  },
+  {
+    label: "crowd cheer",
+    prompt:
+      "Big crowd cheer with layered audience voices, rising excitement, and a celebratory arena feel that sounds energetic and believable.",
+  },
+  {
+    label: "glass shatter",
+    prompt:
+      "Detailed glass shatter with a sharp break, scattered fragments, and a crisp sparkling debris tail that feels realistic and high impact.",
+  },
+] satisfies readonly SoundEffectInspirationEntry[];
 const inspirationScrollStepPx = 280;
 
 const formatCreditValue = (value: number): string => {
@@ -92,6 +106,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [loopEnabled, setLoopEnabled] = React.useState(false);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
+  const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
     canScrollBack: false,
     canScrollForward: false,
@@ -105,6 +120,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const setPrompt = React.useCallback(
     (action: React.SetStateAction<string>) => {
       const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      setInspirationInsertError(null);
       if (onPromptChange) {
         onPromptChange(nextPrompt);
         return;
@@ -113,6 +129,10 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     },
     [onPromptChange, prompt, resolveTextAction]
   );
+
+  React.useEffect(() => {
+    setInspirationInsertError(null);
+  }, [prompt]);
 
   const durationSeconds = null;
   const generateCost =
@@ -179,18 +199,22 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   );
 
   const appendInspirationChip = React.useCallback(
-    (chip: string) => {
-      setPrompt((currentPrompt) => {
-        const trimmedPrompt = currentPrompt.trim();
-        const nextPrompt = trimmedPrompt.length > 0 ? `${trimmedPrompt}, ${chip}` : chip;
-        return nextPrompt.slice(0, maxPromptCharacters);
-      });
+    (chip: SoundEffectInspirationEntry) => {
+      const trimmedPrompt = prompt.trim();
+      const nextPrompt = trimmedPrompt ? `${trimmedPrompt}\n\n${chip.prompt}` : chip.prompt;
+      if (nextPrompt.length > maxPromptCharacters) {
+        setInspirationInsertError(
+          "This inspiration will not fit. Shorten the prompt and try again."
+        );
+        return;
+      }
+      setPrompt(nextPrompt);
     },
-    [setPrompt]
+    [prompt, setPrompt]
   );
 
   const handleInspirationChipClick = React.useCallback(
-    (chip: string) => {
+    (chip: SoundEffectInspirationEntry) => {
       if (suppressChipClickRef.current) {
         suppressChipClickRef.current = false;
         return;
@@ -306,6 +330,11 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                     {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
                   </p>
                 </div>
+                {inspirationInsertError ? (
+                  <p className="sound-effects-properties-inspiration-error" role="alert">
+                    {inspirationInsertError}
+                  </p>
+                ) : null}
 
                 <div className="sound-effects-properties-inspiration-track">
                   <div
@@ -320,15 +349,15 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                     onPointerUp={(event) => endInspirationDrag(event.pointerId)}
                     onPointerCancel={(event) => endInspirationDrag(event.pointerId)}
                   >
-                    {soundEffectInspirationChips.map((chip) => (
+                    {soundEffectInspirationEntries.map((chip) => (
                       <button
-                        key={chip}
+                        key={chip.label}
                         type="button"
                         className="sound-effects-properties-inspiration-chip"
                         disabled={isGenerating}
                         onClick={() => handleInspirationChipClick(chip)}
                       >
-                        {chip}
+                        {chip.label}
                       </button>
                     ))}
                   </div>

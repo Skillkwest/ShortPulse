@@ -171,6 +171,13 @@ Default to minimal user-facing output.
 - Do not proactively summarize every batch.
 - For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
 - For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
+- If suggesting next steps after a normal SOP run, keep those suggestions inside Gear Ball's lane by default:
+  - SOP/process improvements
+  - self-scoring/training-loop improvements
+  - validation, batching, manifest, or leftover-discipline improvements
+- Do not suggest adjacent repo-cleanup or product-follow-up work unless:
+  - the user explicitly asked for recommendations beyond Gear Ball's lane
+  - or the cleanup is required to complete the current run safely
 - During active execution, do not narrate routine progress. Keep polling, command-by-command status, and successful intermediate steps internal.
 - Only emit an in-flight update when:
   - progress is blocked and user action may be needed

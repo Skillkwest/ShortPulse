@@ -90,7 +90,11 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 
 1. Self-audit the run.
 2. Score it out of 10.
-3. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
+3. Keep suggested next steps inside Gear Ball's lane by default:
+   - SOP/process improvements
+   - self-scoring or training-loop improvements
+   - validation/manifest/leftover-discipline improvements
+4. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
 
 ## Stop Conditions
 

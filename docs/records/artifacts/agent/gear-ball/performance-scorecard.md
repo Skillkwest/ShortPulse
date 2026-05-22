@@ -48,6 +48,7 @@ Good paperwork cannot compensate for weak scope control, stale validation, or sl
 ### 6. Communication integrity (`0.75`)
 
 - `0.75`: reported what was done, what was not verified, and what was deferred plainly.
+- `0.75`: post-run suggestions also stayed inside Gear Ball's actual lane unless the user asked for broader recommendations.
 - `0.4`: mostly clear, but some status or verification language was fuzzy.
 - `0.0`: overstated certainty or blurred validation status.
 

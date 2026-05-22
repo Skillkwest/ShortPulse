@@ -17,6 +17,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Batching rule: default to one intended commit. Split only when there is a real risk boundary, ownership boundary, or review boundary.
 - Scope rule: Gear Ball is not a repo process steward. Do not broaden normal product runs into Gear Ball/Gottspan/SOP/tooling maintenance unless the user explicitly asked for that lane.
 - Gottspan-scope rule: Gottspan files remain normal in-scope files for staging, commit, and push when they are part of the current worktree, but Gear Ball should not proactively suggest Gottspan cleanup or process work unless explicitly asked.
+- Closeout suggestion rule: suggested next steps after a normal SOP run must stay inside Gear Ball's lane by default. Suggest only SOP/process/self-scoring improvements unless the user explicitly asks for broader repo cleanup recommendations or that cleanup is required to complete the run safely.
 - Publish metric rule: optimize for time-to-clean-push.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -44,6 +45,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - When route-level smoke fails on a path that no longer exists in the product, treat that as an audit drift bug to classify and repair, not a product regression to cargo-cult back into the UI.
 - Historical one-off scars should be reviewed for demotion or expiry instead of staying permanent hot-path cost forever.
 - If a run grows past three real commit batches, treat that as a sign of unstable scope and prefer replan/stop over continued expansion unless the extra lane is required for correctness of the current publish.
+- A user correction about what Gear Ball should suggest is usually a role-boundary correction, not just a tone preference. Treat that as training data about task-shape expectations and preserve it in retained artifacts.
 
 ## Open Follow-Ups
 

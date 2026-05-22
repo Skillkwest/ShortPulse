@@ -48,6 +48,7 @@ Use the full SOPs only when the run is unusual or a step is unclear:
 
 - `npm -C frontend run gear-ball:preflight -- --files-from <manifest> --tests-from <manifest>`
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
+- `node scripts/ops/gear_ball_status_groups.mjs`
 
 ## Run Profiles
 
@@ -83,6 +84,7 @@ Self-maintenance is not a normal Gear Ball job. Treat Gear Ball process/tooling 
 - interrupt only for blockers, approvals, credential issues, branch-contract problems, or material plan changes
 - optimize for time-to-clean-push, not process richness
 - prefer deferring adjacent non-critical lanes over absorbing them into a long-running publish
+- verify optional browser-smoke or visual-QA tooling availability before attempting those rungs on a non-mandatory lane
 
 ## Stop Rule
 

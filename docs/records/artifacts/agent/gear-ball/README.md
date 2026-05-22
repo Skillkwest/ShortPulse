@@ -12,6 +12,8 @@ The agent has a durable contract, repo-visible memory, helper tooling, and a ret
 
 - `run-log.md`: append-only ledger of substantive Gear Ball runs.
 - `baseline-kpi.md`: frozen baseline for future Gear Ball quality comparisons.
+- `performance-scorecard.md`: stable scoring rubric for substantive supervised runs.
+- `performance-ledger.md`: concise scored ledger for runs that triggered retained training updates.
 - `tools.md`: helper inventory and future tooling needs.
 - `training-history.md`: current score band, failure classes, and priorities. Detailed narratives stay in `run-log.md` and `reports/`.
 - `conversation-training-dataset.jsonl`: structured conversation-derived training examples with trigger, failure mode, correct behavior, control, and metric.
@@ -39,6 +41,7 @@ Update retained surfaces when one of these is true:
 
 - append the run to `run-log.md`
 - update `training-history.md` with the self-audit, score out of 10, friction found, and capability-improvement decision
+- append the scored row to `performance-ledger.md`
 - when a recurring user correction or instruction pattern appears, encode it into `conversation-training-dataset.jsonl`
 - create a dated report when the run is large, multi-batch, operationally risky, or exposes a new recurring failure mode
 - prefer using the Gear Ball report template for substantial runs

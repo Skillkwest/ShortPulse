@@ -29,6 +29,7 @@ Substantive commit/push reports should include:
 
 ## Reports
 
+- `docs/records/artifacts/agent/gear-ball/reports/2026-05-22-production-score-loop-and-mixed-lane-hardening-run.md`: retained report for the production SOP cluster that surfaced slower mixed-lane behavior and drove the new Gear Ball score loop, grouped-worktree helper, and optional-browser-QA guardrail.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-19-production-media-library-runtime-and-gear-ball-hardening-run.md`: retained report for the production AI Studio media-library runtime hardening run, including the stale modal audit repair and the removal of `npm`/`npx` path assumptions from hooks/helpers.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-19-production-panel-layout-and-preview-contract-run.md`: retained report for the production AI Studio panel-layout, preview-transform, and KPI packet alignment run, including the shared-contract test fan-out lesson.
 - `docs/records/artifacts/agent/gear-ball/reports/2026-05-18-production-ephemeral-agent-image-transport-run.md`: retained report for the production AI Studio ephemeral agent-image transport and adaptive-media tuning run, including the clean two-manifest split between product and support lanes.

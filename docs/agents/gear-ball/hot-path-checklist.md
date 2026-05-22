@@ -15,6 +15,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - `production-targeted`
    - `production-broad`
 6. If the run is large or mixed, lock a file-backed manifest before staging.
+7. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Profiles
 
@@ -79,10 +80,11 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 1. Start from one intended commit and split only on real boundaries.
 2. Use `gear-ball:preflight` for substantial or risky batches, not every tiny docs-only edit.
 3. Run `git status --short` after every commit before staging the next batch.
-4. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
-5. Before push, rerun only the final required validation on the exact final tree.
-6. Push only the approved branch.
-7. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+4. If post-commit stash restore resurfaces unrelated files, treat them as a new lane by default and defer them unless they are required for correctness.
+5. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
+6. Before push, rerun only the final required validation on the exact final tree.
+7. Push only the approved branch.
+8. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 

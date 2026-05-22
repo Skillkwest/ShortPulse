@@ -62,6 +62,9 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
 - `node scripts/ops/gear_ball_manifest.mjs --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
   - Builds a markdown batch manifest from the staged file list or a supplied file list.
   - Useful for durable run reports and for keeping large mixed worktrees reviewable.
+- `node scripts/ops/gear_ball_status_groups.mjs`
+  - Prints the current `git status --short` grouped by top-level area, preserving staged/unstaged markers.
+  - Useful after each commit when Gear Ball needs to spot resurfaced lanes quickly instead of rereading a long flat status list.
 
 ## Recommended Order
 

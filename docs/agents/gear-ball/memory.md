@@ -29,6 +29,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
   - run `gear-ball:preflight`
 - Serialize all Git activity once the commit phase starts. Do not parallelize even read-only Git commands (`git status`, `git diff --cached`, `git show`, `git log`) alongside `git add`/`git commit`, because the mixed call pattern still produces avoidable `index.lock` churn in this repo.
 - On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
+- After a commit, if hook stash restore resurfaces unrelated unstaged files, treat them as a new lane by default instead of interrupting the active publish rhythm. Only pull them into the current ladder when they are direct correctness dependencies.
 - If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.
 - Once a final push-ready assessment has been invalidated once, bias toward finishing only correctness-critical tails and defer adjacent new lanes.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
@@ -39,6 +40,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Shared-contract changes require first-manifest fan-out. Include downstream tests for preview delivery, KPI packets, route payloads, shared runtime helpers, and cross-surface layout contracts instead of relying on the final full suite to surface them.
 - For AI Studio media-library contract changes, treat `frontend/features/ai-studio/logic/mediaLibraryErrorText.ts` and `frontend/features/media-library/logic/mediaListApi.ts` as fan-out triggers for controller, panel, and composer consumer tests.
 - Interaction-heavy admin/frontend route changes need route-level browser smoke only when the selected profile or the user explicitly requires it. If qualifying smoke is required but cannot run, classify the run as `smoke-incomplete` and score it accordingly.
+- For optional browser smoke or visual QA, confirm the browser toolchain is actually available before paying setup or reasoning cost for it. If unavailable, skip it explicitly and report the limitation plainly.
 - When route-level smoke fails on a path that no longer exists in the product, treat that as an audit drift bug to classify and repair, not a product regression to cargo-cult back into the UI.
 - Historical one-off scars should be reviewed for demotion or expiry instead of staying permanent hot-path cost forever.
 - If a run grows past three real commit batches, treat that as a sign of unstable scope and prefer replan/stop over continued expansion unless the extra lane is required for correctness of the current publish.

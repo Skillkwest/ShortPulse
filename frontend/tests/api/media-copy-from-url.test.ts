@@ -918,7 +918,16 @@ describe("POST /api/media/copy-from-url", () => {
     );
   });
 
-  it("returns an existing ai_studio video row without trying to regenerate a poster buffer", async () => {
+  it("repairs an existing ai_studio video row by hydrating missing derivatives from the fetched buffer", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-existing-video-1/poster_720.jpg"
+    );
+    upsertVideoPreviewVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-existing-video-1/preview_loop_360p.mp4"
+    );
     const supabase = createSupabaseAdmin({
       existingRow: {
         id: "media-existing-video-1",
@@ -938,12 +947,25 @@ describe("POST /api/media/copy-from-url", () => {
           media_file_id: "media-existing-video-1",
         },
       ],
+      insertError: {
+        code: "23505",
+        message: "duplicate key value violates unique constraint",
+      },
       signedUrls: {
         "user-1/generations/videos/existing.mp4": "https://signed.test/existing.mp4",
+        "user-1/variants/videos/media-existing-video-1/poster_720.jpg":
+          "https://signed.test/existing-poster.jpg",
+        "user-1/variants/videos/media-existing-video-1/preview_loop_360p.mp4":
+          "https://signed.test/existing-preview.mp4",
       },
     });
     getSupabaseAdminMock.mockReturnValue(supabase.admin);
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Buffer.from("video-buffer"), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -961,14 +983,40 @@ describe("POST /api/media/copy-from-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(upsertVideoPosterVariantFromBufferMock).not.toHaveBeenCalled();
-    expect(supabase.uploadMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(supabase.removeMock).toHaveBeenCalledTimes(1);
+    expect(upsertVideoPosterVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabaseAdmin: supabase.admin,
+        userId: "user-1",
+        mediaFileId: "media-existing-video-1",
+        videoBuffer: Buffer.from("video-buffer"),
+        videoMimeType: "video/mp4",
+      })
+    );
+    expect(upsertVideoPreviewVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabaseAdmin: supabase.admin,
+        userId: "user-1",
+        mediaFileId: "media-existing-video-1",
+        videoBuffer: Buffer.from("video-buffer"),
+        videoMimeType: "video/mp4",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         mediaFileId: "media-existing-video-1",
         fileType: "video",
+        delivery: expect.objectContaining({
+          previewStoragePath: "user-1/variants/videos/media-existing-video-1/preview_loop_360p.mp4",
+          previewPosterStoragePath: "user-1/variants/videos/media-existing-video-1/poster_720.jpg",
+          previewUrl: "https://signed.test/existing-preview.mp4",
+          previewPosterUrl: "https://signed.test/existing-poster.jpg",
+          fullStoragePath: "user-1/generations/videos/existing.mp4",
+          fullUrl: "https://signed.test/existing.mp4",
+        }),
       })
     );
   });

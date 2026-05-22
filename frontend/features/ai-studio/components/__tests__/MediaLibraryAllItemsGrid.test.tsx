@@ -426,6 +426,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     const hoverVideo = container.querySelector("video");
     expect(hoverVideo).not.toBeNull();
     expect(hoverVideo).toHaveAttribute("src", "https://cdn.example.com/clip-1.mp4");
+    expect(hoverVideo).toHaveAttribute("preload", "auto");
     expect(screen.queryByAltText("clip-1.mp4")).toBeNull();
 
     const [cardButton] = screen.getAllByRole("button");

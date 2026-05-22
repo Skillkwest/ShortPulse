@@ -442,6 +442,10 @@ describe("VoicesPropertiesPanel", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByRole("tab", { name: "Clone Voice" })).toHaveAttribute(
+      "data-voice-mode",
+      "voice-clone"
+    );
     expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(
       "aria-selected",
       "true"

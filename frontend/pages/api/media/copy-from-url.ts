@@ -722,6 +722,25 @@ const resolveVideoPreviewVariantCandidatePath = ({
   return canonicalPreviewPath;
 };
 
+const shouldFetchExistingVideoForDerivativeHydration = ({
+  fileType,
+  posterVariantPath,
+  previewVariantPath,
+  previewVariantCandidatePath,
+  posterUrlHint,
+}: {
+  fileType: MediaLibraryFileType;
+  posterVariantPath: string | null;
+  previewVariantPath: string | null;
+  previewVariantCandidatePath: string | null;
+  posterUrlHint: string | null;
+}): boolean => {
+  if (fileType !== "video") return false;
+  const needsPosterFromBuffer = !posterVariantPath && !posterUrlHint;
+  const needsPreviewFromBuffer = !previewVariantPath && !previewVariantCandidatePath;
+  return needsPosterFromBuffer || needsPreviewFromBuffer;
+};
+
 const inferVideoPreviewVariantMimeType = (storagePath: string): string | null => {
   const extension = extensionFromUrl(storagePath);
   return VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION[extension] ?? null;
@@ -1125,21 +1144,60 @@ export default async function handler(
         index,
       });
       if (existing) {
-        let durablePosterStoragePath = existing.posterVariantPath;
-        if (!existing.posterVariantPath && existing.fileType === "video") {
-          if (posterUrlHint) {
+        const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+          fileType: existing.fileType,
+          previewStoragePath: previewStoragePathHint,
+          fullStoragePath: fullStoragePathHint ?? existing.storagePath,
+        });
+        // Regression-window video rows can already exist without browse derivatives.
+        // Fall through so the fetched video buffer can repair missing poster/preview assets.
+        if (
+          shouldFetchExistingVideoForDerivativeHydration({
+            fileType: existing.fileType,
+            posterVariantPath: existing.posterVariantPath,
+            previewVariantPath: existing.previewVariantPath,
+            previewVariantCandidatePath: previewVariantPath,
+            posterUrlHint,
+          })
+        ) {
+          // continue into the fetched-buffer path below
+        } else {
+          let durablePosterStoragePath = existing.posterVariantPath;
+          if (!existing.posterVariantPath && existing.fileType === "video") {
+            if (posterUrlHint) {
+              try {
+                durablePosterStoragePath = await persistVideoPosterVariant({
+                  userId: user.id,
+                  mediaFileId: existing.id,
+                  posterSourceUrl: posterUrlHint,
+                  req,
+                });
+              } catch (error) {
+                await logVideoVariantHydrationFailure({
+                  userId: user.id,
+                  mediaFileId: existing.id,
+                  variantKind: "poster",
+                  source,
+                  generationId,
+                  outputIndex: index,
+                  error,
+                });
+              }
+            }
+          }
+          let durablePreviewVariantPath = existing.previewVariantPath;
+          if (!durablePreviewVariantPath && previewVariantPath) {
             try {
-              durablePosterStoragePath = await persistVideoPosterVariant({
+              durablePreviewVariantPath = await persistVideoPreviewVariantReference({
                 userId: user.id,
                 mediaFileId: existing.id,
-                posterSourceUrl: posterUrlHint,
-                req,
+                previewStoragePath: previewVariantPath,
               });
             } catch (error) {
               await logVideoVariantHydrationFailure({
                 userId: user.id,
                 mediaFileId: existing.id,
-                variantKind: "poster",
+                variantKind: "preview",
                 source,
                 generationId,
                 outputIndex: index,
@@ -1147,69 +1205,44 @@ export default async function handler(
               });
             }
           }
-        }
-        const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
-          fileType: existing.fileType,
-          previewStoragePath: previewStoragePathHint,
-          fullStoragePath: fullStoragePathHint ?? existing.storagePath,
-        });
-        let durablePreviewVariantPath = existing.previewVariantPath;
-        if (!durablePreviewVariantPath && previewVariantPath) {
           try {
-            durablePreviewVariantPath = await persistVideoPreviewVariantReference({
-              userId: user.id,
-              mediaFileId: existing.id,
-              previewStoragePath: previewVariantPath,
-            });
-          } catch (error) {
-            await logVideoVariantHydrationFailure({
-              userId: user.id,
-              mediaFileId: existing.id,
-              variantKind: "preview",
-              source,
+            await reconcileOwnedGenerationOutputSlot({
               generationId,
+              userId: user.id,
               outputIndex: index,
-              error,
+              mediaFileId: existing.id,
+              resultUrl: parsedUrl.toString(),
+              metadata: {
+                media_copy_route: true,
+                media_copy_existing: true,
+              },
             });
+          } catch {
+            // best-effort canonical output-slot convergence only
           }
-        }
-        try {
-          await reconcileOwnedGenerationOutputSlot({
-            generationId,
-            userId: user.id,
-            outputIndex: index,
-            mediaFileId: existing.id,
-            resultUrl: parsedUrl.toString(),
-            metadata: {
-              media_copy_route: true,
-              media_copy_existing: true,
+          const delivery = await resolveDelivery({
+            row: {
+              storage_path: existing.storagePath,
+              file_type: existing.fileType,
+              metadata: existing.metadata,
+              thumb_variant_path: existing.thumbVariantPath,
+              poster_variant_path: durablePosterStoragePath,
+              preview_variant_path: durablePreviewVariantPath,
             },
+            storagePath: existing.storagePath,
+            previewStoragePathHint,
+            fullStoragePathHint,
+            previewUrlHint,
+            fullUrlHint,
           });
-        } catch {
-          // best-effort canonical output-slot convergence only
+          return res.status(200).json({
+            mediaFileId: existing.id,
+            storagePath: existing.storagePath ?? "",
+            fileType: existing.fileType,
+            fileSize: 0,
+            delivery,
+          });
         }
-        const delivery = await resolveDelivery({
-          row: {
-            storage_path: existing.storagePath,
-            file_type: existing.fileType,
-            metadata: existing.metadata,
-            thumb_variant_path: existing.thumbVariantPath,
-            poster_variant_path: durablePosterStoragePath,
-            preview_variant_path: durablePreviewVariantPath,
-          },
-          storagePath: existing.storagePath,
-          previewStoragePathHint,
-          fullStoragePathHint,
-          previewUrlHint,
-          fullUrlHint,
-        });
-        return res.status(200).json({
-          mediaFileId: existing.id,
-          storagePath: existing.storagePath ?? "",
-          fileType: existing.fileType,
-          fileSize: 0,
-          delivery,
-        });
       }
     }
 
@@ -1334,6 +1367,33 @@ export default async function handler(
                   error,
                 });
               }
+            } else {
+              durablePosterStoragePath = await upsertVideoPosterVariantFromBuffer({
+                supabaseAdmin: getSupabaseAdmin(),
+                userId: user.id,
+                mediaFileId: existing.id,
+                videoBuffer: fetched.buffer,
+                videoMimeType: mimeType,
+                filename: friendlyName,
+                metadata: {
+                  generated_by: "media-copy-from-url",
+                  poster_source: "video_buffer",
+                  source,
+                  generation_id: generationId ?? null,
+                  output_index: index,
+                },
+              }).catch(async () => {
+                await logVideoVariantHydrationFailure({
+                  userId: user.id,
+                  mediaFileId: existing.id,
+                  variantKind: "poster",
+                  source,
+                  generationId,
+                  outputIndex: index,
+                  error: new Error("buffer_poster_generation_failed"),
+                });
+                return null;
+              });
             }
           }
           const previewVariantPath = resolveVideoPreviewVariantCandidatePath({

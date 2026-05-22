@@ -142,7 +142,7 @@ export function CreateVoiceModal({
                 type="button"
                 role="tab"
                 aria-selected={createMode === "clone"}
-                data-voice-mode="voice-changer"
+                data-voice-mode="voice-clone"
                 className={`voices-properties-mode-tab ${isCloneMode ? "is-active" : ""}`}
                 onClick={() => onCreateModeChange("clone")}
               >

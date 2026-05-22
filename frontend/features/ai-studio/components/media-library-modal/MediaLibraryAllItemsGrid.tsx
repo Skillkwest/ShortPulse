@@ -367,7 +367,8 @@ function MediaLibraryAllItemsMediaCard({
               muted
               playsInline
               loop
-              preload="metadata"
+              // Posterless browse cards need the first frame, not just container metadata.
+              preload="auto"
               onLoadedMetadata={(event) => {
                 const node = event.currentTarget;
                 if (node.videoWidth > 0 && node.videoHeight > 0) {

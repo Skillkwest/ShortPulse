@@ -71,7 +71,7 @@ describe("CharacterPanelSplitHost", () => {
     );
     expect(splitHookSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        defaultTopRatio: 0.47,
+        defaultTopRatio: 0.42,
         minTopSectionHeightPx: 208,
         minBottomSectionHeightPx: 248,
       })

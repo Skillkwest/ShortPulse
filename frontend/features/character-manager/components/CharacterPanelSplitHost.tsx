@@ -21,7 +21,7 @@ type CharacterPanelSplitHostProps = {
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
-const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.47;
+const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.42;
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 208;
 const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
 

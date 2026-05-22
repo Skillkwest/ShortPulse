@@ -93,7 +93,7 @@ export function CharacterSheetPresetTabs({
     : undefined;
   const compactTabStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "34px",
+        minHeight: "30px",
         minWidth: "68px",
         padding: "0 10px",
         fontSize: "11px",
@@ -101,9 +101,9 @@ export function CharacterSheetPresetTabs({
     : undefined;
   const compactAddButtonStyle: CSSProperties | undefined = compact
     ? {
-        width: "34px",
-        minWidth: "34px",
-        height: "34px",
+        width: "30px",
+        minWidth: "30px",
+        height: "30px",
       }
     : undefined;
 

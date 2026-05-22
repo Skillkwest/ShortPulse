@@ -57,8 +57,8 @@ const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.08fr) minmax(0, 0.92fr)",
-  columnGap: "18px",
+  gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+  columnGap: "34px",
   alignItems: "start",
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
@@ -73,14 +73,22 @@ const CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
 };
+const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
+  height: "36px",
+  minHeight: "36px",
+  padding: "6px 10px",
+};
 const CHARACTER_LOOKS_BLOCK_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
   width: "100%",
   justifySelf: "stretch",
   paddingTop: 0,
 };
+const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
+  columnGap: "34px",
+};
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
-  padding: "30px 34px 0",
+  padding: "18px 34px 0",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
 const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {
@@ -452,6 +460,7 @@ export function CharacterPanelWorkspace({
                             ref={characterNameInputRef}
                             id="character-panel-name"
                             className="character-name-input"
+                            style={CHARACTER_NAME_INPUT_INLINE_STYLE}
                             type="text"
                             value={characterName}
                             maxLength={80}
@@ -510,7 +519,10 @@ export function CharacterPanelWorkspace({
                     id="character-panel-preset-panel"
                     aria-labelledby={activeCharacterSheetPresetTabId}
                   >
-                    <div className="character-panel-preset-content-grid">
+                    <div
+                      className="character-panel-preset-content-grid"
+                      style={CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE}
+                    >
                       {isEmbeddedMediaLibraryMaximized ? null : (
                         <div className="character-panel-preset-description-column">
                           <CharacterDescriptionEditorCard

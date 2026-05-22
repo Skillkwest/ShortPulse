@@ -63,6 +63,10 @@ export function CharacterSheetPresetTabs({
   const [editingPresetId, setEditingPresetId] = useState<CharacterSheetPresetId | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [isDragScrollingTabs, setIsDragScrollingTabs] = useState(false);
+  const [hoveredPresetId, setHoveredPresetId] = useState<CharacterSheetPresetId | null>(null);
+  const [focusWithinPresetId, setFocusWithinPresetId] = useState<CharacterSheetPresetId | null>(
+    null
+  );
   const activeEditingPresetId =
     editingPresetId && editingPresetId === activePresetId ? editingPresetId : null;
 
@@ -72,12 +76,19 @@ export function CharacterSheetPresetTabs({
   const compactRailStyle: CSSProperties | undefined = compact
     ? {
         minHeight: "36px",
+        width: "100%",
+        border: "1px solid rgba(38, 43, 51, 0.95)",
+        borderRadius: "12px",
+        background: "rgba(11, 13, 18, 0.96)",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
       }
     : undefined;
   const compactRowStyle: CSSProperties | undefined = compact
     ? {
         minHeight: "36px",
-        padding: "0 6px",
+        padding: "3px 6px 2px",
+        width: "100%",
+        boxSizing: "border-box",
       }
     : undefined;
   const shrinkWrapTrackStyle: CSSProperties | undefined = shrinkWrap
@@ -91,19 +102,121 @@ export function CharacterSheetPresetTabs({
         width: "fit-content",
       }
     : undefined;
-  const compactTabStyle: CSSProperties | undefined = compact
+  const compactTrackStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "30px",
-        minWidth: "68px",
-        padding: "0 10px",
-        fontSize: "11px",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "8px",
+        width: "100%",
+        overflowX: "auto",
+        overflowY: "hidden",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
       }
     : undefined;
+  const compactTablistStyle: CSSProperties | undefined = compact
+    ? {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "8px",
+        flex: "1 1 auto",
+        minWidth: 0,
+      }
+    : undefined;
+  const compactTabShellStyle: CSSProperties | undefined = compact
+    ? {
+        position: "relative",
+        display: "flex",
+        alignItems: "flex-start",
+        paddingTop: "1px",
+      }
+    : undefined;
+  const compactTabStyle: CSSProperties | undefined = compact
+    ? {
+        minHeight: "28px",
+        height: "28px",
+        minWidth: "74px",
+        padding: "0 12px",
+        fontSize: "11px",
+        borderRadius: "9px 9px 0 0",
+        border: "1px solid rgba(38, 43, 51, 0.95)",
+        background: "rgba(31, 34, 41, 0.92)",
+        color: "rgba(223, 227, 234, 0.9)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "6px",
+        position: "relative",
+        boxSizing: "border-box",
+        lineHeight: 1,
+        boxShadow: "none",
+        transition: "none",
+      }
+    : undefined;
+  const compactTabLabelStyle: CSSProperties | undefined = compact
+    ? {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        lineHeight: 1,
+        fontSize: "11px",
+        fontWeight: 600,
+      }
+    : undefined;
+  const compactTabInputStyle: CSSProperties | undefined = compact
+    ? {
+        width: "100%",
+        height: "20px",
+        border: "1px solid rgba(47, 210, 255, 0.48)",
+        borderRadius: "6px",
+        background: "rgba(14, 17, 23, 0.98)",
+        color: "rgba(243, 247, 255, 0.96)",
+        fontSize: "11px",
+        fontWeight: 600,
+        textAlign: "center",
+        outline: "none",
+        padding: "0 6px",
+        boxSizing: "border-box",
+      }
+    : undefined;
+  const compactDeleteButtonStyle = useCallback(
+    (isVisible: boolean): CSSProperties | undefined =>
+      compact
+        ? {
+            position: "absolute",
+            top: "5px",
+            right: "6px",
+            width: "14px",
+            height: "14px",
+            borderRadius: "999px",
+            border: "1px solid rgba(61, 69, 82, 0.92)",
+            background: "rgba(23, 26, 31, 0.96)",
+            color: "rgba(181, 191, 208, 0.92)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            opacity: isVisible ? 1 : 0,
+            pointerEvents: isVisible ? "auto" : "none",
+            transition: "opacity 120ms ease",
+          }
+        : undefined,
+    [compact]
+  );
   const compactAddButtonStyle: CSSProperties | undefined = compact
     ? {
-        width: "30px",
-        minWidth: "30px",
-        height: "30px",
+        width: "28px",
+        minWidth: "28px",
+        height: "28px",
+        borderRadius: "9px 9px 0 0",
+        border: "1px solid rgba(38, 43, 51, 0.95)",
+        background: "rgba(14, 17, 23, 0.96)",
+        color: "rgba(223, 227, 234, 0.9)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        flex: "0 0 auto",
       }
     : undefined;
 
@@ -271,7 +384,7 @@ export function CharacterSheetPresetTabs({
         <div
           ref={tabTrackRef}
           className={`character-sheet-preset-tab-track${isDragScrollingTabs ? " is-drag-scrolling" : ""}`}
-          style={shrinkWrapTrackStyle}
+          style={{ ...compactTrackStyle, ...shrinkWrapTrackStyle }}
           onPointerDown={handleTabTrackPointerDown}
           onPointerMove={handleTabTrackPointerMove}
           onPointerUp={handleTabTrackPointerUp}
@@ -282,19 +395,42 @@ export function CharacterSheetPresetTabs({
             role="tablist"
             aria-label="Character looks"
             aria-orientation="horizontal"
-            style={shrinkWrapTablistStyle}
+            style={{ ...compactTablistStyle, ...shrinkWrapTablistStyle }}
           >
             {presetIds.map((presetId, index) => {
               const isActive = activePresetId === presetId;
               const label = presetLabels[presetId] ?? presetId;
               const isEditingCurrentTab = activeEditingPresetId === presetId;
               const canDeletePreset = Boolean(onDeletePreset) && presetId !== "1";
+              const showDeleteButton =
+                canDeletePreset &&
+                (hoveredPresetId === presetId || focusWithinPresetId === presetId);
               return (
                 <div
                   key={presetId}
                   className={`character-sheet-preset-tab-shell${isActive ? " is-active" : ""}${
                     canDeletePreset ? " is-deletable" : ""
                   }`}
+                  style={compactTabShellStyle}
+                  onMouseEnter={() => {
+                    setHoveredPresetId(presetId);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredPresetId((current) => (current === presetId ? null : current));
+                  }}
+                  onFocusCapture={() => {
+                    setFocusWithinPresetId(presetId);
+                  }}
+                  onBlurCapture={(event) => {
+                    const nextFocusTarget = event.relatedTarget;
+                    if (
+                      nextFocusTarget instanceof Node &&
+                      event.currentTarget.contains(nextFocusTarget)
+                    ) {
+                      return;
+                    }
+                    setFocusWithinPresetId((current) => (current === presetId ? null : current));
+                  }}
                 >
                   <button
                     ref={(node) => {
@@ -309,7 +445,26 @@ export function CharacterSheetPresetTabs({
                     className={`character-sheet-preset-tab ${isActive ? "is-active" : ""} ${
                       canDeletePreset ? "is-deletable" : ""
                     }`}
-                    style={compactTabStyle}
+                    style={
+                      compact
+                        ? {
+                            ...compactTabStyle,
+                            paddingRight: canDeletePreset ? "22px" : compactTabStyle?.padding,
+                            borderColor: isActive
+                              ? "rgba(50, 168, 230, 0.78)"
+                              : "rgba(38, 43, 51, 0.95)",
+                            background: isActive
+                              ? "rgba(27, 31, 38, 0.98)"
+                              : "rgba(31, 34, 41, 0.92)",
+                            color: isActive
+                              ? "rgba(241, 248, 255, 0.98)"
+                              : "rgba(223, 227, 234, 0.9)",
+                            boxShadow: isActive
+                              ? "inset 0 0 0 1px rgba(79, 194, 255, 0.18)"
+                              : "none",
+                          }
+                        : undefined
+                    }
                     onClick={() => {
                       if (consumeSuppressedPointerActivation()) return;
                       if (isEditingCurrentTab) return;
@@ -356,6 +511,7 @@ export function CharacterSheetPresetTabs({
                         ref={editInputRef}
                         type="text"
                         className="character-sheet-preset-tab-input"
+                        style={compactTabInputStyle}
                         value={editingLabel}
                         maxLength={24}
                         aria-label={`Rename look ${presetId}`}
@@ -382,7 +538,11 @@ export function CharacterSheetPresetTabs({
                         }}
                       />
                     ) : (
-                      <span className="character-sheet-preset-tab-label" title={label}>
+                      <span
+                        className="character-sheet-preset-tab-label"
+                        style={compactTabLabelStyle}
+                        title={label}
+                      >
                         {label}
                       </span>
                     )}
@@ -391,6 +551,7 @@ export function CharacterSheetPresetTabs({
                     <button
                       type="button"
                       className="character-sheet-preset-delete-btn"
+                      style={compactDeleteButtonStyle(showDeleteButton)}
                       aria-label={`Delete look ${presetId}`}
                       onClick={(event) => {
                         event.stopPropagation();

@@ -54,6 +54,14 @@ const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   borderRadius: "14px",
   fontSize: "0.9rem",
   flexShrink: 0,
+  border: "1px solid rgba(37, 204, 255, 0.58)",
+  background: "rgba(28, 32, 37, 0.94)",
+  color: "rgba(110, 214, 233, 0.96)",
+  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 600,
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
@@ -77,6 +85,12 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   height: "36px",
   minHeight: "36px",
   padding: "6px 10px",
+  width: "100%",
+  borderRadius: "12px",
+  border: "1px solid rgba(34, 40, 49, 0.96)",
+  background: "rgba(11, 13, 18, 0.98)",
+  color: "rgba(242, 246, 252, 0.96)",
+  boxSizing: "border-box",
 };
 const CHARACTER_LOOKS_BLOCK_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
@@ -109,12 +123,82 @@ const CHARACTER_TOP_SCROLL_INNER_STYLE: React.CSSProperties = {
 const CHARACTER_REFERENCE_GRID_INLINE_STYLE: React.CSSProperties = {
   gap: "12px",
 };
+const CHARACTER_REFERENCE_COLUMN_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  alignContent: "start",
+  gap: "10px",
+  minWidth: 0,
+};
+const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
+  marginBottom: "2px",
+};
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 118px)",
   gridTemplateRows: "auto 28px",
+  minHeight: "176px",
+  borderRadius: "16px",
+  border: "1px solid rgba(30, 34, 41, 0.96)",
+  background: "rgba(12, 14, 19, 0.96)",
+  overflow: "hidden",
+  position: "relative",
+  boxSizing: "border-box",
+};
+const CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: "8px",
+  right: "8px",
+  zIndex: 2,
+};
+const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  width: "18px",
+  height: "18px",
+  borderRadius: "999px",
+  border: "1px solid rgba(53, 60, 72, 0.94)",
+  background: "rgba(16, 19, 24, 0.96)",
+  color: "rgba(228, 234, 243, 0.92)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   aspectRatio: "4 / 4.35",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "18px 10px 14px",
+  boxSizing: "border-box",
+};
+const CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "5px",
+  textAlign: "center",
+  color: "rgba(137, 145, 161, 0.8)",
+  fontSize: "0.84rem",
+  lineHeight: 1.32,
+};
+const CHARACTER_REFERENCE_DROP_REQUIREMENT_BASE_STYLE: React.CSSProperties = {
+  fontSize: "0.82rem",
+  fontWeight: 700,
+};
+const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "28px",
+  borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
+  color: "rgba(150, 159, 176, 0.82)",
+  fontSize: "0.74rem",
+  fontWeight: 600,
+};
+const CHARACTER_MODAL_CREATE_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  border: "1px solid rgba(37, 204, 255, 0.58)",
+  background: "rgba(28, 32, 37, 0.94)",
+  color: "rgba(110, 214, 233, 0.96)",
+  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
 };
 
 const getCharacterInitials = (name: string): string => {
@@ -535,8 +619,14 @@ export function CharacterPanelWorkspace({
                         </div>
                       )}
 
-                      <div className="character-panel-preset-references-column">
-                        <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
+                      <div
+                        className="character-panel-preset-references-column"
+                        style={CHARACTER_REFERENCE_COLUMN_INLINE_STYLE}
+                      >
+                        <div
+                          className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif"
+                          style={CHARACTER_REFERENCE_TITLE_INLINE_STYLE}
+                        >
                           <p className="input-label">Character References:</p>
                         </div>
                         <div
@@ -563,7 +653,16 @@ export function CharacterPanelWorkspace({
                                 } ${isDropActive ? "is-drop-active" : ""} ${
                                   draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
                                 } ${isDropPending ? "is-drop-pending" : ""}`}
-                                style={CHARACTER_REFERENCE_CARD_INLINE_STYLE}
+                                style={{
+                                  ...CHARACTER_REFERENCE_CARD_INLINE_STYLE,
+                                  borderColor: isDropActive
+                                    ? "rgba(59, 193, 255, 0.82)"
+                                    : "rgba(30, 34, 41, 0.96)",
+                                  boxShadow: isDropActive
+                                    ? "0 0 0 1px rgba(59, 193, 255, 0.18)"
+                                    : "none",
+                                  opacity: draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,
+                                }}
                                 draggable={
                                   !pageBusy && !isDropPending && Boolean(assignedReference)
                                 }
@@ -581,11 +680,15 @@ export function CharacterPanelWorkspace({
                                 }}
                                 onDrop={handleCharacterSheetDrop(dropZone.key)}
                               >
-                                <div className="character-panel-slot-actions">
+                                <div
+                                  className="character-panel-slot-actions"
+                                  style={CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
+                                >
                                   {assignedReference ? (
                                     <button
                                       type="button"
                                       className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                                      style={CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE}
                                       aria-label={`Clear ${dropZone.label} reference`}
                                       onClick={(event) => {
                                         event.stopPropagation();
@@ -628,7 +731,10 @@ export function CharacterPanelWorkspace({
                                       unoptimized
                                     />
                                   ) : (
-                                    <span className="character-character-sheet-drop-copy tiny">
+                                    <span
+                                      className="character-character-sheet-drop-copy tiny"
+                                      style={CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE}
+                                    >
                                       <UploadSimple
                                         size={14}
                                         weight="bold"
@@ -640,6 +746,12 @@ export function CharacterPanelWorkspace({
                                         className={`character-character-sheet-drop-requirement ${
                                           isRequiredSlot ? "is-required" : "is-optional"
                                         }`}
+                                        style={{
+                                          ...CHARACTER_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
+                                          color: isRequiredSlot
+                                            ? "rgba(151, 210, 255, 0.96)"
+                                            : "rgba(167, 176, 192, 0.78)",
+                                        }}
                                       >
                                         {slotRequirementCopy}
                                       </span>
@@ -651,7 +763,10 @@ export function CharacterPanelWorkspace({
                                     </span>
                                   )}
                                 </div>
-                                <span className="character-reference-empty-hint">
+                                <span
+                                  className="character-reference-empty-hint"
+                                  style={CHARACTER_REFERENCE_HINT_INLINE_STYLE}
+                                >
                                   {dropZone.label}
                                 </span>
                               </article>
@@ -750,6 +865,7 @@ export function CharacterPanelWorkspace({
             <button
               type="button"
               className="character-panel-action-btn character-panel-action-btn--picker-accent"
+              style={CHARACTER_MODAL_CREATE_BUTTON_INLINE_STYLE}
               onClick={() => {
                 void handleCreateNewCharacter();
               }}

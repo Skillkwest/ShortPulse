@@ -140,6 +140,10 @@ export const useCreatePulsePresetPageRuntime = ({
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       setPendingCreatePulsePresetSnapshot(null);
+      if (nextPresetId && selectedToolRef.current !== "create") {
+        invalidatePulseActivation();
+        return null;
+      }
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         invalidatePulseActivation();
         if (!options?.preserveWorkflowSession) {

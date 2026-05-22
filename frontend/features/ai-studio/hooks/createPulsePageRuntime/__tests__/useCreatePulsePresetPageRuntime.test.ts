@@ -389,6 +389,32 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(handleActiveCreatePulsePresetIdChange).toHaveBeenNthCalledWith(2, null, undefined);
   });
 
+  it("blocks late Pulse ownership commits after leaving Create", () => {
+    const clearPulsePrompt = vi.fn();
+    const handleActiveCreatePulsePresetIdChange = vi.fn();
+    const { result } = renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          selectedTool: "edit",
+          clearPulsePrompt,
+          handleActiveCreatePulsePresetIdChange,
+        })
+      )
+    );
+
+    let returnValue: string | null | void = undefined;
+    act(() => {
+      returnValue = result.current.handleActiveCreatePulsePresetIdChangeForPage("multi_shot", {
+        forceNewSession: true,
+        sessionInstanceIdOverride: "pulse-session-late",
+        preserveWorkflowSession: true,
+      });
+    });
+
+    expect(returnValue).toBeNull();
+    expect(handleActiveCreatePulsePresetIdChange).not.toHaveBeenCalled();
+  });
+
   it("preserves Pulse prompt state when reselecting the current active Pulse", () => {
     const clearPulsePrompt = vi.fn();
     const handleActiveCreatePulsePresetIdChange = vi.fn();

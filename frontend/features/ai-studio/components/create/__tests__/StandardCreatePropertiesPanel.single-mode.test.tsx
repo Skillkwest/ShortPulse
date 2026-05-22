@@ -212,9 +212,9 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     );
 
     expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Character Library" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Create Character" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Character Library" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Create Character" }));
     expect(createCharacterModeControllerState.closeCharacterPicker).toHaveBeenCalledTimes(1);
     expect(onOpenCharacterLibrary).toHaveBeenCalledTimes(1);
 

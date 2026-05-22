@@ -391,7 +391,7 @@ const CharacterPickerModal = ({
               onOpenCharacterLibrary?.();
             }}
           >
-            Open Character Library
+            + Create Character
           </button>
           <button
             type="button"

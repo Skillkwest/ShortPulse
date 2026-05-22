@@ -115,6 +115,9 @@ describe("useCreatePulsePresetPageRuntime", () => {
       createdAt: "2026-05-01T00:00:00.000Z",
     });
     const resolvedCustomPreset = resolveCreatePulsePresetById("pulse_custom_video", [customPreset]);
+    if (!resolvedCustomPreset) {
+      throw new Error("Expected custom Pulse preset to resolve for test.");
+    }
     const { result } = renderHook(() =>
       useCreatePulsePresetPageRuntime(
         createParams({
@@ -133,6 +136,92 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(result.current.isPulseStartupPending).toBe(true);
     expect(result.current.displayCreatePulsePresetId).toBe("pulse_custom_video");
     expect(result.current.displayCreatePulsePresetSnapshot?.label).toBe("Custom Video Pulse");
+  });
+
+  it("invalidates a pending Pulse activation after leaving the Create tool", async () => {
+    const customPreset = createCreatePulseCustomSavedPreset({
+      presetId: "pulse_custom_video",
+      label: "Custom Video Pulse",
+      description: "Guided custom video prompt.",
+      systemInstructions: "Guide the user through a custom video prompt workflow.",
+      createdAt: "2026-05-01T00:00:00.000Z",
+    });
+    const resolvedCustomPreset = resolveCreatePulsePresetById("pulse_custom_video", [customPreset]);
+    const handleExpertCreateModeChange = vi.fn();
+    const { result, rerender } = renderHook(
+      (params: Parameters<typeof useCreatePulsePresetPageRuntime>[0]) =>
+        useCreatePulsePresetPageRuntime(params),
+      {
+        initialProps: createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          savedPresets: [customPreset],
+          handleExpertCreateModeChange,
+        }),
+      }
+    );
+
+    let activation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+    act(() => {
+      activation = result.current.beginPulseActivation(resolvedCustomPreset);
+    });
+
+    expect(result.current.isPulseStartupPending).toBe(true);
+    expect(activation?.isCurrent()).toBe(true);
+
+    rerender(
+      createParams({
+        selectedTool: "presets",
+        activeCreatePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        savedPresets: [customPreset],
+        handleExpertCreateModeChange,
+      })
+    );
+
+    await waitFor(() => {
+      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
+    });
+    expect(activation?.isCurrent()).toBe(false);
+  });
+
+  it("ignores stale activation cleanup after a newer Pulse startup begins", () => {
+    const firstPreset = resolveCreatePulsePresetById(
+      "story_builder",
+      [],
+      resolveCreatePulseBuiltInPresetDefinitions()
+    );
+    const secondPreset = resolveCreatePulsePresetById(
+      "multi_shot",
+      [],
+      resolveCreatePulseBuiltInPresetDefinitions()
+    );
+    if (!firstPreset || !secondPreset) {
+      throw new Error("Expected built-in Pulse presets to resolve for test.");
+    }
+    const { result } = renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+        })
+      )
+    );
+
+    let firstActivation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+    let secondActivation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+
+    act(() => {
+      firstActivation = result.current.beginPulseActivation(firstPreset);
+      secondActivation = result.current.beginPulseActivation(secondPreset);
+      firstActivation?.restoreSnapshot(firstPreset);
+      firstActivation?.clearPending();
+    });
+
+    expect(secondActivation?.isCurrent()).toBe(true);
+    expect(result.current.displayCreatePulsePresetId).toBe("multi_shot");
+    expect(result.current.displayCreatePulsePresetSnapshot?.presetId).toBe("multi_shot");
+    expect(result.current.isPulseStartupPending).toBe(true);
   });
 
   it("clears unknown restored Pulse runtimes that cannot resolve a preset snapshot", async () => {

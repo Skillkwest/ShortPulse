@@ -191,7 +191,11 @@ export type PulseCreateAgentRuntimeActions = {
   onGenerateArtifact: () => void;
   onPresetStart: (
     preset: CreatePulseResolvedPreset,
-    options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
+    options?: {
+      pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
+      activationIsCurrent?: () => boolean;
+    }
   ) => Promise<CreatePulsePresetStartResult>;
 };
 
@@ -238,9 +242,16 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
   ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
   handlePulsePresetStart: (
     preset: CreatePulseResolvedPreset,
-    options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
+    options?: {
+      pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
+      activationIsCurrent?: () => boolean;
+    }
   ) => Promise<CreatePulsePresetStartResult>;
-  handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
+  handlePulsePresetRestart: (
+    preset: CreatePulseResolvedPreset,
+    options?: { activationIsCurrent?: () => boolean }
+  ) => Promise<void>;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;

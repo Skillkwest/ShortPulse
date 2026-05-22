@@ -28,8 +28,10 @@ export type RestartCreatePulsePresetParams = {
     options?: {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
+      activationIsCurrent?: () => boolean;
     }
   ) => Promise<CreatePulsePresetStartResult>;
+  activationIsCurrent?: () => boolean;
 };
 
 export const restartCreatePulsePreset = async ({
@@ -43,6 +45,7 @@ export const restartCreatePulsePreset = async ({
   setUiNotice,
   trackAgentUiEvent,
   startPulsePreset,
+  activationIsCurrent,
 }: RestartCreatePulsePresetParams): Promise<void> => {
   trackAgentUiEvent("studio_agent_pulse_restart_requested", {
     preset_id: preset.presetId,
@@ -66,5 +69,6 @@ export const restartCreatePulsePreset = async ({
   }
   await startPulsePreset(preset, {
     pulseSessionInstanceId,
+    activationIsCurrent,
   });
 };

@@ -19,6 +19,7 @@ type StartPulsePresetParams = {
   options?: {
     pulseSessionInstanceId?: string | null;
     deferWorkflowSessionCommit?: boolean;
+    activationIsCurrent?: () => boolean;
   };
   agentBootstrapReady: boolean;
   agentIsSending: boolean;
@@ -66,6 +67,8 @@ export const startPulsePreset = async ({
   setSharedPrompt,
   setPromptOrigin,
 }: StartPulsePresetParams): Promise<CreatePulsePresetStartResult> => {
+  const isActivationCurrent = () => options?.activationIsCurrent?.() !== false;
+
   if (!agentBootstrapReady) {
     notifyBootstrapPending();
     trackAgentUiEvent("studio_agent_pulse_start_failed", {
@@ -155,7 +158,7 @@ export const startPulsePreset = async ({
     buildPendingPulseWorkflowSessionForStart({
       preset: pulseContext.pulse,
     });
-  if (pendingWorkflowSession && !options?.deferWorkflowSessionCommit) {
+  if (pendingWorkflowSession && !options?.deferWorkflowSessionCommit && isActivationCurrent()) {
     setPulseWorkflowSession(pendingWorkflowSession);
   }
 
@@ -174,7 +177,7 @@ export const startPulsePreset = async ({
         skipUserEcho: true,
       });
     if (discarded) {
-      if (!options?.deferWorkflowSessionCommit) {
+      if (!options?.deferWorkflowSessionCommit && isActivationCurrent()) {
         setPulseWorkflowSession(null);
       }
       trackAgentUiEvent("studio_agent_pulse_start_failed", {
@@ -189,7 +192,7 @@ export const startPulsePreset = async ({
     }
 
     if (!response) {
-      if (!options?.deferWorkflowSessionCommit) {
+      if (!options?.deferWorkflowSessionCommit && isActivationCurrent()) {
         setPulseWorkflowSession(null);
       }
       const resolvedReason =
@@ -205,6 +208,18 @@ export const startPulsePreset = async ({
           failureKind === "transport_error"
             ? errorText?.trim() || `Unable to start ${preset.label}. Please try again.`
             : `Unable to start ${preset.label}. Pulse returned no kickoff response.`,
+      };
+    }
+
+    if (!isActivationCurrent()) {
+      trackAgentUiEvent("studio_agent_pulse_start_failed", {
+        preset_id: preset.presetId,
+        reason: "activation_invalidated",
+      });
+      return {
+        status: "failed",
+        reason: "scope_discarded",
+        message: "Pulse session changed before kickoff completed. Try again.",
       };
     }
 

@@ -82,6 +82,9 @@ type CreatePanelHandleGenerate = (
 type CreatePanelHandlePulsePresetStart = NonNullable<
   PulseCreatePageAgentRuntime["handlePulsePresetStart"]
 >;
+type CreatePanelHandlePulsePresetRestart = NonNullable<
+  PulseCreatePageAgentRuntime["handlePulsePresetRestart"]
+>;
 type UseAiStudioCreatePanelRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
@@ -105,6 +108,7 @@ type UseAiStudioCreatePanelRuntimeParams = {
     >[1]
   ) => string | null | void;
   handleCreatePulsePresetStart: CreatePanelHandlePulsePresetStart;
+  handleCreatePulsePresetRestart: CreatePanelHandlePulsePresetRestart;
   handleGenerate: CreatePanelHandleGenerate;
   handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
 };
@@ -180,6 +184,7 @@ const useAiStudioCreatePanelRuntime = ({
   handleExpertCreateModeChangeForPage,
   handleActiveCreatePulsePresetIdChangeForPage,
   handleCreatePulsePresetStart,
+  handleCreatePulsePresetRestart,
   handleGenerate,
   handleOpenModelModal,
 }: UseAiStudioCreatePanelRuntimeParams): CreatePanelProps => {
@@ -321,8 +326,8 @@ const useAiStudioCreatePanelRuntime = ({
     setUiNotice,
   });
   const handlePulsePresetRestart = useMemo(
-    () => pulseCreateAgentRuntime?.handlePulsePresetRestart ?? (async () => undefined),
-    [pulseCreateAgentRuntime?.handlePulsePresetRestart]
+    () => handleCreatePulsePresetRestart ?? (async () => undefined),
+    [handleCreatePulsePresetRestart]
   );
 
   return useMemo<CreatePanelProps>(() => {
@@ -1176,12 +1181,8 @@ const AiStudioPageRuntimeBody = ({
     enabled: true,
   });
   const isMediaStorageFull = quotaSummary?.isOverLimit === true;
-  const {
-    activeCreatePulsePresetSnapshot,
-    setPendingCreatePulsePresetSnapshot,
-    setActiveCreatePulsePresetSnapshot,
-    hasActivePulseSession,
-  } = createPulsePageRuntime;
+  const { activeCreatePulsePresetSnapshot, beginPulseActivation, hasActivePulseSession } =
+    createPulsePageRuntime;
   const {
     linkedPromptReferenceIds,
     setPromptOrigin,
@@ -1192,6 +1193,7 @@ const AiStudioPageRuntimeBody = ({
   const pulseCreateAgentRuntime =
     activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
   const handlePulsePresetStart = pulseCreateAgentRuntime?.handlePulsePresetStart;
+  const handlePulsePresetRestartRuntime = pulseCreateAgentRuntime?.handlePulsePresetRestart;
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);
@@ -1222,30 +1224,52 @@ const AiStudioPageRuntimeBody = ({
         };
       }
       const previousActivePresetSnapshot = activeCreatePulsePresetSnapshot;
-      setPendingCreatePulsePresetSnapshot(preset);
-      setActiveCreatePulsePresetSnapshot(preset);
+      const activation = beginPulseActivation(preset);
       try {
         const result = await handlePulsePresetStart(preset, {
           pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
           deferWorkflowSessionCommit: options?.deferWorkflowSessionCommit ?? false,
+          activationIsCurrent: activation.isCurrent,
         });
+        if (!activation.isCurrent()) {
+          return {
+            status: "failed" as const,
+            reason: "scope_discarded" as const,
+            message: "Pulse runtime is inactive.",
+          };
+        }
         if (result.status !== "started") {
-          setActiveCreatePulsePresetSnapshot(previousActivePresetSnapshot ?? null);
+          activation.restoreSnapshot(previousActivePresetSnapshot ?? null);
         }
         return result;
       } catch (error) {
-        setActiveCreatePulsePresetSnapshot(previousActivePresetSnapshot ?? null);
+        activation.restoreSnapshot(previousActivePresetSnapshot ?? null);
         throw error;
       } finally {
-        setPendingCreatePulsePresetSnapshot(null);
+        activation.clearPending();
       }
     },
-    [
-      activeCreatePulsePresetSnapshot,
-      handlePulsePresetStart,
-      setActiveCreatePulsePresetSnapshot,
-      setPendingCreatePulsePresetSnapshot,
-    ]
+    [activeCreatePulsePresetSnapshot, beginPulseActivation, handlePulsePresetStart]
+  );
+  const handleCreatePulsePresetRestart = useCallback(
+    async (
+      preset: Parameters<NonNullable<typeof handlePulsePresetRestartRuntime>>[0]
+    ): Promise<void> => {
+      if (!handlePulsePresetRestartRuntime) return;
+      const previousActivePresetSnapshot = activeCreatePulsePresetSnapshot;
+      const activation = beginPulseActivation(preset);
+      try {
+        await handlePulsePresetRestartRuntime(preset, {
+          activationIsCurrent: activation.isCurrent,
+        });
+      } catch (error) {
+        activation.restoreSnapshot(previousActivePresetSnapshot ?? null);
+        throw error;
+      } finally {
+        activation.clearPending();
+      }
+    },
+    [activeCreatePulsePresetSnapshot, beginPulseActivation, handlePulsePresetRestartRuntime]
   );
   const {
     sessionRestoreCandidate,
@@ -1475,6 +1499,7 @@ const AiStudioPageRuntimeBody = ({
     handleActiveCreatePulsePresetIdChangeForPage:
       createPulsePageRuntime.handleActiveCreatePulsePresetIdChangeForPage,
     handleCreatePulsePresetStart,
+    handleCreatePulsePresetRestart,
     handleGenerate,
     handleOpenModelModal,
   });

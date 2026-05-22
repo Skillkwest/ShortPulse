@@ -340,7 +340,11 @@ export const usePulseCreateAgentRuntime = ({
   const handlePulsePresetStart = useCallback(
     async (
       preset: CreatePulseResolvedPreset,
-      options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
+      options?: {
+        pulseSessionInstanceId?: string | null;
+        deferWorkflowSessionCommit?: boolean;
+        activationIsCurrent?: () => boolean;
+      }
     ) => {
       const result = await runPulsePresetStartRuntime({
         runtimePolicy,
@@ -398,7 +402,10 @@ export const usePulseCreateAgentRuntime = ({
   );
 
   const handlePulsePresetRestart = useCallback(
-    async (preset: CreatePulseResolvedPreset) => {
+    async (
+      preset: CreatePulseResolvedPreset,
+      options?: { activationIsCurrent?: () => boolean }
+    ) => {
       const { restartCreatePulsePreset } =
         await import("../hooks/createAgentRuntime/pulsePresetRestart");
       await restartCreatePulsePreset({
@@ -412,6 +419,7 @@ export const usePulseCreateAgentRuntime = ({
         setUiNotice,
         trackAgentUiEvent,
         startPulsePreset: handlePulsePresetStart,
+        activationIsCurrent: options?.activationIsCurrent,
       });
     },
     [

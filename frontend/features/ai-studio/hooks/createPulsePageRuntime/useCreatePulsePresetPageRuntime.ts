@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import {
   resolveCreatePulsePresetById,
@@ -90,24 +90,38 @@ export const useCreatePulsePresetPageRuntime = ({
     useState<CreatePulseResolvedPreset | null>(null);
   const [pendingCreatePulsePresetSnapshot, setPendingCreatePulsePresetSnapshot] =
     useState<CreatePulseResolvedPreset | null>(null);
+  const pulseActivationRevisionRef = useRef(0);
+  const selectedToolRef = useRef<ToolId | null>(selectedTool);
+  const expertCreateModeRef = useRef<"standard" | "pulse">(expertCreateMode);
+
+  useEffect(() => {
+    selectedToolRef.current = selectedTool;
+    expertCreateModeRef.current = expertCreateMode;
+  }, [expertCreateMode, selectedTool]);
+
+  const invalidatePulseActivation = useCallback(() => {
+    pulseActivationRevisionRef.current += 1;
+  }, []);
 
   const clearPulseRuntimeForPage = useCallback(() => {
+    invalidatePulseActivation();
     setActiveCreatePulsePresetSnapshot(null);
     setPendingCreatePulsePresetSnapshot(null);
     clearPulseRuntime();
     clearPulsePrompt();
-  }, [clearPulsePrompt, clearPulseRuntime]);
+  }, [clearPulsePrompt, clearPulseRuntime, invalidatePulseActivation]);
 
   const handleExpertCreateModeChangeForPage = useCallback(
     (nextMode: "standard" | "pulse") => {
       if (nextMode === "standard") {
+        invalidatePulseActivation();
         setActiveCreatePulsePresetSnapshot(null);
         setPendingCreatePulsePresetSnapshot(null);
         clearPulsePrompt();
       }
       handleExpertCreateModeChange(nextMode);
     },
-    [clearPulsePrompt, handleExpertCreateModeChange]
+    [clearPulsePrompt, handleExpertCreateModeChange, invalidatePulseActivation]
   );
 
   useEffect(() => {
@@ -127,6 +141,7 @@ export const useCreatePulsePresetPageRuntime = ({
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       setPendingCreatePulsePresetSnapshot(null);
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
+        invalidatePulseActivation();
         if (!options?.preserveWorkflowSession) {
           setActiveCreatePulsePresetSnapshot(null);
         }
@@ -134,8 +149,35 @@ export const useCreatePulsePresetPageRuntime = ({
       }
       return handleActiveCreatePulsePresetIdChange(nextPresetId, options);
     },
-    [activeCreatePulsePresetId, clearPulsePrompt, handleActiveCreatePulsePresetIdChange]
+    [
+      activeCreatePulsePresetId,
+      clearPulsePrompt,
+      handleActiveCreatePulsePresetIdChange,
+      invalidatePulseActivation,
+    ]
   );
+
+  const beginPulseActivation = useCallback((preset: CreatePulseResolvedPreset) => {
+    const activationRevision = pulseActivationRevisionRef.current + 1;
+    pulseActivationRevisionRef.current = activationRevision;
+    setPendingCreatePulsePresetSnapshot(preset);
+    setActiveCreatePulsePresetSnapshot(preset);
+    return {
+      activationRevision,
+      isCurrent: () =>
+        pulseActivationRevisionRef.current === activationRevision &&
+        selectedToolRef.current === "create" &&
+        expertCreateModeRef.current === "pulse",
+      clearPending: () => {
+        if (pulseActivationRevisionRef.current !== activationRevision) return;
+        setPendingCreatePulsePresetSnapshot(null);
+      },
+      restoreSnapshot: (snapshot: CreatePulseResolvedPreset | null) => {
+        if (pulseActivationRevisionRef.current !== activationRevision) return;
+        setActiveCreatePulsePresetSnapshot(snapshot);
+      },
+    };
+  }, []);
 
   const hasActivePulseSession =
     selectedTool === "create" &&
@@ -191,8 +233,9 @@ export const useCreatePulsePresetPageRuntime = ({
     if (!builtInDefinitionsAreAuthoritative && !hasSavedPresetMatchForActivePulse) {
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Unknown restored Pulse runtimes without a resolvable preset snapshot must fail closed before they can build context.
-    clearPulseRuntimeForPage();
+    queueMicrotask(() => {
+      clearPulseRuntimeForPage();
+    });
   }, [
     activeCreatePulsePresetSnapshot,
     builtInDefinitionsAreAuthoritative,
@@ -259,6 +302,7 @@ export const useCreatePulsePresetPageRuntime = ({
     pulsePreferenceRuntime,
     setActiveCreatePulsePresetSnapshot,
     setPendingCreatePulsePresetSnapshot,
+    beginPulseActivation,
     clearPulseRuntimeForPage,
     handleExpertCreateModeChangeForPage,
     handleActiveCreatePulsePresetIdChangeForPage,

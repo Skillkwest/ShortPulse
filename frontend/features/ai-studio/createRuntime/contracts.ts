@@ -195,6 +195,7 @@ export type PulseCreateAgentRuntimeActions = {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
       activationIsCurrent?: () => boolean;
+      allowInterruptCurrentPulse?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult>;
 };
@@ -246,6 +247,7 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
       activationIsCurrent?: () => boolean;
+      allowInterruptCurrentPulse?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult>;
   handlePulsePresetRestart: (

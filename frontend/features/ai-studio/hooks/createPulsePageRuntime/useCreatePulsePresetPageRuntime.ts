@@ -91,13 +91,11 @@ export const useCreatePulsePresetPageRuntime = ({
   const [pendingCreatePulsePresetSnapshot, setPendingCreatePulsePresetSnapshot] =
     useState<CreatePulseResolvedPreset | null>(null);
   const pulseActivationRevisionRef = useRef(0);
-  const selectedToolRef = useRef<ToolId | null>(selectedTool);
   const expertCreateModeRef = useRef<"standard" | "pulse">(expertCreateMode);
 
   useEffect(() => {
-    selectedToolRef.current = selectedTool;
     expertCreateModeRef.current = expertCreateMode;
-  }, [expertCreateMode, selectedTool]);
+  }, [expertCreateMode]);
 
   const invalidatePulseActivation = useCallback(() => {
     pulseActivationRevisionRef.current += 1;
@@ -124,26 +122,9 @@ export const useCreatePulsePresetPageRuntime = ({
     [clearPulsePrompt, handleExpertCreateModeChange, invalidatePulseActivation]
   );
 
-  useEffect(() => {
-    if (selectedTool === "create") return;
-    if (expertCreateMode !== "pulse") return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      handleExpertCreateModeChangeForPage("standard");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [expertCreateMode, handleExpertCreateModeChangeForPage, selectedTool]);
-
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       setPendingCreatePulsePresetSnapshot(null);
-      if (nextPresetId && selectedToolRef.current !== "create") {
-        invalidatePulseActivation();
-        return null;
-      }
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         invalidatePulseActivation();
         if (!options?.preserveWorkflowSession) {
@@ -170,7 +151,6 @@ export const useCreatePulsePresetPageRuntime = ({
       activationRevision,
       isCurrent: () =>
         pulseActivationRevisionRef.current === activationRevision &&
-        selectedToolRef.current === "create" &&
         expertCreateModeRef.current === "pulse",
       clearPending: () => {
         if (pulseActivationRevisionRef.current !== activationRevision) return;
@@ -184,7 +164,6 @@ export const useCreatePulsePresetPageRuntime = ({
   }, []);
 
   const hasActivePulseSession =
-    selectedTool === "create" &&
     expertCreateMode === "pulse" &&
     Boolean(activeCreatePulsePresetId) &&
     Boolean(pulseSessionInstanceId);
@@ -227,7 +206,6 @@ export const useCreatePulsePresetPageRuntime = ({
   const displayCreatePulsePresetId =
     activeCreatePulsePresetId ?? pendingCreatePulsePresetSnapshot?.presetId ?? null;
   const isPulseStartupPending =
-    selectedTool === "create" &&
     expertCreateMode === "pulse" &&
     !hasActivePulseSession &&
     pendingCreatePulsePresetSnapshot != null;

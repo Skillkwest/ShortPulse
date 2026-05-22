@@ -1116,7 +1116,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedTool).toBe("media-library");
   });
 
-  it("normalizes Pulse snapshots with off-Create tools back to Create", () => {
+  it("preserves off-Create selected tools on Pulse snapshots", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         workspace: {
@@ -1128,7 +1128,7 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
-    expect(payload.workspace.selectedTool).toBe("create");
+    expect(payload.workspace.selectedTool).toBe("edit");
   });
 
   it("demotes legacy canvas selected tool during hydration", () => {

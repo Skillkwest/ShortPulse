@@ -15,6 +15,7 @@ export type PulsePresetStartHandler = (
     pulseSessionInstanceId?: string | null;
     deferWorkflowSessionCommit?: boolean;
     activationIsCurrent?: () => boolean;
+    allowInterruptCurrentPulse?: boolean;
   }
 ) => Promise<CreatePulsePresetStartResult>;
 
@@ -46,6 +47,7 @@ export type RunPulsePresetStartRuntimeParams = {
     pulseSessionInstanceId?: string | null;
     deferWorkflowSessionCommit?: boolean;
     activationIsCurrent?: () => boolean;
+    allowInterruptCurrentPulse?: boolean;
   };
   notifyBootstrapPending: () => void;
 };

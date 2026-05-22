@@ -82,6 +82,7 @@ behave like guided workflow tools.
 11. Switching from one active Pulse to another is transactional: the previous
     Pulse must remain intact, or be fully restored, until the new Pulse kickoff
     has successfully started.
+12. Leaving the Create tool for another workflow does not deactivate Pulse. Returning to Create restores the active Pulse mode and the current Pulse session state.
 
 ## User-facing behavior
 
@@ -146,7 +147,8 @@ behave like guided workflow tools.
 - Standard-owned prompt/chat state remains Standard-owned.
 - Active Pulse ownership, transcript state, draft input, workflow session state, and latest artifact/prompt state are cleared.
 - Hidden Pulse runtime must not leak into Standard surfaces.
-- Leaving the Create tool entirely must also clear active Pulse runtime and return the hidden Create-mode state to `Standard`; Pulse mode does not remain active behind non-Create panels.
+- Leaving the Create tool for another workflow keeps the active Pulse runtime alive in the background.
+- Returning to Create restores the Pulse lane exactly as it was, including the active Pulse session and current workflow/chat state.
 
 ## Pulse preset model
 

@@ -48,6 +48,7 @@ type UseCreatePulsePresetRuntimeParams = {
     options?: {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
+      allowInterruptCurrentPulse?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
@@ -144,7 +145,8 @@ export const useCreatePulsePresetRuntime = ({
         savedPresets,
         builtInDefinitions
       );
-      if (isActivationBusy) {
+      const allowInterruptCurrentPulse = Boolean(activePresetId) && activePresetId !== presetId;
+      if (isActivationBusy && !allowInterruptCurrentPulse) {
         const blockedMessage = "Wait for the current Pulse step to finish before switching.";
         showPersistentStatus(blockedMessage, "warning");
         return {
@@ -167,6 +169,7 @@ export const useCreatePulsePresetRuntime = ({
         startResult = (await onPresetStart?.(resolvedPreset, {
           pulseSessionInstanceId,
           deferWorkflowSessionCommit: true,
+          allowInterruptCurrentPulse,
         })) ?? { status: "started" };
       }
       if (startResult.status === "blocked_busy") {

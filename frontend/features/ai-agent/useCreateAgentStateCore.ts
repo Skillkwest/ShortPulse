@@ -121,6 +121,7 @@ export const useCreateAgentStateCore = ({
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
   const clientSessionKeyRef = useRef<string>();
   const sessionIdentityRef = useRef<string | null>(null);
+  const pendingSendCountRef = useRef(0);
   const canonicalPromptBySessionIdentityRef = useRef<Map<string, string | null>>(new Map());
   if (!clientSessionKeyRef.current) {
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
@@ -134,6 +135,7 @@ export const useCreateAgentStateCore = ({
       setMessages([]);
       messagesRef.current = [];
       setError(null);
+      pendingSendCountRef.current = 0;
       setIsSending(false);
     }
     sessionIdentityRef.current = identity;
@@ -244,6 +246,7 @@ export const useCreateAgentStateCore = ({
         setMessages(nextUiMessages);
         messagesRef.current = nextUiMessages;
       }
+      pendingSendCountRef.current += 1;
       setIsSending(true);
       setError(null);
 
@@ -434,7 +437,8 @@ export const useCreateAgentStateCore = ({
           failureKind: "transport_error",
         };
       } finally {
-        setIsSending(false);
+        pendingSendCountRef.current = Math.max(0, pendingSendCountRef.current - 1);
+        setIsSending(pendingSendCountRef.current > 0);
       }
     },
     [
@@ -467,6 +471,8 @@ export const useCreateAgentStateCore = ({
     canonicalPromptBySessionIdentityRef.current.delete(currentSessionIdentity);
     clientSessionKeyRef.current = randomId();
     persistSessionKey(sessionNamespace, clientSessionKeyRef.current);
+    pendingSendCountRef.current = 0;
+    setIsSending(false);
     setError(null);
   }, [conversationId, sessionNamespace]);
 

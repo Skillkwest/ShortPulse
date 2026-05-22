@@ -220,13 +220,12 @@ describe("CreatePulsePresetPanel", () => {
     );
   });
 
-  it("does not switch active ownership while pulse activation is busy", async () => {
+  it("does not start a new pulse while the initial activation is still busy", async () => {
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn();
 
     render(
       <CreatePulsePresetPanel
-        activePresetId="image"
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
         isActivationBusy
@@ -240,6 +239,45 @@ describe("CreatePulsePresetPanel", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Wait for the current Pulse step to finish before switching."
     );
+  });
+
+  it("replaces the active pulse even while the current pulse is busy", async () => {
+    const onActivePresetIdChange = vi.fn(() => "pulse-session-next");
+    const onPresetStart = vi.fn().mockResolvedValue({ status: "started" as const });
+
+    render(
+      <CreatePulsePresetPanel
+        activePresetId="image"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+        isActivationBusy
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({ presetId: "story_builder" }),
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+          allowInterruptCurrentPulse: true,
+        })
+      );
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "story_builder",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
+    });
+
+    expect(
+      screen.queryByText("Wait for the current Pulse step to finish before switching.")
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the previous active pulse when replacement kickoff fails", async () => {

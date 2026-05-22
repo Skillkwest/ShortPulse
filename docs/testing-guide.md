@@ -20,7 +20,7 @@ For default closeout selection by planning program, see:
     - Headless mode skips the `voice preview -> ref grid audio` lane when provider-backed sample playback never enters the playing state in the local browser runtime. Run with `PLAYWRIGHT_HEADLESS=false` if you need that lane exercised interactively.
   - Custom Pulse contract audit:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:pulse-custom-contract`
-    Verifies the custom Pulse transport contract and that leaving Create clears the active Pulse session before returning to Create.
+    Verifies the custom Pulse transport contract and that an active Pulse can survive leaving Create for another workflow and resume intact when the user returns.
     - Signs in to the live app, creates a custom Pulse through the real Pulse Library UI, activates it from Pulse Catalog, intercepts `/api/ai/studio-agent-pulse`, and verifies the outgoing request keeps the minimal custom-Pulse contract without guided-workflow metadata.
   - Custom Pulse contract release check:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:pulse-custom-contract:release-check`

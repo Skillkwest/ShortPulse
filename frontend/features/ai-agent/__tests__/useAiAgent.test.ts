@@ -159,6 +159,53 @@ describe("useCreateAgentStateCore", () => {
     expect(result.current.messages.some((message) => message.role === "user")).toBe(false);
   });
 
+  it("keeps isSending true until the last overlapping request settles", async () => {
+    const resolvers: Array<(value: { ok: true; data: { message: string } }) => void> = [];
+    const sendAgentTurn = vi.fn(
+      () =>
+        new Promise<{ ok: true; data: { message: string } }>((resolve) => {
+          resolvers.push(resolve);
+        })
+    );
+    const resolveTransportSuccess = vi.fn(async (response: { message: string }) => ({
+      actions: undefined,
+      workflowSession: null,
+      assistantContent: response.message,
+      assistantOutputPrompt: null,
+      canonicalPrompt: null,
+    }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "pulse",
+        sendAgentTurn,
+        resolveTransportSuccess,
+      })
+    );
+
+    await act(async () => {
+      void result.current.send({ text: "first" });
+      void result.current.send({ text: "second" });
+    });
+
+    expect(result.current.isSending).toBe(true);
+
+    await act(async () => {
+      resolvers[0]?.({ ok: true, data: { message: "First done" } });
+      await Promise.resolve();
+    });
+
+    expect(result.current.isSending).toBe(true);
+
+    await act(async () => {
+      resolvers[1]?.({ ok: true, data: { message: "Second done" } });
+      await Promise.resolve();
+    });
+
+    expect(result.current.isSending).toBe(false);
+    expect(sendAgentTurn).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps built-in pulse context in kickoff requests when instructions are empty client-side", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

@@ -9,9 +9,7 @@ export const normalizeSelectedToolForExpertCreateMode = (
   expertCreateMode: PulseToolInvariantCreateMode,
   selectedTool: ToolId | null
 ): ToolId | null => {
-  if (expertCreateMode === "pulse") {
-    return "create";
-  }
+  void expertCreateMode;
   return selectedTool;
 };
 

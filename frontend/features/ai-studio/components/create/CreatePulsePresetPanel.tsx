@@ -34,6 +34,7 @@ type CreatePulsePresetPanelProps = {
     options?: {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
+      allowInterruptCurrentPulse?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPresetIds?: readonly CreatePulsePresetId[];
@@ -219,6 +220,8 @@ export function CreatePulsePresetPanel({
   const pulseLibraryBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closePulseLibrary);
 
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
+  const isPulsePresetInteractionBlocked =
+    !isPulseActivationEnabled || (isActivationBusy && !activePresetId);
 
   return (
     <section className="create-composer-presets-panel" aria-label="Create pulse presets">
@@ -250,7 +253,7 @@ export function CreatePulsePresetPanel({
                     activePresetId === preset.presetId ? "create-composer-presets-btn--active" : ""
                   }`.trim()}
                   aria-label={`${preset.label} preset`}
-                  aria-disabled={!isPulseActivationEnabled || isActivationBusy}
+                  aria-disabled={isPulsePresetInteractionBlocked}
                   onClick={() => handlePanelPresetApply(preset.presetId)}
                   onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
                   onDragEnd={handlePresetDragEnd}

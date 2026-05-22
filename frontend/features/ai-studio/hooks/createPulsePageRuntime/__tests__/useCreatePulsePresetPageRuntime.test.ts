@@ -138,7 +138,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(result.current.displayCreatePulsePresetSnapshot?.label).toBe("Custom Video Pulse");
   });
 
-  it("invalidates a pending Pulse activation after leaving the Create tool", async () => {
+  it("keeps a pending Pulse activation current after leaving the Create tool", () => {
     const customPreset = createCreatePulseCustomSavedPreset({
       presetId: "pulse_custom_video",
       label: "Custom Video Pulse",
@@ -179,13 +179,11 @@ describe("useCreatePulsePresetPageRuntime", () => {
       })
     );
 
-    await waitFor(() => {
-      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
-    });
-    expect(activation?.isCurrent()).toBe(false);
+    expect(handleExpertCreateModeChange).not.toHaveBeenCalled();
+    expect(activation?.isCurrent()).toBe(true);
   });
 
-  it("allows a new Pulse startup after leaving Create during a pending activation", async () => {
+  it("allows a pending Pulse startup to survive leaving Create and a later Pulse restart", () => {
     const customPreset = createCreatePulseCustomSavedPreset({
       presetId: "pulse_custom_video",
       label: "Custom Video Pulse",
@@ -226,14 +224,12 @@ describe("useCreatePulsePresetPageRuntime", () => {
       })
     );
 
-    await waitFor(() => {
-      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
-    });
-    expect(firstActivation?.isCurrent()).toBe(false);
+    expect(handleExpertCreateModeChange).not.toHaveBeenCalled();
+    expect(firstActivation?.isCurrent()).toBe(true);
 
     rerender(
       createParams({
-        expertCreateMode: "standard",
+        selectedTool: "create",
         activeCreatePulsePresetId: null,
         pulseSessionInstanceId: null,
         savedPresets: [customPreset],
@@ -241,8 +237,8 @@ describe("useCreatePulsePresetPageRuntime", () => {
       })
     );
 
-    expect(result.current.isPulseStartupPending).toBe(false);
-    expect(result.current.displayCreatePulsePresetId).toBeNull();
+    expect(result.current.isPulseStartupPending).toBe(true);
+    expect(result.current.displayCreatePulsePresetId).toBe("pulse_custom_video");
 
     rerender(
       createParams({
@@ -421,7 +417,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
   });
 
-  it("fails closed when Pulse mode leaves the Create tool", async () => {
+  it("keeps Pulse mode active when the user leaves the Create tool", async () => {
     const clearPulsePrompt = vi.fn();
     const handleExpertCreateModeChange = vi.fn();
 
@@ -435,10 +431,10 @@ describe("useCreatePulsePresetPageRuntime", () => {
       )
     );
 
-    await waitFor(() => {
-      expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
-      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
-    });
+    await Promise.resolve();
+
+    expect(clearPulsePrompt).not.toHaveBeenCalled();
+    expect(handleExpertCreateModeChange).not.toHaveBeenCalled();
   });
 
   it("clears Pulse prompt state when changing or deactivating the active Pulse", () => {
@@ -467,7 +463,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(handleActiveCreatePulsePresetIdChange).toHaveBeenNthCalledWith(2, null, undefined);
   });
 
-  it("blocks late Pulse ownership commits after leaving Create", () => {
+  it("allows late Pulse ownership commits after leaving Create while Pulse mode stays active", () => {
     const clearPulsePrompt = vi.fn();
     const handleActiveCreatePulsePresetIdChange = vi.fn();
     const { result } = renderHook(() =>
@@ -489,8 +485,15 @@ describe("useCreatePulsePresetPageRuntime", () => {
       });
     });
 
-    expect(returnValue).toBeNull();
-    expect(handleActiveCreatePulsePresetIdChange).not.toHaveBeenCalled();
+    expect(returnValue).toBeUndefined();
+    expect(handleActiveCreatePulsePresetIdChange).toHaveBeenCalledWith(
+      "multi_shot",
+      expect.objectContaining({
+        forceNewSession: true,
+        sessionInstanceIdOverride: "pulse-session-late",
+        preserveWorkflowSession: true,
+      })
+    );
   });
 
   it("preserves Pulse prompt state when reselecting the current active Pulse", () => {

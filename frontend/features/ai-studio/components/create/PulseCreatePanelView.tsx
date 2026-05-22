@@ -31,6 +31,7 @@ type PulseCreatePanelViewProps = {
     options?: {
       pulseSessionInstanceId?: string | null;
       deferWorkflowSessionCommit?: boolean;
+      allowInterruptCurrentPulse?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;

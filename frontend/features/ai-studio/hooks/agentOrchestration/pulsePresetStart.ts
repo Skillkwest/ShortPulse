@@ -20,6 +20,7 @@ type StartPulsePresetParams = {
     pulseSessionInstanceId?: string | null;
     deferWorkflowSessionCommit?: boolean;
     activationIsCurrent?: () => boolean;
+    allowInterruptCurrentPulse?: boolean;
   };
   agentBootstrapReady: boolean;
   agentIsSending: boolean;
@@ -81,7 +82,7 @@ export const startPulsePreset = async ({
       message: "Preparing Pulse runtime. Try again in a moment.",
     };
   }
-  if (agentIsSending || agentUiBusyRef.current) {
+  if ((agentIsSending || agentUiBusyRef.current) && !options?.allowInterruptCurrentPulse) {
     trackAgentUiEvent("studio_agent_pulse_start_blocked_busy", {
       preset_id: preset.presetId,
     });

@@ -29,6 +29,57 @@ const buildWorkflowSession = (): AgentPulseWorkflowSession => ({
 });
 
 describe("pulsePresetStart", () => {
+  it("allows replacing an active pulse even while the current pulse is busy", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Pulse ready." },
+      actions: { applyPrompt: "Replacement prompt" },
+      workflowSession: buildWorkflowSession(),
+    }));
+    const setPulseWorkflowSession = vi.fn();
+    const setLatestAgentPrompt = vi.fn();
+    const setSharedPrompt = vi.fn();
+    const setPromptOrigin = vi.fn();
+
+    const result = await startPulsePreset({
+      preset: resolvedPreset,
+      options: {
+        allowInterruptCurrentPulse: true,
+      },
+      agentBootstrapReady: true,
+      agentIsSending: true,
+      agentSessionEnabled: true,
+      agentUiBusyRef: { current: false },
+      latestAgentPrompt: null,
+      lastAssistantMessage: null,
+      selectedTool: "create",
+      pulseSessionInstanceId: "pulse-session-current",
+      resolvePulseSessionNamespace: vi.fn(
+        () => "ai-studio:session-1::pulse:story_builder:pulse-session-replacement"
+      ),
+      getAgentContext: vi.fn(() => ({})),
+      notifyBootstrapPending: vi.fn(),
+      sendToAgent,
+      trackAgentUiEvent: vi.fn(),
+      setAgentSessionEnabled: vi.fn(),
+      setAgentAttachmentError: vi.fn(),
+      setAgentUiBusy: vi.fn(),
+      setPulseWorkflowSession,
+      setLatestAgentPrompt,
+      setSharedPrompt,
+      setPromptOrigin,
+    });
+
+    expect(result).toEqual({
+      status: "started",
+      latestAgentPrompt: "Replacement prompt",
+    });
+    expect(sendToAgent).toHaveBeenCalledTimes(1);
+    expect(setLatestAgentPrompt).toHaveBeenCalledWith("Replacement prompt");
+    expect(setSharedPrompt).not.toHaveBeenCalled();
+    expect(setPromptOrigin).not.toHaveBeenCalled();
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith(buildWorkflowSession());
+  });
+
   it("fails closed without late prompt or workflow writes when activation becomes stale", async () => {
     let activationCurrent = true;
     const setLatestAgentPrompt = vi.fn();

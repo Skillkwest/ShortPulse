@@ -35,7 +35,7 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   gap: "8px",
   alignItems: "end",
   minHeight: "36px",
-  width: "fit-content",
+  width: "100%",
   maxWidth: "100%",
   padding: "3px 6px 0",
   borderRadius: "12px 12px 0 0",
@@ -44,6 +44,7 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   background: "rgba(12, 14, 19, 0.96)",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
+  overflow: "hidden",
 };
 
 const buildTabStyle = (isActive: boolean): React.CSSProperties => ({

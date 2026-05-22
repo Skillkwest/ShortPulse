@@ -51,7 +51,7 @@
   padding: 6px 14px 14px;
   border-radius: 0;
   border: 0;
-  background: var(--create-composer-selector-bg, var(--color-bg));
+  background: transparent;
   box-shadow: none;
   overflow: hidden;
 }

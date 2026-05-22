@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { assertUserScopedMediaStoragePath } from "../../../../lib/mediaStoragePath";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
@@ -149,7 +150,7 @@ export default async function handler(
     if (error instanceof MediaAudioExtractionInputError) {
       return res.status(error.statusCode).json({
         error: "Invalid request",
-        details: error.message,
+        details: sanitizeCustomerFacingProviderText(error.message, "Invalid voice sample."),
       });
     }
 
@@ -163,7 +164,10 @@ export default async function handler(
 
     return res.status(normalizeProviderStatus(error)).json({
       error: "Unable to clone voice",
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: sanitizeCustomerFacingProviderText(
+        error instanceof Error ? error.message : null,
+        "Unable to clone voice."
+      ),
     });
   }
 }

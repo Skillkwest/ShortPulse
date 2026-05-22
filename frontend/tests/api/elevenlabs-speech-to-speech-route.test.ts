@@ -326,7 +326,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
       userId: "user-1",
       providerRequestId: "provider-voice-req-1",
-      reason: "ElevenLabs voice changer generation completed.",
+      reason: "Audio voice changer generation completed.",
       routeLabel: "elevenlabs-speech-to-speech",
       detail: {
         generation_id: "gen-audio-1",
@@ -395,7 +395,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "modelId must be eleven_multilingual_sts_v2.",
+      details: "modelId is not supported for this audio workflow.",
     });
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();

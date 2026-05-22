@@ -1,5 +1,5 @@
 /**
- * Guided modal for designing and saving new ElevenLabs voices inside AI Studio.
+ * Guided modal for designing and saving new voices inside AI Studio.
  * Keeps the voice-design UI isolated from the main voices workflow shell.
  */
 import React from "react";

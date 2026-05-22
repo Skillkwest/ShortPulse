@@ -24,7 +24,7 @@ type VoicesErrorResponse = {
 
 const buildFallbackVoicesResponse = () => ({
   source: "fallback" as const,
-  warning: "Showing the ElevenLabs default catalog until live voices are configured.",
+  warning: "Showing default voices until live voices are configured.",
   voices: buildFallbackVoiceLibraryEntries(),
 });
 

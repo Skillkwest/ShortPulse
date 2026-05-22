@@ -88,7 +88,7 @@ describe("GET /api/elevenlabs/voices", () => {
           canRemoveFromLibrary: false,
           canDeleteFromProvider: false,
           destructiveAction: "none",
-          destructiveActionDisabledReason: "Provider catalog voices can't be deleted here.",
+          destructiveActionDisabledReason: "Built-in catalog voices can't be deleted here.",
         }),
         expect.objectContaining({
           voiceId: "custom-1",
@@ -225,13 +225,16 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       source: "api" | "fallback";
-      voices: Array<{ voiceId: string; isFallback: boolean }>;
+      voices: Array<{
+        voiceId: string;
+        isFallback: boolean;
+        librarySection: string;
+        destructiveAction: string;
+      }>;
       warning: string;
     };
     expect(payload.source).toBe("fallback");
-    expect(payload.warning).toBe(
-      "Showing the ElevenLabs default catalog until live voices are configured."
-    );
+    expect(payload.warning).toBe("Showing default voices until live voices are configured.");
     expect(payload.voices.length).toBeGreaterThan(1);
     expect(payload.voices[0]?.isFallback).toBe(true);
     expect(payload.voices[0]?.librarySection).toBe("default");
@@ -255,12 +258,15 @@ describe("GET /api/elevenlabs/voices", () => {
     const payload = res.json.mock.calls[0]?.[0] as {
       source: "api" | "fallback";
       warning: string;
-      voices: Array<{ voiceId: string; isFallback: boolean }>;
+      voices: Array<{
+        voiceId: string;
+        isFallback: boolean;
+        librarySection: string;
+        destructiveAction: string;
+      }>;
     };
     expect(payload.source).toBe("fallback");
-    expect(payload.warning).toBe(
-      "Showing the ElevenLabs default catalog until live voices are configured."
-    );
+    expect(payload.warning).toBe("Showing default voices until live voices are configured.");
     expect(payload.voices[0]?.isFallback).toBe(true);
     expect(payload.voices[0]?.librarySection).toBe("default");
     expect(payload.voices[0]?.destructiveAction).toBe("none");

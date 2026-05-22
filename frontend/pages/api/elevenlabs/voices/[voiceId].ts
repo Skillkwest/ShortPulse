@@ -1,8 +1,9 @@
 /**
  * Deletes a selected AI Studio voice from saved preferences and, when applicable,
- * from the upstream ElevenLabs account.
+ * from the upstream audio service.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
@@ -96,8 +97,7 @@ export default async function handler(
       if (providerLookupFailed && !hadSavedVoice) {
         return res.status(503).json({
           error: "Unable to delete voice",
-          details:
-            "Voice deletion is temporarily unavailable while provider voice access is degraded.",
+          details: "Voice deletion is temporarily unavailable. Please try again shortly.",
         });
       }
       return res.status(404).json({
@@ -138,7 +138,7 @@ export default async function handler(
     if (!process.env.ELEVENLABS_API_KEY?.trim()) {
       return res.status(503).json({
         error: "Unable to delete voice",
-        details: "Provider voice deletion is temporarily unavailable.",
+        details: "Voice deletion is temporarily unavailable. Please try again shortly.",
       });
     }
 
@@ -181,7 +181,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to delete voice",
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: sanitizeCustomerFacingProviderText(
+        error instanceof Error ? error.message : null,
+        "Unable to delete voice."
+      ),
     });
   }
 }

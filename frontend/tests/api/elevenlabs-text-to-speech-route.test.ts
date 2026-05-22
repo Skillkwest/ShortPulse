@@ -140,7 +140,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "config.model_id must be eleven_multilingual_v2.",
+      details: "config.model_id is not supported for this audio workflow.",
     });
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
       userId: "user-1",
       providerRequestId: "provider-tts-1",
-      reason: "ElevenLabs voiceover generation completed.",
+      reason: "Audio voiceover generation completed.",
       routeLabel: "elevenlabs-text-to-speech",
       detail: {
         generation_id: "gen-tts-1",

@@ -6,6 +6,7 @@ import React from "react";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -47,7 +48,12 @@ function StudioPreviewComponent({
     previewMedia && activeOutput?.mode !== "image" && isVideoUrl(previewMedia)
   );
   const taskState = activeOutput?.taskState;
-  const errorMessage = activeOutput?.errorMessageShort ?? activeOutput?.errorMessage;
+  const errorMessage = activeOutput
+    ? sanitizeCustomerFacingProviderText(
+        activeOutput.errorMessageShort ?? activeOutput.errorMessage,
+        ""
+      )
+    : null;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (preventFileDrop(event)) {
       const files = event.dataTransfer.files;

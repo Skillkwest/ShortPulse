@@ -9,6 +9,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   isExplicitContentFailureMessage,
 } from "../../../lib/explicitContentFailure";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
@@ -390,14 +391,18 @@ export const groupVisibleFailuresForAlertStack = (
 ): GroupedFailureCard[] => {
   const grouped = new Map<string, GroupedFailureCard>();
   visibleFailures.forEach((item) => {
-    const modelLabel = item.model || item.modelId || "Generation";
+    const modelLabel = sanitizeCustomerFacingProviderText(item.model || item.modelId, "Generation");
     const isExplicitContentFailure =
       isExplicitContentFailureMessage(item.errorDetail) ||
       isExplicitContentFailureMessage(item.errorMessage) ||
       isExplicitContentFailureMessage(item.errorMessageShort);
-    const failureMessage = isExplicitContentFailure
+    const rawFailureMessage = isExplicitContentFailure
       ? EXPLICIT_CONTENT_FAILURE_DETAIL
       : (item.errorMessageShort ?? item.errorDetail ?? item.errorMessage ?? "Generation failed");
+    const failureMessage = sanitizeCustomerFacingProviderText(
+      rawFailureMessage,
+      "Generation failed"
+    );
     const groupKey = `${normalizeAlertText(modelLabel)}::${normalizeAlertText(failureMessage)}`;
     const existing = grouped.get(groupKey);
     if (existing) {
@@ -429,7 +434,10 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const suppressUiErrorForFailureStack =
     normalizedUiError.length > 0 &&
     visibleFailures.some((item) => {
-      const modelLabel = item.model || item.modelId || "Generation";
+      const modelLabel = sanitizeCustomerFacingProviderText(
+        item.model || item.modelId,
+        "Generation"
+      );
       const detail = item.errorDetail ?? item.errorMessage ?? "";
       const normalizedDetail = normalizeAlertText(detail);
       if (!normalizedDetail) return false;
@@ -439,7 +447,9 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
         normalizedUiError === `${normalizedModelLabel} failed: ${normalizedDetail}`
       );
     });
-  const effectiveUiError = suppressUiErrorForFailureStack ? null : uiError;
+  const effectiveUiError = suppressUiErrorForFailureStack
+    ? null
+    : sanitizeCustomerFacingProviderText(uiError, "");
   const groupedFailures = groupVisibleFailuresForAlertStack(visibleFailures);
 
   return (

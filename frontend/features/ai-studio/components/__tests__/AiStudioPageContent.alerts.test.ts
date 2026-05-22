@@ -27,14 +27,14 @@ describe("groupVisibleFailuresForAlertStack", () => {
     expect(grouped).toEqual([
       {
         ids: ["out-1", "out-2"],
-        modelLabel: "ElevenLabs Music",
+        modelLabel: "Music",
         failureMessage: "text must be 2000 characters or fewer.",
         count: 2,
       },
     ]);
   });
 
-  it("keeps distinct provider messages in separate groups", () => {
+  it("keeps distinct service messages in separate groups", () => {
     const grouped = groupVisibleFailuresForAlertStack([
       {
         id: "out-1",

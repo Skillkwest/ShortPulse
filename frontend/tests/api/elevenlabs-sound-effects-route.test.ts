@@ -144,7 +144,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "modelId must be eleven_text_to_sound_v2.",
+      details: "modelId is not supported for this audio workflow.",
     });
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
       userId: "user-1",
       providerRequestId: "provider-sfx-1",
-      reason: "ElevenLabs sound effect generation completed.",
+      reason: "Audio sound effect generation completed.",
       routeLabel: "elevenlabs-sound-effects",
       detail: {
         generation_id: "gen-sfx-1",

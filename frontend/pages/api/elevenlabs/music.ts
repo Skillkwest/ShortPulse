@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
@@ -121,7 +122,7 @@ export default async function handler(
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
     return res.status(503).json({
       error: "Service unavailable",
-      details: "ELEVENLABS_API_KEY is not configured.",
+      details: "Audio generation is temporarily unavailable.",
     });
   }
 
@@ -200,7 +201,7 @@ export default async function handler(
     if (!ALLOWED_MODEL_IDS.has(modelId)) {
       return res.status(400).json({
         error: "Invalid request",
-        details: `modelId must be ${DEFAULT_MUSIC_MODEL_ID}.`,
+        details: "modelId is not supported for this audio workflow.",
       });
     }
 
@@ -294,7 +295,7 @@ export default async function handler(
     const captureResult = await captureSucceededGenerationByProviderRequest({
       userId: charge.userId,
       providerRequestId,
-      reason: "ElevenLabs music generation completed.",
+      reason: "Audio music generation completed.",
       routeLabel: "elevenlabs-music",
       detail: {
         generation_id: persisted.generationId,
@@ -335,7 +336,7 @@ export default async function handler(
     });
   } catch (error) {
     if (charge) {
-      await charge.refund("Auto-refund: ElevenLabs music generation failed.", {
+      await charge.refund("Auto-refund: audio music generation failed.", {
         source_mode: "music",
       });
     }
@@ -349,7 +350,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to generate music",
-      details: toErrorMessage(error, "Unknown error"),
+      details: sanitizeCustomerFacingProviderText(
+        toErrorMessage(error, "Unknown error"),
+        "Unable to generate music."
+      ),
     });
   }
 }

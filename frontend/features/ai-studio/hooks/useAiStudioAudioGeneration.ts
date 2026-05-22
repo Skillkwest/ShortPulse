@@ -1,6 +1,6 @@
 /**
  * AI Studio audio generation hook.
- * Owns page-scoped ElevenLabs submit flows so the AI Studio page stays focused on orchestration.
+ * Owns page-scoped audio submit flows so the AI Studio page stays focused on orchestration.
  */
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import {
@@ -15,6 +15,7 @@ import type { SoundEffectsGenerateRequest } from "../components/SoundEffectsProp
 import type { VoicesGenerateRequest } from "../components/VoicesPropertiesPanel";
 import type { StudioMode, StudioOutput, StudioOutputSaveState, ToolId } from "../types";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
 
 type VoicesGenerateSuccessResponse = {
@@ -141,13 +142,12 @@ const SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
 
 const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover"
-    ? (resolveModelLabelById(VOICEOVER_MODEL_ID) ?? "ElevenLabs Voiceover")
-    : (resolveModelLabelById(VOICE_CHANGER_MODEL_ID) ?? "ElevenLabs Voice Changer");
+    ? (resolveModelLabelById(VOICEOVER_MODEL_ID) ?? "Voiceover")
+    : (resolveModelLabelById(VOICE_CHANGER_MODEL_ID) ?? "Voice Changer");
 
-const buildMusicOutputModelLabel = (): string =>
-  resolveModelLabelById(MUSIC_MODEL_ID) ?? "ElevenLabs Music";
+const buildMusicOutputModelLabel = (): string => resolveModelLabelById(MUSIC_MODEL_ID) ?? "Music";
 const buildSoundEffectsOutputModelLabel = (): string =>
-  resolveModelLabelById(SOUND_EFFECTS_MODEL_ID) ?? "ElevenLabs Sound Effects";
+  resolveModelLabelById(SOUND_EFFECTS_MODEL_ID) ?? "Sound Effects";
 
 const resolveAudioGenerateErrorMessage = ({
   response,
@@ -156,10 +156,12 @@ const resolveAudioGenerateErrorMessage = ({
   response: { status: number; headers?: Pick<Headers, "get"> | null };
   payload: AudioGenerateErrorResponse | null;
 }): string =>
-  readGenerationAdmissionErrorMessage(response, payload) ||
-  payload?.details?.trim() ||
-  payload?.error?.trim() ||
-  "Audio generation failed.";
+  sanitizeCustomerFacingProviderText(
+    readGenerationAdmissionErrorMessage(response, payload) ||
+      payload?.details?.trim() ||
+      payload?.error?.trim(),
+    "Audio generation failed."
+  );
 
 const buildAudioShortpulseContext = ({
   selectedTool,
@@ -222,7 +224,7 @@ const buildVoiceChangerRemuxedVideoOutput = ({
     mediaSource: "generated",
     localObjectUrl: null,
     saveState: resolveGeneratedOutputSaveState(payload),
-    saveError: payload.saveError ?? null,
+    saveError: sanitizeCustomerFacingProviderText(payload.saveError, "") || null,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
@@ -273,7 +275,7 @@ const applyAudioOutputToPlaceholder = ({
     mediaSource: "generated",
     localObjectUrl: null,
     saveState: resolveGeneratedOutputSaveState(payload),
-    saveError: payload.saveError ?? null,
+    saveError: sanitizeCustomerFacingProviderText(payload.saveError, "") || null,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
@@ -409,7 +411,11 @@ export const useAiStudioAudioGeneration = ({
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
-          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          notifyGenerationFailure(
+            optimisticOutputId,
+            message,
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+          );
           setUiError(message);
           return;
         }
@@ -433,7 +439,10 @@ export const useAiStudioAudioGeneration = ({
           ]);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Voice generation failed.";
+        const message = sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Voice generation failed."
+        );
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
       } finally {
@@ -498,7 +507,11 @@ export const useAiStudioAudioGeneration = ({
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
-          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          notifyGenerationFailure(
+            optimisticOutputId,
+            message,
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+          );
           setUiError(message);
           return false;
         }
@@ -512,7 +525,10 @@ export const useAiStudioAudioGeneration = ({
         });
         return true;
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Music generation failed.";
+        const message = sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Music generation failed."
+        );
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
         return false;
@@ -577,7 +593,11 @@ export const useAiStudioAudioGeneration = ({
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
-          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          notifyGenerationFailure(
+            optimisticOutputId,
+            message,
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+          );
           setUiError(message);
           return;
         }
@@ -590,7 +610,10 @@ export const useAiStudioAudioGeneration = ({
           payload: payload.output,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Sound effect generation failed.";
+        const message = sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Sound effect generation failed."
+        );
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
       } finally {

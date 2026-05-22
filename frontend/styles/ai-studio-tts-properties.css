@@ -1,6 +1,6 @@
 /**
  * AI Studio text-to-speech properties panel.
- * Scopes the ElevenLabs-inspired TTS layout while preserving the ShortPulse palette.
+ * Scopes the TTS layout while preserving the ShortPulse palette.
  */
 .tts-properties-panel {
   --tts-accent: #69dccb;

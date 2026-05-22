@@ -6,6 +6,7 @@ import React from "react";
 import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import {
   resolveRequiredAudioVoiceChangerModelId,
   resolveRequiredAudioVoiceDesignModelId,
@@ -1028,9 +1029,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           return [
             {
               id: voiceId,
-              name,
+              name: sanitizeCustomerFacingProviderText(name, "Voice"),
               previewUrl: voice.previewUrl?.trim() || null,
-              description: voice.description?.trim() || null,
+              description: sanitizeCustomerFacingProviderText(voice.description, "") || null,
               isFallback: Boolean(voice.isFallback),
               librarySection: resolvedLibrarySection,
               provider: "elevenlabs" as const,
@@ -1042,8 +1043,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               canDeleteFromProvider,
               destructiveAction,
               destructiveActionLabel,
-              destructiveActionDescription: voice.destructiveActionDescription?.trim() || null,
-              destructiveActionDisabledReason,
+              destructiveActionDescription:
+                sanitizeCustomerFacingProviderText(voice.destructiveActionDescription, "") || null,
+              destructiveActionDisabledReason:
+                sanitizeCustomerFacingProviderText(destructiveActionDisabledReason, "") || null,
             },
           ];
         });
@@ -1051,11 +1054,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           if (nextVoices.length > 0) {
             replaceVoices(nextVoices);
           }
-          setVoicesLoadNotice(payload?.warning?.trim() || null);
+          setVoicesLoadNotice(sanitizeCustomerFacingProviderText(payload?.warning, "") || null);
         }
       } catch (error) {
         if (!cancelled) {
-          setVoicesLoadError(error instanceof Error ? error.message : "Unable to load voices.");
+          setVoicesLoadError(
+            sanitizeCustomerFacingProviderText(
+              error instanceof Error ? error.message : null,
+              "Unable to load voices."
+            )
+          );
         }
       } finally {
         if (!cancelled) {
@@ -1113,7 +1121,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       });
       const payload = (await response.json().catch(() => null)) as VoiceDesignResponse | null;
       if (!response.ok) {
-        throw new Error(payload?.details || payload?.error || "Unable to generate voice previews.");
+        throw new Error(
+          sanitizeCustomerFacingProviderText(
+            payload?.details || payload?.error,
+            "Unable to generate voice previews."
+          )
+        );
       }
 
       const nextPreviews = (payload?.previews ?? []).map((preview) => ({
@@ -1122,7 +1135,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       }));
 
       if (nextPreviews.length === 0) {
-        throw new Error("ElevenLabs did not return any voice previews.");
+        throw new Error("No voice previews were returned.");
       }
 
       setVoiceDesignPreviews(nextPreviews);
@@ -1133,7 +1146,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       setVoiceDesignPreviewText(null);
       setSelectedVoiceDesignPreviewId(null);
       setVoiceDesignError(
-        error instanceof Error ? error.message : "Unable to generate voice previews."
+        sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Unable to generate voice previews."
+        )
       );
     } finally {
       setIsDesigningVoice(false);
@@ -1446,13 +1462,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       });
       const payload = (await response.json().catch(() => null)) as CreatedVoiceResponse | null;
       if (!response.ok) {
-        throw new Error(payload?.details || payload?.error || "Unable to create voice.");
+        throw new Error(
+          sanitizeCustomerFacingProviderText(
+            payload?.details || payload?.error,
+            "Unable to create voice."
+          )
+        );
       }
 
       const createdVoiceId = payload?.voice?.voiceId?.trim() ?? "";
       const createdVoiceName = payload?.voice?.name?.trim() ?? "";
       if (!createdVoiceId || !createdVoiceName) {
-        throw new Error("ElevenLabs returned an invalid created voice.");
+        throw new Error("The created voice response was invalid.");
       }
 
       upsertSharedVoice({
@@ -1468,7 +1489,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
     } catch (error) {
-      setSaveVoiceError(error instanceof Error ? error.message : "Unable to create voice.");
+      setSaveVoiceError(
+        sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Unable to create voice."
+        )
+      );
     } finally {
       setIsSavingDesignedVoice(false);
     }
@@ -1513,13 +1539,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       });
       const payload = (await response.json().catch(() => null)) as CreatedVoiceResponse | null;
       if (!response.ok) {
-        throw new Error(payload?.details || payload?.error || "Unable to clone voice.");
+        throw new Error(
+          sanitizeCustomerFacingProviderText(
+            payload?.details || payload?.error,
+            "Unable to clone voice."
+          )
+        );
       }
 
       const clonedVoiceId = payload?.voice?.voiceId?.trim() ?? "";
       const clonedVoiceName = payload?.voice?.name?.trim() ?? "";
       if (!clonedVoiceId || !clonedVoiceName) {
-        throw new Error("ElevenLabs returned an invalid cloned voice.");
+        throw new Error("The cloned voice response was invalid.");
       }
 
       upsertSharedVoice({
@@ -1535,7 +1566,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
     } catch (error) {
-      setCloneVoiceError(error instanceof Error ? error.message : "Unable to clone voice.");
+      setCloneVoiceError(
+        sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Unable to clone voice."
+        )
+      );
     } finally {
       setIsCloningVoice(false);
     }
@@ -1589,7 +1625,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       );
       const payload = (await response.json().catch(() => null)) as DeleteVoiceResponse | null;
       if (!response.ok) {
-        throw new Error(payload?.details || payload?.error || "Unable to delete voice.");
+        throw new Error(
+          sanitizeCustomerFacingProviderText(
+            payload?.details || payload?.error,
+            "Unable to delete voice."
+          )
+        );
       }
 
       if (activePreviewVoiceId === pendingDeleteVoice.id) {
@@ -1599,7 +1640,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       replaceVoices(libraryVoices.filter((voice) => voice.id !== pendingDeleteVoice.id));
       setPendingDeleteVoice(null);
     } catch (error) {
-      setVoicesLoadError(error instanceof Error ? error.message : "Unable to delete voice.");
+      setVoicesLoadError(
+        sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Unable to delete voice."
+        )
+      );
     } finally {
       setIsDeletingSelectedVoice(false);
     }
@@ -1900,7 +1946,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 </strong>{" "}
                 {pendingDeleteVoice.destructiveAction === "remove"
                   ? "will be removed from your ShortPulse saved voices."
-                  : "will be deleted from your ElevenLabs account and removed from ShortPulse."}
+                  : "will be deleted from your ShortPulse voice library and removed from saved voices."}
               </p>
             }
             confirmLabel={pendingDeleteVoice.destructiveAction === "remove" ? "Remove" : "Delete"}

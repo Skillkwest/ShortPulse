@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { resolveRequiredAudioVoiceDesignModelId } from "../../../../lib/model-runtime/modelCatalog";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { designElevenLabsVoice } from "../../../../lib/server/elevenlabs";
@@ -94,7 +95,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to generate voice previews",
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: sanitizeCustomerFacingProviderText(
+        error instanceof Error ? error.message : null,
+        "Unable to generate voice previews."
+      ),
     });
   }
 }

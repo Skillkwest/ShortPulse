@@ -1946,12 +1946,12 @@ describe("VoicesPropertiesPanel", () => {
     expect(generateButton).toBeEnabled();
   });
 
-  it("keeps generation disabled when only fallback ElevenLabs default voices are available", async () => {
+  it("keeps generation disabled when only fallback default voices are available", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
         source: "fallback",
-        warning: "Showing the ElevenLabs default catalog until live voices are configured.",
+        warning: "Showing default voices until live voices are configured.",
         voices: [
           {
             voiceId: "elevenlabs-default:darian",
@@ -1973,19 +1973,19 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
-      target: { value: "Fallback voices should not submit to ElevenLabs." },
+      target: { value: "Fallback voices should not submit." },
     });
 
     await openVoicesLibraryModal();
 
     expect(
-      screen.getByText("Showing the ElevenLabs default catalog until live voices are configured.")
+      screen.getByText("Showing default voices until live voices are configured.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
-  it("submits generation with the live ElevenLabs default voice ids when they load", async () => {
+  it("submits generation with the live default voice ids when they load", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({

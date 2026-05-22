@@ -16,6 +16,7 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
+import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -639,12 +640,13 @@ function DetailModalContent({
   const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
-    const modelLabelFromId = output?.modelId ? resolveModelLabel(output.modelId) : null;
-    if (hasCharacterContext) {
-      return modelLabelFromId ?? output?.model ?? output?.modelId ?? null;
-    }
-    return output?.model ?? modelLabelFromId ?? output?.modelId ?? null;
-  }, [hasCharacterContext, isUploadedReference, output?.model, output?.modelId]);
+    return resolveCustomerFacingModelLabel({
+      model: output?.model,
+      modelId: output?.modelId,
+      resolveModelLabel,
+      fallback: "",
+    });
+  }, [isUploadedReference, output?.model, output?.modelId]);
   const metaPillItems = useMemo(() => {
     if (isActiveVoiceChangerSourceVideo) {
       return displayAspect ? ["voice changer", displayAspect] : ["voice changer"];

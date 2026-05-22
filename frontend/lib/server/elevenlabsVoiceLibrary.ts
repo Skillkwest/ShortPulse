@@ -1,4 +1,5 @@
 import { ELEVENLABS_DEFAULT_VOICES } from "../model-runtime/elevenLabsDefaultVoices";
+import { sanitizeCustomerFacingProviderText } from "../customerFacingProviderText";
 import type { SavedAiStudioVoice, SavedAiStudioVoiceOriginKind } from "./api/userSavedVoices";
 import type { ElevenLabsVoice } from "./elevenlabs";
 import { isExcludedElevenLabsVoiceId } from "./elevenlabsVoiceExclusions";
@@ -32,6 +33,11 @@ export type ResolvedVoiceLibraryEntry = {
 };
 
 const normalizeLookupKey = (voiceId: string): string => voiceId.trim().toLowerCase();
+
+const sanitizeOptionalVoiceText = (value: string | null | undefined): string | null => {
+  const sanitized = sanitizeCustomerFacingProviderText(value, "");
+  return sanitized || null;
+};
 
 const shouldExcludeResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): boolean =>
   isExcludedElevenLabsVoiceId(entry.voiceId);
@@ -113,7 +119,7 @@ const buildDestructiveActionState = ({
       destructiveAction: "delete",
       destructiveActionLabel: "Delete",
       destructiveActionDescription:
-        "Delete this voice from your ElevenLabs account and remove it from ShortPulse.",
+        "Delete this voice from your ShortPulse voice library and remove it from saved voices.",
       destructiveActionDisabledReason: null,
     };
   }
@@ -138,7 +144,7 @@ const buildDestructiveActionState = ({
       destructiveAction: "none",
       destructiveActionLabel: null,
       destructiveActionDescription: null,
-      destructiveActionDisabledReason: "Provider catalog voices can't be deleted here.",
+      destructiveActionDisabledReason: "Built-in catalog voices can't be deleted here.",
     };
   }
   return {
@@ -171,9 +177,9 @@ export const resolveVoiceLibraryEntry = ({
 
   return {
     voiceId: baseVoice.voiceId,
-    name: baseVoice.name,
+    name: sanitizeCustomerFacingProviderText(baseVoice.name, "Voice"),
     previewUrl: baseVoice.previewUrl ?? null,
-    description: baseVoice.description ?? null,
+    description: sanitizeOptionalVoiceText(baseVoice.description),
     isFallback: Boolean(providerVoice?.isFallback ?? baseVoice.isFallback),
     librarySection,
     provider: "elevenlabs",
@@ -226,9 +232,9 @@ export const buildFallbackVoiceLibraryEntries = (): ResolvedVoiceLibraryEntry[] 
     (voice) => !isExcludedElevenLabsVoiceId(voice.fallbackVoiceId)
   ).map((voice) => ({
     voiceId: voice.fallbackVoiceId,
-    name: voice.name,
+    name: sanitizeCustomerFacingProviderText(voice.name, "Voice"),
     previewUrl: null,
-    description: voice.description,
+    description: sanitizeOptionalVoiceText(voice.description),
     isFallback: true,
     librarySection: "default",
     provider: "elevenlabs",

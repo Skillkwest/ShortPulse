@@ -114,7 +114,7 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
       error: "Voice is protected",
-      details: "Provider catalog voices can't be deleted here.",
+      details: "Built-in catalog voices can't be deleted here.",
     });
   });
 

@@ -17,6 +17,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../lib/explicitContentFailure";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
@@ -32,19 +33,16 @@ const GENERIC_FAILURE_MESSAGES = new Set([
 const normalizeFailureCopy = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
-const replaceProviderMentions = (value: string): string =>
-  value.replace(/fal(\.ai)?/gi, "the provider");
-
 const resolveReferenceFailureSubtitle = (item: StudioOutput): string | null => {
   const shortMessage = item.errorMessageShort?.trim() ?? "";
   const detail = item.errorDetail?.trim() ?? "";
   const message = item.errorMessage?.trim() ?? "";
   if (shortMessage && !GENERIC_FAILURE_MESSAGES.has(normalizeFailureCopy(shortMessage))) {
-    return replaceProviderMentions(shortMessage);
+    return sanitizeCustomerFacingProviderText(shortMessage);
   }
-  if (detail) return replaceProviderMentions(detail);
-  if (shortMessage) return replaceProviderMentions(shortMessage);
-  if (message) return replaceProviderMentions(message);
+  if (detail) return sanitizeCustomerFacingProviderText(detail);
+  if (shortMessage) return sanitizeCustomerFacingProviderText(shortMessage);
+  if (message) return sanitizeCustomerFacingProviderText(message);
   return null;
 };
 
@@ -450,7 +448,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             !
           </div>
           {shouldShowNsfwPill ? (
-            <span className="reference-fail-pill" aria-label="NSFW provider block">
+            <span className="reference-fail-pill" aria-label="NSFW content block">
               NSFW
             </span>
           ) : null}

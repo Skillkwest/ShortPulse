@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
@@ -130,7 +131,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to create voice",
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: sanitizeCustomerFacingProviderText(
+        error instanceof Error ? error.message : null,
+        "Unable to create voice."
+      ),
     });
   }
 }

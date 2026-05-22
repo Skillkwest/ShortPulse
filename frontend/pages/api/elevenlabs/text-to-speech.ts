@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { resolveRequiredAudioVoiceoverModelId } from "../../../lib/model-runtime/modelCatalog";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
@@ -104,7 +105,7 @@ export default async function handler(
     if (!ALLOWED_MODEL_IDS.has(modelId)) {
       return res.status(400).json({
         error: "Invalid request",
-        details: `config.model_id must be ${DEFAULT_VOICEOVER_MODEL_ID}.`,
+        details: "config.model_id is not supported for this audio workflow.",
       });
     }
 
@@ -162,7 +163,7 @@ export default async function handler(
     const captureResult = await captureSucceededGenerationByProviderRequest({
       userId: charge.userId,
       providerRequestId,
-      reason: "ElevenLabs voiceover generation completed.",
+      reason: "Audio voiceover generation completed.",
       routeLabel: "elevenlabs-text-to-speech",
       detail: {
         generation_id: persisted.generationId,
@@ -204,7 +205,7 @@ export default async function handler(
     });
   } catch (error) {
     if (charge) {
-      await charge.refund("Auto-refund: ElevenLabs voiceover generation failed.", {
+      await charge.refund("Auto-refund: audio voiceover generation failed.", {
         source_mode: "voiceover",
       });
     }
@@ -218,7 +219,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to generate speech",
-      details: toErrorMessage(error, "Unknown error"),
+      details: sanitizeCustomerFacingProviderText(
+        toErrorMessage(error, "Unknown error"),
+        "Unable to generate speech."
+      ),
     });
   }
 }

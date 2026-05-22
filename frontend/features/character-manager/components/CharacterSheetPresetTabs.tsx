@@ -71,13 +71,13 @@ export function CharacterSheetPresetTabs({
   const isEditing = activeEditingPresetId !== null;
   const compactRailStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "32px",
+        minHeight: "36px",
       }
     : undefined;
   const compactRowStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "32px",
-        padding: "0 4px",
+        minHeight: "36px",
+        padding: "0 6px",
       }
     : undefined;
   const shrinkWrapTrackStyle: CSSProperties | undefined = shrinkWrap
@@ -93,17 +93,17 @@ export function CharacterSheetPresetTabs({
     : undefined;
   const compactTabStyle: CSSProperties | undefined = compact
     ? {
-        minHeight: "32px",
-        minWidth: "64px",
-        padding: "0 8px",
+        minHeight: "36px",
+        minWidth: "68px",
+        padding: "0 10px",
         fontSize: "11px",
       }
     : undefined;
   const compactAddButtonStyle: CSSProperties | undefined = compact
     ? {
-        width: "32px",
-        minWidth: "32px",
-        height: "32px",
+        width: "36px",
+        minWidth: "36px",
+        height: "36px",
       }
     : undefined;
 

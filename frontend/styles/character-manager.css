@@ -465,11 +465,6 @@ body.character-manager-body {
   opacity: 0.92;
 }
 
-.character-sheet-preset-tab-shell.is-active .character-sheet-preset-delete-btn {
-  opacity: 0.58;
-  transform: scale(0.96);
-}
-
 .character-sheet-preset-delete-btn:hover:not(:disabled) {
   border-color: rgba(244, 144, 154, 0.72);
   background: rgba(68, 20, 30, 0.88);

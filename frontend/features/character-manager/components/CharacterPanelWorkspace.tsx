@@ -48,16 +48,16 @@ const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_u
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  minWidth: "172px",
-  minHeight: "56px",
-  padding: "0 24px",
-  borderRadius: "16px",
-  fontSize: "0.98rem",
+  minWidth: "152px",
+  minHeight: "48px",
+  padding: "0 20px",
+  borderRadius: "14px",
+  fontSize: "0.9rem",
   flexShrink: 0,
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gridTemplateColumns: "minmax(0, 1.08fr) minmax(0, 0.92fr)",
   columnGap: "18px",
   alignItems: "start",
 };
@@ -75,8 +75,8 @@ const CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_LOOKS_BLOCK_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
-  width: "fit-content",
-  justifySelf: "start",
+  width: "100%",
+  justifySelf: "stretch",
   paddingTop: 0,
 };
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
@@ -102,7 +102,7 @@ const CHARACTER_REFERENCE_GRID_INLINE_STYLE: React.CSSProperties = {
   gap: "12px",
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
-  width: "min(100%, 124px)",
+  width: "min(100%, 118px)",
   gridTemplateRows: "auto 28px",
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
@@ -480,7 +480,6 @@ export function CharacterPanelWorkspace({
                               activePresetId={activeCharacterSheetPresetId}
                               presetLabels={characterSheetPresetLabels}
                               compact
-                              shrinkWrap
                               onSelectPreset={(presetId) => {
                                 void setActiveCharacterSheetPreset(presetId);
                               }}

@@ -51,7 +51,7 @@ export function CharacterDescriptionEditorCard({
           value={description}
           maxLength={maxLength}
           onChange={(event) => onChangeDescription(event.target.value)}
-          placeholder="A sleek midnight-blue sports car with a low profile, sculpted bodywork, glowing headlights, and polished alloy rims."
+          placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
           disabled={disabled}
         />
         <p className="character-description-count tiny subdued">

@@ -2,7 +2,7 @@
  * Character Sheet look tabs component.
  * Renders an accessible look-tab strip with roving focus and keyboard navigation.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Plus, X } from "phosphor-react";
 import type { CharacterSheetPresetId } from "../types";
 import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPresetTabs";
@@ -20,6 +20,8 @@ type CharacterSheetPresetTabsProps = {
   panelId: string;
   disabled?: boolean;
   idBase?: string;
+  compact?: boolean;
+  shrinkWrap?: boolean;
 };
 
 /**
@@ -44,6 +46,8 @@ export function CharacterSheetPresetTabs({
   panelId,
   disabled = false,
   idBase = "character-sheet-preset-tabs",
+  compact = false,
+  shrinkWrap = false,
 }: CharacterSheetPresetTabsProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const editInputRef = useRef<HTMLInputElement | null>(null);
@@ -65,6 +69,43 @@ export function CharacterSheetPresetTabs({
   const canAddPreset =
     Boolean(onAddPreset) && presetIds.length < MAX_CHARACTER_SHEET_PRESET_TAB_COUNT;
   const isEditing = activeEditingPresetId !== null;
+  const compactRailStyle: CSSProperties | undefined = compact
+    ? {
+        minHeight: "32px",
+      }
+    : undefined;
+  const compactRowStyle: CSSProperties | undefined = compact
+    ? {
+        minHeight: "32px",
+        padding: "0 4px",
+      }
+    : undefined;
+  const shrinkWrapTrackStyle: CSSProperties | undefined = shrinkWrap
+    ? {
+        width: "fit-content",
+        maxWidth: "100%",
+      }
+    : undefined;
+  const shrinkWrapTablistStyle: CSSProperties | undefined = shrinkWrap
+    ? {
+        width: "fit-content",
+      }
+    : undefined;
+  const compactTabStyle: CSSProperties | undefined = compact
+    ? {
+        minHeight: "32px",
+        minWidth: "64px",
+        padding: "0 8px",
+        fontSize: "11px",
+      }
+    : undefined;
+  const compactAddButtonStyle: CSSProperties | undefined = compact
+    ? {
+        width: "32px",
+        minWidth: "32px",
+        height: "32px",
+      }
+    : undefined;
 
   useEffect(() => {
     if (!activeEditingPresetId) return;
@@ -225,11 +266,12 @@ export function CharacterSheetPresetTabs({
   );
 
   return (
-    <div className="character-sheet-preset-tab-rail">
-      <div className="character-sheet-preset-tab-row">
+    <div className="character-sheet-preset-tab-rail" style={compactRailStyle}>
+      <div className="character-sheet-preset-tab-row" style={compactRowStyle}>
         <div
           ref={tabTrackRef}
           className={`character-sheet-preset-tab-track${isDragScrollingTabs ? " is-drag-scrolling" : ""}`}
+          style={shrinkWrapTrackStyle}
           onPointerDown={handleTabTrackPointerDown}
           onPointerMove={handleTabTrackPointerMove}
           onPointerUp={handleTabTrackPointerUp}
@@ -240,6 +282,7 @@ export function CharacterSheetPresetTabs({
             role="tablist"
             aria-label="Character looks"
             aria-orientation="horizontal"
+            style={shrinkWrapTablistStyle}
           >
             {presetIds.map((presetId, index) => {
               const isActive = activePresetId === presetId;
@@ -266,6 +309,7 @@ export function CharacterSheetPresetTabs({
                     className={`character-sheet-preset-tab ${isActive ? "is-active" : ""} ${
                       canDeletePreset ? "is-deletable" : ""
                     }`}
+                    style={compactTabStyle}
                     onClick={() => {
                       if (consumeSuppressedPointerActivation()) return;
                       if (isEditingCurrentTab) return;
@@ -366,6 +410,7 @@ export function CharacterSheetPresetTabs({
             <button
               type="button"
               className="character-sheet-preset-add-btn"
+              style={compactAddButtonStyle}
               aria-label="Add character look"
               onClick={() => {
                 if (consumeSuppressedPointerActivation()) return;

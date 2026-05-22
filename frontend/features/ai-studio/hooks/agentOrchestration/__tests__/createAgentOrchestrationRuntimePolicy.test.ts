@@ -47,7 +47,7 @@ describe("resolveCreateAgentOrchestrationRuntimePolicy", () => {
 
     expect(policy.kind).toBe("pulse");
     expect(policy.hasActivePulseSession).toBe(true);
-    expect(policy.includeActiveOutput).toBe(true);
+    expect(policy.includeActiveOutput).toBe(false);
     expect(policy.resolveSelectedOverride(undefined)).toBeUndefined();
     expect(policy.resolveWorkflowPulse(context)?.presetId).toBe("story_builder");
     expect(policy.hasPromptApplyPulseContext(context)).toBe(true);

@@ -855,10 +855,10 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 20px;
-  border: 1px solid rgba(245, 221, 174, 0.48);
+  border: 1px solid rgba(149, 235, 228, 0.34);
   border-radius: 14px;
   background: rgba(28, 32, 37, 0.94);
-  color: rgba(245, 221, 174, 0.94);
+  color: rgba(232, 250, 248, 0.96);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -896,9 +896,9 @@
 }
 
 .voices-properties-library-create-btn:hover {
-  border-color: rgba(245, 221, 174, 0.62);
-  background: rgba(28, 32, 37, 0.98);
-  color: rgba(255, 241, 210, 0.98);
+  border-color: rgba(149, 235, 228, 0.52);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.24), rgba(132, 226, 218, 0.18));
+  color: rgba(240, 252, 251, 0.98);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
 }
 
@@ -1145,9 +1145,9 @@
 }
 
 .voices-properties-voice-chip.is-selected {
-  border-color: rgba(245, 221, 174, 0.5);
-  background: rgba(245, 221, 174, 0.05);
-  box-shadow: 0 0 0 1px rgba(245, 221, 174, 0.14);
+  border-color: rgba(149, 235, 228, 0.46);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.14), rgba(132, 226, 218, 0.08));
+  box-shadow: 0 0 0 1px rgba(149, 235, 228, 0.16);
 }
 
 .voices-properties-voice-chip.is-selected .voices-properties-voice-chip-avatar {
@@ -1156,7 +1156,7 @@
 }
 
 .voices-properties-voice-chip.is-selected .voices-properties-voice-chip-label {
-  color: rgba(245, 221, 174, 0.78);
+  color: rgba(149, 235, 228, 0.82);
 }
 
 .voices-properties-voice-chip-play {

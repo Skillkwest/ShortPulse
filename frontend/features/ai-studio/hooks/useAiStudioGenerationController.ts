@@ -265,6 +265,24 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         submissionModeOverride: resolveSubmissionModeForModelId(effectiveModelId),
       });
 
+      if (options?.suppressCharacter) {
+        enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
+        generateOutput(promptToUse, {
+          modeOverride: effectiveMode,
+          selectedToolOverride: effectiveTool,
+          modelIdOverride: effectiveModelId,
+          displayedBilledCredits: requiredCredits,
+          suppressStyle: options.suppressStyle,
+          suppressCharacter: true,
+          ignoreGenerationGuardrail: options.ignoreGenerationGuardrail,
+          ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
+        });
+        return {
+          accepted: true,
+          optimisticOutputId: optimisticOutputId ?? null,
+        };
+      }
+
       const preparationResult = await runGenerationCharacterPreparation({
         trigger: "generate",
         tool: effectiveTool,

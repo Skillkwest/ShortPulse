@@ -86,6 +86,35 @@ describe("useAiStudioReferenceSelectionState", () => {
     ]);
   });
 
+  it("keeps Standard and Pulse Create reference state isolated when the authority key changes by mode", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:standard" },
+      }
+    );
+
+    act(() => {
+      result.current.setReferenceImageUrl("https://example.com/standard-ref.png");
+      result.current.toggleReferenceIndicator();
+    });
+
+    rerender({ authorityKey: "session:test:create:pulse" });
+
+    expect(result.current.referenceImageUrl).toBeNull();
+    expect(result.current.useReferenceImageIndicator).toBe(false);
+
+    act(() => {
+      result.current.setReferenceImageUrl("https://example.com/pulse-ref.png");
+    });
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.referenceImageUrl).toBe("https://example.com/standard-ref.png");
+    expect(result.current.useReferenceImageIndicator).toBe(false);
+  });
+
   it("only toggles reference indicator when there is an active preview", () => {
     const { result, rerender } = renderHook(
       ({ preview }: { preview: string | null }) =>

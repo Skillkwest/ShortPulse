@@ -33,6 +33,21 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
+const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
+  const hasResultMedia =
+    Array.isArray(output.resultUrls) &&
+    output.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0);
+  return (
+    !output.previewText?.trim() &&
+    !output.previewUrl &&
+    !output.previewPosterUrl &&
+    !output.previewPosterStoragePath &&
+    !output.previewStoragePath &&
+    !output.fullStoragePath &&
+    !hasResultMedia
+  );
+};
+
 const SESSION_RESTORE_SIGN_RETRY_DELAY_MS = 1500;
 const SESSION_RESTORE_SIGN_MAX_ATTEMPTS = 2;
 
@@ -232,6 +247,23 @@ export const useAiStudioSessionSnapshotController = ({
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
       const workspace = payload.workspace;
       const outputPayload = payload.outputs;
+      const placeholderOnlyRestoredCount = [
+        ...outputPayload.active,
+        ...outputPayload.archived,
+      ].filter(isPlaceholderOnlyRestoredOutput).length;
+      if (placeholderOnlyRestoredCount > 0) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "ai_studio_project_restore_placeholder_only_outputs",
+          data: {
+            session_id: snapshot.sessionId,
+            placeholder_only_output_count: placeholderOnlyRestoredCount,
+            active_output_count: outputPayload.active.length,
+            archived_output_count: outputPayload.archived.length,
+          },
+        });
+      }
 
       setMode(workspace.mode);
       setSelectedTool(workspace.selectedTool);

@@ -16,6 +16,7 @@ export const REMOTE_MEDIA_FETCH_FAILURE_MESSAGE =
 const SIGNED_MEDIA_URL_PATTERN = /https?:\/\/[^\s)]+\/storage\/v1\/object\/sign\/[^\s)\]}>"']+/gi;
 
 const REMOTE_MEDIA_FETCH_DETAIL_PATTERNS: RegExp[] = [
+  /\berror\s+while\s+downloading\b/i,
   /\btimeout\s+while\s+downloading\b/i,
   /\btimed\s*out\s+while\s+downloading\b/i,
   /\bfailed\s+to\s+download\b/i,

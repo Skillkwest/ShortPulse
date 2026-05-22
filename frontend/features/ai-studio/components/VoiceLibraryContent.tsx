@@ -9,12 +9,14 @@ import type { SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
 type VoiceLibraryContentProps = {
   libraryVoices: SharedVoiceOption[];
   selectedLibraryVoice: SharedVoiceOption | null;
+  activeLibrarySection: "default" | "my";
   activePreviewVoiceId: string | null;
   isVoicesLoading: boolean;
   voicesLoadError: string | null;
   voicesLoadNotice: string | null;
   voiceLoadingSkeletonCount: number;
   getVoiceChipDisplayName: (voiceName: string) => string;
+  onActiveLibrarySectionChange: (nextSection: "default" | "my") => void;
   onSelectVoice: (voiceId: string) => void;
   onPreviewVoice: (voiceId: string, previewUrl: string | null | undefined) => void;
 };
@@ -25,18 +27,17 @@ type VoiceLibraryContentProps = {
 export function VoiceLibraryContent({
   libraryVoices,
   selectedLibraryVoice,
+  activeLibrarySection,
   activePreviewVoiceId,
   isVoicesLoading,
   voicesLoadError,
   voicesLoadNotice,
   voiceLoadingSkeletonCount,
   getVoiceChipDisplayName,
+  onActiveLibrarySectionChange,
   onSelectVoice,
   onPreviewVoice,
 }: VoiceLibraryContentProps) {
-  const [activeLibrarySection, setActiveLibrarySection] = React.useState<"default" | "my">(
-    selectedLibraryVoice?.librarySection ?? "default"
-  );
   const defaultVoices = React.useMemo(
     () => libraryVoices.filter((voice) => voice.librarySection === "default"),
     [libraryVoices]
@@ -49,11 +50,6 @@ export function VoiceLibraryContent({
   const defaultTabId = "voices-library-tab-default";
   const myTabId = "voices-library-tab-my";
 
-  React.useEffect(() => {
-    if (!selectedLibraryVoice) return;
-    setActiveLibrarySection(selectedLibraryVoice.librarySection);
-  }, [selectedLibraryVoice]);
-
   return (
     <>
       <div className="voices-library-modal-tabs" role="tablist" aria-label="Voice library sections">
@@ -64,7 +60,7 @@ export function VoiceLibraryContent({
           className={`voices-library-modal-tab ${activeLibrarySection === "my" ? "is-active" : ""}`}
           aria-selected={activeLibrarySection === "my"}
           aria-controls="voices-library-panel-my"
-          onClick={() => setActiveLibrarySection("my")}
+          onClick={() => onActiveLibrarySectionChange("my")}
         >
           My Voices
         </button>
@@ -77,7 +73,7 @@ export function VoiceLibraryContent({
           }`}
           aria-selected={activeLibrarySection === "default"}
           aria-controls="voices-library-panel-default"
-          onClick={() => setActiveLibrarySection("default")}
+          onClick={() => onActiveLibrarySectionChange("default")}
         >
           Default Voices
         </button>

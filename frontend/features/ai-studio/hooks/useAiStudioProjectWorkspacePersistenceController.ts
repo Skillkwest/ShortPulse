@@ -81,6 +81,25 @@ const utf8ByteLength = (value: string): number => {
   return value.length;
 };
 
+const collectProjectSnapshotOutputIds = (snapshot: AiStudioSessionSnapshot): string[] => {
+  const seen = new Set<string>();
+  const collected: string[] = [];
+  const rows = [
+    ...(Array.isArray(snapshot.outputs?.active) ? snapshot.outputs.active : []),
+    ...(Array.isArray(snapshot.outputs?.archived) ? snapshot.outputs.archived : []),
+  ];
+  rows.forEach((row) => {
+    const outputId = typeof row?.id === "string" ? row.id.trim() : "";
+    if (!outputId || seen.has(outputId)) return;
+    seen.add(outputId);
+    collected.push(outputId);
+  });
+  return collected;
+};
+
+const areStringListsEqual = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
 const resolveReducedWorkspaceNotice = (
   fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
 ): string => {
@@ -304,6 +323,27 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         snapshot,
         keepalive: options?.keepalive,
       });
+      const localOutputIds = collectProjectSnapshotOutputIds(snapshot);
+      const savedSnapshot =
+        savedWorkspace.snapshot && typeof savedWorkspace.snapshot === "object"
+          ? (savedWorkspace.snapshot as AiStudioSessionSnapshot)
+          : null;
+      const savedOutputIds = savedSnapshot ? collectProjectSnapshotOutputIds(savedSnapshot) : [];
+      if (savedSnapshot && !areStringListsEqual(localOutputIds, savedOutputIds)) {
+        addBreadcrumb({
+          type: "ui",
+          level: "info",
+          message: "ai_studio_project_workspace_save_canonicalized",
+          data: {
+            project_id: activeProjectId,
+            local_output_count: localOutputIds.length,
+            saved_output_count: savedOutputIds.length,
+            local_output_ids: localOutputIds,
+            saved_output_ids: savedOutputIds,
+            keepalive: options?.keepalive === true,
+          },
+        });
+      }
       if (savedWorkspace.saveOutcome?.status === "saved_with_repair_pending") {
         const noticeKey = [
           activeProjectId,

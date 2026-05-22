@@ -4,6 +4,14 @@
  */
 import React from "react";
 
+const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
+  padding: "14px 16px 30px",
+};
+
+const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
+  padding: "6px 4px",
+};
+
 type CharacterDescriptionEditorCardProps = {
   description: string;
   helperText?: string;
@@ -31,10 +39,14 @@ export function CharacterDescriptionEditorCard({
           Description:
         </label>
       </div>
-      <div className="character-description-text-container">
+      <div
+        className="character-description-text-container"
+        style={CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE}
+      >
         <textarea
           id="character-manager-description"
           className="character-description-input"
+          style={CHARACTER_DESCRIPTION_INPUT_STYLE}
           rows={rows}
           value={description}
           maxLength={maxLength}

@@ -30,7 +30,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: createCompletedWorkflowSession("  Completed Pulse artifact  "),
         latestAgentPrompt: null,
         artifactTarget: "image_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: 12,
         currentCostCredits: 20,
         handleGenerate,
@@ -47,6 +46,8 @@ describe("usePulseCreatePrimarySubmit", () => {
       toolOverride: "create",
       costOverrideCredits: 12,
       suppressStyle: true,
+      suppressCharacter: true,
+      ignoreGenerationGuardrail: true,
     });
     expect(setUiNotice).not.toHaveBeenCalled();
   });
@@ -63,7 +64,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: createCompletedWorkflowSession("  Video prompt  "),
         latestAgentPrompt: null,
         artifactTarget: "video_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: 12,
         currentCostCredits: 20,
         handleGenerate,
@@ -80,6 +80,8 @@ describe("usePulseCreatePrimarySubmit", () => {
       toolOverride: "video",
       costOverrideCredits: 20,
       suppressStyle: true,
+      suppressCharacter: true,
+      ignoreGenerationGuardrail: true,
     });
     expect(setUiNotice).not.toHaveBeenCalled();
   });
@@ -96,7 +98,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: createCompletedWorkflowSession("Final text artifact"),
         latestAgentPrompt: null,
         artifactTarget: "text_artifact",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -128,7 +129,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: createCompletedWorkflowSession("Final artifact"),
         latestAgentPrompt: null,
         artifactTarget: null,
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -163,7 +163,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: createCompletedWorkflowSession("   "),
         latestAgentPrompt: null,
         artifactTarget: "image_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -194,7 +193,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         ),
         latestAgentPrompt: null,
         artifactTarget: "image_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: 12,
         currentCostCredits: 20,
         handleGenerate,
@@ -229,7 +227,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: null,
         latestAgentPrompt: "  Dreamy dusk skyline with cinematic lighting  ",
         artifactTarget: null,
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: 12,
         currentCostCredits: 20,
         handleGenerate,
@@ -248,6 +245,8 @@ describe("usePulseCreatePrimarySubmit", () => {
       toolOverride: undefined,
       costOverrideCredits: 20,
       suppressStyle: true,
+      suppressCharacter: true,
+      ignoreGenerationGuardrail: true,
     });
     expect(setUiNotice).not.toHaveBeenCalled();
   });
@@ -264,7 +263,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: null,
         latestAgentPrompt: "   ",
         artifactTarget: null,
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -299,7 +297,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: null,
         latestAgentPrompt: null,
         artifactTarget: "image_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -331,7 +328,6 @@ describe("usePulseCreatePrimarySubmit", () => {
         pulseWorkflowSession: null,
         latestAgentPrompt: null,
         artifactTarget: "image_prompt",
-        effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
@@ -352,5 +348,28 @@ describe("usePulseCreatePrimarySubmit", () => {
     expect(setUiNotice).toHaveBeenCalledWith(
       "This Pulse is still starting. Wait for the first Pulse response before generating."
     );
+  });
+
+  it("does not inherit the generic Create reference-image guardrail in Pulse", () => {
+    const handleGenerate = vi.fn();
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePulseCreatePrimarySubmit({
+        hasActivePulseSession: true,
+        isPulseStartupPending: false,
+        pulseKind: "guided_workflow",
+        pulseWorkflowSession: createCompletedWorkflowSession("Completed Pulse artifact"),
+        latestAgentPrompt: null,
+        artifactTarget: "image_prompt",
+        promptReferenceGenerateCostCredits: 12,
+        currentCostCredits: 20,
+        handleGenerate,
+        setUiNotice,
+      })
+    );
+
+    expect(result.current.pulseArtifactGenerateDisabled).toBe(false);
+    expect(result.current.pulseArtifactGenerateGuardrail).toBeNull();
   });
 });

@@ -294,7 +294,7 @@ describe("VoicesPropertiesPanel", () => {
       "false"
     );
     expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
@@ -500,6 +500,27 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /custom voice voice/i }));
+
+    expect(screen.getByRole("button", { name: /custom voice voice/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Select voice" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
+
+    expect(screen.getByRole("tab", { name: "Default Voices" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.queryByRole("button", { name: /custom voice voice/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();
   });
 
   it("switches the inline left-column surface between voiceover and voice changer modes", () => {
@@ -2048,6 +2069,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
+    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Select voice" }));
 

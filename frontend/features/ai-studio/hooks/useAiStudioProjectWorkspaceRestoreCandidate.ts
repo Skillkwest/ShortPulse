@@ -8,10 +8,7 @@ import {
   type AiStudioProjectWorkspaceApiRecord,
 } from "../logic/projectWorkspaceApiClient";
 import { parseAiStudioSessionSnapshotForRestore } from "../logic/sessionSnapshotRestore";
-import {
-  createAiStudioProjectWorkspaceSnapshot,
-  type AiStudioSessionSnapshot,
-} from "../logic/sessionSnapshot";
+import { type AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioWorkspaceRestoreSource } from "./aiStudioPersistenceControllerContract";
 
 export type AiStudioProjectWorkspaceRestoreCandidateState = {
@@ -31,7 +28,7 @@ const resolveProjectWorkspaceSnapshot = (
   }
   const snapshot = parseAiStudioSessionSnapshotForRestore(workspace.snapshot, null);
   if (!snapshot) return { snapshot: null, invalid: true };
-  return { snapshot: createAiStudioProjectWorkspaceSnapshot(snapshot), invalid: false };
+  return { snapshot, invalid: false };
 };
 
 /**

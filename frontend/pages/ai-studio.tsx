@@ -2,7 +2,7 @@
  * AI Studio workspace page.
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { AiStudioPageShell } from "../features/ai-studio/components/AiStudioPageShell";
 import type { AiStudioPageContentProps } from "../features/ai-studio/components/AiStudioPageContent";
 import {
@@ -1299,12 +1299,6 @@ const AiStudioPageRuntimeBody = ({
   }, [referenceGridFileInputRef]);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
-  useEffect(() => {
-    if (expertCreateMode !== "pulse") return;
-    if (isCreateCharacterModeEnabled) {
-      setIsCreateCharacterModeEnabled(false);
-    }
-  }, [expertCreateMode, isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled]);
   const { effectiveUiNotice } = useAiStudioPageUiNotices({
     expertCreateMode,
     uiNotice,

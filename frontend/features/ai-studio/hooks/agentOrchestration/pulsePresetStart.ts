@@ -94,7 +94,7 @@ export const startPulsePreset = async ({
     randomId();
   const baseContext = getAgentContext({
     lastAssistantMessage,
-    includeActiveOutput: true,
+    includeActiveOutput: false,
     modeHint: "chat",
   });
   const pulseRuntimeContext = {

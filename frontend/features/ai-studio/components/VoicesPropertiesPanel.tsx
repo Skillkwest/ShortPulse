@@ -44,6 +44,7 @@ import {
 
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
+type VoicesLibrarySection = "default" | "my";
 
 type ElevenVoiceoverRequestConfig = {
   model_id: string;
@@ -354,6 +355,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     null
   );
   const [isVoicesLibraryModalOpen, setIsVoicesLibraryModalOpen] = React.useState(false);
+  const [activeVoicesLibrarySection, setActiveVoicesLibrarySection] =
+    React.useState<VoicesLibrarySection>(selectedLibraryVoice?.librarySection ?? "default");
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
@@ -450,10 +453,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     Boolean(cloneVoiceSource.storagePath) &&
     isCloneConsentChecked &&
     !isCloningVoice;
+  const isSelectedVoiceVisibleInActiveLibrarySection =
+    selectedLibraryVoice?.librarySection === activeVoicesLibrarySection;
   const canDeleteSelectedVoice =
-    selectedLibraryVoice?.provider === "elevenlabs" &&
-    !selectedLibraryVoice?.isFallback &&
-    selectedLibraryVoice?.librarySection === "my";
+    Boolean(selectedLibraryVoice?.id) && isSelectedVoiceVisibleInActiveLibrarySection;
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
@@ -514,6 +517,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     });
     shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
   }, [isVoicesLibraryModalOpen]);
+
+  React.useEffect(() => {
+    if (!selectedLibraryVoice) {
+      return;
+    }
+    setActiveVoicesLibrarySection(selectedLibraryVoice.librarySection);
+  }, [selectedLibraryVoice]);
 
   React.useEffect(() => {
     if (isCreateVoiceModalOpen) {
@@ -1484,15 +1494,15 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
 
-    if (!canDeleteSelectedVoice) {
-      setVoicesLoadError("This voice cannot be deleted.");
+    if (!selectedLibraryVoice) {
+      setVoicesLoadError("Select a voice to delete.");
       return;
     }
 
     shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
     setIsVoicesLibraryModalOpen(false);
     setPendingDeleteVoice(selectedLibraryVoice);
-  }, [canDeleteSelectedVoice, selectedLibraryVoice]);
+  }, [selectedLibraryVoice]);
 
   const closeDeleteVoiceConfirm = React.useCallback(() => {
     if (isDeletingSelectedVoice) {
@@ -1749,7 +1759,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 onClick={handleDeleteSelectedVoice}
                 aria-label="Delete Voice"
                 disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
-                title={canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."}
+                title={canDeleteSelectedVoice ? undefined : "Select a voice to delete."}
               >
                 <Trash size={14} weight="bold" aria-hidden="true" />
                 <span>{isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}</span>
@@ -1773,7 +1783,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             type="button"
             className="voices-properties-save-btn voices-library-modal-select-btn"
             onClick={handleCloseVoicesLibraryModal}
-            disabled={!selectedLibraryVoice}
+            disabled={!isSelectedVoiceVisibleInActiveLibrarySection}
           >
             Select voice
           </button>
@@ -1783,12 +1793,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           <VoiceLibraryContent
             libraryVoices={libraryVoices}
             selectedLibraryVoice={selectedLibraryVoice}
+            activeLibrarySection={activeVoicesLibrarySection}
             activePreviewVoiceId={activePreviewVoiceId}
             isVoicesLoading={isVoicesLoading}
             voicesLoadError={voicesLoadError}
             voicesLoadNotice={voicesLoadNotice}
             voiceLoadingSkeletonCount={voiceLoadingSkeletonCount}
             getVoiceChipDisplayName={getVoiceChipDisplayName}
+            onActiveLibrarySectionChange={setActiveVoicesLibrarySection}
             onSelectVoice={setSelectedLibraryVoice}
             onPreviewVoice={handleVoicePreviewPlay}
           />

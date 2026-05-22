@@ -41,6 +41,17 @@ describe("providerErrorPolicy", () => {
     expect(result.detailForClient).toBe(REMOTE_MEDIA_FETCH_FAILURE_MESSAGE);
   });
 
+  it("replaces error-while-downloading media fetch details with safe client copy", () => {
+    const result = resolveProviderErrorHandling({
+      status: 400,
+      detail:
+        "Error while downloading https://example.supabase.co/storage/v1/object/sign/media_library/user-1/full.png?token=secret",
+      normalizationMode: "production_normalized",
+    });
+
+    expect(result.detailForClient).toBe(REMOTE_MEDIA_FETCH_FAILURE_MESSAGE);
+  });
+
   it("redacts signed media urls from other client-visible provider details", () => {
     const result = resolveProviderErrorHandling({
       status: 400,

@@ -4,6 +4,7 @@
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { AgentContext } from "../../ai-agent/types";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { randomId } from "../logic/ids";
 import { associateMediaFilesWithProject } from "../logic/mediaLibraryPersistence";
 import { resolveModelLabel } from "../logic/stateParsers";
@@ -14,6 +15,9 @@ import {
 } from "../reference-ingestion";
 import { prepareLibraryMediaIngestionPayload } from "../reference-ingestion/prepareLibraryMediaIngestionPayload";
 import type { LibraryMediaFileType } from "../reference-ingestion/types";
+import { uploadAudioAssetToStorage } from "../utils/audioUpload";
+import { uploadImageAssetToStorage } from "../utils/imageUpload";
+import { uploadVideoAssetToStorage } from "../utils/videoUpload";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
@@ -78,6 +82,27 @@ type UseAiStudioReferenceIngestionActionsResult = {
   }) => AgentContext;
 };
 
+const isTransientLocalMediaUrl = (value: string | null | undefined): boolean => {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  return normalized.startsWith("blob:") || normalized.startsWith("data:");
+};
+
+const hasProjectRouteDurabilityRisk = (output: StudioOutput): boolean =>
+  isTransientLocalMediaUrl(output.previewUrl) ||
+  (output.mode === "video" && isTransientLocalMediaUrl(output.previewPosterUrl));
+
+const revokeLocalObjectUrlIfPresent = (value: string | null | undefined): void => {
+  if (typeof value !== "string") return;
+  const normalized = value.trim();
+  if (!normalized.startsWith("blob:")) return;
+  try {
+    URL.revokeObjectURL(normalized);
+  } catch {
+    // Best-effort cleanup only.
+  }
+};
+
 export const useAiStudioReferenceIngestionActions = ({
   activeOutput = null,
   projectId = null,
@@ -90,6 +115,8 @@ export const useAiStudioReferenceIngestionActions = ({
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
+  const projectMediaDurabilityErrorMessage =
+    "Unable to add that media to the project right now. Please try again.";
   const buildLibraryMediaOutputWithId = useCallback(
     (payload: LibraryMediaReferencePayload, outputId: string): StudioOutput | null => {
       const result = buildStudioOutputsFromReferenceInputSync(
@@ -212,6 +239,60 @@ export const useAiStudioReferenceIngestionActions = ({
     [buildLibraryPromptOutputWithId, setOutputs]
   );
 
+  const durabilizeProjectReferenceOutput = useCallback(
+    async (output: StudioOutput): Promise<StudioOutput> => {
+      if (!projectId || !hasProjectRouteDurabilityRisk(output)) {
+        return output;
+      }
+
+      const previewUrl = output.previewUrl?.trim() ?? "";
+      if (!previewUrl) return output;
+
+      let uploaded: { url: string; path: string } | null = null;
+      let uploadedPoster: { url: string; path: string } | null = null;
+
+      if (output.mode === "video") {
+        uploaded = await uploadVideoAssetToStorage(previewUrl);
+        const previewPosterUrl = output.previewPosterUrl?.trim() ?? "";
+        if (previewPosterUrl) {
+          uploadedPoster = await uploadImageAssetToStorage(previewPosterUrl);
+        }
+      } else if (output.mode === "audio") {
+        uploaded = await uploadAudioAssetToStorage(previewUrl);
+      } else {
+        uploaded = await uploadImageAssetToStorage(previewUrl);
+      }
+
+      const canonicalPath = asCanonicalStoragePath(uploaded.path);
+      const signedUrl = uploaded.url?.trim() ?? "";
+      if (!canonicalPath || !signedUrl) {
+        throw new Error("Project reference durability upload returned invalid metadata.");
+      }
+
+      const canonicalPosterPath =
+        output.mode === "video" ? asCanonicalStoragePath(uploadedPoster?.path) : null;
+      const signedPosterUrl =
+        output.mode === "video" ? (uploadedPoster?.url?.trim() ?? null) : null;
+
+      revokeLocalObjectUrlIfPresent(output.localObjectUrl);
+
+      return {
+        ...output,
+        previewUrl: signedUrl,
+        previewPosterUrl: output.mode === "video" ? signedPosterUrl : null,
+        previewPosterStoragePath: output.mode === "video" ? canonicalPosterPath : null,
+        previewStoragePath: canonicalPosterPath ?? canonicalPath,
+        fullStoragePath: canonicalPath,
+        resultUrls:
+          output.mode === "audio" || output.mode === "video" || output.mode === "image"
+            ? [signedUrl]
+            : output.resultUrls,
+        localObjectUrl: undefined,
+      };
+    },
+    [projectId]
+  );
+
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
       const result = buildStudioOutputsFromReferenceInputSync(
@@ -259,7 +340,7 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addPastedMediaReference = useCallback(
-    (payload: { url: string; mimeType?: string | null }) => {
+    async (payload: { url: string; mimeType?: string | null }) => {
       const result = buildStudioOutputsFromReferenceInputSync(
         {
           kind: "mediaUrl",
@@ -276,9 +357,27 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return;
-      setOutputs((prev) => [...result.outputs, ...prev]);
+      try {
+        const outputs =
+          projectId == null
+            ? result.outputs
+            : await Promise.all(result.outputs.map(durabilizeProjectReferenceOutput));
+        if (!outputs.length) return;
+        setOutputs((prev) => [...outputs, ...prev]);
+      } catch {
+        setUiError?.(projectMediaDurabilityErrorMessage);
+      }
     },
-    [aspect, mode, model, setOutputs]
+    [
+      aspect,
+      durabilizeProjectReferenceOutput,
+      mode,
+      model,
+      projectId,
+      projectMediaDurabilityErrorMessage,
+      setOutputs,
+      setUiError,
+    ]
   );
 
   const addLibraryMediaReference = useCallback(
@@ -326,9 +425,27 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return;
-      setOutputs((prev) => [...result.outputs, ...prev]);
+      try {
+        const outputs =
+          projectId == null
+            ? result.outputs
+            : await Promise.all(result.outputs.map(durabilizeProjectReferenceOutput));
+        if (!outputs.length) return;
+        setOutputs((prev) => [...outputs, ...prev]);
+      } catch {
+        setUiError?.(projectMediaDurabilityErrorMessage);
+      }
     },
-    [aspect, model, mode, setOutputs]
+    [
+      aspect,
+      durabilizeProjectReferenceOutput,
+      model,
+      mode,
+      projectId,
+      projectMediaDurabilityErrorMessage,
+      setOutputs,
+      setUiError,
+    ]
   );
 
   const getAgentContext = useCallback(

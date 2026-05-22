@@ -171,6 +171,78 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
+  it("allows Pulse-owned generate paths to ignore generic page guardrails", async () => {
+    const generateOutput = vi.fn();
+    const params = createParams({
+      generateOutput,
+      isGenerateDisabled: true,
+      generationGuardrail: "Add a reference image before generating.",
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("pulse prompt", {
+        ignoreGenerationGuardrail: true,
+      });
+    });
+
+    expect(generateResult).toEqual({ accepted: true, optimisticOutputId: null });
+    expect(generateOutput).toHaveBeenCalledWith(
+      "pulse prompt",
+      expect.objectContaining({ ignoreGenerationGuardrail: true })
+    );
+  });
+
+  it("skips character preparation when generate explicitly suppresses Character Mode", async () => {
+    const generateOutput = vi.fn();
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => ({
+      characterId: "char-1",
+    }));
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "submission",
+      displayPromptOverride: "display",
+      referenceInputsOverride: ["https://example.com/char.png"],
+      characterContextOverride: {
+        applied: true,
+        characterId: "char-1",
+        characterName: "A",
+        characterProfileImageUrl: null,
+      } as StudioOutput["characterContext"],
+      notice: "Character context applied",
+      fallbackCode: null,
+      characterReferenceCount: 1,
+      hasCharacterDescription: true,
+    }));
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      generateOutput,
+      isCharacterModeEnabled: true,
+      resolveIsCharacterModeEnabledForTool: vi.fn(() => true),
+      resolveSelectedCharacterIdForTool: vi.fn(() => "char-1"),
+      refreshCharacterModeInjectionBundleForSubmission,
+      resolveCharacterModeSubmissionOverrides,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("pulse prompt", {
+        suppressCharacter: true,
+      });
+    });
+
+    expect(refreshCharacterModeInjectionBundleForSubmission).not.toHaveBeenCalled();
+    expect(resolveCharacterModeSubmissionOverrides).not.toHaveBeenCalled();
+    expect(setUiNotice).not.toHaveBeenCalled();
+    expect(generateOutput).toHaveBeenCalledWith(
+      "pulse prompt",
+      expect.objectContaining({
+        suppressCharacter: true,
+      })
+    );
+  });
+
   it("allows generate submissions while agent send is in flight", async () => {
     const generateOutput = vi.fn();
     const params = createParams({

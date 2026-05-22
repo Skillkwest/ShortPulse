@@ -56,7 +56,7 @@ export const resolveCreateAgentOrchestrationRuntimePolicy = ({
     kind: "pulse",
     hasActivePulseSession,
     pulseSessionInstanceId: resolvedPulseSessionInstanceId,
-    includeActiveOutput: true,
+    includeActiveOutput: false,
     resolveSelectedOverride: (selectedOverride) => selectedOverride,
     resolveWorkflowPulse: (context) =>
       context.pulse?.runtimeMode === "workflow_gpt"

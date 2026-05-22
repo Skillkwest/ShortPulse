@@ -26,7 +26,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     expect(getProjectWorkspaceSnapshotMock).not.toHaveBeenCalled();
   });
 
-  it("sanitizes legacy conversational runtime from loaded project snapshots", async () => {
+  it("preserves the server-canonical project snapshot without client-side re-sanitization", async () => {
     getProjectWorkspaceSnapshotMock.mockResolvedValue({
       snapshot: {
         schemaVersion: 2,
@@ -132,25 +132,35 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
 
     expect(result.current.result).toBe("found_snapshot");
     expect(result.current.source).toBe("project");
-    expect(result.current.snapshot?.workspace.expertCreateMode).toBe("standard");
-    expect(result.current.snapshot?.workspace.prompt).toBe("");
-    expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
-    expect(result.current.snapshot?.workspace.pulsePrompt).toBe("");
-    expect(result.current.snapshot?.workspace.editReferenceText).toBe("");
-    expect(result.current.snapshot?.workspace.videoReferenceText).toBe("");
-    expect(result.current.snapshot?.workspace.activePulsePresetId).toBeNull();
-    expect(result.current.snapshot?.workspace.pulseSessionInstanceId).toBeNull();
+    expect(result.current.snapshot?.workspace.expertCreateMode).toBe("pulse");
+    expect(result.current.snapshot?.workspace.prompt).toBe("A dramatic portrait");
+    expect(result.current.snapshot?.workspace.editReferenceText).toBe(
+      "Make the background moodier without changing the face."
+    );
+    expect(result.current.snapshot?.workspace.videoReferenceText).toBe(
+      "Add a slow handheld push-in with softer practical light."
+    );
+    expect(result.current.snapshot?.workspace.activePulsePresetId).toBe("multi_shot");
     expect(result.current.snapshot?.agent).toEqual({
-      messages: [],
-      input: "",
-      latestAgentPrompt: null,
-      promptOrigin: "manual",
+      messages: [{ id: "msg-1", role: "assistant", content: "Old chat" }],
+      input: "draft",
+      latestAgentPrompt: "Old chat",
+      promptOrigin: "agent",
       chatModeEnabled: false,
-      pulseWorkflowSession: null,
+      pulseWorkflowSession: {
+        presetId: "multi_shot",
+        status: "awaiting_input",
+        currentStepIndex: 1,
+        currentStepLabel: "Action",
+        currentStepPrompt: "What happens next?",
+        collectedInputs: ["Close-up"],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
     });
     expect(result.current.snapshot).not.toBeNull();
     if (result.current.snapshot) {
-      expect("agentRuntimes" in result.current.snapshot).toBe(false);
+      expect("agentRuntimes" in result.current.snapshot).toBe(true);
     }
     expect(getProjectWorkspaceSnapshotMock).toHaveBeenCalledWith({
       projectId: "project-1",
@@ -313,7 +323,6 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     });
 
     expect(result.current.result).toBe("found_snapshot");
-    expect(result.current.snapshot?.workspace.prompt).toBe("");
-    expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
+    expect(result.current.snapshot?.workspace.prompt).toBe("Retry prompt");
   });
 });

@@ -4,7 +4,10 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { createElevenLabsClonedVoice } from "../../../../lib/server/elevenlabs";
-import { readStoredMediaBuffer } from "../../../../lib/server/mediaAudioExtraction";
+import {
+  MediaAudioExtractionInputError,
+  readStoredMediaBuffer,
+} from "../../../../lib/server/mediaAudioExtraction";
 
 type VoiceCloneRequestBody = {
   voiceName?: unknown;
@@ -30,19 +33,6 @@ type VoiceCloneErrorResponse = {
 };
 
 const MAX_VOICE_CLONE_SOURCE_BYTES = 100 * 1024 * 1024;
-const SUPPORTED_VOICE_CLONE_AUDIO_MIME_TYPES = new Set([
-  "audio/aac",
-  "audio/flac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/x-m4a",
-  "audio/x-wav",
-]);
-const SUPPORTED_VOICE_CLONE_AUDIO_EXTENSION_PATTERN = /\.(?:aac|flac|m4a|mp3|oga|ogg|wav|webm)$/i;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -66,25 +56,13 @@ const normalizeBoolean = (value: unknown, fallback: boolean): boolean => {
   return fallback;
 };
 
-const isSupportedVoiceCloneAudio = ({
-  filename,
-  mimeType,
-}: {
-  filename: string;
-  mimeType: string | null;
-}): boolean => {
-  const normalizedMimeType = mimeType?.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (normalizedMimeType && SUPPORTED_VOICE_CLONE_AUDIO_MIME_TYPES.has(normalizedMimeType)) {
-    return true;
-  }
-  return SUPPORTED_VOICE_CLONE_AUDIO_EXTENSION_PATTERN.test(filename.trim());
-};
-
 const normalizeProviderStatus = (error: unknown): number => {
-  const status = (error as { status?: unknown } | null)?.status;
-  if (typeof status !== "number" || !Number.isInteger(status)) return 500;
-  if (status < 400 || status > 599) return 500;
-  return status;
+  const statusCandidate =
+    (error as { status?: unknown; statusCode?: unknown } | null)?.status ??
+    (error as { status?: unknown; statusCode?: unknown } | null)?.statusCode;
+  if (typeof statusCandidate !== "number" || !Number.isInteger(statusCandidate)) return 500;
+  if (statusCandidate < 400 || statusCandidate > 599) return 500;
+  return statusCandidate;
 };
 
 export default async function handler(
@@ -125,17 +103,6 @@ export default async function handler(
     });
     const sourceFilename =
       sourceName ?? trustedStoragePath.split("/").filter(Boolean).pop() ?? "voice-clone-source";
-    if (
-      !isSupportedVoiceCloneAudio({
-        filename: sourceFilename,
-        mimeType: storedSource.contentType,
-      })
-    ) {
-      return res.status(400).json({
-        error: "Invalid request",
-        details: "Voice clone source must be a supported audio file.",
-      });
-    }
 
     const clonedVoice = await createElevenLabsClonedVoice({
       voiceName,
@@ -176,6 +143,13 @@ export default async function handler(
       },
     });
   } catch (error) {
+    if (error instanceof MediaAudioExtractionInputError) {
+      return res.status(error.statusCode).json({
+        error: "Invalid request",
+        details: error.message,
+      });
+    }
+
     await logApiRouteException({
       req,
       error,

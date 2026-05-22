@@ -240,7 +240,7 @@
 }
 
 .voices-library-modal-content .voices-properties-voice-grid {
-  padding-top: 0;
+  padding-top: 10px;
 }
 
 .voices-library-modal-footer {
@@ -852,14 +852,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 20px;
-  border: 1px solid rgba(149, 235, 228, 0.34);
-  border-radius: 14px;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(149, 235, 228, 0.32);
+  border-radius: 13px;
   background: rgba(28, 32, 37, 0.94);
   color: rgba(232, 250, 248, 0.96);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.02em;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
@@ -936,7 +936,7 @@
 
 .voices-properties-library-create-btn-icon {
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
 }
 

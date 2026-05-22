@@ -5,6 +5,7 @@ import path from "path";
 import { promisify } from "util";
 import ffmpegStatic from "ffmpeg-static";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { detectAudioMimeType } from "./uploadSignature";
 
 const execFileAsync = promisify(execFile);
 const MEDIA_BUCKET = "media_library";
@@ -45,6 +46,38 @@ export class MediaAudioExtractionInputError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+export class MediaAudioPreparationUnavailableError extends Error {
+  readonly status: number;
+  readonly statusCode: number;
+
+  constructor(
+    message = "Voice clone audio preparation is temporarily unavailable. Please try again.",
+    status = 503
+  ) {
+    super(message);
+    this.name = "MediaAudioPreparationUnavailableError";
+    this.status = status;
+    this.statusCode = status;
+  }
+}
+
+export const MAX_VOICE_CLONE_NORMALIZED_BYTES = 64 * 1024 * 1024;
+const VOICE_CLONE_PREPARATION_ERROR_MESSAGE =
+  "Unable to prepare the selected voice sample for cloning. Try MP3 or WAV.";
+const VOICE_CLONE_OVERSIZE_ERROR_MESSAGE =
+  "The selected voice sample is too large to prepare for cloning. Use a shorter clip and try again.";
+const INFRASTRUCTURE_ERROR_CODES = new Set([
+  "EACCES",
+  "EBUSY",
+  "EIO",
+  "EMFILE",
+  "ENFILE",
+  "ENOENT",
+  "ENOMEM",
+  "ENOSPC",
+  "EPERM",
+]);
 
 const formatBytes = (bytes: number): string => {
   const megabytes = bytes / (1024 * 1024);
@@ -107,6 +140,11 @@ const parseDurationSeconds = (value: string): number | null => {
   return Number(totalSeconds.toFixed(3));
 };
 
+const isInfrastructureMediaPreparationError = (error: unknown): boolean => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && INFRASTRUCTURE_ERROR_CODES.has(code);
+};
+
 const resolveSourceExtension = ({
   filename,
   mimeType,
@@ -126,6 +164,22 @@ const resolveSourceExtension = ({
     VIDEO_EXTENSION_BY_MIME_TYPE[normalizedMimeType] ??
     "bin"
   );
+};
+
+const sanitizeFileStem = (value: string | null | undefined, fallback: string): string => {
+  const normalized = (value ?? "").trim().replace(/\s+/g, " ").slice(0, 72);
+  const stem = normalized
+    .replace(/[^a-z0-9._-]+/gi, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+  return stem || fallback;
+};
+
+const resolveAudioBaseName = (filename: string | null | undefined, fallback: string): string => {
+  const trimmed = filename?.trim() ?? "";
+  if (!trimmed) return fallback;
+  const parsed = path.parse(trimmed);
+  return sanitizeFileStem(parsed.name || parsed.base || trimmed, fallback);
 };
 
 export const isVideoSource = (mimeType: string | null, filename: string | null): boolean => {
@@ -219,6 +273,81 @@ export const probeMediaDurationSeconds = async ({
       return parseDurationSeconds(stderr);
     }
   } finally {
+    await sourceHandle.cleanup().catch(() => undefined);
+  }
+};
+
+export const normalizeAudioForVoiceClone = async ({
+  buffer,
+  filename,
+  mimeType,
+}: {
+  buffer: Buffer;
+  filename: string | null;
+  mimeType: string | null;
+}): Promise<{
+  buffer: Buffer;
+  filename: string;
+  mimeType: "audio/wav";
+}> => {
+  const detectedMimeType = detectAudioMimeType(buffer);
+  if (!detectedMimeType) {
+    throw new MediaAudioExtractionInputError("Voice clone source must be a supported audio file.");
+  }
+
+  if (!ffmpegStatic) {
+    throw new MediaAudioPreparationUnavailableError();
+  }
+
+  const sourceHandle = await makeTempFileHandle({
+    buffer,
+    extension: resolveSourceExtension({
+      filename,
+      mimeType: mimeType ?? detectedMimeType,
+    }),
+  });
+  const outputDir = await createTempDir();
+  const outputPath = path.join(outputDir, "voice-clone-source.wav");
+
+  try {
+    await execFileAsync(ffmpegStatic, [
+      "-y",
+      "-i",
+      sourceHandle.path,
+      "-vn",
+      "-ac",
+      "1",
+      "-ar",
+      "44100",
+      "-c:a",
+      "pcm_s16le",
+      outputPath,
+    ]);
+
+    const outputStats = await fs.stat(outputPath);
+    if (outputStats.size > MAX_VOICE_CLONE_NORMALIZED_BYTES) {
+      throw new MediaAudioExtractionInputError(VOICE_CLONE_OVERSIZE_ERROR_MESSAGE, 413);
+    }
+
+    return {
+      buffer: await fs.readFile(outputPath),
+      filename: `${resolveAudioBaseName(filename, "voice-clone-source")}.wav`,
+      mimeType: "audio/wav",
+    };
+  } catch (error) {
+    if (
+      error instanceof MediaAudioExtractionInputError ||
+      error instanceof MediaAudioPreparationUnavailableError
+    ) {
+      throw error;
+    }
+    if (isInfrastructureMediaPreparationError(error)) {
+      throw new MediaAudioPreparationUnavailableError();
+    }
+    throw new MediaAudioExtractionInputError(VOICE_CLONE_PREPARATION_ERROR_MESSAGE);
+  } finally {
+    await fs.unlink(outputPath).catch(() => undefined);
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined);
     await sourceHandle.cleanup().catch(() => undefined);
   }
 };

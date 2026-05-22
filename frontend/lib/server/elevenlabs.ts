@@ -20,6 +20,7 @@ import {
   extractAudioTrack,
   isVideoSource,
   makeTempFileHandle,
+  normalizeAudioForVoiceClone,
   remuxVideoWithAudioTrack,
   type TempFileHandle,
 } from "./mediaAudioExtraction";
@@ -596,6 +597,11 @@ export const createElevenLabsClonedVoice = async ({
   sourceMimeType: string | null;
   removeBackgroundNoise: boolean;
 }): Promise<ElevenLabsVoice> => {
+  const normalizedSource = await normalizeAudioForVoiceClone({
+    buffer: sourceBuffer,
+    filename: sourceFilename,
+    mimeType: sourceMimeType,
+  });
   const formData = new FormData();
   formData.append("name", voiceName);
   if (voiceDescription?.trim()) {
@@ -604,8 +610,8 @@ export const createElevenLabsClonedVoice = async ({
   formData.append("remove_background_noise", removeBackgroundNoise ? "true" : "false");
   formData.append(
     "files[]",
-    new Blob([sourceBuffer], { type: sourceMimeType ?? "application/octet-stream" }),
-    sourceFilename
+    new Blob([normalizedSource.buffer], { type: normalizedSource.mimeType }),
+    normalizedSource.filename
   );
 
   const response = await fetch(`${ELEVENLABS_BASE_URL}/v1/voices/add`, {

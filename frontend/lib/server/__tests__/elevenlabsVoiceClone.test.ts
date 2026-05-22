@@ -1,11 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElevenLabsClonedVoice } from "../elevenlabs";
 
+const { normalizeAudioForVoiceCloneMock } = vi.hoisted(() => ({
+  normalizeAudioForVoiceCloneMock: vi.fn(),
+}));
+
+vi.mock("../mediaAudioExtraction", async () => {
+  const actual = await vi.importActual("../mediaAudioExtraction");
+  return {
+    ...actual,
+    normalizeAudioForVoiceClone: (...args: unknown[]) => normalizeAudioForVoiceCloneMock(...args),
+  };
+});
+
 const originalElevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
 
 describe("createElevenLabsClonedVoice", () => {
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
+    normalizeAudioForVoiceCloneMock.mockResolvedValue({
+      buffer: Buffer.from("normalized voice sample"),
+      filename: "sample.wav",
+      mimeType: "audio/wav",
+    });
   });
 
   afterEach(() => {
@@ -32,6 +49,7 @@ describe("createElevenLabsClonedVoice", () => {
 
     const request = fetchMock.mock.calls[0]?.[1] as { body?: FormData; headers?: HeadersInit };
     const body = request.body;
+    const uploadedFiles = body?.getAll("files[]") ?? [];
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.elevenlabs.io/v1/voices/add",
@@ -40,12 +58,21 @@ describe("createElevenLabsClonedVoice", () => {
         headers: { "xi-api-key": "test-elevenlabs-key" },
       })
     );
+    expect(normalizeAudioForVoiceCloneMock).toHaveBeenCalledWith({
+      buffer: Buffer.from("voice sample"),
+      filename: "sample.webm",
+      mimeType: "audio/webm",
+    });
     expect(body).toBeInstanceOf(FormData);
     expect(body?.get("name")).toBe("Kirk");
     expect(body?.get("description")).toBe("Personal narration voice");
     expect(body?.get("remove_background_noise")).toBe("true");
     expect(body?.get("files")).toBeNull();
-    expect(body?.getAll("files[]")).toHaveLength(1);
+    expect(uploadedFiles).toHaveLength(1);
+    expect(uploadedFiles[0]).toMatchObject({
+      name: "sample.wav",
+      type: "audio/wav",
+    });
     expect(clonedVoice).toEqual({
       voiceId: "voice-clone-1",
       name: "Kirk",

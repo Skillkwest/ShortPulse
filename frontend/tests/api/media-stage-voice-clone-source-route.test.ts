@@ -5,6 +5,8 @@ import handler from "../../pages/api/media/stage-voice-clone-source";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const areCompatibleMimeTypesMock = vi.fn();
+const detectAudioMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
 const storageUploadMock = vi.fn();
 const storageCreateSignedUrlMock = vi.fn();
@@ -23,6 +25,8 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../lib/server/uploadSignature", () => ({
+  areCompatibleMimeTypes: (...args: unknown[]) => areCompatibleMimeTypesMock(...args),
+  detectAudioMimeType: (...args: unknown[]) => detectAudioMimeTypeMock(...args),
   detectVideoMimeType: (...args: unknown[]) => detectVideoMimeTypeMock(...args),
 }));
 
@@ -57,6 +61,10 @@ describe("POST /api/media/stage-voice-clone-source", () => {
       upload: storageUploadMock,
       createSignedUrl: storageCreateSignedUrlMock,
     });
+    areCompatibleMimeTypesMock.mockImplementation((declaredMimeType, detectedMimeType) => {
+      return declaredMimeType === detectedMimeType;
+    });
+    detectAudioMimeTypeMock.mockReturnValue("audio/mpeg");
     getSupabaseAdminMock.mockReturnValue({
       storage: {
         from: storageFromMock,
@@ -89,11 +97,33 @@ describe("POST /api/media/stage-voice-clone-source", () => {
   });
 
   it("rejects unsupported video sources", async () => {
+    detectAudioMimeTypeMock.mockReturnValueOnce(null);
     const req = createRawRequest({
       body: Buffer.from("fake-video"),
       headers: {
         "content-type": "video/mp4",
         "x-shortpulse-upload-filename": "clip.mp4",
+      },
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageUploadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid file type",
+      details: "Voice clone source file is not a supported audio format.",
+    });
+  });
+
+  it("rejects mislabeled audio when the file bytes do not resolve to a supported audio signature", async () => {
+    detectAudioMimeTypeMock.mockReturnValueOnce(null);
+    const req = createRawRequest({
+      body: Buffer.from("not-actually-audio"),
+      headers: {
+        "content-type": "audio/mpeg",
+        "x-shortpulse-upload-filename": "sample.mp3",
       },
     });
     const res = createMockResponse();

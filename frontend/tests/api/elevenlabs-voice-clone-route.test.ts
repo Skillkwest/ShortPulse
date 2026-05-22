@@ -6,6 +6,17 @@ const logApiRouteExceptionMock = vi.fn();
 const saveVoiceForUserMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
+const { MockMediaAudioExtractionInputError } = vi.hoisted(() => ({
+  MockMediaAudioExtractionInputError: class MockMediaAudioExtractionInputError extends Error {
+    readonly statusCode: number;
+
+    constructor(message: string, statusCode = 400) {
+      super(message);
+      this.name = "MediaAudioExtractionInputError";
+      this.statusCode = statusCode;
+    }
+  },
+}));
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +36,7 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
+  MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
 }));
 
 const createMockResponse = () => ({
@@ -164,12 +176,10 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     });
   });
 
-  it("rejects non-audio staged sources before the ElevenLabs clone request", async () => {
-    readStoredMediaBufferMock.mockResolvedValueOnce({
-      buffer: Buffer.from("video"),
-      contentType: "video/mp4",
-      size: 12,
-    });
+  it("returns local validation details when clone preparation fails before provider submit", async () => {
+    createElevenLabsClonedVoiceMock.mockRejectedValueOnce(
+      new MockMediaAudioExtractionInputError("Voice clone source must be a supported audio file.")
+    );
     const req = {
       method: "POST",
       body: {
@@ -182,11 +192,46 @@ describe("POST /api/elevenlabs/voices/clone", () => {
 
     await handler(req as never, res as never);
 
-    expect(createElevenLabsClonedVoiceMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
       details: "Voice clone source must be a supported audio file.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("logs and returns a server failure when clone preparation infrastructure is unavailable", async () => {
+    const preparationError = Object.assign(
+      new Error("Voice clone audio preparation is temporarily unavailable. Please try again."),
+      {
+        status: 503,
+        statusCode: 503,
+      }
+    );
+    createElevenLabsClonedVoiceMock.mockRejectedValueOnce(preparationError);
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Recorded Clone",
+        sourceStoragePath: "user-1/voice-clone/source-audio/recording.webm",
+        sourceName: "recording.webm",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "elevenlabs-voice-clone",
+        scope: "generation",
+        error: preparationError,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to clone voice",
+      details: "Voice clone audio preparation is temporarily unavailable. Please try again.",
     });
   });
 });

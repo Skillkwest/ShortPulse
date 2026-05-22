@@ -1757,12 +1757,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 type="button"
                 className="voices-properties-library-delete-btn"
                 onClick={handleDeleteSelectedVoice}
-                aria-label="Delete Voice"
+                aria-label="Delete"
                 disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
                 title={canDeleteSelectedVoice ? undefined : "Select a voice to delete."}
               >
                 <Trash size={14} weight="bold" aria-hidden="true" />
-                <span>{isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}</span>
+                <span>{isDeletingSelectedVoice ? "Deleting…" : "Delete"}</span>
               </button>
             ) : null}
             <button

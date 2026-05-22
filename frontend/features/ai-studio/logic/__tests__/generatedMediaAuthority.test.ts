@@ -585,8 +585,8 @@ describe("generatedMediaAuthority", () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([
         [
-          "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
-          "https://signed.test/audio-cover.png",
+          "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+          "https://signed.test/audio-cover.webp",
         ],
       ])
     );
@@ -597,7 +597,7 @@ describe("generatedMediaAuthority", () => {
         preview_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
         full_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
         companion_art_status: "ready",
-        companion_art_storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+        companion_art_storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -626,8 +626,8 @@ describe("generatedMediaAuthority", () => {
       previewUrl: "https://signed.test/audio-preview.wav",
       previewPosterUrl: null,
       previewPosterStoragePath: null,
-      companionArtUrl: "https://signed.test/audio-cover.png",
-      companionArtStoragePath: "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+      companionArtUrl: "https://signed.test/audio-cover.webp",
+      companionArtStoragePath: "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
       companionArtStatus: "ready",
       previewStoragePath: "user-1/generations/audio/gen-audio-1/audio.wav",
       fullStoragePath: "user-1/generations/audio/gen-audio-1/audio.wav",

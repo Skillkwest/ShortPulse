@@ -5,6 +5,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import type { ToolId } from "../types";
+import {
+  isCreateModeAuthoritySwitch,
+  isPulseCreateAuthorityKey,
+  normalizeSelectedToolForAuthorityKey,
+} from "../logic/pulseToolInvariant";
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -63,8 +68,9 @@ export const useAiStudioReferenceSelectionState = ({
 
   useEffect(() => {
     if (activeAuthorityKeyRef.current === authorityKey) return;
-    stateByAuthorityKeyRef.current[activeAuthorityKeyRef.current] = {
-      selectedTool,
+    const previousAuthorityKey = activeAuthorityKeyRef.current;
+    stateByAuthorityKeyRef.current[previousAuthorityKey] = {
+      selectedTool: normalizeSelectedToolForAuthorityKey(previousAuthorityKey, selectedTool),
       showCreateTools,
       imageReferenceImageUrl,
       imageExtraImageUrls,
@@ -77,8 +83,17 @@ export const useAiStudioReferenceSelectionState = ({
     activeAuthorityKeyRef.current = authorityKey;
     const restoredState =
       stateByAuthorityKeyRef.current[authorityKey] ?? createEmptyReferenceSelectionAuthorityState();
+    const normalizedRestoredSelectedTool = normalizeSelectedToolForAuthorityKey(
+      authorityKey,
+      restoredState.selectedTool
+    );
+    const shouldPreserveCurrentTool =
+      !isPulseCreateAuthorityKey(authorityKey) &&
+      isCreateModeAuthoritySwitch(previousAuthorityKey, authorityKey) &&
+      selectedTool != null &&
+      selectedTool !== "create";
     /* eslint-disable react-hooks/set-state-in-effect -- authority switches intentionally restore the reference-input lane for the newly active mode. */
-    setSelectedTool(restoredState.selectedTool);
+    setSelectedTool(shouldPreserveCurrentTool ? selectedTool : normalizedRestoredSelectedTool);
     setShowCreateTools(restoredState.showCreateTools);
     setImageReferenceImageUrlState(restoredState.imageReferenceImageUrl);
     setImageExtraImageUrls(restoredState.imageExtraImageUrls);

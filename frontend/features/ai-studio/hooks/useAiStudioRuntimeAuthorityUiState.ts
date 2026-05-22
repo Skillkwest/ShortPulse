@@ -59,7 +59,10 @@ export const useAiStudioRuntimeAuthorityUiState = ({
   const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
 
   const getRuntimeAuthorityKeyForCreateMode = useCallback(
-    (createMode: "standard" | "pulse") => `${baseRuntimeAuthorityKey}:create:${createMode}`,
+    (createMode: "standard" | "pulse") => {
+      void createMode;
+      return baseRuntimeAuthorityKey;
+    },
     [baseRuntimeAuthorityKey]
   );
 

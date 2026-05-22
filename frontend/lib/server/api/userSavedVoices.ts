@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { isExcludedElevenLabsVoiceId } from "../elevenlabsVoiceExclusions";
 
 export type SavedAiStudioVoice = {
   voiceId: string;
@@ -77,6 +78,7 @@ const normalizeSavedVoice = (value: unknown): SavedAiStudioVoice | null => {
   const voiceId = normalizeOptionalString(record.voiceId);
   const name = normalizeOptionalString(record.name);
   if (!voiceId || !name) return null;
+  if (isExcludedElevenLabsVoiceId(voiceId)) return null;
 
   return {
     voiceId,
@@ -110,6 +112,14 @@ const normalizeSavedVoices = (value: unknown): SavedAiStudioVoice[] => {
   );
 };
 
+const hasExcludedSavedVoice = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.some((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const record = entry as Record<string, unknown>;
+    return isExcludedElevenLabsVoiceId(normalizeOptionalString(record.voiceId));
+  });
+
 export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -119,7 +129,20 @@ export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStu
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
-    return normalizeSavedVoices(data?.[SAVED_VOICES_COLUMN]);
+    const normalizedVoices = normalizeSavedVoices(data?.[SAVED_VOICES_COLUMN]);
+
+    if (hasExcludedSavedVoice(data?.[SAVED_VOICES_COLUMN])) {
+      const { error: cleanupError } = await supabaseAdmin.from("user_preferences").upsert(
+        {
+          user_id: userId,
+          [SAVED_VOICES_COLUMN]: normalizedVoices,
+        },
+        { onConflict: "user_id" }
+      );
+      if (cleanupError) throw cleanupError;
+    }
+
+    return normalizedVoices;
   } catch (error) {
     if (isSavedVoicesPersistenceUnavailableError(error)) {
       return [];
@@ -138,7 +161,11 @@ export const saveVoiceForUser = async ({
 }): Promise<SavedAiStudioVoice | null> => {
   const normalizedVoiceId = voice.voiceId.trim();
   const normalizedVoiceName = voice.name.trim().replace(/\s+/g, " ");
-  if (!normalizedVoiceId || !normalizedVoiceName) {
+  if (
+    !normalizedVoiceId ||
+    !normalizedVoiceName ||
+    isExcludedElevenLabsVoiceId(normalizedVoiceId)
+  ) {
     return null;
   }
 

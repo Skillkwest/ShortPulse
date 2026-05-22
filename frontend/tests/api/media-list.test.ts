@@ -711,7 +711,7 @@ describe("POST /api/media/list", () => {
             user_id: "user-1",
             companion_art_status: "ready",
             companion_art_storage_path:
-              "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
           },
         ],
       }
@@ -739,9 +739,9 @@ describe("POST /api/media/list", () => {
             id: "audio-1",
             companion_art_status: "ready",
             companion_art_storage_path:
-              "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
             companion_art_url:
-              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.png",
+              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.webp",
           }),
         ],
       })

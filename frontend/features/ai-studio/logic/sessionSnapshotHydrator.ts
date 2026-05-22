@@ -17,6 +17,7 @@ import type {
 } from "../../../prefabs/agent/types";
 import { resolveComposerImageAttachmentPreview } from "./composerImageAttachment";
 import { normalizeAiStudioRestoredModelId } from "./modelRestorePolicy";
+import { normalizeSelectedToolForExpertCreateMode } from "./pulseToolInvariant";
 import {
   parseAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
@@ -893,6 +894,10 @@ export const buildAiStudioSessionHydrationPayload = (
   const resolvedWorkspaceActivePulsePresetId = resolvedWorkspacePulseState.activePulsePresetId;
   const resolvedWorkspacePulseSessionInstanceId =
     resolvedWorkspacePulseState.pulseSessionInstanceId;
+  const resolvedWorkspaceSelectedTool = normalizeSelectedToolForExpertCreateMode(
+    workspaceExpertCreateMode,
+    asToolId(workspace.selectedTool)
+  );
   const activeAgentRuntime =
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse
@@ -901,7 +906,7 @@ export const buildAiStudioSessionHydrationPayload = (
   return {
     workspace: {
       mode: asMode(workspace.mode),
-      selectedTool: asToolId(workspace.selectedTool),
+      selectedTool: resolvedWorkspaceSelectedTool,
       prompt:
         workspaceExpertCreateMode === "pulse" ? workspacePulsePrompt : workspaceStandardPrompt,
       standardPrompt: workspaceStandardPrompt,

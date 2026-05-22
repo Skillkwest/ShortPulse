@@ -228,10 +228,6 @@ export function PresetsLibraryPanel({
                       >
                         Built-in
                       </span>
-                    ) : !preset.hasOverride ? (
-                      <span className="presets-library-custom-pill" aria-hidden="true">
-                        Custom
-                      </span>
                     ) : null}
                   </span>
                   <span className="presets-library-tile-prompt">{preset.prompt}</span>

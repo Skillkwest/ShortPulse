@@ -185,6 +185,84 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(activation?.isCurrent()).toBe(false);
   });
 
+  it("allows a new Pulse startup after leaving Create during a pending activation", async () => {
+    const customPreset = createCreatePulseCustomSavedPreset({
+      presetId: "pulse_custom_video",
+      label: "Custom Video Pulse",
+      description: "Guided custom video prompt.",
+      systemInstructions: "Guide the user through a custom video prompt workflow.",
+      createdAt: "2026-05-01T00:00:00.000Z",
+    });
+    const resolvedCustomPreset = resolveCreatePulsePresetById("pulse_custom_video", [customPreset]);
+    if (!resolvedCustomPreset) {
+      throw new Error("Expected custom Pulse preset to resolve for test.");
+    }
+    const handleExpertCreateModeChange = vi.fn();
+    const { result, rerender } = renderHook(
+      (params: Parameters<typeof useCreatePulsePresetPageRuntime>[0]) =>
+        useCreatePulsePresetPageRuntime(params),
+      {
+        initialProps: createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          savedPresets: [customPreset],
+          handleExpertCreateModeChange,
+        }),
+      }
+    );
+
+    let firstActivation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+    act(() => {
+      firstActivation = result.current.beginPulseActivation(resolvedCustomPreset);
+    });
+
+    rerender(
+      createParams({
+        selectedTool: "edit",
+        activeCreatePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        savedPresets: [customPreset],
+        handleExpertCreateModeChange,
+      })
+    );
+
+    await waitFor(() => {
+      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
+    });
+    expect(firstActivation?.isCurrent()).toBe(false);
+
+    rerender(
+      createParams({
+        expertCreateMode: "standard",
+        activeCreatePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        savedPresets: [customPreset],
+        handleExpertCreateModeChange,
+      })
+    );
+
+    expect(result.current.isPulseStartupPending).toBe(false);
+    expect(result.current.displayCreatePulsePresetId).toBeNull();
+
+    rerender(
+      createParams({
+        activeCreatePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        savedPresets: [customPreset],
+        handleExpertCreateModeChange,
+      })
+    );
+
+    let secondActivation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+    act(() => {
+      secondActivation = result.current.beginPulseActivation(resolvedCustomPreset);
+    });
+
+    expect(secondActivation?.isCurrent()).toBe(true);
+    expect(result.current.isPulseStartupPending).toBe(true);
+    expect(result.current.displayCreatePulsePresetId).toBe("pulse_custom_video");
+  });
+
   it("ignores stale activation cleanup after a newer Pulse startup begins", () => {
     const firstPreset = resolveCreatePulsePresetById(
       "story_builder",

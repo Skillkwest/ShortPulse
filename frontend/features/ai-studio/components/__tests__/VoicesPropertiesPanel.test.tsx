@@ -175,9 +175,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice name" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice prompt" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Generate voice previews" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Generated voice previews")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Play generated voice preview" })
@@ -246,7 +244,8 @@ describe("VoicesPropertiesPanel", () => {
     });
     expect(onVoiceScriptChange).toHaveBeenCalledWith("Updated controlled script.");
 
-    const createVoiceModal = await openCreateVoiceModal();
+    await openCreateVoiceModal();
+    const createVoiceModal = screen.getByRole("dialog", { name: "Create New Voice" });
     const voiceDescriptionField = within(createVoiceModal).getByRole("textbox", {
       name: "Voice prompt",
     });
@@ -419,7 +418,7 @@ describe("VoicesPropertiesPanel", () => {
       screen.getByText("Use at least 20 characters to generate voice previews.")
     ).toBeInTheDocument();
     expect(screen.getByText("0 / 20 minimum")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate voice previews" })).toBeInTheDocument();
+    expect(within(createVoiceModal).getByRole("button", { name: "Generate" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save voice" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Voice shaping")).not.toBeInTheDocument();
     expect(
@@ -561,9 +560,7 @@ describe("VoicesPropertiesPanel", () => {
       screen.queryByRole("combobox", { name: "Voiceover output format" })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice prompt" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Generate voice previews" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
 
@@ -1534,13 +1531,14 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel />);
 
     await openCreateVoiceModal();
+    const createVoiceModal = screen.getByRole("dialog", { name: "Create New Voice" });
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Lantern" },
     });
     fireEvent.change(screen.getByRole("textbox", { name: "Voice prompt" }), {
       target: { value: "Measured documentary narrator with a warm, grounded cadence." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Generate voice previews" }));
+    fireEvent.click(within(createVoiceModal).getByRole("button", { name: "Generate" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/text-to-voice/design", {
@@ -1735,7 +1733,7 @@ describe("VoicesPropertiesPanel", () => {
 
     render(<VoicesPropertiesPanel />);
 
-    await openCreateVoiceModal();
+    const createVoiceModal = await openCreateVoiceModal();
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Lantern" },
     });
@@ -1743,14 +1741,14 @@ describe("VoicesPropertiesPanel", () => {
       target: { value: "Measured documentary narrator with a warm, grounded cadence." },
     });
 
-    const createVoiceButton = screen.getByRole("button", { name: "Generate voice previews" });
+    const createVoiceButton = within(createVoiceModal).getByRole("button", { name: "Generate" });
     fireEvent.click(createVoiceButton);
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     });
     expect(createVoiceButton).toBeEnabled();
-    expect(createVoiceButton).toHaveTextContent("Generate previews");
+    expect(createVoiceButton).toHaveTextContent("Generate");
 
     fireEvent.click(createVoiceButton);
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
@@ -1809,12 +1807,14 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voices" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
 
+    const createVoiceModal = screen.getByRole("dialog", { name: "Create New Voice" });
+    const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     const promptField = screen.getByRole("textbox", { name: "Voice prompt" });
     const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
     const scriptField = screen.getByRole("textbox", { name: "Voice script" });
-    const createVoiceButton = screen.getByRole("button", { name: "Generate voice previews" });
+    const createVoiceButton = within(createVoiceModal).getByRole("button", { name: "Generate" });
     const saveVoiceButton = screen.getByRole("button", { name: "Save voice" });
-    const generateButton = screen.getByRole("button", { name: "Generate" });
+    const generateButton = within(voicesPanel).getByRole("button", { name: "Generate" });
 
     fireEvent.change(voiceNameField, {
       target: { value: "Prompt Lane" },

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/voices";
+import { EXCLUDED_ELEVENLABS_VOICE_IDS } from "../../lib/server/elevenlabsVoiceExclusions";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -28,6 +29,8 @@ const createMockResponse = () => ({
 });
 
 describe("GET /api/elevenlabs/voices", () => {
+  const excludedProviderVoiceId = EXCLUDED_ELEVENLABS_VOICE_IDS[0];
+
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
@@ -101,7 +104,7 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.warning).toBeUndefined();
   });
 
-  it("excludes Liam from the default voices catalog", async () => {
+  it("excludes configured provider voices from the voices catalog", async () => {
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
       {
@@ -114,10 +117,10 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "default",
       },
       {
-        voiceId: "voice-live-2",
-        name: "Liam",
-        previewUrl: "https://example.com/liam.mp3",
-        description: "Provider default Liam voice",
+        voiceId: excludedProviderVoiceId,
+        name: "Excluded Provider Voice",
+        previewUrl: "https://example.com/hidden-default.mp3",
+        description: "Provider default voice that should stay hidden",
         isFallback: false,
         providerCategory: "premade",
         providerVoiceType: "default",
@@ -150,8 +153,8 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.voices).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          voiceId: "voice-live-2",
-          name: "Liam",
+          voiceId: excludedProviderVoiceId,
+          name: "Excluded Provider Voice",
           librarySection: "default",
         }),
       ])

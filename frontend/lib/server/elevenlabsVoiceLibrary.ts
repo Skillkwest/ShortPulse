@@ -1,6 +1,7 @@
 import { ELEVENLABS_DEFAULT_VOICES } from "../model-runtime/elevenLabsDefaultVoices";
 import type { SavedAiStudioVoice, SavedAiStudioVoiceOriginKind } from "./api/userSavedVoices";
 import type { ElevenLabsVoice } from "./elevenlabs";
+import { isExcludedElevenLabsVoiceId } from "./elevenlabsVoiceExclusions";
 
 export type VoiceOriginKind =
   | "fallback-default"
@@ -32,11 +33,8 @@ export type ResolvedVoiceLibraryEntry = {
 
 const normalizeLookupKey = (voiceId: string): string => voiceId.trim().toLowerCase();
 
-const HIDDEN_DEFAULT_VOICE_NAMES = new Set(["liam"]);
-
-const shouldHideResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): boolean =>
-  entry.librarySection === "default" &&
-  HIDDEN_DEFAULT_VOICE_NAMES.has(entry.name.trim().toLowerCase());
+const shouldExcludeResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): boolean =>
+  isExcludedElevenLabsVoiceId(entry.voiceId);
 
 const providerCategoryImpliesUserCreated = (category: string | null): boolean =>
   category === "cloned" || category === "generated";
@@ -216,13 +214,15 @@ export const buildResolvedVoiceLibraryEntries = ({
       providerVoice: providerVoiceMap.get(voiceId) ?? null,
       savedVoice: savedVoiceMap.get(voiceId) ?? null,
     });
-    if (!resolved || shouldHideResolvedVoiceEntry(resolved)) return [];
+    if (!resolved || shouldExcludeResolvedVoiceEntry(resolved)) return [];
     return [resolved];
   });
 };
 
 export const buildFallbackVoiceLibraryEntries = (): ResolvedVoiceLibraryEntry[] =>
-  ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
+  ELEVENLABS_DEFAULT_VOICES.filter(
+    (voice) => !isExcludedElevenLabsVoiceId(voice.fallbackVoiceId)
+  ).map((voice) => ({
     voiceId: voice.fallbackVoiceId,
     name: voice.name,
     previewUrl: null,

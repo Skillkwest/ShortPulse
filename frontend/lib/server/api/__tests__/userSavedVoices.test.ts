@@ -4,6 +4,7 @@ import {
   listSavedVoicesForUser,
   saveVoiceForUser,
 } from "../userSavedVoices";
+import { EXCLUDED_ELEVENLABS_VOICE_IDS } from "../../elevenlabsVoiceExclusions";
 
 const getSupabaseAdminMock = vi.hoisted(() => vi.fn());
 
@@ -12,6 +13,8 @@ vi.mock("../supabaseAdmin", () => ({
 }));
 
 describe("userSavedVoices", () => {
+  const excludedProviderVoiceId = EXCLUDED_ELEVENLABS_VOICE_IDS[0];
+
   beforeEach(() => {
     getSupabaseAdminMock.mockReset();
   });
@@ -89,6 +92,57 @@ describe("userSavedVoices", () => {
     await expect(listSavedVoicesForUser("user-123")).resolves.toEqual([]);
   });
 
+  it("filters excluded provider voices from saved preferences and persists the cleanup", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ai_studio_saved_voices: [
+          {
+            voiceId: excludedProviderVoiceId,
+            name: "Excluded Provider Voice",
+            previewUrl: "https://cdn.shortpulse.test/excluded.mp3",
+            description: "Should be removed",
+            createdAt: "2026-04-20T12:00:00.000Z",
+          },
+          {
+            voiceId: "voice_keep",
+            name: "Keep",
+            previewUrl: null,
+            description: "Keep this voice",
+            createdAt: "2026-04-19T12:00:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn((tableName: string) => {
+      if (tableName !== "user_preferences") throw new Error(`Unexpected table ${tableName}`);
+      return { select, upsert };
+    });
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    const voices = await listSavedVoicesForUser("user-123");
+
+    expect(voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_keep",
+        name: "Keep",
+      }),
+    ]);
+    expect(upsert).toHaveBeenCalledTimes(1);
+    const [payload, options] = upsert.mock.calls[0] ?? [];
+    expect(options).toEqual({ onConflict: "user_id" });
+    expect(payload.user_id).toBe("user-123");
+    expect(payload.ai_studio_saved_voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_keep",
+        name: "Keep",
+      }),
+    ]);
+  });
+
   it("upserts a new saved voice for the authenticated user", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
@@ -156,6 +210,31 @@ describe("userSavedVoices", () => {
         }),
       ])
     );
+  });
+
+  it("refuses to save excluded provider voices", async () => {
+    const upsert = vi.fn();
+    const from = vi.fn((tableName: string) => {
+      if (tableName !== "user_preferences") throw new Error(`Unexpected table ${tableName}`);
+      return { upsert };
+    });
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    const savedVoice = await saveVoiceForUser({
+      userId: "user-123",
+      voice: {
+        voiceId: excludedProviderVoiceId,
+        name: "Excluded Provider Voice",
+        previewUrl: "https://cdn.shortpulse.test/excluded.mp3",
+        description: "Should not persist",
+        originKind: "provider-default",
+        savedSource: "provider-save",
+        providerDeleteEligible: false,
+      },
+    });
+
+    expect(savedVoice).toBeNull();
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("removes a saved voice for the authenticated user", async () => {

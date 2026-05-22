@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { settleGenerationOutcome } from "./generationBilling";
+import { cleanupAudioCompanionArt } from "../audioCompanionArt/cleanup";
 
 type JsonObject = Record<string, unknown>;
 
@@ -310,6 +311,8 @@ export const recordGenerationAbandonment = async ({
                 completed_at: nowIso,
               }
             : {}),
+          companion_art_status: null,
+          companion_art_storage_path: null,
           hidden_in_reference_grid: true,
           reference_grid_visible: false,
           publication_state: "suppressed",
@@ -336,6 +339,12 @@ export const recordGenerationAbandonment = async ({
           publicationUpdate.error.message || "Failed to suppress generation publication."
         );
       }
+      await cleanupAudioCompanionArt({
+        generationId: id,
+        userId,
+        clearProjection: false,
+        supabaseAdmin: adminClient,
+      });
     })
   );
 

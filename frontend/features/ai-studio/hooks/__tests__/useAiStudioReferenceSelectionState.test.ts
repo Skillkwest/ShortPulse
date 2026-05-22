@@ -115,6 +115,64 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.useReferenceImageIndicator).toBe(false);
   });
 
+  it("restores Pulse authority with the Create tool even after leaving Pulse on an off-Create tool", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:pulse" },
+      }
+    );
+
+    act(() => {
+      result.current.setSelectedTool("edit");
+    });
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.selectedTool).toBe("edit");
+
+    rerender({ authorityKey: "session:test:create:pulse" });
+
+    expect(result.current.selectedTool).toBe("create");
+  });
+
+  it("preserves an off-Create tool when leaving Pulse for Standard mode", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:pulse" },
+      }
+    );
+
+    act(() => {
+      result.current.setSelectedTool("edit");
+    });
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.selectedTool).toBe("edit");
+  });
+
+  it("falls back to the restored Standard tool when leaving Pulse with no selected tool", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:pulse" },
+      }
+    );
+
+    act(() => {
+      result.current.setSelectedTool(null);
+    });
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.selectedTool).toBe("create");
+  });
+
   it("only toggles reference indicator when there is an active preview", () => {
     const { result, rerender } = renderHook(
       ({ preview }: { preview: string | null }) =>

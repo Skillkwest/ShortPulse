@@ -190,7 +190,7 @@ export const useAiStudioState = ({
       activeOutputId,
       baseRuntimeAuthorityKey,
       referenceProjectionState,
-      runtimeAuthorityKey: createModeRuntimeAuthorityKey,
+      runtimeAuthorityKey,
       saved,
       sessionHydrationSigningRevisionRef,
       setActiveOutputId,

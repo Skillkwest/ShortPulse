@@ -39,10 +39,10 @@ const PRESETS: ExpertEditResolvedPreset[] = [
 ];
 
 describe("PresetsLibraryPanel", () => {
-  it("shows the custom pill for a default custom preset", () => {
-    const { container } = render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
+  it("does not show a custom pill for custom presets", () => {
+    render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
 
-    expect(container.querySelector(".presets-library-custom-pill")).toBeTruthy();
+    expect(screen.queryByText(/^Custom$/)).not.toBeInTheDocument();
   });
 
   it("shows the built-in pill for system presets", () => {
@@ -51,8 +51,8 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.getByText("Built-in")).toBeInTheDocument();
   });
 
-  it("hides the custom pill when a custom preset has a saved override", () => {
-    const { container } = render(
+  it("does not show a custom pill when a custom preset has a saved override", () => {
+    render(
       <PresetsLibraryPanel
         presets={[
           {
@@ -67,7 +67,7 @@ describe("PresetsLibraryPanel", () => {
       />
     );
 
-    expect(container.querySelector(".presets-library-custom-pill")).toBeNull();
+    expect(screen.queryByText(/^Custom$/)).not.toBeInTheDocument();
   });
 
   it("opens the edit modal when a preset card is clicked", () => {

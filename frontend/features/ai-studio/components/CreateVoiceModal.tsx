@@ -124,32 +124,45 @@ export function CreateVoiceModal({
 
         <div className="voices-create-modal-scroll">
           <div className="voices-create-modal-body">
-            <div
-              className="voices-create-modal-method-tabs voices-properties-mode-tabs"
-              role="tablist"
-              aria-label="Voice creation method"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={createMode === "generate"}
-                className={`voices-properties-mode-tab ${
-                  createMode === "generate" ? "is-active" : ""
-                }`}
-                onClick={() => onCreateModeChange("generate")}
+            <div className="voices-create-modal-top-row">
+              <div
+                className="voices-create-modal-method-tabs voices-properties-mode-tabs"
+                role="tablist"
+                aria-label="Voice creation method"
               >
-                Generate Voice
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={createMode === "clone"}
-                data-voice-mode="voice-clone"
-                className={`voices-properties-mode-tab ${isCloneMode ? "is-active" : ""}`}
-                onClick={() => onCreateModeChange("clone")}
-              >
-                Clone Voice
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={createMode === "generate"}
+                  className={`voices-properties-mode-tab ${
+                    createMode === "generate" ? "is-active" : ""
+                  }`}
+                  onClick={() => onCreateModeChange("generate")}
+                >
+                  Generate Voice
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={createMode === "clone"}
+                  data-voice-mode="voice-clone"
+                  className={`voices-properties-mode-tab ${isCloneMode ? "is-active" : ""}`}
+                  onClick={() => onCreateModeChange("clone")}
+                >
+                  Clone Voice
+                </button>
+              </div>
+
+              {!isCloneMode ? (
+                <button
+                  type="button"
+                  className="voices-properties-save-btn voices-create-modal-save-btn"
+                  onClick={onSaveVoice}
+                  disabled={!isSaveVoiceEnabled}
+                >
+                  {isSavingDesignedVoice ? "Saving…" : "Save voice"}
+                </button>
+              ) : null}
             </div>
 
             <div className="voices-create-modal-form">
@@ -245,10 +258,10 @@ export function CreateVoiceModal({
                     type="button"
                     className="voices-create-modal-primary-btn"
                     disabled={!isCreateVoiceEnabled}
-                    aria-label="Generate voice previews"
+                    aria-label="Generate"
                     onClick={onGenerateVoicePreviews}
                   >
-                    {hasPreviewOptions ? "Regenerate previews" : "Generate previews"}
+                    Generate
                   </button>
                 </div>
               ) : null}
@@ -332,19 +345,6 @@ export function CreateVoiceModal({
                 {saveVoiceError}
               </p>
             ) : null}
-
-            <div className="voices-create-modal-footer">
-              {!isCloneMode ? (
-                <button
-                  type="button"
-                  className="voices-properties-save-btn voices-create-modal-save-btn"
-                  onClick={onSaveVoice}
-                  disabled={!isSaveVoiceEnabled}
-                >
-                  {isSavingDesignedVoice ? "Saving…" : "Save voice"}
-                </button>
-              ) : null}
-            </div>
           </div>
         </div>
       </div>

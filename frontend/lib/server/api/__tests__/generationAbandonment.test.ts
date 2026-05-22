@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSupabaseAdminMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
+const cleanupAudioCompanionArtMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -9,6 +10,10 @@ vi.mock("../supabaseAdmin", () => ({
 
 vi.mock("../generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../../audioCompanionArt/cleanup", () => ({
+  cleanupAudioCompanionArt: (...args: unknown[]) => cleanupAudioCompanionArtMock(...args),
 }));
 
 import { recordGenerationAbandonment } from "../generationAbandonment";
@@ -108,6 +113,11 @@ describe("recordGenerationAbandonment", () => {
       settled: true,
       note: "abandoned_no_refund_captured",
     });
+    cleanupAudioCompanionArtMock.mockResolvedValue({
+      clearedProjection: false,
+      deletedStoragePath: "user-1/generations/audio/gen-1/companion-art/cover.webp",
+      storageDeleted: true,
+    });
   });
 
   it("closes active abandoned generations and captures the no-refund settlement", async () => {
@@ -144,9 +154,18 @@ describe("recordGenerationAbandonment", () => {
       expect.objectContaining({
         task_state: "fail",
         queue_state: "failed",
+        companion_art_status: null,
+        companion_art_storage_path: null,
         hidden_in_reference_grid: true,
         reference_grid_visible: false,
         publication_state: "suppressed",
+      })
+    );
+    expect(cleanupAudioCompanionArtMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        clearProjection: false,
       })
     );
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
@@ -179,9 +198,18 @@ describe("recordGenerationAbandonment", () => {
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
     expect(supabase.updates.projections).toHaveBeenCalledWith(
       expect.objectContaining({
+        companion_art_status: null,
+        companion_art_storage_path: null,
         hidden_in_reference_grid: true,
         reference_grid_visible: false,
         publication_state: "suppressed",
+      })
+    );
+    expect(cleanupAudioCompanionArtMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        clearProjection: false,
       })
     );
   });

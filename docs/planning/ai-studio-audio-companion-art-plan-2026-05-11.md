@@ -61,9 +61,9 @@ Recommended posture:
 
 1. The prompt compiler hard-codes companion-art generation to `1024x1024` at `low` quality in
    `frontend/lib/server/audioCompanionArt/promptCompiler.ts`.
-2. The processor uploads the generated image directly as a raw PNG browse asset at
-   `<uid>/generations/audio/<generationId>/companion-art/cover.png` in
-   `frontend/lib/server/audioCompanionArt/processing.ts`.
+2. Newly generated companion art now writes as a lightweight WebP delivery asset at
+   `<uid>/generations/audio/<generationId>/companion-art/cover.webp`, but historical rows may
+   still point at older PNG assets until they are naturally removed by forward lifecycle cleanup.
 3. Audio-card surfaces currently consume the signed original companion-art object instead of a
    dedicated lightweight delivery asset.
 4. The rendered audio-card surface is much smaller than the stored asset:
@@ -115,6 +115,7 @@ projection fields, or rendering wiring unless required by the new lightweight de
 - uploaded audio parity
 - existing non-generated library audio parity
 - companion art as a visible standalone image output
+- project delete as an owner of user-global generated audio/media cleanup
 - project-card preview usage of companion art
 - reuse of video-poster semantics as the long-term audio solution
 - full visual redesign of audio cards
@@ -181,21 +182,22 @@ These are the primary seams for the follow-on lane.
 
 Freeze these before code changes.
 
-| Decision               | Options                                                                                    | Recommended default                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Rollout scope          | Generated audio only / broader parity                                                      | Generated audio only                                                               |
-| Storage representation | Small delivery asset only / raw source + small delivery asset                              | Small delivery asset only unless a raw source has a concrete future use            |
-| Delivery format        | PNG / JPEG / WebP                                                                          | WebP delivery asset                                                                |
-| Delivery size target   | 240px / 480px / larger                                                                     | 240-480px browse asset                                                             |
-| Historical posture     | Leave old rows / lazy upgrade / bounded backfill                                           | Leave old rows or lazy-upgrade by touch unless storage evidence justifies backfill |
-| Ownership model        | Projection-owned hidden asset / media-file-owned hidden asset / formal derivative contract | Hidden asset with explicit authoritative cleanup seam                              |
-| Quota posture          | Internal hidden storage exempt from quota / count toward user quota                        | Must be explicitly frozen before rollout                                           |
-| Async trigger model    | Existing server-side enqueue / client follow-up                                            | Keep existing server-side enqueue                                                  |
-| Suppression posture    | Allow suppressed rows to finish / gate suppressed rows before work begins                  | Gate suppressed or abandoned rows before companion-art work begins                 |
-| Restore behavior       | Durable by storage-path authority / runtime-only                                           | Keep current durable storage-path authority                                        |
-| Cleanup authority      | Media delete only / generation delete only / shared explicit cleanup helper                | Shared explicit cleanup helper                                                     |
-| Delete failure policy  | Storage-first / DB-first / route-specific behavior                                         | Freeze one explicit policy and apply it consistently                               |
-| Rollout safety         | Direct cutover / flag-gated cutover                                                        | Flag-gated cutover if asset format/path changes materially                         |
+| Decision               | Options                                                                                    | Recommended default                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Rollout scope          | Generated audio only / broader parity                                                      | Generated audio only                                                            |
+| Storage representation | Small delivery asset only / raw source + small delivery asset                              | Small delivery asset only unless a raw source has a concrete future use         |
+| Delivery format        | PNG / JPEG / WebP                                                                          | WebP delivery asset                                                             |
+| Delivery size target   | 240px / 480px / larger                                                                     | 240-480px browse asset                                                          |
+| Historical posture     | Leave old rows / lazy upgrade / bounded backfill                                           | Leave old rows in place; no backfill                                            |
+| Ownership model        | Projection-owned hidden asset / media-file-owned hidden asset / formal derivative contract | Hidden asset with explicit authoritative cleanup seam                           |
+| Quota posture          | Internal hidden storage exempt from quota / count toward user quota                        | Must be explicitly frozen before rollout                                        |
+| Async trigger model    | Existing server-side enqueue / client follow-up                                            | Keep existing server-side enqueue                                               |
+| Suppression posture    | Allow suppressed rows to finish / gate suppressed rows before work begins                  | Gate suppressed or abandoned rows before companion-art work begins              |
+| Project delete posture | Delete hidden companion art with project / leave generated-media ownership global          | Leave generated-media ownership global; project delete is not the cleanup owner |
+| Restore behavior       | Durable by storage-path authority / runtime-only                                           | Keep current durable storage-path authority                                     |
+| Cleanup authority      | Media delete only / generation delete only / shared explicit cleanup helper                | Shared explicit cleanup helper                                                  |
+| Delete failure policy  | Storage-first / DB-first / route-specific behavior                                         | Freeze one explicit policy and apply it consistently                            |
+| Rollout safety         | Direct cutover / flag-gated cutover                                                        | Flag-gated cutover if asset format/path changes materially                      |
 
 ## Proposed Target Contract
 
@@ -248,6 +250,7 @@ Work:
 - freeze storage representation (`small delivery asset only` vs `raw + small`)
 - freeze quota posture
 - freeze suppression posture for suppressed/abandoned generations
+- freeze project-delete posture as non-owner for global generated media
 - freeze cleanup authority
 - freeze delete failure policy
 - freeze historical posture for old full-size assets
@@ -330,13 +333,15 @@ Work:
 - add explicit cleanup for companion-art objects on relevant delete flows
 - clear projection companion-art metadata when the owning asset/generation is deleted or suppressed
 - align companion-art cleanup with one explicit DB/storage ordering and failure policy
-- define behavior for project delete, generation delete, abandon, and permanent library delete
+- define behavior for generation delete, abandon, and permanent library delete
+- explicitly keep project delete out of this cleanup seam unless product ownership of generated media changes
 
 Audit questions:
 
 - Can hidden companion-art storage survive `Delete from library` today?
 - Which seam is authoritative for deleting companion art when media rows and projection rows both
   exist?
+- Does project delete actually own global generated media today, or only project identity/workspace?
 - Do cleanup failures degrade safely and observably?
 
 Exit criteria:

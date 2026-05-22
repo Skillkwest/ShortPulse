@@ -6,6 +6,7 @@ const generateOpenAiImageMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const resolveRuntimeAgentPromptMock = vi.fn();
+const cleanupAudioCompanionArtMock = vi.fn();
 const sharpMock = vi.fn();
 const sharpRotateMock = vi.fn();
 const sharpResizeMock = vi.fn();
@@ -36,6 +37,10 @@ vi.mock("../../api/runtimeAgentPromptControlPlane", () => ({
   resolveRuntimeAgentPrompt: (...args: unknown[]) => resolveRuntimeAgentPromptMock(...args),
 }));
 
+vi.mock("../cleanup", () => ({
+  cleanupAudioCompanionArt: (...args: unknown[]) => cleanupAudioCompanionArtMock(...args),
+}));
+
 const createSelectBuilder = (result: { data: unknown; error: unknown }) => {
   const builder: Record<string, unknown> = {};
   builder.eq = vi.fn(() => builder);
@@ -59,6 +64,11 @@ describe("audioCompanionArt processing", () => {
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
+    });
+    cleanupAudioCompanionArtMock.mockResolvedValue({
+      clearedProjection: true,
+      deletedStoragePath: null,
+      storageDeleted: false,
     });
     sharpToBufferMock.mockResolvedValue(Buffer.from("cover-webp"));
     sharpWebpMock.mockReturnValue({
@@ -373,12 +383,11 @@ describe("audioCompanionArt processing", () => {
       errors: 0,
     });
     expect(generateOpenAiImageMock).not.toHaveBeenCalled();
-    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+    expect(cleanupAudioCompanionArtMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-suppressed",
         userId: "user-suppressed",
-        companionArtStatus: null,
-        companionArtStoragePath: null,
+        supabaseAdmin: expect.any(Object),
       })
     );
   });

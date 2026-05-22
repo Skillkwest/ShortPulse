@@ -5,6 +5,7 @@ import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { resolveRuntimeAgentPrompt } from "../api/runtimeAgentPromptControlPlane";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { cleanupAudioCompanionArt } from "./cleanup";
 import { compileAudioCompanionArtPrompt, type AudioCompanionArtSourceMode } from "./promptCompiler";
 
 const MEDIA_BUCKET = "media_library";
@@ -117,21 +118,6 @@ const loadAudioCompanionArtEligibility = async ({
     throw new Error(error.message || "Failed to load audio companion art eligibility.");
   }
   return isAudioCompanionArtEligible((data as AudioCompanionArtProjectionEligibilityRow) ?? null);
-};
-
-const clearAudioCompanionArtState = async ({
-  generationId,
-  userId,
-}: {
-  generationId: string;
-  userId: string;
-}): Promise<void> => {
-  await upsertGenerationProjection({
-    generationId,
-    userId,
-    companionArtStatus: null,
-    companionArtStoragePath: null,
-  }).catch(() => undefined);
 };
 
 const encodeAudioCompanionArtDeliveryBuffer = async (sourceBuffer: Buffer): Promise<Buffer> => {
@@ -301,9 +287,10 @@ export const processPendingAudioCompanionArtBatch = async ({
       if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
         metrics.processed += 1;
         metrics.skipped += 1;
-        await clearAudioCompanionArtState({
+        await cleanupAudioCompanionArt({
           generationId,
           userId,
+          supabaseAdmin,
         });
         continue;
       }
@@ -344,9 +331,10 @@ export const processPendingAudioCompanionArtBatch = async ({
       if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
         metrics.processed += 1;
         metrics.skipped += 1;
-        await clearAudioCompanionArtState({
+        await cleanupAudioCompanionArt({
           generationId,
           userId,
+          supabaseAdmin,
         });
         continue;
       }

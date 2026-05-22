@@ -80,6 +80,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 - The legacy Identity section is removed from create mode.
 - The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
 - In AI Studio embedded Character Properties (`surface='panel'`), the QuickSwap section uses leaner chrome than the standalone route: the legacy helper paragraph is hidden, the QuickSwap collapse toggle is hidden, the deck stays expanded, and the panel lands on `Character Profile` by default.
+- The embedded `Looks` control now uses a compact segmented layout with explicit manage actions for switching, renaming, and deleting persisted looks instead of relying on double-click rename and hover-only delete affordances.
 
 11. Internal drag observability contract:
 
@@ -98,7 +99,8 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
 - Create layout wrapper: `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
-- Character sheet preset tabs UI/a11y seam: `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`
+- Standalone character sheet preset tabs UI/a11y seam: `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`
+- Embedded AI Studio looks control seam: `frontend/features/character-manager/components/EmbeddedCharacterLooksControl.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`

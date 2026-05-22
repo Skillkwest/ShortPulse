@@ -17,8 +17,9 @@ import {
 } from "../hooks/useCharacterManagerDroppedReferenceController";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
+import { EmbeddedCharacterLooksControl } from "./EmbeddedCharacterLooksControl";
 import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
-import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
+import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import type { CharacterSheetDropZoneKey, CharacterSheetPresetId } from "../types";
 import {
   AiStudioPickerCard,
@@ -68,6 +69,16 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
   columnGap: "34px",
   alignItems: "start",
+};
+const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: "18px",
+  marginTop: "12px",
+  padding: "14px 16px 16px",
+  borderRadius: "18px",
+  border: "1px solid rgba(30, 35, 43, 0.96)",
+  background: "rgba(15, 17, 22, 0.72)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
@@ -133,7 +144,7 @@ const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
   marginBottom: "2px",
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
-  width: "min(100%, 118px)",
+  width: "min(100%, 114px)",
   gridTemplateRows: "auto 28px",
   minHeight: "176px",
   borderRadius: "16px",
@@ -286,7 +297,7 @@ export function CharacterPanelWorkspace({
     [characterSheetPresetAssignments]
   );
   const activeCharacterSheetPresetTabId = getCharacterSheetPresetTabId(
-    "character-panel-preset",
+    "character-panel-looks",
     activeCharacterSheetPresetId
   );
   const deleteTargetCharacterSheetPresetLabel = deleteTargetCharacterSheetPresetId
@@ -523,255 +534,259 @@ export function CharacterPanelWorkspace({
                       </button>
                     </div>
 
-                    <div
-                      className="character-panel-profile-fields-row"
-                      style={CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE}
-                    >
+                    <div style={CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE}>
                       <div
-                        className="character-panel-profile-name-field"
-                        style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}
+                        className="character-panel-profile-fields-row"
+                        style={CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE}
                       >
-                        <label
-                          className="character-profile-fields character-profile-fields--label-serif"
-                          htmlFor="character-panel-name"
-                          style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                        <div
+                          className="character-panel-profile-name-field"
+                          style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}
                         >
-                          <span className="input-label">Name:</span>
-                        </label>
-
-                        <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
-                          <input
-                            ref={characterNameInputRef}
-                            id="character-panel-name"
-                            className="character-name-input"
-                            style={CHARACTER_NAME_INPUT_INLINE_STYLE}
-                            type="text"
-                            value={characterName}
-                            maxLength={80}
-                            onChange={(event) => setCharacterName(event.target.value)}
-                            placeholder="Enter character name"
-                            disabled={loading}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
-                        <div style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}>
-                          <div
-                            className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
+                          <label
+                            className="character-profile-fields character-profile-fields--label-serif"
+                            htmlFor="character-panel-name"
                             style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
                           >
-                            <p className="input-label">Looks:</p>
-                          </div>
+                            <span className="input-label">Name:</span>
+                          </label>
 
-                          <div
-                            className="character-sheet-looks-block"
-                            style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
-                          >
-                            <CharacterSheetPresetTabs
-                              presetIds={visibleCharacterSheetPresetIds}
-                              activePresetId={activeCharacterSheetPresetId}
-                              presetLabels={characterSheetPresetLabels}
-                              compact
-                              onSelectPreset={(presetId) => {
-                                void setActiveCharacterSheetPreset(presetId);
-                              }}
-                              onAddPreset={() => {
-                                void addCharacterSheetPreset();
-                              }}
-                              onRenamePreset={(presetId, nextLabel) => {
-                                void renameCharacterSheetPreset(presetId, nextLabel);
-                              }}
-                              onDeletePreset={(presetId) => {
-                                if (pageBusy || isSavingCharacterSheetPreset) return;
-                                clearMessages();
-                                setDeleteTargetCharacterSheetPresetId(presetId);
-                              }}
-                              panelId="character-panel-preset-panel"
-                              disabled={pageBusy}
-                              idBase="character-panel-preset"
+                          <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                            <input
+                              ref={characterNameInputRef}
+                              id="character-panel-name"
+                              className="character-name-input"
+                              style={CHARACTER_NAME_INPUT_INLINE_STYLE}
+                              type="text"
+                              value={characterName}
+                              maxLength={80}
+                              onChange={(event) => setCharacterName(event.target.value)}
+                              placeholder="Enter character name"
+                              disabled={loading}
                             />
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div
-                    className="character-sheet-preset-panel"
-                    role="tabpanel"
-                    id="character-panel-preset-panel"
-                    aria-labelledby={activeCharacterSheetPresetTabId}
-                  >
-                    <div
-                      className="character-panel-preset-content-grid"
-                      style={CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE}
-                    >
-                      {isEmbeddedMediaLibraryMaximized ? null : (
-                        <div className="character-panel-preset-description-column">
-                          <CharacterDescriptionEditorCard
-                            description={characterDescription}
-                            maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                            rows={5}
-                            disabled={loading}
-                            onChangeDescription={setCharacterDescription}
-                          />
+                        <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                          <div style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}>
+                            <div
+                              className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
+                              style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                            >
+                              <p className="input-label">Looks:</p>
+                            </div>
+
+                            <div
+                              className="character-sheet-looks-block"
+                              style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
+                            >
+                              <EmbeddedCharacterLooksControl
+                                presetIds={visibleCharacterSheetPresetIds}
+                                activePresetId={activeCharacterSheetPresetId}
+                                presetLabels={characterSheetPresetLabels}
+                                onSelectPreset={(presetId) => {
+                                  void setActiveCharacterSheetPreset(presetId);
+                                }}
+                                onAddPreset={() => {
+                                  void addCharacterSheetPreset();
+                                }}
+                                onRenamePreset={(presetId, nextLabel) => {
+                                  void renameCharacterSheetPreset(presetId, nextLabel);
+                                }}
+                                onDeletePreset={(presetId) => {
+                                  if (pageBusy || isSavingCharacterSheetPreset) return;
+                                  clearMessages();
+                                  setDeleteTargetCharacterSheetPresetId(presetId);
+                                }}
+                                panelId="character-panel-preset-panel"
+                                disabled={pageBusy}
+                                idBase="character-panel-looks"
+                              />
+                            </div>
+                          </div>
                         </div>
-                      )}
+                      </div>
 
                       <div
-                        className="character-panel-preset-references-column"
-                        style={CHARACTER_REFERENCE_COLUMN_INLINE_STYLE}
+                        className="character-sheet-preset-panel"
+                        role="tabpanel"
+                        id="character-panel-preset-panel"
+                        aria-labelledby={activeCharacterSheetPresetTabId}
                       >
                         <div
-                          className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif"
-                          style={CHARACTER_REFERENCE_TITLE_INLINE_STYLE}
+                          className="character-panel-preset-content-grid"
+                          style={CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE}
                         >
-                          <p className="input-label">Character References:</p>
-                        </div>
-                        <div
-                          className="character-reference-empty-grid"
-                          style={CHARACTER_REFERENCE_GRID_INLINE_STYLE}
-                        >
-                          {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
-                            const assignedReference =
-                              resolvedCharacterSheetPresetAssignments[dropZone.key];
-                            const isDropActive = activeCharacterSheetDropZone === dropZone.key;
-                            const isDropPending =
-                              pendingDropTarget?.target === "character_sheet" &&
-                              pendingDropTarget.zoneKey === dropZone.key;
-                            const isRequiredSlot = dropZone.key === "portrait";
-                            const slotRequirementCopy = isRequiredSlot
-                              ? "(Required)"
-                              : "(Optional)";
+                          {isEmbeddedMediaLibraryMaximized ? null : (
+                            <div className="character-panel-preset-description-column">
+                              <CharacterDescriptionEditorCard
+                                description={characterDescription}
+                                maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                                rows={5}
+                                disabled={loading}
+                                onChangeDescription={setCharacterDescription}
+                              />
+                            </div>
+                          )}
 
-                            return (
-                              <article
-                                key={dropZone.key}
-                                className={`character-character-sheet-card ${
-                                  assignedReference ? "is-filled" : "is-empty"
-                                } ${isDropActive ? "is-drop-active" : ""} ${
-                                  draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
-                                } ${isDropPending ? "is-drop-pending" : ""}`}
-                                style={{
-                                  ...CHARACTER_REFERENCE_CARD_INLINE_STYLE,
-                                  borderColor: isDropActive
-                                    ? "rgba(59, 193, 255, 0.82)"
-                                    : "rgba(30, 34, 41, 0.96)",
-                                  boxShadow: isDropActive
-                                    ? "0 0 0 1px rgba(59, 193, 255, 0.18)"
-                                    : "none",
-                                  opacity: draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,
-                                }}
-                                draggable={
-                                  !pageBusy && !isDropPending && Boolean(assignedReference)
-                                }
-                                onClick={handleCharacterSheetCardClick(dropZone.key)}
-                                onDoubleClick={() => {
-                                  void openSlotPreview(dropZone.key);
-                                }}
-                                onDragStart={handleCharacterSheetDragStart(dropZone.key)}
-                                onDragEnd={handleReferenceDragEnd}
-                                onDragOver={handleCharacterSheetDragOver(dropZone.key)}
-                                onDragLeave={() => {
-                                  setActiveCharacterSheetDropZone((current) =>
-                                    current === dropZone.key ? null : current
-                                  );
-                                }}
-                                onDrop={handleCharacterSheetDrop(dropZone.key)}
-                              >
-                                <div
-                                  className="character-panel-slot-actions"
-                                  style={CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
-                                >
-                                  {assignedReference ? (
-                                    <button
-                                      type="button"
-                                      className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
-                                      style={CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE}
-                                      aria-label={`Clear ${dropZone.label} reference`}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        void clearCharacterSheetAssignment(dropZone.key);
-                                      }}
-                                      disabled={pageBusy}
+                          <div
+                            className="character-panel-preset-references-column"
+                            style={CHARACTER_REFERENCE_COLUMN_INLINE_STYLE}
+                          >
+                            <div
+                              className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif"
+                              style={CHARACTER_REFERENCE_TITLE_INLINE_STYLE}
+                            >
+                              <p className="input-label">Character References:</p>
+                            </div>
+                            <div
+                              className="character-reference-empty-grid"
+                              style={CHARACTER_REFERENCE_GRID_INLINE_STYLE}
+                            >
+                              {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+                                const assignedReference =
+                                  resolvedCharacterSheetPresetAssignments[dropZone.key];
+                                const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                                const isDropPending =
+                                  pendingDropTarget?.target === "character_sheet" &&
+                                  pendingDropTarget.zoneKey === dropZone.key;
+                                const isRequiredSlot = dropZone.key === "portrait";
+                                const slotRequirementCopy = isRequiredSlot
+                                  ? "(Required)"
+                                  : "(Optional)";
+
+                                return (
+                                  <article
+                                    key={dropZone.key}
+                                    className={`character-character-sheet-card ${
+                                      assignedReference ? "is-filled" : "is-empty"
+                                    } ${isDropActive ? "is-drop-active" : ""} ${
+                                      draggedCharacterSheetZoneKey === dropZone.key
+                                        ? "is-dragging"
+                                        : ""
+                                    } ${isDropPending ? "is-drop-pending" : ""}`}
+                                    style={{
+                                      ...CHARACTER_REFERENCE_CARD_INLINE_STYLE,
+                                      borderColor: isDropActive
+                                        ? "rgba(59, 193, 255, 0.82)"
+                                        : "rgba(30, 34, 41, 0.96)",
+                                      boxShadow: isDropActive
+                                        ? "0 0 0 1px rgba(59, 193, 255, 0.18)"
+                                        : "none",
+                                      opacity:
+                                        draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,
+                                    }}
+                                    draggable={
+                                      !pageBusy && !isDropPending && Boolean(assignedReference)
+                                    }
+                                    onClick={handleCharacterSheetCardClick(dropZone.key)}
+                                    onDoubleClick={() => {
+                                      void openSlotPreview(dropZone.key);
+                                    }}
+                                    onDragStart={handleCharacterSheetDragStart(dropZone.key)}
+                                    onDragEnd={handleReferenceDragEnd}
+                                    onDragOver={handleCharacterSheetDragOver(dropZone.key)}
+                                    onDragLeave={() => {
+                                      setActiveCharacterSheetDropZone((current) =>
+                                        current === dropZone.key ? null : current
+                                      );
+                                    }}
+                                    onDrop={handleCharacterSheetDrop(dropZone.key)}
+                                  >
+                                    <div
+                                      className="character-panel-slot-actions"
+                                      style={CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
                                     >
-                                      <Trash size={12} weight="bold" />
-                                    </button>
-                                  ) : null}
-                                </div>
-                                <div
-                                  className="character-character-sheet-media"
-                                  style={CHARACTER_REFERENCE_MEDIA_INLINE_STYLE}
-                                >
-                                  {assignedReference?.previewUrl ? (
-                                    <Image
-                                      src={
-                                        resolveCharacterCardPreviewUrl({
-                                          previewUrl: assignedReference.previewUrl,
-                                          storagePath:
-                                            assignedReference.previewStoragePath ??
-                                            assignedReference.storagePath,
-                                          cardLongEdgePx: 300,
-                                        }) ?? assignedReference.previewUrl
-                                      }
-                                      alt={`${dropZone.label} reference`}
-                                      className="character-character-sheet-image"
-                                      width={240}
-                                      height={300}
-                                      onError={(event) => {
-                                        refreshCardPreviewSignedUrl(
-                                          assignedReference.previewStoragePath ??
-                                            assignedReference.storagePath,
-                                          event.currentTarget.currentSrc ||
-                                            event.currentTarget.src ||
-                                            null
-                                        );
-                                      }}
-                                      unoptimized
-                                    />
-                                  ) : (
-                                    <span
-                                      className="character-character-sheet-drop-copy tiny"
-                                      style={CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE}
-                                    >
-                                      <UploadSimple
-                                        size={14}
-                                        weight="bold"
-                                        className="character-character-sheet-drop-icon"
-                                        aria-hidden="true"
-                                      />
-                                      <span>Drag reference here or click to upload</span>
-                                      <span
-                                        className={`character-character-sheet-drop-requirement ${
-                                          isRequiredSlot ? "is-required" : "is-optional"
-                                        }`}
-                                        style={{
-                                          ...CHARACTER_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
-                                          color: isRequiredSlot
-                                            ? "rgba(151, 210, 255, 0.96)"
-                                            : "rgba(167, 176, 192, 0.78)",
-                                        }}
-                                      >
-                                        {slotRequirementCopy}
-                                      </span>
-                                      {isDropPending ? (
-                                        <span className="character-character-sheet-drop-pending tiny">
-                                          Assigning...
-                                        </span>
+                                      {assignedReference ? (
+                                        <button
+                                          type="button"
+                                          className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                                          style={CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE}
+                                          aria-label={`Clear ${dropZone.label} reference`}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            void clearCharacterSheetAssignment(dropZone.key);
+                                          }}
+                                          disabled={pageBusy}
+                                        >
+                                          <Trash size={12} weight="bold" />
+                                        </button>
                                       ) : null}
+                                    </div>
+                                    <div
+                                      className="character-character-sheet-media"
+                                      style={CHARACTER_REFERENCE_MEDIA_INLINE_STYLE}
+                                    >
+                                      {assignedReference?.previewUrl ? (
+                                        <Image
+                                          src={
+                                            resolveCharacterCardPreviewUrl({
+                                              previewUrl: assignedReference.previewUrl,
+                                              storagePath:
+                                                assignedReference.previewStoragePath ??
+                                                assignedReference.storagePath,
+                                              cardLongEdgePx: 300,
+                                            }) ?? assignedReference.previewUrl
+                                          }
+                                          alt={`${dropZone.label} reference`}
+                                          className="character-character-sheet-image"
+                                          width={240}
+                                          height={300}
+                                          onError={(event) => {
+                                            refreshCardPreviewSignedUrl(
+                                              assignedReference.previewStoragePath ??
+                                                assignedReference.storagePath,
+                                              event.currentTarget.currentSrc ||
+                                                event.currentTarget.src ||
+                                                null
+                                            );
+                                          }}
+                                          unoptimized
+                                        />
+                                      ) : (
+                                        <span
+                                          className="character-character-sheet-drop-copy tiny"
+                                          style={CHARACTER_REFERENCE_DROP_COPY_INLINE_STYLE}
+                                        >
+                                          <UploadSimple
+                                            size={14}
+                                            weight="bold"
+                                            className="character-character-sheet-drop-icon"
+                                            aria-hidden="true"
+                                          />
+                                          <span>Drag reference here or click to upload</span>
+                                          <span
+                                            className={`character-character-sheet-drop-requirement ${
+                                              isRequiredSlot ? "is-required" : "is-optional"
+                                            }`}
+                                            style={{
+                                              ...CHARACTER_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
+                                              color: isRequiredSlot
+                                                ? "rgba(151, 210, 255, 0.96)"
+                                                : "rgba(167, 176, 192, 0.78)",
+                                            }}
+                                          >
+                                            {slotRequirementCopy}
+                                          </span>
+                                          {isDropPending ? (
+                                            <span className="character-character-sheet-drop-pending tiny">
+                                              Assigning...
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className="character-reference-empty-hint"
+                                      style={CHARACTER_REFERENCE_HINT_INLINE_STYLE}
+                                    >
+                                      {dropZone.label}
                                     </span>
-                                  )}
-                                </div>
-                                <span
-                                  className="character-reference-empty-hint"
-                                  style={CHARACTER_REFERENCE_HINT_INLINE_STYLE}
-                                >
-                                  {dropZone.label}
-                                </span>
-                              </article>
-                            );
-                          })}
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

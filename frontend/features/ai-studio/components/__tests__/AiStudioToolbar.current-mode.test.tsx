@@ -71,6 +71,9 @@ describe("AiStudioToolbar current mode", () => {
 
     const librariesSection = screen.getByText("Libraries").closest(".toolbar-lower");
     expect(librariesSection).not.toBeNull();
+    const libraryButtons = within(librariesSection as HTMLElement).getAllByRole("button");
+    const labels = libraryButtons.map((button) => button.textContent?.trim() ?? "");
+    expect(labels.indexOf("Media")).toBeLessThan(labels.indexOf("Characters"));
     expect(
       within(librariesSection as HTMLElement).getByRole("button", { name: "Characters" })
     ).toBeTruthy();

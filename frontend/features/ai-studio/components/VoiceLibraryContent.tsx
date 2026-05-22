@@ -82,9 +82,6 @@ export function VoiceLibraryContent({
       </div>
       {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
       {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
-      {primaryAction ? (
-        <div className="voices-library-modal-primary-action-row">{primaryAction}</div>
-      ) : null}
       <div
         id={
           activeLibrarySection === "my" ? "voices-library-panel-my" : "voices-library-panel-default"
@@ -171,6 +168,9 @@ export function VoiceLibraryContent({
           )}
         </ul>
       </div>
+      {primaryAction ? (
+        <div className="voices-library-modal-primary-action-row">{primaryAction}</div>
+      ) : null}
     </>
   );
 }

@@ -100,7 +100,7 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   width: "100%",
   borderRadius: "12px",
   border: "1px solid rgba(34, 40, 49, 0.96)",
-  background: "rgba(11, 13, 18, 0.98)",
+  background: "rgba(12, 14, 19, 0.96)",
   color: "rgba(242, 246, 252, 0.96)",
   boxSizing: "border-box",
 };

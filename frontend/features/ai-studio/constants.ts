@@ -139,8 +139,8 @@ export const soundChildTools: ToolConfig[] = [
 ];
 
 export const librariesToolList: ToolConfig[] = [
-  { id: "character", label: "Characters", desc: "Create and manage character references" },
   { id: "media-library", label: "Media", desc: "Browse library media and prompts" },
+  { id: "character", label: "Characters", desc: "Create and manage character references" },
   { id: "elements", label: "Elements", desc: "Create and manage reusable scene elements" },
   {
     id: "presets",

@@ -271,7 +271,7 @@
 .voices-library-modal-primary-action-row {
   display: flex;
   justify-content: center;
-  padding: 6px 0 4px;
+  padding: 16px 0 4px;
 }
 
 .voices-library-modal-footer {

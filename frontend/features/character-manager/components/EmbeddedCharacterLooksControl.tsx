@@ -34,11 +34,12 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
   gap: "8px",
   minHeight: "36px",
-  width: "100%",
+  width: "fit-content",
+  maxWidth: "100%",
   padding: "3px 6px 2px",
   borderRadius: "12px 12px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
-  background: "rgba(11, 13, 18, 0.96)",
+  background: "rgba(12, 14, 19, 0.96)",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
 };
@@ -50,7 +51,7 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   borderRadius: "12px 12px 0 0",
   border: `1px solid ${isActive ? "rgba(0, 76, 92, 0.42)" : "rgba(201, 205, 214, 0)"}`,
   borderBottomColor: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(201, 205, 214, 0)",
-  background: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(39, 40, 43, 0.5)",
+  background: "rgba(12, 14, 19, 0.96)",
   color: isActive ? "#ecfbff" : "rgba(182, 195, 208, 0.92)",
   display: "inline-flex",
   alignItems: "center",
@@ -73,9 +74,9 @@ const ACTION_BUTTON_STYLE: React.CSSProperties = {
   width: "26px",
   minWidth: "26px",
   height: "26px",
-  borderRadius: "12px 12px 0 0",
-  border: "1px solid rgba(38, 43, 51, 0.95)",
-  background: "rgba(14, 17, 23, 0.96)",
+  borderRadius: 0,
+  border: "none",
+  background: "transparent",
   color: "rgba(223, 227, 234, 0.9)",
   display: "inline-flex",
   alignItems: "center",
@@ -120,8 +121,8 @@ export function EmbeddedCharacterLooksControl({
           style={{
             ...TAB_RAIL_STYLE,
             gridTemplateColumns: canAddPreset
-              ? `repeat(${Math.max(presetIds.length, 1)}, minmax(0, 1fr)) auto`
-              : `repeat(${Math.max(presetIds.length, 1)}, minmax(0, 1fr))`,
+              ? `repeat(${Math.max(presetIds.length, 1)}, minmax(56px, 68px)) auto`
+              : `repeat(${Math.max(presetIds.length, 1)}, minmax(56px, 68px))`,
           }}
         >
           {presetIds.map((presetId) => {

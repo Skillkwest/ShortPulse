@@ -4,7 +4,6 @@ import {
   fetchCharacterManagerList,
   getCharacterSheetAssignments,
 } from "../characterManagerPersistenceCore";
-import { createEmptyCharacterSheetAssignments } from "../../constants";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 
@@ -160,9 +159,102 @@ describe("characterManagerPersistenceCore", () => {
     ]);
     expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePaths: ["user-1/variants/images/media-profile-1/thumb_240"],
+      storagePaths: [
+        "user-1/variants/images/media-profile-1/thumb_240",
+        "user-1/characters/char-1/profile/original.png",
+      ],
       surface: "character-grid",
     });
+  });
+
+  it("falls back to the original profile asset when the durable preview path does not sign", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        ["user-1/variants/images/media-profile-1/thumb_240", null],
+        [
+          "user-1/characters/char-1/profile/original.png",
+          "https://signed.example/original-profile.png",
+        ],
+      ])
+    );
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "characters") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "char-1",
+                  name: "Hero",
+                  description: "",
+                  status: "draft",
+                  updated_at: "2026-04-25T00:00:00.000Z",
+                  metadata: {
+                    profile_image_storage_path: "user-1/characters/char-1/profile/original.png",
+                    profile_image_character_media_id: "media-profile-1",
+                  },
+                },
+              ]),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "media-profile-1",
+                  filename: "original.png",
+                  storage_path: "user-1/characters/char-1/profile/original.png",
+                  file_type: "image/png",
+                  file_size: 2048,
+                  metadata: {},
+                  thumb_variant_path: "user-1/variants/images/media-profile-1/thumb_240",
+                  poster_variant_path: null,
+                  preview_variant_path: null,
+                  created_at: "2026-04-25T00:00:00.000Z",
+                },
+              ]),
+          };
+        }
+        if (table === "character_reference_packs") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "sheet-1",
+                  character_id: "char-1",
+                  status: "ready",
+                  version: 2,
+                },
+              ]),
+          };
+        }
+        if (table === "character_reference_images") {
+          return {
+            select: () => createAwaitableQuery([]),
+          };
+        }
+        throw new Error(`Unexpected table lookup: ${table}`);
+      }),
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+
+    const result = await fetchCharacterManagerList();
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: [
+        "user-1/variants/images/media-profile-1/thumb_240",
+        "user-1/characters/char-1/profile/original.png",
+      ],
+      surface: "character-grid",
+    });
+    expect(result).toEqual([
+      expect.objectContaining({
+        characterId: "char-1",
+        profileImageUrl: "https://signed.example/original-profile.png",
+        profileImagePreviewStoragePath: "user-1/characters/char-1/profile/original.png",
+      }),
+    ]);
   });
 
   it("cleans up the created character row when initial sheet creation fails", async () => {

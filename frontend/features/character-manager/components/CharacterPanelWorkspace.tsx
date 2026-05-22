@@ -99,14 +99,14 @@ const CHARACTER_TOP_SCROLL_INNER_STYLE: React.CSSProperties = {
   marginRight: `-${CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX}px`,
 };
 const CHARACTER_REFERENCE_GRID_INLINE_STYLE: React.CSSProperties = {
-  gap: "14px",
+  gap: "12px",
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
-  width: "min(100%, 138px)",
-  gridTemplateRows: "auto 26px",
+  width: "min(100%, 124px)",
+  gridTemplateRows: "auto 28px",
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
-  aspectRatio: "4 / 4.25",
+  aspectRatio: "4 / 4.35",
 };
 
 const getCharacterInitials = (name: string): string => {
@@ -422,7 +422,7 @@ export function CharacterPanelWorkspace({
                     <div className="character-panel-profile-top-row">
                       <button
                         type="button"
-                        className="character-panel-action-btn"
+                        className="character-panel-action-btn character-panel-action-btn--picker-accent"
                         style={CHARACTER_BUTTON_INLINE_STYLE}
                         onClick={() => setIsCharacterLibraryModalOpen(true)}
                         disabled={pageBusy}

@@ -146,21 +146,27 @@ type CharacterSheetImageRow = {
   storage_path: string | null;
 };
 
-const resolveSignedPreviewCandidatePath = (
+const resolveSignedPreviewCandidatePaths = (
   mediaRow: MediaFileRow | CharacterMediaAssetRow | null | undefined,
   fallbackStoragePath: string,
   userId?: string | null
-): string => {
-  if (!mediaRow) return fallbackStoragePath;
+): string[] => {
+  const fallbackPath = fallbackStoragePath.trim();
+  if (!mediaRow) {
+    return fallbackPath ? [fallbackPath] : [];
+  }
   if (
     "metadata" in mediaRow ||
     "thumb_variant_path" in mediaRow ||
     "poster_variant_path" in mediaRow ||
     "preview_variant_path" in mediaRow
   ) {
-    return resolveMediaSigningStoragePaths(mediaRow, userId)[0] ?? fallbackStoragePath;
+    const candidates = resolveMediaSigningStoragePaths(mediaRow, userId);
+    if (!fallbackPath || candidates.includes(fallbackPath)) return candidates;
+    return [...candidates, fallbackPath];
   }
-  return mediaRow.storage_path?.trim() || fallbackStoragePath;
+  const directPath = mediaRow.storage_path?.trim() || fallbackPath;
+  return directPath ? [directPath] : [];
 };
 
 export const asErrorMessage = (error: unknown, fallback: string) =>
@@ -910,14 +916,14 @@ const mapSlotRowsToSlotFileMap = async (
   }
 
   const mediaById = new Map(mediaRows.map((row) => [row.id, row]));
-  const previewPathByRowId = new Map<string, string>();
+  const previewPathCandidatesByRowId = new Map<string, string[]>();
   const storagePaths = imageRows
-    .map((row) => {
+    .flatMap((row) => {
       const mediaReferenceId = row.character_media_id?.trim() ?? "";
       const mediaRow = mediaReferenceId ? mediaById.get(mediaReferenceId) : null;
-      const previewPath = resolveSignedPreviewCandidatePath(mediaRow, row.storage_path, userId);
-      previewPathByRowId.set(row.id, previewPath);
-      return previewPath;
+      const previewPaths = resolveSignedPreviewCandidatePaths(mediaRow, row.storage_path, userId);
+      previewPathCandidatesByRowId.set(row.id, previewPaths);
+      return previewPaths;
     })
     .filter(Boolean);
   const signedByPath = await getSignedMediaUrlsBatch({
@@ -933,7 +939,11 @@ const mapSlotRowsToSlotFileMap = async (
     const mediaRow = mediaById.get(mediaReferenceId);
     if (!mediaRow) continue;
 
-    const previewStoragePath = previewPathByRowId.get(imageRow.id) ?? imageRow.storage_path;
+    const previewPathCandidates = previewPathCandidatesByRowId.get(imageRow.id) ?? [];
+    const previewStoragePath =
+      previewPathCandidates.find((path) => Boolean(signedByPath.get(path))) ??
+      previewPathCandidates[0] ??
+      imageRow.storage_path;
     const signedUrl = signedByPath.get(previewStoragePath) ?? null;
     if (!signedUrl) continue;
 
@@ -1125,6 +1135,7 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
 
   const avatarPathByCharacter = new Map<string, string>();
   const avatarPreviewPathByCharacter = new Map<string, string>();
+  const avatarPreviewPathCandidatesByCharacter = new Map<string, string[]>();
   for (const row of typedCharacterRows) {
     const preferredPath =
       profilePathByCharacter.get(row.id) ?? fallbackAvatarPathByCharacter.get(row.id) ?? null;
@@ -1135,9 +1146,13 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     const profileMediaRow = profileMediaId
       ? (profileMediaRowById.get(profileMediaId) ?? null)
       : null;
-    const previewPath = profileMediaRow
-      ? (resolveMediaSigningStoragePaths(profileMediaRow, userId)[0] ?? preferredPath)
-      : preferredPath;
+    const previewPathCandidates = profileMediaRow
+      ? resolveSignedPreviewCandidatePaths(profileMediaRow, preferredPath ?? "", userId)
+      : preferredPath
+        ? [preferredPath]
+        : [];
+    avatarPreviewPathCandidatesByCharacter.set(row.id, previewPathCandidates);
+    const previewPath = previewPathCandidates[0] ?? null;
     if (previewPath) {
       avatarPreviewPathByCharacter.set(row.id, previewPath);
     }
@@ -1147,11 +1162,27 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   if (avatarPreviewPathByCharacter.size) {
     const signedUrlByStoragePath = await getSignedMediaUrlsBatch({
       bucket: MEDIA_BUCKET,
-      storagePaths: Array.from(avatarPreviewPathByCharacter.values()),
+      storagePaths: Array.from(
+        new Set(
+          Array.from(avatarPreviewPathCandidatesByCharacter.values()).flatMap((paths) => paths)
+        )
+      ),
       surface: "character-grid",
     });
-    for (const [characterId, storagePath] of avatarPreviewPathByCharacter.entries()) {
-      avatarUrlByCharacter.set(characterId, signedUrlByStoragePath.get(storagePath) ?? null);
+    for (const [characterId, previewPathCandidates] of avatarPreviewPathCandidatesByCharacter) {
+      const resolvedPreviewStoragePath =
+        previewPathCandidates.find((path) => Boolean(signedUrlByStoragePath.get(path))) ??
+        previewPathCandidates[0] ??
+        null;
+      if (resolvedPreviewStoragePath) {
+        avatarPreviewPathByCharacter.set(characterId, resolvedPreviewStoragePath);
+      }
+      avatarUrlByCharacter.set(
+        characterId,
+        resolvedPreviewStoragePath
+          ? (signedUrlByStoragePath.get(resolvedPreviewStoragePath) ?? null)
+          : null
+      );
     }
   }
 

@@ -107,19 +107,24 @@ const createCharacterQuickSwapStoragePath = ({
   });
 };
 
-const sortByCreatedDesc = <T extends { createdAt: string; id: string }>(rows: T[]): T[] =>
-  [...rows].sort((left, right) => {
-    const createdDiff = right.createdAt.localeCompare(left.createdAt);
-    if (createdDiff !== 0) return createdDiff;
-    return right.id.localeCompare(left.id);
-  });
-
 const buildArchivedCursorFilter = (cursor: QuickSwapArchivedCursor): string | null => {
   const createdAt = cursor.createdAt.trim();
   const id = cursor.id.trim();
   if (!createdAt || !id) return null;
   // Preserve deterministic DESC pagination when multiple rows share created_at.
   return `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`;
+};
+
+const resolveQuickSwapPreviewPathCandidates = (
+  mediaRow: MediaFilePreviewRow | null | undefined,
+  fallbackStoragePath: string,
+  userId: string
+): string[] => {
+  const fallbackPath = fallbackStoragePath.trim();
+  if (!mediaRow) return fallbackPath ? [fallbackPath] : [];
+  const candidates = resolveMediaSigningStoragePaths(mediaRow, userId);
+  if (!fallbackPath || candidates.includes(fallbackPath)) return candidates;
+  return [...candidates, fallbackPath];
 };
 
 const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuickSwapItem[]> => {
@@ -146,24 +151,30 @@ const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuic
       mediaRowById.set(row.id, row);
     }
   }
-  const previewPathByItemId = new Map<string, string>();
+  const previewPathCandidatesByItemId = new Map<string, string[]>();
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: MEDIA_BUCKET,
-    storagePaths: rows.map((row) => {
+    storagePaths: rows.flatMap((row) => {
       const mediaRow = row.character_media_id?.trim()
         ? mediaRowById.get(row.character_media_id.trim())
         : null;
-      const previewPath = mediaRow
-        ? (resolveMediaSigningStoragePaths(mediaRow, userId)[0] ?? row.storage_path)
-        : row.storage_path;
-      previewPathByItemId.set(row.id, previewPath);
-      return previewPath;
+      const previewPaths = resolveQuickSwapPreviewPathCandidates(
+        mediaRow ?? null,
+        row.storage_path,
+        userId
+      );
+      previewPathCandidatesByItemId.set(row.id, previewPaths);
+      return previewPaths;
     }),
     surface: "character-grid",
   });
   const items: CharacterQuickSwapItem[] = [];
   for (const row of rows) {
-    const previewStoragePath = previewPathByItemId.get(row.id) ?? row.storage_path;
+    const previewPathCandidates = previewPathCandidatesByItemId.get(row.id) ?? [];
+    const previewStoragePath =
+      previewPathCandidates.find((path) => Boolean(signedByPath.get(path))) ??
+      previewPathCandidates[0] ??
+      row.storage_path;
     const previewUrl = signedByPath.get(previewStoragePath) ?? null;
     if (!previewUrl) continue;
     const mediaReferenceId = row.character_media_id?.trim() ?? "";

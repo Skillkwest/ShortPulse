@@ -31,7 +31,6 @@ import {
   CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY,
   CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY,
   CHARACTER_PROFILE_IMAGE_ZOOM_KEY,
-  CHARACTER_REFERENCE_SOURCE,
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
   CHARACTER_SHEET_PRESETS_KEY,
   cleanupOrphanedMedia,
@@ -213,7 +212,7 @@ const hydratePresetStatePreviewUrls = async (
   const mediaIds = Array.from(
     new Set(references.map((reference) => reference.characterMediaId).filter(Boolean))
   );
-  const previewPathByMediaId = new Map<string, string>();
+  const previewPathCandidatesByMediaId = new Map<string, string[]>();
 
   if (mediaIds.length) {
     const { supabase, userId } = await resolveSupabaseContext();
@@ -230,27 +229,32 @@ const hydratePresetStatePreviewUrls = async (
       );
     }
     for (const row of (mediaRows ?? []) as PresetPreviewMediaRow[]) {
-      previewPathByMediaId.set(
+      const previewPaths = resolveMediaSigningStoragePaths(row, userId);
+      previewPathCandidatesByMediaId.set(
         row.id,
-        resolveMediaSigningStoragePaths(row, userId)[0] ?? row.storage_path
+        previewPaths.length ? previewPaths : [row.storage_path]
       );
     }
   }
 
   const storagePaths = Array.from(
     new Set(
-      references.map((reference) => {
+      references.flatMap((reference) => {
         const slotPreviewMatch = Object.values(slots).find(
           (slot) =>
             slot?.characterMediaId === reference.characterMediaId ||
             slot?.storagePath === reference.storagePath
         );
-        return (
-          previewPathByMediaId.get(reference.characterMediaId) ??
-          slotPreviewMatch?.previewStoragePath ??
-          reference.previewStoragePath ??
-          reference.storagePath
+        const previewPathCandidates = previewPathCandidatesByMediaId.get(
+          reference.characterMediaId
         );
+        return previewPathCandidates?.length
+          ? previewPathCandidates
+          : [
+              slotPreviewMatch?.previewStoragePath ??
+                reference.previewStoragePath ??
+                reference.storagePath,
+            ];
       })
     )
   );
@@ -275,10 +279,18 @@ const hydratePresetStatePreviewUrls = async (
                 slot?.characterMediaId === reference.characterMediaId ||
                 slot?.storagePath === reference.storagePath
             );
-            const previewStoragePath =
-              previewPathByMediaId.get(reference.characterMediaId) ??
+            const previewPathCandidates = previewPathCandidatesByMediaId.get(
+              reference.characterMediaId
+            ) ?? [
               slotPreviewMatch?.previewStoragePath ??
-              reference.previewStoragePath ??
+                reference.previewStoragePath ??
+                reference.storagePath,
+            ];
+            const previewStoragePath =
+              previewPathCandidates.find(
+                (path) => Boolean(path) && Boolean(signedByPath.get(path))
+              ) ??
+              previewPathCandidates[0] ??
               reference.storagePath;
             return [
               zoneKey,

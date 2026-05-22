@@ -102,7 +102,7 @@
 .character-panel-profile-top-row {
   display: flex;
   align-items: center;
-  padding-top: 14px;
+  padding-top: 8px;
   margin-bottom: 10px;
 }
 
@@ -157,6 +157,33 @@
 .character-panel-action-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.character-panel-action-btn.character-panel-action-btn--picker-accent {
+  border-color: rgba(37, 204, 255, 0.58);
+  background: rgba(28, 32, 37, 0.94);
+  color: rgba(110, 214, 233, 0.96);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.character-panel-action-btn.character-panel-action-btn--picker-accent:not(:disabled):hover {
+  border-color: rgba(37, 204, 255, 0.58);
+  background: rgba(28, 32, 37, 0.98);
+  color: rgba(110, 214, 233, 0.96);
+  transform: none;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.character-panel-action-btn.character-panel-action-btn--picker-accent:focus-visible {
+  outline: 2px solid rgba(37, 204, 255, 0.28);
+  outline-offset: 2px;
+}
+
+.character-panel-action-btn.character-panel-action-btn--picker-accent:disabled {
+  border-color: rgba(110, 214, 233, 0.3);
+  color: rgba(10, 25, 42, 0.72);
+  filter: grayscale(0.18) saturate(0.75);
+  box-shadow: none;
 }
 
 .character-panel-action-btn--primary {
@@ -304,7 +331,7 @@
 
 .character-panel-workspace .character-sheet-preset-tab-rail,
 .character-panel-workspace .character-sheet-preset-tab-row {
-  min-height: 36px;
+  min-height: 40px;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-row {

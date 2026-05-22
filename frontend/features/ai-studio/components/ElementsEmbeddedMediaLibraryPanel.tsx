@@ -377,6 +377,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
     maxSignCandidatesPerRow: 4,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
+    backgroundHydrateFallbackEnabled: true,
   });
 
   const foldersDropController = useMediaLibraryFolderDropController({

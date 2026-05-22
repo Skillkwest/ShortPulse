@@ -95,6 +95,9 @@ export default async function handler(
           name: createdVoice.name,
           previewUrl: createdVoice.previewUrl,
           description: createdVoice.description,
+          originKind: "provider-user-created",
+          savedSource: "text-to-voice-create",
+          providerDeleteEligible: true,
         },
       });
     } catch (persistenceError) {

@@ -43,6 +43,9 @@ describe("GET /api/elevenlabs/voices", () => {
         provider: "elevenlabs",
         isFallback: false,
         createdAt: new Date().toISOString(),
+        originKind: "provider-saved",
+        savedSource: "provider-save",
+        providerDeleteEligible: false,
       },
     ]);
     listElevenLabsVoicesMock.mockResolvedValue([
@@ -52,6 +55,8 @@ describe("GET /api/elevenlabs/voices", () => {
         previewUrl: null,
         description: "Warm, grounded storyteller",
         isFallback: false,
+        providerCategory: "premade",
+        providerVoiceType: "default",
       },
     ]);
     process.env.ELEVENLABS_API_KEY = "sk_live_mock";
@@ -77,11 +82,19 @@ describe("GET /api/elevenlabs/voices", () => {
           voiceId: "voice-live-1",
           isFallback: false,
           librarySection: "default",
+          canRemoveFromLibrary: false,
+          canDeleteFromProvider: false,
+          destructiveAction: "none",
+          destructiveActionDisabledReason: "Provider catalog voices can't be deleted here.",
         }),
         expect.objectContaining({
           voiceId: "custom-1",
           isFallback: false,
           librarySection: "my",
+          canRemoveFromLibrary: true,
+          canDeleteFromProvider: false,
+          destructiveAction: "remove",
+          destructiveActionLabel: "Remove",
         }),
       ])
     );
@@ -113,6 +126,7 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.voices.length).toBeGreaterThan(1);
     expect(payload.voices[0]?.isFallback).toBe(true);
     expect(payload.voices[0]?.librarySection).toBe("default");
+    expect(payload.voices[0]?.destructiveAction).toBe("none");
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
@@ -140,6 +154,7 @@ describe("GET /api/elevenlabs/voices", () => {
     );
     expect(payload.voices[0]?.isFallback).toBe(true);
     expect(payload.voices[0]?.librarySection).toBe("default");
+    expect(payload.voices[0]?.destructiveAction).toBe("none");
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 });

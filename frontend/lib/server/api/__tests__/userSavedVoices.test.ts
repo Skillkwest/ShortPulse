@@ -57,6 +57,9 @@ describe("userSavedVoices", () => {
         provider: "elevenlabs",
         isFallback: false,
         createdAt: "2026-04-19T12:00:00.000Z",
+        originKind: "legacy-saved",
+        savedSource: "legacy",
+        providerDeleteEligible: false,
       },
       {
         voiceId: "voice_b",
@@ -66,6 +69,9 @@ describe("userSavedVoices", () => {
         provider: "elevenlabs",
         isFallback: false,
         createdAt: "2026-04-18T12:00:00.000Z",
+        originKind: "legacy-saved",
+        savedSource: "legacy",
+        providerDeleteEligible: false,
       },
     ]);
   });
@@ -114,6 +120,9 @@ describe("userSavedVoices", () => {
         name: "  Lantern   ",
         previewUrl: "https://cdn.shortpulse.test/lantern.mp3",
         description: "Measured documentary narrator",
+        originKind: "provider-user-created",
+        savedSource: "voice-clone",
+        providerDeleteEligible: true,
       },
     });
 
@@ -124,6 +133,9 @@ describe("userSavedVoices", () => {
       description: "Measured documentary narrator",
       provider: "elevenlabs",
       isFallback: false,
+      originKind: "provider-user-created",
+      savedSource: "voice-clone",
+      providerDeleteEligible: true,
     });
     expect(upsert).toHaveBeenCalledTimes(1);
     const [payload, options] = upsert.mock.calls[0] ?? [];
@@ -134,6 +146,9 @@ describe("userSavedVoices", () => {
         expect.objectContaining({
           voiceId: "voice_new",
           name: "Lantern",
+          originKind: "provider-user-created",
+          savedSource: "voice-clone",
+          providerDeleteEligible: true,
         }),
         expect.objectContaining({
           voiceId: "voice_existing",

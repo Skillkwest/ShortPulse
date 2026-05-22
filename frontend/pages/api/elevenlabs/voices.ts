@@ -1,19 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
-import { ELEVENLABS_DEFAULT_VOICES } from "../../../lib/model-runtime/elevenLabsDefaultVoices";
-import { listElevenLabsVoices, type ElevenLabsVoice } from "../../../lib/server/elevenlabs";
+import {
+  listSavedVoicesForUser,
+  type SavedAiStudioVoice,
+} from "../../../lib/server/api/userSavedVoices";
+import { listElevenLabsVoices } from "../../../lib/server/elevenlabs";
+import {
+  buildFallbackVoiceLibraryEntries,
+  buildResolvedVoiceLibraryEntries,
+} from "../../../lib/server/elevenlabsVoiceLibrary";
 
 type VoicesSuccessResponse = {
-  voices: Array<{
-    voiceId: string;
-    name: string;
-    previewUrl: string | null;
-    description: string | null;
-    isFallback: boolean;
-    librarySection: "default" | "my";
-  }>;
+  voices: ReturnType<typeof buildFallbackVoiceLibraryEntries>;
   source: "api" | "fallback";
   warning?: string;
 };
@@ -23,34 +22,10 @@ type VoicesErrorResponse = {
   details?: string;
 };
 
-const mergeVoices = (
-  primaryVoices: ElevenLabsVoice[],
-  secondaryVoices: ElevenLabsVoice[]
-): ElevenLabsVoice[] => {
-  const mergedVoices = new Map<string, ElevenLabsVoice>();
-  for (const voice of [...primaryVoices, ...secondaryVoices]) {
-    const lookupKey = voice.voiceId.trim().toLowerCase();
-    if (!lookupKey || mergedVoices.has(lookupKey)) continue;
-    mergedVoices.set(lookupKey, voice);
-  }
-  return Array.from(mergedVoices.values());
-};
-
-const fallbackVoices: ElevenLabsVoice[] = ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
-  voiceId: voice.fallbackVoiceId,
-  name: voice.name,
-  previewUrl: null,
-  description: voice.description,
-  isFallback: true,
-}));
-
 const buildFallbackVoicesResponse = () => ({
   source: "fallback" as const,
   warning: "Showing the ElevenLabs default catalog until live voices are configured.",
-  voices: fallbackVoices.map((voice) => ({
-    ...voice,
-    librarySection: "default" as const,
-  })),
+  voices: buildFallbackVoiceLibraryEntries(),
 });
 
 export default async function handler(
@@ -63,7 +38,7 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-  let savedVoices: ElevenLabsVoice[] = [];
+  let savedVoices: SavedAiStudioVoice[] = [];
   try {
     savedVoices = await listSavedVoicesForUser(user.id);
   } catch (persistenceError) {
@@ -81,13 +56,10 @@ export default async function handler(
   }
 
   try {
-    const savedVoiceIds = new Set(savedVoices.map((voice) => voice.voiceId.trim().toLowerCase()));
-    const voices = mergeVoices(await listElevenLabsVoices(), savedVoices).map((voice) => ({
-      ...voice,
-      librarySection: savedVoiceIds.has(voice.voiceId.trim().toLowerCase())
-        ? ("my" as const)
-        : ("default" as const),
-    }));
+    const voices = buildResolvedVoiceLibraryEntries({
+      providerVoices: await listElevenLabsVoices(),
+      savedVoices,
+    });
     return res.status(200).json({ voices, source: "api" });
   } catch (error) {
     await logApiRouteException({

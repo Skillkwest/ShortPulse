@@ -171,7 +171,8 @@ describe("VoicesPropertiesPanel", () => {
       "Paste or write the script that will be spoken with this voice."
     );
     expect(screen.queryByRole("button", { name: "+ Create New Voice" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete Voice" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice name" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Voice description" })).not.toBeInTheDocument();
     expect(
@@ -294,7 +295,7 @@ describe("VoicesPropertiesPanel", () => {
       "false"
     );
     expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
@@ -342,16 +343,16 @@ describe("VoicesPropertiesPanel", () => {
     await openVoicesLibraryModal();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     });
 
-    const deleteButton = screen.getByRole("button", { name: "Delete Voice" });
+    const deleteButton = screen.getByRole("button", { name: "Remove" });
     expect(deleteButton).toBeEnabled();
 
     fireEvent.click(deleteButton);
 
-    expect(screen.getByRole("dialog", { name: "Delete this voice?" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByRole("dialog", { name: "Remove this voice?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/voice_adam", {
@@ -500,7 +501,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: /custom voice voice/i }));
@@ -509,7 +510,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
@@ -519,7 +520,7 @@ describe("VoicesPropertiesPanel", () => {
       "true"
     );
     expect(screen.queryByRole("button", { name: /custom voice voice/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();
   });
 
@@ -691,7 +692,7 @@ describe("VoicesPropertiesPanel", () => {
     await openVoicesLibraryModal();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -736,7 +737,7 @@ describe("VoicesPropertiesPanel", () => {
     await openVoicesLibraryModal();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -1903,7 +1904,7 @@ describe("VoicesPropertiesPanel", () => {
     await openVoicesLibraryModal();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
@@ -2069,7 +2070,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
-    expect(screen.getByRole("button", { name: "Delete Voice" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Select voice" }));
 

@@ -185,6 +185,20 @@ type VoicesListResponse = {
     description?: string | null;
     isFallback?: boolean;
     librarySection?: "default" | "my";
+    providerCategory?: string | null;
+    providerVoiceType?: string | null;
+    originKind?:
+      | "fallback-default"
+      | "provider-default"
+      | "provider-saved"
+      | "provider-user-created"
+      | "legacy-saved";
+    canRemoveFromLibrary?: boolean;
+    canDeleteFromProvider?: boolean;
+    destructiveAction?: "none" | "remove" | "delete";
+    destructiveActionLabel?: "Remove" | "Delete" | null;
+    destructiveActionDescription?: string | null;
+    destructiveActionDisabledReason?: string | null;
   }>;
   source?: "api" | "fallback";
   warning?: string;
@@ -221,6 +235,7 @@ type CreatedVoiceResponse = {
 type DeleteVoiceResponse = {
   status?: "ok";
   voiceId?: string;
+  action?: "remove" | "delete";
   error?: string;
   details?: string;
 };
@@ -456,7 +471,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isSelectedVoiceVisibleInActiveLibrarySection =
     selectedLibraryVoice?.librarySection === activeVoicesLibrarySection;
   const canDeleteSelectedVoice =
-    Boolean(selectedLibraryVoice?.id) && isSelectedVoiceVisibleInActiveLibrarySection;
+    Boolean(selectedLibraryVoice?.id) &&
+    selectedLibraryVoice?.destructiveAction !== "none" &&
+    isSelectedVoiceVisibleInActiveLibrarySection;
+  const selectedVoiceDestructiveLabel =
+    selectedLibraryVoice?.destructiveActionLabel ??
+    (selectedLibraryVoice?.destructiveAction === "remove" ? "Remove" : "Delete");
+  const selectedVoiceDestructiveReason =
+    selectedLibraryVoice?.destructiveActionDisabledReason ?? "Select a voice to delete.";
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
@@ -971,6 +993,36 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           const voiceId = voice.voiceId?.trim() ?? "";
           const name = voice.name?.trim() ?? "";
           if (!voiceId || !name) return [];
+          const resolvedLibrarySection =
+            voice.librarySection === "default"
+              ? "default"
+              : voice.librarySection === "my"
+                ? "my"
+                : voice.isFallback
+                  ? "default"
+                  : "my";
+          const canRemoveFromLibrary =
+            typeof voice.canRemoveFromLibrary === "boolean"
+              ? voice.canRemoveFromLibrary
+              : resolvedLibrarySection === "my";
+          const canDeleteFromProvider = Boolean(voice.canDeleteFromProvider);
+          const destructiveAction =
+            voice.destructiveAction ??
+            (canDeleteFromProvider ? "delete" : canRemoveFromLibrary ? "remove" : "none");
+          const destructiveActionLabel =
+            voice.destructiveActionLabel ??
+            (destructiveAction === "delete"
+              ? "Delete"
+              : destructiveAction === "remove"
+                ? "Remove"
+                : null);
+          const destructiveActionDisabledReason =
+            voice.destructiveActionDisabledReason?.trim() ||
+            (destructiveAction === "none" && voice.isFallback
+              ? "Built-in voices can't be deleted here."
+              : destructiveAction === "none"
+                ? "This voice can't be deleted here."
+                : null);
           return [
             {
               id: voiceId,
@@ -978,15 +1030,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               previewUrl: voice.previewUrl?.trim() || null,
               description: voice.description?.trim() || null,
               isFallback: Boolean(voice.isFallback),
-              librarySection:
-                voice.librarySection === "default"
-                  ? "default"
-                  : voice.librarySection === "my"
-                    ? "my"
-                    : voice.isFallback
-                      ? "default"
-                      : "my",
+              librarySection: resolvedLibrarySection,
               provider: "elevenlabs" as const,
+              providerCategory: voice.providerCategory?.trim().toLowerCase() || null,
+              providerVoiceType: voice.providerVoiceType?.trim().toLowerCase() || null,
+              originKind:
+                voice.originKind ?? (voice.isFallback ? "fallback-default" : "legacy-saved"),
+              canRemoveFromLibrary,
+              canDeleteFromProvider,
+              destructiveAction,
+              destructiveActionLabel,
+              destructiveActionDescription: voice.destructiveActionDescription?.trim() || null,
+              destructiveActionDisabledReason,
             },
           ];
         });
@@ -1493,9 +1548,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     if (!selectedLibraryVoice) {
       return;
     }
-
-    if (!selectedLibraryVoice) {
-      setVoicesLoadError("Select a voice to delete.");
+    if (selectedLibraryVoice.destructiveAction === "none") {
+      setVoicesLoadError(
+        selectedLibraryVoice.destructiveActionDisabledReason || "This voice can't be deleted here."
+      );
       return;
     }
 
@@ -1757,12 +1813,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 type="button"
                 className="voices-properties-library-delete-btn"
                 onClick={handleDeleteSelectedVoice}
-                aria-label="Delete"
+                aria-label={selectedVoiceDestructiveLabel}
                 disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
-                title={canDeleteSelectedVoice ? undefined : "Select a voice to delete."}
+                title={canDeleteSelectedVoice ? undefined : selectedVoiceDestructiveReason}
               >
                 <Trash size={14} weight="bold" aria-hidden="true" />
-                <span>{isDeletingSelectedVoice ? "Deleting…" : "Delete"}</span>
+                <span>
+                  {isDeletingSelectedVoice
+                    ? selectedLibraryVoice.destructiveAction === "remove"
+                      ? "Removing…"
+                      : "Deleting…"
+                    : selectedVoiceDestructiveLabel}
+                </span>
               </button>
             ) : null}
             <button
@@ -1809,19 +1871,32 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       {pendingDeleteVoice ? (
         <AiStudioModalLayer>
           <ConfirmationModal
-            title="Delete this voice?"
+            title={
+              pendingDeleteVoice.destructiveAction === "remove"
+                ? "Remove this voice?"
+                : "Delete this voice?"
+            }
             body={
               <p>
                 <strong>
                   {getVoiceChipDisplayName(pendingDeleteVoice.name) || pendingDeleteVoice.name}
                 </strong>{" "}
-                will be removed permanently.
+                {pendingDeleteVoice.destructiveAction === "remove"
+                  ? "will be removed from your ShortPulse saved voices."
+                  : "will be deleted from your ElevenLabs account and removed from ShortPulse."}
               </p>
             }
-            confirmLabel="Delete"
-            confirmBusyLabel={isDeletingSelectedVoice ? "Deleting..." : undefined}
+            confirmLabel={pendingDeleteVoice.destructiveAction === "remove" ? "Remove" : "Delete"}
+            confirmBusyLabel={
+              isDeletingSelectedVoice
+                ? pendingDeleteVoice.destructiveAction === "remove"
+                  ? "Removing..."
+                  : "Deleting..."
+                : undefined
+            }
             confirmDisabled={isDeletingSelectedVoice}
             cancelDisabled={isDeletingSelectedVoice}
+            tone={pendingDeleteVoice.destructiveAction === "remove" ? "primary" : "danger"}
             onCancel={closeDeleteVoiceConfirm}
             onConfirm={() => {
               void handleConfirmDeleteSelectedVoice();

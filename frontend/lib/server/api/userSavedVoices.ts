@@ -8,7 +8,22 @@ export type SavedAiStudioVoice = {
   provider: "elevenlabs";
   isFallback: false;
   createdAt: string;
+  originKind: SavedAiStudioVoiceOriginKind;
+  savedSource: SavedAiStudioVoiceSource;
+  providerDeleteEligible: boolean;
 };
+
+export type SavedAiStudioVoiceOriginKind =
+  | "provider-default"
+  | "provider-saved"
+  | "provider-user-created"
+  | "legacy-saved";
+
+export type SavedAiStudioVoiceSource =
+  | "provider-save"
+  | "text-to-voice-create"
+  | "voice-clone"
+  | "legacy";
 
 const SAVED_VOICES_COLUMN = "ai_studio_saved_voices";
 
@@ -17,6 +32,18 @@ const normalizeOptionalString = (value: unknown): string | null => {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const isSavedVoiceOriginKind = (value: string | null): value is SavedAiStudioVoiceOriginKind =>
+  value === "provider-default" ||
+  value === "provider-saved" ||
+  value === "provider-user-created" ||
+  value === "legacy-saved";
+
+const isSavedVoiceSource = (value: string | null): value is SavedAiStudioVoiceSource =>
+  value === "provider-save" ||
+  value === "text-to-voice-create" ||
+  value === "voice-clone" ||
+  value === "legacy";
 
 const isMissingSavedVoicesPreferenceError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
@@ -59,6 +86,14 @@ const normalizeSavedVoice = (value: unknown): SavedAiStudioVoice | null => {
     provider: "elevenlabs",
     isFallback: false,
     createdAt: normalizeOptionalString(record.createdAt) ?? new Date(0).toISOString(),
+    originKind: isSavedVoiceOriginKind(normalizeOptionalString(record.originKind))
+      ? (normalizeOptionalString(record.originKind) as SavedAiStudioVoiceOriginKind)
+      : "legacy-saved",
+    savedSource: isSavedVoiceSource(normalizeOptionalString(record.savedSource))
+      ? (normalizeOptionalString(record.savedSource) as SavedAiStudioVoiceSource)
+      : "legacy",
+    providerDeleteEligible:
+      typeof record.providerDeleteEligible === "boolean" ? record.providerDeleteEligible : false,
   };
 };
 
@@ -98,7 +133,8 @@ export const saveVoiceForUser = async ({
   voice,
 }: {
   userId: string;
-  voice: Pick<SavedAiStudioVoice, "voiceId" | "name" | "previewUrl" | "description">;
+  voice: Pick<SavedAiStudioVoice, "voiceId" | "name" | "previewUrl" | "description"> &
+    Partial<Pick<SavedAiStudioVoice, "originKind" | "savedSource" | "providerDeleteEligible">>;
 }): Promise<SavedAiStudioVoice | null> => {
   const normalizedVoiceId = voice.voiceId.trim();
   const normalizedVoiceName = voice.name.trim().replace(/\s+/g, " ");
@@ -114,6 +150,9 @@ export const saveVoiceForUser = async ({
     provider: "elevenlabs",
     isFallback: false,
     createdAt: new Date().toISOString(),
+    originKind: voice.originKind ?? "legacy-saved",
+    savedSource: voice.savedSource ?? "legacy",
+    providerDeleteEligible: voice.providerDeleteEligible ?? false,
   };
 
   try {

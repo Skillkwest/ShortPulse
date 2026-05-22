@@ -105,6 +105,9 @@ describe("POST /api/elevenlabs/voices/clone", () => {
         name: "Cloned Narrator",
         previewUrl: "https://cdn.example/cloned.mp3",
         description: "Warm cloned narrator",
+        originKind: "provider-user-created",
+        savedSource: "voice-clone",
+        providerDeleteEligible: true,
       },
     });
     expect(res.status).toHaveBeenCalledWith(200);

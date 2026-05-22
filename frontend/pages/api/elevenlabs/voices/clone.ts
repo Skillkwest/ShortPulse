@@ -121,6 +121,9 @@ export default async function handler(
           name: clonedVoice.name,
           previewUrl: clonedVoice.previewUrl,
           description: clonedVoice.description,
+          originKind: "provider-user-created",
+          savedSource: "voice-clone",
+          providerDeleteEligible: true,
         },
       });
     } catch (persistenceError) {

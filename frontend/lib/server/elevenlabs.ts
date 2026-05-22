@@ -62,6 +62,8 @@ export type ElevenLabsVoice = {
   previewUrl: string | null;
   description: string | null;
   isFallback: boolean;
+  providerCategory: string | null;
+  providerVoiceType: string | null;
 };
 
 export type ElevenLabsDesignedVoicePreview = {
@@ -365,6 +367,8 @@ const normalizeElevenLabsVoice = (voice: Record<string, unknown>): ElevenLabsVoi
       null,
     description,
     isFallback: false,
+    providerCategory: normalizeOptionalString(voice.category)?.toLowerCase() ?? null,
+    providerVoiceType: normalizeOptionalString(voice.voice_type)?.toLowerCase() ?? null,
   };
 };
 
@@ -447,33 +451,25 @@ export const listElevenLabsVoices = async (): Promise<ElevenLabsVoice[]> => {
     ?.map((voice) => {
       const normalizedVoice = normalizeElevenLabsVoice(voice);
       if (!normalizedVoice) return null;
-      return {
-        voice: normalizedVoice,
-        category: normalizeOptionalString(voice.category)?.toLowerCase() ?? null,
-      };
     })
-    .filter((entry): entry is { voice: ElevenLabsVoice; category: string | null } =>
-      Boolean(entry?.voice)
-    );
+    .filter((entry): entry is ElevenLabsVoice => Boolean(entry));
 
   if (liveVoices && liveVoices.length > 0) {
-    const dedupedVoices = new Map<string, { voice: ElevenLabsVoice; category: string | null }>();
+    const dedupedVoices = new Map<string, ElevenLabsVoice>();
     for (const entry of liveVoices) {
-      const lookupKey = normalizeVoiceLookupKey(entry.voice.voiceId);
+      const lookupKey = normalizeVoiceLookupKey(entry.voiceId);
       if (!dedupedVoices.has(lookupKey)) {
         dedupedVoices.set(lookupKey, entry);
       }
     }
-    return Array.from(dedupedVoices.values())
-      .sort((leftEntry, rightEntry) => {
-        const leftRank = leftEntry.category === "premade" ? 0 : 1;
-        const rightRank = rightEntry.category === "premade" ? 0 : 1;
-        if (leftRank !== rightRank) return leftRank - rightRank;
-        return leftEntry.voice.name.localeCompare(rightEntry.voice.name, undefined, {
-          sensitivity: "base",
-        });
-      })
-      .map((entry) => entry.voice);
+    return Array.from(dedupedVoices.values()).sort((leftEntry, rightEntry) => {
+      const leftRank = leftEntry.providerCategory === "premade" ? 0 : 1;
+      const rightRank = rightEntry.providerCategory === "premade" ? 0 : 1;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+      return leftEntry.name.localeCompare(rightEntry.name, undefined, {
+        sensitivity: "base",
+      });
+    });
   }
 
   return [];

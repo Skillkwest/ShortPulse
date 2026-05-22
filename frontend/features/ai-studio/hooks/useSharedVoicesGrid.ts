@@ -9,6 +9,20 @@ export type SharedVoiceOption = {
   isFallback?: boolean;
   librarySection: "default" | "my";
   provider: "elevenlabs" | "local";
+  providerCategory?: string | null;
+  providerVoiceType?: string | null;
+  originKind?:
+    | "fallback-default"
+    | "provider-default"
+    | "provider-saved"
+    | "provider-user-created"
+    | "legacy-saved";
+  canRemoveFromLibrary?: boolean;
+  canDeleteFromProvider?: boolean;
+  destructiveAction?: "none" | "remove" | "delete";
+  destructiveActionLabel?: "Remove" | "Delete" | null;
+  destructiveActionDescription?: string | null;
+  destructiveActionDisabledReason?: string | null;
 };
 
 const initialSharedVoices: SharedVoiceOption[] = ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
@@ -19,6 +33,15 @@ const initialSharedVoices: SharedVoiceOption[] = ELEVENLABS_DEFAULT_VOICES.map((
   isFallback: true,
   librarySection: "default",
   provider: "elevenlabs",
+  providerCategory: "premade",
+  providerVoiceType: "default",
+  originKind: "fallback-default",
+  canRemoveFromLibrary: false,
+  canDeleteFromProvider: false,
+  destructiveAction: "none",
+  destructiveActionLabel: null,
+  destructiveActionDescription: null,
+  destructiveActionDisabledReason: "Built-in voices can't be deleted here.",
 }));
 
 type SharedVoicesGridSnapshot = {

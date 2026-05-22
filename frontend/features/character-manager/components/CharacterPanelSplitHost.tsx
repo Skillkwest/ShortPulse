@@ -16,6 +16,9 @@ type CharacterPanelSplitHostProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   projectId?: string | null;
+  preferredCharacterId?: string | null;
+  suppressSelectedCharacterPersistence?: boolean;
+  onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
 const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.47;
@@ -29,6 +32,9 @@ export function CharacterPanelSplitHost({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   projectId = null,
+  preferredCharacterId = null,
+  suppressSelectedCharacterPersistence = false,
+  onSelectedCharacterIdChange,
 }: CharacterPanelSplitHostProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const split = useReferenceGridHorizontalSplit({
@@ -50,6 +56,9 @@ export function CharacterPanelSplitHost({
           externalUploadRequest={externalUploadRequest}
           onExternalUploadRequestHandled={onExternalUploadRequestHandled}
           isEmbeddedMediaLibraryMaximized={split.isAllRefsExpanded}
+          preferredCharacterId={preferredCharacterId}
+          suppressSelectedCharacterPersistence={suppressSelectedCharacterPersistence}
+          onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         />
       </div>
 

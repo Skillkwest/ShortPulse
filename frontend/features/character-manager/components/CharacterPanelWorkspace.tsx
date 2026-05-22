@@ -34,6 +34,9 @@ type CharacterPanelWorkspaceProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   isEmbeddedMediaLibraryMaximized?: boolean;
+  preferredCharacterId?: string | null;
+  suppressSelectedCharacterPersistence?: boolean;
+  onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
@@ -56,8 +59,13 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr) auto",
   columnGap: "18px",
-  rowGap: "6px",
   alignItems: "start",
+};
+const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: "6px",
+  alignContent: "start",
+  minWidth: 0,
 };
 const CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
   margin: 0,
@@ -113,6 +121,9 @@ export function CharacterPanelWorkspace({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   isEmbeddedMediaLibraryMaximized = false,
+  preferredCharacterId = null,
+  suppressSelectedCharacterPersistence = false,
+  onSelectedCharacterIdChange,
 }: CharacterPanelWorkspaceProps) {
   const {
     characters,
@@ -146,7 +157,11 @@ export function CharacterPanelWorkspace({
     selectCharacter,
     deleteCharacter,
     clearMessages,
-  } = useCharacterManagerDraft();
+  } = useCharacterManagerDraft({
+    preferredCharacterId,
+    suppressSelectedCharacterPersistence,
+    onSelectedCharacterIdChange,
+  });
 
   const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
@@ -163,7 +178,7 @@ export function CharacterPanelWorkspace({
   const [deleteTargetCharacterSheetPresetId, setDeleteTargetCharacterSheetPresetId] =
     React.useState<CharacterSheetPresetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
-  const lastHandledExternalUploadRequestIdRef = React.useRef(0);
+  const inFlightExternalUploadRequestIdsRef = React.useRef<Set<number>>(new Set());
   const characterSheetFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const characterNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const pageBusy =
@@ -171,7 +186,8 @@ export function CharacterPanelWorkspace({
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isSavingCharacter ||
-    isDeletingCharacter;
+    isDeletingCharacter ||
+    isSavingCharacterSheetPreset;
 
   const resolvedCharacterSheetPresetAssignments = React.useMemo(
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
@@ -265,14 +281,14 @@ export function CharacterPanelWorkspace({
   const assignFilesToSlots = React.useCallback(
     async (files: File[]) => {
       const nextFiles = files.filter((file) => file instanceof File);
-      if (!nextFiles.length) return;
+      if (!nextFiles.length) return false;
       clearMessages();
       const openSlotQueue = SLOT_ASSIGNMENT_ORDER.filter(
         (slotKey) => !resolvedCharacterSheetPresetAssignments[slotKey]
       );
       if (!openSlotQueue.length) {
         setErrorMessage(FULL_SLOT_UPLOAD_ERROR);
-        return;
+        return false;
       }
       let assignedCount = 0;
 
@@ -280,7 +296,7 @@ export function CharacterPanelWorkspace({
         const targetSlotKey = openSlotQueue[assignedCount] ?? null;
         if (!targetSlotKey) break;
         const saved = await setCharacterSheetPresetFile(targetSlotKey, file);
-        if (!saved) break;
+        if (!saved) return false;
         assignedCount += 1;
       }
 
@@ -291,6 +307,7 @@ export function CharacterPanelWorkspace({
           } available. Extra uploads were skipped.`
         );
       }
+      return true;
     },
     [
       clearMessages,
@@ -312,10 +329,17 @@ export function CharacterPanelWorkspace({
     if (!activeUploadRequest) return;
     const requestId = activeUploadRequest.requestId ?? 0;
     if (requestId === 0) return;
-    if (lastHandledExternalUploadRequestIdRef.current === requestId) return;
-    lastHandledExternalUploadRequestIdRef.current = requestId;
-    onExternalUploadRequestHandled?.(requestId);
-    void assignFilesToSlots(activeUploadRequest.files);
+    if (inFlightExternalUploadRequestIdsRef.current.has(requestId)) return;
+    inFlightExternalUploadRequestIdsRef.current.add(requestId);
+    void assignFilesToSlots(activeUploadRequest.files)
+      .then((handled) => {
+        if (handled) {
+          onExternalUploadRequestHandled?.(requestId);
+        }
+      })
+      .finally(() => {
+        inFlightExternalUploadRequestIdsRef.current.delete(requestId);
+      });
   }, [assignFilesToSlots, externalUploadRequest, onExternalUploadRequestHandled]);
 
   const handleCharacterSelection = React.useCallback(
@@ -411,63 +435,72 @@ export function CharacterPanelWorkspace({
                       className="character-panel-profile-fields-row"
                       style={CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE}
                     >
-                      <label
-                        className="character-profile-fields character-profile-fields--label-serif"
-                        htmlFor="character-panel-name"
-                        style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
-                      >
-                        <span className="input-label">Name:</span>
-                      </label>
-
                       <div
-                        className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
-                        style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                        className="character-panel-profile-name-field"
+                        style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}
                       >
-                        <p className="input-label">Looks:</p>
+                        <label
+                          className="character-profile-fields character-profile-fields--label-serif"
+                          htmlFor="character-panel-name"
+                          style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                        >
+                          <span className="input-label">Name:</span>
+                        </label>
+
+                        <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                          <input
+                            ref={characterNameInputRef}
+                            id="character-panel-name"
+                            className="character-name-input"
+                            type="text"
+                            value={characterName}
+                            maxLength={80}
+                            onChange={(event) => setCharacterName(event.target.value)}
+                            placeholder="Enter character name"
+                            disabled={loading}
+                          />
+                        </div>
                       </div>
 
                       <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
-                        <input
-                          ref={characterNameInputRef}
-                          id="character-panel-name"
-                          className="character-name-input"
-                          type="text"
-                          value={characterName}
-                          maxLength={80}
-                          onChange={(event) => setCharacterName(event.target.value)}
-                          placeholder="Enter character name"
-                          disabled={loading}
-                        />
-                      </div>
+                        <div style={CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE}>
+                          <div
+                            className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
+                            style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
+                          >
+                            <p className="input-label">Looks:</p>
+                          </div>
 
-                      <div
-                        className="character-sheet-looks-block"
-                        style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
-                      >
-                        <CharacterSheetPresetTabs
-                          presetIds={visibleCharacterSheetPresetIds}
-                          activePresetId={activeCharacterSheetPresetId}
-                          presetLabels={characterSheetPresetLabels}
-                          compact
-                          shrinkWrap
-                          onSelectPreset={(presetId) => {
-                            void setActiveCharacterSheetPreset(presetId);
-                          }}
-                          onAddPreset={() => {
-                            void addCharacterSheetPreset();
-                          }}
-                          onRenamePreset={(presetId, nextLabel) => {
-                            void renameCharacterSheetPreset(presetId, nextLabel);
-                          }}
-                          onDeletePreset={(presetId) => {
-                            if (pageBusy || isSavingCharacterSheetPreset) return;
-                            clearMessages();
-                            setDeleteTargetCharacterSheetPresetId(presetId);
-                          }}
-                          panelId="character-panel-preset-panel"
-                          disabled={pageBusy}
-                          idBase="character-panel-preset"
-                        />
+                          <div
+                            className="character-sheet-looks-block"
+                            style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
+                          >
+                            <CharacterSheetPresetTabs
+                              presetIds={visibleCharacterSheetPresetIds}
+                              activePresetId={activeCharacterSheetPresetId}
+                              presetLabels={characterSheetPresetLabels}
+                              compact
+                              shrinkWrap
+                              onSelectPreset={(presetId) => {
+                                void setActiveCharacterSheetPreset(presetId);
+                              }}
+                              onAddPreset={() => {
+                                void addCharacterSheetPreset();
+                              }}
+                              onRenamePreset={(presetId, nextLabel) => {
+                                void renameCharacterSheetPreset(presetId, nextLabel);
+                              }}
+                              onDeletePreset={(presetId) => {
+                                if (pageBusy || isSavingCharacterSheetPreset) return;
+                                clearMessages();
+                                setDeleteTargetCharacterSheetPresetId(presetId);
+                              }}
+                              panelId="character-panel-preset-panel"
+                              disabled={pageBusy}
+                              idBase="character-panel-preset"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

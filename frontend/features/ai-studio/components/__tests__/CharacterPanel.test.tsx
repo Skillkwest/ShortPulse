@@ -19,10 +19,14 @@ describe("CharacterPanel", () => {
   it("forwards project-aware media-library props into the split host", () => {
     const resolveMediaLibraryInternalDropItem = vi.fn();
     const resolveCharacterDropReference = vi.fn();
+    const onSelectedCharacterIdChange = vi.fn();
 
     render(
       <CharacterPanel
         projectId="project-123"
+        projectRouteRequested
+        selectedCharacterId="char-2"
+        onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         resolveCharacterDropReference={resolveCharacterDropReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
       />
@@ -31,6 +35,9 @@ describe("CharacterPanel", () => {
     expect(splitHostSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-123",
+        preferredCharacterId: "char-2",
+        suppressSelectedCharacterPersistence: true,
+        onSelectedCharacterIdChange,
         resolveCharacterDropReference,
         resolveMediaLibraryInternalDropItem,
       })

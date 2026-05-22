@@ -334,6 +334,91 @@ describe("useCharacterManagerDraft", () => {
     expect(persistSelectedCharacterIdMock).toHaveBeenLastCalledWith(null, { userId: "user-1" });
   });
 
+  it("clears staged draft media when starting a fresh local draft", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([] as never).mockResolvedValueOnce([
+      {
+        characterId: "char-saved",
+        characterName: "Fresh Save",
+        profileImageUrl: null,
+        updatedAt: "2026-03-17T00:00:01.000Z",
+      },
+    ] as never);
+    saveCharacterManagerDraftMock.mockResolvedValue({
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+    } as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+    } as never);
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
+      createEmptyCharacterSheetAssignments() as never
+    );
+    validateCharacterReferenceFileMock.mockResolvedValue({
+      status: "pass",
+      notes: {
+        validatorVersion: 1,
+        mimeType: "image/png",
+        width: 1024,
+        height: 1280,
+        aspectRatio: 0.8,
+        sha256: "front-full",
+        hardErrors: [],
+        warnings: [],
+        evaluatedAt: "2026-03-17T00:00:00.000Z",
+      },
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.setProfileImageFile(
+        new File(["profile"], "profile.png", { type: "image/png" })
+      );
+      await result.current.setCharacterSheetPresetFile(
+        "portrait",
+        new File(["preset"], "preset.png", { type: "image/png" })
+      );
+      await result.current.setSlotFile(
+        "front_full",
+        new File(["slot"], "front-full.png", { type: "image/png" })
+      );
+    });
+
+    expect(result.current.profileImageUrl).toMatch(/^blob:/);
+    expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toMatch(/^blob:/);
+    expect(result.current.slots.front_full?.previewUrl).toMatch(/^blob:/);
+
+    await act(async () => {
+      await result.current.createCharacter();
+    });
+
+    expect(result.current.profileImageUrl).toBeNull();
+    expect(result.current.characterSheetPresetAssignments.portrait).toBeNull();
+    expect(result.current.slots.front_full).toBeNull();
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(true);
+    });
+
+    expect(saveCharacterManagerProfileImageMock).not.toHaveBeenCalled();
+    expect(saveCharacterManagerCharacterSheetPresetAssetMock).not.toHaveBeenCalled();
+    expect(saveCharacterManagerSlotMock).not.toHaveBeenCalled();
+  });
+
   it("ignores stale character selection responses when a newer selection wins", async () => {
     const snapshot = createDraftSnapshot();
     configureBootstrap(snapshot);
@@ -657,6 +742,66 @@ describe("useCharacterManagerDraft", () => {
 
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
     expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses persisted selection on externally controlled surfaces and follows preferred ids", async () => {
+    const snapshot = createDraftSnapshot();
+    readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+        updatedAt: "2026-03-17T00:00:00.000Z",
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+        updatedAt: "2026-03-17T00:00:01.000Z",
+      },
+    ] as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...snapshot,
+      characterId: "char-2",
+      characterSheetId: "sheet-2",
+      characterName: "Ayla",
+      characterDescription: "Second description",
+    } as never);
+
+    const { result, rerender } = renderHook(
+      ({ preferredCharacterId }: { preferredCharacterId: string | null }) =>
+        useCharacterManagerDraft({
+          preferredCharacterId,
+          suppressSelectedCharacterPersistence: true,
+        }),
+      {
+        initialProps: {
+          preferredCharacterId: null,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    expect(readPersistedSelectedCharacterIdMock).not.toHaveBeenCalled();
+    expect(loadLatestCharacterManagerDraftMock).not.toHaveBeenCalled();
+    expect(persistSelectedCharacterIdMock).not.toHaveBeenCalled();
+
+    rerender({
+      preferredCharacterId: "char-2",
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+      expect(result.current.characterName).toBe("Ayla");
+    });
+
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
+    expect(persistSelectedCharacterIdMock).not.toHaveBeenCalled();
   });
 
   it("reselects the next character after delete without an extra list refresh", async () => {

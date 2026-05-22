@@ -195,6 +195,7 @@ describe("CharacterPanelWorkspace", () => {
   });
 
   it("blocks external uploads when all reference slots are already filled", async () => {
+    const onExternalUploadRequestHandled = vi.fn();
     currentDraftState = {
       ...createDraftState(),
       characterSheetPresetAssignments: {
@@ -225,6 +226,7 @@ describe("CharacterPanelWorkspace", () => {
           requestId: 3,
           files: [new File(["x"], "ref.png", { type: "image/png" })],
         }}
+        onExternalUploadRequestHandled={onExternalUploadRequestHandled}
       />
     );
 
@@ -234,5 +236,38 @@ describe("CharacterPanelWorkspace", () => {
       );
     });
     expect(setCharacterSheetPresetFileMock).not.toHaveBeenCalled();
+    expect(onExternalUploadRequestHandled).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges external uploads only after assignment succeeds", async () => {
+    const onExternalUploadRequestHandled = vi.fn();
+    let resolveUpload: ((value: boolean) => void) | null = null;
+    setCharacterSheetPresetFileMock.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 7,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+        onExternalUploadRequestHandled={onExternalUploadRequestHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
+    });
+    expect(onExternalUploadRequestHandled).not.toHaveBeenCalled();
+
+    resolveUpload?.(true);
+
+    await waitFor(() => {
+      expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(7);
+    });
   });
 });

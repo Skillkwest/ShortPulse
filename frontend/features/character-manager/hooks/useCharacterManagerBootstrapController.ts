@@ -60,6 +60,7 @@ type ApplySnapshotInput = {
 };
 
 type UseCharacterManagerBootstrapControllerParams = {
+  suppressSelectedCharacterPersistence?: boolean;
   setCharacters: React.Dispatch<React.SetStateAction<CharacterManagerListItem[]>>;
   setCharacterId: React.Dispatch<React.SetStateAction<string | null>>;
   setCharacterSheetId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -134,6 +135,7 @@ type UseCharacterManagerBootstrapControllerResult = {
 };
 
 export const useCharacterManagerBootstrapController = ({
+  suppressSelectedCharacterPersistence = false,
   setCharacters,
   setCharacterId,
   setCharacterSheetId,
@@ -234,7 +236,9 @@ export const useCharacterManagerBootstrapController = ({
     }: ApplySnapshotInput) => {
       setCharacterId(nextCharacterId);
       selectedCharacterStorageScopeRef.current = nextUserId;
-      persistSelectedCharacterId(nextCharacterId, { userId: nextUserId });
+      if (!suppressSelectedCharacterPersistence) {
+        persistSelectedCharacterId(nextCharacterId, { userId: nextUserId });
+      }
       setCharacterSheetId(nextCharacterSheetId);
       suppressNextNamePersistRef.current = true;
       setCharacterNameState(nextCharacterName);
@@ -298,6 +302,7 @@ export const useCharacterManagerBootstrapController = ({
       setProfileImageUrl,
       setSlotBusyKeys,
       setSlots,
+      suppressSelectedCharacterPersistence,
       setVisibleCharacterSheetPresetIds,
       slotsRef,
       suppressNextNamePersistRef,
@@ -317,7 +322,7 @@ export const useCharacterManagerBootstrapController = ({
       const activePresetId = presetState.activePresetId;
       setCharacterId(null);
       selectedCharacterStorageScopeRef.current = nextUserId;
-      if (!preservePersistedSelection) {
+      if (!preservePersistedSelection && !suppressSelectedCharacterPersistence) {
         persistSelectedCharacterId(null, nextUserId ? { userId: nextUserId } : undefined);
       }
       setCharacterSheetId(null);
@@ -385,6 +390,7 @@ export const useCharacterManagerBootstrapController = ({
       setProfileImageUrl,
       setSlotBusyKeys,
       setSlots,
+      suppressSelectedCharacterPersistence,
       setVisibleCharacterSheetPresetIds,
       slotsRef,
       suppressNextNamePersistRef,
@@ -400,6 +406,15 @@ export const useCharacterManagerBootstrapController = ({
       try {
         const scopedUserId = (await readSupabaseUserId())?.trim() ?? null;
         selectedCharacterStorageScopeRef.current = scopedUserId;
+        if (suppressSelectedCharacterPersistence) {
+          await refreshCharacterListSilently(null);
+          if (!active) return;
+          applyLocalDraft({
+            nextUserId: scopedUserId,
+            preservePersistedSelection: true,
+          });
+          return;
+        }
         const preferredCharacterId = readPersistedSelectedCharacterId(
           scopedUserId ? { userId: scopedUserId } : undefined
         );
@@ -451,6 +466,7 @@ export const useCharacterManagerBootstrapController = ({
     selectedCharacterStorageScopeRef,
     setError,
     setLoading,
+    suppressSelectedCharacterPersistence,
     toErrorMessage,
   ]);
 

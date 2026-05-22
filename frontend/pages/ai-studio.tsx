@@ -1596,6 +1596,7 @@ const AiStudioPageRuntimeBody = ({
     onAddLibraryMediaReference: addLibraryMediaReference,
     onAddLibraryPromptReference: addLibraryPromptReference,
     projectId,
+    projectRouteRequested,
     projectName: effectiveProjectName,
     onProjectNameCommit: handleProjectNameCommit,
     resolveMediaLibraryInternalDropItem,
@@ -1607,6 +1608,9 @@ const AiStudioPageRuntimeBody = ({
     resolveCharacterDropReference,
     pendingCharacterUploadRequest,
     onCharacterUploadRequestHandled: clearPendingCharacterUploadRequest,
+    createSelectedCharacterId,
+    onCreateSelectedCharacterIdChange: (characterId) =>
+      setCreateSelectedCharacterId(characterId ?? ""),
     resolveElementProfileImageDropSource,
     resolveVoiceChangerInternalReferenceSource,
     onSelectedStylePromptChange: setSelectedStylePrompt,

@@ -71,6 +71,7 @@ type UseCharacterManagerAssetControllerResult = {
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<boolean>;
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
+  clearUnsavedDraftAssets: () => void;
   persistUnsavedDraftAssets: (params: {
     characterId: string;
     characterSheetId: string;
@@ -135,6 +136,29 @@ export const useCharacterManagerAssetController = ({
       // Ignore draft preview URLs that are already revoked.
     }
   }, []);
+  const clearUnsavedDraftAssets = React.useCallback(() => {
+    stagedProfileImageFileRef.current = null;
+    revokeObjectUrl(stagedProfileImagePreviewUrlRef.current);
+    stagedProfileImagePreviewUrlRef.current = null;
+
+    const stagedPresetEntries = Object.entries(stagedPresetFilesRef.current) as Array<
+      [CharacterSheetPresetId, Partial<Record<CharacterSheetDropZoneKey, File>>]
+    >;
+    for (const [presetId, stagedFiles] of stagedPresetEntries) {
+      const currentAssignments =
+        characterSheetPresetsRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments();
+      for (const zoneKey of Object.keys(stagedFiles) as CharacterSheetDropZoneKey[]) {
+        revokeObjectUrl(currentAssignments[zoneKey]?.previewUrl ?? null);
+      }
+    }
+
+    for (const slotKey of Object.keys(stagedSlotFilesRef.current) as CharacterReferenceSlotKey[]) {
+      revokeObjectUrl(slotsRef.current[slotKey]?.previewUrl ?? null);
+    }
+
+    stagedPresetFilesRef.current = {};
+    stagedSlotFilesRef.current = {};
+  }, [characterSheetPresetsRef, revokeObjectUrl, slotsRef]);
 
   const setProfileImageFile = React.useCallback(
     async (file: File) => {
@@ -190,6 +214,7 @@ export const useCharacterManagerAssetController = ({
       defaultProfileImageTransform,
       patchCharacterListItem,
       revokeObjectUrl,
+      selectedCharacterStorageScopeRef,
       setError,
       setIsSavingProfileImage,
       setProfileImageTransform,
@@ -291,6 +316,7 @@ export const useCharacterManagerAssetController = ({
     defaultProfileImageTransform,
     patchCharacterListItem,
     revokeObjectUrl,
+    selectedCharacterStorageScopeRef,
     setError,
     setIsSavingProfileImage,
     setProfileImageTransform,
@@ -651,13 +677,10 @@ export const useCharacterManagerAssetController = ({
         assignments: characterSheetAssignmentsRef.current,
       });
 
-      stagedProfileImageFileRef.current = null;
-      revokeObjectUrl(stagedProfileImagePreviewUrlRef.current);
-      stagedProfileImagePreviewUrlRef.current = null;
-      stagedPresetFilesRef.current = {};
-      stagedSlotFilesRef.current = {};
+      clearUnsavedDraftAssets();
     },
     [
+      clearUnsavedDraftAssets,
       characterSheetAssignmentsRef,
       characterSheetPresetsRef,
       defaultProfileImageTransform,
@@ -675,6 +698,7 @@ export const useCharacterManagerAssetController = ({
     setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
+    clearUnsavedDraftAssets,
     persistUnsavedDraftAssets,
   };
 };

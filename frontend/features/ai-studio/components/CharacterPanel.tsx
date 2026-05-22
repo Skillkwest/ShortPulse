@@ -19,6 +19,9 @@ type CharacterPanelProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   projectId?: string | null;
+  projectRouteRequested?: boolean;
+  selectedCharacterId?: string | null;
+  onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
 export function CharacterPanel({
@@ -28,6 +31,9 @@ export function CharacterPanel({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   projectId = null,
+  projectRouteRequested = false,
+  selectedCharacterId = null,
+  onSelectedCharacterIdChange,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -42,6 +48,9 @@ export function CharacterPanel({
         externalUploadRequest={externalUploadRequest}
         onExternalUploadRequestHandled={onExternalUploadRequestHandled}
         projectId={projectId}
+        preferredCharacterId={selectedCharacterId}
+        suppressSelectedCharacterPersistence={projectRouteRequested || Boolean(projectId)}
+        onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         resolveCharacterDropReference={resolveCharacterDropReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
       />

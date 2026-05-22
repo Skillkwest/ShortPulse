@@ -549,6 +549,7 @@ export type AiStudioPageContentProps = {
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
@@ -570,6 +571,8 @@ export type AiStudioPageContentProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   pendingCharacterUploadRequest?: CharacterPanelUploadRequest | null;
   onCharacterUploadRequestHandled?: (requestId: number) => void;
+  createSelectedCharacterId?: string | null;
+  onCreateSelectedCharacterIdChange?: (characterId: string | null) => void;
   resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
@@ -619,6 +622,7 @@ export function AiStudioPageContent({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   projectId = null,
+  projectRouteRequested = false,
   projectName,
   onProjectNameCommit,
   resolveMediaLibraryInternalDropItem,
@@ -630,6 +634,8 @@ export function AiStudioPageContent({
   resolveCharacterDropReference,
   pendingCharacterUploadRequest = null,
   onCharacterUploadRequestHandled,
+  createSelectedCharacterId = null,
+  onCreateSelectedCharacterIdChange,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
   onSelectedStylePromptChange,
@@ -1225,15 +1231,21 @@ export function AiStudioPageContent({
         externalUploadRequest={pendingCharacterUploadRequest}
         onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
         projectId={projectId}
+        projectRouteRequested={projectRouteRequested}
+        selectedCharacterId={createSelectedCharacterId}
+        onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
         resolveCharacterDropReference={resolveCharacterDropReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
       />
     ),
     [
       characterCreateRequestKey,
+      createSelectedCharacterId,
       onCharacterUploadRequestHandled,
+      onCreateSelectedCharacterIdChange,
       pendingCharacterUploadRequest,
       projectId,
+      projectRouteRequested,
       resolveCharacterDropReference,
       resolveMediaLibraryInternalDropItem,
     ]

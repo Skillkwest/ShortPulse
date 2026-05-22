@@ -33,6 +33,12 @@ import type {
 } from "../types";
 import type { CharacterManagerListItem } from "../logic/characterManagerPersistence";
 
+type UseCharacterManagerDraftOptions = {
+  preferredCharacterId?: string | null;
+  suppressSelectedCharacterPersistence?: boolean;
+  onSelectedCharacterIdChange?: (characterId: string | null) => void;
+};
+
 type UseCharacterManagerDraftResult = {
   characters: CharacterManagerListItem[];
   selectedCharacterId: string | null;
@@ -111,7 +117,12 @@ const sortCharacterListItems = (items: CharacterManagerListItem[]): CharacterMan
 /**
  * Manages persisted character draft state and reference uploads.
  */
-export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
+export const useCharacterManagerDraft = ({
+  preferredCharacterId = null,
+  suppressSelectedCharacterPersistence = false,
+  onSelectedCharacterIdChange,
+}: UseCharacterManagerDraftOptions = {}): UseCharacterManagerDraftResult => {
+  const normalizedPreferredCharacterId = preferredCharacterId?.trim() || null;
   const [characters, setCharacters] = useState<CharacterManagerListItem[]>([]);
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [characterSheetId, setCharacterSheetId] = useState<string | null>(null);
@@ -201,6 +212,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const characterSheetPresetAssignmentsRequestRef = useRef(0);
   const characterSheetPresetTabOrderRequestRef = useRef(0);
   const characterSheetPresetTabLabelRequestRef = useRef(0);
+  const lastHandledPreferredCharacterIdRef = useRef<string | null | undefined>(undefined);
 
   const clearMessages = useCallback(() => {
     setError(null);
@@ -243,6 +255,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   }, [characterSheetPresetDescriptions]);
 
   const { applySnapshot, applyLocalDraft } = useCharacterManagerBootstrapController({
+    suppressSelectedCharacterPersistence,
     setCharacters,
     setCharacterId,
     setCharacterSheetId,
@@ -495,6 +508,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
+    clearUnsavedDraftAssets,
     persistUnsavedDraftAssets,
   } = useCharacterManagerAssetController({
     characterId,
@@ -526,13 +540,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     clearMessages();
     setIsCreatingCharacter(true);
     try {
+      clearUnsavedDraftAssets();
       applyLocalDraft({
         nextUserId: selectedCharacterStorageScopeRef.current,
       });
+      onSelectedCharacterIdChange?.(null);
     } finally {
       setIsCreatingCharacter(false);
     }
-  }, [applyLocalDraft, clearMessages]);
+  }, [applyLocalDraft, clearMessages, clearUnsavedDraftAssets, onSelectedCharacterIdChange]);
 
   const saveCharacter = useCallback(async () => {
     if (characterId) {
@@ -568,6 +584,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         userId: selectedCharacterStorageScopeRef.current,
         reason: "create",
       });
+      onSelectedCharacterIdChange?.(snapshot.characterId);
       return true;
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to save character."));
@@ -580,6 +597,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characterName,
     clearMessages,
     loadAndApplyCharacterSnapshot,
+    onSelectedCharacterIdChange,
     persistUnsavedDraftAssets,
     upsertCharacterListItem,
   ]);
@@ -614,10 +632,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         const nextCharacterId = remainingCharacters[0]?.characterId ?? null;
         if (nextCharacterId) {
           await loadAndApplyCharacterSnapshot(nextCharacterId);
+          onSelectedCharacterIdChange?.(nextCharacterId);
         } else {
           applyLocalDraft({
             nextUserId: selectedCharacterStorageScopeRef.current,
           });
+          onSelectedCharacterIdChange?.(null);
         }
 
         return true;
@@ -634,6 +654,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       clearMessages,
       charactersRef,
       loadAndApplyCharacterSnapshot,
+      onSelectedCharacterIdChange,
       removeCharacterListItem,
       selectedCharacterStorageScopeRef,
     ]
@@ -649,7 +670,11 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       try {
         const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
         if (selectionRequestIdRef.current !== requestId) return;
+        if (!characterId) {
+          clearUnsavedDraftAssets();
+        }
         applyLoadedCharacterSnapshot(snapshot);
+        onSelectedCharacterIdChange?.(snapshot.characterId);
       } catch (nextError) {
         if (selectionRequestIdRef.current !== requestId) return;
         setError(toErrorMessage(nextError, "Failed to switch character."));
@@ -659,8 +684,22 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         }
       }
     },
-    [applyLoadedCharacterSnapshot, characterId, clearMessages]
+    [
+      applyLoadedCharacterSnapshot,
+      characterId,
+      clearMessages,
+      clearUnsavedDraftAssets,
+      onSelectedCharacterIdChange,
+    ]
   );
+
+  useEffect(() => {
+    if (loading) return;
+    if (normalizedPreferredCharacterId === lastHandledPreferredCharacterIdRef.current) return;
+    lastHandledPreferredCharacterIdRef.current = normalizedPreferredCharacterId;
+    if (!normalizedPreferredCharacterId || normalizedPreferredCharacterId === characterId) return;
+    void selectCharacter(normalizedPreferredCharacterId);
+  }, [characterId, loading, normalizedPreferredCharacterId, selectCharacter]);
 
   const isSlotBusy = useCallback(
     (slotKey: CharacterReferenceSlotKey) =>

@@ -50,6 +50,7 @@ type UseAiStudioPageContentRuntimeParams = {
   onAddLibraryMediaReference: AiStudioPageContentProps["onAddLibraryMediaReference"];
   onAddLibraryPromptReference: AiStudioPageContentProps["onAddLibraryPromptReference"];
   projectId: AiStudioPageContentProps["projectId"];
+  projectRouteRequested: AiStudioPageContentProps["projectRouteRequested"];
   projectName: AiStudioPageContentProps["projectName"];
   onProjectNameCommit: AiStudioPageContentProps["onProjectNameCommit"];
   resolveMediaLibraryInternalDropItem: AiStudioPageContentProps["resolveMediaLibraryInternalDropItem"];
@@ -61,6 +62,8 @@ type UseAiStudioPageContentRuntimeParams = {
   resolveCharacterDropReference: AiStudioPageContentProps["resolveCharacterDropReference"];
   pendingCharacterUploadRequest: AiStudioPageContentProps["pendingCharacterUploadRequest"];
   onCharacterUploadRequestHandled: AiStudioPageContentProps["onCharacterUploadRequestHandled"];
+  createSelectedCharacterId: AiStudioPageContentProps["createSelectedCharacterId"];
+  onCreateSelectedCharacterIdChange: AiStudioPageContentProps["onCreateSelectedCharacterIdChange"];
   resolveElementProfileImageDropSource: AiStudioPageContentProps["resolveElementProfileImageDropSource"];
   resolveVoiceChangerInternalReferenceSource: AiStudioPageContentProps["resolveVoiceChangerInternalReferenceSource"];
   onSelectedStylePromptChange: AiStudioPageContentProps["onSelectedStylePromptChange"];
@@ -115,6 +118,7 @@ export const useAiStudioPageContentRuntime = ({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   projectId,
+  projectRouteRequested,
   projectName,
   onProjectNameCommit,
   resolveMediaLibraryInternalDropItem,
@@ -126,6 +130,8 @@ export const useAiStudioPageContentRuntime = ({
   resolveCharacterDropReference,
   pendingCharacterUploadRequest,
   onCharacterUploadRequestHandled,
+  createSelectedCharacterId,
+  onCreateSelectedCharacterIdChange,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
   onSelectedStylePromptChange,
@@ -177,6 +183,7 @@ export const useAiStudioPageContentRuntime = ({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       projectId,
+      projectRouteRequested,
       projectName,
       onProjectNameCommit,
       resolveMediaLibraryInternalDropItem,
@@ -188,6 +195,8 @@ export const useAiStudioPageContentRuntime = ({
       resolveCharacterDropReference,
       pendingCharacterUploadRequest,
       onCharacterUploadRequestHandled,
+      createSelectedCharacterId,
+      onCreateSelectedCharacterIdChange,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
       onSelectedStylePromptChange,
@@ -238,6 +247,7 @@ export const useAiStudioPageContentRuntime = ({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       projectId,
+      projectRouteRequested,
       projectName,
       onProjectNameCommit,
       resolveMediaLibraryInternalDropItem,
@@ -249,6 +259,8 @@ export const useAiStudioPageContentRuntime = ({
       resolveCharacterDropReference,
       pendingCharacterUploadRequest,
       onCharacterUploadRequestHandled,
+      createSelectedCharacterId,
+      onCreateSelectedCharacterIdChange,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
       onSelectedStylePromptChange,

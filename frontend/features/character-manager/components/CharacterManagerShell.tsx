@@ -177,7 +177,8 @@ export function CharacterManagerShell({
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isSavingCharacter ||
-    isDeletingCharacter;
+    isDeletingCharacter ||
+    isSavingCharacterSheetPreset;
 
   const {
     activeItems: quickSwapItems,

@@ -74,7 +74,13 @@ Recommended posture:
    thumbnail conventions.
 6. Media Library delete currently removes the audio media row and its known variants, but companion
    art is projection-owned and not part of that delete target set.
-7. The current storage/quota posture is implicit rather than explicitly frozen:
+7. Suppressed or abandoned generations are not an explicit exclusion in the current companion-art
+   processor claim query, so a hidden/suppressed audio output can still remain eligible for
+   companion-art work unless the lane adds a deliberate gate.
+8. Delete flows already use different database-vs-storage ordering across surfaces, so the
+   companion-art cleanup lane needs one explicit failure policy rather than inheriting inconsistent
+   behavior accidentally.
+9. The current storage/quota posture is implicit rather than explicitly frozen:
    hidden companion-art bytes live outside the canonical `media_files.file_size` quota contract.
 
 ### Audit conclusion
@@ -122,6 +128,8 @@ projection fields, or rendering wiring unless required by the new lightweight de
 - Companion-art generation or resize failure never blocks audio playback or audio success.
 - Companion art remains hidden from normal image-output surfaces, project previews, and visible
   output counting.
+- Suppressed or abandoned outputs do not generate new companion-art work after suppression takes
+  effect.
 - The delivery asset is intentionally low-cost relative to the audio-card surface.
 - Delete, restore, and cleanup behavior are explicit rather than incidental.
 
@@ -183,8 +191,10 @@ Freeze these before code changes.
 | Ownership model        | Projection-owned hidden asset / media-file-owned hidden asset / formal derivative contract | Hidden asset with explicit authoritative cleanup seam                              |
 | Quota posture          | Internal hidden storage exempt from quota / count toward user quota                        | Must be explicitly frozen before rollout                                           |
 | Async trigger model    | Existing server-side enqueue / client follow-up                                            | Keep existing server-side enqueue                                                  |
+| Suppression posture    | Allow suppressed rows to finish / gate suppressed rows before work begins                  | Gate suppressed or abandoned rows before companion-art work begins                 |
 | Restore behavior       | Durable by storage-path authority / runtime-only                                           | Keep current durable storage-path authority                                        |
 | Cleanup authority      | Media delete only / generation delete only / shared explicit cleanup helper                | Shared explicit cleanup helper                                                     |
+| Delete failure policy  | Storage-first / DB-first / route-specific behavior                                         | Freeze one explicit policy and apply it consistently                               |
 | Rollout safety         | Direct cutover / flag-gated cutover                                                        | Flag-gated cutover if asset format/path changes materially                         |
 
 ## Proposed Target Contract
@@ -237,7 +247,9 @@ Work:
 - confirm generated-audio-only scope remains correct
 - freeze storage representation (`small delivery asset only` vs `raw + small`)
 - freeze quota posture
+- freeze suppression posture for suppressed/abandoned generations
 - freeze cleanup authority
+- freeze delete failure policy
 - freeze historical posture for old full-size assets
 - freeze rollback/flag posture if delivery-path format changes
 
@@ -261,12 +273,15 @@ Work:
 - update the processor to emit a lightweight delivery asset
 - prefer reuse of the existing derivative strategy/pattern
 - keep audio companion-art generation asynchronous and non-fatal
+- add an explicit eligibility gate so suppressed/abandoned generations do not keep generating new
+  hidden art
 - keep prompt-compiler behavior unchanged unless visual quality evidence requires retuning
 
 Audit questions:
 
 - Is the delivery asset materially smaller than the current raw PNG?
 - Is the new asset still visually acceptable behind the audio-card shell?
+- Are suppressed or abandoned generations excluded before work is claimed or uploaded?
 - Did we accidentally create a second source of truth for companion-art storage?
 
 Exit criteria:
@@ -314,6 +329,7 @@ Work:
 
 - add explicit cleanup for companion-art objects on relevant delete flows
 - clear projection companion-art metadata when the owning asset/generation is deleted or suppressed
+- align companion-art cleanup with one explicit DB/storage ordering and failure policy
 - define behavior for project delete, generation delete, abandon, and permanent library delete
 
 Audit questions:
@@ -413,6 +429,7 @@ Stop rule:
 - no visible extra image refs are added to normal output surfaces
 - project preview/counting behavior still ignores companion art
 - out-of-scope remuxed video surfaces remain unchanged
+- suppressed or abandoned generations do not continue producing companion art in the background
 - delete from `All Media` does not leave hidden companion-art storage behind
 
 ## Risks
@@ -456,6 +473,16 @@ Why it matters:
 Mitigation:
 
 - keep the non-goals explicit and stop after the audio-card contract is hardened
+
+### Risk 5: Suppressed outputs still generate hidden assets
+
+Why it matters:
+
+- a user-hidden or abandoned generation can keep creating storage cost after suppression
+
+Mitigation:
+
+- add a suppression gate to the processor claim path and validate it explicitly
 
 ## Suggested Build Order
 

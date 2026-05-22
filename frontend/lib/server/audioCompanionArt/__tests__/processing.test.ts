@@ -6,6 +6,15 @@ const generateOpenAiImageMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const resolveRuntimeAgentPromptMock = vi.fn();
+const sharpMock = vi.fn();
+const sharpRotateMock = vi.fn();
+const sharpResizeMock = vi.fn();
+const sharpWebpMock = vi.fn();
+const sharpToBufferMock = vi.fn();
+
+vi.mock("sharp", () => ({
+  default: (...args: unknown[]) => sharpMock(...args),
+}));
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -31,6 +40,7 @@ const createSelectBuilder = (result: { data: unknown; error: unknown }) => {
   const builder: Record<string, unknown> = {};
   builder.eq = vi.fn(() => builder);
   builder.lt = vi.fn(() => builder);
+  builder.not = vi.fn(() => builder);
   builder.or = vi.fn(() => builder);
   builder.order = vi.fn(() => builder);
   builder.limit = vi.fn(() => builder);
@@ -50,38 +60,69 @@ describe("audioCompanionArt processing", () => {
       updatedByEmail: null,
       source: "seed",
     });
+    sharpToBufferMock.mockResolvedValue(Buffer.from("cover-webp"));
+    sharpWebpMock.mockReturnValue({
+      toBuffer: sharpToBufferMock,
+    });
+    sharpResizeMock.mockReturnValue({
+      webp: sharpWebpMock,
+    });
+    sharpRotateMock.mockReturnValue({
+      resize: sharpResizeMock,
+    });
+    sharpMock.mockReturnValue({
+      rotate: sharpRotateMock,
+    });
   });
 
   it("processes pending audio companion art rows to ready state", async () => {
     const projectionSelectBuilder: Record<string, unknown> = {};
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
-      data: [{ generation_id: "gen-1", user_id: "user-1", companion_art_attempt_count: 0 }],
+      data: [
+        {
+          generation_id: "gen-1",
+          user_id: "user-1",
+          companion_art_attempt_count: 0,
+          publication_state: "published",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
       error: null,
     }));
 
+    const projectionEligibilityBuilder = createSelectBuilder({
+      data: {
+        publication_state: "published",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
     const claimMaybeSingle = vi.fn(async () => ({
       data: { generation_id: "gen-1" },
       error: null,
     }));
+    const claimBuilder: Record<string, unknown> = {};
+    claimBuilder.eq = vi.fn(() => claimBuilder);
+    claimBuilder.lt = vi.fn(() => claimBuilder);
+    claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.or = vi.fn(() => claimBuilder);
+    claimBuilder.select = vi.fn(() => ({
+      maybeSingle: claimMaybeSingle,
+    }));
     const generationProjectionTable = {
-      select: vi.fn(() => projectionSelectBuilder),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            lt: vi.fn(() => ({
-              or: vi.fn(() => ({
-                select: vi.fn(() => ({
-                  maybeSingle: claimMaybeSingle,
-                })),
-              })),
-            })),
-          })),
-        })),
-      })),
+      select: vi.fn((columns: string) =>
+        columns.includes("companion_art_attempt_count")
+          ? projectionSelectBuilder
+          : projectionEligibilityBuilder
+      ),
+      update: vi.fn(() => claimBuilder),
     };
 
     const aiGenerationsTable = {
@@ -131,6 +172,11 @@ describe("audioCompanionArt processing", () => {
     expect(projectionSelectBuilder.or).toHaveBeenCalledWith(
       "companion_art_status.eq.pending,companion_art_status.eq.failed"
     );
+    expect(projectionSelectBuilder.not).toHaveBeenCalledWith(
+      "publication_state",
+      "eq",
+      "suppressed"
+    );
     expect(generateOpenAiImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         size: "1024x1024",
@@ -138,12 +184,19 @@ describe("audioCompanionArt processing", () => {
         prompt: expect.stringContaining("Control-plane branded style line."),
       })
     );
+    expect(sharpMock).toHaveBeenCalledWith(Buffer.from("cover"), { failOn: "error" });
+    expect(sharpResizeMock).toHaveBeenCalledWith({
+      width: 480,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+    expect(sharpWebpMock).toHaveBeenCalledWith({ quality: 68 });
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
         userId: "user-1",
         companionArtStatus: "ready",
-        companionArtStoragePath: "user-1/generations/audio/gen-1/companion-art/cover.png",
+        companionArtStoragePath: "user-1/generations/audio/gen-1/companion-art/cover.webp",
       })
     );
   });
@@ -152,31 +205,49 @@ describe("audioCompanionArt processing", () => {
     const projectionSelectBuilder: Record<string, unknown> = {};
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
-      data: [{ generation_id: "gen-2", user_id: "user-2", companion_art_attempt_count: 1 }],
+      data: [
+        {
+          generation_id: "gen-2",
+          user_id: "user-2",
+          companion_art_attempt_count: 1,
+          publication_state: "published",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
       error: null,
     }));
 
-    const generationProjectionTable = {
-      select: vi.fn(() => projectionSelectBuilder),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            lt: vi.fn(() => ({
-              or: vi.fn(() => ({
-                select: vi.fn(() => ({
-                  maybeSingle: vi.fn(async () => ({
-                    data: { generation_id: "gen-2" },
-                    error: null,
-                  })),
-                })),
-              })),
-            })),
-          })),
-        })),
+    const projectionEligibilityBuilder = createSelectBuilder({
+      data: {
+        publication_state: "published",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const claimBuilder: Record<string, unknown> = {};
+    claimBuilder.eq = vi.fn(() => claimBuilder);
+    claimBuilder.lt = vi.fn(() => claimBuilder);
+    claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.or = vi.fn(() => claimBuilder);
+    claimBuilder.select = vi.fn(() => ({
+      maybeSingle: vi.fn(async () => ({
+        data: { generation_id: "gen-2" },
+        error: null,
       })),
+    }));
+    const generationProjectionTable = {
+      select: vi.fn((columns: string) =>
+        columns.includes("companion_art_attempt_count")
+          ? projectionSelectBuilder
+          : projectionEligibilityBuilder
+      ),
+      update: vi.fn(() => claimBuilder),
     };
 
     const aiGenerationsTable = {
@@ -226,6 +297,88 @@ describe("audioCompanionArt processing", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.generation_failed",
+      })
+    );
+  });
+
+  it("clears claimed companion art work when the generation is suppressed before processing", async () => {
+    const projectionSelectBuilder: Record<string, unknown> = {};
+    projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.limit = vi.fn(async () => ({
+      data: [
+        {
+          generation_id: "gen-suppressed",
+          user_id: "user-suppressed",
+          companion_art_attempt_count: 0,
+          publication_state: "published",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    }));
+
+    const projectionEligibilityBuilder = createSelectBuilder({
+      data: {
+        publication_state: "suppressed",
+        hidden_in_reference_grid: true,
+        reference_grid_visible: false,
+      },
+      error: null,
+    });
+    const claimBuilder: Record<string, unknown> = {};
+    claimBuilder.eq = vi.fn(() => claimBuilder);
+    claimBuilder.lt = vi.fn(() => claimBuilder);
+    claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.or = vi.fn(() => claimBuilder);
+    claimBuilder.select = vi.fn(() => ({
+      maybeSingle: vi.fn(async () => ({
+        data: { generation_id: "gen-suppressed" },
+        error: null,
+      })),
+    }));
+    const generationProjectionTable = {
+      select: vi.fn((columns: string) =>
+        columns.includes("companion_art_attempt_count")
+          ? projectionSelectBuilder
+          : projectionEligibilityBuilder
+      ),
+      update: vi.fn(() => claimBuilder),
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") return generationProjectionTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(async () => ({ error: null })),
+        })),
+      },
+    });
+
+    const result = await processPendingAudioCompanionArtBatch({ limit: 5 });
+
+    expect(result).toEqual({
+      claimed: 1,
+      processed: 1,
+      ready: 0,
+      failed: 0,
+      skipped: 1,
+      errors: 0,
+    });
+    expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-suppressed",
+        userId: "user-suppressed",
+        companionArtStatus: null,
+        companionArtStoragePath: null,
       })
     );
   });

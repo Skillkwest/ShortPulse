@@ -1,4 +1,5 @@
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
+import sharp from "sharp";
 import { generateOpenAiImage } from "../openaiImageGeneration";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
@@ -11,6 +12,9 @@ const MAX_AUDIO_COMPANION_ART_ATTEMPTS = 3;
 const AUDIO_COMPANION_ART_STYLE_PROMPT_ID = "AUDIO_COMPANION_ART_STYLE_SYSTEM";
 const RETRYABLE_COMPANION_ART_STATUSES_FILTER =
   "companion_art_status.eq.pending,companion_art_status.eq.failed";
+const AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE = "image/webp";
+const AUDIO_COMPANION_ART_DELIVERY_WIDTH_PX = 480;
+const AUDIO_COMPANION_ART_DELIVERY_QUALITY = 68;
 
 type JsonObject = Record<string, unknown>;
 
@@ -18,6 +22,9 @@ type PendingAudioCompanionArtProjectionRow = {
   generation_id?: unknown;
   user_id?: unknown;
   companion_art_attempt_count?: unknown;
+  publication_state?: unknown;
+  hidden_in_reference_grid?: unknown;
+  reference_grid_visible?: unknown;
 };
 
 type AudioGenerationRow = {
@@ -25,6 +32,12 @@ type AudioGenerationRow = {
   user_id?: unknown;
   prompt_text?: unknown;
   metadata?: unknown;
+};
+
+type AudioCompanionArtProjectionEligibilityRow = {
+  publication_state?: unknown;
+  hidden_in_reference_grid?: unknown;
+  reference_grid_visible?: unknown;
 };
 
 export type AudioCompanionArtBatchMetrics = {
@@ -72,9 +85,66 @@ const buildCompanionArtStoragePath = ({
 }): string =>
   assertUserScopedMediaStoragePath({
     userId,
-    path: `${userId}/generations/audio/${generationId}/companion-art/cover.png`,
+    path: `${userId}/generations/audio/${generationId}/companion-art/cover.webp`,
     label: "Audio companion art storage path",
   });
+
+const isAudioCompanionArtEligible = (
+  row: AudioCompanionArtProjectionEligibilityRow | null | undefined
+): boolean => {
+  if (!row) return false;
+  if (asTrimmedString(row.publication_state)?.toLowerCase() === "suppressed") return false;
+  if (row.hidden_in_reference_grid === true) return false;
+  if (row.reference_grid_visible === false) return false;
+  return true;
+};
+
+const loadAudioCompanionArtEligibility = async ({
+  generationId,
+  userId,
+}: {
+  generationId: string;
+  userId: string;
+}): Promise<boolean> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("generation_projection")
+    .select("publication_state, hidden_in_reference_grid, reference_grid_visible")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message || "Failed to load audio companion art eligibility.");
+  }
+  return isAudioCompanionArtEligible((data as AudioCompanionArtProjectionEligibilityRow) ?? null);
+};
+
+const clearAudioCompanionArtState = async ({
+  generationId,
+  userId,
+}: {
+  generationId: string;
+  userId: string;
+}): Promise<void> => {
+  await upsertGenerationProjection({
+    generationId,
+    userId,
+    companionArtStatus: null,
+    companionArtStoragePath: null,
+  }).catch(() => undefined);
+};
+
+const encodeAudioCompanionArtDeliveryBuffer = async (sourceBuffer: Buffer): Promise<Buffer> => {
+  return await sharp(sourceBuffer, { failOn: "error" })
+    .rotate()
+    .resize({
+      width: AUDIO_COMPANION_ART_DELIVERY_WIDTH_PX,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: AUDIO_COMPANION_ART_DELIVERY_QUALITY })
+    .toBuffer();
+};
 
 export const markAudioCompanionArtPending = async ({
   generationId,
@@ -171,9 +241,12 @@ export const processPendingAudioCompanionArtBatch = async ({
 
   const { data, error } = await supabaseAdmin
     .from("generation_projection")
-    .select("generation_id, user_id, companion_art_attempt_count")
+    .select(
+      "generation_id, user_id, companion_art_attempt_count, publication_state, hidden_in_reference_grid, reference_grid_visible"
+    )
     .eq("provider", "elevenlabs")
     .eq("task_state", "success")
+    .not("publication_state", "eq", "suppressed")
     .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
     .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
     .order("updated_at", { ascending: true })
@@ -192,6 +265,10 @@ export const processPendingAudioCompanionArtBatch = async ({
       metrics.skipped += 1;
       continue;
     }
+    if (!isAudioCompanionArtEligible(candidate)) {
+      metrics.skipped += 1;
+      continue;
+    }
     const nextAttemptCount = asAttemptCount(candidate.companion_art_attempt_count) + 1;
 
     const claimResult = await supabaseAdmin
@@ -203,6 +280,7 @@ export const processPendingAudioCompanionArtBatch = async ({
       })
       .eq("generation_id", generationId)
       .eq("user_id", userId)
+      .not("publication_state", "eq", "suppressed")
       .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
       .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
       .select("generation_id")
@@ -220,6 +298,16 @@ export const processPendingAudioCompanionArtBatch = async ({
     metrics.claimed += 1;
 
     try {
+      if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
+        metrics.processed += 1;
+        metrics.skipped += 1;
+        await clearAudioCompanionArtState({
+          generationId,
+          userId,
+        });
+        continue;
+      }
+
       const generationRow = await loadAudioGenerationRow({
         generationId,
         userId,
@@ -252,14 +340,24 @@ export const processPendingAudioCompanionArtBatch = async ({
         size: generationSpec.size,
         quality: generationSpec.quality,
       });
+      const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
+      if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
+        metrics.processed += 1;
+        metrics.skipped += 1;
+        await clearAudioCompanionArtState({
+          generationId,
+          userId,
+        });
+        continue;
+      }
       const storagePath = buildCompanionArtStoragePath({
         userId,
         generationId,
       });
       const uploadResult = await supabaseAdmin.storage
         .from(MEDIA_BUCKET)
-        .upload(storagePath, generated.buffer, {
-          contentType: generated.contentType,
+        .upload(storagePath, deliveryBuffer, {
+          contentType: AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE,
           upsert: true,
         });
       if (uploadResult.error) {

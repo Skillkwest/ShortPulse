@@ -22,7 +22,7 @@ type CreateVoiceModalProps = {
   normalizedVoicePromptLength: number;
   minVoicePromptCharacters: number;
   maxVoicePromptCharacters: number;
-  voiceDescriptionPlaceholder: string;
+  voicePromptPlaceholder: string;
   isCreateVoiceEnabled: boolean;
   isSaveVoiceEnabled: boolean;
   isSavingDesignedVoice: boolean;
@@ -65,8 +65,10 @@ export function CreateVoiceModal({
   voicePrompt,
   voiceNameInputRef,
   voicePromptRef,
+  normalizedVoicePromptLength,
+  minVoicePromptCharacters,
   maxVoicePromptCharacters,
-  voiceDescriptionPlaceholder,
+  voicePromptPlaceholder,
   isCreateVoiceEnabled,
   isSaveVoiceEnabled,
   isSavingDesignedVoice,
@@ -166,7 +168,7 @@ export function CreateVoiceModal({
 
               <label className="voices-properties-field">
                 <span className="voices-properties-field-label">
-                  {isCloneMode ? "Voice description (optional)" : "Voice description"}
+                  {isCloneMode ? "Voice description (optional)" : "Voice prompt"}
                 </span>
                 <textarea
                   ref={voicePromptRef}
@@ -177,12 +179,22 @@ export function CreateVoiceModal({
                   onDragOver={isCloneMode ? undefined : onVoicePromptDragOver}
                   maxLength={maxVoicePromptCharacters}
                   placeholder={
-                    isCloneMode
-                      ? "Optional notes for this cloned voice."
-                      : voiceDescriptionPlaceholder
+                    isCloneMode ? "Optional notes for this cloned voice." : voicePromptPlaceholder
                   }
-                  aria-label="Voice description"
+                  aria-label={isCloneMode ? "Voice description" : "Voice prompt"}
                 />
+                {!isCloneMode ? (
+                  <div className="voices-create-modal-description-footer" aria-live="polite">
+                    <p className="voices-create-modal-helper">
+                      Use at least {minVoicePromptCharacters} characters to generate voice previews.
+                    </p>
+                    <div className="voices-create-modal-count-stack">
+                      <span className="voices-properties-script-count">
+                        {`${normalizedVoicePromptLength.toLocaleString()} / ${minVoicePromptCharacters.toLocaleString()} minimum`}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </label>
 
               {isCloneMode ? (
@@ -231,7 +243,7 @@ export function CreateVoiceModal({
                 <div className="voices-create-modal-actions">
                   <button
                     type="button"
-                    className="voices-properties-create-voice-btn voices-create-modal-primary-btn"
+                    className="voices-create-modal-primary-btn"
                     disabled={!isCreateVoiceEnabled}
                     aria-label="Generate voice previews"
                     onClick={onGenerateVoicePreviews}

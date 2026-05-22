@@ -246,6 +246,7 @@ function MediaLibraryAllItemsMediaCard({
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
+  onRequestSignedUrl,
   cacheAspectRatio,
   showCardActions,
   canShowDownloadAction,
@@ -285,6 +286,34 @@ function MediaLibraryAllItemsMediaCard({
   const shouldRenderPoster = Boolean(posterUrl);
   const shouldRenderFallbackImage =
     !isVideo && Boolean(cardPreviewUrl) && !isVideoUrl(cardPreviewUrl);
+  const shouldRenderBlankPlaceholder =
+    !shouldRenderFallbackVideo &&
+    !shouldRenderHoverVideo &&
+    !shouldRenderPoster &&
+    !shouldRenderFallbackImage;
+  const previewRecoveryRequestKey = `${file.id}:${file.signedUrl ?? ""}:${cardPreviewUrl ?? ""}`;
+  const previewRecoveryAttemptRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!onRequestSignedUrl || !shouldRenderBlankPlaceholder) return;
+    if (previewRecoveryAttemptRef.current === previewRecoveryRequestKey) return;
+    previewRecoveryAttemptRef.current = previewRecoveryRequestKey;
+    void onRequestSignedUrl(file)
+      .then((nextSignedUrl) => {
+        if (nextSignedUrl) return;
+        onMediaPreviewError(file, cardPreviewUrl);
+      })
+      .catch(() => {
+        onMediaPreviewError(file, cardPreviewUrl);
+      });
+  }, [
+    cardPreviewUrl,
+    file,
+    onMediaPreviewError,
+    onRequestSignedUrl,
+    previewRecoveryRequestKey,
+    shouldRenderBlankPlaceholder,
+  ]);
 
   return (
     <div
@@ -1005,6 +1034,7 @@ export function MediaLibraryAllItemsGrid({
                 onMediaPreviewError={onMediaPreviewError}
                 onMediaPaint={onMediaPaint}
                 onSignedUrlLoaded={onSignedUrlLoaded}
+                onRequestSignedUrl={onRequestSignedUrl}
                 cacheAspectRatio={cacheAspectRatio}
                 showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowDownloadAction}

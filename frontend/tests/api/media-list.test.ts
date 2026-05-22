@@ -1089,24 +1089,78 @@ describe("POST /api/media/list", () => {
       [
         "user-1/uploads/images/panel-target-thumb.png",
         "user-1/uploads/images/panel-target-2-thumb.png",
+        "user-1/uploads/images/panel-target-3-thumb.png",
       ],
       3600
     );
     expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "2");
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "3");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         rows: expect.arrayContaining([
           expect.objectContaining({ id: "panel-media-1" }),
           expect.objectContaining({ id: "panel-media-2" }),
+          expect.objectContaining({ id: "panel-media-3" }),
         ]),
         signedById: {
           "panel-media-1": "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-thumb.png",
           "panel-media-2":
             "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-2-thumb.png",
+          "panel-media-3":
+            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-3-thumb.png",
         },
       })
     );
+  });
+
+  it("seeds a full first visual row of signed previews for the panel mixed open", async () => {
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      id: `panel-seed-${index + 1}`,
+      user_id: "user-1",
+      filename: `panel-seed-${index + 1}.png`,
+      storage_path: `user-1/uploads/images/panel-seed-${index + 1}.png`,
+      file_type: "image/png",
+      file_size: 10,
+      source: "upload",
+      source_ref: null,
+      prompt_id: null,
+      metadata: null,
+      thumb_variant_path: `user-1/uploads/images/panel-seed-${index + 1}-thumb.png`,
+      poster_variant_path: null,
+      preview_variant_path: null,
+      created_at: `2026-02-20T0${5 - index}:00:00.000Z`,
+      updated_at: null,
+    })) as MediaRow[];
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      [
+        "user-1/uploads/images/panel-seed-1-thumb.png",
+        "user-1/uploads/images/panel-seed-2-thumb.png",
+        "user-1/uploads/images/panel-seed-3-thumb.png",
+        "user-1/uploads/images/panel-seed-4-thumb.png",
+        "user-1/uploads/images/panel-seed-5-thumb.png",
+      ],
+      3600
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "5");
   });
 
   it("seeds initial signed urls for the elements panel surface on the default mixed open", async () => {

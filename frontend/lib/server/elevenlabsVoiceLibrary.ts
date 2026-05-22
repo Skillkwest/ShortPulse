@@ -32,6 +32,12 @@ export type ResolvedVoiceLibraryEntry = {
 
 const normalizeLookupKey = (voiceId: string): string => voiceId.trim().toLowerCase();
 
+const HIDDEN_DEFAULT_VOICE_NAMES = new Set(["liam"]);
+
+const shouldHideResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): boolean =>
+  entry.librarySection === "default" &&
+  HIDDEN_DEFAULT_VOICE_NAMES.has(entry.name.trim().toLowerCase());
+
 const providerCategoryImpliesUserCreated = (category: string | null): boolean =>
   category === "cloned" || category === "generated";
 
@@ -210,7 +216,8 @@ export const buildResolvedVoiceLibraryEntries = ({
       providerVoice: providerVoiceMap.get(voiceId) ?? null,
       savedVoice: savedVoiceMap.get(voiceId) ?? null,
     });
-    return resolved ? [resolved] : [];
+    if (!resolved || shouldHideResolvedVoiceEntry(resolved)) return [];
+    return [resolved];
   });
 };
 

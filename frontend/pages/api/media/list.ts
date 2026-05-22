@@ -93,8 +93,10 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
 };
 
 const INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE: Partial<Record<MediaListSurface, number>> = {
-  "media-library-panel": 2,
-  "elements-media-panel": 2,
+  // Mixed panel surfaces visually prioritize up to a full row of non-audio cards on first paint.
+  // Seed enough signed previews to cover that promoted window before client visibility signing catches up.
+  "media-library-panel": 5,
+  "elements-media-panel": 5,
 };
 
 const shouldSeedInitialSignedUrls = ({

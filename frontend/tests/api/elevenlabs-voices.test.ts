@@ -101,6 +101,63 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.warning).toBeUndefined();
   });
 
+  it("excludes Liam from the default voices catalog", async () => {
+    listSavedVoicesForUserMock.mockResolvedValue([]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-live-1",
+        name: "Darian",
+        previewUrl: null,
+        description: "Warm, grounded storyteller",
+        isFallback: false,
+        providerCategory: "premade",
+        providerVoiceType: "default",
+      },
+      {
+        voiceId: "voice-live-2",
+        name: "Liam",
+        previewUrl: "https://example.com/liam.mp3",
+        description: "Provider default Liam voice",
+        isFallback: false,
+        providerCategory: "premade",
+        providerVoiceType: "default",
+      },
+    ]);
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const payload = res.json.mock.calls[0]?.[0] as {
+      source: "api" | "fallback";
+      voices: Array<{ voiceId: string; name: string; librarySection: "default" | "my" }>;
+    };
+
+    expect(payload.source).toBe("api");
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "voice-live-1",
+          name: "Darian",
+          librarySection: "default",
+        }),
+      ])
+    );
+    expect(payload.voices).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "voice-live-2",
+          name: "Liam",
+          librarySection: "default",
+        }),
+      ])
+    );
+  });
+
   it("falls back to the default catalog when the API key is missing", async () => {
     process.env.ELEVENLABS_API_KEY = "";
     listSavedVoicesForUserMock.mockResolvedValue([]);

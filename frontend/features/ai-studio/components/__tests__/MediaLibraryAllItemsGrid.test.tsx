@@ -545,4 +545,28 @@ describe("MediaLibraryAllItemsGrid", () => {
       );
     });
   });
+
+  it("requests a signed preview when a mixed-feed image card would otherwise mount blank", async () => {
+    const props = baseProps();
+    props.onRequestSignedUrl = vi.fn().mockResolvedValue("https://cdn.example.com/image-1.png");
+    props.mediaRows = [
+      {
+        id: "image-1",
+        filename: "image-1.png",
+        storage_path: "user-1/uploads/image-1.png",
+        preview_storage_path: "user-1/uploads/image-1.png",
+        file_type: "image/png",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: null,
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    await waitFor(() => {
+      expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "image-1" })
+      );
+    });
+  });
 });

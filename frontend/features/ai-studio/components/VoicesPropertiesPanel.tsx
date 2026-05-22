@@ -58,8 +58,8 @@ type ElevenVoiceoverRequestConfig = {
   };
 };
 
-const voiceDescriptionPlaceholder =
-  "Describe the voice you want to create: tone, age, and delivery.";
+const voicePromptPlaceholder =
+  "Enter the prompt used to generate this voice: tone, age, and delivery.";
 const voiceScriptPlaceholder = "Paste or write the script that will be spoken with this voice.";
 const createVoiceDefaultName = "";
 
@@ -69,7 +69,7 @@ const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
 const minVoicesTopSectionHeightPx = 120;
-const minVoicesBottomSectionHeightPx = 320;
+const minVoicesBottomSectionHeightPx = 400;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -1915,7 +1915,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             normalizedVoicePromptLength={normalizedVoicePromptLength}
             minVoicePromptCharacters={minVoicePromptCharacters}
             maxVoicePromptCharacters={maxVoicePromptCharacters}
-            voiceDescriptionPlaceholder={voiceDescriptionPlaceholder}
+            voicePromptPlaceholder={voicePromptPlaceholder}
             isCreateVoiceEnabled={isCreateVoiceEnabled}
             isSaveVoiceEnabled={isSaveVoiceEnabled}
             isSavingDesignedVoice={isSavingDesignedVoice}

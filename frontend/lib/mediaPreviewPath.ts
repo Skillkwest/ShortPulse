@@ -7,6 +7,7 @@ export {
   resolveDurablePreviewStoragePath,
   resolveMediaDirectPreviewUrls,
   resolveMediaPreviewCandidates,
+  resolveMediaStoragePathCandidate,
   resolveMediaSigningStoragePaths,
   resolvePreferredMediaDirectPreviewUrl,
   resolvePreferredMediaSigningStoragePath,

@@ -352,6 +352,46 @@ Mitigation:
 - For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately with:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
 
+## Media panel image card stays blank even though the row is `ready`
+
+Symptoms:
+
+- AI Studio Media panel or character-adjacent media picker shows an image card shell, but the preview area stays blank or falls through to a dark placeholder.
+- The affected `media_files` row has `file_type='image'`, `processing_status='ready'`, and a populated `thumb_variant_path`.
+- Original object delivery still works, but the signed durable thumb URL returns `404`/`400`.
+
+Checklist:
+
+- Reproduce on production and capture the failing `media_files.id`, filename, and visible surface.
+- Confirm the row still points at a thumb variant:
+  - `storage_path`
+  - `thumb_variant_path`
+  - `processing_status`
+- Run the production read-only audit:
+  ```bash
+  cd frontend
+  npm run media:audit-stale-image-thumbs -- --media-file-id <media-file-id>
+  ```
+- For broader drift checks, scope by owner or inspect a bounded recent sample:
+  ```bash
+  cd frontend
+  npm run media:audit-stale-image-thumbs -- --user-id <owner-user-id> --limit 30
+  ```
+- Treat rows as stale thumb drift when:
+  - `thumbOk=false`
+  - `originalOk=true`
+  - `processingStatus='ready'`
+- If the audit comes back clean for the affected rows, shift the investigation to client/runtime state:
+  - stale signed URL state
+  - failed image element recovery
+  - panel/session cache that still points at an older broken preview URL
+
+Mitigation:
+
+- Do not assume SQL-only coverage checks are sufficient; this failure family requires signed delivery verification against the actual storage object.
+- Use `--emit-requeue-sql` only to generate a manual operator review snippet. Review ids before any production repair.
+- If production audit shows widespread `ready` rows with broken thumb delivery, prefer fixing preview recovery/runtime behavior first, then schedule a bounded operator repair for stale thumb paths.
+
 ## Media derivative row is terminal-failed with local-processing errors
 
 Symptoms:

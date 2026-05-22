@@ -420,3 +420,6 @@ export const resolveMediaDirectPreviewUrls = (
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
   return buildMediaDirectPreviewUrls(row, metadataPaths, userId);
 };
+
+export const resolveMediaStoragePathCandidate = (value: unknown): string | null =>
+  asStoragePath(value);

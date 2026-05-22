@@ -1,15 +1,20 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveMediaPreviewCandidates } from "../../../../lib/mediaPreviewPath";
+import {
+  resolveMediaPreviewCandidates,
+  resolveMediaStoragePathCandidate,
+} from "../../../../lib/mediaPreviewPath";
 import { useMediaPreviewRecoveryController } from "../useMediaPreviewRecoveryController";
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaPreviewCandidates: vi.fn(),
+  resolveMediaStoragePathCandidate: vi.fn(),
 }));
 
 const resolveMediaPreviewCandidatesMock = vi.mocked(resolveMediaPreviewCandidates);
+const resolveMediaStoragePathCandidateMock = vi.mocked(resolveMediaStoragePathCandidate);
 
 type Row = {
   id: string;
@@ -36,6 +41,12 @@ describe("useMediaPreviewRecoveryController", () => {
         directUrl: null,
       })
     );
+    resolveMediaStoragePathCandidateMock.mockImplementation((value: unknown) => {
+      if (typeof value !== "string") return null;
+      const match = value.match(/path=([^&]+)/);
+      if (match?.[1]) return decodeURIComponent(match[1]);
+      return value;
+    });
   });
 
   afterEach(() => {
@@ -204,5 +215,45 @@ describe("useMediaPreviewRecoveryController", () => {
     });
     expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [makeRow()]);
     expect(result.current.signedUrlRetryRef.current["row-1"]).toBe(1);
+  });
+
+  it("hydrates immediately when refresh only re-signs the same failing storage path", async () => {
+    const signStoragePath = vi.fn(
+      async () => "https://signed.example.com/object?path=user-1/upload/one.png&token=fresh"
+    );
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => "blob://downloaded");
+
+    const { result } = renderHook(() => {
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const signedUrlRetryRef = useRef<Record<string, number>>({});
+      const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
+      return {
+        controller: useMediaPreviewRecoveryController<Row>({
+          applySignedUrlsToTab: vi.fn(),
+          currentUserIdRef,
+          resolveSignedUrlsByMediaIds,
+          hydrateViaStorageDownload,
+          signStoragePath,
+          signedUrlRetryRef,
+          objectUrlByMediaIdRef,
+          resolveTabForRow: () => "uploaded_images",
+        }),
+      };
+    });
+
+    act(() => {
+      result.current.controller.handleMediaPreviewError(
+        makeRow({
+          signedUrl: "https://signed.example.com/object?path=user-1/upload/one.png&token=stale",
+        }),
+        "https://signed.example.com/object?path=user-1/upload/one.png&token=failed"
+      );
+    });
+
+    await waitFor(() => {
+      expect(hydrateViaStorageDownload).toHaveBeenCalledTimes(1);
+    });
+    expect(resolveSignedUrlsByMediaIds).not.toHaveBeenCalled();
   });
 });

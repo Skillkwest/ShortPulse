@@ -5,7 +5,10 @@
 import { useCallback, type MutableRefObject } from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
-import { resolveMediaPreviewCandidates } from "../../../lib/mediaPreviewPath";
+import {
+  resolveMediaPreviewCandidates,
+  resolveMediaStoragePathCandidate,
+} from "../../../lib/mediaPreviewPath";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 import { resolveSignedSelectionUrl } from "../logic/mediaPreviewResolver";
 
@@ -119,8 +122,17 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
       if (!canRetryMediaPreviewSignedUrl(attempts)) return;
       signedUrlRetryRef.current[row.id] = attempts + 1;
       void refreshSignedUrl(row).then(async (nextUrl) => {
+        const nextStoragePath = resolveMediaStoragePathCandidate(nextUrl);
+        const failedStoragePath = resolveMediaStoragePathCandidate(normalizedFailedUrl);
         const returnedSameUrl = Boolean(nextUrl && row.signedUrl && nextUrl === row.signedUrl);
-        if (nextUrl && !returnedSameUrl) return;
+        const returnedSameStoragePath = Boolean(
+          nextStoragePath && failedStoragePath && nextStoragePath === failedStoragePath
+        );
+        if (returnedSameUrl || returnedSameStoragePath) {
+          void hydrateViaStorageDownload(row);
+          return;
+        }
+        if (nextUrl) return;
         const tab = resolveTabForRow(row);
         const stillUnresolved = await resolveSignedUrlsByMediaIds(tab, [row]);
         if (!stillUnresolved.has(row.id)) return;

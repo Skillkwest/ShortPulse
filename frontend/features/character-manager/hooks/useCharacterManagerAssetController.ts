@@ -164,7 +164,7 @@ export const useCharacterManagerAssetController = ({
     async (file: File) => {
       clearMessages();
       if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
+        setError("Only image files are supported for AI Studio Characters.");
         return;
       }
       if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
@@ -383,7 +383,7 @@ export const useCharacterManagerAssetController = ({
     async (zoneKey: CharacterSheetDropZoneKey, file: File) => {
       clearMessages();
       if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
+        setError("Only image files are supported for AI Studio Characters.");
         return false;
       }
       if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
@@ -453,7 +453,7 @@ export const useCharacterManagerAssetController = ({
     async (slotKey: CharacterReferenceSlotKey, file: File) => {
       clearMessages();
       if (!file.type.toLowerCase().startsWith("image/")) {
-        setError("Only image files are supported in Character Manager.");
+        setError("Only image files are supported for AI Studio Characters.");
         return false;
       }
       if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {

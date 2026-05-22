@@ -448,7 +448,7 @@ export const useCharacterManagerBootstrapController = ({
         }
       } catch (nextError) {
         if (!active) return;
-        setError(toErrorMessage(nextError, "Failed to load Character Manager draft."));
+        setError(toErrorMessage(nextError, "Failed to load AI Studio character data."));
       } finally {
         if (active) {
           setLoading(false);

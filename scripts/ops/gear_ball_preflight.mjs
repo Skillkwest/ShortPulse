@@ -139,7 +139,6 @@ const CONTRACT_FANOUT_RULES = [
       "frontend/styles/character-manager-embedded.css",
       /^frontend\/features\/ai-studio\/logic\/.*characterPanelLayout/i,
       /^frontend\/features\/character-manager\//,
-      /^frontend\/pages\/character(?:\.tsx)?$/i,
     ],
     tests: [
       "features/ai-studio/logic/__tests__/characterPanelLayoutContract.test.ts",

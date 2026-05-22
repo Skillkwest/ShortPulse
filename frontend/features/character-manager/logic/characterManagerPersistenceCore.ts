@@ -681,7 +681,7 @@ export const resolveSupabaseContext = async () => {
   const supabase = ensureSupabaseQueryClient();
   const userId = await readSupabaseUserId();
   if (!userId) {
-    throw new Error("Please sign in to access Character Manager.");
+    throw new Error("Please sign in to access AI Studio Characters.");
   }
   return { supabase, userId };
 };

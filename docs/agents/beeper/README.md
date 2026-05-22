@@ -25,9 +25,8 @@ Beeper is a professional alpha tester and audit steward, not a product-policy ow
 - User-facing routes:
   - `frontend/pages/auth.tsx`
   - `frontend/pages/dashboard.tsx`
-  - `frontend/pages/ai-studio.tsx`
+  - `frontend/pages/ai-studio.tsx` (including the primary Characters surface)
   - `frontend/pages/profile.tsx`
-  - `frontend/pages/character.tsx`
 - Route and testing references:
   - `README.md`
   - `docs/routes.md`
@@ -101,11 +100,13 @@ Beeper may not:
 16. Any real issue or error that merits engineering follow-up should get a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 17. On dense desktop surfaces, keep the browser wide enough that primary controls are fully visible before judging layout or UX; clipped captures are not valid layout evidence.
 18. Every substantive alpha run should usually include one continuity proof:
-   - reload
-   - reopen
-   - back/forward
-   - logout/login return
-   - or another comparable state-durability check
+
+- reload
+- reopen
+- back/forward
+- logout/login return
+- or another comparable state-durability check
+
 19. Prefer route bundles over tiny single-action checkpoints: one substantive run should usually validate one real workflow, probe one confusing or edge state, and expand coverage before closing.
 20. Escalate when the route needs credentials, backend repair, product judgment, or destructive setup beyond tester authority.
 21. Log substantive supervised work in chronological notes, retained reports, the run log, and training history.

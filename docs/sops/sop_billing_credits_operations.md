@@ -89,8 +89,6 @@ Legacy `ref_id`-only ledger deployments are not supported by generation or admin
 11. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
 12. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
 
-- `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
-- Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
 - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
 
 16. Verify reservation RPC hardening checks are present in staged function bodies and grants:

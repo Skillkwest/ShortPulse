@@ -9,7 +9,6 @@ export const PROTECTED_ROUTES = [
   "/profile",
   "/ai-studio",
   "/creator-studio",
-  "/character",
   "/admin",
 ];
 

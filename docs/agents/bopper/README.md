@@ -44,9 +44,8 @@ Bopper is not a debugger, not a power-user, and not a product-policy owner. Bopp
 - User-facing routes:
   - `frontend/pages/auth.tsx`
   - `frontend/pages/dashboard.tsx`
-  - `frontend/pages/ai-studio.tsx`
+  - `frontend/pages/ai-studio.tsx` (including the primary Characters surface)
   - `frontend/pages/profile.tsx`
-  - `frontend/pages/character.tsx`
 - Route and testing references:
   - `README.md`
   - `docs/routes.md`

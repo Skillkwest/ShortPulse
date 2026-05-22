@@ -122,7 +122,7 @@ This is not a reopened blocker. It is now a score-held row with better trust, no
   - Uploaded Images no-match search empty-state copy currently misreads a search miss as if no uploads exist
   - this is a real production UX defect, but not a blocker
 - `Characters workflow`
-  - Beeper captured a real edit -> reload continuity auth bounce on `/character`
+  - Beeper captured a real edit -> reload continuity auth bounce on the deprecated `/character` alias
   - this is a production trust break, but it remains below the current ship-critical set
 
 ## How To Use This

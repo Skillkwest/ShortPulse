@@ -72,12 +72,12 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "18px",
-  marginTop: "12px",
-  padding: "14px 16px 16px",
+  gap: "14px",
+  marginTop: "8px",
+  padding: "14px 12px 16px",
   borderRadius: "18px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
-  background: "rgba(15, 17, 22, 0.72)",
+  background: "rgba(201, 205, 214, 0.05)",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
@@ -113,7 +113,7 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
 };
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
-  padding: "18px 28px 0",
+  padding: "14px 22px 0",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
 const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {
@@ -145,7 +145,7 @@ const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
-  gridTemplateRows: "auto 28px",
+  gridTemplateRows: "auto 22px",
   minHeight: "176px",
   borderRadius: "16px",
   border: "1px solid rgba(30, 34, 41, 0.96)",
@@ -199,7 +199,7 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  minHeight: "28px",
+  minHeight: "22px",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",

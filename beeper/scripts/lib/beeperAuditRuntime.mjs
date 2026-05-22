@@ -26,12 +26,7 @@ const SUPPORTED_ENVIRONMENTS = new Set([
   "staging",
   "production",
 ]);
-const DEFAULT_AUDIT_ROUTES = [
-  "/dashboard",
-  "/ai-studio",
-  "/character",
-  "/profile",
-];
+const DEFAULT_AUDIT_ROUTES = ["/dashboard", "/ai-studio", "/profile"];
 
 const ROUTE_ALIASES = new Map(
   DEFAULT_AUDIT_ROUTES.map((routePath) => [

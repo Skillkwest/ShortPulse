@@ -47,7 +47,6 @@ vi.mock("../../lib/authGuard", () => ({
     "/profile",
     "/ai-studio",
     "/creator-studio",
-    "/character",
     "/admin",
   ],
   useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),

@@ -3,6 +3,10 @@ export type AuthCallbackFlow = "signup" | "recovery" | "email-change";
 export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 export const DEFAULT_POST_AUTH_PATH = "/dashboard";
+const LEGACY_CHARACTER_AUTH_NEXT_PATHS = new Map<string, string>([
+  ["/character", "/ai-studio"],
+  ["/character-soon", "/ai-studio"],
+]);
 
 const readQueryStringFromAsPath = (asPath: string): string => {
   if (!asPath.includes("?")) return "";
@@ -22,7 +26,8 @@ export const resolveNextPath = (nextQueryValue: string | string[] | undefined): 
   const candidate = rawValue.trim();
   if (!candidate.startsWith("/") || candidate.startsWith("//")) return DEFAULT_POST_AUTH_PATH;
   if (candidate.startsWith(AUTH_ENTRY_PATH)) return DEFAULT_POST_AUTH_PATH;
-  return candidate;
+  const candidatePathname = (candidate.split(/[?#]/, 1)[0] ?? candidate).replace(/\/+$/, "") || "/";
+  return LEGACY_CHARACTER_AUTH_NEXT_PATHS.get(candidatePathname) ?? candidate;
 };
 
 export const resolveNextPathFromAsPath = (asPath: string): string => {

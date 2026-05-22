@@ -1,6 +1,6 @@
 /**
- * Character Manager page shell.
- * Provides Character Profile + Manage Characters workflows for route and embedded surfaces.
+ * Legacy standalone Character Manager shell.
+ * Retained temporarily for deprecation cleanup while AI Studio owns the active Character surfaces.
  */
 import Image from "next/image";
 import Link from "next/link";

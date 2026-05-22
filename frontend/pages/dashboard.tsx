@@ -8,14 +8,7 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import {
-  ChartBar,
-  CloudArrowUp,
-  Person,
-  ShieldCheck,
-  Sparkle,
-  type IconProps,
-} from "phosphor-react";
+import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
 import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import {
@@ -165,20 +158,10 @@ const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] 
 
 const dashboardToolCards: DashboardToolCard[] = [
   {
-    title: "Character",
-    eyebrow: "Identity",
-    description: "Open Character Manager to upload references and manage each character profile.",
-    href: "/character",
-    cta: "Open manager →",
-    variant: "tool-character",
-    image: "/dashboard/character.png",
-    icon: Person,
-  },
-  {
     title: "AI Studio",
     eyebrow: "Generation",
     description:
-      "Generate and iterate images/videos with prompt systems, models, and aspect control.",
+      "Generate and iterate images/videos while managing characters, looks, prompts, and models in one workspace.",
     href: "/ai-studio",
     cta: "Open studio →",
     variant: "tool-creator",

@@ -174,4 +174,24 @@ describe("auth callback url route", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid auth callback flow." });
   });
+
+  it("normalizes deprecated character aliases to AI Studio in callback URLs", async () => {
+    process.env.APP_BASE_URL = "https://www.shortpulse.ai";
+    const req = {
+      method: "GET",
+      query: { flow: "recovery", next: "/character" },
+      headers: {
+        host: "www.shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://www.shortpulse.ai/auth/callback?flow=recovery&next=%2Fai-studio",
+    });
+  });
 });

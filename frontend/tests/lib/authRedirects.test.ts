@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCanonicalAuthCallbackUrl } from "../../lib/authRedirects";
+import { fetchCanonicalAuthCallbackUrl, resolveNextPath } from "../../lib/authRedirects";
 
 describe("auth redirect helpers", () => {
   afterEach(() => {
@@ -38,5 +38,19 @@ describe("auth redirect helpers", () => {
     ).resolves.toBe(
       "https://preview.shortpulse.test/auth/callback?flow=recovery&next=%2Fdashboard"
     );
+  });
+
+  it("remaps deprecated character aliases to AI Studio after auth", () => {
+    expect(resolveNextPath("/character")).toBe("/ai-studio");
+    expect(resolveNextPath("/character-soon")).toBe("/ai-studio");
+    expect(resolveNextPath("/character?tab=profile")).toBe("/ai-studio");
+    expect(resolveNextPath("/character-soon#legacy")).toBe("/ai-studio");
+  });
+
+  it("fails closed for invalid next paths and auth self-redirects", () => {
+    expect(resolveNextPath(undefined)).toBe("/dashboard");
+    expect(resolveNextPath("https://evil.example.com/character")).toBe("/dashboard");
+    expect(resolveNextPath("//evil.example.com/character")).toBe("/dashboard");
+    expect(resolveNextPath("/auth?next=%2Fcharacter")).toBe("/dashboard");
   });
 });

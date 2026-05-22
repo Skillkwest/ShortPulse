@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Define the operational contract for the `/character` Character Manager surface, including current upload behavior, persisted character-sheet preset assignments, and support runbooks for alias-compatibility drift.
+Define the operational contract for the AI Studio-owned Character surfaces, including current upload behavior, persisted character-sheet preset assignments, and support runbooks for deprecated `/character` alias compatibility.
 
 ## Scope
 
-- Applies to `frontend/features/character-manager/*` and `frontend/pages/character.tsx`.
+- Applies to the AI Studio Character panel and shared `frontend/features/character-manager/*` persistence/runtime files.
 - Covers the active Character Manager implementation only.
 - Does not cover legacy `features/character/*` identity-token workflows.
 
@@ -55,7 +55,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 6. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
    - Local persistence must be scoped per authenticated `user_id` to prevent cross-account leakage on shared browsers.
-   - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
+   - The persisted selection is used as the preferred default on reload for the AI Studio embedded Character panel and related AI Studio character workflows.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
 7. AI Studio Create Character Mode consumes Character Manager data at generation time:
    - Selected character description is injected from the chosen Create look when AI Studio supplies a local look override; otherwise it uses active preset `tab_descriptions[active_preset_id]`.
@@ -97,17 +97,16 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 ## Architecture Map
 
-- Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
-- Create layout wrapper: `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
-- Standalone character sheet preset tabs UI/a11y seam: `frontend/features/character-manager/components/CharacterSheetPresetTabs.tsx`
-- Embedded AI Studio looks control seam: `frontend/features/character-manager/components/EmbeddedCharacterLooksControl.tsx`
+- AI Studio embedded character panel shell: `frontend/features/ai-studio/components/CharacterPanel.tsx`
+- AI Studio split-host seam: `frontend/features/character-manager/components/CharacterPanelSplitHost.tsx`
+- AI Studio character workspace surface: `frontend/features/character-manager/components/CharacterPanelWorkspace.tsx`
+- AI Studio embedded looks control seam: `frontend/features/character-manager/components/EmbeddedCharacterLooksControl.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`
 - QuickSwap state orchestration: `frontend/features/character-manager/hooks/useCharacterQuickSwapDeck.ts`
-- QuickSwap UI section: `frontend/features/character-manager/components/CharacterQuickSwapDeckSection.tsx`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
-- Character Manager route shell: `frontend/pages/character.tsx`
+- Deprecated `/character` alias redirect: `frontend/pages/character.tsx`
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
 - AI Studio internal drag payload + parser: `frontend/features/ai-studio/utils/dragDrop.ts`
 - AI Studio drop resolver seam: `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
@@ -213,7 +212,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 ## Change Management Rules
 
-- Any change to `/character` behavior must update:
+- Any change to AI Studio Character surface behavior or deprecated `/character` alias behavior must update:
   - `docs/routes.md` (if route behavior changes),
   - this SOP,
   - relevant ADR(s) for durable architecture changes.
@@ -221,4 +220,4 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 ## Legacy SOP Status
 
-- `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.
+- `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for the current AI Studio-owned Character workflow.

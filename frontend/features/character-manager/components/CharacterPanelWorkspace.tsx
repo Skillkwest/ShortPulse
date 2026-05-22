@@ -759,7 +759,7 @@ export function CharacterPanelWorkspace({
                                             className="character-character-sheet-drop-icon"
                                             aria-hidden="true"
                                           />
-                                          <span>Drag reference here or click to upload</span>
+                                          <span>Upload references</span>
                                           <span
                                             className={`character-character-sheet-drop-requirement ${
                                               isRequiredSlot ? "is-required" : "is-optional"

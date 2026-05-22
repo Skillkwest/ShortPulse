@@ -63,7 +63,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding-top: 16px;
+  padding-top: 4px;
   padding-right: 0;
   padding-left: 2px;
   gap: 0;
@@ -75,7 +75,7 @@
   justify-content: flex-start;
   gap: 0;
   min-height: 0;
-  padding-bottom: 18px;
+  padding-bottom: 6px;
 }
 
 .voices-properties-divider-wrap {
@@ -982,7 +982,7 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: flex-start;
-  gap: 22px;
+  gap: 30px;
 }
 
 .voices-properties-library-selector {
@@ -1039,8 +1039,8 @@
 }
 
 .voices-properties-library-open-btn {
-  min-width: 172px;
-  min-height: 56px;
+  width: 172px;
+  height: 56px;
   padding: 0 24px;
   border-color: rgba(105, 220, 203, 0.58);
   border-radius: 16px;
@@ -1049,6 +1049,7 @@
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
@@ -1415,6 +1416,7 @@
   align-items: center;
   gap: 0;
   width: 100%;
+  min-width: 384px;
   min-height: 40px;
   height: 40px;
   padding: var(--voices-properties-mode-pad);
@@ -1470,7 +1472,7 @@
   letter-spacing: 0;
   line-height: 1;
   min-width: 0;
-  padding: 0 8px;
+  padding: 0 16px;
   position: relative;
   z-index: 1;
   display: inline-flex;

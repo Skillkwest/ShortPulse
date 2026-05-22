@@ -306,6 +306,13 @@
   gap: 12px;
 }
 
+.music-properties-inspiration-error {
+  margin: 6px 0 0;
+  color: #ff9b9b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .music-properties-inspiration-rail {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

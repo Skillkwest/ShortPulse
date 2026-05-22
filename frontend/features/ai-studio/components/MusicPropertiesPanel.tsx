@@ -39,6 +39,10 @@ export type MusicPropertiesPanelProps = {
 
 type MusicComposerMode = "simple" | "custom";
 type MusicSongBatchCount = 1 | 2 | 3 | 4;
+type MusicInspirationEntry = {
+  label: string;
+  prompt: string;
+};
 
 const musicPromptPlaceholder =
   "Describe the song you want to generate: genre, pacing, instrumentation, vocal style, and where the cue should land in the edit.";
@@ -55,75 +59,57 @@ const defaultMusicEnergyPercent = 58;
 const defaultMusicMode: MusicMode = "instrumental";
 const defaultMusicStructure: MusicStructure = "loop";
 const defaultMusicFormat: MusicFormat = "mp3_44100_128";
-const musicGenreChips = [
-  "acid house",
-  "afrobeats",
-  "alt rock",
-  "ambient",
-  "bachata",
-  "baile funk",
-  "bluegrass",
-  "boom bap",
-  "bossa nova",
-  "breakbeat",
-  "britpop",
-  "chillwave",
-  "country pop",
-  "dancehall",
-  "deep house",
-  "disco",
-  "drill",
-  "drum and bass",
-  "dub techno",
-  "dubstep",
-  "electro pop",
-  "emo rap",
-  "folk rock",
-  "future bass",
-  "future garage",
-  "gabber",
-  "glitch hop",
-  "grime",
-  "hard techno",
-  "hardstyle",
-  "hip hop",
-  "house",
-  "hyperpop",
-  "indie folk",
-  "indie pop",
-  "industrial",
-  "jazz fusion",
-  "jungle",
-  "latin pop",
-  "lofi hip hop",
-  "melodic house",
-  "metalcore",
-  "minimal techno",
-  "neo soul",
-  "new wave",
-  "phonk",
-  "pop punk",
-  "post rock",
-  "progressive house",
-  "psytrance",
-  "reggaeton",
-  "riddim",
-  "shoegaze",
-  "soul",
-  "synthpop",
-  "synthwave",
-  "tech house",
-  "techno",
-  "trance",
-  "trap",
-  "trap soul",
-  "trip hop",
-  "uk garage",
-  "vaporwave",
-  "west coast rap",
-] as const;
+const musicInspirationEntries = [
+  {
+    label: "indie folk",
+    prompt:
+      "Warm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic.",
+  },
+  {
+    label: "riddim",
+    prompt:
+      "Heavy riddim drop with aggressive bass growls, sharp syncopation, stripped-down tension builds, festival-scale energy, and a dark modern sound design focus built for impact.",
+  },
+  {
+    label: "dub techno",
+    prompt:
+      "Deep dub techno atmosphere with pulsing sub bass, hazy chords, spacious delay, minimal percussion, and a hypnotic late-night groove that feels immersive and restrained.",
+  },
+  {
+    label: "trip hop",
+    prompt:
+      "Moody trip hop track with dusty drums, smoky bass, melancholic textures, subtle vocal ambience, and a slow confident groove that feels noir, stylish, and cinematic.",
+  },
+  {
+    label: "west coast rap",
+    prompt:
+      "West coast rap production with laid-back swing, warm synth leads, deep cruising bass, crisp drums, and a sun-faded confident energy that feels smooth, expensive, and cool.",
+  },
+  {
+    label: "drum and bass",
+    prompt:
+      "High-energy drum and bass cue with rapid breakbeats, driving sub bass, sharp transitions, futuristic textures, and a clean adrenaline-forward momentum built for motion.",
+  },
+] satisfies readonly MusicInspirationEntry[];
 
-const shuffleChipOrder = (chips: readonly string[]): string[] => {
+const buildMusicSubmissionText = ({
+  composerMode,
+  lyrics,
+  prompt,
+}: {
+  composerMode: MusicComposerMode;
+  lyrics: string;
+  prompt: string;
+}): string => {
+  const basePrompt = prompt.trim();
+  if (!basePrompt) return "";
+  if (composerMode !== "custom") return basePrompt;
+  const lyricSheet = lyrics.trim();
+  if (!lyricSheet) return basePrompt;
+  return `${basePrompt}\n\nLyrics:\n${lyricSheet}`;
+};
+
+const shuffleChipOrder = <T,>(chips: readonly T[]): T[] => {
   const next = [...chips];
   for (let index = next.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -163,6 +149,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const [songBatchCount, setSongBatchCount] = React.useState<MusicSongBatchCount>(2);
   const [isSongBatchMenuOpen, setIsSongBatchMenuOpen] = React.useState(false);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
+  const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
     canScrollBack: false,
     canScrollForward: false,
@@ -177,6 +164,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const setPrompt = React.useCallback(
     (action: React.SetStateAction<string>) => {
       const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      setInspirationInsertError(null);
       if (onPromptChange) {
         onPromptChange(nextPrompt);
         return;
@@ -188,6 +176,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const setLyrics = React.useCallback(
     (action: React.SetStateAction<string>) => {
       const nextLyrics = resolveTextAction(lyrics, action).slice(0, maxPromptCharacters);
+      setInspirationInsertError(null);
       if (onLyricsChange) {
         onLyricsChange(nextLyrics);
         return;
@@ -196,7 +185,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     },
     [lyrics, onLyricsChange, resolveTextAction]
   );
-  const inspirationChips = React.useMemo(() => shuffleChipOrder(musicGenreChips), []);
+  const inspirationChips = React.useMemo(() => shuffleChipOrder(musicInspirationEntries), []);
   const composerModeToggleStyle = React.useMemo(
     () =>
       ({
@@ -228,14 +217,15 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
   const promptPlaceholder =
     composerMode === "simple" ? musicPromptPlaceholder : customMusicPromptPlaceholder;
-  const buildSubmissionText = React.useCallback((): string => {
-    const basePrompt = prompt.trim();
-    if (!basePrompt) return "";
-    if (composerMode !== "custom") return basePrompt;
-    const lyricSheet = lyrics.trim();
-    if (!lyricSheet) return basePrompt;
-    return `${basePrompt}\n\nLyrics:\n${lyricSheet}`;
-  }, [composerMode, lyrics, prompt]);
+  const buildSubmissionText = React.useCallback(
+    (): string =>
+      buildMusicSubmissionText({
+        composerMode,
+        lyrics,
+        prompt,
+      }),
+    [composerMode, lyrics, prompt]
+  );
   const submissionText = buildSubmissionText();
   const hasLyrics = composerMode === "custom" && lyrics.trim().length > 0;
   const requestedMusicMode: MusicMode = singerEnabled || hasLyrics ? "vocal" : defaultMusicMode;
@@ -289,15 +279,31 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [isSongBatchMenuOpen]);
 
   const handleInspirationClick = React.useCallback(
-    (chip: string) => {
+    (chip: MusicInspirationEntry) => {
       if (suppressChipClickRef.current) return;
-      setPrompt((current) => {
-        const trimmed = current.trim();
-        const nextPrompt = trimmed ? `${trimmed}, ${chip}` : chip;
-        return nextPrompt.slice(0, maxPromptCharacters);
+      const trimmedPrompt = prompt.trim();
+      const nextPrompt = trimmedPrompt ? `${trimmedPrompt}\n\n${chip.prompt}` : chip.prompt;
+      const nextSubmissionText = buildMusicSubmissionText({
+        composerMode,
+        lyrics,
+        prompt: nextPrompt,
       });
+      const canInsertPrompt =
+        nextPrompt.length <= maxPromptCharacters &&
+        nextSubmissionText.length <= maxPromptCharacters;
+
+      if (!canInsertPrompt) {
+        setInspirationInsertError(
+          composerMode === "custom"
+            ? "This inspiration will not fit. Shorten the prompt or lyrics and try again."
+            : "This inspiration will not fit. Shorten the prompt and try again."
+        );
+        return;
+      }
+
+      setPrompt(nextPrompt);
     },
-    [setPrompt]
+    [composerMode, lyrics, prompt, setPrompt]
   );
 
   const scrollInspirationRail = React.useCallback(
@@ -344,7 +350,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       inspirationDragStartXRef.current = event.clientX;
       inspirationDragStartScrollLeftRef.current = node.scrollLeft;
       inspirationDidDragRef.current = false;
-      setIsDraggingInspiration(true);
+      suppressChipClickRef.current = false;
+      setIsDraggingInspiration(false);
       node.setPointerCapture?.(event.pointerId);
     },
     []
@@ -355,9 +362,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       const node = inspirationScrollerRef.current;
       if (!node || inspirationDragPointerIdRef.current !== event.pointerId) return;
       const deltaX = event.clientX - inspirationDragStartXRef.current;
-      if (Math.abs(deltaX) > 4) {
+      if (!inspirationDidDragRef.current && Math.abs(deltaX) > 4) {
         inspirationDidDragRef.current = true;
+        suppressChipClickRef.current = true;
+        setIsDraggingInspiration(true);
       }
+      if (!inspirationDidDragRef.current) return;
       node.scrollLeft = inspirationDragStartScrollLeftRef.current - deltaX;
       syncInspirationScrollState();
     },
@@ -409,6 +419,11 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
           {`${displayedCharacterCount.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
         </p>
       </div>
+      {inspirationInsertError ? (
+        <p className="music-properties-inspiration-error" role="alert">
+          {inspirationInsertError}
+        </p>
+      ) : null}
       <div className="music-properties-inspiration-rail">
         <div
           ref={inspirationScrollerRef}
@@ -421,12 +436,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
         >
           {inspirationChips.map((chip) => (
             <button
-              key={chip}
+              key={chip.label}
               type="button"
               className="music-properties-inspiration-chip"
               onClick={() => handleInspirationClick(chip)}
             >
-              {chip}
+              {chip.label}
             </button>
           ))}
         </div>

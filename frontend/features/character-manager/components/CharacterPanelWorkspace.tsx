@@ -204,7 +204,7 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   minHeight: "22px",
-  borderTop: "none",
+  borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   background: "rgba(11, 13, 18, 0.98)",
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",

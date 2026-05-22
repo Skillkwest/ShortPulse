@@ -29,8 +29,8 @@ describe("MusicPropertiesPanel", () => {
     expect(
       screen.getByLabelText("Music inspiration").closest(".music-properties-script-input-shell")
     ).toHaveClass("music-properties-script-input-shell--with-inspiration");
-    expect(screen.getByRole("button", { name: "acid house" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "lofi hip hop" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "indie folk" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "riddim" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "passionate vocals" })).toBeNull();
     expect(screen.queryByRole("button", { name: "boastful" })).toBeNull();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
@@ -348,12 +348,71 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
 
-  it("appends genre chips into the prompt in simple mode", () => {
+  it("appends authored inspiration prompts into the prompt in simple mode", () => {
     render(<MusicPropertiesPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "gabber" }));
+    fireEvent.click(screen.getByRole("button", { name: "drum and bass" }));
 
-    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue("gabber");
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "High-energy drum and bass cue with rapid breakbeats, driving sub bass, sharp transitions, futuristic textures, and a clean adrenaline-forward momentum built for motion."
+    );
+  });
+
+  it("appends authored inspiration prompts through the controlled draft path", () => {
+    const onPromptChange = vi.fn();
+    const nextPrompt =
+      "Existing cue.\n\nWarm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic.";
+    const { rerender } = render(
+      <MusicPropertiesPanel prompt="Existing cue." onPromptChange={onPromptChange} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "indie folk" }));
+
+    expect(onPromptChange).toHaveBeenCalledWith(nextPrompt);
+
+    rerender(<MusicPropertiesPanel prompt={nextPrompt} onPromptChange={onPromptChange} />);
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(nextPrompt);
+  });
+
+  it("fails closed when an inspiration prompt would exceed the shared custom-mode budget", () => {
+    render(<MusicPropertiesPanel prompt={"p".repeat(1920)} lyrics={"l".repeat(25)} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    fireEvent.click(screen.getByRole("button", { name: "west coast rap" }));
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue("p".repeat(1920));
+    expect(
+      screen.getByText("This inspiration will not fit. Shorten the prompt or lyrics and try again.")
+    ).toBeInTheDocument();
+  });
+
+  it("suppresses chip insertion after a real drag gesture on the inspiration rail", () => {
+    const { container } = render(<MusicPropertiesPanel />);
+    const scroller = container.querySelector(".music-properties-inspiration-chips");
+    const chip = screen.getByRole("button", { name: "trip hop" });
+
+    expect(scroller).not.toBeNull();
+
+    fireEvent.pointerDown(scroller as Element, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+    });
+    fireEvent.pointerMove(scroller as Element, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 80,
+    });
+    fireEvent.pointerUp(scroller as Element, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 80,
+    });
+    fireEvent.click(chip);
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue("");
   });
 
   it("keeps generate enabled while generation is running", () => {
@@ -367,6 +426,17 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generating music" })).toHaveTextContent(
       "Generating..."
     );
+  });
+
+  it("keeps inspiration chips interactive while generation is running", () => {
+    render(<MusicPropertiesPanel isGenerating onGenerate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "riddim" }));
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "Heavy riddim drop with aggressive bass growls, sharp syncopation, stripped-down tension builds, festival-scale energy, and a dark modern sound design focus built for impact."
+    );
+    expect(screen.getByRole("button", { name: "Generating music" })).toBeEnabled();
   });
 
   it("keeps the prompt counter in sync locally", () => {

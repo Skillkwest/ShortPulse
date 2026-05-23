@@ -11,6 +11,7 @@ import {
   sanitizeGrowthAttributionSnapshot,
   upsertGrowthAttributionIdentity,
 } from "../../../lib/server/api/growthTelemetry";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 
 type GrowthTelemetryRequest = {
   source?: string;
@@ -20,6 +21,15 @@ type GrowthTelemetryRequest = {
   attribution?: Record<string, unknown>;
 };
 
+const GROWTH_TELEMETRY_RATE_LIMIT = {
+  keyPrefix: "telemetry:growth",
+  maxRequests: 120,
+  windowMs: 60_000,
+};
+const MAX_METADATA_KEYS = 20;
+const MAX_METADATA_KEY_LENGTH = 80;
+const MAX_METADATA_STRING_LENGTH = 240;
+
 const normalizeText = (value: unknown, maxLength = 160): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -27,10 +37,33 @@ const normalizeText = (value: unknown, maxLength = 160): string | null => {
   return trimmed.slice(0, maxLength);
 };
 
+const sanitizeMetadataValue = (value: unknown): string | number | boolean | null | undefined => {
+  if (value === null) return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return normalizeText(value, MAX_METADATA_STRING_LENGTH) ?? undefined;
+};
+
+const sanitizeGrowthMetadata = (
+  metadata: unknown
+): Record<string, string | number | boolean | null> => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+  const sanitized: Record<string, string | number | boolean | null> = {};
+  for (const [rawKey, rawValue] of Object.entries(metadata).slice(0, MAX_METADATA_KEYS)) {
+    const key = normalizeText(rawKey, MAX_METADATA_KEY_LENGTH);
+    if (!key) continue;
+    const value = sanitizeMetadataValue(rawValue);
+    if (value === undefined) continue;
+    sanitized[key] = value;
+  }
+  return sanitized;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  if (!enforceApiRateLimit(req, res, GROWTH_TELEMETRY_RATE_LIMIT)) return;
 
   try {
     const payload = (
@@ -43,6 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { user, authVerificationUnavailable } = await getOptionalApiUserResult(req);
     const occurredAt = normalizeText(payload.occurredAt, 80) ?? new Date().toISOString();
     const attribution = sanitizeGrowthAttributionSnapshot(payload.attribution);
+    const metadata = sanitizeGrowthMetadata(payload.metadata);
 
     if (attribution.anonymousId) {
       await upsertGrowthAttributionIdentity({
@@ -61,6 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userId: user?.id ?? null,
       userEmail: user?.email ?? null,
       metadata: {
+        ...metadata,
         telemetry_family: growthTelemetryFamilyForSource(payload.source),
         telemetry_version: 1,
         event_name: normalizeText(payload.eventName, 120),
@@ -71,7 +106,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         landing_path: attribution.landingPath,
         referrer_host: attribution.referrerHost,
         request_auth_verification_unavailable: authVerificationUnavailable || undefined,
-        ...((payload.metadata ?? {}) as Record<string, unknown>),
         user_agent: req.headers["user-agent"] ?? null,
         host: req.headers.host ?? null,
         vercel_id: req.headers["x-vercel-id"] ?? null,

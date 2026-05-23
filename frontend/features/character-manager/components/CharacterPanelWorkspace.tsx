@@ -933,6 +933,9 @@ export function CharacterPanelWorkspace({
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"
                           style={charactersTopButtonStyle}
+                          aria-describedby={
+                            isSavingCharacter ? "character-save-progress-status" : undefined
+                          }
                           onClick={() => setIsCharacterLibraryModalOpen(true)}
                           onMouseEnter={() => setHoveredTopActionButton("characters")}
                           onMouseLeave={() =>
@@ -944,6 +947,21 @@ export function CharacterPanelWorkspace({
                         >
                           Characters
                         </button>
+                        {isSavingCharacter ? (
+                          <span
+                            id="character-save-progress-status"
+                            className="character-panel-save-progress"
+                            role="status"
+                            aria-live="polite"
+                            aria-label="Saving character"
+                          >
+                            <span
+                              className="character-panel-save-progress-spinner"
+                              aria-hidden="true"
+                            />
+                            <span>Saving character</span>
+                          </span>
+                        ) : null}
                         {showSaveSuccessIndicator ? (
                           <span
                             role="status"

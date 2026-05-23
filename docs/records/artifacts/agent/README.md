@@ -19,18 +19,25 @@ Each agent artifact area may contain some subset of:
 
 Not every agent needs every file.
 
-## Notable Active Areas
+## Active Agent Artifact Homes
 
-- `docs/records/artifacts/agent/gear-ball/`
-- `docs/records/artifacts/agent/gottspan-the-admin/`
-- `docs/records/artifacts/agent/Money Stuff/`
-- `docs/records/artifacts/agent/nuclo/`
+- `docs/records/artifacts/agent/ayla/`
+- `docs/records/artifacts/agent/beeper/`
+- `docs/records/artifacts/agent/bopper/`
+- `docs/records/artifacts/agent/copperknot/`
+- `docs/records/artifacts/agent/create-workflow/`
 - `docs/records/artifacts/agent/d-bug/`
 - `docs/records/artifacts/agent/dave-the-security-guy/`
-- `docs/records/artifacts/agent/create-workflow/`
+- `docs/records/artifacts/agent/gear-ball/`
+- `docs/records/artifacts/agent/gottspan-the-admin/`
+- `docs/records/artifacts/agent/holomony/`
+- `docs/records/artifacts/agent/lever/`
+- `docs/records/artifacts/agent/Money Stuff/`
+- `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/ophestivus/`
+- `docs/records/artifacts/agent/pulse/`
 
-Use the folder directly when you need that agent's retained state. Do not treat this index as a complete inventory ledger.
+Use the folder directly when you need that agent's retained state. This active list should stay explicit so retained agents are discoverable from the index.
 
 ## Naming And Status Notes
 

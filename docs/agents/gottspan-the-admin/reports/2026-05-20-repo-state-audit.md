@@ -2,6 +2,8 @@
 
 Purpose: capture the first formal Gottspan repo-state audit after the role pivot from admin-surface owner to repo steward.
 
+Historical note, 2026-05-23: this report predates the repo's current pre-launch production-only branch policy. Treat its branch-ladder/exception language as historical context, not current operating instruction.
+
 ## Task
 
 - Requested operation: continue the next repo-steward steps after the Gottspan pivot and execute the first substantive repo-state audit

@@ -2,6 +2,8 @@
 
 Purpose: capture the repo-steward decision packet for the current `production`-branch workflow so the exception is documented and future branch-policy work has a clean starting point.
 
+Historical note, 2026-05-23: this packet is retained historical context. The current governing rule is the pre-launch production-only branch policy in root `AGENTS.md`, `docs/dev-ground-rules.md`, and `docs/agent-playbook.md`, effective through the Copperknot launch decision window ending `2026-07-02`.
+
 ## Question
 
 Does the current `production`-branch workflow mean the repo's documented branch ladder should change, or should this be treated as a user-directed one-time exception?

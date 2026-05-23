@@ -2,9 +2,17 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/kie/upload-url";
 
+const dnsLookupMock = vi.hoisted(() => vi.fn());
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const readProviderApiKeyMock = vi.fn();
+
+vi.mock("node:dns/promises", () => ({
+  default: {
+    lookup: (...args: unknown[]) => dnsLookupMock(...args),
+  },
+  lookup: (...args: unknown[]) => dnsLookupMock(...args),
+}));
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -49,6 +57,7 @@ describe("POST /api/kie/upload-url", () => {
     vi.unstubAllGlobals();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     readProviderApiKeyMock.mockReturnValue("kie-test-key");
+    dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
   });
 
   afterEach(() => {
@@ -210,6 +219,66 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid upload request",
       details: "fileUrl cannot target a local or private-network host.",
+    });
+  });
+
+  it("rejects public hostnames that resolve to private-network addresses", async () => {
+    dnsLookupMock.mockResolvedValueOnce([{ address: "10.0.0.12", family: 4 }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/private-after-dns.png",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid upload request",
+      details: "fileUrl host resolved to a private-network address.",
+    });
+  });
+
+  it("rejects stream uploads that exceed the remote source size limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        "content-type": "image/png",
+        "content-length": String(101 * 1024 * 1024),
+      }),
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl:
+          "https://project.supabase.co/storage/v1/object/sign/media_library/user/ref.png?token=abc",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid upload request",
+      details: "Source file exceeds the maximum upload size.",
     });
   });
 

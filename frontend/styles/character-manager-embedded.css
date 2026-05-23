@@ -216,6 +216,46 @@
   flex-shrink: 0;
 }
 
+.character-panel-save-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(110, 214, 233, 0.28);
+  border-radius: 999px;
+  background: rgba(16, 31, 40, 0.62);
+  color: rgba(159, 223, 238, 0.95);
+  box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.character-panel-save-progress-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(110, 214, 233, 0.24);
+  border-top-color: rgba(110, 214, 233, 0.96);
+  border-right-color: rgba(37, 204, 255, 0.7);
+  border-radius: 999px;
+  animation: character-panel-save-progress-spin 0.84s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes character-panel-save-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-panel-save-progress-spinner {
+    animation: none;
+  }
+}
+
 .character-panel-slot-actions {
   position: absolute;
   inset: 8px 8px auto auto;

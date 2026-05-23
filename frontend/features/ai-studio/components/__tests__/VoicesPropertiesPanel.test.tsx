@@ -374,8 +374,9 @@ describe("VoicesPropertiesPanel", () => {
 
     fireEvent.click(deleteButton);
 
-    expect(screen.getByRole("dialog", { name: "Remove this voice?" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    const confirmationDialog = screen.getByRole("dialog", { name: "Remove this voice?" });
+    fireEvent.click(within(confirmationDialog).getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/voice_adam", {
@@ -384,7 +385,8 @@ describe("VoicesPropertiesPanel", () => {
       });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Remove this voice?" })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();

@@ -83,7 +83,24 @@ jobs:
             exit 1
           fi
 
-          echo "Applying $SQL_FILE"
+          REPO_ROOT="$(pwd)"
+          MIGRATIONS_DIR="$(realpath sql/migrations)"
+          ROLLBACK_DIR="$(realpath sql/migrations/rollback)"
+          SQL_REALPATH="$(realpath "$SQL_FILE")"
+
+          case "$SQL_REALPATH" in
+            "$MIGRATIONS_DIR"/*.sql|"$ROLLBACK_DIR"/*.sql)
+              ;;
+            *)
+              echo "::error::SQL file resolved outside allowed migration directories."
+              exit 1
+              ;;
+          esac
+
+          SQL_RELATIVE="$(realpath --relative-to="$REPO_ROOT" "$SQL_REALPATH")"
+          SQL_FILE="$SQL_REALPATH"
+
+          echo "Applying $SQL_RELATIVE"
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/hosted_sql_apply.log
 
       - name: Verify hosted SQL lint after apply

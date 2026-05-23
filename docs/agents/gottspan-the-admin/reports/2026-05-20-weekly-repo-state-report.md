@@ -2,6 +2,8 @@
 
 Purpose: first execution of Gottspan's weekly repo-steward workflow after freezing the recurring audit/report pattern.
 
+Historical note, 2026-05-23: this report predates the repo's current pre-launch production-only branch policy. Treat its branch-ladder/exception language as historical context, not current operating instruction.
+
 ## Repo Posture
 
 - Current branch: `production`

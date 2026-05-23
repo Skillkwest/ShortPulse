@@ -1720,8 +1720,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
 
-    shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
-    setIsVoicesLibraryModalOpen(false);
     setPendingDeleteVoice(selectedLibraryVoice);
   }, [selectedLibraryVoice]);
 

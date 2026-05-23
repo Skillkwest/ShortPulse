@@ -497,23 +497,18 @@ jobs:
         env:
           SQL_LINT_MODE: ${{ vars.SQL_LINT_MODE }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          SUPABASE_DB_URL_FALLBACK: ${{ vars.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
-          MODE="${SQL_LINT_MODE:-warn}"
+          MODE="${SQL_LINT_MODE:-enforce}"
           if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
-            echo "::warning::Unknown SQL_LINT_MODE='$MODE'. Falling back to 'warn'."
-            MODE="warn"
+            echo "::error::Unknown SQL_LINT_MODE='$MODE'. Use 'warn' or 'enforce'."
+            exit 1
           fi
 
-          DB_URL="${SUPABASE_DB_URL:-${SUPABASE_DB_URL_FALLBACK:-}}"
+          DB_URL="${SUPABASE_DB_URL:-}"
           if [ -z "$DB_URL" ]; then
-            echo "::warning::SUPABASE_DB_URL is not configured; cannot run hosted SQL lint."
-            if [ "$MODE" = "warn" ]; then
-              echo "sql_lint skipped in warn mode (missing SUPABASE_DB_URL)." >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            echo "sql_lint failed in enforce mode (missing SUPABASE_DB_URL)." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::SUPABASE_DB_URL secret is not configured; cannot run hosted SQL lint."
+            echo "sql_lint failed (missing SUPABASE_DB_URL secret)." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 

@@ -406,6 +406,7 @@ describe("useAiStudioAudioGeneration", () => {
         voice: {
           id: "voice-1",
           name: "Narrator",
+          librarySection: "my",
           provider: "elevenlabs",
         },
         source: {

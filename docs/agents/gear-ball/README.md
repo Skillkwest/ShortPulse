@@ -44,6 +44,7 @@ Use the full SOPs only when the run is unusual or a step is unclear:
 - Active rules: `docs/agents/gear-ball/memory.md`
 - Shared-risk map: `docs/agents/gear-ball/shared-file-risk-map.md`
 - Prompt library: `docs/agents/gear-ball/prompts/README.md`
+- Runtime load policy: `docs/agents/gear-ball/runtime-load-policy.md`
 
 ## Helper Commands
 

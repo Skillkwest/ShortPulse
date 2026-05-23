@@ -605,11 +605,12 @@ export const createElevenLabsClonedVoice = async ({
     formData.append("description", voiceDescription.trim());
   }
   formData.append("remove_background_noise", removeBackgroundNoise ? "true" : "false");
-  formData.append(
-    "files[]",
-    new Blob([normalizedSource.buffer], { type: normalizedSource.mimeType }),
-    normalizedSource.filename
+  const uploadedSample = new File(
+    [new Uint8Array(normalizedSource.buffer)],
+    normalizedSource.filename,
+    { type: normalizedSource.mimeType }
   );
+  formData.append("files", uploadedSample);
 
   const response = await fetch(`${ELEVENLABS_BASE_URL}/v1/voices/add`, {
     method: "POST",

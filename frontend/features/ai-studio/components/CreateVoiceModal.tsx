@@ -3,7 +3,7 @@
  * Keeps the voice-design UI isolated from the main voices workflow shell.
  */
 import React from "react";
-import { Pause, Play, X } from "phosphor-react";
+import { CircleNotch, Pause, Play, X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type CreateVoiceModalPreview = {
@@ -24,6 +24,7 @@ type CreateVoiceModalProps = {
   maxVoicePromptCharacters: number;
   voicePromptPlaceholder: string;
   isCreateVoiceEnabled: boolean;
+  isDesigningVoice: boolean;
   isSaveVoiceEnabled: boolean;
   isSavingDesignedVoice: boolean;
   cloneSourceIntake: React.ReactNode;
@@ -70,6 +71,7 @@ export function CreateVoiceModal({
   maxVoicePromptCharacters,
   voicePromptPlaceholder,
   isCreateVoiceEnabled,
+  isDesigningVoice,
   isSaveVoiceEnabled,
   isSavingDesignedVoice,
   cloneSourceIntake,
@@ -99,6 +101,7 @@ export function CreateVoiceModal({
   const isCloneMode = createMode === "clone";
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
   const topRowSaveLabel = isSavingDesignedVoice ? "Saving…" : "Save voice";
+  const generateVoiceLabel = isDesigningVoice ? "Generating voice..." : "Generate Voice";
 
   return (
     <div className="voices-create-modal-backdrop" {...backdropDismiss}>
@@ -180,24 +183,20 @@ export function CreateVoiceModal({
                 />
               </label>
 
-              <label className="voices-properties-field">
-                <span className="voices-properties-field-label">
-                  {isCloneMode ? "Voice description (optional)" : "Enter your prompt"}
-                </span>
-                <textarea
-                  ref={voicePromptRef}
-                  className="voices-properties-rail-textarea voices-properties-rail-textarea--modal voices-create-modal-textarea"
-                  value={voicePrompt}
-                  onChange={(event) => onVoicePromptChange(event.target.value)}
-                  onDrop={isCloneMode ? undefined : onVoicePromptDrop}
-                  onDragOver={isCloneMode ? undefined : onVoicePromptDragOver}
-                  maxLength={maxVoicePromptCharacters}
-                  placeholder={
-                    isCloneMode ? "Optional notes for this cloned voice." : voicePromptPlaceholder
-                  }
-                  aria-label={isCloneMode ? "Voice description" : "Enter your prompt"}
-                />
-                {!isCloneMode ? (
+              {!isCloneMode ? (
+                <label className="voices-properties-field">
+                  <span className="voices-properties-field-label">Enter your prompt</span>
+                  <textarea
+                    ref={voicePromptRef}
+                    className="voices-properties-rail-textarea voices-properties-rail-textarea--modal voices-create-modal-textarea"
+                    value={voicePrompt}
+                    onChange={(event) => onVoicePromptChange(event.target.value)}
+                    onDrop={onVoicePromptDrop}
+                    onDragOver={onVoicePromptDragOver}
+                    maxLength={maxVoicePromptCharacters}
+                    placeholder={voicePromptPlaceholder}
+                    aria-label="Enter your prompt"
+                  />
                   <div className="voices-create-modal-description-footer" aria-live="polite">
                     <p className="voices-create-modal-helper">
                       Use at least {minVoicePromptCharacters} characters to generate voice previews.
@@ -208,8 +207,31 @@ export function CreateVoiceModal({
                       </span>
                     </div>
                   </div>
-                ) : null}
-              </label>
+                </label>
+              ) : null}
+
+              {!isCloneMode && isDesigningVoice ? (
+                <div
+                  className="voices-create-modal-generation-status"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span
+                    className="voices-create-modal-generation-status-spinner"
+                    aria-hidden="true"
+                  >
+                    <CircleNotch size={18} weight="bold" />
+                  </span>
+                  <div className="voices-create-modal-generation-status-copy">
+                    <p className="voices-create-modal-generation-status-title">
+                      Generating voice previews...
+                    </p>
+                    <p className="voices-create-modal-generation-status-text">
+                      This can take a few seconds. Please wait while we build your options.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
 
               {isCloneMode ? (
                 <section className="voices-create-modal-clone-source" aria-label="Voice sample">
@@ -257,12 +279,12 @@ export function CreateVoiceModal({
                 <div className="voices-create-modal-actions">
                   <button
                     type="button"
-                    className="voices-create-modal-primary-btn"
+                    className="voices-properties-save-btn voices-create-modal-save-btn voices-create-modal-generate-submit-btn"
                     disabled={!isCreateVoiceEnabled}
-                    aria-label="Generate"
+                    aria-label={generateVoiceLabel}
                     onClick={onGenerateVoicePreviews}
                   >
-                    Generate
+                    {generateVoiceLabel}
                   </button>
                 </div>
               ) : null}

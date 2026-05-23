@@ -455,6 +455,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
+    !isDesigningVoice &&
     !isSavingDesignedVoice;
   const isSaveVoiceEnabled =
     voiceName.trim().length > 0 &&
@@ -1509,7 +1510,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const handleCloneVoice = React.useCallback(async () => {
     const nextVoiceName = voiceName.trim();
-    const nextVoiceDescription = voicePrompt.trim();
     const sourceStoragePath = cloneVoiceSource?.storagePath?.trim() ?? "";
     if (
       !nextVoiceName ||
@@ -1530,7 +1530,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         },
         body: JSON.stringify({
           voiceName: nextVoiceName,
-          voiceDescription: nextVoiceDescription || null,
           sourceStoragePath,
           sourceName: cloneVoiceSource.name,
           removeBackgroundNoise: true,
@@ -1557,7 +1556,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         id: clonedVoiceId,
         name: clonedVoiceName,
         previewUrl: payload?.voice?.previewUrl?.trim() || null,
-        description: payload?.voice?.description?.trim() || nextVoiceDescription || null,
+        description: payload?.voice?.description?.trim() || null,
         isFallback: false,
         librarySection: "my",
         provider: "elevenlabs",
@@ -1581,7 +1580,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     resetCreateVoiceModalState,
     upsertSharedVoice,
     voiceName,
-    voicePrompt,
   ]);
 
   const handleDeleteSelectedVoice = React.useCallback(() => {
@@ -1980,6 +1978,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             maxVoicePromptCharacters={maxVoicePromptCharacters}
             voicePromptPlaceholder={voicePromptPlaceholder}
             isCreateVoiceEnabled={isCreateVoiceEnabled}
+            isDesigningVoice={isDesigningVoice}
             isSaveVoiceEnabled={isSaveVoiceEnabled}
             isSavingDesignedVoice={isSavingDesignedVoice}
             cloneSourceIntake={cloneSourceIntake}

@@ -684,55 +684,101 @@
   line-height: 1.45;
 }
 
-.voices-create-modal-primary-btn {
+.voices-create-modal-generate-submit-btn {
+  flex: 0 0 auto;
+  min-width: 160px;
+  border-color: rgba(122, 220, 212, 0.38);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.96), rgba(255, 186, 114, 0.94));
+  color: #0c161a;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.voices-create-modal-generate-submit-btn:hover:not(:disabled) {
+  border-color: rgba(149, 235, 228, 0.56);
+  background: linear-gradient(135deg, rgba(172, 241, 236, 0.98), rgba(255, 200, 136, 0.96));
+  box-shadow:
+    0 12px 28px rgba(4, 18, 26, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.voices-create-modal-generate-submit-btn:focus,
+.voices-create-modal-generate-submit-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: rgba(122, 220, 212, 0.46);
+}
+
+.voices-create-modal-generate-submit-btn:disabled {
+  border-color: rgba(122, 220, 212, 0.18);
+  background: linear-gradient(135deg, rgba(149, 235, 228, 0.22), rgba(255, 186, 114, 0.18));
+  color: rgba(226, 240, 238, 0.56);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.voices-create-modal-generation-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(122, 220, 212, 0.18);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top left, rgba(149, 235, 228, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(16, 22, 28, 0.96), rgba(11, 16, 21, 0.99));
+  box-shadow:
+    0 14px 28px rgba(4, 18, 26, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.voices-create-modal-generation-status-spinner {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 94px;
-  min-width: 94px;
-  max-width: 94px;
-  min-height: 64px;
-  height: 64px;
-  max-height: 64px;
-  padding: 10px 6px;
-  border: 1px solid rgba(122, 220, 212, 0.58);
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(149, 235, 228, 0.98), rgba(132, 226, 218, 0.96));
-  color: #0b1820;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-align: center;
-  box-shadow: 0 4px 1px rgba(122, 220, 212, 0.35);
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  color: rgba(149, 235, 228, 0.98);
+  background: rgba(12, 20, 24, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(122, 220, 212, 0.12);
+  animation: voices-create-modal-generation-spin 0.84s linear infinite;
+}
+
+.voices-create-modal-generation-status-copy {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
-  cursor: pointer;
-  transition:
-    transform 0.16s ease,
-    opacity 0.16s ease,
-    border-color 0.16s ease,
-    background 0.16s ease,
-    box-shadow 0.16s ease,
-    color 0.16s ease;
+  gap: 4px;
 }
 
-.voices-create-modal-primary-btn:hover:not(:disabled) {
-  box-shadow: 0 6px 14px rgba(4, 234, 255, 0.1);
-  transform: translateY(-1px);
+.voices-create-modal-generation-status-title {
+  margin: 0;
+  color: rgba(243, 249, 252, 0.96);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
-.voices-create-modal-primary-btn:focus,
-.voices-create-modal-primary-btn:focus-visible {
-  outline: none;
-  box-shadow: none;
+.voices-create-modal-generation-status-text {
+  margin: 0;
+  color: rgba(205, 217, 229, 0.74);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.voices-create-modal-primary-btn:disabled {
-  border-color: rgba(132, 143, 156, 0.3);
-  background: linear-gradient(135deg, rgba(104, 115, 128, 0.3), rgba(82, 91, 102, 0.3));
-  box-shadow: none;
-  color: rgba(174, 184, 196, 0.8);
-  cursor: not-allowed;
+@keyframes voices-create-modal-generation-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .voices-create-modal-status-stack {
@@ -1039,8 +1085,9 @@
 }
 
 .voices-properties-library-open-btn {
-  min-width: 172px;
-  min-height: 56px;
+  appearance: none;
+  width: 172px;
+  height: 56px;
   padding: 0 24px;
   border-color: rgba(105, 220, 203, 0.58);
   border-radius: 16px;
@@ -1049,7 +1096,7 @@
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  line-height: 1;
+  line-height: normal;
   box-sizing: border-box;
   flex-shrink: 0;
 }

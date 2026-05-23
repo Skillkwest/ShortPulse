@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElevenLabsClonedVoice } from "../elevenlabs";
 
@@ -30,7 +31,7 @@ describe("createElevenLabsClonedVoice", () => {
     vi.restoreAllMocks();
   });
 
-  it("submits clone audio with the provider files[] multipart field", async () => {
+  it("submits clone audio with the provider files multipart field", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -49,7 +50,13 @@ describe("createElevenLabsClonedVoice", () => {
 
     const request = fetchMock.mock.calls[0]?.[1] as { body?: FormData; headers?: HeadersInit };
     const body = request.body;
-    const uploadedFiles = body?.getAll("files[]") ?? [];
+    const uploadedFiles = body?.getAll("files") ?? [];
+    const uploadedFile = uploadedFiles[0] as File | undefined;
+    const serializedRequest = new Request("https://api.elevenlabs.io/v1/voices/add", {
+      method: "POST",
+      body,
+    });
+    const serializedBody = Buffer.from(await serializedRequest.arrayBuffer()).toString("utf8");
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.elevenlabs.io/v1/voices/add",
@@ -67,12 +74,13 @@ describe("createElevenLabsClonedVoice", () => {
     expect(body?.get("name")).toBe("Kirk");
     expect(body?.get("description")).toBe("Personal narration voice");
     expect(body?.get("remove_background_noise")).toBe("true");
-    expect(body?.get("files")).toBeNull();
     expect(uploadedFiles).toHaveLength(1);
-    expect(uploadedFiles[0]).toMatchObject({
+    expect(uploadedFile).toMatchObject({
       name: "sample.wav",
       type: "audio/wav",
     });
+    expect(serializedBody).toContain('name="files"; filename="sample.wav"');
+    expect(serializedBody).toContain("normalized voice sample");
     expect(clonedVoice).toEqual({
       voiceId: "voice-clone-1",
       name: "Kirk",

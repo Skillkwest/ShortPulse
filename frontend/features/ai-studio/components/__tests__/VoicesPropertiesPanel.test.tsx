@@ -431,8 +431,8 @@ describe("VoicesPropertiesPanel", () => {
       within(createModalTopRow as HTMLElement).getByRole("button", { name: "Save voice" })
     ).toBeInTheDocument();
     expect(
-      within(createModalActionsRow as HTMLElement).getByRole("button", { name: "Generate" })
-    ).toHaveTextContent("Generate");
+      within(createModalActionsRow as HTMLElement).getByRole("button", { name: "Generate Voice" })
+    ).toHaveTextContent("Generate Voice");
     expect(
       within(createModalActionsRow as HTMLElement).queryByRole("button", {
         name: "Generate previews",
@@ -1556,7 +1556,7 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Enter your prompt" }), {
       target: { value: "Measured documentary narrator with a warm, grounded cadence." },
     });
-    fireEvent.click(within(createVoiceModal).getByRole("button", { name: "Generate" }));
+    fireEvent.click(within(createVoiceModal).getByRole("button", { name: "Generate Voice" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/text-to-voice/design", {
@@ -1629,6 +1629,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(
       screen.getByText("Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM.")
     ).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Voice description" })).not.toBeInTheDocument();
     expect(within(createDialog).queryByText(/voice changer/i)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
@@ -1670,7 +1671,6 @@ describe("VoicesPropertiesPanel", () => {
         },
         body: JSON.stringify({
           voiceName: "Cloned Lantern",
-          voiceDescription: null,
           sourceStoragePath: "user-1/voice-clone/source-audio/clone-sample.mp3",
           sourceName: "clone-sample.mp3",
           removeBackgroundNoise: true,
@@ -1738,7 +1738,6 @@ describe("VoicesPropertiesPanel", () => {
         },
         body: JSON.stringify({
           voiceName: "Short Clone",
-          voiceDescription: null,
           sourceStoragePath: "user-1/voice-clone/source-audio/short-sample.mp3",
           sourceName: "short-sample.mp3",
           removeBackgroundNoise: true,
@@ -1817,7 +1816,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });
 
-  it("keeps generate previews available while preview generation is running", async () => {
+  it("shows an obvious loading state while voice previews are generating", async () => {
     fetchWithAuthMock.mockImplementation(
       () =>
         new Promise(() => {
@@ -1835,17 +1834,23 @@ describe("VoicesPropertiesPanel", () => {
       target: { value: "Measured documentary narrator with a warm, grounded cadence." },
     });
 
-    const createVoiceButton = within(createVoiceModal).getByRole("button", { name: "Generate" });
+    const createVoiceButton = within(createVoiceModal).getByRole("button", {
+      name: "Generate Voice",
+    });
     fireEvent.click(createVoiceButton);
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     });
-    expect(createVoiceButton).toBeEnabled();
-    expect(createVoiceButton).toHaveTextContent("Generate");
+    expect(createVoiceButton).toBeDisabled();
+    expect(createVoiceButton).toHaveTextContent("Generating voice...");
+    expect(screen.getByRole("status")).toHaveTextContent("Generating voice previews...");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "This can take a few seconds. Please wait while we build your options."
+    );
 
     fireEvent.click(createVoiceButton);
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
   });
 
   it("overwrites the prompt text when dropping a prompt into the create-side prompt box", () => {
@@ -1906,7 +1911,9 @@ describe("VoicesPropertiesPanel", () => {
     const promptField = screen.getByRole("textbox", { name: "Enter your prompt" });
     const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
     const scriptField = screen.getByRole("textbox", { name: "Voice script" });
-    const createVoiceButton = within(createVoiceModal).getByRole("button", { name: "Generate" });
+    const createVoiceButton = within(createVoiceModal).getByRole("button", {
+      name: "Generate Voice",
+    });
     const saveVoiceButton = screen.getByRole("button", { name: "Save voice" });
     const generateButton = within(voicesPanel).getByRole("button", { name: "Generate" });
 

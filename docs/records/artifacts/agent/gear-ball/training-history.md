@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball classified the live tree into two honest product lanes, kept Git writes serialized, cleaned the final warning noise instead of hand-waving it, and pushed the exact validated tree.
-- What went wrong: the run lost time to cheap blockers that should have been caught earlier: formatting drift in both manifests, a stale Voices size assertion, and one fake-timer test shape that needed tightening before the character lane would clear cleanly.
-- Capability decision: keep the lane split strategy, but tighten the first-pass cheap-gate read so visual-size assertion drift and timer-sensitive test assumptions get corrected before the first full preflight rerun.
+- Score: `8.7/10`
+- What went right: Gear Ball correctly kept this as one shared-runtime lane, let the fan-out tests prove the contract, and pushed the exact validated tree after a clean final build.
+- What went wrong: the first broad preflight still paid avoidable friction on formatter drift and a few stale test assumptions, which meant extra reruns before the real signal emerged.
+- Capability decision: keep trusting the single shared-runtime batch when the product changes and test fallout are clearly one contract, but tighten the first-pass cheap read for stale UI/test assertions before the first broad preflight.
 
 ## Previous Supervised Synthesis
 

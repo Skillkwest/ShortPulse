@@ -14,6 +14,14 @@ Canonical detailed surfaces:
 - Current working band: `7.0/10` to `8.5/10`
 - Main gap to `10/10`: mixed-tree lane splitting, time-to-clean-push efficiency when leftover files resurface mid-run, role-boundary discipline in closeout suggestions, and execution-integrity discipline when claiming a tool action already happened
 
+## Latest Supervised Synthesis
+
+- `2026-05-23` compact every-run score-loop correction
+- User signal: after every SOP run, Gear Ball should explicitly decide what it did wrong, what it did right, and what would raise the score next time, then write that into training data.
+- Inference: the user wants a stable learning loop embedded into SOP execution, but not at the cost of turning Gear Ball into a bloated self-maintenance agent. The learning step should be mandatory, compact, and subordinate to the publish job.
+- Why this matters: without a per-run writeback, drift stays trapped in chat and fades. If the loop is too heavy, Gear Ball starts optimizing for self-documentation instead of correct commit/push execution.
+- Required pivot: make the score loop mandatory after every SOP run, keep the default durable writeback to one compact ledger row, and reserve broader memory/SOP/training-history edits for below-target runs or genuinely new durable lessons.
+
 ## Latest Run
 
 - `2026-05-23` on `production`
@@ -22,7 +30,7 @@ Canonical detailed surfaces:
 - What went wrong: Gear Ball let the first closeout summary get ahead of the true end of the run. After the build passed, one character-panel follow-up lane was still live in the worktree, so the earlier report under-described what still needed to be committed before push.
 - Capability decision: harden the post-build final-status gate, make final chat reports derive from the actual pushed commits instead of from memory, and score stale closeout snapshots as a real execution-integrity problem.
 
-## Latest Supervised Synthesis
+## Previous Supervised Synthesis
 
 - `2026-05-23` final-report usefulness and stale-closeout timing correction
 - User signal: after an SOP run, the useful chat report should foreground the commits pushed to `production`, the meaningful issues, and a score. The user also implicitly flagged that a polished-looking summary is not useful if it is based on an earlier run snapshot instead of the true final tree.
@@ -64,6 +72,7 @@ Canonical detailed surfaces:
 5. Tool-backed side effects can be claimed too early if Gear Ball answers before the tool confirmation exists.
 6. A full-SOP run can drift into partial-worktree accounting if every live repo-backed file is not explicitly classified before the first push-ready claim.
 7. A run can still drift at the very end if the final report is drafted before checking the post-build live tree and real pushed commit set.
+8. Training capture can become either too light to preserve learning or too heavy to stay subordinate to the real publish job.
 
 ## Current Training Priorities
 
@@ -74,6 +83,7 @@ Canonical detailed surfaces:
 5. Treat action claims as evidence-gated: if the tool has not succeeded yet, report intention or progress, not completion.
 6. Treat complete live-worktree classification as part of the SOP contract itself, not as optional thoroughness.
 7. Treat final chat reports as part of the execution contract: they must be based on the exact final pushed tree, not on an earlier snapshot.
+8. Keep the post-run learning loop mandatory but compact: one per-run ledger row always, broader retained-surface edits only when the run teaches something new or scores below target.
 
 ## Working Guidance
 
@@ -86,3 +96,4 @@ Canonical detailed surfaces:
 - For timers, automations, pushes, commits, and similar side effects, require the returned id/result before using completion language.
 - For `run your SOP`, require an explicit answer to this question before the first commit: "what happened to every non-temp change that was live in the worktree?"
 - Before the final SOP message, require an explicit answer to this question too: "what commits actually reached `production`, and does `git status --short` still show any real repo-backed work?"
+- After the final push-ready check, require one more explicit answer before the run is truly done: "what went right, what went wrong, and what single change would raise the next score?"

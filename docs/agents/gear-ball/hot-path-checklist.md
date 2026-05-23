@@ -96,14 +96,20 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 ## Closeout
 
 1. Self-audit the run.
-2. Score it out of 10.
-3. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
-4. Keep suggested next steps inside Gear Ball's lane by default:
+2. Decide three things explicitly:
+   - what Gear Ball did right
+   - what Gear Ball did wrong
+   - the smallest change that would raise the next run's score
+3. Score it out of 10.
+4. Append one compact training row for the run to `docs/records/artifacts/agent/gear-ball/performance-ledger.md`.
+5. If the run scored below `9.0` or taught a new durable lesson, update the smallest necessary retained training surfaces (`training-history`, SOP, memory, scorecard, or dataset).
+6. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
+7. Keep suggested next steps inside Gear Ball's lane by default:
    - SOP/process improvements
    - self-scoring or training-loop improvements
    - validation/manifest/leftover-discipline improvements
-5. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
-6. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
+8. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
+9. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
 
 ## Stop Conditions
 

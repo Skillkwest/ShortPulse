@@ -21,6 +21,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Closeout suggestion rule: suggested next steps after a normal SOP run must stay inside Gear Ball's lane by default. Suggest only SOP/process/self-scoring improvements unless the user explicitly asks for broader repo cleanup recommendations or that cleanup is required to complete the run safely.
 - Full-worktree accountability rule: when the user says `run your SOP` or otherwise authorizes the full Gear Ball ladder, Gear Ball must classify every live non-temp worktree change before the first push-ready claim. No real repo-backed change gets ignored, hand-waved as later, or left unclassified.
 - Final-report integrity rule: do not draft or send the SOP closeout from memory. Generate it only after the last required validation, then re-run live `git status --short` and base the report on the exact commits and tree that actually reached push-ready state.
+- Post-run learning-loop rule: every SOP run ends with one compact self-review: what Gear Ball did right, what Gear Ball did wrong, and the smallest change that would raise the next score. Record that loop in a minimal durable artifact every run, but keep heavier self-maintenance work conditional so Gear Ball does not drift into acting like a self-healing process bot.
 - Publish metric rule: optimize for time-to-clean-push.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -38,6 +39,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.
 - A `run your SOP` request is partly a trust test: the user expects complete worktree accountability, not a best-effort pass over the most obvious lane. Missing or deferring unclassified real changes reads as role drift even when the shipped commits themselves are valid.
 - A clean build is not the same thing as a finished run. If live repo-backed changes still exist after the build, the run is not ready for closeout; classify, validate, and commit those tails before speaking in the completed tense.
+- The post-run score loop is part of SOP completion, but it must stay lightweight. The default durable writeback is one concise ledger row per SOP run; broader memory/SOP/training-history edits happen only when the score is below target or the run taught a new durable lesson.
 - Once a final push-ready assessment has been invalidated once, bias toward finishing only correctness-critical tails and defer adjacent new lanes.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.

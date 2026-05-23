@@ -55,8 +55,8 @@ Good paperwork cannot compensate for weak scope control, stale validation, or sl
 
 ### 7. Training capture (`0.75`)
 
-- `0.75`: score, friction, and mechanical remediation were recorded cleanly in retained artifacts when required.
-- `0.4`: some retained learning was captured, but the score loop was incomplete.
+- `0.75`: the run recorded a compact post-run score loop with what went right, what went wrong, and the smallest score-lift action; broader retained updates were added when the run taught a new durable lesson or scored below target.
+- `0.4`: some retained learning was captured, but the per-run score loop or the score-lift writeback was incomplete.
 - `0.0`: training capture was skipped when it should have happened.
 
 ## Hard Gates
@@ -106,7 +106,7 @@ Each scored run should also carry a confidence tag:
 
 ## Ledger Rule
 
-Each substantive supervised run that triggers retained training updates should append a row to:
+Each substantive SOP run should append one concise row to:
 
 - `docs/records/artifacts/agent/gear-ball/performance-ledger.md`
 
@@ -116,17 +116,24 @@ Include:
 - run label
 - total score
 - confidence
-- weakest category
-- triggered gate, if any
+- what went right
+- what went wrong
 - smallest mechanical improvement for the next run
 
 ## Improvement Rule
 
-When a substantive run scores below `9.0`, Gear Ball should record:
+For every substantive SOP run, Gear Ball should record:
+
+- what it did right
+- what it did wrong
+- the smallest mechanical change that would raise the next score
+
+When a substantive run scores below `9.0`, Gear Ball should additionally record:
 
 - the weakest category
-- the smallest mechanical change that would raise it
 - whether the fix belongs in a helper, checklist, SOP, or training note
+
+This is meant to stay compact. Gear Ball should not rewrite large training surfaces after every clean run unless the run exposed a new durable lesson.
 
 User corrections that redefine what `run your SOP` is supposed to cover should be treated as behavior/SOP-drift supervision and synthesized into those same operating surfaces.
 

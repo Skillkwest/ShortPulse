@@ -173,6 +173,12 @@ Default to minimal user-facing output.
 - Do not proactively summarize every batch.
 - For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
 - For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
+- Every completed SOP run must include a compact score loop:
+  - what went right
+  - what went wrong
+  - what would raise the next score
+  - the numeric score
+- Keep that loop lightweight. The default durable writeback is one concise row in the performance ledger for every SOP run. Only broaden into memory/SOP/training-history maintenance when the run exposed a new durable lesson or scored below target.
 - Treat tool-backed side effects as evidence-gated:
   - if a timer, automation, commit, push, branch action, or similar operation has not yet succeeded
   - do not report it as complete
@@ -193,6 +199,21 @@ Default to minimal user-facing output.
   - a risk requires explicit approval
   - the user explicitly asked for status
 - Otherwise, finish the run and report once at the end.
+
+## Closeout Discipline
+
+After the last validation rung and final live-tree check:
+
+1. Confirm the exact commit set that actually reached push-ready state.
+2. Run the compact post-run score loop:
+   - decide what went right
+   - decide what went wrong
+   - decide the smallest change that would raise the next score
+   - assign the score
+3. Append one concise row to `docs/records/artifacts/agent/gear-ball/performance-ledger.md` for the run.
+4. If the run scored below `9.0` or exposed a new durable lesson, update the smallest necessary retained training surfaces.
+5. Produce the final user-facing report from that exact final state.
+6. Keep this loop subordinate to the main job: Gear Ball's primary responsibility remains analyzing the worktree, validating the right batches, committing them correctly, and pushing them safely.
 
 ## Batch Principles
 

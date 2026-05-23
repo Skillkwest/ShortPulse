@@ -67,6 +67,13 @@ type CharacterDescriptionEditorCardProps = {
   maxLength: number;
   rows: number;
   disabled: boolean;
+  cardGapPx?: number;
+  containerHeightPx?: number;
+  containerPaddingTopPx?: number;
+  containerPaddingXpx?: number;
+  containerPaddingBottomPx?: number;
+  textareaPaddingYpx?: number;
+  footerMinHeightPx?: number;
   onChangeDescription: (value: string) => void;
 };
 
@@ -79,12 +86,30 @@ export function CharacterDescriptionEditorCard({
   maxLength,
   rows,
   disabled,
+  cardGapPx,
+  containerHeightPx,
+  containerPaddingTopPx,
+  containerPaddingXpx,
+  containerPaddingBottomPx,
+  textareaPaddingYpx,
+  footerMinHeightPx,
   onChangeDescription,
 }: CharacterDescriptionEditorCardProps) {
+  const resolvedContainerHeightPx =
+    containerHeightPx ?? Number.parseFloat(CHARACTER_REFERENCE_DROP_ZONE_HEIGHT);
+  const resolvedContainerPaddingTopPx = containerPaddingTopPx ?? 14;
+  const resolvedContainerPaddingXpx = containerPaddingXpx ?? 16;
+  const resolvedContainerPaddingBottomPx = containerPaddingBottomPx ?? 30;
+  const resolvedTextareaPaddingYpx = textareaPaddingYpx ?? 6;
+  const resolvedFooterMinHeightPx = footerMinHeightPx ?? 14;
+
   return (
     <div
       className="character-sheet-description-card character-profile-fields character-profile-fields--label-serif"
-      style={CHARACTER_DESCRIPTION_CARD_STYLE}
+      style={{
+        ...CHARACTER_DESCRIPTION_CARD_STYLE,
+        gap: `${cardGapPx ?? 8}px`,
+      }}
     >
       <div
         className="character-description-label-row"
@@ -96,12 +121,21 @@ export function CharacterDescriptionEditorCard({
       </div>
       <div
         className="character-description-text-container"
-        style={CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE}
+        style={{
+          ...CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE,
+          padding: `${resolvedContainerPaddingTopPx}px ${resolvedContainerPaddingXpx}px ${resolvedContainerPaddingBottomPx}px`,
+          height: `${resolvedContainerHeightPx}px`,
+          minHeight: `${resolvedContainerHeightPx}px`,
+          maxHeight: `${resolvedContainerHeightPx}px`,
+        }}
       >
         <textarea
           id="character-manager-description"
           className="character-description-input"
-          style={CHARACTER_DESCRIPTION_INPUT_STYLE}
+          style={{
+            ...CHARACTER_DESCRIPTION_INPUT_STYLE,
+            padding: `${resolvedTextareaPaddingYpx}px 4px`,
+          }}
           rows={rows}
           value={description}
           maxLength={maxLength}
@@ -118,7 +152,10 @@ export function CharacterDescriptionEditorCard({
       </div>
       <div
         className="character-description-footer-row"
-        style={CHARACTER_DESCRIPTION_HELPER_ROW_STYLE}
+        style={{
+          ...CHARACTER_DESCRIPTION_HELPER_ROW_STYLE,
+          minHeight: `${resolvedFooterMinHeightPx}px`,
+        }}
       >
         {helperText ? (
           <p className="character-description-helper tiny subdued">{helperText}</p>

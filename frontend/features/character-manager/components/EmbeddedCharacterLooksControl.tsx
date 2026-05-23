@@ -13,6 +13,13 @@ type EmbeddedCharacterLooksControlProps = {
   panelId: string;
   idBase?: string;
   disabled?: boolean;
+  viewportMinHeightPx?: number;
+  viewportPaddingXpx?: number;
+  railMinHeightPx?: number;
+  tabMinWidthPx?: number;
+  tabHeightPx?: number;
+  deleteButtonTopPx?: number;
+  deleteButtonRightPx?: number;
   onSelectPreset: (presetId: CharacterSheetPresetId) => void | Promise<void>;
   onAddPreset?: () => void | Promise<void>;
   onRenamePreset?: (presetId: CharacterSheetPresetId, nextLabel: string) => void | Promise<void>;
@@ -76,7 +83,7 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   lineHeight: 1,
   letterSpacing: "0.01em",
   textShadow: "0 1px 0 rgba(0, 0, 0, 0.28)",
-  boxShadow: isActive ? "inset 0 0 0 1px rgba(72, 212, 255, 0.18)" : "none",
+  boxShadow: "none",
   transform: "none",
   marginBottom: 0,
   boxSizing: "border-box",
@@ -105,10 +112,14 @@ const TAB_SHELL_STYLE: React.CSSProperties = {
   width: "100%",
 };
 
-const buildDeleteButtonStyle = (isVisible: boolean): React.CSSProperties => ({
+const buildDeleteButtonStyle = (
+  isVisible: boolean,
+  topPx: number,
+  rightPx: number
+): React.CSSProperties => ({
   position: "absolute",
-  top: "5px",
-  right: "6px",
+  top: `${topPx}px`,
+  right: `${rightPx}px`,
   width: "14px",
   height: "14px",
   border: "none",
@@ -134,6 +145,13 @@ export function EmbeddedCharacterLooksControl({
   panelId,
   idBase = "embedded-character-looks",
   disabled = false,
+  viewportMinHeightPx = 36,
+  viewportPaddingXpx = 6,
+  railMinHeightPx = 36,
+  tabMinWidthPx = 68,
+  tabHeightPx = 26,
+  deleteButtonTopPx = 5,
+  deleteButtonRightPx = 6,
   onSelectPreset,
   onAddPreset,
   onDeletePreset,
@@ -198,7 +216,11 @@ export function EmbeddedCharacterLooksControl({
       <div style={CONTROL_ROW_STYLE}>
         <div
           ref={railViewportRef}
-          style={TAB_VIEWPORT_STYLE}
+          style={{
+            ...TAB_VIEWPORT_STYLE,
+            minHeight: `${viewportMinHeightPx}px`,
+            paddingInline: `${viewportPaddingXpx}px`,
+          }}
           onPointerDown={(event) => {
             const viewport = railViewportRef.current;
             if (!viewport || event.pointerType === "touch") return;
@@ -229,9 +251,10 @@ export function EmbeddedCharacterLooksControl({
             aria-orientation="horizontal"
             style={{
               ...TAB_RAIL_STYLE,
+              minHeight: `${railMinHeightPx}px`,
               gridTemplateColumns: canAddPreset
-                ? `repeat(${Math.max(presetIds.length, 1)}, 68px) 26px`
-                : `repeat(${Math.max(presetIds.length, 1)}, 68px)`,
+                ? `repeat(${Math.max(presetIds.length, 1)}, ${tabMinWidthPx}px) 26px`
+                : `repeat(${Math.max(presetIds.length, 1)}, ${tabMinWidthPx}px)`,
             }}
           >
             {presetIds.map((presetId) => {
@@ -257,7 +280,11 @@ export function EmbeddedCharacterLooksControl({
                     aria-selected={isActive}
                     aria-controls={panelId}
                     tabIndex={isActive ? 0 : -1}
-                    style={buildTabStyle(isActive)}
+                    style={{
+                      ...buildTabStyle(isActive),
+                      minHeight: `${tabHeightPx}px`,
+                      height: `${tabHeightPx}px`,
+                    }}
                     onClick={() => {
                       if (suppressClickRef.current) return;
                       void onSelectPreset(presetId);
@@ -293,7 +320,11 @@ export function EmbeddedCharacterLooksControl({
                     <button
                       type="button"
                       aria-label={`Delete look ${label}`}
-                      style={buildDeleteButtonStyle(showDeleteButton)}
+                      style={buildDeleteButtonStyle(
+                        showDeleteButton,
+                        deleteButtonTopPx,
+                        deleteButtonRightPx
+                      )}
                       onClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();

@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.7/10`
-- What went right: Gear Ball correctly kept this as one shared-runtime lane, let the fan-out tests prove the contract, and pushed the exact validated tree after a clean final build.
-- What went wrong: the first broad preflight still paid avoidable friction on formatter drift and a few stale test assumptions, which meant extra reruns before the real signal emerged.
-- Capability decision: keep trusting the single shared-runtime batch when the product changes and test fallout are clearly one contract, but tighten the first-pass cheap read for stale UI/test assertions before the first broad preflight.
+- Score: `8.9/10`
+- What went right: Gear Ball classified the whole live tree correctly, kept the Gear Ball trim lane separate from the project-entry/panel product lane, and pushed the exact validated tree after docs checks, targeted preflight, and a clean final build.
+- What went wrong: the first product preflight still spent an avoidable cycle on CSS formatting drift before the real validation signal could surface.
+- Capability decision: keep the docs-plus-product lane split when the tree makes that boundary obvious, and add a tiny touched-styles Prettier sweep before the first mixed UI preflight to cut that repeated friction.
 
 ## Previous Supervised Synthesis
 

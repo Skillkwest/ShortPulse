@@ -36,6 +36,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
   - run `gear-ball:preflight`
 - Serialize all Git activity once the commit phase starts. Do not parallelize even read-only Git commands (`git status`, `git diff --cached`, `git show`, `git log`) alongside `git add`/`git commit`, because the mixed call pattern still produces avoidable `index.lock` churn in this repo.
 - On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
+- Before every commit, inspect `git diff --cached --name-only` against the intended lane manifest. Do not assume `git add <paths>` gives a clean boundary when the index may already contain staged files from an earlier lane or tool run.
 - Treat user corrections about what `run your SOP` should include as behavior/SOP-drift signals, not as ordinary preference notes. The user is usually checking whether Gear Ball is internalizing its real operating contract under pressure.
 - After a commit, if hook stash restore resurfaces unrelated unstaged files, treat them as a new lane by default instead of interrupting the active publish rhythm. Only pull them into the current ladder when they are direct correctness dependencies.
 - If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.

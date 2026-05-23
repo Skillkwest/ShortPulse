@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.6/10`
-- What went right: Gear Ball kept the AI Studio preview/voices/character-panel lane coherent, validated the exact final product tree, and preserved the newly surfaced Copperknot docs/deletion lane as an explicit defer instead of silently absorbing it.
-- What went wrong: the first preflight still spent avoidable cycles on formatting drift and one dead constant, and the unrelated Copperknot lane only became visible after the first commit.
-- Capability decision: keep the single shared-runtime batch when the product surface and its tests/docs are clearly one contract, but do a stricter post-commit re-audit for unrelated doc tails so defer decisions happen earlier and cleaner.
+- Score: `8.2/10`
+- What went right: Gear Ball fully classified the live tree, validated the AI Studio lane and the governance/security lane separately, fixed a real secret-scan bug instead of dodging it, and finished with a truly clean pushed tree.
+- What went wrong: the first commit boundary was polluted by pre-staged Dave files already sitting in the index, two cheap formatting blockers cost reruns, and the new secret-exposure guard needed a missing-file fix before the cleanup lane could clear.
+- Capability decision: keep the two-lane split when product/runtime work and governance cleanup are both real, but add a hard `git diff --cached --name-only` gate before every commit so pre-staged files cannot silently cross batch boundaries.
 
 ## Previous Supervised Synthesis
 

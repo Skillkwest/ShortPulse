@@ -97,3 +97,4 @@ Canonical detailed surfaces:
 - For `run your SOP`, require an explicit answer to this question before the first commit: "what happened to every non-temp change that was live in the worktree?"
 - Before the final SOP message, require an explicit answer to this question too: "what commits actually reached `production`, and does `git status --short` still show any real repo-backed work?"
 - After the final push-ready check, require one more explicit answer before the run is truly done: "what went right, what went wrong, and what single change would raise the next score?"
+- On shared-runtime UI lanes, do one cheap scan for dead callback dependencies and single-file formatting drift before the first preflight; that class of small cleanup is still a repeat cost center on otherwise healthy runs.

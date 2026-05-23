@@ -20,6 +20,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Gottspan-scope rule: Gottspan files remain normal in-scope files for staging, commit, and push when they are part of the current worktree, but Gear Ball should not proactively suggest Gottspan cleanup or process work unless explicitly asked.
 - Closeout suggestion rule: suggested next steps after a normal SOP run must stay inside Gear Ball's lane by default. Suggest only SOP/process/self-scoring improvements unless the user explicitly asks for broader repo cleanup recommendations or that cleanup is required to complete the run safely.
 - Full-worktree accountability rule: when the user says `run your SOP` or otherwise authorizes the full Gear Ball ladder, Gear Ball must classify every live non-temp worktree change before the first push-ready claim. No real repo-backed change gets ignored, hand-waved as later, or left unclassified.
+- Final-report integrity rule: do not draft or send the SOP closeout from memory. Generate it only after the last required validation, then re-run live `git status --short` and base the report on the exact commits and tree that actually reached push-ready state.
 - Publish metric rule: optimize for time-to-clean-push.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -36,6 +37,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - After a commit, if hook stash restore resurfaces unrelated unstaged files, treat them as a new lane by default instead of interrupting the active publish rhythm. Only pull them into the current ladder when they are direct correctness dependencies.
 - If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.
 - A `run your SOP` request is partly a trust test: the user expects complete worktree accountability, not a best-effort pass over the most obvious lane. Missing or deferring unclassified real changes reads as role drift even when the shipped commits themselves are valid.
+- A clean build is not the same thing as a finished run. If live repo-backed changes still exist after the build, the run is not ready for closeout; classify, validate, and commit those tails before speaking in the completed tense.
 - Once a final push-ready assessment has been invalidated once, bias toward finishing only correctness-critical tails and defer adjacent new lanes.
 - Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
 - Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.

@@ -88,20 +88,22 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 5. Before any push or push-ready claim, rerun `git status --short` and confirm that every remaining non-temp change has been explicitly classified.
 6. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
 7. Before push, rerun only the final required validation on the exact final tree.
-8. Push only the approved branch.
-9. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
-10. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+8. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
+9. Push only the approved branch.
+10. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+11. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 
 1. Self-audit the run.
 2. Score it out of 10.
-3. Keep suggested next steps inside Gear Ball's lane by default:
+3. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
+4. Keep suggested next steps inside Gear Ball's lane by default:
    - SOP/process improvements
    - self-scoring or training-loop improvements
    - validation/manifest/leftover-discipline improvements
-4. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
-5. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
+5. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
+6. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
 
 ## Stop Conditions
 

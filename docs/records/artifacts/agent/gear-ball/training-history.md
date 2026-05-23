@@ -16,11 +16,19 @@ Canonical detailed surfaces:
 
 ## Latest Run
 
-- `2026-05-22` on `production`
-- Score: `7/10`
-- What went well: Gear Ball kept the branch contract intact, validated each shipped lane, and correctly deferred unrelated Pulse/runtime tails instead of bundling them into the publish.
-- What slipped: the run stayed safe but got slow because the worktree was mixed, commit-hook stash restore resurfaced adjacent files multiple times, and optional visual QA was attempted before confirming the browser runtime could actually support it.
-- Capability decision: add a retained score loop, create a fast grouped-worktree helper, and harden Gear Ball's memory/checklist around earlier lane-splitting and QA-tool availability checks.
+- `2026-05-23` on `production`
+- Score: `8.1/10`
+- What went right: Gear Ball classified the tree correctly, validated both real lanes, caught a build-only type regression, fixed it, reran the required gates on the corrected tree, and pushed the actual final result.
+- What went wrong: Gear Ball let the first closeout summary get ahead of the true end of the run. After the build passed, one character-panel follow-up lane was still live in the worktree, so the earlier report under-described what still needed to be committed before push.
+- Capability decision: harden the post-build final-status gate, make final chat reports derive from the actual pushed commits instead of from memory, and score stale closeout snapshots as a real execution-integrity problem.
+
+## Latest Supervised Synthesis
+
+- `2026-05-23` final-report usefulness and stale-closeout timing correction
+- User signal: after an SOP run, the useful chat report should foreground the commits pushed to `production`, the meaningful issues, and a score. The user also implicitly flagged that a polished-looking summary is not useful if it is based on an earlier run snapshot instead of the true final tree.
+- Inference: the user is training Gear Ball for operational usefulness, not ceremonial completeness. The report is part of the work product, and a stale or bland report weakens trust even when the pushed code is correct.
+- Why this matters: Gear Ball's job is not finished when the build passes. It is finished when the final tree is correctly pushed and the report reflects that exact reality. Reporting from memory or from an earlier checkpoint is a closeout-integrity failure.
+- Required pivot: before any final SOP report, rerun live `git status --short`, use the real pushed commits as the report source of truth, and treat report usefulness plus end-of-run timing as scored execution behavior.
 
 ## Latest Supervised Correction
 
@@ -55,6 +63,7 @@ Canonical detailed surfaces:
 4. Closeout suggestions can drift into adjacent repo-cleanup advice instead of staying inside Gear Ball's lane.
 5. Tool-backed side effects can be claimed too early if Gear Ball answers before the tool confirmation exists.
 6. A full-SOP run can drift into partial-worktree accounting if every live repo-backed file is not explicitly classified before the first push-ready claim.
+7. A run can still drift at the very end if the final report is drafted before checking the post-build live tree and real pushed commit set.
 
 ## Current Training Priorities
 
@@ -64,6 +73,7 @@ Canonical detailed surfaces:
 4. Keep post-run suggestions restricted to SOP/process/self-scoring improvements unless the user explicitly asks for broader recommendations.
 5. Treat action claims as evidence-gated: if the tool has not succeeded yet, report intention or progress, not completion.
 6. Treat complete live-worktree classification as part of the SOP contract itself, not as optional thoroughness.
+7. Treat final chat reports as part of the execution contract: they must be based on the exact final pushed tree, not on an earlier snapshot.
 
 ## Working Guidance
 
@@ -75,3 +85,4 @@ Canonical detailed surfaces:
 - Treat user pushback on recommendation shape as signal about role-boundary fidelity, not merely phrasing preference.
 - For timers, automations, pushes, commits, and similar side effects, require the returned id/result before using completion language.
 - For `run your SOP`, require an explicit answer to this question before the first commit: "what happened to every non-temp change that was live in the worktree?"
+- Before the final SOP message, require an explicit answer to this question too: "what commits actually reached `production`, and does `git status --short` still show any real repo-backed work?"

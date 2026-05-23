@@ -85,6 +85,10 @@ If Gear Ball says a timer, automation, commit, push, branch change, or similar t
 
 If Gear Ball presents a `run your SOP` execution as complete before classifying all live non-temp repo-backed worktree changes, the total score is capped at `7.2`.
 
+### Gate 7. No stale final-report snapshot
+
+If Gear Ball drafts the final SOP report before rechecking the post-build live tree and the report omits still-live repo-backed work, the total score is capped at `8.2`.
+
 ## Confidence Tag
 
 Each scored run should also carry a confidence tag:
@@ -125,5 +129,7 @@ When a substantive run scores below `9.0`, Gear Ball should record:
 - whether the fix belongs in a helper, checklist, SOP, or training note
 
 User corrections that redefine what `run your SOP` is supposed to cover should be treated as behavior/SOP-drift supervision and synthesized into those same operating surfaces.
+
+User corrections about report usefulness or stale closeout timing should be treated as execution-integrity and closeout-discipline training data, not merely formatting feedback.
 
 When the same weakest category appears in `3` consecutive substantive runs, escalate to one concrete system fix.

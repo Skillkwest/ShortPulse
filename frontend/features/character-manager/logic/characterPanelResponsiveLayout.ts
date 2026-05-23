@@ -69,6 +69,9 @@ const interpolate = (min: number, max: number, progress: number): number =>
 
 const round = (value: number): number => Math.round(value);
 
+const resolveReferenceCardHeightPx = (referenceCardMaxWidthPx: number): number =>
+  round(referenceCardMaxWidthPx * (5 / 4));
+
 /**
  * Resolves bounded layout metrics for the embedded Character panel workspace.
  */
@@ -81,6 +84,8 @@ export const resolveCharacterPanelResponsiveLayout = ({
   const balancedProgress = widthProgress;
   const referenceGrowthBoost = isEmbeddedMediaLibraryMaximized ? 0.1 : 0;
   const referenceProgress = clamp(widthProgress + referenceGrowthBoost, 0, 1);
+  const referenceCardMaxWidthPx = round(interpolate(96, 150, referenceProgress));
+  const referenceCardHeightPx = resolveReferenceCardHeightPx(referenceCardMaxWidthPx);
 
   return {
     isCompactWidth: safeWidth < 520,
@@ -109,7 +114,7 @@ export const resolveCharacterPanelResponsiveLayout = ({
     presetContentColumnGapPx: round(interpolate(16, 26, widthProgress)),
     presetContentRowGapPx: round(interpolate(10, 14, widthProgress)),
     descriptionCardGapPx: round(interpolate(4, 8, balancedProgress)),
-    descriptionHeightPx: round(interpolate(108, 176, widthProgress)),
+    descriptionHeightPx: referenceCardHeightPx,
     descriptionFooterMinHeightPx: round(interpolate(10, 14, balancedProgress)),
     descriptionContainerPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     descriptionContainerPaddingXpx: round(interpolate(12, 16, widthProgress)),
@@ -117,7 +122,7 @@ export const resolveCharacterPanelResponsiveLayout = ({
     descriptionTextareaPaddingYpx: round(interpolate(3, 5, balancedProgress)),
     referenceColumnGapPx: round(interpolate(6, 10, balancedProgress)),
     referenceGridGapPx: round(interpolate(8, 12, balancedProgress)),
-    referenceCardMaxWidthPx: round(interpolate(96, 150, referenceProgress)),
+    referenceCardMaxWidthPx,
     referenceActionInsetPx: round(interpolate(7, 10, balancedProgress)),
     referenceDeleteButtonSizePx: round(interpolate(18, 20, balancedProgress)),
     referenceMediaPaddingTopPx: round(interpolate(10, 14, widthProgress)),

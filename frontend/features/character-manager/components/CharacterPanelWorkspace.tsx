@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { Plus, Trash, UploadSimple, X, XCircle } from "phosphor-react";
+import { CheckCircle, FloppyDisk, Plus, Trash, UploadSimple, X, XCircle } from "phosphor-react";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
@@ -49,6 +49,7 @@ const MEDIA_BUCKET = "media_library";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
+const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
@@ -79,6 +80,21 @@ const CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   alignItems: "center",
   gap: "10px",
   flexWrap: "wrap",
+};
+const CHARACTER_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  minHeight: "28px",
+  padding: "0 10px",
+  borderRadius: "999px",
+  border: "1px solid rgba(77, 191, 123, 0.42)",
+  background: "rgba(20, 66, 39, 0.34)",
+  color: "rgba(138, 236, 171, 0.98)",
+  boxShadow: "0 0 0 1px rgba(77, 191, 123, 0.08)",
+  fontSize: "0.75rem",
+  fontWeight: 700,
+  letterSpacing: "0.01em",
 };
 const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
@@ -190,14 +206,22 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   width: "18px",
   height: "18px",
   borderRadius: "999px",
-  border: "1px solid rgba(53, 60, 72, 0.94)",
-  background: "rgba(16, 19, 24, 0.96)",
-  color: "rgba(228, 234, 243, 0.92)",
+  border: "1px solid rgba(196, 70, 86, 0.9)",
+  background: "rgba(73, 18, 27, 0.94)",
+  color: "rgba(255, 204, 212, 0.98)",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   padding: 0,
   cursor: "pointer",
+  boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
+};
+const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  minWidth: "112px",
+  minHeight: "40px",
+  padding: "0 14px",
+  fontSize: "0.82rem",
+  gap: "6px",
 };
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   height: "100%",
@@ -214,6 +238,25 @@ const CHARACTER_REFERENCE_MEDIA_FILLED_INLINE_STYLE: React.CSSProperties = {
   alignItems: "stretch",
   justifyContent: "stretch",
   padding: 0,
+};
+const CHARACTER_LIBRARY_CARD_FOOTER_STYLE: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  padding: "0 10px 10px",
+};
+const CHARACTER_LIBRARY_CARD_DELETE_BUTTON_STYLE: React.CSSProperties = {
+  width: "22px",
+  height: "22px",
+  borderRadius: "999px",
+  border: "1px solid rgba(196, 70, 86, 0.9)",
+  background: "rgba(73, 18, 27, 0.94)",
+  color: "rgba(255, 204, 212, 0.98)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  cursor: "pointer",
+  boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
 };
 const CHARACTER_REFERENCE_IMAGE_INLINE_STYLE: React.CSSProperties = {
   width: "100%",
@@ -282,7 +325,6 @@ export function CharacterPanelWorkspace({
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingCharacterSheetPreset,
-    hasUnsavedCharacterDraft,
     setCharacterName,
     setCharacterDescription,
     setActiveCharacterSheetPreset,
@@ -316,10 +358,12 @@ export function CharacterPanelWorkspace({
     characterId: string;
     characterName: string;
   } | null>(null);
+  const [showSaveSuccessIndicator, setShowSaveSuccessIndicator] = React.useState(false);
   const [deleteTargetCharacterSheetPresetId, setDeleteTargetCharacterSheetPresetId] =
     React.useState<CharacterSheetPresetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
   const inFlightExternalUploadRequestIdsRef = React.useRef<Set<number>>(new Set());
+  const saveSuccessHideTimerRef = React.useRef<number | null>(null);
   const characterSheetFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const characterNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const [editorPanelSize, setEditorPanelSize] = React.useState(() => ({
@@ -387,6 +431,23 @@ export function CharacterPanelWorkspace({
     [responsiveLayout]
   );
 
+  const charactersButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...CHARACTER_BUTTON_INLINE_STYLE,
+      boxSizing: "border-box",
+      width: "144px",
+      minWidth: "144px",
+      maxWidth: "144px",
+      height: "42px",
+      minHeight: "42px",
+      maxHeight: "42px",
+      padding: "0 24px",
+      borderRadius: "16px",
+      fontSize: "0.98rem",
+    }),
+    []
+  );
+
   const topRowActionsStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE,
@@ -409,6 +470,28 @@ export function CharacterPanelWorkspace({
       gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
     }),
     [responsiveLayout.topFieldGroupGapPx]
+  );
+
+  const secondaryActionButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...actionButtonStyle,
+      ...CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE,
+      minWidth: `${Math.max(104, responsiveLayout.actionButtonMinWidthPx - 42)}px`,
+      minHeight: `${Math.max(36, responsiveLayout.actionButtonMinHeightPx - 6)}px`,
+      padding: `0 ${Math.max(12, responsiveLayout.actionButtonHorizontalPaddingPx - 6)}px`,
+      fontSize: "0.82rem",
+      gap: "6px",
+    }),
+    [actionButtonStyle, responsiveLayout]
+  );
+
+  React.useEffect(
+    () => () => {
+      if (saveSuccessHideTimerRef.current) {
+        window.clearTimeout(saveSuccessHideTimerRef.current);
+      }
+    },
+    []
   );
 
   const topFieldsGridStyle = React.useMemo<React.CSSProperties>(
@@ -586,6 +669,25 @@ export function CharacterPanelWorkspace({
     }
   }, [clearMessages, createCharacter]);
 
+  const triggerSaveSuccessIndicator = React.useCallback(() => {
+    setShowSaveSuccessIndicator(true);
+    if (saveSuccessHideTimerRef.current) {
+      window.clearTimeout(saveSuccessHideTimerRef.current);
+    }
+    saveSuccessHideTimerRef.current = window.setTimeout(() => {
+      setShowSaveSuccessIndicator(false);
+      saveSuccessHideTimerRef.current = null;
+    }, CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS);
+  }, []);
+
+  const handleSaveCharacter = React.useCallback(async () => {
+    setShowSaveSuccessIndicator(false);
+    const saved = await saveCharacter();
+    if (saved) {
+      triggerSaveSuccessIndicator();
+    }
+  }, [saveCharacter, triggerSaveSuccessIndicator]);
+
   const assignFilesToSlots = React.useCallback(
     async (files: File[]) => {
       const nextFiles = files.filter((file) => file instanceof File);
@@ -733,29 +835,41 @@ export function CharacterPanelWorkspace({
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={actionButtonStyle}
+                          style={charactersButtonStyle}
                           onClick={() => setIsCharacterLibraryModalOpen(true)}
                           disabled={pageBusy}
                         >
                           Characters
                         </button>
+                        {showSaveSuccessIndicator ? (
+                          <span
+                            role="status"
+                            aria-live="polite"
+                            aria-label="Character saved"
+                            style={CHARACTER_SAVE_SUCCESS_BADGE_INLINE_STYLE}
+                          >
+                            <CheckCircle size={14} weight="fill" aria-hidden />
+                            <span>Saved</span>
+                          </span>
+                        ) : null}
                       </div>
                       <div style={topRowSecondaryActionsStyle}>
                         <button
                           type="button"
                           className="character-panel-action-btn"
-                          style={actionButtonStyle}
+                          style={secondaryActionButtonStyle}
                           onClick={() => {
-                            void saveCharacter();
+                            void handleSaveCharacter();
                           }}
-                          disabled={!hasUnsavedCharacterDraft || pageBusy}
+                          disabled={pageBusy}
                         >
+                          <FloppyDisk size={13} weight="bold" aria-hidden />
                           {isSavingCharacter ? "Saving..." : "Save"}
                         </button>
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={actionButtonStyle}
+                          style={secondaryActionButtonStyle}
                           onClick={() => {
                             void handleCreateNewCharacter();
                           }}
@@ -1157,24 +1271,6 @@ export function CharacterPanelWorkspace({
           <div className="model-modal-header-actions">
             <button
               type="button"
-              className="character-panel-action-btn character-panel-action-btn--danger"
-              onClick={() => {
-                if (!selectedCharacterId) return;
-                const target =
-                  characters.find((entry) => entry.characterId === selectedCharacterId) ?? null;
-                if (!target) return;
-                setDeleteTargetCharacter({
-                  characterId: target.characterId,
-                  characterName: target.characterName || "Untitled character",
-                });
-              }}
-              disabled={!selectedCharacterId || pageBusy}
-            >
-              <Trash size={14} weight="bold" aria-hidden />
-              <span>Delete</span>
-            </button>
-            <button
-              type="button"
               className="ghost-btn mini model-modal-close"
               aria-label="Close character library"
               onClick={() => setIsCharacterLibraryModalOpen(false)}
@@ -1230,6 +1326,26 @@ export function CharacterPanelWorkspace({
                     }
                     label={isSelected ? "Selected" : "Character"}
                     name={chipName}
+                    footer={
+                      <div style={CHARACTER_LIBRARY_CARD_FOOTER_STYLE}>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${chipName}`}
+                          style={CHARACTER_LIBRARY_CARD_DELETE_BUTTON_STYLE}
+                          disabled={pageBusy}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setDeleteTargetCharacter({
+                              characterId: character.characterId,
+                              characterName: chipName,
+                            });
+                          }}
+                        >
+                          <Trash size={12} weight="bold" aria-hidden />
+                        </button>
+                      </div>
+                    }
                   />
                 );
               })}

@@ -26,8 +26,10 @@ import {
   saveCharacterManagerCharacterSheetAssignments,
   saveCharacterManagerCharacterSheetPresetAsset,
   saveCharacterManagerCharacterSheetPresetAssignments,
+  saveCharacterManagerCharacterSheetPresetTabDescription,
   saveCharacterManagerProfileImage,
   saveCharacterManagerSlot,
+  updateCharacterManagerName,
 } from "../../logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../logic/characterListSyncEvents";
 import {
@@ -97,8 +99,12 @@ const saveCharacterManagerCharacterSheetPresetAssetMock = vi.mocked(
 const saveCharacterManagerCharacterSheetPresetAssignmentsMock = vi.mocked(
   saveCharacterManagerCharacterSheetPresetAssignments
 );
+const saveCharacterManagerCharacterSheetPresetTabDescriptionMock = vi.mocked(
+  saveCharacterManagerCharacterSheetPresetTabDescription
+);
 const saveCharacterManagerProfileImageMock = vi.mocked(saveCharacterManagerProfileImage);
 const clearCharacterManagerProfileImageMock = vi.mocked(clearCharacterManagerProfileImage);
+const updateCharacterManagerNameMock = vi.mocked(updateCharacterManagerName);
 const deleteCharacterManagerDraftMock = vi.mocked(deleteCharacterManagerDraft);
 const saveCharacterManagerSlotMock = vi.mocked(saveCharacterManagerSlot);
 const deleteCharacterManagerCharacterSheetPresetMock = vi.mocked(
@@ -557,6 +563,13 @@ describe("useCharacterManagerDraft", () => {
     saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockResolvedValue(
       createDefaultCharacterSheetPresetState() as never
     );
+    saveCharacterManagerCharacterSheetPresetTabDescriptionMock.mockResolvedValue({
+      activePresetId: "1",
+      tabOrder: createDefaultCharacterSheetPresetState().tabOrder,
+      tabLabels: createDefaultCharacterSheetPresetLabels(),
+      tabDescriptions: createDefaultCharacterSheetPresetDescriptions(),
+      presets: createDefaultCharacterSheetPresetState().presets,
+    } as never);
     saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
       createEmptyCharacterSheetAssignments() as never
     );
@@ -742,6 +755,49 @@ describe("useCharacterManagerDraft", () => {
 
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
     expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushes pending name and description edits when saving an existing character", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    updateCharacterManagerNameMock.mockResolvedValue(undefined as never);
+    saveCharacterManagerCharacterSheetPresetTabDescriptionMock.mockResolvedValue({
+      activePresetId: "1",
+      tabOrder: snapshot.visibleCharacterSheetPresetIds,
+      tabLabels: snapshot.characterSheetPresetLabels,
+      tabDescriptions: {
+        ...snapshot.characterSheetPresetDescriptions,
+        "1": "Updated description",
+      },
+      presets: snapshot.characterSheetPresets,
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    act(() => {
+      result.current.setCharacterName("Updated Hero");
+      result.current.setCharacterDescription("Updated description");
+    });
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(true);
+    });
+
+    expect(updateCharacterManagerNameMock).toHaveBeenCalledWith({
+      characterId: "char-1",
+      name: "Updated Hero",
+    });
+    expect(saveCharacterManagerCharacterSheetPresetTabDescriptionMock).toHaveBeenCalledWith({
+      characterId: "char-1",
+      presetId: "1",
+      description: "Updated description",
+    });
   });
 
   it("suppresses persisted selection on externally controlled surfaces and follows preferred ids", async () => {

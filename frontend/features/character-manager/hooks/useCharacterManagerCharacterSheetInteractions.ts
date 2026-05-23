@@ -79,10 +79,9 @@ export const useCharacterManagerCharacterSheetInteractions = ({
 }: UseCharacterManagerCharacterSheetInteractionsParams): UseCharacterManagerCharacterSheetInteractionsResult => {
   const persistCharacterSheetPresetAssignments = useCallback(
     (nextAssignments: CharacterSheetPresetAssignments) => {
-      if (!selectedCharacterId) return;
       void saveCharacterSheetPresetAssignments(nextAssignments);
     },
-    [saveCharacterSheetPresetAssignments, selectedCharacterId]
+    [saveCharacterSheetPresetAssignments]
   );
 
   const assignReferenceToCharacterSheetSlot = useCallback(
@@ -214,7 +213,6 @@ export const useCharacterManagerCharacterSheetInteractions = ({
 
   const clearCharacterSheetAssignment = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => {
-      if (!selectedCharacterId) return;
       const assignedReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
       if (!assignedReference) return;
       const nextAssignments = {
@@ -223,11 +221,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       };
       persistCharacterSheetPresetAssignments(nextAssignments);
     },
-    [
-      persistCharacterSheetPresetAssignments,
-      resolvedCharacterSheetPresetAssignments,
-      selectedCharacterId,
-    ]
+    [persistCharacterSheetPresetAssignments, resolvedCharacterSheetPresetAssignments]
   );
 
   const handleCharacterSheetDrop = useCallback(

@@ -17,6 +17,7 @@ import {
   deleteCharacterManagerDraft,
   loadCharacterManagerDraftByCharacterId,
   saveCharacterManagerDraft,
+  saveCharacterManagerCharacterSheetPresetTabDescription,
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
@@ -550,8 +551,110 @@ export const useCharacterManagerDraft = ({
     }
   }, [applyLocalDraft, clearMessages, clearUnsavedDraftAssets, onSelectedCharacterIdChange]);
 
+  const flushPendingCharacterNamePersist = useCallback(async () => {
+    if (!characterId) return true;
+    const trimmedName = characterName.trim();
+    if (trimmedName.length < 2 || trimmedName === lastPersistedNameRef.current) {
+      return true;
+    }
+
+    if (namePersistTimerRef.current) {
+      window.clearTimeout(namePersistTimerRef.current);
+      namePersistTimerRef.current = null;
+    }
+
+    const requestId = namePersistRequestRef.current + 1;
+    namePersistRequestRef.current = requestId;
+    setIsSavingName(true);
+    try {
+      await updateCharacterManagerName({
+        characterId,
+        name: trimmedName,
+      });
+      if (namePersistRequestRef.current !== requestId) {
+        return true;
+      }
+      lastPersistedNameRef.current = trimmedName;
+      setCharacters((prev) =>
+        prev.map((item) =>
+          item.characterId === characterId ? { ...item, characterName: trimmedName } : item
+        )
+      );
+      publishCharacterListChanged({
+        userId: selectedCharacterStorageScopeRef.current,
+        reason: "rename",
+      });
+      return true;
+    } catch (nextError) {
+      if (namePersistRequestRef.current !== requestId) {
+        return false;
+      }
+      setError(toErrorMessage(nextError, "Failed to save character name."));
+      return false;
+    } finally {
+      if (namePersistRequestRef.current === requestId) {
+        setIsSavingName(false);
+      }
+    }
+  }, [characterId, characterName]);
+
+  const flushPendingCharacterDescriptionsPersist = useCallback(async () => {
+    if (!characterId) return true;
+
+    for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
+      const nextDescription = (characterSheetPresetDescriptionsRef.current[presetId] ?? "").slice(
+        0,
+        150
+      );
+      const lastPersistedDescription = lastPersistedDescriptionMapRef.current[presetId] ?? "";
+      if (nextDescription === lastPersistedDescription) {
+        continue;
+      }
+
+      const timerId = descriptionPersistTimerRefs.current[presetId];
+      if (timerId) {
+        window.clearTimeout(timerId);
+        descriptionPersistTimerRefs.current[presetId] = null;
+      }
+
+      const requestId = (descriptionPersistRequestRef.current[presetId] ?? 0) + 1;
+      descriptionPersistRequestRef.current[presetId] = requestId;
+      try {
+        await saveCharacterManagerCharacterSheetPresetTabDescription({
+          characterId,
+          presetId,
+          description: nextDescription,
+        });
+        if (descriptionPersistRequestRef.current[presetId] !== requestId) {
+          continue;
+        }
+        lastPersistedDescriptionMapRef.current = {
+          ...lastPersistedDescriptionMapRef.current,
+          [presetId]: nextDescription,
+        };
+      } catch (nextError) {
+        if (descriptionPersistRequestRef.current[presetId] !== requestId) {
+          return false;
+        }
+        setError(toErrorMessage(nextError, "Failed to save character description."));
+        return false;
+      }
+    }
+
+    return true;
+  }, [characterId, characterSheetPresetDescriptionsRef, setError]);
+
   const saveCharacter = useCallback(async () => {
     if (characterId) {
+      clearMessages();
+      const savedName = await flushPendingCharacterNamePersist();
+      if (!savedName) {
+        return false;
+      }
+      const savedDescriptions = await flushPendingCharacterDescriptionsPersist();
+      if (!savedDescriptions) {
+        return false;
+      }
       return true;
     }
 
@@ -596,6 +699,8 @@ export const useCharacterManagerDraft = ({
     characterId,
     characterName,
     clearMessages,
+    flushPendingCharacterDescriptionsPersist,
+    flushPendingCharacterNamePersist,
     loadAndApplyCharacterSnapshot,
     onSelectedCharacterIdChange,
     persistUnsavedDraftAssets,

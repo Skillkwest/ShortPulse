@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterPanelWorkspace } from "../CharacterPanelWorkspace";
 import {
   CHARACTER_SHEET_PRESET_IDS,
@@ -117,16 +117,49 @@ vi.mock("../../hooks/useCharacterCardPreviewUrls", () => ({
 }));
 
 vi.mock("../../../../components/ConfirmationModal", () => ({
-  ConfirmationModal: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  ConfirmationModal: ({
+    title,
+    body,
+    confirmLabel,
+    onConfirm,
+    onCancel,
+    children,
+  }: {
+    title?: ReactNode;
+    body?: ReactNode;
+    confirmLabel?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+    children?: ReactNode;
+  }) => (
+    <div role="dialog" aria-label={typeof title === "string" ? title : "Confirmation"}>
+      {title ? <div>{title}</div> : null}
+      {body ? <div>{body}</div> : null}
+      {children}
+      {confirmLabel ? (
+        <button type="button" onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+      ) : null}
+      <button type="button" onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  ),
 }));
 
 describe("CharacterPanelWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     currentDraftState = createDraftState();
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
     clearCharacterSheetAssignmentMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
@@ -182,11 +215,24 @@ describe("CharacterPanelWorkspace", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Character library" });
     expect(dialog).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Taylor" })).toBeInTheDocument();
+  });
+
+  it("opens character deletion from the modal card trash icon", () => {
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Characters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete Taylor" }));
+
+    const confirmationDialog = screen.getByRole("dialog", { name: "Delete this character?" });
+    expect(confirmationDialog).toBeInTheDocument();
+    expect(confirmationDialog).toHaveTextContent("Taylor");
+    expect(confirmationDialog).toHaveTextContent("removed permanently");
   });
 
   it("opens the direct slot picker when an empty reference slot is clicked", () => {
@@ -196,6 +242,53 @@ describe("CharacterPanelWorkspace", () => {
     expect(portraitCard).not.toBeNull();
     fireEvent.click(portraitCard!);
     expect(handleCharacterSheetCardClickMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps save available for existing characters and triggers an explicit save", async () => {
+    const saveCharacterMock = vi.fn(async () => true);
+    currentDraftState = {
+      ...createDraftState(),
+      saveCharacter: saveCharacterMock,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(saveButton);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(saveCharacterMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a brief saved check indicator after a successful save", async () => {
+    vi.useFakeTimers();
+    const saveCharacterMock = vi.fn(async () => true);
+    currentDraftState = {
+      ...createDraftState(),
+      saveCharacter: saveCharacterMock,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByLabelText("Character saved")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(2300);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByLabelText("Character saved")).not.toBeInTheDocument();
   });
 
   it("shows the clear button on hover and clears an assigned slot when clicked", async () => {

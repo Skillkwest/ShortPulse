@@ -54,4 +54,14 @@ describe("resolveCharacterPanelResponsiveLayout", () => {
       defaultLayout.referenceCardMaxWidthPx
     );
   });
+
+  it("matches the description box height to the reference card height", () => {
+    const layout = resolveCharacterPanelResponsiveLayout({
+      panelWidthPx: 640,
+      panelHeightPx: 420,
+      isEmbeddedMediaLibraryMaximized: false,
+    });
+
+    expect(layout.descriptionHeightPx).toBe(Math.round(layout.referenceCardMaxWidthPx * (5 / 4)));
+  });
 });

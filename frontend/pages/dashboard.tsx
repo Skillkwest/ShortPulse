@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
+import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import {
@@ -45,6 +46,9 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
+const DASHBOARD_BOOTSTRAP_ROUTE = "/dashboard";
+const DASHBOARD_BOOTSTRAP_TITLE = "Loading dashboard";
+const DASHBOARD_BOOTSTRAP_MESSAGE = "Checking your session before your dashboard workspace loads.";
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
@@ -215,6 +219,7 @@ export default function DashboardPage({
 }: DashboardPageProps) {
   const router = useRouter();
   const { initialized, user } = useSupabaseSessionState();
+  const isDashboardBootstrapPending = router.pathname === DASHBOARD_BOOTSTRAP_ROUTE && !initialized;
   const isAuthenticated = Boolean(user);
   const { balanceCents, balanceLoading } = useCredits({ enabled: isAuthenticated });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -488,6 +493,29 @@ export default function DashboardPage({
   const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
   const pageTitle = isAuthenticated ? "ShortPulse · Dashboard" : "ShortPulse · Home";
+
+  if (isDashboardBootstrapPending) {
+    return (
+      <>
+        <Head>
+          <title>ShortPulse · Dashboard</title>
+          <meta
+            name="description"
+            content="ShortPulse dashboard bootstrap while your authenticated workspace session resolves."
+          />
+        </Head>
+        <AiStudioProjectEntryState
+          variant="loading"
+          phase="resolving-project"
+          enableExperimentalAnimation
+          title={DASHBOARD_BOOTSTRAP_TITLE}
+          message={DASHBOARD_BOOTSTRAP_MESSAGE}
+          steps={[]}
+          stepsAriaLabel="Dashboard loading progress"
+        />
+      </>
+    );
+  }
 
   return (
     <>

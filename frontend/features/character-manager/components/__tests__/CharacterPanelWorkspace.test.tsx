@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterPanelWorkspace } from "../CharacterPanelWorkspace";
 import {
@@ -13,6 +13,7 @@ import {
 const setCharacterSheetPresetFileMock = vi.fn();
 const setErrorMessageMock = vi.fn();
 const handleCharacterSheetCardClickMock = vi.fn();
+const clearCharacterSheetAssignmentMock = vi.fn();
 
 const createDraftState = () => ({
   characters: [
@@ -94,7 +95,7 @@ vi.mock("../../hooks/useCharacterManagerCharacterSheetInteractions", () => ({
   useCharacterManagerCharacterSheetInteractions: () => ({
     handleCharacterSheetFileSelection: () => undefined,
     handleCharacterSheetDragOver: () => () => undefined,
-    clearCharacterSheetAssignment: async () => undefined,
+    clearCharacterSheetAssignment: clearCharacterSheetAssignmentMock,
     handleCharacterSheetDrop: () => () => undefined,
     handleCharacterSheetCardClick: () => handleCharacterSheetCardClickMock,
   }),
@@ -125,6 +126,7 @@ describe("CharacterPanelWorkspace", () => {
     currentDraftState = createDraftState();
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
+    clearCharacterSheetAssignmentMock.mockReset();
   });
 
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
@@ -134,9 +136,9 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.queryByRole("heading", { name: "Characters Library" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Character Profile" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Characters" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "4" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "5" })).not.toBeInTheDocument();
@@ -178,10 +180,11 @@ describe("CharacterPanelWorkspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Characters" }));
 
-    expect(screen.getByRole("dialog", { name: "Character library" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Character library" });
+    expect(dialog).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
   });
@@ -193,6 +196,41 @@ describe("CharacterPanelWorkspace", () => {
     expect(portraitCard).not.toBeNull();
     fireEvent.click(portraitCard!);
     expect(handleCharacterSheetCardClickMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the clear button on hover and clears an assigned slot when clicked", async () => {
+    currentDraftState = {
+      ...createDraftState(),
+      characterSheetPresetAssignments: {
+        portrait: {
+          characterMediaId: "media-portrait",
+          storagePath: "path/portrait.png",
+          previewStoragePath: "path/portrait-thumb.png",
+          previewUrl: "https://example.com/portrait.png",
+        },
+        close_up: null,
+        front_shot: null,
+      },
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    const clearButton = screen.getByRole("button", { name: "Clear Portrait reference" });
+    expect(clearButton).toHaveStyle({ opacity: "0", pointerEvents: "none" });
+
+    const portraitCard = screen.getByAltText("Portrait reference").closest("article");
+    expect(portraitCard).not.toBeNull();
+    fireEvent.mouseEnter(portraitCard!);
+
+    await waitFor(() => {
+      expect(clearButton).toHaveStyle({ opacity: "1", pointerEvents: "auto" });
+    });
+
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      expect(clearCharacterSheetAssignmentMock).toHaveBeenCalledWith("portrait");
+    });
   });
 
   it("blocks external uploads when all reference slots are already filled", async () => {

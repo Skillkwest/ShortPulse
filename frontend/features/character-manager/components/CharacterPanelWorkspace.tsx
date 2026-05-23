@@ -67,6 +67,27 @@ const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
 };
+const CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "10px",
+  flexWrap: "wrap",
+};
+const CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap",
+};
+const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginLeft: "auto",
+};
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
@@ -150,7 +171,7 @@ const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
   aspectRatio: "4 / 5",
-  gridTemplateRows: "minmax(0, 1fr) 22px",
+  gridTemplateRows: "minmax(0, 1fr) 26px",
   borderRadius: "10px",
   border: "1px solid rgba(30, 34, 41, 0.96)",
   background: "rgba(12, 14, 19, 0.96)",
@@ -226,13 +247,6 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   fontSize: "0.74rem",
   fontWeight: 600,
 };
-const CHARACTER_MODAL_CREATE_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  border: "1px solid rgba(37, 204, 255, 0.58)",
-  background: "rgba(28, 32, 37, 0.94)",
-  color: "rgba(110, 214, 233, 0.96)",
-  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
-};
-
 const getCharacterInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (!words.length) return "NC";
@@ -289,6 +303,8 @@ export function CharacterPanelWorkspace({
   });
 
   const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
+    React.useState<CharacterSheetDropZoneKey | null>(null);
+  const [hoveredCharacterSheetActionZone, setHoveredCharacterSheetActionZone] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = React.useState<string | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
@@ -369,6 +385,30 @@ export function CharacterPanelWorkspace({
       padding: `0 ${responsiveLayout.actionButtonHorizontalPaddingPx}px`,
     }),
     [responsiveLayout]
+  );
+
+  const topRowActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE,
+      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+    }),
+    [responsiveLayout.topFieldGroupGapPx]
+  );
+
+  const topRowPrimaryActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE,
+      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+    }),
+    [responsiveLayout.topFieldGroupGapPx]
+  );
+
+  const topRowSecondaryActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE,
+      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+    }),
+    [responsiveLayout.topFieldGroupGapPx]
   );
 
   const topFieldsGridStyle = React.useMemo<React.CSSProperties>(
@@ -688,16 +728,43 @@ export function CharacterPanelWorkspace({
               <div style={topScrollInnerStyle}>
                 <div style={topSectionContentStyle}>
                   <div className="character-profile-card">
-                    <div className="character-panel-profile-top-row">
-                      <button
-                        type="button"
-                        className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                        style={actionButtonStyle}
-                        onClick={() => setIsCharacterLibraryModalOpen(true)}
-                        disabled={pageBusy}
-                      >
-                        Characters
-                      </button>
+                    <div className="character-panel-profile-top-row" style={topRowActionsStyle}>
+                      <div style={topRowPrimaryActionsStyle}>
+                        <button
+                          type="button"
+                          className="character-panel-action-btn character-panel-action-btn--picker-accent"
+                          style={actionButtonStyle}
+                          onClick={() => setIsCharacterLibraryModalOpen(true)}
+                          disabled={pageBusy}
+                        >
+                          Characters
+                        </button>
+                      </div>
+                      <div style={topRowSecondaryActionsStyle}>
+                        <button
+                          type="button"
+                          className="character-panel-action-btn"
+                          style={actionButtonStyle}
+                          onClick={() => {
+                            void saveCharacter();
+                          }}
+                          disabled={!hasUnsavedCharacterDraft || pageBusy}
+                        >
+                          {isSavingCharacter ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          className="character-panel-action-btn character-panel-action-btn--picker-accent"
+                          style={actionButtonStyle}
+                          onClick={() => {
+                            void handleCreateNewCharacter();
+                          }}
+                          disabled={pageBusy}
+                        >
+                          <Plus size={14} weight="bold" aria-hidden />
+                          <span>Create</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div style={editorFieldsWrapperStyle}>
@@ -839,6 +906,9 @@ export function CharacterPanelWorkspace({
                                 const isDropPending =
                                   pendingDropTarget?.target === "character_sheet" &&
                                   pendingDropTarget.zoneKey === dropZone.key;
+                                const showDeleteButton =
+                                  Boolean(assignedReference) &&
+                                  hoveredCharacterSheetActionZone === dropZone.key;
                                 const isRequiredSlot = dropZone.key === "portrait";
                                 const slotRequirementCopy = isRequiredSlot
                                   ? "(Required)"
@@ -877,6 +947,14 @@ export function CharacterPanelWorkspace({
                                     }}
                                     onDragStart={handleCharacterSheetDragStart(dropZone.key)}
                                     onDragEnd={handleReferenceDragEnd}
+                                    onMouseEnter={() => {
+                                      setHoveredCharacterSheetActionZone(dropZone.key);
+                                    }}
+                                    onMouseLeave={() => {
+                                      setHoveredCharacterSheetActionZone((current) =>
+                                        current === dropZone.key ? null : current
+                                      );
+                                    }}
                                     onDragOver={handleCharacterSheetDragOver(dropZone.key)}
                                     onDragLeave={() => {
                                       setActiveCharacterSheetDropZone((current) =>
@@ -901,15 +979,16 @@ export function CharacterPanelWorkspace({
                                             ...CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE,
                                             width: `${responsiveLayout.referenceDeleteButtonSizePx}px`,
                                             height: `${responsiveLayout.referenceDeleteButtonSizePx}px`,
+                                            opacity: showDeleteButton ? 1 : 0,
+                                            pointerEvents: showDeleteButton ? "auto" : "none",
+                                            transition: "opacity 140ms ease",
                                           }}
                                           aria-label={`Clear ${dropZone.label} reference`}
                                           draggable={false}
                                           onPointerDown={(event) => {
-                                            event.preventDefault();
                                             event.stopPropagation();
                                           }}
                                           onMouseDown={(event) => {
-                                            event.preventDefault();
                                             event.stopPropagation();
                                           }}
                                           onDragStart={(event) => {
@@ -917,6 +996,7 @@ export function CharacterPanelWorkspace({
                                             event.stopPropagation();
                                           }}
                                           onClick={(event) => {
+                                            event.preventDefault();
                                             event.stopPropagation();
                                             void clearCharacterSheetAssignment(dropZone.key);
                                           }}
@@ -1092,28 +1172,6 @@ export function CharacterPanelWorkspace({
             >
               <Trash size={14} weight="bold" aria-hidden />
               <span>Delete</span>
-            </button>
-            <button
-              type="button"
-              className="character-panel-action-btn"
-              onClick={() => {
-                void saveCharacter();
-              }}
-              disabled={!hasUnsavedCharacterDraft || pageBusy}
-            >
-              {isSavingCharacter ? "Saving..." : "Save"}
-            </button>
-            <button
-              type="button"
-              className="character-panel-action-btn character-panel-action-btn--picker-accent"
-              style={CHARACTER_MODAL_CREATE_BUTTON_INLINE_STYLE}
-              onClick={() => {
-                void handleCreateNewCharacter();
-              }}
-              disabled={pageBusy}
-            >
-              <Plus size={14} weight="bold" aria-hidden />
-              <span>Create</span>
             </button>
             <button
               type="button"

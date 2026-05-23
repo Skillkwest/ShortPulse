@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveCharacterPanelResponsiveLayout } from "../characterPanelResponsiveLayout";
 
 describe("resolveCharacterPanelResponsiveLayout", () => {
-  it("grows vertical spacing and editable surfaces as the panel height increases", () => {
+  it("keeps upper-panel sizing stable when only the panel height changes", () => {
     const compact = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 560,
       panelHeightPx: 260,
@@ -14,10 +14,10 @@ describe("resolveCharacterPanelResponsiveLayout", () => {
       isEmbeddedMediaLibraryMaximized: false,
     });
 
-    expect(expanded.contentPaddingTopPx).toBeGreaterThan(compact.contentPaddingTopPx);
-    expect(expanded.descriptionHeightPx).toBeGreaterThan(compact.descriptionHeightPx);
-    expect(expanded.referenceCardMaxWidthPx).toBeGreaterThan(compact.referenceCardMaxWidthPx);
-    expect(expanded.referenceHintMinHeightPx).toBeGreaterThan(compact.referenceHintMinHeightPx);
+    expect(expanded.contentPaddingTopPx).toBe(compact.contentPaddingTopPx);
+    expect(expanded.descriptionHeightPx).toBe(compact.descriptionHeightPx);
+    expect(expanded.referenceCardMaxWidthPx).toBe(compact.referenceCardMaxWidthPx);
+    expect(expanded.referenceHintMinHeightPx).toBe(compact.referenceHintMinHeightPx);
   });
 
   it("keeps narrow panels in a more compact sizing mode", () => {

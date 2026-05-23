@@ -9,6 +9,7 @@ import {
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
+  extractDroppedFiles,
   resolveDroppedImageReference,
   type DroppedImageReference,
 } from "../logic/characterDropPayload";
@@ -528,6 +529,12 @@ export const useCharacterManagerDroppedReferenceController = ({
         }
       }
 
+      const droppedFile = extractDroppedFiles(transfer)[0] ?? null;
+      if (droppedFile) {
+        await setCharacterSheetPresetFile(zoneKey, droppedFile);
+        return;
+      }
+
       const droppedReference = resolveDroppedImageReference(transfer);
       if (!droppedReference) {
         void reportAppError({
@@ -546,6 +553,7 @@ export const useCharacterManagerDroppedReferenceController = ({
       await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
     },
     [
+      setCharacterSheetPresetFile,
       ingestCharacterSheetDroppedReference,
       logCharacterDropBreadcrumb,
       resolveCharacterDropReference,

@@ -15,6 +15,20 @@ export type DroppedImageReference = {
 };
 
 /**
+ * Extracts dropped native files from a transfer payload.
+ */
+export const extractDroppedFiles = (transfer: DataTransfer | null | undefined): File[] => {
+  if (!transfer) return [];
+  const directFiles = Array.from(transfer.files ?? []);
+  if (directFiles.length) {
+    return directFiles.filter((file): file is File => file instanceof File);
+  }
+  return Array.from(transfer.items ?? [])
+    .map((item) => (item.kind === "file" ? item.getAsFile() : null))
+    .filter((file): file is File => file instanceof File);
+};
+
+/**
  * Parses a dropped URL candidate and rejects unsupported protocols/media kinds.
  */
 export const parseDropUrlCandidate = (value: string | null | undefined): string | null => {
@@ -160,7 +174,13 @@ export const hasDroppedImageReferenceTransfer = (
   transfer: DataTransfer | null | undefined
 ): boolean => {
   if (!transfer) return false;
+  if (extractDroppedFiles(transfer).length > 0) {
+    return true;
+  }
   const transferTypes = Array.from(transfer.types ?? []).map((value) => value.toLowerCase());
+  if (transferTypes.includes("files") || transferTypes.includes("application/x-moz-file")) {
+    return true;
+  }
   if (
     transferTypes.includes("text/reference-url") ||
     transferTypes.includes("text/uri-list") ||

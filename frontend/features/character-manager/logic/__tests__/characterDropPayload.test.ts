@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractFirstUriListEntry,
+  hasDroppedImageReferenceTransfer,
   inferMimeTypeFromUrl,
   isTrustedDroppedImageUrl,
   parseDropMediaFileId,
@@ -37,5 +38,17 @@ describe("characterDropPayload", () => {
   it("keeps data/blob dropped URLs trusted", () => {
     expect(isTrustedDroppedImageUrl("data:image/png;base64,abc")).toBe(true);
     expect(isTrustedDroppedImageUrl("blob:https://example.com/123")).toBe(true);
+  });
+
+  it("treats native file drags as supported reference transfers", () => {
+    const file = new File(["png"], "portrait.png", { type: "image/png" });
+    const transfer = {
+      files: [file],
+      items: [],
+      types: ["Files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+
+    expect(hasDroppedImageReferenceTransfer(transfer)).toBe(true);
   });
 });

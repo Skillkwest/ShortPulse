@@ -1,7 +1,7 @@
 /**
  * Character panel responsive layout metrics.
- * Maps the live embedded workspace size to bounded spacing and sizing values so
- * the Character panel breathes vertically without depending on shared CSS presets.
+ * Maps the live embedded workspace width to bounded spacing and sizing values so
+ * the Character panel keeps horizontal responsiveness without height-driven stretch.
  */
 
 export type CharacterPanelResponsiveLayoutInput = {
@@ -74,36 +74,29 @@ const round = (value: number): number => Math.round(value);
  */
 export const resolveCharacterPanelResponsiveLayout = ({
   panelWidthPx,
-  panelHeightPx,
   isEmbeddedMediaLibraryMaximized,
 }: CharacterPanelResponsiveLayoutInput): CharacterPanelResponsiveLayoutMetrics => {
   const safeWidth = clamp(panelWidthPx || 0, 320, 960);
-  const safeHeight = clamp(panelHeightPx || 0, 220, 640);
   const widthProgress = normalize(safeWidth, 360, 820);
-  const heightProgress = normalize(safeHeight, 240, 560);
-  const balancedProgress = clamp(widthProgress * 0.38 + heightProgress * 0.62, 0, 1);
+  const balancedProgress = widthProgress;
   const referenceGrowthBoost = isEmbeddedMediaLibraryMaximized ? 0.1 : 0;
-  const referenceProgress = clamp(
-    heightProgress * 0.68 + widthProgress * 0.32 + referenceGrowthBoost,
-    0,
-    1
-  );
+  const referenceProgress = clamp(widthProgress + referenceGrowthBoost, 0, 1);
 
   return {
     isCompactWidth: safeWidth < 520,
     actionButtonMinWidthPx: round(interpolate(144, 164, widthProgress)),
     actionButtonMinHeightPx: round(interpolate(42, 48, balancedProgress)),
     actionButtonHorizontalPaddingPx: round(interpolate(16, 20, widthProgress)),
-    contentGapPx: round(interpolate(6, 10, heightProgress)),
-    contentPaddingTopPx: round(interpolate(10, 14, heightProgress)),
+    contentGapPx: round(interpolate(6, 10, widthProgress)),
+    contentPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     contentPaddingXpx: round(interpolate(12, 16, widthProgress)),
-    contentPaddingBottomPx: round(interpolate(2, 6, heightProgress)),
+    contentPaddingBottomPx: round(interpolate(2, 6, widthProgress)),
     editorWrapperGapPx: round(interpolate(2, 6, balancedProgress)),
-    editorWrapperPaddingTopPx: round(interpolate(10, 14, heightProgress)),
+    editorWrapperPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     editorWrapperPaddingXpx: round(interpolate(6, 10, widthProgress)),
-    editorWrapperPaddingBottomPx: round(interpolate(4, 8, heightProgress)),
-    topFieldsColumnGapPx: round(interpolate(14, 26, widthProgress * 0.6 + heightProgress * 0.4)),
-    topFieldsRowGapPx: round(interpolate(8, 10, heightProgress)),
+    editorWrapperPaddingBottomPx: round(interpolate(4, 8, widthProgress)),
+    topFieldsColumnGapPx: round(interpolate(14, 26, widthProgress)),
+    topFieldsRowGapPx: round(interpolate(8, 10, widthProgress)),
     topFieldGroupGapPx: round(interpolate(4, 8, balancedProgress)),
     nameInputHeightPx: round(interpolate(34, 40, balancedProgress)),
     looksViewportMinHeightPx: round(interpolate(34, 38, balancedProgress)),
@@ -113,27 +106,25 @@ export const resolveCharacterPanelResponsiveLayout = ({
     looksTabHeightPx: round(interpolate(24, 28, balancedProgress)),
     looksDeleteButtonTopPx: round(interpolate(4, 5, balancedProgress)),
     looksDeleteButtonRightPx: round(interpolate(6, 7, widthProgress)),
-    presetContentColumnGapPx: round(
-      interpolate(16, 26, widthProgress * 0.55 + heightProgress * 0.45)
-    ),
-    presetContentRowGapPx: round(interpolate(10, 14, heightProgress)),
+    presetContentColumnGapPx: round(interpolate(16, 26, widthProgress)),
+    presetContentRowGapPx: round(interpolate(10, 14, widthProgress)),
     descriptionCardGapPx: round(interpolate(4, 8, balancedProgress)),
-    descriptionHeightPx: round(interpolate(108, 176, heightProgress)),
+    descriptionHeightPx: round(interpolate(108, 176, widthProgress)),
     descriptionFooterMinHeightPx: round(interpolate(10, 14, balancedProgress)),
-    descriptionContainerPaddingTopPx: round(interpolate(10, 14, heightProgress)),
+    descriptionContainerPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     descriptionContainerPaddingXpx: round(interpolate(12, 16, widthProgress)),
-    descriptionContainerPaddingBottomPx: round(interpolate(22, 28, heightProgress)),
+    descriptionContainerPaddingBottomPx: round(interpolate(22, 28, widthProgress)),
     descriptionTextareaPaddingYpx: round(interpolate(3, 5, balancedProgress)),
     referenceColumnGapPx: round(interpolate(6, 10, balancedProgress)),
     referenceGridGapPx: round(interpolate(8, 12, balancedProgress)),
     referenceCardMaxWidthPx: round(interpolate(96, 150, referenceProgress)),
     referenceActionInsetPx: round(interpolate(7, 10, balancedProgress)),
     referenceDeleteButtonSizePx: round(interpolate(18, 20, balancedProgress)),
-    referenceMediaPaddingTopPx: round(interpolate(10, 14, heightProgress)),
+    referenceMediaPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     referenceMediaPaddingXpx: round(interpolate(6, 10, widthProgress)),
-    referenceMediaPaddingBottomPx: round(interpolate(6, 8, heightProgress)),
+    referenceMediaPaddingBottomPx: round(interpolate(6, 8, widthProgress)),
     referenceDropCopyGapPx: round(interpolate(4, 6, balancedProgress)),
     referenceDropIconSizePx: round(interpolate(14, 16, balancedProgress)),
-    referenceHintMinHeightPx: round(interpolate(20, 24, heightProgress)),
+    referenceHintMinHeightPx: round(interpolate(24, 30, widthProgress)),
   };
 };

@@ -123,9 +123,10 @@ const buildDeleteButtonStyle = (
   right: `${rightPx}px`,
   width: "14px",
   height: "14px",
-  border: "none",
-  background: "transparent",
-  color: "rgba(198, 206, 216, 0.92)",
+  border: "1px solid rgba(140, 52, 66, 0.9)",
+  borderRadius: "999px",
+  background: "linear-gradient(180deg, rgba(74, 23, 31, 0.98) 0%, rgba(54, 16, 24, 0.98) 100%)",
+  color: "rgba(255, 176, 188, 0.98)",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
@@ -133,9 +134,12 @@ const buildDeleteButtonStyle = (
   fontSize: "12px",
   fontWeight: 700,
   lineHeight: 1,
+  boxShadow: isVisible
+    ? "0 0 0 1px rgba(255, 96, 123, 0.16), 0 3px 8px rgba(0, 0, 0, 0.24)"
+    : "none",
   opacity: isVisible ? 1 : 0,
   pointerEvents: isVisible ? "auto" : "none",
-  transition: "opacity 0.16s ease",
+  transition: "opacity 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
   cursor: "pointer",
 });
 

@@ -49,13 +49,15 @@ describe("AiStudioProjectEntryState", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-artwork")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-mask-blocker")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-motion")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-stage-glow")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 
-  it("renders the masked sweep without the old image-based layers", () => {
+  it("renders the image-backed masked sweep layers for the experimental entry state", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
 
     const { container } = render(
@@ -67,12 +69,12 @@ describe("AiStudioProjectEntryState", () => {
       />
     );
 
+    expect(container.querySelector(".ai-studio-project-entry-artwork")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-mask-blocker")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-bloom")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-sweep")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-runner")).toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-bg-image")).toBeNull();
   });
 
   it("keeps the PNG blocker asset aligned with the page background contract", () => {

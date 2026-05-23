@@ -96,7 +96,7 @@ export const resolveCharacterPanelResponsiveLayout = ({
     contentPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     contentPaddingXpx: round(interpolate(12, 16, widthProgress)),
     contentPaddingBottomPx: round(interpolate(2, 6, widthProgress)),
-    editorWrapperGapPx: round(interpolate(2, 6, balancedProgress)),
+    editorWrapperGapPx: round(interpolate(0, 2, balancedProgress)),
     editorWrapperPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     editorWrapperPaddingXpx: round(interpolate(6, 10, widthProgress)),
     editorWrapperPaddingBottomPx: round(interpolate(4, 8, widthProgress)),

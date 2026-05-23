@@ -116,7 +116,7 @@ const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   gap: "2px",
   marginTop: "6px",
   padding: "14px 8px 6px",
-  borderRadius: "18px",
+  borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: "rgba(201, 205, 214, 0.05)",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
@@ -192,6 +192,7 @@ const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   borderRadius: "10px",
   border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
   background: "rgba(12, 14, 19, 0.96)",
+  boxShadow: "0 10px 22px rgba(0, 0, 0, 0.18)",
   overflow: "hidden",
   position: "relative",
   boxSizing: "border-box",
@@ -1094,8 +1095,8 @@ export function CharacterPanelWorkspace({
                                         ? "rgba(59, 193, 255, 0.82)"
                                         : CHARACTER_PANEL_FIELD_BORDER_COLOR,
                                       boxShadow: isDropActive
-                                        ? "0 0 0 1px rgba(59, 193, 255, 0.18)"
-                                        : "none",
+                                        ? "0 0 0 1px rgba(59, 193, 255, 0.18), 0 10px 22px rgba(0, 0, 0, 0.18)"
+                                        : CHARACTER_REFERENCE_CARD_INLINE_STYLE.boxShadow,
                                       opacity:
                                         draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,
                                     }}

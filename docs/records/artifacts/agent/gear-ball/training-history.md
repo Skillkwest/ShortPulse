@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept the rail-visibility logic, music/voices panel behavior, embedded character panel polish, and coupled route/SOP docs in one honest shared-runtime lane, then pushed the exact validated tree after preflight and a clean final build.
-- What went wrong: the first preflight still paid avoidable cleanup cycles on formatting drift plus one dead constant before the real validation signal emerged.
-- Capability decision: keep the single shared-runtime batch when the page logic, right-rail behavior, panel tests, and route docs clearly move together, and add a tiny touched-file formatting/dead-binding sweep before the first shared UI preflight.
+- Score: `8.6/10`
+- What went right: Gear Ball kept the AI Studio preview/voices/character-panel lane coherent, validated the exact final product tree, and preserved the newly surfaced Copperknot docs/deletion lane as an explicit defer instead of silently absorbing it.
+- What went wrong: the first preflight still spent avoidable cycles on formatting drift and one dead constant, and the unrelated Copperknot lane only became visible after the first commit.
+- Capability decision: keep the single shared-runtime batch when the product surface and its tests/docs are clearly one contract, but do a stricter post-commit re-audit for unrelated doc tails so defer decisions happen earlier and cleaner.
 
 ## Previous Supervised Synthesis
 

@@ -96,7 +96,7 @@ describe("EmbeddedCharacterLooksControl", () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 
     expect(screen.getByRole("tab", { name: "1" })).toHaveStyle({
-      background: "rgba(201, 205, 214, 0.05)",
+      background: "rgb(31, 35, 41)",
     });
   });
 

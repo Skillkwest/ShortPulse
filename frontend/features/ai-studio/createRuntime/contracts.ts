@@ -110,7 +110,7 @@ export type StandardCreateRuntimeProps = {
     context?: ModelModalContext | null
   ) => void;
   onSelectedCharacterChange: (characterId: string, lookId: string) => void;
-  onOpenCharacterLibrary?: () => void;
+  onCreateCharacter?: () => void;
   onCharacterModeChange: Dispatch<SetStateAction<boolean>>;
   onRefreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>

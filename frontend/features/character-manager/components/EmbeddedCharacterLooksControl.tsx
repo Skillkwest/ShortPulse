@@ -5,7 +5,7 @@ import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(201, 205, 214, 0.05)";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 1)";
 const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
 type EmbeddedCharacterLooksControlProps = {

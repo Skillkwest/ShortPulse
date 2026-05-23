@@ -72,7 +72,7 @@ export const buildStandardCreateRuntimeResult = ({
     selectedCharacterLookId: props.selectedCharacterLookId,
     selectedCharacterLookLabel: props.selectedCharacterLookLabel,
     setSelectedCharacterId: props.onSelectedCharacterChange,
-    onOpenCharacterLibrary: props.onOpenCharacterLibrary,
+    onCreateCharacter: props.onCreateCharacter,
     isCharacterOptionsLoading: props.isCharacterOptionsLoading,
     isCharacterModeEnabled: props.isCharacterModeEnabled,
     setIsCharacterModeEnabled: props.onCharacterModeChange,

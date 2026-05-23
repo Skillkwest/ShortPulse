@@ -111,6 +111,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
   alignItems: "start",
 };
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 1)";
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
@@ -118,7 +119,8 @@ const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   padding: "14px 8px 6px",
   borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
-  background: "rgba(201, 205, 214, 0.05)",
+  background: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
+  backgroundColor: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {

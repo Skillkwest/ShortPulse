@@ -48,7 +48,7 @@ describe("buildStandardCreatePanelProps", () => {
     selectedCharacterLookId: "",
     selectedCharacterLookLabel: null,
     setSelectedCharacterId: vi.fn(),
-    onOpenCharacterLibrary: undefined,
+    onCreateCharacter: undefined,
     isCharacterOptionsLoading: false,
     isCharacterModeEnabled: false,
     setIsCharacterModeEnabled: vi.fn(),

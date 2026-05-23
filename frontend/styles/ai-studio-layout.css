@@ -1866,57 +1866,42 @@ body.ai-shell-resizing * {
   padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
-/* Sound button - teal sound panel variant */
+/* Sound button - cream canvas variant */
 .toolbar-item[data-tool-id="sound"] {
-  background: linear-gradient(
-    135deg,
-    rgba(9, 23, 28, 0.98) 0%,
-    rgba(18, 55, 60, 0.98) 56%,
-    rgba(73, 170, 165, 0.98) 100%
-  );
+  background: linear-gradient(135deg, #f7ecd5 0%, #efe2c3 54%, #e7d0a2 100%);
   margin: var(--ai-toolbar-primary-button-margin-y) 0;
   padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
-  border: 1px solid rgba(105, 220, 203, 0.42);
+  border: 1px solid rgba(245, 221, 174, 0.5);
   border-radius: var(--ai-toolbar-primary-button-radius);
   position: relative;
   min-height: var(--ai-toolbar-primary-button-min-height);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
-    0 6px 14px rgba(5, 18, 21, 0.34),
-    0 1px 0 rgba(197, 255, 246, 0.18) inset;
+    0 6px 14px rgba(34, 27, 18, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
-/* Sound button hover - teal sound panel variant */
+/* Sound button hover - cream canvas variant */
 .toolbar-item[data-tool-id="sound"]:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(11, 28, 34, 0.98) 0%,
-    rgba(22, 68, 74, 0.98) 54%,
-    rgba(105, 220, 203, 0.98) 100%
-  );
-  border-color: rgba(145, 239, 227, 0.72);
+  background: linear-gradient(135deg, #fbf3e1 0%, #f4e8cd 54%, #edd9b2 100%);
+  border-color: rgba(245, 221, 174, 0.72);
   transform: translateY(-2px);
   box-shadow:
-    0 9px 20px rgba(8, 24, 28, 0.4),
-    0 4px 12px rgba(105, 220, 203, 0.22),
-    0 0 0 1px rgba(145, 239, 227, 0.24);
+    0 9px 20px rgba(46, 34, 18, 0.24),
+    0 4px 12px rgba(235, 211, 168, 0.28),
+    0 0 0 1px rgba(245, 219, 173, 0.4);
 }
 
-/* Sound button active - teal sound panel variant */
+/* Sound button active - cream canvas variant */
 .toolbar-item[data-tool-id="sound"].is-active {
-  background: linear-gradient(
-    135deg,
-    rgba(10, 25, 30, 0.98) 0%,
-    rgba(24, 74, 80, 0.98) 54%,
-    rgba(105, 220, 203, 0.98) 100%
-  );
-  border-color: rgba(159, 244, 233, 0.92);
+  background: linear-gradient(135deg, #f3e5c8 0%, #ebdab4 54%, #e2c896 100%);
+  border-color: rgba(245, 221, 174, 0.92);
   transform: scale(1);
   box-shadow:
-    0 0 0 2px rgba(105, 220, 203, 0.78),
-    0 6px 14px rgba(6, 19, 22, 0.34),
-    inset 0 0 0 2px rgba(5, 19, 22, 0.44),
-    inset 0 1px 0 rgba(213, 255, 249, 0.3);
+    0 0 0 2px rgba(245, 221, 174, 0.95),
+    0 6px 14px rgba(29, 24, 16, 0.2),
+    inset 0 0 0 2px rgba(70, 51, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
   padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
 }
 
@@ -1943,7 +1928,7 @@ body.ai-shell-resizing * {
 }
 
 .toolbar-item[data-tool-id="sound"]:focus-visible {
-  outline: 2px solid #69dccb;
+  outline: 2px solid #f5ddae;
   outline-offset: 3px;
 }
 
@@ -2115,7 +2100,7 @@ body.ai-shell-resizing * {
 }
 
 .toolbar-item[data-tool-id="sound"] svg {
-  color: rgba(236, 249, 246, 0.98) !important;
+  color: #2f2618 !important;
 }
 
 .toolbar-item[data-tool-id="create"] .toolbar-label,
@@ -2142,7 +2127,7 @@ body.ai-shell-resizing * {
 }
 
 .toolbar-item[data-tool-id="sound"] .toolbar-label {
-  color: rgba(236, 249, 246, 0.98) !important;
+  color: #2f2618 !important;
   font-weight: 700 !important;
 }
 

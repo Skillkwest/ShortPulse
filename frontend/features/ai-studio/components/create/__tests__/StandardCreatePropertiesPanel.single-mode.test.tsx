@@ -190,7 +190,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   it("renders the character picker modal with shared controls and preserves selection behavior", async () => {
     createCharacterModeControllerState.isCharacterPickerOpen = true;
     const onSelectedCharacterIdChange = vi.fn();
-    const onOpenCharacterLibrary = vi.fn();
+    const onCreateCharacter = vi.fn();
 
     render(
       <StandardCreatePropertiesPanel
@@ -206,7 +206,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
         selectedCharacterId="char-1"
         selectedCharacterLookId=""
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
-        onOpenCharacterLibrary={onOpenCharacterLibrary}
+        onCreateCharacter={onCreateCharacter}
         loadCharacterLookOptions={async () => [{ id: "look-1", label: "Studio", isDefault: true }]}
       />
     );
@@ -216,7 +216,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "+ Create Character" }));
     expect(createCharacterModeControllerState.closeCharacterPicker).toHaveBeenCalledTimes(1);
-    expect(onOpenCharacterLibrary).toHaveBeenCalledTimes(1);
+    expect(onCreateCharacter).toHaveBeenCalledTimes(1);
 
     await waitFor(() => {
       expect(screen.getByText("Look: Studio")).toBeInTheDocument();

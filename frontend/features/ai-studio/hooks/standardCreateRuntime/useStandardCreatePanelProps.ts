@@ -64,7 +64,7 @@ type UseStandardCreatePanelPropsParams = {
   selectedCharacterLookId?: string;
   selectedCharacterLookLabel?: string | null;
   setSelectedCharacterId: (characterId: string, lookId: string) => void;
-  onOpenCharacterLibrary?: () => void;
+  onCreateCharacter?: () => void;
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
@@ -147,7 +147,7 @@ export const buildStandardCreatePanelProps = ({
   selectedCharacterLookId,
   selectedCharacterLookLabel,
   setSelectedCharacterId,
-  onOpenCharacterLibrary,
+  onCreateCharacter,
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
@@ -218,7 +218,7 @@ export const buildStandardCreatePanelProps = ({
     selectedCharacterLookId,
     selectedCharacterLookLabel,
     onSelectedCharacterIdChange: setSelectedCharacterId,
-    onOpenCharacterLibrary,
+    onCreateCharacter,
     isCharacterOptionsLoading,
     characterModeEnabled: isCharacterModeEnabled,
     onCharacterModeEnabledChange: setIsCharacterModeEnabled,

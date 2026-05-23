@@ -49,15 +49,13 @@ describe("AiStudioProjectEntryState", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-artwork")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-motion")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-stage-glow")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 
-  it("renders the image-backed masked sweep layers for the experimental entry state", () => {
+  it("keeps the experimental entry surface mask-only with no visible artwork layer", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
 
     const { container } = render(
@@ -69,15 +67,16 @@ describe("AiStudioProjectEntryState", () => {
       />
     );
 
-    expect(container.querySelector(".ai-studio-project-entry-artwork")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-bloom")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-sweep")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-artwork")).toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-stage-glow")).toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-runner")).toBeNull();
   });
 
-  it("keeps the PNG blocker asset aligned with the page background contract", () => {
+  it("keeps the source PNG blocker asset aligned with the page background contract", () => {
     const bgPath = path.join(process.cwd(), "public/loading-entry/bg.png");
     const bgBuffer = fs.readFileSync(bgPath);
 
@@ -85,6 +84,15 @@ describe("AiStudioProjectEntryState", () => {
     expect(bgBuffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(
       true
     );
+  });
+
+  it("keeps the dedicated transparent mask asset available for the invisible sweep effect", () => {
+    const maskPath = path.join(process.cwd(), "public/loading-entry/mask.svg");
+    const maskText = fs.readFileSync(maskPath, "utf8");
+
+    expect(maskText).toContain("<svg");
+    expect(maskText).toContain('stroke="white"');
+    expect(maskText).toContain('fill="white"');
   });
 
   it("keeps the legacy loader when the experimental flag is disabled", () => {

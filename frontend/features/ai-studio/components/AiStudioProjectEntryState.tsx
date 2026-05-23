@@ -3,7 +3,6 @@
  * Renders the full-page loading and error experience shown while project identity and
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
-import Image from "next/image";
 import React from "react";
 
 export type AiStudioProjectEntryPhase =
@@ -172,14 +171,6 @@ export function AiStudioProjectEntryState({
       <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
-            <Image
-              className="ai-studio-project-entry-artwork"
-              src="/loading-entry/bg.png"
-              alt=""
-              fill
-              priority
-              sizes="(max-width: 1024px) calc(100vw - 48px), 976px"
-            />
             <div className="ai-studio-project-entry-pulse-plane">
               <div className="ai-studio-project-entry-pulse-mask">
                 <div className="ai-studio-project-entry-pulse-motion">
@@ -188,7 +179,6 @@ export function AiStudioProjectEntryState({
                 </div>
               </div>
             </div>
-            <div className="ai-studio-project-entry-stage-glow" />
           </div>
         </section>
 

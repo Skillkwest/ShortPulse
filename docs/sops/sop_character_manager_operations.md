@@ -137,6 +137,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 4. Character lifecycle
 
 - Create character: stage a new local unsaved draft in the editor without persisting.
+- AI Studio `Create Character` entry points should all route through that same new-draft staging flow, including the Character panel `+ Create` action, the Create-panel Character Picker modal action, and other picker/modal create affordances that intentionally launch Character authoring.
 - Save character: create the persisted character + sheet, refresh the rail, and select the newly saved character.
 - Select character: load selected snapshot + refresh rail.
 - Delete character: delete target and load next available snapshot (or fall back to a local unsaved draft when the library is empty).

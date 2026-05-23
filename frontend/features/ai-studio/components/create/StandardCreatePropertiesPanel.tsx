@@ -89,7 +89,7 @@ export type StandardCreatePropertiesPanelProps = {
   selectedCharacterLookId?: string;
   selectedCharacterLookLabel?: string | null;
   onSelectedCharacterIdChange?: (characterId: string, lookId: string) => void;
-  onOpenCharacterLibrary?: () => void;
+  onCreateCharacter?: () => void;
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
@@ -115,7 +115,7 @@ type CharacterPickerModalProps = {
   selectedCharacterId: string;
   selectedCharacterLookId: string;
   onSelectedCharacterIdChange?: (characterId: string, lookId: string) => void;
-  onOpenCharacterLibrary?: () => void;
+  onCreateCharacter?: () => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
@@ -265,7 +265,7 @@ const CharacterPickerModal = ({
   selectedCharacterId,
   selectedCharacterLookId,
   onSelectedCharacterIdChange,
-  onOpenCharacterLibrary,
+  onCreateCharacter,
   refreshCharacterOptions,
   loadCharacterLookOptions,
   resolveCharacterAvatarUrlById,
@@ -388,7 +388,7 @@ const CharacterPickerModal = ({
             className="ai-character-picker-library-btn"
             onClick={() => {
               onClose();
-              onOpenCharacterLibrary?.();
+              onCreateCharacter?.();
             }}
           >
             + Create Character
@@ -563,7 +563,7 @@ export function StandardCreatePropertiesPanel({
   selectedCharacterLookId = "",
   selectedCharacterLookLabel = null,
   onSelectedCharacterIdChange,
-  onOpenCharacterLibrary,
+  onCreateCharacter,
   isCharacterOptionsLoading = false,
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
@@ -806,7 +806,7 @@ export function StandardCreatePropertiesPanel({
         selectedCharacterId={selectedCharacterId}
         selectedCharacterLookId={selectedCharacterLookId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
-        onOpenCharacterLibrary={onOpenCharacterLibrary}
+        onCreateCharacter={onCreateCharacter}
         refreshCharacterOptions={refreshCharacterOptions}
         loadCharacterLookOptions={loadCharacterLookOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}

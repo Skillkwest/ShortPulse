@@ -168,10 +168,10 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
     expect(voicesButton).toBeInTheDocument();
     expect(voicesButton).toHaveStyle({
-      width: "172px",
-      minWidth: "172px",
-      height: "56px",
-      minHeight: "56px",
+      width: "144px",
+      minWidth: "144px",
+      height: "42px",
+      minHeight: "42px",
       padding: "0 24px",
       borderRadius: "16px",
       fontSize: "0.98rem",

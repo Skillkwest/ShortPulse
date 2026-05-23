@@ -1769,12 +1769,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     type="button"
                     className="voices-properties-library-open-btn"
                     style={{
-                      width: "172px",
-                      minWidth: "172px",
-                      maxWidth: "172px",
-                      height: "56px",
-                      minHeight: "56px",
-                      maxHeight: "56px",
+                      width: "144px",
+                      minWidth: "144px",
+                      maxWidth: "144px",
+                      height: "42px",
+                      minHeight: "42px",
+                      maxHeight: "42px",
                       padding: "0 24px",
                       borderRadius: "16px",
                       fontSize: "0.98rem",
@@ -1884,7 +1884,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
               <div className="voices-properties-script-actions">
                 <div className="voices-properties-generate-context is-align-end" aria-live="polite">
-                  <span className="voices-properties-generate-context-label">Selected voice</span>
                   <span className="voices-properties-generate-context-value-row">
                     {isSelectedVoiceFreshlyLoaded ? (
                       <span
@@ -1896,14 +1895,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         <span className="voices-properties-generate-loaded-arrow-head" />
                       </span>
                     ) : null}
-                    <span
-                      className={`voices-properties-generate-context-value ${
-                        isSelectedVoiceFreshlyLoaded
-                          ? "voices-properties-generate-context-value--loaded"
-                          : ""
-                      }`}
-                    >
-                      {selectedGenerateVoiceName}
+                    <span className="voices-properties-generate-context-copy">
+                      <span className="voices-properties-generate-context-label">
+                        Selected voice
+                      </span>
+                      <span
+                        className={`voices-properties-generate-context-value ${
+                          isSelectedVoiceFreshlyLoaded
+                            ? "voices-properties-generate-context-value--loaded"
+                            : ""
+                        }`}
+                      >
+                        {selectedGenerateVoiceName}
+                      </span>
                     </span>
                   </span>
                 </div>

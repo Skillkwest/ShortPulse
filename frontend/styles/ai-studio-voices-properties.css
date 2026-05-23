@@ -1092,8 +1092,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 172px;
-  min-height: 56px;
+  min-width: 144px;
+  min-height: 42px;
   padding: 0 24px;
   border: 1px solid rgba(105, 220, 203, 0.58);
   border-color: rgba(105, 220, 203, 0.58);
@@ -2426,12 +2426,21 @@
 }
 
 .voices-properties-generate-context-value-row {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, auto);
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  column-gap: 10px;
   min-width: 0;
   max-width: 100%;
+}
+
+.voices-properties-generate-context-copy {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 
 .voices-properties-generate-context-value--loaded {
@@ -2443,17 +2452,18 @@
   align-items: center;
   flex-shrink: 0;
   gap: 0;
-  margin-right: 4px;
+  align-self: center;
   transform-origin: right center;
   filter: drop-shadow(0 0 12px rgba(93, 70, 255, 0.28));
-  animation: voices-properties-loaded-voice-arrow-nudge 0.95s ease-in-out infinite;
+  opacity: 0;
+  animation: voices-properties-loaded-voice-arrow-point 4.2s ease-out forwards;
 }
 
 .voices-properties-generate-loaded-arrow-shaft {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
+  width: 52px;
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(88, 44, 255, 0.95), rgba(110, 90, 255, 0.94));
@@ -2461,12 +2471,12 @@
 }
 
 .voices-properties-generate-loaded-arrow-head {
-  width: 18px;
-  height: 18px;
-  margin-left: -8px;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-left: 18px solid rgba(110, 90, 255, 0.96);
+  width: 24px;
+  height: 22px;
+  margin-left: -9px;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  border-left: 24px solid rgba(110, 90, 255, 0.96);
 }
 
 @keyframes voices-properties-loaded-voice-flash {
@@ -2486,18 +2496,37 @@
   }
 }
 
-@keyframes voices-properties-loaded-voice-arrow-nudge {
-  0%,
+@keyframes voices-properties-loaded-voice-arrow-point {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.98);
+  }
+
+  10% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  24% {
+    transform: translateX(5px) scale(1.02);
+  }
+
+  38% {
+    transform: translateX(0) scale(1);
+  }
+
+  52% {
+    transform: translateX(5px) scale(1.02);
+  }
+
+  68% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
   100% {
-    transform: translateX(0);
-  }
-
-  45% {
-    transform: translateX(4px) scale(1.02);
-  }
-
-  70% {
-    transform: translateX(1px);
+    opacity: 0;
+    transform: translateX(8px) scale(0.98);
   }
 }
 

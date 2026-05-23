@@ -3,7 +3,14 @@
  * Simplified single-surface workflow aligned with the current music standard-mode treatment.
  */
 .sound-effects-properties-panel {
-  display: contents;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties {
@@ -15,20 +22,27 @@
 
 .sound-effects-properties-shell {
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
-  padding: 14px;
-  background: var(--create-composer-selector-bg, var(--color-bg));
+  padding: 4px 12px 12px;
+  background: #131518;
+  box-sizing: border-box;
 }
 
 .sound-effects-properties-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   min-height: 0;
-  padding-top: 8px;
+  height: 100%;
+  padding: 6px 14px 14px;
+  box-sizing: border-box;
 }
 
 .sound-effects-properties-top-spacer {

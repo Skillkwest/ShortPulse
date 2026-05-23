@@ -24,6 +24,14 @@ type CharacterPanelProps = {
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
+const CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
+const CHARACTER_PANEL_ROOT_INLINE_STYLE: React.CSSProperties = {
+  width: `calc(100% + ${CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX * 2}px)`,
+  marginLeft: `-${CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX}px`,
+  marginRight: `-${CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX}px`,
+  maxWidth: "none",
+};
+
 export function CharacterPanel({
   resolveCharacterDropReference,
   resolveMediaLibraryInternalDropItem,
@@ -42,7 +50,11 @@ export function CharacterPanel({
   });
 
   return (
-    <div ref={panelRootRef} className="character-panel-root">
+    <div
+      ref={panelRootRef}
+      className="character-panel-root"
+      style={CHARACTER_PANEL_ROOT_INLINE_STYLE}
+    >
       <CharacterPanelSplitHost
         externalCreateRequestKey={createRequestKey}
         externalUploadRequest={externalUploadRequest}

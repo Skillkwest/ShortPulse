@@ -130,6 +130,6 @@ export const resolveCharacterPanelResponsiveLayout = ({
     referenceMediaPaddingBottomPx: round(interpolate(6, 8, widthProgress)),
     referenceDropCopyGapPx: round(interpolate(4, 6, balancedProgress)),
     referenceDropIconSizePx: round(interpolate(14, 16, balancedProgress)),
-    referenceHintMinHeightPx: round(interpolate(24, 30, widthProgress)),
+    referenceHintMinHeightPx: round(interpolate(28, 36, widthProgress)),
   };
 };

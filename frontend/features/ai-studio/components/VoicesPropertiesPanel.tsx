@@ -70,8 +70,9 @@ const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
 const minVoicesTopSectionHeightPx = 120;
-const minVoicesBottomSectionHeightPx = 360;
+const minVoicesBottomSectionHeightPx = 500;
 const maxVoicesBottomSectionHeightPx = 500;
+const fixedVoicesBottomSectionHeightPx = 500;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -381,6 +382,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     null
   );
   const [loadedVoiceCueVoiceId, setLoadedVoiceCueVoiceId] = React.useState<string | null>(null);
+  const [pendingLoadedVoiceCueVoiceId, setPendingLoadedVoiceCueVoiceId] = React.useState<
+    string | null
+  >(null);
   const voicePrompt = controlledVoicePrompt ?? voicePromptState;
   const voiceScript = controlledVoiceScript ?? voiceScriptState;
   const setVoicePrompt = React.useCallback(
@@ -500,6 +504,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     maxBottomSectionHeightPx: maxVoicesBottomSectionHeightPx,
     ariaLabel: "Resize voices mode and composition sections",
   });
+  const fixedBottomSectionStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...bottomSectionStyle,
+      height: `${fixedVoicesBottomSectionHeightPx}px`,
+      minHeight: `${fixedVoicesBottomSectionHeightPx}px`,
+      maxHeight: `${fixedVoicesBottomSectionHeightPx}px`,
+      flexBasis: `${fixedVoicesBottomSectionHeightPx}px`,
+      flexGrow: 0,
+      flexShrink: 0,
+    }),
+    [bottomSectionStyle]
+  );
 
   const triggerLoadedVoiceCue = React.useCallback((voiceId: string) => {
     const normalizedVoiceId = voiceId.trim();
@@ -527,6 +543,26 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       }
     };
   }, []);
+
+  React.useEffect(() => {
+    if (isCreateVoiceModalOpen) {
+      return;
+    }
+
+    const pendingVoiceId = pendingLoadedVoiceCueVoiceId?.trim() ?? "";
+    const selectedVoiceId = selectedLibraryVoice?.id?.trim() ?? "";
+    if (!pendingVoiceId || pendingVoiceId !== selectedVoiceId) {
+      return;
+    }
+
+    triggerLoadedVoiceCue(pendingVoiceId);
+    setPendingLoadedVoiceCueVoiceId(null);
+  }, [
+    isCreateVoiceModalOpen,
+    pendingLoadedVoiceCueVoiceId,
+    selectedLibraryVoice?.id,
+    triggerLoadedVoiceCue,
+  ]);
 
   React.useLayoutEffect(() => {
     const textarea = voicePromptRef.current;
@@ -1523,7 +1559,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
-      triggerLoadedVoiceCue(createdVoiceId);
+      setPendingLoadedVoiceCueVoiceId(createdVoiceId);
       setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
@@ -1541,7 +1577,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     resetCreateVoiceModalState,
     playedVoiceDesignPreviewIds,
     selectedVoiceDesignPreviewId,
-    triggerLoadedVoiceCue,
     upsertSharedVoice,
     voiceName,
     voicePrompt,
@@ -1600,7 +1635,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
-      triggerLoadedVoiceCue(clonedVoiceId);
+      setPendingLoadedVoiceCueVoiceId(clonedVoiceId);
       setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
@@ -1618,7 +1653,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     cloneVoiceSource,
     isCloneConsentChecked,
     resetCreateVoiceModalState,
-    triggerLoadedVoiceCue,
     upsertSharedVoice,
     voiceName,
   ]);
@@ -1856,7 +1890,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               />
             </div>
 
-            <section className="voices-properties-compose-area" style={bottomSectionStyle}>
+            <section className="voices-properties-compose-area" style={fixedBottomSectionStyle}>
               {surfaceMode === "create" ? (
                 <div className="voices-properties-script-input-shell">
                   <textarea

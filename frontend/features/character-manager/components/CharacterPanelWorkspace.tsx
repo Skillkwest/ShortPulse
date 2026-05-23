@@ -51,6 +51,7 @@ const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
 const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+const CHARACTER_PANEL_FIELD_BORDER_COLOR = "rgba(34, 40, 49, 0.96)";
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
   minHeight: "48px",
@@ -138,7 +139,7 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   padding: "6px 10px",
   width: "100%",
   borderRadius: "10px",
-  border: "1px solid rgba(34, 40, 49, 0.96)",
+  border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
   background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   color: "rgba(242, 246, 252, 0.96)",
@@ -187,9 +188,9 @@ const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
   aspectRatio: "4 / 5",
-  gridTemplateRows: "minmax(0, 1fr) 26px",
+  gridTemplateRows: "minmax(0, 1fr) 30px",
   borderRadius: "10px",
-  border: "1px solid rgba(30, 34, 41, 0.96)",
+  border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
   background: "rgba(12, 14, 19, 0.96)",
   overflow: "hidden",
   position: "relative",
@@ -284,11 +285,15 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   minHeight: "22px",
+  padding: "0 8px",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   background: "rgba(11, 13, 18, 0.98)",
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",
   fontWeight: 600,
+  lineHeight: 1.1,
+  textAlign: "center",
+  boxSizing: "border-box",
 };
 const getCharacterInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -1083,10 +1088,11 @@ export function CharacterPanelWorkspace({
                                       ...CHARACTER_REFERENCE_CARD_INLINE_STYLE,
                                       width: "100%",
                                       maxWidth: `${responsiveLayout.referenceCardMaxWidthPx}px`,
+                                      gridTemplateRows: `minmax(0, 1fr) ${responsiveLayout.referenceHintMinHeightPx}px`,
                                       justifySelf: "stretch",
                                       borderColor: isDropActive
                                         ? "rgba(59, 193, 255, 0.82)"
-                                        : "rgba(30, 34, 41, 0.96)",
+                                        : CHARACTER_PANEL_FIELD_BORDER_COLOR,
                                       boxShadow: isDropActive
                                         ? "0 0 0 1px rgba(59, 193, 255, 0.18)"
                                         : "none",

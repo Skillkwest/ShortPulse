@@ -206,6 +206,11 @@ describe("CharacterPanelWorkspace", () => {
     expect(
       screen.queryByRole("button", { name: /upload portrait reference/i })
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Portrait")).toHaveStyle({
+      minHeight: "28px",
+      justifyContent: "center",
+      alignItems: "center",
+    });
   });
 
   it("opens the saved character grid inside the Characters modal", () => {

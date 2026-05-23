@@ -5,6 +5,7 @@ import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(201, 205, 214, 0.05)";
 const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
 type EmbeddedCharacterLooksControlProps = {
@@ -72,8 +73,8 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   width: "100%",
   borderRadius: "12px 12px 0 0",
   border: "none",
-  background: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(201, 205, 214, 0.02)",
-  backgroundColor: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(201, 205, 214, 0.02)",
+  background: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "rgba(201, 205, 214, 0.02)",
+  backgroundColor: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "rgba(201, 205, 214, 0.02)",
   color: isActive ? "#ecfbff" : "rgba(182, 195, 208, 0.92)",
   display: "inline-flex",
   alignItems: "center",
@@ -112,6 +113,13 @@ const TAB_SHELL_STYLE: React.CSSProperties = {
   minWidth: 0,
   width: "100%",
 };
+
+const buildTabShellStyle = (isActive: boolean): React.CSSProperties => ({
+  ...TAB_SHELL_STYLE,
+  borderRadius: "12px 12px 0 0",
+  background: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "transparent",
+  backgroundColor: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "transparent",
+});
 
 const buildDeleteButtonStyle = (
   isVisible: boolean,
@@ -307,7 +315,7 @@ export function EmbeddedCharacterLooksControl({
               return (
                 <div
                   key={presetId}
-                  style={TAB_SHELL_STYLE}
+                  style={buildTabShellStyle(isActive)}
                   onMouseEnter={() => {
                     setHoveredPresetId(presetId);
                   }}

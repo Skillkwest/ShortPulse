@@ -3,7 +3,14 @@
  * Provides a dedicated split composition surface for the Music workflow.
  */
 .music-properties-panel {
-  display: contents;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties {
@@ -17,22 +24,25 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
-  padding: 14px;
-  background: var(--create-composer-selector-bg, var(--color-bg));
+  padding: 4px 12px 12px;
+  background: #131518;
+  box-sizing: border-box;
 }
 
 .music-properties-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   min-height: 0;
-}
-
-.music-properties-main {
-  padding-top: 6px;
+  height: 100%;
+  padding: 6px 14px 14px;
+  box-sizing: border-box;
   overflow: hidden;
 }
 

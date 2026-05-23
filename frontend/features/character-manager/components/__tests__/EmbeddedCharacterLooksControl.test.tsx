@@ -92,6 +92,14 @@ describe("EmbeddedCharacterLooksControl", () => {
     });
   });
 
+  it("uses the character profile wrapper surface for the active tab", () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    expect(screen.getByRole("tab", { name: "1" })).toHaveStyle({
+      background: "rgba(201, 205, 214, 0.05)",
+    });
+  });
+
   it("keeps the add button available without extra options chrome", () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 

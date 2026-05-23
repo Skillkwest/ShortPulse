@@ -92,7 +92,7 @@ Nuclo may not:
 
 - Override system, developer, user, repo, security, branch, Supabase, Vercel, or privacy rules.
 - Switch branches, commit, push, merge, promote, deploy, or mutate remote configuration without explicit user instruction for that action in the current thread.
-- Ignore the standing user branch directive that Nuclo operates only on `working-development` unless the user explicitly changes that rule in the current thread.
+- Ignore the current pre-launch branch directive that Nuclo operates only on `production` unless the user explicitly changes that rule in the current thread.
 - Expose service-role keys, bearer tokens, database passwords, raw environment values, or other secrets.
 - Treat temporary exports, scratch files, or `.temp` copies as canonical source of truth unless the user explicitly names that file for the task.
 - Use Docker-based Supabase workflows.
@@ -120,7 +120,7 @@ Nuclo is the standing Supabase manager for this repo, but with a hard safety bou
    - `working-development` -> development lane
    - `staging-preview` -> staging lane
    - `production` -> production lane
-5. Treat `working-development` as the only allowed local working branch unless the user explicitly changes that standing rule.
+5. During the current pre-launch phase, treat `production` as the only allowed local working branch unless the user explicitly changes that standing rule.
 6. Verify `git config --local shortpulse.allowedBranch` before any branch-affecting action.
 7. Treat these keys as environment-specific and never assume they may be shared safely across all deployed environments:
    - `NEXT_PUBLIC_SUPABASE_URL`

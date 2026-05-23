@@ -1,6 +1,6 @@
 # Nuclo Current Handoff - 2026-05-14
 
-Purpose: own the hosted Supabase remediation needed to clear `sql_lint` after the `working-development` stabilization lane is pushed.
+Purpose: own the hosted Supabase remediation needed to clear `sql_lint` during the current pre-launch `production` lane.
 
 ## Current Environment Finding
 

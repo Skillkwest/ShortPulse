@@ -21,6 +21,7 @@ type UseReferenceGridHorizontalSplitArgs = {
   defaultTopRatio?: number;
   minTopSectionHeightPx?: number;
   minBottomSectionHeightPx?: number;
+  maxBottomSectionHeightPx?: number;
   minTopRatioFloor?: number;
   allRefsSnapTopHeightPx?: number;
   collapseTopHeightPx?: number;
@@ -90,10 +91,16 @@ const resolveRatioBounds = (
   containerHeight: number,
   minTopSectionHeightPx: number,
   minBottomSectionHeightPx: number,
-  minTopRatioFloor: number
+  minTopRatioFloor: number,
+  maxBottomSectionHeightPx?: number
 ): RatioBounds => {
   const safeHeight = Math.max(1, containerHeight);
-  const min = clamp(minTopSectionHeightPx / safeHeight, minTopRatioFloor, 0.98);
+  const minTopRatio = clamp(minTopSectionHeightPx / safeHeight, minTopRatioFloor, 0.98);
+  const minBottomMaxRatio =
+    typeof maxBottomSectionHeightPx === "number" && Number.isFinite(maxBottomSectionHeightPx)
+      ? clamp(1 - Math.max(0, maxBottomSectionHeightPx) / safeHeight, minTopRatioFloor, 0.98)
+      : minTopRatioFloor;
+  const min = Math.max(minTopRatio, minBottomMaxRatio);
   const max = clamp(1 - minBottomSectionHeightPx / safeHeight, 0.02, 0.995);
   if (min <= max) return { min, max };
 
@@ -112,6 +119,7 @@ export const useReferenceGridHorizontalSplit = ({
   defaultTopRatio = DEFAULT_TOP_RATIO,
   minTopSectionHeightPx = DEFAULT_MIN_TOP_SECTION_HEIGHT_PX,
   minBottomSectionHeightPx = DEFAULT_MIN_BOTTOM_SECTION_HEIGHT_PX,
+  maxBottomSectionHeightPx,
   minTopRatioFloor = FALLBACK_MIN_RATIO,
   allRefsSnapTopHeightPx = DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX,
   collapseTopHeightPx,
@@ -157,11 +165,17 @@ export const useReferenceGridHorizontalSplit = ({
         containerHeight,
         minTopSectionHeightPx,
         minBottomSectionHeightPx,
-        normalizedMinTopRatioFloor
+        normalizedMinTopRatioFloor,
+        maxBottomSectionHeightPx
       );
       return clamp(ratio, bounds.min, bounds.max);
     },
-    [minBottomSectionHeightPx, minTopSectionHeightPx, normalizedMinTopRatioFloor]
+    [
+      maxBottomSectionHeightPx,
+      minBottomSectionHeightPx,
+      minTopSectionHeightPx,
+      normalizedMinTopRatioFloor,
+    ]
   );
 
   const resolveCollapseRatio = useCallback(
@@ -209,7 +223,8 @@ export const useReferenceGridHorizontalSplit = ({
         containerHeight,
         minTopSectionHeightPx,
         minBottomSectionHeightPx,
-        normalizedMinTopRatioFloor
+        normalizedMinTopRatioFloor,
+        maxBottomSectionHeightPx
       );
       const currentRatio = clamp(topRatioRef.current, bounds.min, bounds.max);
       if (Math.abs(currentRatio - topRatioRef.current) >= 0.001) {
@@ -225,6 +240,7 @@ export const useReferenceGridHorizontalSplit = ({
     },
     [
       commitTopRatio,
+      maxBottomSectionHeightPx,
       minBottomSectionHeightPx,
       minTopSectionHeightPx,
       normalizedMinTopRatioFloor,
@@ -316,7 +332,8 @@ export const useReferenceGridHorizontalSplit = ({
               height,
               minTopSectionHeightPx,
               minBottomSectionHeightPx,
-              normalizedMinTopRatioFloor
+              normalizedMinTopRatioFloor,
+              maxBottomSectionHeightPx
             )
           : FALLBACK_RATIO_BOUNDS;
       const step = event.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP;
@@ -355,6 +372,7 @@ export const useReferenceGridHorizontalSplit = ({
       applyDeltaPx,
       commitTopRatio,
       enabled,
+      maxBottomSectionHeightPx,
       minBottomSectionHeightPx,
       minTopSectionHeightPx,
       normalizedMinTopRatioFloor,
@@ -407,7 +425,8 @@ export const useReferenceGridHorizontalSplit = ({
           containerHeightPx,
           minTopSectionHeightPx,
           minBottomSectionHeightPx,
-          normalizedMinTopRatioFloor
+          normalizedMinTopRatioFloor,
+          maxBottomSectionHeightPx
         )
       : fallbackRatioBounds;
   const ariaValueNow = Math.round(topRatio * 100);
@@ -433,11 +452,13 @@ export const useReferenceGridHorizontalSplit = ({
       height,
       minTopSectionHeightPx,
       minBottomSectionHeightPx,
-      normalizedMinTopRatioFloor
+      normalizedMinTopRatioFloor,
+      maxBottomSectionHeightPx
     );
     commitTopRatio(bounds.max);
   }, [
     commitTopRatio,
+    maxBottomSectionHeightPx,
     minBottomSectionHeightPx,
     minTopSectionHeightPx,
     normalizedMinTopRatioFloor,

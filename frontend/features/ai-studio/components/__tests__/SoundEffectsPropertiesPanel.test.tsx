@@ -177,6 +177,61 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(nextPrompt);
   });
 
+  it("shows the inserted inspiration text when the panel is wired like the page runtime", () => {
+    const Harness = () => {
+      const [prompt, setPrompt] = React.useState("");
+
+      return <SoundEffectsPropertiesPanel prompt={prompt} onPromptChange={setPrompt} />;
+    };
+
+    render(<Harness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "vinyl crackle" }));
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "Warm vinyl crackle bed with soft dusty texture, subtle needle noise, and an intimate lo-fi character without harsh distortion."
+    );
+  });
+
+  it("keeps chip clicks inserting prompt text through a real pointer sequence", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    const chip = screen.getByRole("button", { name: "vinyl crackle" });
+
+    fireEvent.pointerDown(chip, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+    });
+    fireEvent.pointerUp(chip, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+    });
+    fireEvent.click(chip);
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "Warm vinyl crackle bed with soft dusty texture, subtle needle noise, and an intimate lo-fi character without harsh distortion."
+    );
+  });
+
+  it("submits the authored inspiration prompt text after a chip click", () => {
+    const onGenerate = vi.fn();
+
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "vinyl crackle" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Warm vinyl crackle bed with soft dusty texture, subtle needle noise, and an intimate lo-fi character without harsh distortion.",
+      })
+    );
+  });
+
   it("fails closed when an inspiration prompt would exceed the SFX prompt budget", () => {
     render(<SoundEffectsPropertiesPanel prompt={"p".repeat(420)} />);
 

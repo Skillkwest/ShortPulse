@@ -391,6 +391,53 @@ describe("MusicPropertiesPanel", () => {
     );
   });
 
+  it("keeps chip clicks inserting prompt text through a real pointer sequence", () => {
+    render(<MusicPropertiesPanel />);
+
+    const chip = screen.getByRole("button", { name: "indie folk" });
+
+    fireEvent.pointerDown(chip, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+    });
+    fireEvent.pointerUp(chip, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+    });
+    fireEvent.click(chip);
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "Warm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic."
+    );
+  });
+
+  it("submits the authored inspiration prompt text after a chip click", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "indie folk" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        text: "Warm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic.",
+      })
+    );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        text: "Warm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic.",
+      })
+    );
+  });
+
   it("fails closed when an inspiration prompt would exceed the shared custom-mode budget", () => {
     render(<MusicPropertiesPanel prompt={"p".repeat(1920)} lyrics={"l".repeat(25)} />);
 

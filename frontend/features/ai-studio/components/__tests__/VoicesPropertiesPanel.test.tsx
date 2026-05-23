@@ -162,10 +162,20 @@ describe("VoicesPropertiesPanel", () => {
 
   it("renders the dedicated voices workflow surface", () => {
     const { container } = render(<VoicesPropertiesPanel />);
+    const voicesButton = screen.getByRole("button", { name: "Voices" });
 
     expect(screen.getByRole("heading", { name: "Select or create new voice" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
+    expect(voicesButton).toBeInTheDocument();
+    expect(voicesButton).toHaveStyle({
+      width: "172px",
+      minWidth: "172px",
+      height: "56px",
+      minHeight: "56px",
+      padding: "0 24px",
+      borderRadius: "16px",
+      fontSize: "0.98rem",
+    });
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
       "placeholder",
       "Paste or write the script that will be spoken with this voice."
@@ -1739,7 +1749,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     expect(within(voicesPanel).getByText("Lantern")).toBeInTheDocument();
-    expect(within(voicesPanel).getByText("Loaded")).toBeInTheDocument();
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
@@ -1827,7 +1837,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     expect(within(voicesPanel).getByText("Cloned Lantern")).toBeInTheDocument();
-    expect(within(voicesPanel).getByText("Loaded")).toBeInTheDocument();
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();

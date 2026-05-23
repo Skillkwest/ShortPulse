@@ -70,7 +70,8 @@ const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
 const minVoicesTopSectionHeightPx = 120;
-const minVoicesBottomSectionHeightPx = 480;
+const minVoicesBottomSectionHeightPx = 360;
+const maxVoicesBottomSectionHeightPx = 440;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -496,6 +497,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     defaultTopRatio: 0.22,
     minTopSectionHeightPx: minVoicesTopSectionHeightPx,
     minBottomSectionHeightPx: minVoicesBottomSectionHeightPx,
+    maxBottomSectionHeightPx: maxVoicesBottomSectionHeightPx,
     ariaLabel: "Resize voices mode and composition sections",
   });
 
@@ -1766,6 +1768,17 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     ref={voicesLibraryTriggerRef}
                     type="button"
                     className="voices-properties-library-open-btn"
+                    style={{
+                      width: "172px",
+                      minWidth: "172px",
+                      maxWidth: "172px",
+                      height: "56px",
+                      minHeight: "56px",
+                      maxHeight: "56px",
+                      padding: "0 24px",
+                      borderRadius: "16px",
+                      fontSize: "0.98rem",
+                    }}
                     aria-label="Voices"
                     onClick={handleOpenVoicesLibraryModal}
                   >
@@ -1873,6 +1886,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <div className="voices-properties-generate-context is-align-end" aria-live="polite">
                   <span className="voices-properties-generate-context-label">Selected voice</span>
                   <span className="voices-properties-generate-context-value-row">
+                    {isSelectedVoiceFreshlyLoaded ? (
+                      <span
+                        className="voices-properties-generate-loaded-arrow-cue"
+                        data-testid="selected-voice-loaded-arrow"
+                        aria-hidden="true"
+                      >
+                        <span className="voices-properties-generate-loaded-arrow-shaft" />
+                        <span className="voices-properties-generate-loaded-arrow-head" />
+                      </span>
+                    ) : null}
                     <span
                       className={`voices-properties-generate-context-value ${
                         isSelectedVoiceFreshlyLoaded
@@ -1882,17 +1905,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     >
                       {selectedGenerateVoiceName}
                     </span>
-                    {isSelectedVoiceFreshlyLoaded ? (
-                      <span className="voices-properties-generate-loaded-indicator">
-                        <span
-                          className="voices-properties-generate-loaded-arrow"
-                          aria-hidden="true"
-                        >
-                          ↓
-                        </span>
-                        <span>Loaded</span>
-                      </span>
-                    ) : null}
                   </span>
                 </div>
                 <button

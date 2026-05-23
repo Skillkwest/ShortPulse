@@ -127,6 +127,24 @@ describe("useReferenceGridHorizontalSplit", () => {
     expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);
   });
 
+  it("caps the bottom section height when a maximum is provided", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const containerRef = { current: createContainer(800) };
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.2,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 300,
+        maxBottomSectionHeightPx: 420,
+      })
+    );
+
+    expect(result.current.bottomSectionHeightPx).toBeCloseTo(420, 3);
+    expect(result.current.topSectionHeightPx).toBeCloseTo(380, 3);
+  });
+
   it("keeps top ratio pinned at bounds on keyboard overflow", () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     const containerRef = { current: createContainer(400) };

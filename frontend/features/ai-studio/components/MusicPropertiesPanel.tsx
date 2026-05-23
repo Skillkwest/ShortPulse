@@ -310,6 +310,13 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     [composerMode, lyrics, prompt, setPrompt]
   );
 
+  const handleInspirationChipPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+    },
+    []
+  );
+
   const scrollInspirationRail = React.useCallback(
     (direction: "backward" | "forward") => {
       const node = inspirationScrollerRef.current;
@@ -443,6 +450,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
               key={chip.label}
               type="button"
               className="music-properties-inspiration-chip"
+              onPointerDown={handleInspirationChipPointerDown}
               onClick={() => handleInspirationClick(chip)}
             >
               {chip.label}

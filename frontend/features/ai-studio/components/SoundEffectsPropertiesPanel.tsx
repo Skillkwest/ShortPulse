@@ -224,6 +224,13 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     [appendInspirationChip]
   );
 
+  const handleInspirationChipPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+    },
+    []
+  );
+
   const handleInspirationPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isGenerating) return;
@@ -261,7 +268,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const endInspirationDrag = React.useCallback(
     (pointerId?: number) => {
       const node = inspirationScrollerRef.current;
-      if (node && pointerId != null && node.hasPointerCapture(pointerId)) {
+      if (node && pointerId != null && node.hasPointerCapture?.(pointerId)) {
         node.releasePointerCapture(pointerId);
       }
       inspirationDragPointerIdRef.current = null;
@@ -355,6 +362,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                         type="button"
                         className="sound-effects-properties-inspiration-chip"
                         disabled={isGenerating}
+                        onPointerDown={handleInspirationChipPointerDown}
                         onClick={() => handleInspirationChipClick(chip)}
                       >
                         {chip.label}

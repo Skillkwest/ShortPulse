@@ -2438,33 +2438,35 @@
   animation: voices-properties-loaded-voice-flash 1.8s ease-out;
 }
 
-.voices-properties-generate-loaded-indicator {
+.voices-properties-generate-loaded-arrow-cue {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   flex-shrink: 0;
-  padding: 5px 10px;
-  border: 1px solid rgba(137, 231, 223, 0.36);
-  border-radius: 999px;
-  background: rgba(39, 63, 67, 0.42);
-  color: rgba(171, 243, 236, 0.96);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  line-height: 1;
-  text-transform: uppercase;
-  box-shadow: 0 0 0 0 rgba(105, 220, 203, 0.2);
-  animation:
-    voices-properties-loaded-voice-bob 1s ease-in-out infinite,
-    voices-properties-loaded-voice-pulse 1.8s ease-in-out infinite;
+  gap: 0;
+  margin-right: 4px;
+  transform-origin: right center;
+  filter: drop-shadow(0 0 12px rgba(93, 70, 255, 0.28));
+  animation: voices-properties-loaded-voice-arrow-nudge 0.95s ease-in-out infinite;
 }
 
-.voices-properties-generate-loaded-arrow {
+.voices-properties-generate-loaded-arrow-shaft {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  width: 46px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(88, 44, 255, 0.95), rgba(110, 90, 255, 0.94));
   line-height: 1;
+}
+
+.voices-properties-generate-loaded-arrow-head {
+  width: 18px;
+  height: 18px;
+  margin-left: -8px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 18px solid rgba(110, 90, 255, 0.96);
 }
 
 @keyframes voices-properties-loaded-voice-flash {
@@ -2484,31 +2486,24 @@
   }
 }
 
-@keyframes voices-properties-loaded-voice-bob {
+@keyframes voices-properties-loaded-voice-arrow-nudge {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateX(0);
   }
 
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes voices-properties-loaded-voice-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(105, 220, 203, 0.16);
+  45% {
+    transform: translateX(4px) scale(1.02);
   }
 
-  50% {
-    box-shadow: 0 0 0 8px rgba(105, 220, 203, 0.02);
+  70% {
+    transform: translateX(1px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .voices-properties-generate-context-value--loaded,
-  .voices-properties-generate-loaded-indicator {
+  .voices-properties-generate-loaded-arrow-cue {
     animation: none;
   }
 }

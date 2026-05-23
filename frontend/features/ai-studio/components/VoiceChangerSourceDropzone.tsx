@@ -525,7 +525,7 @@ const createSourceFromInternalPayload = (
 
   const remoteSourceUrl = [referenceUrl, renderUrl].find(
     (candidate): candidate is string =>
-      Boolean(candidate) &&
+      typeof candidate === "string" &&
       !/^(?:blob:|data:)/i.test(candidate) &&
       inferSourceKindFromUrl(candidate) === kind
   );

@@ -13,7 +13,10 @@ const createSupabaseAdmin = ({
   projectionRows: Record<string, unknown>[];
   generationRows: Record<string, unknown>[];
   outputRows?: Record<string, unknown>[];
-  upsertImpl?: (payload: Record<string, unknown>) => Promise<{ data?: unknown; error: unknown }>;
+  upsertImpl?: (
+    payload: Record<string, unknown>,
+    options?: Record<string, unknown>
+  ) => Promise<{ data?: unknown; error: unknown }>;
 }) => {
   const upsert = vi.fn(
     upsertImpl ??

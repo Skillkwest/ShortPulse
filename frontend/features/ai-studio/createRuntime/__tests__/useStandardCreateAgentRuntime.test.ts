@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStandardCreateAgentRuntime } from "../useStandardCreateAgentRuntime";
-import type { AgentAttachment } from "../../../../prefabs/agent";
+import type { AgentAttachment, AgentContext } from "../../../../prefabs/agent";
 
 const mockSend = vi.fn();
 const mockAppendUserMessage = vi.fn();
@@ -81,7 +81,7 @@ describe("useStandardCreateAgentRuntime", () => {
     prompt: "existing prompt",
     projectId: null,
     projectRouteRequested: false,
-    getAgentContext: vi.fn(() => ({ messages: [] })),
+    getAgentContext: vi.fn((): AgentContext => ({})),
     setStandardCreatePrompt: vi.fn(),
     addAgentPromptReference: vi.fn(),
     editReferenceText: "",

@@ -71,7 +71,7 @@ const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
 const minVoicesTopSectionHeightPx = 120;
 const minVoicesBottomSectionHeightPx = 360;
-const maxVoicesBottomSectionHeightPx = 440;
+const maxVoicesBottomSectionHeightPx = 500;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -373,7 +373,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   );
   const [isVoicesLibraryModalOpen, setIsVoicesLibraryModalOpen] = React.useState(false);
   const [activeVoicesLibrarySection, setActiveVoicesLibrarySection] =
-    React.useState<VoicesLibrarySection>(selectedLibraryVoice?.librarySection ?? "default");
+    React.useState<VoicesLibrarySection>("my");
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
@@ -578,11 +578,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   }, [isVoicesLibraryModalOpen]);
 
   React.useEffect(() => {
+    if (isVoicesLibraryModalOpen) {
+      return;
+    }
     if (!selectedLibraryVoice) {
       return;
     }
     setActiveVoicesLibrarySection(selectedLibraryVoice.librarySection);
-  }, [selectedLibraryVoice]);
+  }, [isVoicesLibraryModalOpen, selectedLibraryVoice]);
 
   React.useEffect(() => {
     if (isCreateVoiceModalOpen) {
@@ -1268,6 +1271,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const handleOpenVoicesLibraryModal = React.useCallback(() => {
     shouldRestoreVoicesLibraryTriggerFocusRef.current = true;
+    setActiveVoicesLibrarySection("my");
     setIsVoicesLibraryModalOpen(true);
   }, []);
 
@@ -1776,7 +1780,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       minHeight: "42px",
                       maxHeight: "42px",
                       padding: "0 24px",
-                      borderRadius: "16px",
+                      borderRadius: "12px",
                       fontSize: "0.98rem",
                     }}
                     aria-label="Voices"

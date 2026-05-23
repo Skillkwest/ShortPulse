@@ -146,7 +146,11 @@ describe("Dashboard bootstrap state", () => {
   });
 
   it("hides guest CTAs while the dashboard session bootstrap is still pending and then settles into the authenticated view", async () => {
-    const snapshot = {
+    const snapshot: {
+      initialized: boolean;
+      session: { user: typeof appUser } | null;
+      user: typeof appUser | null;
+    } = {
       initialized: false,
       session: null,
       user: null,

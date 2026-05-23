@@ -351,6 +351,9 @@ export function CharacterPanelWorkspace({
   const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = React.useState<string | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
+  const [measuredReferenceCardHeightPx, setMeasuredReferenceCardHeightPx] = React.useState<
+    number | null
+  >(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [isCharacterLibraryModalOpen, setIsCharacterLibraryModalOpen] = React.useState(false);
@@ -442,7 +445,7 @@ export function CharacterPanelWorkspace({
       minHeight: "42px",
       maxHeight: "42px",
       padding: "0 24px",
-      borderRadius: "16px",
+      borderRadius: "12px",
       fontSize: "0.98rem",
     }),
     []
@@ -687,6 +690,36 @@ export function CharacterPanelWorkspace({
       triggerSaveSuccessIndicator();
     }
   }, [saveCharacter, triggerSaveSuccessIndicator]);
+
+  const referenceCardMeasureObserverRef = React.useRef<ResizeObserver | null>(null);
+  const handleReferenceCardMeasureRef = React.useCallback((node: HTMLElement | null) => {
+    referenceCardMeasureObserverRef.current?.disconnect();
+    referenceCardMeasureObserverRef.current = null;
+
+    if (!node || typeof ResizeObserver !== "function") {
+      return;
+    }
+
+    const syncHeight = () => {
+      const nextHeight = Math.round(node.getBoundingClientRect().height || node.clientHeight || 0);
+      if (nextHeight <= 0) return;
+      setMeasuredReferenceCardHeightPx((current) =>
+        current === nextHeight ? current : nextHeight
+      );
+    };
+
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(node);
+    referenceCardMeasureObserverRef.current = observer;
+    syncHeight();
+  }, []);
+
+  React.useEffect(
+    () => () => {
+      referenceCardMeasureObserverRef.current?.disconnect();
+    },
+    []
+  );
 
   const assignFilesToSlots = React.useCallback(
     async (files: File[]) => {
@@ -982,7 +1015,10 @@ export function CharacterPanelWorkspace({
                                 rows={5}
                                 disabled={loading}
                                 cardGapPx={responsiveLayout.descriptionCardGapPx}
-                                containerHeightPx={responsiveLayout.descriptionHeightPx}
+                                containerHeightPx={
+                                  measuredReferenceCardHeightPx ??
+                                  responsiveLayout.descriptionHeightPx
+                                }
                                 containerPaddingTopPx={
                                   responsiveLayout.descriptionContainerPaddingTopPx
                                 }
@@ -1031,6 +1067,11 @@ export function CharacterPanelWorkspace({
                                 return (
                                   <article
                                     key={dropZone.key}
+                                    ref={
+                                      dropZone.key === "portrait"
+                                        ? handleReferenceCardMeasureRef
+                                        : null
+                                    }
                                     className={`character-character-sheet-card ${
                                       assignedReference ? "is-filled" : "is-empty"
                                     } ${isDropActive ? "is-drop-active" : ""} ${

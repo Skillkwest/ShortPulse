@@ -20,12 +20,24 @@ const ownedMediaSelectBuilder = {
 };
 ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
 ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
+const ownedGenerationSelectBuilder = {
+  eq: vi.fn(),
+  in: vi.fn(),
+  then: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["then"]>) =>
+    Promise.resolve(ownedGenerationQueryResult).then(...args),
+  catch: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["catch"]>) =>
+    Promise.resolve(ownedGenerationQueryResult).catch(...args),
+  finally: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["finally"]>) =>
+    Promise.resolve(ownedGenerationQueryResult).finally(...args),
+};
+ownedGenerationSelectBuilder.eq.mockReturnValue(ownedGenerationSelectBuilder);
+ownedGenerationSelectBuilder.in.mockReturnValue(ownedGenerationSelectBuilder);
 const mediaOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
   () => ownedMediaSelectBuilder
 );
-const generationOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
-  () => ownedMediaSelectBuilder
-);
+const generationOwnershipSelectMock = vi.fn<
+  (columns: string) => typeof ownedGenerationSelectBuilder
+>(() => ownedGenerationSelectBuilder);
 const associationUpsertMock = vi.fn();
 const mediaAssociationUpsertMock = vi.fn();
 const projectGenerationItemsSelectMock = vi.fn<(columns: string) => unknown>();
@@ -114,11 +126,9 @@ describe("associateGenerationWithProjectForUser", () => {
     ownedGenerationQueryResult = { data: [], error: null };
     ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
     ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
-    generationOwnershipSelectMock.mockImplementation(() => ({
-      eq: vi.fn(() => ({
-        in: vi.fn(async () => ownedGenerationQueryResult),
-      })),
-    }));
+    ownedGenerationSelectBuilder.eq.mockReturnValue(ownedGenerationSelectBuilder);
+    ownedGenerationSelectBuilder.in.mockReturnValue(ownedGenerationSelectBuilder);
+    generationOwnershipSelectMock.mockImplementation(() => ownedGenerationSelectBuilder);
     generationPublicationsSelectMock.mockReturnValue(
       createAwaitableSelectBuilder({
         data: [],

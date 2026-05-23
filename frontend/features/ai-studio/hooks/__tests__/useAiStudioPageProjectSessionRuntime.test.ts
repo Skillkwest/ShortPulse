@@ -13,6 +13,7 @@ import {
 } from "../useAiStudioPageProjectSessionRuntime";
 
 const useAiStudioPageSessionPersistenceMock = vi.fn();
+const createNoopDraftSetter = () => vi.fn();
 
 vi.mock("../useAiStudioPageSessionPersistence", () => ({
   useAiStudioPageSessionPersistence: (...args: unknown[]) =>
@@ -137,7 +138,12 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         setCreateSelectedCharacterLookId,
         setIsCreateCharacterModeEnabled,
         setExpertEditSessionState: vi.fn(),
+        setMusicPromptDraft: createNoopDraftSetter(),
+        setMusicLyricsDraft: createNoopDraftSetter(),
+        setSoundEffectsPromptDraft: createNoopDraftSetter(),
         setUiNotice: vi.fn(),
+        setVoiceDesignPromptDraft: createNoopDraftSetter(),
+        setVoiceScriptDraft: createNoopDraftSetter(),
       })
     );
 
@@ -208,7 +214,12 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         setCreateSelectedCharacterLookId: vi.fn(),
         setIsCreateCharacterModeEnabled,
         setExpertEditSessionState: vi.fn(),
+        setMusicPromptDraft: createNoopDraftSetter(),
+        setMusicLyricsDraft: createNoopDraftSetter(),
+        setSoundEffectsPromptDraft: createNoopDraftSetter(),
         setUiNotice: vi.fn(),
+        setVoiceDesignPromptDraft: createNoopDraftSetter(),
+        setVoiceScriptDraft: createNoopDraftSetter(),
       })
     );
 

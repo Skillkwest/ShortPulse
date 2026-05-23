@@ -167,7 +167,7 @@ describe("useCreateAgentStateCore", () => {
           resolvers.push(resolve);
         })
     );
-    const resolveTransportSuccess = vi.fn(async (response: { message: string }) => ({
+    const resolveTransportSuccess = vi.fn((response: { message: string }) => ({
       actions: undefined,
       workflowSession: null,
       assistantContent: response.message,

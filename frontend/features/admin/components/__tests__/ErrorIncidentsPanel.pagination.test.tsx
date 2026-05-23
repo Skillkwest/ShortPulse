@@ -54,6 +54,8 @@ const buildBaseProps = (): PanelProps => ({
     characterModeReferenceRefreshEmptyLast24hCount: 0,
     characterModeBundleUnavailableFallbackLastHourCount: 0,
     characterModeBundleUnavailableFallbackLast24hCount: 0,
+    projectWorkspaceRepairPendingLastHourCount: 0,
+    projectWorkspaceRepairPendingLast24hCount: 0,
     total15mThreshold: 40,
     high15mThreshold: 8,
     generation15mThreshold: 20,

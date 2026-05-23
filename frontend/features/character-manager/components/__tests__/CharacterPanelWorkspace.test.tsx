@@ -373,13 +373,11 @@ describe("CharacterPanelWorkspace", () => {
 
   it("acknowledges external uploads only after assignment succeeds", async () => {
     const onExternalUploadRequestHandled = vi.fn();
-    let resolveUpload: ((value: boolean) => void) | null = null;
-    setCharacterSheetPresetFileMock.mockImplementation(
-      () =>
-        new Promise<boolean>((resolve) => {
-          resolveUpload = resolve;
-        })
-    );
+    let resolveUploadPromise!: (value: boolean) => void;
+    const uploadPromise = new Promise<boolean>((resolve) => {
+      resolveUploadPromise = resolve;
+    });
+    setCharacterSheetPresetFileMock.mockImplementation(() => uploadPromise);
 
     render(
       <CharacterPanelWorkspace
@@ -396,7 +394,7 @@ describe("CharacterPanelWorkspace", () => {
     });
     expect(onExternalUploadRequestHandled).not.toHaveBeenCalled();
 
-    resolveUpload?.(true);
+    resolveUploadPromise(true);
 
     await waitFor(() => {
       expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(7);

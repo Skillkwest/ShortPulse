@@ -162,6 +162,9 @@ describe("useCreatePulsePresetPageRuntime", () => {
     );
 
     let activation: ReturnType<typeof result.current.beginPulseActivation> | undefined;
+    if (!resolvedCustomPreset) {
+      throw new Error("Expected custom preset to resolve.");
+    }
     act(() => {
       activation = result.current.beginPulseActivation(resolvedCustomPreset);
     });

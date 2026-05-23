@@ -11,7 +11,7 @@ import { useAiStudioState } from "../useAiStudioState";
 import * as ingestionPreparation from "../../reference-ingestion/prepareLibraryMediaIngestionPayload";
 
 const mockUpdateOutputById = vi.fn();
-const mockFindOutputById = vi.fn(() => null);
+const mockFindOutputById = vi.fn<(id: string) => StudioOutput | null>(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
@@ -66,7 +66,10 @@ const resolveReferenceInputsForToolMock = vi.fn((tool: string | null) => {
 });
 const getSignedMediaUrlMock = vi.fn();
 const refreshSupabaseSignedUrlIfNeededMock = vi.fn();
-const abandonGenerationOutputMock = vi.fn(async () => undefined);
+const abandonGenerationOutputMock = vi.fn(async (args: unknown) => {
+  void args;
+  return undefined;
+});
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
@@ -108,6 +111,7 @@ vi.mock("../useAiStudioReferenceSelectionState", () => ({
     clearReferenceImages: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
     resolveReferenceInputsForTool: resolveReferenceInputsForToolMock,
+    setAuthorityState: vi.fn(),
     isModelModalOpen: false,
     modelModalAnchor: null,
     modelModalContext: null,

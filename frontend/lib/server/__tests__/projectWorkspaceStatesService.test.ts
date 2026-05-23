@@ -20,6 +20,7 @@ const writeAppErrorLogMock = vi.mocked(writeAppErrorLog);
 
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
+  associatedSnapshotGenerationIds?: string[];
   recentGenerationIds?: string[];
   projectionRows?: Array<Record<string, unknown>>;
   publicationRows?: Array<Record<string, unknown>>;
@@ -35,6 +36,7 @@ type SupabaseMockOptions = {
 
 const createSupabaseMock = ({
   workspaceSnapshot,
+  associatedSnapshotGenerationIds = ["generation-1"],
   recentGenerationIds = ["generation-1"],
   projectionRows = [
     {
@@ -131,7 +133,9 @@ const createSupabaseMock = ({
     eq: vi.fn(() => ({
       eq: vi.fn(() => ({
         in: vi.fn(async (_column: string, ids: string[]) => ({
-          data: ids.filter((id) => id === "generation-1").map((id) => ({ generation_id: id })),
+          data: ids
+            .filter((id) => associatedSnapshotGenerationIds.includes(id))
+            .map((id) => ({ generation_id: id })),
           error: null,
         })),
         order: vi.fn(() => ({

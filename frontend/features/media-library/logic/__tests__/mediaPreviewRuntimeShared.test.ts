@@ -12,12 +12,18 @@ const {
   mockCreateMediaPerfTimer,
 } = vi.hoisted(() => ({
   mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
-  mockResolveMediaSigningStoragePaths: vi.fn(() => [] as string[]),
+  mockResolveMediaSigningStoragePaths: vi.fn((row?: { storage_path?: string | null }) => {
+    void row;
+    return [] as string[];
+  }),
   mockResolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
     storagePaths: mockResolveMediaSigningStoragePaths(row),
     directUrl: null as string | null,
   })),
-  mockCreateMediaPerfTimer: vi.fn(),
+  mockCreateMediaPerfTimer: vi.fn((baseData?: Record<string, unknown>) => {
+    void baseData;
+    return vi.fn();
+  }),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({

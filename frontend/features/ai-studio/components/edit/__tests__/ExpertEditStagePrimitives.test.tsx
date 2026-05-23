@@ -64,6 +64,9 @@ describe("ExpertEditStageContextMenu", () => {
 
     const visibleStage = screen.getByText("visible stage").parentElement;
     const visibleComposition = screen.getByLabelText("Primary composition surface");
+    if (!(visibleStage instanceof HTMLElement)) {
+      throw new Error("Expected visible stage wrapper to be an HTMLElement.");
+    }
     expect(visibleStage?.tabIndex).toBe(-1);
     expect(visibleComposition?.tabIndex).toBe(0);
     expect(visibleComposition).toHaveAttribute("data-keyboard-pan-owner", "true");
@@ -84,6 +87,9 @@ describe("ExpertEditStageContextMenu", () => {
     const hiddenComposition = screen
       .getByText("hidden composition")
       .closest(".edit-expert-primary-composition-surface");
+    if (!(hiddenComposition instanceof HTMLElement)) {
+      throw new Error("Expected hidden composition surface to be an HTMLElement.");
+    }
     expect(hiddenComposition?.tabIndex).toBe(-1);
     expect(hiddenComposition).not.toHaveAttribute("data-keyboard-pan-owner");
     expect(hiddenComposition).toHaveAttribute("aria-hidden", "true");

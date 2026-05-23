@@ -247,7 +247,7 @@ describe("useAiStudioTasks", () => {
       })
     );
 
-    let output = {
+    let output: StudioOutput = {
       ...makeOutput(),
       saveState: "blocked_storage" as const,
       saveError:
@@ -297,7 +297,7 @@ describe("useAiStudioTasks", () => {
       })
     );
 
-    let output = {
+    let output: StudioOutput = {
       ...makeOutput(),
       saveState: "blocked_storage" as const,
       saveError:

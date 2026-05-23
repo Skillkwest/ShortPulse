@@ -833,7 +833,7 @@ describe("useCharacterManagerDraft", () => {
         }),
       {
         initialProps: {
-          preferredCharacterId: null,
+          preferredCharacterId: null as string | null,
         },
       }
     );

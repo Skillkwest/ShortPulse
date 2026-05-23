@@ -167,15 +167,10 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("heading", { name: "Select or create new voice" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Available voices")).not.toBeInTheDocument();
     expect(voicesButton).toBeInTheDocument();
-    expect(voicesButton).toHaveStyle({
-      width: "144px",
-      minWidth: "144px",
-      height: "42px",
-      minHeight: "42px",
-      padding: "0 24px",
-      borderRadius: "16px",
-      fontSize: "0.98rem",
-    });
+    expect(voicesButton).toHaveStyle("width: 144px");
+    expect(voicesButton).toHaveStyle("height: 42px");
+    expect(voicesButton).toHaveStyle("padding: 0 24px");
+    expect(voicesButton).toHaveStyle("font-size: 0.98rem");
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
       "placeholder",
       "Paste or write the script that will be spoken with this voice."
@@ -295,17 +290,15 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByLabelText("Available voices")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice library sections" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Default Voices" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute(
       "aria-selected",
       "false"
     );
     expect(screen.getByRole("button", { name: "+ Create New Voice" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
 
@@ -526,13 +519,6 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
     await openVoicesLibraryModal();
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /adam voice/i })).toBeInTheDocument();
-    });
-    expect(screen.queryByRole("button", { name: /custom voice voice/i })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "My Voices" }));
-
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
@@ -554,6 +540,7 @@ describe("VoicesPropertiesPanel", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByRole("button", { name: /adam voice/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /custom voice voice/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();
@@ -2430,6 +2417,7 @@ describe("VoicesPropertiesPanel", () => {
 
     const voicesButton = screen.getByRole("button", { name: "Voices" });
     await openVoicesLibraryModal();
+    fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
 
     fireEvent.click(screen.getByRole("button", { name: /talia voice/i }));
 

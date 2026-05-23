@@ -5,7 +5,10 @@ import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../lib/model-runtime/createPulseBuiltIns";
-import { SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS } from "../../features/ai-studio/components/edit/expertEditPresets";
+import {
+  SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
+  type ExpertEditSystemPresetDefinition,
+} from "../../features/ai-studio/components/edit/expertEditPresets";
 import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
@@ -75,7 +78,7 @@ const buildStandardPromptResponse = (
 });
 
 const buildEditSystemPresetResponse = (
-  presetDefinitions = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
+  presetDefinitions: readonly ExpertEditSystemPresetDefinition[] = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
 ) => ({
   ok: true,
   json: async () => ({
@@ -431,14 +434,17 @@ describe("Admin agent instructions page", () => {
         }
         if (input === "/api/admin/agent-instructions/edit-system-presets") {
           if (init?.method === "PUT") {
-            return buildEditSystemPresetResponse([
-              {
-                ...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS[0],
-                label: "Front Camera Selfie",
-                prompt: "Use a realistic front-camera selfie perspective.",
-              },
-              ...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS.slice(1),
-            ]);
+            const editedPresetDefinitions: ExpertEditSystemPresetDefinition[] =
+              SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS.map((preset) =>
+                preset.presetId === "selfie"
+                  ? {
+                      ...preset,
+                      label: "Front Camera Selfie",
+                      prompt: "Use a realistic front-camera selfie perspective.",
+                    }
+                  : { ...preset }
+              );
+            return buildEditSystemPresetResponse([...editedPresetDefinitions]);
           }
           return buildEditSystemPresetResponse();
         }

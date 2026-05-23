@@ -284,8 +284,14 @@
 .sound-effects-properties-script-actions {
   display: flex;
   align-items: end;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
+}
+
+.sound-effects-properties-script-actions-left {
+  display: inline-flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
 }
 
 .sound-effects-properties-script-count {
@@ -481,7 +487,11 @@
   }
 
   .sound-effects-properties-script-actions {
-    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .sound-effects-properties-script-actions-left {
+    align-self: flex-start;
   }
 
   .sound-effects-properties-script-actions-right {

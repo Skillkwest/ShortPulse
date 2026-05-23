@@ -5,6 +5,7 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { createElevenLabsClonedVoice } from "../../../../lib/server/elevenlabs";
+import { createPersistedElevenLabsVoiceSample } from "../../../../lib/server/elevenlabsVoiceSamples";
 import {
   MediaAudioExtractionInputError,
   readStoredMediaBuffer,
@@ -113,6 +114,10 @@ export default async function handler(
       sourceMimeType: storedSource.contentType,
       removeBackgroundNoise,
     });
+    const voiceSample = await createPersistedElevenLabsVoiceSample({
+      userId: user.id,
+      voiceId: clonedVoice.voiceId,
+    });
 
     try {
       await saveVoiceForUser({
@@ -120,8 +125,9 @@ export default async function handler(
         voice: {
           voiceId: clonedVoice.voiceId,
           name: clonedVoice.name,
-          previewUrl: clonedVoice.previewUrl,
+          previewUrl: voiceSample.previewUrl,
           description: clonedVoice.description,
+          sampleStoragePath: voiceSample.sampleStoragePath,
           originKind: "provider-user-created",
           savedSource: "voice-clone",
           providerDeleteEligible: true,
@@ -141,7 +147,7 @@ export default async function handler(
       voice: {
         voiceId: clonedVoice.voiceId,
         name: clonedVoice.name,
-        previewUrl: clonedVoice.previewUrl,
+        previewUrl: voiceSample.previewUrl,
         description: clonedVoice.description,
         isFallback: false,
       },

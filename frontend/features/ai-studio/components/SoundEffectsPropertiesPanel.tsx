@@ -299,9 +299,10 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     <section className="sound-effects-properties-panel tool-properties" aria-busy={isGenerating}>
       <div className="sound-effects-properties-shell">
         <div ref={splitContainerRef} className="sound-effects-properties-main">
-          <section className="sound-effects-properties-top-spacer" style={topSectionStyle}>
-            <h2 className="panel-title sound-effects-properties-title">Sound Effects</h2>
-          </section>
+          <section
+            className="sound-effects-properties-top-spacer"
+            style={topSectionStyle}
+          ></section>
 
           <div
             className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
@@ -395,6 +396,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
             </div>
 
             <div className="sound-effects-properties-script-actions">
+              <div className="sound-effects-properties-script-actions-left">
+                <h2 className="panel-title sound-effects-properties-title">Sound Effects</h2>
+              </div>
               <div className="sound-effects-properties-script-actions-right">
                 <div className="sound-effects-properties-footer-controls">
                   <button

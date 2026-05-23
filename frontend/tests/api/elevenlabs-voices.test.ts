@@ -153,6 +153,56 @@ describe("GET /api/elevenlabs/voices", () => {
     );
   });
 
+  it("keeps the saved sample preview when a matching live provider voice has no preview", async () => {
+    listSavedVoicesForUserMock.mockResolvedValue([
+      {
+        voiceId: "voice-created-1",
+        name: "Created Voice",
+        previewUrl: "https://signed.example.com/created-sample.mp3",
+        description: "Saved sample preview",
+        provider: "elevenlabs",
+        isFallback: false,
+        createdAt: new Date().toISOString(),
+        originKind: "provider-user-created",
+        savedSource: "text-to-voice-create",
+        providerDeleteEligible: true,
+        sampleStoragePath: "user-1/voice-samples/voice-created-1/sample.mp3",
+      },
+    ]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-created-1",
+        name: "Created Voice",
+        previewUrl: null,
+        description: "Freshly generated provider voice",
+        isFallback: false,
+        providerCategory: "generated",
+        providerVoiceType: "personal",
+      },
+    ]);
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      voices: Array<{ voiceId: string; previewUrl: string | null }>;
+    };
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "voice-created-1",
+          previewUrl: "https://signed.example.com/created-sample.mp3",
+        }),
+      ])
+    );
+  });
+
   it("excludes configured provider voices from the voices catalog", async () => {
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([

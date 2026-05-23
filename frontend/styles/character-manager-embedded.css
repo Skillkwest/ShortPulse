@@ -45,7 +45,7 @@
   --character-panel-card-bg: rgba(201, 205, 214, 0.02);
   --character-panel-wrapper-bg: rgba(201, 205, 214, 0.02);
   --character-panel-card-radius: 16px;
-  --character-panel-tab-tray-bg: rgba(14, 15, 19, 0.72);
+  --character-panel-tab-tray-bg: #15161a;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;

@@ -13,6 +13,12 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(container.querySelector('[aria-label="Available sound effects"]')).toBeNull();
     expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("heading", { name: "Sound Effects" })
+        .closest(".sound-effects-properties-script-actions-left")
+        ?.closest(".sound-effects-properties-script-actions")
+    ).not.toBeNull();
     expect(screen.queryByText("No sound effects yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Generated sound effects will appear here.")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect prompt")).toHaveAttribute(

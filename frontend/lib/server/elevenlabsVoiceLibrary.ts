@@ -174,12 +174,14 @@ export const resolveVoiceLibraryEntry = ({
     savedVoice,
     originKind,
   });
+  const previewUrl = providerVoice?.previewUrl ?? savedVoice?.previewUrl ?? null;
+  const description = providerVoice?.description ?? savedVoice?.description ?? null;
 
   return {
     voiceId: baseVoice.voiceId,
     name: sanitizeCustomerFacingProviderText(baseVoice.name, "Voice"),
-    previewUrl: baseVoice.previewUrl ?? null,
-    description: sanitizeOptionalVoiceText(baseVoice.description),
+    previewUrl,
+    description: sanitizeOptionalVoiceText(description),
     isFallback: Boolean(providerVoice?.isFallback ?? baseVoice.isFallback),
     librarySection,
     provider: "elevenlabs",

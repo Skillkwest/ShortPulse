@@ -542,8 +542,15 @@
 .music-properties-script-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
+}
+
+.music-properties-script-actions-left {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-self: start;
+  flex: 0 0 auto;
 }
 
 .music-properties-script-actions-right {
@@ -858,7 +865,11 @@
   }
 
   .music-properties-script-actions {
-    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .music-properties-script-actions-left {
+    align-self: flex-start;
   }
 
   .music-properties-script-actions-right {

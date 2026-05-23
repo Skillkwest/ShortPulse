@@ -1043,6 +1043,17 @@
   align-self: flex-end;
 }
 
+.voices-properties-library-selector--footer .voices-properties-library-open-btn,
+.voices-properties-library-selector--footer .voices-properties-library-label {
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
 .voices-properties-library-label {
   margin: 0;
   min-width: 0;
@@ -1131,6 +1142,23 @@
   background: rgba(28, 32, 37, 0.98);
   color: rgba(149, 235, 228, 0.96);
   transform: none;
+}
+
+.voices-properties-library-selector--footer:hover .voices-properties-library-open-btn,
+.voices-properties-library-selector--footer:focus-within .voices-properties-library-open-btn {
+  border-color: rgba(145, 238, 228, 0.88);
+  background: linear-gradient(180deg, rgba(38, 48, 52, 0.98), rgba(28, 32, 37, 0.98));
+  color: rgba(226, 252, 248, 0.98);
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(105, 220, 203, 0.14),
+    0 0 18px rgba(105, 220, 203, 0.14);
+}
+
+.voices-properties-library-selector--footer:hover .voices-properties-library-label,
+.voices-properties-library-selector--footer:focus-within .voices-properties-library-label {
+  color: rgba(170, 227, 220, 0.82);
 }
 
 .voices-properties-library-create-btn:hover {

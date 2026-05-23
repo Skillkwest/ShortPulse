@@ -63,6 +63,7 @@ describe("userSavedVoices", () => {
         originKind: "legacy-saved",
         savedSource: "legacy",
         providerDeleteEligible: false,
+        sampleStoragePath: null,
       },
       {
         voiceId: "voice_b",
@@ -75,7 +76,50 @@ describe("userSavedVoices", () => {
         originKind: "legacy-saved",
         savedSource: "legacy",
         providerDeleteEligible: false,
+        sampleStoragePath: null,
       },
+    ]);
+  });
+
+  it("refreshes signed preview URLs for saved voice samples", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ai_studio_saved_voices: [
+          {
+            voiceId: "voice_sampled",
+            name: "Sampled",
+            previewUrl: "https://expired.shortpulse.test/sample.mp3",
+            sampleStoragePath: "user-123/voice-samples/voice_sampled/sample.mp3",
+            description: "Saved sample",
+            createdAt: "2026-04-20T12:00:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: "https://signed.shortpulse.test/sample.mp3" },
+      error: null,
+    });
+    const storageFrom = vi.fn().mockReturnValue({ createSignedUrl });
+    getSupabaseAdminMock.mockReturnValue({ from, storage: { from: storageFrom } });
+
+    const voices = await listSavedVoicesForUser("user-123");
+
+    expect(storageFrom).toHaveBeenCalledWith("media_library");
+    expect(createSignedUrl).toHaveBeenCalledWith(
+      "user-123/voice-samples/voice_sampled/sample.mp3",
+      60 * 60
+    );
+    expect(voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_sampled",
+        previewUrl: "https://signed.shortpulse.test/sample.mp3",
+        sampleStoragePath: "user-123/voice-samples/voice_sampled/sample.mp3",
+      }),
     ]);
   });
 

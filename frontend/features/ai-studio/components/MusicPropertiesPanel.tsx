@@ -498,8 +498,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             style={isStandardMode ? topSectionStyle : undefined}
             aria-label="Music composition mode"
           >
-            <h2 className="panel-title music-properties-title">Music</h2>
-
             <div className="music-properties-topbar-center">
               <div className="music-properties-toggle-shell">
                 <span className="music-properties-toggle-label">Music Mode</span>
@@ -625,6 +623,9 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             <div className="music-properties-script-divider" aria-hidden="true" />
 
             <div className="music-properties-script-actions">
+              <div className="music-properties-script-actions-left">
+                <h2 className="panel-title music-properties-title">Music</h2>
+              </div>
               <div className="music-properties-script-actions-right">
                 <div className="music-properties-script-actions-top">
                   <div

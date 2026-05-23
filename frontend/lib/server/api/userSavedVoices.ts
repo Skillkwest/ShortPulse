@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { isExcludedElevenLabsVoiceId } from "../elevenlabsVoiceExclusions";
+import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 
 export type SavedAiStudioVoice = {
   voiceId: string;
@@ -12,6 +13,7 @@ export type SavedAiStudioVoice = {
   originKind: SavedAiStudioVoiceOriginKind;
   savedSource: SavedAiStudioVoiceSource;
   providerDeleteEligible: boolean;
+  sampleStoragePath: string | null;
 };
 
 export type SavedAiStudioVoiceOriginKind =
@@ -33,6 +35,8 @@ const normalizeOptionalString = (value: unknown): string | null => {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const SAVED_VOICE_SAMPLE_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 const isSavedVoiceOriginKind = (value: string | null): value is SavedAiStudioVoiceOriginKind =>
   value === "provider-default" ||
@@ -96,6 +100,7 @@ const normalizeSavedVoice = (value: unknown): SavedAiStudioVoice | null => {
       : "legacy",
     providerDeleteEligible:
       typeof record.providerDeleteEligible === "boolean" ? record.providerDeleteEligible : false,
+    sampleStoragePath: normalizeOptionalString(record.sampleStoragePath),
   };
 };
 
@@ -120,6 +125,40 @@ const hasExcludedSavedVoice = (value: unknown): boolean =>
     return isExcludedElevenLabsVoiceId(normalizeOptionalString(record.voiceId));
   });
 
+const refreshSavedVoiceSampleUrls = async ({
+  userId,
+  voices,
+}: {
+  userId: string;
+  voices: SavedAiStudioVoice[];
+}): Promise<SavedAiStudioVoice[]> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  return await Promise.all(
+    voices.map(async (voice) => {
+      if (!voice.sampleStoragePath) return voice;
+      try {
+        const storagePath = assertUserScopedMediaStoragePath({
+          userId,
+          path: voice.sampleStoragePath,
+          label: "Saved voice sample storage path",
+        });
+        const signedResult = await supabaseAdmin.storage
+          .from("media_library")
+          .createSignedUrl(storagePath, SAVED_VOICE_SAMPLE_SIGNED_URL_TTL_SECONDS);
+        if (signedResult.error || !signedResult.data?.signedUrl) {
+          return voice;
+        }
+        return {
+          ...voice,
+          previewUrl: signedResult.data.signedUrl,
+        };
+      } catch {
+        return voice;
+      }
+    })
+  );
+};
+
 export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -130,19 +169,23 @@ export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStu
       .maybeSingle();
     if (error) throw error;
     const normalizedVoices = normalizeSavedVoices(data?.[SAVED_VOICES_COLUMN]);
+    const voicesWithFreshSampleUrls = await refreshSavedVoiceSampleUrls({
+      userId,
+      voices: normalizedVoices,
+    });
 
     if (hasExcludedSavedVoice(data?.[SAVED_VOICES_COLUMN])) {
       const { error: cleanupError } = await supabaseAdmin.from("user_preferences").upsert(
         {
           user_id: userId,
-          [SAVED_VOICES_COLUMN]: normalizedVoices,
+          [SAVED_VOICES_COLUMN]: voicesWithFreshSampleUrls,
         },
         { onConflict: "user_id" }
       );
       if (cleanupError) throw cleanupError;
     }
 
-    return normalizedVoices;
+    return voicesWithFreshSampleUrls;
   } catch (error) {
     if (isSavedVoicesPersistenceUnavailableError(error)) {
       return [];
@@ -157,7 +200,12 @@ export const saveVoiceForUser = async ({
 }: {
   userId: string;
   voice: Pick<SavedAiStudioVoice, "voiceId" | "name" | "previewUrl" | "description"> &
-    Partial<Pick<SavedAiStudioVoice, "originKind" | "savedSource" | "providerDeleteEligible">>;
+    Partial<
+      Pick<
+        SavedAiStudioVoice,
+        "originKind" | "savedSource" | "providerDeleteEligible" | "sampleStoragePath"
+      >
+    >;
 }): Promise<SavedAiStudioVoice | null> => {
   const normalizedVoiceId = voice.voiceId.trim();
   const normalizedVoiceName = voice.name.trim().replace(/\s+/g, " ");
@@ -180,6 +228,7 @@ export const saveVoiceForUser = async ({
     originKind: voice.originKind ?? "legacy-saved",
     savedSource: voice.savedSource ?? "legacy",
     providerDeleteEligible: voice.providerDeleteEligible ?? false,
+    sampleStoragePath: normalizeOptionalString(voice.sampleStoragePath),
   };
 
   try {

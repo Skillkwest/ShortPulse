@@ -4,6 +4,7 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { createElevenLabsDesignedVoice } from "../../../../lib/server/elevenlabs";
+import { createPersistedElevenLabsVoiceSample } from "../../../../lib/server/elevenlabsVoiceSamples";
 
 type TextToVoiceCreateRequestBody = {
   voiceName?: unknown;
@@ -87,6 +88,10 @@ export default async function handler(
         (voiceId) => voiceId !== generatedVoiceId
       ),
     });
+    const voiceSample = await createPersistedElevenLabsVoiceSample({
+      userId: user.id,
+      voiceId: createdVoice.voiceId,
+    });
 
     try {
       await saveVoiceForUser({
@@ -94,8 +99,9 @@ export default async function handler(
         voice: {
           voiceId: createdVoice.voiceId,
           name: createdVoice.name,
-          previewUrl: createdVoice.previewUrl,
+          previewUrl: voiceSample.previewUrl,
           description: createdVoice.description,
+          sampleStoragePath: voiceSample.sampleStoragePath,
           originKind: "provider-user-created",
           savedSource: "text-to-voice-create",
           providerDeleteEligible: true,
@@ -115,7 +121,7 @@ export default async function handler(
       voice: {
         voiceId: createdVoice.voiceId,
         name: createdVoice.name,
-        previewUrl: createdVoice.previewUrl,
+        previewUrl: voiceSample.previewUrl,
         description: createdVoice.description,
         isFallback: false,
       },

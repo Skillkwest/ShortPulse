@@ -69,10 +69,12 @@ const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
-const minVoicesTopSectionHeightPx = 120;
-const minVoicesBottomSectionHeightPx = 600;
-const maxVoicesBottomSectionHeightPx = 600;
-const fixedVoicesBottomSectionHeightPx = 600;
+const minVoiceoverTopSectionHeightPx = 72;
+const minVoiceoverBottomSectionHeightPx = 240;
+const minVoiceChangerTopSectionHeightPx = 120;
+const minVoiceChangerBottomSectionHeightPx = 600;
+const maxVoiceChangerBottomSectionHeightPx = 600;
+const fixedVoiceChangerBottomSectionHeightPx = 600;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -521,27 +523,35 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     : "Select a voice";
   const isSelectedVoiceFreshlyLoaded =
     Boolean(selectedLibraryVoice?.id) && selectedLibraryVoice?.id === loadedVoiceCueVoiceId;
+  const isVoiceoverSurface = surfaceMode === "create";
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,
     defaultTopRatio: 0.22,
-    minTopSectionHeightPx: minVoicesTopSectionHeightPx,
-    minBottomSectionHeightPx: minVoicesBottomSectionHeightPx,
-    maxBottomSectionHeightPx: maxVoicesBottomSectionHeightPx,
+    minTopSectionHeightPx: isVoiceoverSurface
+      ? minVoiceoverTopSectionHeightPx
+      : minVoiceChangerTopSectionHeightPx,
+    minBottomSectionHeightPx: isVoiceoverSurface
+      ? minVoiceoverBottomSectionHeightPx
+      : minVoiceChangerBottomSectionHeightPx,
+    maxBottomSectionHeightPx: isVoiceoverSurface ? undefined : maxVoiceChangerBottomSectionHeightPx,
     ariaLabel: "Resize voices mode and composition sections",
   });
-  const fixedBottomSectionStyle = React.useMemo<React.CSSProperties>(
+  const fixedVoiceChangerBottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...bottomSectionStyle,
-      height: `${fixedVoicesBottomSectionHeightPx}px`,
-      minHeight: `${fixedVoicesBottomSectionHeightPx}px`,
-      maxHeight: `${fixedVoicesBottomSectionHeightPx}px`,
-      flexBasis: `${fixedVoicesBottomSectionHeightPx}px`,
+      height: `${fixedVoiceChangerBottomSectionHeightPx}px`,
+      minHeight: `${fixedVoiceChangerBottomSectionHeightPx}px`,
+      maxHeight: `${fixedVoiceChangerBottomSectionHeightPx}px`,
+      flexBasis: `${fixedVoiceChangerBottomSectionHeightPx}px`,
       flexGrow: 0,
       flexShrink: 0,
     }),
     [bottomSectionStyle]
   );
+  const composeAreaStyle = isVoiceoverSurface
+    ? bottomSectionStyle
+    : fixedVoiceChangerBottomSectionStyle;
 
   const triggerLoadedVoiceCue = React.useCallback((voiceId: string) => {
     const normalizedVoiceId = voiceId.trim();
@@ -1909,7 +1919,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               />
             </div>
 
-            <section className="voices-properties-compose-area" style={fixedBottomSectionStyle}>
+            <section className="voices-properties-compose-area" style={composeAreaStyle}>
               {surfaceMode === "create" ? (
                 <div className="voices-properties-script-input-shell">
                   <textarea

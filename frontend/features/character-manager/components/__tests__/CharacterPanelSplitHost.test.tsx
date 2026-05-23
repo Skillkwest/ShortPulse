@@ -69,13 +69,14 @@ describe("CharacterPanelSplitHost", () => {
         isEmbeddedMediaLibraryMaximized: false,
       })
     );
-    expect(splitHookSpy).toHaveBeenCalledWith(
+    const splitHookArgs = splitHookSpy.mock.calls[0]?.[0];
+    expect(splitHookArgs).toEqual(
       expect.objectContaining({
-        defaultTopRatio: 0.42,
+        defaultTopRatio: 0.36,
         minTopSectionHeightPx: 336,
         minBottomSectionHeightPx: 248,
-        maxBottomSectionHeightPx: 420,
       })
     );
+    expect(splitHookArgs).not.toHaveProperty("maxBottomSectionHeightPx");
   });
 });

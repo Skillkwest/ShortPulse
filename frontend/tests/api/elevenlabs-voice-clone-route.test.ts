@@ -5,6 +5,7 @@ const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const saveVoiceForUserMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
+const createPersistedElevenLabsVoiceSampleMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const { MockMediaAudioExtractionInputError } = vi.hoisted(() => ({
   MockMediaAudioExtractionInputError: class MockMediaAudioExtractionInputError extends Error {
@@ -34,6 +35,11 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   createElevenLabsClonedVoice: (...args: unknown[]) => createElevenLabsClonedVoiceMock(...args),
 }));
 
+vi.mock("../../lib/server/elevenlabsVoiceSamples", () => ({
+  createPersistedElevenLabsVoiceSample: (...args: unknown[]) =>
+    createPersistedElevenLabsVoiceSampleMock(...args),
+}));
+
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
@@ -56,14 +62,20 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     createElevenLabsClonedVoiceMock.mockResolvedValue({
       voiceId: "cloned-voice-1",
       name: "Cloned Narrator",
-      previewUrl: "https://cdn.example/cloned.mp3",
+      previewUrl: null,
       description: "Warm cloned narrator",
       isFallback: false,
+    });
+    createPersistedElevenLabsVoiceSampleMock.mockResolvedValue({
+      previewUrl: "https://signed.example/voice-sample.mp3",
+      sampleStoragePath: "user-1/voice-samples/cloned-voice-1/sample.mp3",
+      mimeType: "audio/mpeg",
+      providerRequestId: "tts-request-1",
     });
     saveVoiceForUserMock.mockResolvedValue({
       voiceId: "cloned-voice-1",
       name: "Cloned Narrator",
-      previewUrl: "https://cdn.example/cloned.mp3",
+      previewUrl: "https://signed.example/voice-sample.mp3",
       description: "Warm cloned narrator",
       provider: "elevenlabs",
       isFallback: false,
@@ -98,13 +110,18 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       sourceMimeType: "audio/mpeg",
       removeBackgroundNoise: true,
     });
+    expect(createPersistedElevenLabsVoiceSampleMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      voiceId: "cloned-voice-1",
+    });
     expect(saveVoiceForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
       voice: {
         voiceId: "cloned-voice-1",
         name: "Cloned Narrator",
-        previewUrl: "https://cdn.example/cloned.mp3",
+        previewUrl: "https://signed.example/voice-sample.mp3",
         description: "Warm cloned narrator",
+        sampleStoragePath: "user-1/voice-samples/cloned-voice-1/sample.mp3",
         originKind: "provider-user-created",
         savedSource: "voice-clone",
         providerDeleteEligible: true,
@@ -115,7 +132,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       voice: {
         voiceId: "cloned-voice-1",
         name: "Cloned Narrator",
-        previewUrl: "https://cdn.example/cloned.mp3",
+        previewUrl: "https://signed.example/voice-sample.mp3",
         description: "Warm cloned narrator",
         isFallback: false,
       },
@@ -147,7 +164,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       voice: {
         voiceId: "cloned-voice-1",
         name: "Cloned Narrator",
-        previewUrl: "https://cdn.example/cloned.mp3",
+        previewUrl: "https://signed.example/voice-sample.mp3",
         description: "Warm cloned narrator",
         isFallback: false,
       },

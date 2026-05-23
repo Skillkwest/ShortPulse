@@ -286,6 +286,20 @@ describe("VoicesPropertiesPanel", () => {
     ).toHaveValue("Updated controlled description.");
   });
 
+  it("allows the voiceover compose area to grow beyond the old fixed height while keeping voice changer locked", () => {
+    const { container } = render(<VoicesPropertiesPanel />);
+    const composeArea = container.querySelector(".voices-properties-compose-area");
+
+    expect(composeArea).not.toBeNull();
+    expect(composeArea).not.toHaveStyle("height: 600px");
+    expect(composeArea).not.toHaveStyle("max-height: 600px");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    expect(composeArea).toHaveStyle("height: 600px");
+    expect(composeArea).toHaveStyle("max-height: 600px");
+  });
+
   it("opens the voices library modal from the header action and restores focus on close", async () => {
     render(<VoicesPropertiesPanel />);
 

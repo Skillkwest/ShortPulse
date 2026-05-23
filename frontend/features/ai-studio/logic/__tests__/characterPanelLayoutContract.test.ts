@@ -83,7 +83,7 @@ describe("character panel layout contract", () => {
   it("matches the name and description surfaces to the tab tray fill color", () => {
     const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
 
-    expect(css).toContain("--character-panel-tab-tray-bg: rgba(14, 15, 19, 0.72);");
+    expect(css).toContain("--character-panel-tab-tray-bg: #15161a;");
     expect(css).toContain(".character-panel-workspace .character-name-input {");
     expect(css).toContain("background: var(--character-panel-tab-tray-bg);");
     expect(css).toContain(".character-panel-workspace .character-description-text-container {");

@@ -12,6 +12,12 @@ describe("MusicPropertiesPanel", () => {
     const { container } = render(<MusicPropertiesPanel />);
 
     expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("heading", { name: "Music" })
+        .closest(".music-properties-script-actions-left")
+        ?.closest(".music-properties-script-actions")
+    ).not.toBeNull();
     expect(screen.getByText("Music Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Music composition modes" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("aria-selected", "true");

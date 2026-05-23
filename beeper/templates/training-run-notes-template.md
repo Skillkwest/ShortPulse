@@ -44,7 +44,8 @@ Purpose: chronological scratch log for one supervised Beeper run.
 ## End Of Run
 
 - Retained report path:
-- Screenshots / packet paths:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Training-history update needed:
 - Coverage-log update needed:
 - Scorecard result:

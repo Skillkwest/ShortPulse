@@ -1,7 +1,0 @@
-{
-  "ok": false,
-  "status": 401,
-  "json": {
-    "error": "Unauthorized"
-  }
-}

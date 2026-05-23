@@ -29,14 +29,14 @@ const usage = () => {
 Options:
   --route <route>          Repeatable route alias/path (dashboard, ai-studio, media-library, character, profile, or /custom-path).
   --base-url <url>         Optional app base URL override.
-  --output-dir <path>      Optional output directory. Defaults to beeper/runs/<timestamp>.
+  --output-dir <path>      Optional output directory. Defaults to beeper/evidence-cache/<timestamp>.
   --headless <true|false>  Browser visibility mode. Default: true.
   --skip-audit-user-ensure Skip the audit-user align/create step before sign-in.
   --help                   Show this message.
 
 Output:
-  - screenshot per route
-  - audit-summary.json packet
+  - local raw screenshot per route
+  - local raw audit-summary.json packet
 `);
 };
 
@@ -76,7 +76,7 @@ const main = async () => {
     path.join(
       config.repoRoot,
       "beeper",
-      "runs",
+      "evidence-cache",
       formatTimestampSlug(new Date()),
     );
 

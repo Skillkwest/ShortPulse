@@ -21,6 +21,9 @@ Purpose: give Beeper an owned workspace folder inside the repo for professional 
 ## Current Contents
 
 - `action-coverage/README.md`
+- `evidence-cache/README.md`
+- `evidence-manifests/README.md`
+- `findings/README.md`
 - `checklists/live-product-walkthrough.md`
 - `checkpoint-summaries/README.md`
 - `next-run-queue.md`
@@ -40,12 +43,15 @@ Purpose: give Beeper an owned workspace folder inside the repo for professional 
 ## Reporting Rule
 
 - Beeper should keep thorough workflow/UI/UX reports inside `beeper/reports/` so the long-form analysis stays in Beeper's owned folder.
+- Beeper should keep reusable product-learning syntheses inside `beeper/findings/` so future work can load the highest-signal truths before reopening old run packets.
 - Beeper should keep short user-facing checkpoint summaries inside `beeper/checkpoint-summaries/` so the user can scan each checkpoint quickly and correct Beeper during training.
 - Beeper should only keep trainer-facing checkpoint summaries there for real product checkpoints, not process-only hardening work.
 - Beeper should keep a durable route/control/action history inside `beeper/action-coverage/` so each new run can target different product actions over time.
 - Beeper should keep one defined normal-user success target per major route in `beeper/route-success-map.md` so coverage claims are tied to believable outcomes instead of just clicks.
 - Beeper should use `beeper/next-run-queue.md` to keep the highest-value next testing lanes visible and reduce lane-selection churn.
 - Beeper should treat continuity proof as normal alpha work, not optional polish, whenever a route bundle can plausibly support reload, reopen, reentry, or session-return validation.
+- Beeper should keep tracked evidence references redacted through manifests and human-readable reports, not as raw screenshots or raw JSON packets.
+- Beeper should keep raw screenshots, network captures, storage-state dumps, and other sensitive packets only in the ignored local cache at `beeper/evidence-cache/`.
 - Retained docs under `docs/records/artifacts/agent/beeper/` remain the compact durable ledger, while `beeper/reports/` can hold the denser working audit write-up.
 - Beeper should keep open retest debt in `docs/records/artifacts/agent/beeper/retest-debt.md` so issue follow-up stays visible after the first handoff.
 - Any real issue or error that needs engineering follow-up should also produce a D-Bug handoff in `docs/records/artifacts/agent/d-bug/handoffs/`.

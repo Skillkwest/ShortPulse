@@ -9,19 +9,14 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-15-production-launch-state-refresh.md`: production-only launch-state refresh that reconciles May 15 evidence without forcing a full rerating.
 - `2026-05-16-production-repo-audit-and-dispatch-output.md`: full repo-plus-worktree audit on `production`, July 2 window refresh, and current dispatch-ready worklist.
 - `2026-05-16-closeout-intake-review.md`: review of newly received external lane closeouts and the next Copperknot action.
-- `2026-05-16-closeout-intake-review.html`: browser-friendly view of the closeout intake review.
 - `2026-05-16-consolidated-rerating-pass.md`: repo-backed rerating decisions for the first full ship-critical closeout batch.
-- `2026-05-16-consolidated-rerating-pass.html`: browser-friendly view of the consolidated rerating pass.
 - `2026-05-16-managed-lane-review-and-reference-grid-clear.md`: managed subagent review packet that clears the Reference Grid blocker and holds the latest Edit/project-workspace follow-up scores.
-- `2026-05-16-managed-lane-review-and-reference-grid-clear.html`: browser-friendly view of the managed lane review packet.
 - `2026-05-16-copperknot-rename-pass.md`: source report for the Copperknot rename pass and identity-surface cleanup.
-- `2026-05-16-copperknot-rename-pass.html`: browser-friendly view of the Copperknot rename pass.
 - `2026-05-16-operator-brief.html`: canonical rich-format operator brief for the full repo-plus-worktree audit.
 - `2026-05-16-operator-brief.md`: source-only backing artifact for the operator brief.
 - `2026-05-16-launch-ready-checklist.md`: simple copy/paste launch-readiness checklist covering current scores, active lanes, and full system status.
 - `2026-05-16-launch-ready-checklist.html`: browser-friendly version of the launch-readiness checklist.
 - `2026-05-19-production-baseline-refresh.md`: new dated full repo-plus-worktree baseline refresh that preserves the original May 6 baseline and updates current launch-control truth.
-- `2026-05-19-production-baseline-refresh.html`: browser-friendly view of the May 19 baseline refresh.
 - `2026-05-19-operator-brief.html`: current rich-format operator brief for the May 19 baseline refresh.
 - `2026-05-19-operator-brief.md`: source-only backing artifact for the May 19 operator brief.
 - `2026-05-19-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist for the May 19 launch snapshot.
@@ -42,3 +37,5 @@ These remain preserved, but they are not part of the default Copperknot launch-r
 
 - Copperknot-authored audit and tracking reports stay in this folder.
 - External execution-agent closeouts belong under `external-lane-closeouts/`.
+- Markdown is the default source of truth for Copperknot reports.
+- Only operator briefs and launch-ready checklists should keep sibling HTML renders by default.

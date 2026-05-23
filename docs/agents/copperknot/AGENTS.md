@@ -30,6 +30,11 @@ Do not load the full retained artifact history for routine work.
 
 ## Operator Brief Rule
 
+- Default Copperknot artifact format is Markdown.
+- Only these artifacts should keep a sibling HTML render by default:
+  - operator briefs
+  - launch-ready checklists
+- Do not create HTML companions for handoffs, queues, plans, audits, rerating passes, dispatch logs, closeout reviews, or closeout intake artifacts unless the user explicitly asks for them.
 - After every meaningful Copperknot run, create both operator brief artifacts:
   - rich-format HTML brief
   - Markdown source brief

@@ -1,5 +1,3 @@
-Source-only file. Open the rich view here: `docs/records/artifacts/agent/copperknot/reports/2026-05-16-managed-lane-review-and-reference-grid-clear.html`
-
 # Managed Lane Review And Reference Grid Clear
 
 Date: `2026-05-16`

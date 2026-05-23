@@ -5,5 +5,6 @@ Purpose: store future full run reports for significant live-product walkthroughs
 ## Conventions
 
 - Use one dated report per substantive supervised run.
-- Pair each retained report with a scratch packet under `beeper/runs/` when raw evidence matters.
+- Pair each retained report with a run packet under `beeper/runs/` and keep raw evidence local-only in `beeper/evidence-cache/` when raw evidence matters.
+- Use a redacted manifest or the run packet as the tracked evidence reference rather than committing raw screenshot or network-capture payloads.
 - Use `run-report-template.md` as the default retained-report starting point.

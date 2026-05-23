@@ -1,5 +1,3 @@
-Source-only file. Open the rich brief here: `docs/records/artifacts/agent/copperknot/reports/2026-05-16-copperknot-rename-pass.html`
-
 # WHAT CHANGED
 
 - The steward identity is now `Copperknot`.

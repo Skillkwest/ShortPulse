@@ -57,8 +57,8 @@ Purpose: <one sentence describing the testing or audit run>.
 
 ## Evidence Packet
 
-- JSON packet:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Console / runtime signals:
 - Local code references:
 

@@ -980,7 +980,7 @@ jobs:
           SECRET_SCAN_MODE: ${{ vars.SECRET_SCAN_MODE }}
         run: |
           set -euo pipefail
-          MODE="${SECRET_SCAN_MODE:-warn}"
+          MODE="${SECRET_SCAN_MODE:-enforce}"
           if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
             echo "::warning::Unknown SECRET_SCAN_MODE='$MODE'. Falling back to 'warn'."
             MODE="warn"

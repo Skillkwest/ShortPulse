@@ -185,10 +185,12 @@ The current operating package for the active production window lives in:
 - `docs/agents/copperknot/handoff-template.md`
 - `docs/agents/copperknot/handoffs/README.md`
 
-Operator briefs should ship as a pair:
+Operator briefs and launch-ready checklists should ship as a pair:
 
-- Markdown source brief for repo traceability
-- sibling HTML render for the user-facing rich-format view
+- Markdown source artifact for repo traceability
+- sibling HTML render for the explicit user-facing rich-format view
+
+All other Copperknot docs should stay Markdown-only unless the user explicitly asks for an additional HTML artifact.
 
 ## Trigger Phrase
 

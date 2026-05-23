@@ -9,6 +9,9 @@ Beeper is currently at `Level 1: Supervised`.
 The agent has a durable contract, repo-visible memory, retained artifact area, owned workspace folder, standing SOP, and training packet flow. Beeper is ready for supervised live-product alpha-testing runs.
 Real issues that merit engineering follow-up should also produce a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 User-facing checkpoint summaries live in `beeper/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
+Cross-run product syntheses live in `beeper/findings/` so future sessions can load compact truth before raw packet archaeology.
+Tracked redacted evidence references live in `beeper/evidence-manifests/` or per-run `evidence-manifest.md` files.
+Local raw screenshots and JSON packets live only in the ignored cache at `beeper/evidence-cache/`.
 Route/control/action coverage history lives in `beeper/action-coverage/` so Beeper can expand functional coverage over time.
 The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
 Major-route success targets live in `beeper/route-success-map.md` so coverage depth is judged against real user outcomes.
@@ -50,6 +53,8 @@ These artifacts support training, traceability, and workflow continuity. They do
 - Agent contract: `docs/agents/beeper/README.md`
 - Repo-visible memory: `docs/agents/beeper/memory.md`
 - Owned workspace folder: `beeper/`
+- Findings folder: `beeper/findings/`
+- Evidence manifest folder: `beeper/evidence-manifests/`
 - Routes map: `docs/routes.md`
 - Testing guide: `docs/testing-guide.md`
 - Local development guide: `docs/local-development.md`

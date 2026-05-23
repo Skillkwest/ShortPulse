@@ -47,6 +47,9 @@ This SOP governs:
 
 - `beeper/checklists/live-product-walkthrough.md`
 - `beeper/action-coverage/README.md`
+- `beeper/findings/README.md`
+- `beeper/evidence-manifests/README.md`
+- `beeper/evidence-cache/README.md`
 - `beeper/route-success-map.md`
 - `beeper/next-run-queue.md`
 - `beeper/checkpoint-summaries/README.md`
@@ -108,9 +111,10 @@ Use only when the trainer explicitly wants Beeper's alpha read compared against 
 
 - Create a dated packet before substantive supervised work:
   - `node beeper/scripts/start-training-run.mjs --slug <name>`
-- Use the packet for chronological notes and raw evidence.
+- Use the packet for chronological notes and the tracked redacted manifest.
 - Use the retained report for the durable audit summary.
 - Check `beeper/action-coverage/master-coverage-log.md` before picking the next lane so the run expands coverage on purpose.
+- Check `beeper/findings/` before reopening old packets when the goal is product understanding rather than raw forensic review.
 - Check `beeper/route-success-map.md` so the run is aiming at a real route-level success target instead of vague activity.
 - Check `beeper/next-run-queue.md` before inventing a new lane from scratch.
 - Check `docs/records/artifacts/agent/beeper/retest-debt.md` before choosing a new lane so open fix validations are not skipped.
@@ -175,6 +179,13 @@ Every substantive Beeper run should usually perform one continuity proof:
 - or another comparable state-durability check
 
 If the lane does not plausibly support continuity pressure, say so plainly in the report instead of implying the check was completed.
+
+### Step 6.5. Handle evidence safely
+
+- Keep raw screenshots, JSON packets, storage-state dumps, and network captures in the ignored local cache at `beeper/evidence-cache/`.
+- Do not commit signed Supabase URLs, auth tokens, refresh tokens, or identity-linked request traces into tracked Beeper workspace files.
+- Preserve tracked evidence only through redacted manifests, checkpoint summaries, Beeper reports, retained reports, and D-Bug handoffs.
+- If an older report references raw evidence under `beeper/runs/.../evidence/`, replace that dependency with the matching redacted manifest before relying on it as current operating context.
 
 ### Step 7. Classify observations
 
@@ -249,6 +260,12 @@ At each meaningful checkpoint in a longer testing run:
 - state whether the checkpoint was `real-user path`, `mixed`, or `targeted probe`,
 - separate what worked from what failed,
 - and preserve workflow friction while it is still fresh.
+
+For evidence references during or after the checkpoint:
+
+- link the run packet and the redacted evidence manifest,
+- mention the local raw evidence cache only when a human explicitly needs forensic access,
+- and never treat raw screenshot volume as a substitute for a strong written finding.
 
 At each meaningful checkpoint in any user-facing training run:
 

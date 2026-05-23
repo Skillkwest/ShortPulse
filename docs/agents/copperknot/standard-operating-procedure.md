@@ -313,6 +313,10 @@ At closeout, surface both paths to the user:
 - the HTML rendered brief
 - the Markdown source brief
 
+Launch-ready checklists may also keep a sibling HTML render when Copperknot is maintaining a user-facing launch snapshot.
+
+All other Copperknot artifacts should remain Markdown-only unless the user explicitly asks for an additional HTML version.
+
 ## Handoff Design Standard
 
 Every execution handoff must include:

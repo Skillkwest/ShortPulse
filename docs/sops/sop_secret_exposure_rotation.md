@@ -9,6 +9,9 @@ Use this SOP when any live credential is exposed outside its intended secure sur
 - chat transcripts
 - screenshots
 - temporary files
+- browser/Playwright storage-state files
+- Supabase auth localStorage payloads
+- raw screenshots or JSON evidence packets containing signed URLs, tokens, or identity-linked traces
 - local notes
 - commit history
 - issue trackers or shared docs
@@ -51,6 +54,7 @@ This SOP is for live operator response, not design-time planning.
 - project API URL
 - publishable key (`sb_publishable_...`) even when stored in legacy-named env vars such as `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - secret key (`sb_secret_...`) or legacy JWT-based `service_role` value stored in `SUPABASE_SERVICE_ROLE_KEY`
+- browser auth storage-state payloads containing Supabase access tokens, refresh tokens, or `sb-<project-ref>-auth-token` localStorage entries
 
 ### Supabase database credentials
 

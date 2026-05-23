@@ -726,7 +726,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
-- `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice cache storing created ElevenLabs voices as `{ voiceId, name, previewUrl, description, provider, isFallback, createdAt }` records so custom voices survive refreshes and provider outages.
+- `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice cache storing created ElevenLabs voices as `{ voiceId, name, previewUrl, sampleStoragePath, description, provider, isFallback, createdAt }` records so custom voices survive refreshes and provider outages. New Generate Voice and Clone Voice entries include a private `sampleStoragePath`; `/api/elevenlabs/voices` refreshes `previewUrl` from that path before returning the Voices modal inventory.
 - `ai_studio_character_quickswap_tip_hidden` (boolean, default `false`): Per-user flag that hides the embedded Character QuickSwap guidance bubble after high-density deck usage.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)

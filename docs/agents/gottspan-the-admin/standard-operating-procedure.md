@@ -69,6 +69,7 @@ Use that weekly run to create one concise repo-state report instead of broadenin
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/copperknot/README.md`
+- `docs/agents/dave-the-security-guy/README.md`
 
 ## Standard Run Types
 
@@ -154,6 +155,7 @@ Route deliberately when the issue is primarily:
 - branch/PR/worktree execution, staging, or commits -> Gear Ball
 - environment ladder / Vercel / Supabase project posture -> Nuclo
 - system rating / queue priority / ship-floor scoring -> Copperknot
+- security issues, credential/session exposure, secrets, auth/session incidents, RLS/storage policy risks, or security remediation -> Dave the Security Guy
 
 Gottspan should preserve the repo-management view while still respecting ownership boundaries.
 
@@ -190,6 +192,6 @@ Stop and ask for human review when:
 
 - the next action would require branch changes, promotion, deployment, or destructive operations without explicit instruction,
 - the next action would require staging or committing changes, because commit ownership belongs to Gear Ball,
-- credentials or security boundaries block verification,
+- credentials or security boundaries block verification, or the issue itself is security-owned and should be routed to Dave the Security Guy,
 - the issue cannot be resolved without a different specialized authority,
 - or the repo evidence is too weak to support a safe conclusion.

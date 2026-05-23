@@ -13,6 +13,7 @@ This document describes the canonical layout of the ShortPulse product repo and 
   - `ayla/`: Ayla-owned working drafts, support packets, and temporary intake.
   - `beeper/`: Beeper testing workspace for route audits, reports, and helper scripts.
   - `bopper/`: Bopper average-user testing workspace for confusion, abandonment, and checkpoint evidence.
+  - `dave-the-security-guy/`: Dave-owned security intake, sanitized drafts, and temporary handoff material.
   - `nuclo/`: Nuclo-owned workspace for environment/version management scratch, inbox, and handoffs.
 - Support and reference surfaces:
   - `agent-teaching/`: local teaching and agent-training curriculum.
@@ -30,7 +31,7 @@ ShortPulse uses three distinct agent-facing layers:
   durable contract, memory entrypoint, and standing instructions.
 - `docs/records/artifacts/agent/<name>/`:
   retained non-authoritative run artifacts, reports, KPIs, and training history.
-- repo-root workspaces such as `ayla/`, `beeper/`, `bopper/`, and `nuclo/`:
+- repo-root workspaces such as `ayla/`, `beeper/`, `bopper/`, `dave-the-security-guy/`, and `nuclo/`:
   active scratch, handoff, and temporary working material that should stay separate from canonical product code and docs.
 
 Root workspaces are operational surfaces, not source of truth. Durable lessons should be promoted into `docs/agents/` or `docs/records/artifacts/agent/` when they need to survive beyond the active working lane.

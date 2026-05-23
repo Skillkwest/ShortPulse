@@ -741,6 +741,38 @@ Next training focus:
 - use the shared evaluation packet on the next substantive run
 - keep the route and workflow scoreboards current instead of letting them drift behind the reports
 
+## 2026-05-23: Evidence Retention And Workspace Prune
+
+Task: audit Beeper's own workspace for evidence bloat, privacy leakage, and low-value tracked payloads, then convert the evidence model into a leaner retained form.
+
+Actions taken:
+
+- Audited the full `beeper/` workspace using the Gottspan audit-and-prune prompt and a second-pass self-check.
+- Confirmed that tracked raw evidence was the dominant bloat source: `107` PNG screenshots and `29` JSON captures across historical run packets.
+- Confirmed that multiple JSON files exposed sensitive material, including:
+  - auth/session payloads
+  - signed Supabase object URLs
+  - identity-linked request traces and user/object identifiers
+- Created a new `beeper/findings/` folder to hold high-signal product syntheses that are worth loading before old run packets.
+- Created a new `beeper/evidence-manifests/` folder and backfilled a redacted run-evidence index for the 2026-05-15 production runs.
+- Created `beeper/evidence-cache/` as ignored local-only storage for future raw screenshots, JSON packets, and storage-state files.
+- Updated Beeper's contract, SOP, memory, retained memory, tooling notes, templates, and helper scripts so future runs default to:
+  - local raw evidence cache
+  - tracked redacted manifest
+  - tracked human-readable reports and handoffs
+- Retired the historical tracked `beeper/runs/*/evidence/` payloads after their usable product signal was preserved in human reports and the redacted manifest index.
+
+Training result:
+
+- Beeper's active workspace is leaner and less likely to load stale or sensitive raw packets by default.
+- Future startup context can focus on findings, route truth, retest debt, and scoreboards instead of screenshot volume.
+- The evidence model now better matches the agent-maintenance rule that durable behavior belongs in curated docs, not in giant raw artifacts.
+
+Next training focus:
+
+- keep future Beeper runs disciplined about manifest-first evidence retention
+- backfill any historical report link that truly needs a manifest pointer only if a current lane depends on it
+
 ## 2026-05-15: Persona Scaffold Retirement
 
 Task: prune internal Beeper persona scaffolds that were adding drift after Bopper became the real average-user lane and Beeper became the default alpha tester.

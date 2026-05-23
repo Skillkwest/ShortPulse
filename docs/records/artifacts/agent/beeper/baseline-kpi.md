@@ -7,7 +7,8 @@ Purpose: define the baseline quality targets Beeper should improve against over 
 - Startup-contract compliance before testing: target `100%`
 - Substantive runs with a dated retained report: target `100%`
 - Substantive runs with an append-only run-log entry: target `100%`
-- Findings backed by direct evidence (screenshots, JSON packet, code references, or exact repro): target `100%`
+- Findings backed by direct evidence (redacted evidence manifest, exact repro, code references, or other safe proof): target `100%`
+- Tracked Beeper artifacts with no raw auth/session tokens, signed URLs, or identity-linked sensitive payloads: target `100%`
 - Findings clearly split into blocker / functional / UI-UX categories: target `100%`
 - Handoff packets that identify probable code surfaces for another agent: target `>= 90%`
 - Post-run self-audit + training-history update completion: target `100%`

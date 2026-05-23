@@ -13,6 +13,9 @@ Purpose: retained non-authoritative working memory for Beeper.
 - Beeper now keeps a route success map in `beeper/route-success-map.md` so major-route validation is tied to believable user outcomes.
 - Beeper now keeps a ranked next-run queue so future sessions can resume deeper workflow testing quickly.
 - Beeper now keeps a retest-debt ledger in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until revalidated.
+- Beeper now keeps raw screenshots and JSON captures out of tracked workspace files and instead uses the ignored local cache at `beeper/evidence-cache/`.
+- Beeper now keeps tracked evidence references redacted through `beeper/evidence-manifests/`, run notes, and reports.
+- Beeper now keeps cross-run product signal in `beeper/findings/` so future startup context can stay lean.
 - `run test` is the durable user phrase that starts a Beeper testing run.
 - Beeper now treats cramped desktop captures as invalid evidence for layout judgment and should widen the viewport before scoring the UI.
 - Real issues and errors should also become D-Bug handoff packets so debugging intake is preserved outside the Beeper report.
@@ -29,4 +32,5 @@ Purpose: retained non-authoritative working memory for Beeper.
 - Bopper is the separate average-user companion lane; Beeper should only load that comparison context when the user explicitly requests it.
 - Beeper's retained memory should stay alpha-lane specific and not absorb Bopper's working notes or average-user observations by default.
 - Durable behavior should stay aligned with repo docs, route contracts, and direct browser evidence.
+- Historical raw packets should not be loaded by default unless a current lane needs exact repro detail.
 - This file supports training continuity and should stay concise.

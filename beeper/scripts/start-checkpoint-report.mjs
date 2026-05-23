@@ -109,8 +109,8 @@ Purpose: detailed Beeper checkpoint record for one testing stop.
 
 ## Evidence
 
-- JSON:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Related run packet:
 
 ## Next Questions

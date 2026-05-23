@@ -10,6 +10,9 @@ Purpose: retain Beeper's helper inventory and future tooling needs.
 - `node beeper/scripts/ensure-audit-user.mjs --environment production --apply`
 - `node beeper/scripts/live-product-walkthrough.mjs`
 - `node beeper/scripts/start-training-run.mjs --slug <name>`
+- `beeper/evidence-cache/` for ignored local raw screenshots, JSON packets, and storage-state files
+- `beeper/evidence-manifests/` for tracked redacted evidence references
+- `beeper/findings/` for compact cross-run product synthesis
 - thread heartbeat automation: `beeper-30-minute-test-heartbeat`
 - `docs/agents/d-bug/handoff-template.md` for durable debug intake when Beeper finds a real issue
 - `beeper/action-coverage/master-coverage-log.md` for route/control/action coverage planning between runs
@@ -29,3 +32,4 @@ Purpose: retain Beeper's helper inventory and future tooling needs.
 - optional helper to scaffold D-Bug handoffs directly from a Beeper issue packet
 - optional helper to scaffold and update the action-coverage log from run metadata
 - optional helper to append product scoreboards from run metadata
+- small helper to generate redacted evidence manifests from local cache contents

@@ -26,6 +26,7 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/Money Stuff/`
 - `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/d-bug/`
+- `docs/records/artifacts/agent/dave-the-security-guy/`
 - `docs/records/artifacts/agent/create-workflow/`
 - `docs/records/artifacts/agent/ophestivus/`
 

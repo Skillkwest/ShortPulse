@@ -56,6 +56,6 @@ Purpose: denser Beeper-owned analysis for real-user workflow testing.
 
 ## Evidence Index
 
-- JSON:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Related retained report:

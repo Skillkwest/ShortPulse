@@ -98,7 +98,8 @@ Purpose: chronological scratch log for one supervised Beeper run.
 ## End Of Run
 
 - Retained report path:
-- Screenshots / packet paths:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Training-history update needed:
 `;
 
@@ -149,8 +150,8 @@ Purpose: ${task}.
 
 ## Evidence Packet
 
-- JSON packet:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Console / runtime signals:
 - Local code references:
 
@@ -168,6 +169,36 @@ Purpose: ${task}.
 - Existing helper update needed?: <yes/no and why>
 - SOP / checklist update needed?: <yes/no and why>
 - Memory / training-history update needed?: <yes/no and why>
+`;
+
+const buildEvidenceManifestTemplate = ({
+  dateLabel,
+  task,
+  environment,
+  rawEvidenceDir,
+}) => `# Beeper Evidence Manifest
+
+Purpose: redacted tracked reference for one Beeper run's raw evidence.
+
+## Run Metadata
+
+- Date: ${dateLabel}
+- Task: ${task}
+- Environment: ${environment}
+- Local raw evidence cache: ${rawEvidenceDir}
+
+## Redacted Inventory
+
+| Artifact | Type | Why it was captured | Sensitivity | Keep tracked? |
+| --- | --- | --- | --- | --- |
+| \`<name>\` | \`<png/json/etc>\` | \`<proof purpose>\` | \`<none/user-id/signed-url/token>\` | \`no\` |
+
+## Durable Product Signal
+
+- Validated behavior:
+- Failure or friction preserved:
+- Best human-readable report:
+- D-Bug handoff:
 `;
 
 const main = async () => {
@@ -197,7 +228,13 @@ const main = async () => {
     "runs",
     `${timestampLabel}-${slug}`,
   );
-  const evidenceDir = path.join(runDir, "evidence");
+  const evidenceManifestPath = path.join(runDir, "evidence-manifest.md");
+  const rawEvidenceDir = path.join(
+    repoRoot,
+    "beeper",
+    "evidence-cache",
+    `${timestampLabel}-${slug}`,
+  );
   const notesPath = path.join(runDir, "notes.md");
   const reportPath = path.join(
     repoRoot,
@@ -210,7 +247,8 @@ const main = async () => {
     `${dateLabel}-${slug}.md`,
   );
 
-  ensureDirectory(evidenceDir);
+  ensureDirectory(runDir);
+  ensureDirectory(rawEvidenceDir);
   ensureDirectory(path.dirname(reportPath));
 
   const createdNotes = writeIfMissing(
@@ -221,6 +259,15 @@ const main = async () => {
     reportPath,
     buildReportTemplate({ dateLabel, slug, task, environment }),
   );
+  const createdEvidenceManifest = writeIfMissing(
+    evidenceManifestPath,
+    buildEvidenceManifestTemplate({
+      dateLabel,
+      task,
+      environment,
+      rawEvidenceDir,
+    }),
+  );
 
   console.log(
     JSON.stringify(
@@ -230,11 +277,13 @@ const main = async () => {
         task,
         environment,
         runDir,
-        evidenceDir,
+        evidenceManifestPath,
+        rawEvidenceDir,
         notesPath,
         reportPath,
         createdNotes,
         createdReport,
+        createdEvidenceManifest,
       },
       null,
       2,

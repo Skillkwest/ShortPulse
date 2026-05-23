@@ -81,8 +81,8 @@ Purpose: capture one substantive Beeper run with both agent and product evaluati
 
 ## Evidence Packet
 
-- JSON packet:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Console / runtime signals:
 - Local code references:
 

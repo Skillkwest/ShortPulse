@@ -23,6 +23,8 @@ The HTML file is the real deliverable the user should open first.
 
 At the top of the Markdown brief, add one short line that says it is source-only and points to the sibling HTML file.
 
+Do not generalize this pairing rule to other Copperknot docs. Outside operator briefs and launch-ready checklists, Copperknot artifacts should stay Markdown-only unless the user explicitly asks for an HTML companion.
+
 # What Changed
 
 - one short paragraph or 3-5 bullets max
@@ -75,4 +77,4 @@ Do not show:
 - for HTML companions, use large section headers, boxed lane cards, strong status labels, and simple color cues
 - in HTML briefs, every referenced repo doc path should be a clickable link
 - prefer relative links in HTML briefs so the docs open in the same in-app browser tab
-- when the linked target is a Markdown repo doc, point the HTML brief at a browser-friendly `.html` companion instead of the raw `.md` file
+- when the linked target is a repo doc that only exists in Markdown, link to the `.md` source directly

@@ -25,6 +25,25 @@ vercel_staging_env_*.txt
 .playwright-mcp/
 .claude/
 admin-support-state-pass.png
+
+# Local auth/session artifacts. These may contain Supabase access tokens,
+# refresh tokens, signed URLs, or user identity traces and must not be tracked.
+prod-storage-state.json
+*storage-state*.json
+*storageState*.json
+*auth-state*.json
+*authState*.json
+*session-state*.json
+*sessionState*.json
+.auth/
+**/.auth/
+playwright/.auth/
+frontend/playwright/.auth/
+beeper/runs/**/evidence/
+beeper/evidence-cache/*
+!beeper/evidence-cache/.gitignore
+!beeper/evidence-cache/README.md
+
 # Frontend app/source modules are TypeScript-first; do not commit transpiled JS sidecars.
 frontend/features/**/*.js
 frontend/lib/**/*.js

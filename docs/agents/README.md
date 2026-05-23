@@ -31,6 +31,11 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.
+- `docs/agents/dave-the-security-guy/README.md`: Dave the Security Guy security stewardship contract for app security, user account security, Supabase, Vercel, secrets, environment boundaries, and attack-resistance review.
+  - `docs/agents/dave-the-security-guy/AGENTS.md`: Dave-scoped security execution overlay.
+  - `docs/agents/dave-the-security-guy/standard-operating-procedure.md`: Dave's standing SOP for security review, hardening, incident response, and environment-security work.
+  - `docs/agents/dave-the-security-guy/security-ownership-map.md`: Dave's security control-family and steward handoff map.
+  - `dave-the-security-guy/README.md`: Dave's temporary workspace and intake surface.
 - `docs/agents/change-impact-auditor.md`: change-impact audit helper contract.
 - `docs/agents/gear-ball/README.md`: worktree, branch, environment, Vercel, and database coordination contract and memory entrypoint.
   - `docs/agents/gear-ball/github-operations.md`: Gear Ball's local GitHub push, PR, review, and merge coordination summary.

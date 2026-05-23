@@ -1,6 +1,6 @@
 # Beeper Live Audit Report
 
-Purpose: reusable write-up template for Beeper walkthroughs after the raw JSON packet and screenshots are captured.
+Purpose: reusable write-up template for Beeper walkthroughs after raw evidence is captured locally and the tracked evidence is reduced to a redacted manifest.
 
 ## Run Metadata
 
@@ -32,8 +32,8 @@ Purpose: reusable write-up template for Beeper walkthroughs after the raw JSON p
 
 ## Evidence
 
-- JSON packet:
-- Screenshots:
+- Redacted evidence manifest:
+- Local raw evidence cache:
 - Console/page/runtime signals:
 
 ## Retest Notes

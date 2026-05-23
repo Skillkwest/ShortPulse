@@ -17,6 +17,8 @@ Purpose: index durable reports for Gottspan The Admin repo-stewardship work, inc
 - `2026-05-20-weekly-repo-state-report.md`: first execution of the weekly repo-state workflow, recording current branch posture, validation results, and the unresolved branch-policy contradiction.
 - `2026-05-20-repo-state-audit.md`: first formal Gottspan repo-state audit after the repo-steward pivot, capturing current branch posture, validation results, and remaining branch-ladder risk.
 - `2026-05-20-branch-policy-decision-packet.md`: decision packet recommending that the current `production`-branch workflow be treated as an explicit exception unless the user later asks for a real branch-policy rewrite.
+- `2026-05-23-agent-workspace-audit.md`: agent-folder retention and instruction-drift audit with owner-specific handoff packets under `handoffs/`.
+- `2026-05-23-agent-workspace-stewardship-plan.md`: audited execution plan and tracker for agent-workspace handoffs.
 
 ## Default Naming
 

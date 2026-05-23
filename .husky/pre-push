@@ -1,2 +1,3 @@
 #!/bin/sh
 sh ./scripts/git-enforce-current-branch.sh pre-push "$@"
+node scripts/check_secret_exposure.js || exit 1

@@ -55,6 +55,10 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/d-bug/README.md`
 - `docs/agents/d-bug/standard-operating-procedure.md`
 - `docs/agents/d-bug/scorecard-operations.md`
+- `docs/agents/dave-the-security-guy/README.md`
+- `docs/agents/dave-the-security-guy/AGENTS.md`
+- `docs/agents/dave-the-security-guy/standard-operating-procedure.md`
+- `docs/agents/dave-the-security-guy/security-ownership-map.md`
 - `agent-teaching/README.md`
 - `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`
 - `agent-teaching/setup/new-codex-project-setup.md`

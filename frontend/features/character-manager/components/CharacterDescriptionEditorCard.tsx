@@ -4,20 +4,30 @@
  */
 import React from "react";
 
+const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+const CHARACTER_REFERENCE_DROP_ZONE_HEIGHT = "142.5px";
+
 const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "stretch",
   padding: "14px 16px 30px",
   position: "relative",
   border: "1px solid rgba(34, 40, 49, 0.96)",
   borderRadius: "16px",
-  background: "rgba(12, 14, 19, 0.96)",
-  minHeight: "142px",
+  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  height: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
+  minHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
+  maxHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
   boxSizing: "border-box",
 };
 
 const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
+  flex: "1 1 auto",
+  height: "100%",
   padding: "6px 4px",
   width: "100%",
-  minHeight: "110px",
+  minHeight: 0,
   border: "none",
   outline: "none",
   resize: "none",

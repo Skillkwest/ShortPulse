@@ -48,6 +48,7 @@ const MEDIA_BUCKET = "media_library";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
+const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
   minHeight: "48px",
@@ -100,7 +101,8 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   width: "100%",
   borderRadius: "12px",
   border: "1px solid rgba(34, 40, 49, 0.96)",
-  background: "rgba(12, 14, 19, 0.96)",
+  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   color: "rgba(242, 246, 252, 0.96)",
   boxSizing: "border-box",
 };

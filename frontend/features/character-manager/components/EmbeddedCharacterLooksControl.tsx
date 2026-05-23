@@ -4,6 +4,8 @@ import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPre
 import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
+const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+
 type EmbeddedCharacterLooksControlProps = {
   presetIds: readonly CharacterSheetPresetId[];
   activePresetId: CharacterSheetPresetId;
@@ -50,7 +52,8 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   borderRadius: "12px 12px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
   borderBottom: "none",
-  background: "rgba(12, 14, 19, 0.96)",
+  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
 };
@@ -61,7 +64,8 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   width: "100%",
   borderRadius: "12px 12px 0 0",
   border: "none",
-  background: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(12, 14, 19, 0.96)",
+  background: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(201, 205, 214, 0.02)",
+  backgroundColor: isActive ? "rgba(201, 205, 214, 0.05)" : "rgba(201, 205, 214, 0.02)",
   color: isActive ? "#ecfbff" : "rgba(182, 195, 208, 0.92)",
   display: "inline-flex",
   alignItems: "center",
@@ -309,6 +313,12 @@ export function EmbeddedCharacterLooksControl({
                 type="button"
                 aria-label="Add character look"
                 style={ACTION_BUTTON_STYLE}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
                 onClick={() => {
                   if (suppressClickRef.current) return;
                   void onAddPreset?.();

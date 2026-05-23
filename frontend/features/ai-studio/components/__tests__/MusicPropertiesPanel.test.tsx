@@ -375,6 +375,22 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(nextPrompt);
   });
 
+  it("shows the inserted inspiration text when the panel is wired like the page runtime", () => {
+    const Harness = () => {
+      const [prompt, setPrompt] = React.useState("");
+
+      return <MusicPropertiesPanel prompt={prompt} onPromptChange={setPrompt} />;
+    };
+
+    render(<Harness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "indie folk" }));
+
+    expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
+      "Warm indie folk cue with intimate acoustic guitar, brushed percussion, soft handclaps, earthy bass, and a reflective cinematic build that feels human, hopeful, and organic."
+    );
+  });
+
   it("fails closed when an inspiration prompt would exceed the shared custom-mode budget", () => {
     render(<MusicPropertiesPanel prompt={"p".repeat(1920)} lyrics={"l".repeat(25)} />);
 

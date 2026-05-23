@@ -39,7 +39,11 @@ function Harness({
       onSelectPreset={(presetId) => {
         setActivePresetId(presetId);
       }}
-      onAddPreset={() => undefined}
+      onAddPreset={() => {
+        const nextPresetId = String(presetIds.length + 1) as CharacterSheetPresetId;
+        setPresetIds((current) => [...current, nextPresetId]);
+        setActivePresetId(nextPresetId);
+      }}
       onRenamePreset={(presetId, nextLabel) => {
         setLabels((current) => ({
           ...current,
@@ -90,6 +94,17 @@ describe("EmbeddedCharacterLooksControl", () => {
 
     expect(screen.getByRole("button", { name: "Add character look" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage looks" })).not.toBeInTheDocument();
+  });
+
+  it("creates a new look when the add button is clicked", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add character look" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "5" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "5" })).toHaveAttribute("aria-selected", "true");
+    });
   });
 
   it("shows the delete affordance on hover for deletable tabs", async () => {

@@ -13,7 +13,7 @@ const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
   padding: "14px 16px 30px",
   position: "relative",
   border: "1px solid rgba(34, 40, 49, 0.96)",
-  borderRadius: "16px",
+  borderRadius: "12px",
   background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   height: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,

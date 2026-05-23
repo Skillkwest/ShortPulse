@@ -5,6 +5,7 @@ import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
 type EmbeddedCharacterLooksControlProps = {
   presetIds: readonly CharacterSheetPresetId[];
@@ -166,7 +167,8 @@ export function EmbeddedCharacterLooksControl({
     startScrollLeft: number;
     moved: boolean;
   } | null>(null);
-  const suppressClickRef = React.useRef(false);
+  const suppressPointerActivationRef = React.useRef(false);
+  const suppressPointerActivationTimerRef = React.useRef<number | null>(null);
 
   const handleArrowNavigation = React.useCallback(
     (direction: 1 | -1) => {
@@ -186,11 +188,20 @@ export function EmbeddedCharacterLooksControl({
     const dragState = pointerDragStateRef.current;
     if (!viewport || !dragState || dragState.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - dragState.startX;
-    if (Math.abs(deltaX) > 3) {
+    if (!dragState.moved && Math.abs(deltaX) > TAB_DRAG_SCROLL_ACTIVATION_PX) {
       dragState.moved = true;
-      suppressClickRef.current = true;
+      if (viewport.setPointerCapture) {
+        viewport.setPointerCapture(event.pointerId);
+      }
     }
+    if (!dragState.moved) return;
     viewport.scrollLeft = dragState.startScrollLeft - deltaX;
+  }, []);
+
+  const consumeSuppressedPointerActivation = React.useCallback(() => {
+    if (!suppressPointerActivationRef.current) return false;
+    suppressPointerActivationRef.current = false;
+    return true;
   }, []);
 
   const endPointerDrag = React.useCallback((pointerId?: number) => {
@@ -206,10 +217,25 @@ export function EmbeddedCharacterLooksControl({
       }
     }
     pointerDragStateRef.current = null;
-    window.setTimeout(() => {
-      suppressClickRef.current = false;
-    }, 0);
+    if (!dragState.moved) return;
+    suppressPointerActivationRef.current = true;
+    if (suppressPointerActivationTimerRef.current !== null) {
+      window.clearTimeout(suppressPointerActivationTimerRef.current);
+    }
+    suppressPointerActivationTimerRef.current = window.setTimeout(() => {
+      suppressPointerActivationRef.current = false;
+      suppressPointerActivationTimerRef.current = null;
+    }, 120);
   }, []);
+
+  React.useEffect(
+    () => () => {
+      if (suppressPointerActivationTimerRef.current !== null) {
+        window.clearTimeout(suppressPointerActivationTimerRef.current);
+      }
+    },
+    []
+  );
 
   return (
     <div style={ROOT_STYLE}>
@@ -223,14 +249,26 @@ export function EmbeddedCharacterLooksControl({
           }}
           onPointerDown={(event) => {
             const viewport = railViewportRef.current;
-            if (!viewport || event.pointerType === "touch") return;
+            if (!viewport || event.pointerType === "touch" || event.button !== 0) return;
+            const eventTarget =
+              event.target instanceof Element ? event.target : (event.target as Element | null);
+            if (
+              eventTarget?.closest('[aria-label^="Delete look "]') ||
+              eventTarget?.closest('[aria-label="Add character look"]')
+            ) {
+              return;
+            }
+            suppressPointerActivationRef.current = false;
+            if (suppressPointerActivationTimerRef.current !== null) {
+              window.clearTimeout(suppressPointerActivationTimerRef.current);
+              suppressPointerActivationTimerRef.current = null;
+            }
             pointerDragStateRef.current = {
               pointerId: event.pointerId,
               startX: event.clientX,
               startScrollLeft: viewport.scrollLeft,
               moved: false,
             };
-            viewport.setPointerCapture(event.pointerId);
           }}
           onPointerMove={handlePointerMove}
           onPointerUp={(event) => {
@@ -286,7 +324,7 @@ export function EmbeddedCharacterLooksControl({
                       height: `${tabHeightPx}px`,
                     }}
                     onClick={() => {
-                      if (suppressClickRef.current) return;
+                      if (consumeSuppressedPointerActivation()) return;
                       void onSelectPreset(presetId);
                     }}
                     onKeyDown={(event) => {
@@ -328,6 +366,7 @@ export function EmbeddedCharacterLooksControl({
                       onClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
+                        if (consumeSuppressedPointerActivation()) return;
                         void onDeletePreset?.(presetId);
                       }}
                       disabled={disabled}
@@ -351,7 +390,7 @@ export function EmbeddedCharacterLooksControl({
                   event.stopPropagation();
                 }}
                 onClick={() => {
-                  if (suppressClickRef.current) return;
+                  if (consumeSuppressedPointerActivation()) return;
                   void onAddPreset?.();
                 }}
                 disabled={disabled}

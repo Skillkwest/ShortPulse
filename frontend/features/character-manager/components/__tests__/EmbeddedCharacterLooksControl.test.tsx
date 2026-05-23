@@ -82,7 +82,10 @@ describe("EmbeddedCharacterLooksControl", () => {
   it("supports direct tab selection", async () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "3" }));
+    const tabThree = screen.getByRole("tab", { name: "3" });
+    fireEvent.pointerDown(tabThree, { button: 0, pointerId: 1, clientX: 40, pointerType: "mouse" });
+    fireEvent.pointerUp(tabThree, { button: 0, pointerId: 1, clientX: 40, pointerType: "mouse" });
+    fireEvent.click(tabThree);
 
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: "3" })).toHaveAttribute("aria-selected", "true");
@@ -120,6 +123,33 @@ describe("EmbeddedCharacterLooksControl", () => {
 
     await waitFor(() => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not suppress tab activation after a simple pointer click sequence", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    const tabFour = screen.getByRole("tab", { name: "4" });
+    fireEvent.pointerDown(tabFour, { button: 0, pointerId: 4, clientX: 80, pointerType: "mouse" });
+    fireEvent.pointerUp(tabFour, { button: 0, pointerId: 4, clientX: 80, pointerType: "mouse" });
+    fireEvent.click(tabFour);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "4" })).toHaveAttribute("aria-selected", "true");
+    });
+  });
+
+  it("suppresses activation only after an actual drag-scroll gesture", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4", "5", "6"]} />);
+
+    const tabTwo = screen.getByRole("tab", { name: "2" });
+    fireEvent.pointerDown(tabTwo, { button: 0, pointerId: 7, clientX: 120, pointerType: "mouse" });
+    fireEvent.pointerMove(tabTwo, { button: 0, pointerId: 7, clientX: 132, pointerType: "mouse" });
+    fireEvent.pointerUp(tabTwo, { button: 0, pointerId: 7, clientX: 132, pointerType: "mouse" });
+    fireEvent.click(tabTwo);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "1" })).toHaveAttribute("aria-selected", "true");
     });
   });
 });

@@ -76,7 +76,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
-  marginTop: "8px",
+  marginTop: "6px",
   padding: "14px 8px 6px",
   borderRadius: "18px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
@@ -100,7 +100,7 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   minHeight: "36px",
   padding: "6px 10px",
   width: "100%",
-  borderRadius: "12px",
+  borderRadius: "10px",
   border: "1px solid rgba(34, 40, 49, 0.96)",
   background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
   backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,

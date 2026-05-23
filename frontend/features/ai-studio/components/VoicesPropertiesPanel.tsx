@@ -379,6 +379,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
   );
+  const [loadedVoiceCueVoiceId, setLoadedVoiceCueVoiceId] = React.useState<string | null>(null);
   const voicePrompt = controlledVoicePrompt ?? voicePromptState;
   const voiceScript = controlledVoiceScript ?? voiceScriptState;
   const setVoicePrompt = React.useCallback(
@@ -420,6 +421,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const createVoiceTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const voiceChangerSourceRequestIdRef = React.useRef(0);
   const cloneVoiceSourceRequestIdRef = React.useRef(0);
+  const loadedVoiceCueTimeoutRef = React.useRef<number | null>(null);
   const requiresProviderVoice = Boolean(onGenerate);
   const isCreateVoiceModalOpen = isCreatePanelOpen;
   const isSelectedVoiceProviderReady =
@@ -486,6 +488,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const selectedGenerateVoiceName = selectedLibraryVoice
     ? getVoiceChipDisplayName(selectedLibraryVoice.name)
     : "Select a voice";
+  const isSelectedVoiceFreshlyLoaded =
+    Boolean(selectedLibraryVoice?.id) && selectedLibraryVoice?.id === loadedVoiceCueVoiceId;
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,
@@ -494,6 +498,33 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     minBottomSectionHeightPx: minVoicesBottomSectionHeightPx,
     ariaLabel: "Resize voices mode and composition sections",
   });
+
+  const triggerLoadedVoiceCue = React.useCallback((voiceId: string) => {
+    const normalizedVoiceId = voiceId.trim();
+    if (!normalizedVoiceId) {
+      return;
+    }
+
+    if (loadedVoiceCueTimeoutRef.current !== null) {
+      window.clearTimeout(loadedVoiceCueTimeoutRef.current);
+    }
+
+    setLoadedVoiceCueVoiceId(normalizedVoiceId);
+    loadedVoiceCueTimeoutRef.current = window.setTimeout(() => {
+      setLoadedVoiceCueVoiceId((currentVoiceId) =>
+        currentVoiceId === normalizedVoiceId ? null : currentVoiceId
+      );
+      loadedVoiceCueTimeoutRef.current = null;
+    }, 4200);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (loadedVoiceCueTimeoutRef.current !== null) {
+        window.clearTimeout(loadedVoiceCueTimeoutRef.current);
+      }
+    };
+  }, []);
 
   React.useLayoutEffect(() => {
     const textarea = voicePromptRef.current;
@@ -1486,6 +1517,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
+      triggerLoadedVoiceCue(createdVoiceId);
       setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
@@ -1503,6 +1535,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     resetCreateVoiceModalState,
     playedVoiceDesignPreviewIds,
     selectedVoiceDesignPreviewId,
+    triggerLoadedVoiceCue,
     upsertSharedVoice,
     voiceName,
     voicePrompt,
@@ -1561,6 +1594,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         librarySection: "my",
         provider: "elevenlabs",
       });
+      triggerLoadedVoiceCue(clonedVoiceId);
       setActiveVoicesLibrarySection("my");
       resetCreateVoiceModalState();
       setIsCreatePanelOpen(false);
@@ -1578,6 +1612,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     cloneVoiceSource,
     isCloneConsentChecked,
     resetCreateVoiceModalState,
+    triggerLoadedVoiceCue,
     upsertSharedVoice,
     voiceName,
   ]);
@@ -1837,8 +1872,27 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               <div className="voices-properties-script-actions">
                 <div className="voices-properties-generate-context is-align-end" aria-live="polite">
                   <span className="voices-properties-generate-context-label">Selected voice</span>
-                  <span className="voices-properties-generate-context-value">
-                    {selectedGenerateVoiceName}
+                  <span className="voices-properties-generate-context-value-row">
+                    <span
+                      className={`voices-properties-generate-context-value ${
+                        isSelectedVoiceFreshlyLoaded
+                          ? "voices-properties-generate-context-value--loaded"
+                          : ""
+                      }`}
+                    >
+                      {selectedGenerateVoiceName}
+                    </span>
+                    {isSelectedVoiceFreshlyLoaded ? (
+                      <span className="voices-properties-generate-loaded-indicator">
+                        <span
+                          className="voices-properties-generate-loaded-arrow"
+                          aria-hidden="true"
+                        >
+                          ↓
+                        </span>
+                        <span>Loaded</span>
+                      </span>
+                    ) : null}
                   </span>
                 </div>
                 <button

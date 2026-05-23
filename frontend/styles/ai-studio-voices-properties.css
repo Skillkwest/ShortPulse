@@ -1055,7 +1055,6 @@
   line-height: 1.35;
 }
 
-.voices-properties-library-open-btn,
 .voices-properties-library-delete-btn,
 .voices-properties-library-create-btn {
   position: relative;
@@ -1086,9 +1085,17 @@
 
 .voices-properties-library-open-btn {
   appearance: none;
-  width: 172px;
-  height: 56px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 172px;
+  min-height: 56px;
   padding: 0 24px;
+  border: 1px solid rgba(105, 220, 203, 0.58);
   border-color: rgba(105, 220, 203, 0.58);
   border-radius: 16px;
   background: rgba(28, 32, 37, 0.94);
@@ -1096,8 +1103,16 @@
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  line-height: normal;
+  line-height: 1;
   box-sizing: border-box;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  cursor: pointer;
   flex-shrink: 0;
 }
 
@@ -2408,6 +2423,94 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.voices-properties-generate-context-value-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.voices-properties-generate-context-value--loaded {
+  animation: voices-properties-loaded-voice-flash 1.8s ease-out;
+}
+
+.voices-properties-generate-loaded-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid rgba(137, 231, 223, 0.36);
+  border-radius: 999px;
+  background: rgba(39, 63, 67, 0.42);
+  color: rgba(171, 243, 236, 0.96);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 0 rgba(105, 220, 203, 0.2);
+  animation:
+    voices-properties-loaded-voice-bob 1s ease-in-out infinite,
+    voices-properties-loaded-voice-pulse 1.8s ease-in-out infinite;
+}
+
+.voices-properties-generate-loaded-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+@keyframes voices-properties-loaded-voice-flash {
+  0% {
+    color: rgba(246, 249, 252, 0.96);
+    text-shadow: 0 0 0 rgba(105, 220, 203, 0);
+  }
+
+  30% {
+    color: rgba(239, 255, 252, 1);
+    text-shadow: 0 0 16px rgba(105, 220, 203, 0.34);
+  }
+
+  100% {
+    color: rgba(246, 249, 252, 0.96);
+    text-shadow: 0 0 0 rgba(105, 220, 203, 0);
+  }
+}
+
+@keyframes voices-properties-loaded-voice-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes voices-properties-loaded-voice-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(105, 220, 203, 0.16);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(105, 220, 203, 0.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voices-properties-generate-context-value--loaded,
+  .voices-properties-generate-loaded-indicator {
+    animation: none;
+  }
 }
 
 .voices-properties-script-count {

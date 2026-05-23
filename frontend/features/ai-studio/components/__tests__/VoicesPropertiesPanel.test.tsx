@@ -1069,6 +1069,48 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Play source audio preview" })).toBeInTheDocument();
   });
 
+  it("prefers a native local audio file over external plain-text URLs in voice changer mode", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    const sourceFile = new File(["audio"], "finder-voice.mp3", { type: "audio/mpeg" });
+    const dragOverDataTransfer = {
+      types: ["Files", "text/plain"],
+      items: [{ kind: "file", type: "" }],
+      files: [],
+      getData: (type: string) =>
+        type === "text/plain" ? "https://external.example.com/not-the-file.mp3" : "",
+      dropEffect: "none",
+    };
+    const dropDataTransfer = {
+      ...dragOverDataTransfer,
+      files: [sourceFile],
+    };
+
+    fireEvent.dragOver(dropZone, { dataTransfer: dragOverDataTransfer });
+    expect(dragOverDataTransfer.dropEffect).toBe("copy");
+
+    fireEvent.drop(dropZone, { dataTransfer: dropDataTransfer });
+
+    await waitFor(() => {
+      expect(uploadVoiceChangerSourceFileMock).toHaveBeenCalledWith({
+        file: sourceFile,
+        kind: "audio",
+      });
+    });
+
+    expect(uploadVoiceChangerSourceFileMock.mock.calls[0]?.[0]).toMatchObject({
+      file: sourceFile,
+      kind: "audio",
+    });
+    expect(resolveVoiceChangerMediaDurationMsMock).toHaveBeenCalledWith(
+      "https://signed.example/finder-voice.mp3",
+      "audio"
+    );
+  });
+
   it("accepts an internal reference-grid video drop in voice changer mode", async () => {
     render(<VoicesPropertiesPanel />);
 
@@ -1267,9 +1309,49 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(resolveVoiceChangerMediaDurationMsMock).toHaveBeenCalledWith(
-      "https://cdn.shortpulse.test/renders/reference-voice-full.mp3",
+      "https://signed.example/reference-voice-full.mp3",
       "audio"
     );
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("prefers internal reference-grid audio payloads over synthetic browser files in voice changer mode", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const { transfer, event } = createReferenceDragTransfer();
+    prepareReferenceDrag(event, {
+      id: "output-audio-mixed",
+      prompt: "Reference voice mixed payload",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Audio model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://cdn.shortpulse.test/renders/reference-voice-preview.mp3",
+      fullStoragePath: "user-1/generated/reference-voice-full.mp3",
+      previewStoragePath: "user-1/generated/reference-voice-preview.mp3",
+      resultUrls: ["https://cdn.shortpulse.test/renders/reference-voice-full.mp3"],
+      savedMediaIds: ["media-audio-mixed"],
+    });
+    (transfer as unknown as { files: File[] }).files = [
+      new File(["ghost-audio"], "ghost-browser-file.mp3", { type: "audio/mpeg" }),
+    ];
+
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    fireEvent.dragOver(dropZone, { dataTransfer: transfer });
+    fireEvent.drop(dropZone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(resolveVoiceChangerMediaDurationMsMock).toHaveBeenCalledWith(
+        "https://signed.example/reference-voice-full.mp3",
+        "audio"
+      );
+    });
+
+    expect(uploadVoiceChangerSourceFileMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/ready for conversion/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
@@ -1316,6 +1398,66 @@ describe("VoicesPropertiesPanel", () => {
         file: sourceFile,
         kind: "audio",
       });
+    });
+    expect(resolveVoiceChangerInternalReferenceSource).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("prefers degraded internal audio hints over synthetic browser files in voice changer mode", async () => {
+    const sourceFile = new File(["local-audio"], "local-reference.wav", { type: "audio/wav" });
+    const resolveVoiceChangerInternalReferenceSource = vi.fn((payload) =>
+      createVoiceChangerSourceFromFile(sourceFile, {
+        origin: "reference-grid",
+        referenceOutputId: payload.outputId,
+        referenceMediaId: payload.mediaId,
+        durationMs: 1200,
+      })
+    );
+
+    render(
+      <VoicesPropertiesPanel
+        resolveVoiceChangerInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const ghostFile = new File(["ghost-audio"], "ghost-browser-file.mp3", {
+      type: "audio/mpeg",
+    });
+    const dataTransfer = {
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-media-id",
+        "Files",
+      ],
+      files: [ghostFile],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-local-audio",
+            "text/reference-media-id": "media-local-audio",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    expect(dataTransfer.dropEffect).toBe("copy");
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(uploadVoiceChangerSourceFileMock).toHaveBeenCalledWith({
+        file: sourceFile,
+        kind: "audio",
+      });
+    });
+    expect(uploadVoiceChangerSourceFileMock.mock.calls[0]?.[0]).toMatchObject({
+      file: sourceFile,
+      kind: "audio",
     });
     expect(resolveVoiceChangerInternalReferenceSource).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
@@ -1595,6 +1737,9 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
+    expect(within(voicesPanel).getByText("Lantern")).toBeInTheDocument();
+    expect(within(voicesPanel).getByText("Loaded")).toBeInTheDocument();
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
@@ -1680,6 +1825,9 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
+    expect(within(voicesPanel).getByText("Cloned Lantern")).toBeInTheDocument();
+    expect(within(voicesPanel).getByText("Loaded")).toBeInTheDocument();
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();
@@ -1688,6 +1836,106 @@ describe("VoicesPropertiesPanel", () => {
       "true"
     );
   }, 15000);
+
+  it("prefers internal reference-grid audio payloads over synthetic browser files in clone voice mode", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    await openCreateVoiceModal();
+    fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Reference Clone" },
+    });
+
+    const { transfer, event } = createReferenceDragTransfer();
+    prepareReferenceDrag(event, {
+      id: "output-clone-mixed",
+      prompt: "Reference clone voice",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Audio model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://cdn.shortpulse.test/renders/reference-clone-preview.mp3",
+      fullStoragePath: "user-1/generated/reference-clone-full.mp3",
+      previewStoragePath: "user-1/generated/reference-clone-preview.mp3",
+      resultUrls: ["https://cdn.shortpulse.test/renders/reference-clone-full.mp3"],
+      savedMediaIds: ["media-clone-mixed"],
+    });
+    (transfer as unknown as { files: File[] }).files = [
+      new File(["ghost-audio"], "ghost-browser-file.mp3", { type: "audio/mpeg" }),
+    ];
+
+    const dropZone = screen.getByLabelText("Voice clone source drop zone");
+    fireEvent.dragOver(dropZone, { dataTransfer: transfer });
+    fireEvent.drop(dropZone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready to clone")).toBeInTheDocument();
+    });
+
+    expect(uploadVoiceCloneSourceFileMock).not.toHaveBeenCalled();
+    expect(signVoiceChangerStoragePathMock).toHaveBeenCalledWith(
+      "user-1/generated/reference-clone-full.mp3"
+    );
+  });
+
+  it("prefers degraded internal audio hints over synthetic browser files in clone voice mode", async () => {
+    const sourceFile = new File(["local-audio"], "clone-reference.wav", { type: "audio/wav" });
+    const resolveVoiceChangerInternalReferenceSource = vi.fn((payload) =>
+      createVoiceChangerSourceFromFile(sourceFile, {
+        origin: "reference-grid",
+        referenceOutputId: payload.outputId,
+        referenceMediaId: payload.mediaId,
+        durationMs: 2200,
+      })
+    );
+
+    render(
+      <VoicesPropertiesPanel
+        resolveVoiceChangerInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
+      />
+    );
+
+    await openCreateVoiceModal();
+    fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Hint Clone" },
+    });
+
+    const ghostFile = new File(["ghost-audio"], "ghost-browser-file.mp3", {
+      type: "audio/mpeg",
+    });
+    const dataTransfer = {
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-media-id",
+        "Files",
+      ],
+      files: [ghostFile],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-clone-local-audio",
+            "text/reference-media-id": "media-clone-local-audio",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+    const dropZone = screen.getByLabelText("Voice clone source drop zone");
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready to clone")).toBeInTheDocument();
+    });
+
+    expect(resolveVoiceChangerInternalReferenceSource).toHaveBeenCalledTimes(1);
+    expect(uploadVoiceCloneSourceFileMock.mock.calls[0]?.[0]).toMatchObject({
+      file: sourceFile,
+    });
+  });
 
   it("allows shorter cloned voice samples to submit", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({

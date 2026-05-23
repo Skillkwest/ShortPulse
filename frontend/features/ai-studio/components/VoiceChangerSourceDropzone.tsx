@@ -6,12 +6,17 @@ import React from "react";
 import { CircleNotch, UploadSimple, X } from "phosphor-react";
 import {
   extractInternalReferenceDragPayload,
+  getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   normalizeReferenceTransferUrlCandidate,
   type InternalReferenceDragPayload,
 } from "../utils/dragDrop";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { VoiceChangerAudioSourcePreview } from "./VoiceChangerAudioSourcePreview";
+import {
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+} from "../../../lib/internalReferenceDragSession";
 
 const AUDIO_EXTENSION_PATTERN = /\.(?:mp3|wav|m4a|aac|flac|ogg|oga)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(?:mp4|mov|m4v|webm)(?:$|[?#])/i;
@@ -121,6 +126,24 @@ const defaultVoiceChangerDropzoneCopy: VoiceSourceDropzoneCopy = {
 };
 
 type BrowserMediaRecorder = typeof MediaRecorder;
+type VoiceSourceDropSnapshot = {
+  transferTypes: string[];
+  files: File[];
+  internalReferenceDragToken: string;
+  referenceOrigin: string;
+  referenceId: string;
+  referenceOutputId: string;
+  referenceMediaId: string;
+  referenceMediaKind: string;
+  referencePreviewStoragePath: string;
+  referenceFullStoragePath: string;
+  referenceSourceSurface: string;
+  referenceUrl: string;
+  referenceRenderUrl: string;
+  imageUrl: string;
+  plainText: string;
+  uriList: string;
+};
 
 const buildSourceId = (prefix: string): string =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -259,6 +282,102 @@ const findFirstSupportedFile = (
   );
 };
 
+const captureVoiceSourceDropSnapshot = (transfer: DataTransfer): VoiceSourceDropSnapshot => ({
+  transferTypes: getNormalizedTransferTypes(transfer),
+  files: Array.from(transfer.files ?? []),
+  internalReferenceDragToken:
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE) ||
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE),
+  referenceOrigin: transfer.getData("text/reference-origin"),
+  referenceId: transfer.getData("text/reference-id"),
+  referenceOutputId: transfer.getData("text/reference-output-id"),
+  referenceMediaId: transfer.getData("text/reference-media-id"),
+  referenceMediaKind: transfer.getData("text/reference-media-kind"),
+  referencePreviewStoragePath: transfer.getData("text/reference-preview-storage-path"),
+  referenceFullStoragePath: transfer.getData("text/reference-full-storage-path"),
+  referenceSourceSurface: transfer.getData("text/reference-source-surface"),
+  referenceUrl: transfer.getData("text/reference-url"),
+  referenceRenderUrl: transfer.getData("text/reference-render-url"),
+  imageUrl: transfer.getData("image/url"),
+  plainText: transfer.getData("text/plain"),
+  uriList: transfer.getData("text/uri-list"),
+});
+
+const buildVoiceSourceDropSnapshotTransfer = (snapshot: VoiceSourceDropSnapshot): DataTransfer =>
+  ({
+    types: snapshot.transferTypes,
+    files: snapshot.files,
+    getData: (type: string) => {
+      switch (type) {
+        case INTERNAL_REFERENCE_DRAG_SESSION_TYPE:
+        case INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE:
+          return snapshot.internalReferenceDragToken;
+        case "text/reference-origin":
+          return snapshot.referenceOrigin;
+        case "text/reference-id":
+          return snapshot.referenceId;
+        case "text/reference-output-id":
+          return snapshot.referenceOutputId;
+        case "text/reference-media-id":
+          return snapshot.referenceMediaId;
+        case "text/reference-media-kind":
+          return snapshot.referenceMediaKind;
+        case "text/reference-preview-storage-path":
+          return snapshot.referencePreviewStoragePath;
+        case "text/reference-full-storage-path":
+          return snapshot.referenceFullStoragePath;
+        case "text/reference-source-surface":
+          return snapshot.referenceSourceSurface;
+        case "text/reference-url":
+          return snapshot.referenceUrl;
+        case "text/reference-render-url":
+          return snapshot.referenceRenderUrl;
+        case "image/url":
+          return snapshot.imageUrl;
+        case "text/plain":
+          return snapshot.plainText;
+        case "text/uri-list":
+          return snapshot.uriList;
+        default:
+          return "";
+      }
+    },
+  }) as unknown as DataTransfer;
+
+const hasVoiceSourceDropSnapshotInternalReferenceHints = (
+  snapshot: VoiceSourceDropSnapshot
+): boolean => {
+  const normalizedReferenceUrl = normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, {
+    unwrapNextImage: false,
+  });
+  const normalizedRenderUrl = normalizeReferenceTransferUrlCandidate(snapshot.referenceRenderUrl, {
+    unwrapNextImage: false,
+  });
+
+  return Boolean(
+    snapshot.internalReferenceDragToken ||
+    snapshot.transferTypes.some(
+      (type) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE.toLowerCase() ||
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE.toLowerCase() ||
+        type === "text/reference-origin" ||
+        type === "text/reference-id" ||
+        type === "text/reference-output-id" ||
+        type === "text/reference-media-id" ||
+        type === "text/reference-source-surface" ||
+        type === "text/reference-url" ||
+        type === "text/reference-render-url"
+    ) ||
+    snapshot.referenceOrigin.trim() ||
+    snapshot.referenceId.trim() ||
+    snapshot.referenceOutputId.trim() ||
+    snapshot.referenceMediaId.trim() ||
+    snapshot.referenceSourceSurface.trim() ||
+    normalizedReferenceUrl ||
+    normalizedRenderUrl
+  );
+};
+
 const isLikelyNativeFileTransfer = (
   transfer: DataTransfer,
   acceptedKinds: AcceptedVoiceSourceKind[] = ["audio", "video"]
@@ -387,33 +506,68 @@ const createSourceFromUrl = ({
   return source ? { ...source, id: buildSourceId("voice-changer-url") } : null;
 };
 
-const createSourceFromTransfer = (
-  transfer: DataTransfer,
+const createSourceFromInternalPayload = (
+  payload: InternalReferenceDragPayload,
   acceptedKinds: AcceptedVoiceSourceKind[] = ["audio", "video"]
 ): VoiceChangerSource | null => {
-  const supportedFile = findFirstSupportedFile(transfer.files, acceptedKinds);
-  if (supportedFile) {
-    return createVoiceChangerSourceFromFile(supportedFile);
-  }
+  const storagePath = payload.fullStoragePath?.trim() || payload.previewStoragePath?.trim() || null;
+  const referenceUrl = normalizeReferenceTransferUrlCandidate(payload.referenceUrl, {
+    unwrapNextImage: false,
+  });
+  const renderUrl = normalizeReferenceTransferUrlCandidate(payload.referenceRenderUrl, {
+    unwrapNextImage: false,
+  });
+  const kind =
+    payload.mediaKind === "audio" || payload.mediaKind === "video"
+      ? payload.mediaKind
+      : inferSourceKindFromUrl(referenceUrl ?? renderUrl);
+  if (!isAcceptedSourceKind(kind, acceptedKinds)) return null;
 
+  const remoteSourceUrl = [referenceUrl, renderUrl].find(
+    (candidate): candidate is string =>
+      Boolean(candidate) &&
+      !/^(?:blob:|data:)/i.test(candidate) &&
+      inferSourceKindFromUrl(candidate) === kind
+  );
+  const previewUrl =
+    kind === "video"
+      ? normalizeReferenceTransferUrlCandidate(renderUrl ?? referenceUrl, {
+          unwrapNextImage: false,
+        })
+      : null;
+  const fallbackName =
+    getUrlFilename(remoteSourceUrl ?? previewUrl) ?? `Reference Grid ${kind} source`;
+
+  return createVoiceChangerSourceFromReference({
+    kind,
+    origin: "reference-grid",
+    name: fallbackName,
+    sourceUrl: remoteSourceUrl ?? null,
+    previewUrl,
+    storagePath,
+    referenceOutputId: payload.outputId,
+    referenceMediaId: payload.mediaId,
+  });
+};
+
+const createSourceFromTransfer = (
+  transfer: DataTransfer,
+  acceptedKinds: AcceptedVoiceSourceKind[] = ["audio", "video"],
+  options?: {
+    skipFiles?: boolean;
+  }
+): VoiceChangerSource | null => {
   const internalPayload = extractInternalReferenceDragPayload(transfer);
   if (internalPayload) {
-    const internalCandidates = [
-      internalPayload.referenceRenderUrl,
-      internalPayload.referenceUrl,
-    ].filter((candidate): candidate is string => typeof candidate === "string");
-    for (const candidate of internalCandidates) {
-      const source = createSourceFromUrl({
-        url: candidate,
-        origin: "reference-grid",
-        fallbackName: "Reference Grid source",
-        referenceOutputId: internalPayload.outputId,
-        referenceMediaId: internalPayload.mediaId,
-        acceptedKinds,
-      });
-      if (source) return source;
+    const internalSource = createSourceFromInternalPayload(internalPayload, acceptedKinds);
+    if (internalSource) return internalSource;
+  }
+
+  if (!options?.skipFiles) {
+    const supportedFile = findFirstSupportedFile(transfer.files, acceptedKinds);
+    if (supportedFile) {
+      return createVoiceChangerSourceFromFile(supportedFile);
     }
-    return null;
   }
 
   const urlCandidates = [
@@ -445,9 +599,22 @@ const canAcceptTransfer = (
   acceptedKinds: AcceptedVoiceSourceKind[] = ["audio", "video"]
 ): boolean => {
   if (!transfer) return false;
+  const snapshot = captureVoiceSourceDropSnapshot(transfer);
+  const transferSnapshot = buildVoiceSourceDropSnapshotTransfer(snapshot);
+  const hasInternalReferenceHints = hasVoiceSourceDropSnapshotInternalReferenceHints(snapshot);
+  if (hasInternalReferenceHints) {
+    if (canResolveInternalReference && hasInternalReferenceDragTypeHints(transferSnapshot))
+      return true;
+    return Boolean(
+      createSourceFromTransfer(transferSnapshot, acceptedKinds, {
+        skipFiles: true,
+      })
+    );
+  }
   if (isLikelyNativeFileTransfer(transfer, acceptedKinds)) return true;
-  if (canResolveInternalReference && hasInternalReferenceDragTypeHints(transfer)) return true;
-  return Boolean(createSourceFromTransfer(transfer, acceptedKinds));
+  if (canResolveInternalReference && hasInternalReferenceDragTypeHints(transferSnapshot))
+    return true;
+  return Boolean(createSourceFromTransfer(transferSnapshot, acceptedKinds));
 };
 
 /**
@@ -601,14 +768,20 @@ export function VoiceChangerSourceDropzone({
       dragDepthRef.current = 0;
       setIsDragActive(false);
 
-      const directSource = createSourceFromTransfer(event.dataTransfer, acceptedKinds);
-      if (directSource) {
-        handleSourceSelection(directSource);
-        return;
-      }
+      const dropSnapshot = captureVoiceSourceDropSnapshot(event.dataTransfer);
+      const transferSnapshot = buildVoiceSourceDropSnapshotTransfer(dropSnapshot);
+      const internalPayload = extractInternalReferenceDragPayload(transferSnapshot);
+      const hasInternalReferenceHints =
+        hasVoiceSourceDropSnapshotInternalReferenceHints(dropSnapshot);
+      const directSource = createSourceFromTransfer(transferSnapshot, acceptedKinds, {
+        skipFiles: hasInternalReferenceHints,
+      });
 
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       if (!internalPayload || !resolveInternalReferenceSource) {
+        if (directSource) {
+          handleSourceSelection(directSource);
+          return;
+        }
         setRecordingError(copy.unableReferenceError);
         return;
       }
@@ -616,12 +789,20 @@ export function VoiceChangerSourceDropzone({
       void (async () => {
         try {
           const resolvedSource = await resolveInternalReferenceSource(internalPayload);
-          if (!resolvedSource || !acceptedKinds.includes(resolvedSource.kind)) {
-            setRecordingError(copy.unableReferenceError);
+          if (resolvedSource && acceptedKinds.includes(resolvedSource.kind)) {
+            handleSourceSelection(resolvedSource);
             return;
           }
-          handleSourceSelection(resolvedSource);
+          if (directSource) {
+            handleSourceSelection(directSource);
+            return;
+          }
+          setRecordingError(copy.unableReferenceError);
         } catch {
+          if (directSource) {
+            handleSourceSelection(directSource);
+            return;
+          }
           setRecordingError(copy.unableReferenceError);
         }
       })();

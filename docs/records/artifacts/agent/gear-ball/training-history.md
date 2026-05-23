@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.1/10`
-- What went right: Gear Ball classified the tree correctly, validated both real lanes, caught a build-only type regression, fixed it, reran the required gates on the corrected tree, and pushed the actual final result.
-- What went wrong: Gear Ball let the first closeout summary get ahead of the true end of the run. After the build passed, one character-panel follow-up lane was still live in the worktree, so the earlier report under-described what still needed to be committed before push.
-- Capability decision: harden the post-build final-status gate, make final chat reports derive from the actual pushed commits instead of from memory, and score stale closeout snapshots as a real execution-integrity problem.
+- Score: `8.8/10`
+- What went right: Gear Ball classified the live tree into two honest product lanes, kept Git writes serialized, cleaned the final warning noise instead of hand-waving it, and pushed the exact validated tree.
+- What went wrong: the run lost time to cheap blockers that should have been caught earlier: formatting drift in both manifests, a stale Voices size assertion, and one fake-timer test shape that needed tightening before the character lane would clear cleanly.
+- Capability decision: keep the lane split strategy, but tighten the first-pass cheap-gate read so visual-size assertion drift and timer-sensitive test assumptions get corrected before the first full preflight rerun.
 
 ## Previous Supervised Synthesis
 

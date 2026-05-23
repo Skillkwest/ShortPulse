@@ -67,15 +67,10 @@
   inset: 0;
   overflow: hidden;
   mix-blend-mode: screen;
-  opacity: 1;
-  filter: drop-shadow(0 0 18px rgba(255, 74, 133, 0.1));
-}
-
-.ai-studio-project-entry-pulse-mask {
-  position: absolute;
-  inset: 0;
-  -webkit-mask-image: url("/loading-entry/mask.svg");
-  mask-image: url("/loading-entry/mask.svg");
+  opacity: 0;
+  transition: opacity 120ms ease;
+  -webkit-mask-image: url("/loading-entry/mask.png");
+  mask-image: url("/loading-entry/mask.png");
   -webkit-mask-mode: alpha;
   mask-mode: alpha;
   -webkit-mask-repeat: no-repeat;
@@ -86,10 +81,14 @@
   mask-size: 100% 100%;
 }
 
+.ai-studio-project-entry-pulse-plane.is-visible {
+  opacity: 1;
+}
+
 .ai-studio-project-entry-pulse-motion {
   position: absolute;
   inset: 0;
-  animation: ai-studio-project-entry-pulse-run 3.6s linear infinite;
+  animation: ai-studio-project-entry-pulse-run 4.4s linear infinite;
   will-change: transform, opacity;
 }
 

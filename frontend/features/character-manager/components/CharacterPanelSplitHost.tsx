@@ -24,6 +24,7 @@ type CharacterPanelSplitHostProps = {
 const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.42;
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
 const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
+const CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX = 420;
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
@@ -43,6 +44,7 @@ export function CharacterPanelSplitHost({
     defaultTopRatio: CHARACTER_PANEL_DEFAULT_TOP_RATIO,
     minTopSectionHeightPx: CHARACTER_PANEL_MIN_TOP_HEIGHT_PX,
     minBottomSectionHeightPx: CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX,
+    maxBottomSectionHeightPx: CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX,
     minTopRatioFloor: 0.32,
     ariaLabel: "Resize character workspace and media library sections",
   });

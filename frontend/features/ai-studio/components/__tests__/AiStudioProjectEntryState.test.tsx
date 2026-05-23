@@ -50,12 +50,11 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
     expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-motion")).not.toBeNull();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 
-  it("keeps the experimental entry surface mask-only with no visible artwork layer", () => {
+  it("keeps the experimental entry surface driven by the exact symbol-only PNG mask", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
 
     const { container } = render(
@@ -68,11 +67,9 @@ describe("AiStudioProjectEntryState", () => {
     );
 
     expect(container.querySelector(".ai-studio-project-entry-pulse-plane")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-pulse-mask")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-bloom")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-sweep")).not.toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-artwork")).toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-stage-glow")).toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-pulse-runner")).toBeNull();
   });
 
@@ -86,13 +83,14 @@ describe("AiStudioProjectEntryState", () => {
     );
   });
 
-  it("keeps the dedicated transparent mask asset available for the invisible sweep effect", () => {
-    const maskPath = path.join(process.cwd(), "public/loading-entry/mask.svg");
-    const maskText = fs.readFileSync(maskPath, "utf8");
+  it("keeps the derived symbol-only mask asset available for the invisible cutout effect", () => {
+    const maskPath = path.join(process.cwd(), "public/loading-entry/mask.png");
+    const maskBuffer = fs.readFileSync(maskPath);
 
-    expect(maskText).toContain("<svg");
-    expect(maskText).toContain('stroke="white"');
-    expect(maskText).toContain('fill="white"');
+    expect(maskBuffer.length).toBeGreaterThan(0);
+    expect(maskBuffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(
+      true
+    );
   });
 
   it("keeps the legacy loader when the experimental flag is disabled", () => {

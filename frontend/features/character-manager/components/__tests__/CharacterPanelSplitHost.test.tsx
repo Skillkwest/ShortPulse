@@ -74,6 +74,7 @@ describe("CharacterPanelSplitHost", () => {
         defaultTopRatio: 0.42,
         minTopSectionHeightPx: 336,
         minBottomSectionHeightPx: 248,
+        maxBottomSectionHeightPx: 420,
       })
     );
   });

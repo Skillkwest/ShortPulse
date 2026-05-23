@@ -165,18 +165,44 @@ export function AiStudioProjectEntryState({
   const liveMode = variant === "error" ? "assertive" : "polite";
   const shouldUseExperimentalAnimation =
     variant === "loading" && isExperimentalEntryAnimationEnabled(enableExperimentalAnimation);
+  const [isExperimentalBgReady, setIsExperimentalBgReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!shouldUseExperimentalAnimation) {
+      setIsExperimentalBgReady(false);
+      return;
+    }
+
+    const bgImage = new Image();
+    bgImage.decoding = "async";
+    bgImage.src = "/loading-entry/mask.png";
+
+    if (bgImage.complete) {
+      setIsExperimentalBgReady(true);
+      return;
+    }
+
+    const handleLoad = () => setIsExperimentalBgReady(true);
+    bgImage.addEventListener("load", handleLoad);
+
+    return () => {
+      bgImage.removeEventListener("load", handleLoad);
+    };
+  }, [shouldUseExperimentalAnimation]);
 
   if (shouldUseExperimentalAnimation) {
     return (
       <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
-            <div className="ai-studio-project-entry-pulse-plane">
-              <div className="ai-studio-project-entry-pulse-mask">
-                <div className="ai-studio-project-entry-pulse-motion">
-                  <div className="ai-studio-project-entry-pulse-bloom" />
-                  <div className="ai-studio-project-entry-pulse-sweep" />
-                </div>
+            <div
+              className={`ai-studio-project-entry-pulse-plane${
+                isExperimentalBgReady ? " is-visible" : ""
+              }`}
+            >
+              <div className="ai-studio-project-entry-pulse-motion">
+                <div className="ai-studio-project-entry-pulse-bloom" />
+                <div className="ai-studio-project-entry-pulse-sweep" />
               </div>
             </div>
           </div>

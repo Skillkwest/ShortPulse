@@ -171,6 +171,11 @@ describe("VoicesPropertiesPanel", () => {
     expect(voicesButton).toHaveStyle("height: 42px");
     expect(voicesButton).toHaveStyle("padding: 0 24px");
     expect(voicesButton).toHaveStyle("font-size: 0.98rem");
+    expect(
+      voicesButton
+        .closest(".voices-properties-library-selector--footer")
+        ?.closest(".voices-properties-script-actions")
+    ).not.toBeNull();
     expect(screen.getByRole("textbox", { name: "Voice script" })).toHaveAttribute(
       "placeholder",
       "Paste or write the script that will be spoken with this voice."
@@ -300,7 +305,9 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
     expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /preview unavailable for darian sample/i })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close voices modal" }));
 
@@ -1738,6 +1745,9 @@ describe("VoicesPropertiesPanel", () => {
     expect(within(voicesPanel).getByText("Lantern")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveTextContent("→");
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveStyle(
+      "font-size: 44px"
+    );
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
@@ -1827,6 +1837,9 @@ describe("VoicesPropertiesPanel", () => {
     expect(within(voicesPanel).getByText("Cloned Lantern")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveTextContent("→");
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveStyle(
+      "font-size: 44px"
+    );
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();
@@ -2495,6 +2508,127 @@ describe("VoicesPropertiesPanel", () => {
     });
     expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeInTheDocument();
+  });
+
+  it("shows a notice when a voice does not have a preview sample yet", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_missing_preview_123",
+            name: "Beacon",
+            previewUrl: null,
+            description: "missing preview",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /preview unavailable for beacon sample/i,
+      })
+    );
+
+    expect(screen.getByText("This voice does not have a preview sample yet.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+  });
+
+  it("clears preview-only notices when the voices modal is reopened", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_missing_preview_124",
+            name: "Beacon",
+            previewUrl: null,
+            description: "missing preview",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /preview unavailable for beacon sample/i,
+      })
+    );
+
+    expect(screen.getByText("This voice does not have a preview sample yet.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close voices modal" }));
+    await openVoicesLibraryModal();
+
+    expect(
+      screen.queryByText("This voice does not have a preview sample yet.")
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a notice when a voice preview playback request fails", async () => {
+    class MockAudio {
+      src: string;
+      preload = "";
+      currentTime = 0;
+      ended = false;
+      onplay: (() => void) | null = null;
+      onpause: (() => void) | null = null;
+      onended: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor(src: string) {
+        this.src = src;
+      }
+
+      play() {
+        return Promise.reject(new Error("Playback blocked"));
+      }
+
+      pause() {
+        this.onpause?.();
+      }
+    }
+    vi.stubGlobal("Audio", MockAudio as unknown as typeof Audio);
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_failing_preview_123",
+            name: "Nova",
+            previewUrl: "https://cdn.elevenlabs.test/nova.mp3",
+            description: "failing preview",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /play nova sample/i,
+      })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to play this voice sample right now.")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
   });
 
   it("shows only the base voice name on chips when provider names include descriptors", async () => {

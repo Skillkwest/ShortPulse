@@ -121,6 +121,32 @@ export const buildVoiceoverElevenV3RequestConfig = (): ElevenVoiceoverRequestCon
 const hardcodedVoiceChangerModel = resolveRequiredAudioVoiceChangerModelId();
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 const hardcodedVoiceChangerInputFormat = "other";
+const voicePreviewUnavailableNotice = "This voice does not have a preview sample yet.";
+const voicePreviewBrowserUnavailableNotice = "Audio previews are not available in this browser.";
+const voicePreviewPlaybackErrorNotice = "Unable to play this voice sample right now.";
+const loadedVoiceArrowInlineStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "54px",
+  flexShrink: 0,
+  alignSelf: "center",
+  color: "rgba(114, 243, 217, 0.98)",
+  fontSize: "44px",
+  fontWeight: 800,
+  lineHeight: 1,
+  letterSpacing: "-0.08em",
+  textShadow: "0 0 18px rgba(80, 226, 205, 0.3), 0 0 32px rgba(80, 226, 205, 0.18)",
+  transform: "translateY(1px)",
+};
+const loadedVoiceValueInlineStyle: React.CSSProperties = {
+  color: "rgba(239, 255, 252, 1)",
+  textShadow: "0 0 16px rgba(105, 220, 203, 0.28)",
+};
+const isTransientVoicePreviewNotice = (value: string | null): boolean =>
+  value === voicePreviewUnavailableNotice ||
+  value === voicePreviewBrowserUnavailableNotice ||
+  value === voicePreviewPlaybackErrorNotice;
 
 const extractDroppedPromptText = (transfer: DataTransfer): string | null => {
   const promptText = (
@@ -1308,6 +1334,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const handleOpenVoicesLibraryModal = React.useCallback(() => {
     shouldRestoreVoicesLibraryTriggerFocusRef.current = true;
     setActiveVoicesLibrarySection("my");
+    setVoicesLoadNotice((current) => (isTransientVoicePreviewNotice(current) ? null : current));
     setIsVoicesLibraryModalOpen(true);
   }, []);
 
@@ -1381,7 +1408,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const handleVoicePreviewPlay = React.useCallback(
     (voiceId: string, previewUrl: string | null | undefined) => {
       const nextUrl = previewUrl?.trim() ?? "";
-      if (!nextUrl || typeof Audio === "undefined") return;
+      if (!nextUrl) {
+        setVoicesLoadError(null);
+        setVoicesLoadNotice(voicePreviewUnavailableNotice);
+        return;
+      }
+      if (typeof Audio === "undefined") {
+        setVoicesLoadError(null);
+        setVoicesLoadNotice(voicePreviewBrowserUnavailableNotice);
+        return;
+      }
+      setVoicesLoadError(null);
+      setVoicesLoadNotice(null);
       const activeAudio = previewAudioRef.current;
       const isSameVoice = previewAudioVoiceIdRef.current === voiceId;
       if (activeAudio && isSameVoice) {
@@ -1418,6 +1456,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       };
       nextAudio.onerror = () => {
         if (previewAudioRef.current !== nextAudio) return;
+        setVoicesLoadError(null);
+        setVoicesLoadNotice(voicePreviewPlaybackErrorNotice);
         stopActiveVoicePreview();
       };
       previewAudioRef.current = nextAudio;
@@ -1432,6 +1472,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       if (playResult && typeof playResult.catch === "function") {
         void playResult.catch(() => {
           if (previewAudioRef.current === nextAudio) {
+            setVoicesLoadError(null);
+            setVoicesLoadNotice(voicePreviewPlaybackErrorNotice);
             stopActiveVoicePreview();
           }
         });
@@ -1801,29 +1843,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           <div ref={splitContainerRef} className="voices-properties-main">
             <section className="voices-properties-topbar" style={topSectionStyle}>
               <div className="voices-properties-panel-header">
-                <div className="voices-properties-library-selector">
-                  <button
-                    ref={voicesLibraryTriggerRef}
-                    type="button"
-                    className="voices-properties-library-open-btn"
-                    style={{
-                      width: "144px",
-                      minWidth: "144px",
-                      maxWidth: "144px",
-                      height: "42px",
-                      minHeight: "42px",
-                      maxHeight: "42px",
-                      padding: "0 24px",
-                      borderRadius: "12px",
-                      fontSize: "0.98rem",
-                    }}
-                    aria-label="Voices"
-                    onClick={handleOpenVoicesLibraryModal}
-                  >
-                    <span>Voices</span>
-                  </button>
-                  <h2 className="voices-properties-library-label">Select or create new voice</h2>
-                </div>
                 <div className="voices-properties-compose-mode-switcher">
                   <div className="voices-properties-mode-switcher">
                     <span className="voices-properties-mode-switcher-label">Voice Mode</span>
@@ -1921,15 +1940,38 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               <div className="voices-properties-script-divider" aria-hidden="true" />
 
               <div className="voices-properties-script-actions">
+                <div className="voices-properties-library-selector voices-properties-library-selector--footer">
+                  <button
+                    ref={voicesLibraryTriggerRef}
+                    type="button"
+                    className="voices-properties-library-open-btn"
+                    style={{
+                      width: "144px",
+                      minWidth: "144px",
+                      maxWidth: "144px",
+                      height: "42px",
+                      minHeight: "42px",
+                      maxHeight: "42px",
+                      padding: "0 24px",
+                      borderRadius: "12px",
+                      fontSize: "0.98rem",
+                    }}
+                    aria-label="Voices"
+                    onClick={handleOpenVoicesLibraryModal}
+                  >
+                    <span>Voices</span>
+                  </button>
+                  <h2 className="voices-properties-library-label">Select or create new voice</h2>
+                </div>
                 <div className="voices-properties-generate-context is-align-end" aria-live="polite">
                   <span className="voices-properties-generate-context-value-row">
                     {isSelectedVoiceFreshlyLoaded ? (
                       <span
-                        className="voices-properties-generate-loaded-arrow-cue"
                         data-testid="selected-voice-loaded-arrow"
                         aria-hidden="true"
+                        style={loadedVoiceArrowInlineStyle}
                       >
-                        <span className="voices-properties-generate-loaded-arrow-glyph">→</span>
+                        →
                       </span>
                     ) : null}
                     <span className="voices-properties-generate-context-copy">
@@ -1937,11 +1979,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         Selected voice
                       </span>
                       <span
-                        className={`voices-properties-generate-context-value ${
-                          isSelectedVoiceFreshlyLoaded
-                            ? "voices-properties-generate-context-value--loaded"
-                            : ""
-                        }`}
+                        className="voices-properties-generate-context-value"
+                        style={
+                          isSelectedVoiceFreshlyLoaded ? loadedVoiceValueInlineStyle : undefined
+                        }
                       >
                         {selectedGenerateVoiceName}
                       </span>

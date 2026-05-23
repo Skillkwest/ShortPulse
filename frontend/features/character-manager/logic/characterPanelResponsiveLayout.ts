@@ -84,7 +84,7 @@ export const resolveCharacterPanelResponsiveLayout = ({
   const balancedProgress = widthProgress;
   const referenceGrowthBoost = isEmbeddedMediaLibraryMaximized ? 0.1 : 0;
   const referenceProgress = clamp(widthProgress + referenceGrowthBoost, 0, 1);
-  const referenceCardMaxWidthPx = round(interpolate(96, 150, referenceProgress));
+  const referenceCardMaxWidthPx = round(interpolate(88, 136, referenceProgress));
   const referenceCardHeightPx = resolveReferenceCardHeightPx(referenceCardMaxWidthPx);
 
   return {

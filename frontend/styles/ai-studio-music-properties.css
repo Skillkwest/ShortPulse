@@ -55,7 +55,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: start;
-  padding: 2px 20px 12px;
+  padding: 14px 20px 12px;
   gap: 16px;
   overflow: hidden;
 }

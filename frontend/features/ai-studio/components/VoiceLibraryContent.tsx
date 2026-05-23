@@ -126,6 +126,10 @@ export function VoiceLibraryContent({
               const isSelected = voice.id === selectedLibraryVoice?.id;
               const isPreviewPlaying = voice.id === activePreviewVoiceId;
               const voiceChipDisplayName = getVoiceChipDisplayName(voice.name);
+              const canPreview = Boolean(voice.previewUrl?.trim());
+              const previewButtonLabel = canPreview
+                ? `${isPreviewPlaying ? "Stop" : "Play"} ${voice.name} sample`
+                : `Preview unavailable for ${voice.name} sample`;
               return (
                 <li key={voice.id} className="voices-properties-voice-item">
                   <div
@@ -151,10 +155,15 @@ export function VoiceLibraryContent({
 
                     <button
                       type="button"
-                      className="voices-properties-voice-chip-play"
-                      aria-label={`${isPreviewPlaying ? "Stop" : "Play"} ${voice.name} sample`}
+                      className={`voices-properties-voice-chip-play ${
+                        canPreview ? "" : "is-unavailable"
+                      }`}
+                      aria-label={previewButtonLabel}
                       aria-pressed={isPreviewPlaying}
-                      disabled={!voice.previewUrl}
+                      aria-disabled={!canPreview}
+                      title={
+                        canPreview ? undefined : "This voice does not have a preview sample yet."
+                      }
                       onClick={() => onPreviewVoice(voice.id, voice.previewUrl)}
                     >
                       <span className="voices-properties-voice-chip-play-icon" aria-hidden="true">

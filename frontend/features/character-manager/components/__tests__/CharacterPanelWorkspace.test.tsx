@@ -223,9 +223,33 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /\+ create new character/i })
+    ).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Taylor" })).toBeInTheDocument();
+  });
+
+  it("creates a new character from the Characters modal header action", async () => {
+    const createCharacterMock = vi.fn(async () => undefined);
+    currentDraftState = {
+      ...createDraftState(),
+      createCharacter: createCharacterMock,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Characters" }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /\+ create new character/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(createCharacterMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Character library" })).not.toBeInTheDocument();
   });
 
   it("opens character deletion from the modal card trash icon", () => {

@@ -46,7 +46,7 @@ const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = "#191a1f";
+const CHARACTER_TEXT_ENTRY_BACKGROUND = "#17181c";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
@@ -221,11 +221,11 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
 };
 const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  minWidth: "100px",
-  minHeight: "36px",
-  padding: "0 12px",
-  fontSize: "0.78rem",
-  gap: "5px",
+  minWidth: "92px",
+  minHeight: "32px",
+  padding: "0 10px",
+  fontSize: "0.74rem",
+  gap: "4px",
 };
 const CHARACTER_TOP_ACTION_BUTTON_TRANSITION =
   "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease";
@@ -492,11 +492,11 @@ export function CharacterPanelWorkspace({
     () => ({
       ...actionButtonStyle,
       ...CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE,
-      minWidth: `${Math.max(104, responsiveLayout.actionButtonMinWidthPx - 42)}px`,
-      minHeight: `${Math.max(36, responsiveLayout.actionButtonMinHeightPx - 6)}px`,
-      padding: `0 ${Math.max(12, responsiveLayout.actionButtonHorizontalPaddingPx - 6)}px`,
-      fontSize: "0.82rem",
-      gap: "6px",
+      minWidth: `${Math.max(92, responsiveLayout.actionButtonMinWidthPx - 52)}px`,
+      minHeight: `${Math.max(32, responsiveLayout.actionButtonMinHeightPx - 10)}px`,
+      padding: `0 ${Math.max(10, responsiveLayout.actionButtonHorizontalPaddingPx - 8)}px`,
+      fontSize: "0.74rem",
+      gap: "4px",
     }),
     [actionButtonStyle, responsiveLayout]
   );
@@ -1393,6 +1393,15 @@ export function CharacterPanelWorkspace({
         onClose={() => setIsCharacterLibraryModalOpen(false)}
         headerActions={
           <div className="model-modal-header-actions">
+            <button
+              type="button"
+              className="ai-character-picker-library-btn"
+              onClick={() => {
+                void handleCreateNewCharacter();
+              }}
+            >
+              + Create New Character
+            </button>
             <button
               type="button"
               className="ghost-btn mini model-modal-close"

@@ -26,9 +26,9 @@ Canonical detailed surfaces:
 
 - `2026-05-23` on `production`
 - Score: `8.8/10`
-- What went right: Gear Ball classified the whole live tree correctly, treated the SOP note as coupled documentation instead of a stray docs lane, and pushed the exact validated AI Studio/create-runtime tree after preflight and a clean final build.
-- What went wrong: the first preflight still paid two avoidable cleanup cycles on dead hook dependencies and an unused page binding before the real signal could surface.
-- Capability decision: keep trusting one shared-runtime batch when the create-runtime, page shell, character panel, and SOP note are all one contract, and add a tiny touched-file dead-binding/dependency sweep before the first shared page-shell preflight.
+- What went right: Gear Ball kept the rail-visibility logic, music/voices panel behavior, embedded character panel polish, and coupled route/SOP docs in one honest shared-runtime lane, then pushed the exact validated tree after preflight and a clean final build.
+- What went wrong: the first preflight still paid avoidable cleanup cycles on formatting drift plus one dead constant before the real validation signal emerged.
+- Capability decision: keep the single shared-runtime batch when the page logic, right-rail behavior, panel tests, and route docs clearly move together, and add a tiny touched-file formatting/dead-binding sweep before the first shared UI preflight.
 
 ## Previous Supervised Synthesis
 

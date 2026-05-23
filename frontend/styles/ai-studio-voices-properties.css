@@ -2450,33 +2450,27 @@
 .voices-properties-generate-loaded-arrow-cue {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  gap: 0;
+  min-width: 46px;
   align-self: center;
   transform-origin: right center;
-  filter: drop-shadow(0 0 12px rgba(93, 70, 255, 0.28));
+  color: rgba(116, 243, 224, 0.98);
+  filter: drop-shadow(0 0 16px rgba(72, 224, 202, 0.3));
   opacity: 0;
-  animation: voices-properties-loaded-voice-arrow-point 4.2s ease-out forwards;
+  animation: voices-properties-loaded-voice-arrow-point 6.5s ease-out forwards;
 }
 
-.voices-properties-generate-loaded-arrow-shaft {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(88, 44, 255, 0.95), rgba(110, 90, 255, 0.94));
+.voices-properties-generate-loaded-arrow-glyph {
+  display: inline-block;
+  font-size: 42px;
   line-height: 1;
-}
-
-.voices-properties-generate-loaded-arrow-head {
-  width: 24px;
-  height: 22px;
-  margin-left: -9px;
-  border-top: 11px solid transparent;
-  border-bottom: 11px solid transparent;
-  border-left: 24px solid rgba(110, 90, 255, 0.96);
+  font-weight: 800;
+  letter-spacing: -0.08em;
+  text-shadow:
+    0 0 18px rgba(80, 226, 205, 0.3),
+    0 0 32px rgba(80, 226, 205, 0.18);
+  line-height: 1;
 }
 
 @keyframes voices-properties-loaded-voice-flash {
@@ -2499,16 +2493,16 @@
 @keyframes voices-properties-loaded-voice-arrow-point {
   0% {
     opacity: 0;
-    transform: translateX(-10px) scale(0.98);
+    transform: translateX(-14px) scale(0.9);
   }
 
   10% {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(-2px) scale(1);
   }
 
   24% {
-    transform: translateX(5px) scale(1.02);
+    transform: translateX(7px) scale(1.04);
   }
 
   38% {
@@ -2516,17 +2510,17 @@
   }
 
   52% {
-    transform: translateX(5px) scale(1.02);
+    transform: translateX(7px) scale(1.04);
   }
 
-  68% {
+  74% {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
 
   100% {
-    opacity: 0;
-    transform: translateX(8px) scale(0.98);
+    opacity: 0.36;
+    transform: translateX(3px) scale(0.98);
   }
 }
 

@@ -70,9 +70,9 @@ const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const maxVoicePromptHeightPx = 264;
 const minVoicesTopSectionHeightPx = 120;
-const minVoicesBottomSectionHeightPx = 500;
-const maxVoicesBottomSectionHeightPx = 500;
-const fixedVoicesBottomSectionHeightPx = 500;
+const minVoicesBottomSectionHeightPx = 600;
+const maxVoicesBottomSectionHeightPx = 600;
+const fixedVoicesBottomSectionHeightPx = 600;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
@@ -533,7 +533,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         currentVoiceId === normalizedVoiceId ? null : currentVoiceId
       );
       loadedVoiceCueTimeoutRef.current = null;
-    }, 4200);
+    }, 6500);
   }, []);
 
   React.useEffect(() => {
@@ -1929,8 +1929,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         data-testid="selected-voice-loaded-arrow"
                         aria-hidden="true"
                       >
-                        <span className="voices-properties-generate-loaded-arrow-shaft" />
-                        <span className="voices-properties-generate-loaded-arrow-head" />
+                        <span className="voices-properties-generate-loaded-arrow-glyph">→</span>
                       </span>
                     ) : null}
                     <span className="voices-properties-generate-context-copy">

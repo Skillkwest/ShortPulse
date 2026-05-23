@@ -4,7 +4,7 @@
  */
 import React from "react";
 
-const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
+const CHARACTER_DESCRIPTION_INPUT_BACKGROUND = "#191a1f";
 const CHARACTER_REFERENCE_DROP_ZONE_HEIGHT = "142.5px";
 
 const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
@@ -14,8 +14,8 @@ const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
   position: "relative",
   border: "1px solid rgba(34, 40, 49, 0.96)",
   borderRadius: "12px",
-  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
-  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  background: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
+  backgroundColor: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
   height: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
   minHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
   maxHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
@@ -31,7 +31,8 @@ const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
   border: "none",
   outline: "none",
   resize: "none",
-  background: "transparent",
+  background: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
+  backgroundColor: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
   color: "rgba(232, 236, 244, 0.96)",
   fontSize: "0.92rem",
   lineHeight: 1.45,

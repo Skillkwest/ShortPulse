@@ -46,11 +46,11 @@ const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
+const CHARACTER_TEXT_ENTRY_BACKGROUND = "#191a1f";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
 const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
-const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
 const CHARACTER_PANEL_FIELD_BORDER_COLOR = "rgba(34, 40, 49, 0.96)";
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
@@ -116,7 +116,7 @@ const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
   marginTop: "6px",
-  padding: "14px 8px 6px",
+  padding: "14px 8px 3px",
   borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
@@ -142,8 +142,8 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   width: "100%",
   borderRadius: "10px",
   border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
-  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
-  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  background: CHARACTER_TEXT_ENTRY_BACKGROUND,
+  backgroundColor: CHARACTER_TEXT_ENTRY_BACKGROUND,
   color: "rgba(242, 246, 252, 0.96)",
   boxSizing: "border-box",
 };
@@ -194,7 +194,7 @@ const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   borderRadius: "10px",
   border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
   background: "rgba(12, 14, 19, 0.96)",
-  boxShadow: "0 10px 22px rgba(0, 0, 0, 0.18)",
+  boxShadow: "0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)",
   overflow: "hidden",
   position: "relative",
   boxSizing: "border-box",
@@ -221,12 +221,14 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
 };
 const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  minWidth: "112px",
-  minHeight: "40px",
-  padding: "0 14px",
-  fontSize: "0.82rem",
-  gap: "6px",
+  minWidth: "100px",
+  minHeight: "36px",
+  padding: "0 12px",
+  fontSize: "0.78rem",
+  gap: "5px",
 };
+const CHARACTER_TOP_ACTION_BUTTON_TRANSITION =
+  "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease";
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   height: "100%",
   minHeight: 0,
@@ -370,6 +372,9 @@ export function CharacterPanelWorkspace({
     characterName: string;
   } | null>(null);
   const [showSaveSuccessIndicator, setShowSaveSuccessIndicator] = React.useState(false);
+  const [hoveredTopActionButton, setHoveredTopActionButton] = React.useState<
+    "characters" | "save" | "create" | null
+  >(null);
   const [deleteTargetCharacterSheetPresetId, setDeleteTargetCharacterSheetPresetId] =
     React.useState<CharacterSheetPresetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
@@ -494,6 +499,57 @@ export function CharacterPanelWorkspace({
       gap: "6px",
     }),
     [actionButtonStyle, responsiveLayout]
+  );
+
+  const getTopActionButtonStyle = React.useCallback(
+    (
+      baseStyle: React.CSSProperties,
+      isHovered: boolean,
+      disabled: boolean
+    ): React.CSSProperties => ({
+      ...baseStyle,
+      transition: CHARACTER_TOP_ACTION_BUTTON_TRANSITION,
+      transform: !disabled && isHovered ? "translateY(-2px)" : "translateY(0)",
+      borderColor: !disabled && isHovered ? "rgba(77, 214, 255, 0.84)" : baseStyle.borderColor,
+      background: !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.background,
+      backgroundColor:
+        !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.backgroundColor,
+      boxShadow:
+        !disabled && isHovered
+          ? "0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(37, 204, 255, 0.12)"
+          : baseStyle.boxShadow,
+    }),
+    []
+  );
+
+  const charactersTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        charactersButtonStyle,
+        hoveredTopActionButton === "characters",
+        pageBusy
+      ),
+    [charactersButtonStyle, getTopActionButtonStyle, hoveredTopActionButton, pageBusy]
+  );
+
+  const saveTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        secondaryActionButtonStyle,
+        hoveredTopActionButton === "save",
+        pageBusy
+      ),
+    [getTopActionButtonStyle, hoveredTopActionButton, pageBusy, secondaryActionButtonStyle]
+  );
+
+  const createTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        secondaryActionButtonStyle,
+        hoveredTopActionButton === "create",
+        pageBusy
+      ),
+    [getTopActionButtonStyle, hoveredTopActionButton, pageBusy, secondaryActionButtonStyle]
   );
 
   React.useEffect(
@@ -876,8 +932,14 @@ export function CharacterPanelWorkspace({
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={charactersButtonStyle}
+                          style={charactersTopButtonStyle}
                           onClick={() => setIsCharacterLibraryModalOpen(true)}
+                          onMouseEnter={() => setHoveredTopActionButton("characters")}
+                          onMouseLeave={() =>
+                            setHoveredTopActionButton((current) =>
+                              current === "characters" ? null : current
+                            )
+                          }
                           disabled={pageBusy}
                         >
                           Characters
@@ -898,10 +960,16 @@ export function CharacterPanelWorkspace({
                         <button
                           type="button"
                           className="character-panel-action-btn"
-                          style={secondaryActionButtonStyle}
+                          style={saveTopButtonStyle}
                           onClick={() => {
                             void handleSaveCharacter();
                           }}
+                          onMouseEnter={() => setHoveredTopActionButton("save")}
+                          onMouseLeave={() =>
+                            setHoveredTopActionButton((current) =>
+                              current === "save" ? null : current
+                            )
+                          }
                           disabled={pageBusy}
                         >
                           <FloppyDisk size={13} weight="bold" aria-hidden />
@@ -910,10 +978,16 @@ export function CharacterPanelWorkspace({
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={secondaryActionButtonStyle}
+                          style={createTopButtonStyle}
                           onClick={() => {
                             void handleCreateNewCharacter();
                           }}
+                          onMouseEnter={() => setHoveredTopActionButton("create")}
+                          onMouseLeave={() =>
+                            setHoveredTopActionButton((current) =>
+                              current === "create" ? null : current
+                            )
+                          }
                           disabled={pageBusy}
                         >
                           <Plus size={14} weight="bold" aria-hidden />
@@ -1097,7 +1171,7 @@ export function CharacterPanelWorkspace({
                                         ? "rgba(59, 193, 255, 0.82)"
                                         : CHARACTER_PANEL_FIELD_BORDER_COLOR,
                                       boxShadow: isDropActive
-                                        ? "0 0 0 1px rgba(59, 193, 255, 0.18), 0 10px 22px rgba(0, 0, 0, 0.18)"
+                                        ? "0 0 0 1px rgba(59, 193, 255, 0.18), 0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)"
                                         : CHARACTER_REFERENCE_CARD_INLINE_STYLE.boxShadow,
                                       opacity:
                                         draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,

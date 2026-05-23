@@ -1737,6 +1737,7 @@ describe("VoicesPropertiesPanel", () => {
     const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     expect(within(voicesPanel).getByText("Lantern")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveTextContent("→");
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
@@ -1825,6 +1826,7 @@ describe("VoicesPropertiesPanel", () => {
     const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     expect(within(voicesPanel).getByText("Cloned Lantern")).toBeInTheDocument();
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
+    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveTextContent("→");
     await openVoicesLibraryModal();
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();

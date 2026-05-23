@@ -575,7 +575,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="voice-changer"] .ai-hero-shortcut-button[aria-pressed="true"],
 .ai-studio-page[data-selected-tool="sound-effects"] .ai-hero-shortcut-button[aria-pressed="true"],
 .ai-studio-page[data-selected-tool="music"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgba(245, 221, 174, 0.96);
+  color: #69dccb;
 }
 
 .ai-studio-page[data-selected-tool="character"] .ai-hero-shortcut-button[aria-pressed="true"] {
@@ -633,7 +633,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="sound-effects"]
   .ai-hero-shortcut-icon-button[aria-pressed="true"],
 .ai-studio-page[data-selected-tool="music"] .ai-hero-shortcut-icon-button[aria-pressed="true"] {
-  color: rgba(245, 221, 174, 0.96);
+  color: #69dccb;
 }
 
 .ai-hero-shortcut-icon-button:hover {

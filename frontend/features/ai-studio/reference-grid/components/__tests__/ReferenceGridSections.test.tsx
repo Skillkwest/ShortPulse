@@ -85,6 +85,23 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
 });
 
 describe("ReferenceGridSections", () => {
+  it("shows the empty-state helper when no right-rail sections are visible", () => {
+    render(
+      <ReferenceGridSections
+        {...createProps()}
+        showRailCanvasSection={false}
+        railCanvasProps={undefined}
+      />
+    );
+
+    expect(screen.getByText("Right-rail panels are hidden.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Use the canvas toggle or the header shortcuts to show Quick Slot Inventory/i
+      )
+    ).toBeInTheDocument();
+  });
+
   it("lets the canvas section fill the rail when it is the only visible section", () => {
     const { container } = render(<ReferenceGridSections {...createProps()} />);
 

@@ -1,6 +1,7 @@
 /**
  * Panel visibility logic tests.
- * Verifies global initialization, availability-gated derivation, and shortcut toggles.
+ * Verifies global initialization, availability-gated derivation, independent shortcut toggles,
+ * and the separate isolate-mode visibility contract.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -10,6 +11,8 @@ import {
   resolveHeaderShortcutStateMap,
   togglePanelVisibilityByShortcut,
 } from "../panelVisibility";
+
+const AVAILABLE_TOGGLES = { quickSlot: true, styles: true } as const;
 
 describe("panelVisibility", () => {
   it("creates a fresh panel visibility state per initialization call", () => {
@@ -38,12 +41,12 @@ describe("panelVisibility", () => {
     });
   });
 
-  it("builds header shortcut pressed state from the top visible panel", () => {
+  it("builds header shortcut pressed state from actual visible sections", () => {
     const state = resolveHeaderShortcutStateMap({
       effectiveVisibility: {
         quickSlot: true,
         referenceGrid: true,
-        styles: false,
+        styles: true,
       },
       availability: {
         quickSlot: true,
@@ -52,8 +55,8 @@ describe("panelVisibility", () => {
     });
 
     expect(state["quick-slot-inventory"]).toEqual({ pressed: true, disabled: false });
-    expect(state["reference-grid"]).toEqual({ pressed: false, disabled: false });
-    expect(state.styles).toEqual({ pressed: false, disabled: false });
+    expect(state["reference-grid"]).toEqual({ pressed: true, disabled: false });
+    expect(state.styles).toEqual({ pressed: true, disabled: false });
   });
 
   it("selects named shortcut surfaces and respects availability", () => {
@@ -75,7 +78,7 @@ describe("panelVisibility", () => {
     expect(toggledStyles.styles).toBe(true);
   });
 
-  it("selects quick slot inventory as an exclusive named destination", () => {
+  it("toggles quick slot inventory independently", () => {
     expect(
       togglePanelVisibilityByShortcut({
         panelVisibility: {
@@ -84,16 +87,16 @@ describe("panelVisibility", () => {
           styles: true,
         },
         shortcutId: "quick-slot-inventory",
-        availability: { quickSlot: true, styles: true },
+        availability: AVAILABLE_TOGGLES,
       })
     ).toEqual({
       quickSlot: true,
-      referenceGrid: false,
+      referenceGrid: true,
       styles: true,
     });
   });
 
-  it("selects reference grid as an exclusive named destination", () => {
+  it("toggles reference grid independently", () => {
     expect(
       togglePanelVisibilityByShortcut({
         panelVisibility: {
@@ -102,13 +105,77 @@ describe("panelVisibility", () => {
           styles: true,
         },
         shortcutId: "reference-grid",
-        availability: { quickSlot: true, styles: true },
+        availability: AVAILABLE_TOGGLES,
       })
     ).toEqual({
-      quickSlot: false,
+      quickSlot: true,
       referenceGrid: true,
       styles: true,
     });
+  });
+
+  it("can reach every normal-mode quick-slot/reference-grid combination from the default state", () => {
+    const seen = new Set<string>();
+    const queue = [createInitialPanelVisibility()];
+
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (!next) continue;
+      const key = `${next.quickSlot ? 1 : 0}${next.referenceGrid ? 1 : 0}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push(
+        togglePanelVisibilityByShortcut({
+          panelVisibility: next,
+          shortcutId: "quick-slot-inventory",
+          availability: AVAILABLE_TOGGLES,
+        })
+      );
+      queue.push(
+        togglePanelVisibilityByShortcut({
+          panelVisibility: next,
+          shortcutId: "reference-grid",
+          availability: AVAILABLE_TOGGLES,
+        })
+      );
+    }
+
+    expect([...seen].sort()).toEqual(["00", "01", "10", "11"]);
+  });
+
+  it("supports all 8 canvas, quick-slot, and reference-grid normal-mode combinations", () => {
+    const seen = new Set<string>();
+    const queue = [{ canvasVisible: false, panelVisibility: createInitialPanelVisibility() }];
+
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (!next) continue;
+      const key = `${next.canvasVisible ? 1 : 0}${next.panelVisibility.quickSlot ? 1 : 0}${next.panelVisibility.referenceGrid ? 1 : 0}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push({
+        canvasVisible: !next.canvasVisible,
+        panelVisibility: next.panelVisibility,
+      });
+      queue.push({
+        canvasVisible: next.canvasVisible,
+        panelVisibility: togglePanelVisibilityByShortcut({
+          panelVisibility: next.panelVisibility,
+          shortcutId: "quick-slot-inventory",
+          availability: AVAILABLE_TOGGLES,
+        }),
+      });
+      queue.push({
+        canvasVisible: next.canvasVisible,
+        panelVisibility: togglePanelVisibilityByShortcut({
+          panelVisibility: next.panelVisibility,
+          shortcutId: "reference-grid",
+          availability: AVAILABLE_TOGGLES,
+        }),
+      });
+    }
+
+    expect([...seen].sort()).toEqual(["000", "001", "010", "011", "100", "101", "110", "111"]);
   });
 
   it.each([
@@ -137,7 +204,7 @@ describe("panelVisibility", () => {
     expect(
       resolveExpandedRightRailVisibility({
         target,
-        availability: { quickSlot: true, styles: true },
+        availability: AVAILABLE_TOGGLES,
       })
     ).toEqual(expected);
   });

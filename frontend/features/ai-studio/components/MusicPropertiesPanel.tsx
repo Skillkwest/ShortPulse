@@ -502,6 +502,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 
             <div className="music-properties-topbar-center">
               <div className="music-properties-toggle-shell">
+                <span className="music-properties-toggle-label">Music Mode</span>
                 <div
                   className="music-properties-toggle-tabs"
                   role="tablist"

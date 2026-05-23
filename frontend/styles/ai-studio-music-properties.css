@@ -77,7 +77,21 @@
 
 .music-properties-toggle-shell {
   display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   min-width: 198px;
+}
+
+.music-properties-toggle-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: rgba(201, 205, 214, 0.68);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .music-properties-toggle-tabs {

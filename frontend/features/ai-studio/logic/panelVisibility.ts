@@ -1,6 +1,6 @@
 /**
  * AI Studio right-rail panel visibility domain helpers.
- * Centralizes global visibility state, derived render visibility, and header toggle behavior.
+ * Centralizes global visibility state, derived render visibility, and header interactions.
  */
 
 export type HeaderShortcutId = "quick-slot-inventory" | "reference-grid" | "styles";
@@ -63,6 +63,7 @@ export const resolveEffectivePanelVisibility = ({
 
 /**
  * Computes header toggle pressed/disabled state from effective visibility and availability.
+ * Multiple shortcuts can be pressed at once when multiple right-rail panels are visible.
  */
 export const resolveHeaderShortcutStateMap = ({
   effectiveVisibility,
@@ -70,29 +71,20 @@ export const resolveHeaderShortcutStateMap = ({
 }: {
   effectiveVisibility: EffectivePanelVisibility;
   availability: PanelToggleAvailability;
-}): HeaderShortcutStateMap => {
-  const activeShortcutId: HeaderShortcutId | null = effectiveVisibility.quickSlot
-    ? "quick-slot-inventory"
-    : effectiveVisibility.referenceGrid
-      ? "reference-grid"
-      : effectiveVisibility.styles
-        ? "styles"
-        : null;
-  return {
-    "quick-slot-inventory": {
-      pressed: activeShortcutId === "quick-slot-inventory",
-      disabled: !availability.quickSlot,
-    },
-    "reference-grid": {
-      pressed: activeShortcutId === "reference-grid",
-      disabled: false,
-    },
-    styles: {
-      pressed: activeShortcutId === "styles",
-      disabled: !availability.styles,
-    },
-  };
-};
+}): HeaderShortcutStateMap => ({
+  "quick-slot-inventory": {
+    pressed: effectiveVisibility.quickSlot,
+    disabled: !availability.quickSlot,
+  },
+  "reference-grid": {
+    pressed: effectiveVisibility.referenceGrid,
+    disabled: false,
+  },
+  styles: {
+    pressed: effectiveVisibility.styles,
+    disabled: !availability.styles,
+  },
+});
 
 /**
  * Toggles a single header shortcut while respecting toggle availability.
@@ -117,14 +109,12 @@ export const togglePanelVisibilityByShortcut = ({
     if (!availability.quickSlot) return panelVisibility;
     return {
       ...panelVisibility,
-      quickSlot: true,
-      referenceGrid: false,
+      quickSlot: !panelVisibility.quickSlot,
     };
   }
   return {
     ...panelVisibility,
-    quickSlot: false,
-    referenceGrid: true,
+    referenceGrid: !panelVisibility.referenceGrid,
   };
 };
 

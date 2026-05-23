@@ -72,6 +72,11 @@
   background: var(--character-panel-section-bg);
 }
 
+.character-panel-bottom-section .elements-embedded-media-library-panel .media-library-panel-body {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
 .character-panel-editor-column {
   display: flex;
   flex-direction: column;

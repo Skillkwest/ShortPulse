@@ -22,7 +22,7 @@ type CharacterPanelSplitHostProps = {
 };
 
 const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.42;
-const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 300;
+const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
 const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
 
 export function CharacterPanelSplitHost({

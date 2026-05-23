@@ -25,10 +25,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball classified the whole live tree correctly, kept the Gear Ball trim lane separate from the project-entry/panel product lane, and pushed the exact validated tree after docs checks, targeted preflight, and a clean final build.
-- What went wrong: the first product preflight still spent an avoidable cycle on CSS formatting drift before the real validation signal could surface.
-- Capability decision: keep the docs-plus-product lane split when the tree makes that boundary obvious, and add a tiny touched-styles Prettier sweep before the first mixed UI preflight to cut that repeated friction.
+- Score: `8.8/10`
+- What went right: Gear Ball classified the whole live tree correctly, treated the SOP note as coupled documentation instead of a stray docs lane, and pushed the exact validated AI Studio/create-runtime tree after preflight and a clean final build.
+- What went wrong: the first preflight still paid two avoidable cleanup cycles on dead hook dependencies and an unused page binding before the real signal could surface.
+- Capability decision: keep trusting one shared-runtime batch when the create-runtime, page shell, character panel, and SOP note are all one contract, and add a tiny touched-file dead-binding/dependency sweep before the first shared page-shell preflight.
 
 ## Previous Supervised Synthesis
 

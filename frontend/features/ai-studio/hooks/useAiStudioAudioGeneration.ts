@@ -48,7 +48,9 @@ type VoicesGenerateSuccessResponse = {
     mediaFileId: string | null;
     requestId: string;
     previewUrl: string;
+    previewPosterUrl: string | null;
     resultUrls: string[];
+    previewPosterStoragePath: string | null;
     previewStoragePath: string;
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
@@ -217,6 +219,8 @@ const buildVoiceChangerRemuxedVideoOutput = ({
     taskState: "success",
     resultUrls: payload.resultUrls,
     previewUrl: payload.previewUrl,
+    previewPosterUrl: payload.previewPosterUrl,
+    previewPosterStoragePath: payload.previewPosterStoragePath,
     previewStoragePath: payload.previewStoragePath,
     fullStoragePath: payload.fullStoragePath,
     previewTier: "preview_loop",

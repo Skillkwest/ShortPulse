@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/copy-from-url";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const dnsLookupMock = vi.fn();
 const requireApiUserMock = vi.fn();
@@ -79,6 +80,7 @@ type ExistingMediaRow = {
 };
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -329,6 +331,7 @@ describe("POST /api/media/copy-from-url", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    resetApiRateLimitForTests();
     upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
     upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
@@ -1135,11 +1138,12 @@ describe("POST /api/media/copy-from-url", () => {
       },
     });
     getSupabaseAdminMock.mockReturnValue(supabase.admin);
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
-        status: 200,
-        headers: { "Content-Type": "image/png", "Content-Length": "4" },
-      })
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1228,11 +1232,12 @@ describe("POST /api/media/copy-from-url", () => {
       },
     });
     getSupabaseAdminMock.mockReturnValue(supabase.admin);
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
-        status: 200,
-        headers: { "Content-Type": "image/png", "Content-Length": "4" },
-      })
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1289,19 +1294,88 @@ describe("POST /api/media/copy-from-url", () => {
     const req = {
       method: "POST",
       headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      socket: { remoteAddress: "127.0.0.1" },
       body: { url: "https://trusted.example.com/too-large.png", mode: "image" },
     };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.status).toHaveBeenCalledWith(413);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Unable to copy media from URL.",
-      details: "Fetched media exceeds size limit.",
+      error: "Fetched media exceeds size limit.",
     });
-    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ routeLabel: "media-copy-from-url" })
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("rate limits repeated media copy requests for the same authenticated user", async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
     );
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (let index = 0; index < 8; index += 1) {
+      const supabase = createSupabaseAdmin({
+        insertRow: {
+          id: "media-new-1",
+          storage_path: "user-1/uploads/images/media-new-1.png",
+          file_type: "image",
+          metadata: { prompt: "reference image" },
+        },
+        signedUrls: {
+          "user-1/uploads/images/media-new-1.png": "https://signed.test/media-new-1.png",
+        },
+      });
+      getSupabaseAdminMock.mockReturnValue(supabase.admin);
+      const req = {
+        method: "POST",
+        headers: {
+          host: "app.shortpulse.test",
+          "x-forwarded-proto": "https",
+        },
+        socket: { remoteAddress: "127.0.0.1" },
+        body: {
+          url: `https://trusted.example.com/reference-${index}.png`,
+          promptText: "reference image",
+          mode: "image",
+          source: "upload",
+          index: 0,
+        },
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      headers: {
+        host: "app.shortpulse.test",
+        "x-forwarded-proto": "https",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: {
+        url: "https://trusted.example.com/reference-blocked.png",
+        promptText: "reference image",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

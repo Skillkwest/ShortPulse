@@ -380,7 +380,9 @@ describe("useAiStudioAudioGeneration", () => {
           mediaFileId: "media-voice-video",
           requestId: "req-voice-video",
           previewUrl: "https://example.com/voice.mp4",
+          previewPosterUrl: "https://example.com/voice-poster.jpg",
           resultUrls: ["https://example.com/voice.mp4"],
+          previewPosterStoragePath: "preview/posters/voice.jpg",
           previewStoragePath: "preview/voice.mp4",
           fullStoragePath: "full/voice.mp4",
           mimeType: "video/mp4",
@@ -475,6 +477,8 @@ describe("useAiStudioAudioGeneration", () => {
       prompt: "clip.mp4 -> Narrator video",
       savedMediaIds: ["media-voice-video"],
       previewUrl: "https://example.com/voice.mp4",
+      previewPosterUrl: "https://example.com/voice-poster.jpg",
+      previewPosterStoragePath: "preview/posters/voice.jpg",
       aspect: "16:9",
     });
     expect(outputs[1]).toMatchObject({

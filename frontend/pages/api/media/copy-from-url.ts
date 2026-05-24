@@ -18,6 +18,7 @@ import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath"
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { reconcileOwnedGenerationOutputSlot } from "../../../lib/server/api/generationOutputConvergence";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import {
@@ -103,6 +104,11 @@ const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
 };
 const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
   "Generated media is missing durable generation tracking.";
+const MEDIA_COPY_FROM_URL_RATE_LIMIT = {
+  keyPrefix: "media-copy-from-url",
+  maxRequests: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 type CopyFromUrlRequest = {
   url?: unknown;
@@ -1074,6 +1080,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...MEDIA_COPY_FROM_URL_RATE_LIMIT,
+      keyPrefix: `${MEDIA_COPY_FROM_URL_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   const payload = parseRequestBody(req);
   if (!payload) {
@@ -1297,7 +1311,6 @@ export default async function handler(
     if (uploadError) {
       return res.status(500).json({
         error: "Upload failed",
-        details: uploadError.message,
       });
     }
 
@@ -1453,7 +1466,6 @@ export default async function handler(
       }
       return res.status(500).json({
         error: "Failed to persist media record",
-        details: insertError.message,
       });
     }
 
@@ -1596,12 +1608,15 @@ export default async function handler(
     ) {
       return res.status(422).json({ error: message });
     }
+    if (message === "Fetched media exceeds size limit.") {
+      return res.status(413).json({ error: message });
+    }
     await logApiRouteException({
       req,
       error,
       routeLabel: "media-copy-from-url",
       user,
     });
-    return res.status(500).json({ error: "Unable to copy media from URL.", details: message });
+    return res.status(500).json({ error: "Unable to copy media from URL." });
   }
 }

@@ -38,6 +38,7 @@ import {
 } from "./chatModeDefaults";
 import { createAiStudioProjectWorkspaceSnapshot as createProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
 import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
+import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 
@@ -49,9 +50,11 @@ export type AiStudioSessionExpertCreateMode = "standard" | "pulse";
 export type AiStudioSessionOutputV1 = {
   id: string;
   prompt: string;
+  transcriptText?: string | null;
   mode: StudioMode;
   aspect: string;
   model: string;
+  createdAt?: string | null;
   modelId?: string;
   provider?: string;
   sourceRef?: string;
@@ -300,9 +303,11 @@ const normalizeVideoStorageAuthority = ({
       fullStoragePath,
     };
   }
-  const inferredPosterStoragePath =
-    previewPosterStoragePath ??
-    (previewStoragePath && previewStoragePath !== fullStoragePath ? previewStoragePath : null);
+  const inferredPosterStoragePath = resolveVideoPosterStoragePath({
+    previewPosterStoragePath,
+    previewStoragePath,
+    fullStoragePath,
+  });
   const normalizedPreviewStoragePath =
     previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)
       ? previewStoragePath
@@ -479,9 +484,11 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
   return {
     id: output.id,
     prompt: output.prompt,
+    transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
     mode: output.mode,
     aspect: output.aspect,
     model: output.model,
+    createdAt: output.createdAt ?? null,
     modelId: output.modelId,
     provider: output.provider,
     sourceRef: output.sourceRef,

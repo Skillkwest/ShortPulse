@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/voices/clone";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const saveVoiceForUserMock = vi.fn();
+const cleanupFailedElevenLabsCustomVoiceMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
 const createPersistedElevenLabsVoiceSampleMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
@@ -29,6 +30,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/userSavedVoices", () => ({
   saveVoiceForUser: (...args: unknown[]) => saveVoiceForUserMock(...args),
+}));
+
+vi.mock("../../lib/server/elevenlabsCustomVoiceCleanup", () => ({
+  cleanupFailedElevenLabsCustomVoice: (...args: unknown[]) =>
+    cleanupFailedElevenLabsCustomVoiceMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -71,6 +77,11 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       sampleStoragePath: "user-1/voice-samples/cloned-voice-1/sample.mp3",
       mimeType: "audio/mpeg",
       providerRequestId: "tts-request-1",
+    });
+    cleanupFailedElevenLabsCustomVoiceMock.mockResolvedValue({
+      providerVoiceDeleted: true,
+      sampleDeleted: true,
+      cleanupErrors: [],
     });
     saveVoiceForUserMock.mockResolvedValue({
       voiceId: "cloned-voice-1",
@@ -193,6 +204,32 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to clone voice",
       details: "Voice clone source audio is too short.",
+    });
+  });
+
+  it("fails closed when ownership persistence does not succeed", async () => {
+    saveVoiceForUserMock.mockResolvedValueOnce(null);
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Cloned Narrator",
+        voiceDescription: "Warm cloned narrator",
+        sourceStoragePath: "user-1/voice-clone/source-audio/sample.mp3",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(cleanupFailedElevenLabsCustomVoiceMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      voiceId: "cloned-voice-1",
+      sampleStoragePath: "user-1/voice-samples/cloned-voice-1/sample.mp3",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to clone voice",
+      details: "We couldn't securely save this voice. Please try again.",
     });
   });
 

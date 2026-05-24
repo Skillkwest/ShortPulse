@@ -12,9 +12,13 @@ import type {
   ReferenceIngestionResult,
 } from "./types";
 
+const resolveNowIso = (context: ReferenceIngestionContext): string =>
+  typeof context.nowIso === "function" ? context.nowIso() : new Date().toISOString();
+
 const buildPromptReferenceOutput = ({
   id,
   promptText,
+  createdAt,
   timestamp,
   context,
   status,
@@ -22,6 +26,7 @@ const buildPromptReferenceOutput = ({
 }: {
   id: string;
   promptText: string;
+  createdAt?: string | null;
   timestamp: string;
   context: ReferenceIngestionContext;
   status?: StudioOutput["status"];
@@ -37,6 +42,7 @@ const buildPromptReferenceOutput = ({
     mode: "text",
     aspect: context.aspect,
     model: placeholderModelLabel,
+    createdAt: createdAt ?? resolveNowIso(context),
     modelId: context.model ?? undefined,
     status: status ?? "ready",
     timestamp,
@@ -85,6 +91,7 @@ const buildPastedMediaOutput = ({
     mode: isAudio ? "audio" : isVideo ? "video" : "image",
     aspect: context.aspect,
     model: placeholderModelLabel,
+    createdAt: resolveNowIso(context),
     modelId: context.model ?? undefined,
     status: "ready",
     timestamp: "Clipboard",
@@ -136,9 +143,11 @@ const buildLibraryMediaOutput = ({
   return {
     id,
     prompt: resolvedPromptText,
+    transcriptText: payload.transcriptText?.trim() || null,
     mode: payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image",
     aspect: context.aspect,
     model: displayModelLabel,
+    createdAt: payload.createdAt ?? resolveNowIso(context),
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
     previewUrl,
@@ -185,6 +194,7 @@ export const buildStudioOutputsFromReferenceInputSync = (
             buildPromptReferenceOutput({
               id: `prompt-${context.randomId()}`,
               promptText: cleanedPrompt,
+              createdAt: resolveNowIso(context),
               timestamp: "Agent",
               context,
             }),
@@ -196,6 +206,7 @@ export const buildStudioOutputsFromReferenceInputSync = (
           buildPromptReferenceOutput({
             id: `prompt-paste-${context.randomId()}`,
             promptText: cleanedPrompt,
+            createdAt: resolveNowIso(context),
             timestamp: "Clipboard",
             context,
           }),
@@ -234,6 +245,7 @@ export const buildStudioOutputsFromReferenceInputSync = (
           buildPromptReferenceOutput({
             id: `prompt-library-${context.randomId()}`,
             promptText: cleanedPrompt,
+            createdAt: input.payload.createdAt ?? resolveNowIso(context),
             timestamp: "Library",
             context,
             status: "saved",
@@ -256,15 +268,27 @@ export const buildStudioOutputsFromReferenceInput = async (
   context: ReferenceIngestionContext
 ): Promise<ReferenceIngestionResult> => {
   if (input.kind === "files") {
-    const outputs = await mapUploadsFromFiles(
-      input.files,
-      context.mode,
-      context.aspect,
-      context.model,
-      context.resolveModelLabel,
-      context.randomId,
-      input.source
-    );
+    const outputs =
+      typeof context.nowIso === "function"
+        ? await mapUploadsFromFiles(
+            input.files,
+            context.mode,
+            context.aspect,
+            context.model,
+            context.resolveModelLabel,
+            context.randomId,
+            context.nowIso,
+            input.source
+          )
+        : await mapUploadsFromFiles(
+            input.files,
+            context.mode,
+            context.aspect,
+            context.model,
+            context.resolveModelLabel,
+            context.randomId,
+            input.source
+          );
     return { outputs };
   }
   return buildStudioOutputsFromReferenceInputSync(input, context);

@@ -159,6 +159,32 @@ describe("sessionRestoreMediaSigning", () => {
     expect(result.outputs[0]?.resultUrls).toEqual(["https://signed/video-b.mp4"]);
   });
 
+  it("does not sign preview-loop video storage as a poster during session restore", () => {
+    const rows = [
+      createOutput({
+        id: "video-preview-loop",
+        mode: "video",
+        previewStoragePath: "user-1/variants/videos/video-preview-loop/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/videos/video-preview-loop.mp4",
+      }),
+    ];
+    const signedByPath = new Map<string, string | null>([
+      [
+        "user-1/variants/videos/video-preview-loop/preview_loop_360p.mp4",
+        "https://signed/preview-loop.mp4",
+      ],
+      ["user-1/generations/videos/video-preview-loop.mp4", "https://signed/video-preview-loop.mp4"],
+    ]);
+
+    const result = applySessionRestoreSignedUrls(rows, signedByPath);
+
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/video-preview-loop.mp4");
+    expect(result.outputs[0]?.previewPosterUrl).toBeNull();
+    expect(result.outputs[0]?.previewPosterStoragePath).toBeNull();
+    expect(result.outputs[0]?.resultUrls).toEqual(["https://signed/video-preview-loop.mp4"]);
+  });
+
   it("keeps restored video hover playback on signed full URLs while preserving provider fallbacks", () => {
     const rows = [
       createOutput({

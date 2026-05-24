@@ -106,7 +106,6 @@ export const AiStudioPageShell = ({
           <AiStudioProjectEntryState
             variant="loading"
             phase={projectEntryPhase}
-            enableExperimentalAnimation
             projectTitle={projectTitle}
           />
         )}

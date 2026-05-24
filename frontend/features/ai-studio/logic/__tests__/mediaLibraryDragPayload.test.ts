@@ -91,6 +91,7 @@ describe("mediaLibraryDragPayload", () => {
         filename: null,
         promptText: "fallback prompt",
         source: null,
+        transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
         previewUrl: null,
@@ -129,6 +130,7 @@ describe("mediaLibraryDragPayload", () => {
         filename: null,
         promptText: null,
         source: null,
+        transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
         previewUrl: null,
@@ -183,6 +185,42 @@ describe("mediaLibraryDragPayload", () => {
         previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
         previewStoragePath: "user-1/generations/videos/media-video-1.mp4",
         fullUrl: "https://cdn.test/video.mp4",
+      }),
+    });
+  });
+
+  it("preserves transcript text in custom and fallback media payload fields", () => {
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryDragPayload(transfer, {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-transcript-1",
+        url: "https://cdn.test/voice-video.mp4",
+        fileType: "video",
+        promptText: "clip.mp4 -> Narrator video",
+        transcriptText: "I can hear the city waking up below us.",
+      },
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-transcript",
+      "I can hear the city waking up below us."
+    );
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: expect.objectContaining({
+        id: "media-transcript-1",
+        promptText: "clip.mp4 -> Narrator video",
+        transcriptText: "I can hear the city waking up below us.",
       }),
     });
   });

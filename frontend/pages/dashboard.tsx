@@ -507,7 +507,6 @@ export default function DashboardPage({
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
-          enableExperimentalAnimation
           title={DASHBOARD_BOOTSTRAP_TITLE}
           message={DASHBOARD_BOOTSTRAP_MESSAGE}
           steps={[]}

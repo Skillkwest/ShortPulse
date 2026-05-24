@@ -372,6 +372,7 @@ describe("useAiStudioAudioGeneration", () => {
           modelId: "eleven_multilingual_sts_v2",
           voiceId: "voice-1",
           voiceName: "Narrator",
+          transcriptText: "I can hear the city waking up below us.",
         },
         remuxedVideo: {
           provider: "elevenlabs",
@@ -387,6 +388,7 @@ describe("useAiStudioAudioGeneration", () => {
           fullStoragePath: "full/voice.mp4",
           mimeType: "video/mp4",
           modelId: "eleven_multilingual_sts_v2",
+          transcriptText: "I can hear the city waking up below us.",
         },
       }),
     });
@@ -475,6 +477,7 @@ describe("useAiStudioAudioGeneration", () => {
       id: "generated:gen-voice-video",
       mode: "video",
       prompt: "clip.mp4 -> Narrator video",
+      transcriptText: "I can hear the city waking up below us.",
       savedMediaIds: ["media-voice-video"],
       previewUrl: "https://example.com/voice.mp4",
       previewPosterUrl: "https://example.com/voice-poster.jpg",
@@ -485,6 +488,7 @@ describe("useAiStudioAudioGeneration", () => {
       id: "out-voice",
       mode: "audio",
       prompt: "clip.mp4 -> Narrator",
+      transcriptText: "I can hear the city waking up below us.",
       savedMediaIds: ["media-voice"],
       taskState: "success",
     });

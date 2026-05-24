@@ -352,6 +352,12 @@ function DetailModalContent({
     !isNonGeneratedLoadedMedia &&
     normalizedAudioWorkflowLabel === "voice changer"
   );
+  const generatedVoiceChangerTranscript = useMemo(() => {
+    if (!output || output.mediaSource !== "generated") return null;
+    if (normalizedAudioWorkflowLabel !== "voice changer") return null;
+    const transcriptText = output.transcriptText?.trim() ?? "";
+    return transcriptText.length > 0 ? transcriptText : null;
+  }, [normalizedAudioWorkflowLabel, output]);
   const isActiveVoiceChangerSourceVideo = Boolean(
     isVideoOutput && context?.activeVoiceChangerSourceVideo
   );
@@ -560,7 +566,7 @@ function DetailModalContent({
   useEffect(() => {
     syncTextareaHeight(promptTextareaRef.current);
     syncTextareaHeight(promptOnlyTextareaRef.current);
-  }, [draftPrompt, syncTextareaHeight]);
+  }, [draftPrompt, generatedVoiceChangerTranscript, syncTextareaHeight]);
 
   useEffect(() => {
     if (!isImageOutput) return;
@@ -638,6 +644,8 @@ function DetailModalContent({
   const uploadedPromptLabel =
     isUploadedReference && !isVideoOutput && !isAudioOutput ? "(Uploaded Image)" : null;
   const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
+  const detailBladeLabel = generatedVoiceChangerTranscript ? "TRANSCRIPT" : "PROMPT";
+  const detailBladeValue = generatedVoiceChangerTranscript ?? promptBladeValue;
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
     return resolveCustomerFacingModelLabel({
@@ -1214,12 +1222,12 @@ function DetailModalContent({
                       </div>
                     ) : null}
                     <div className="art-blade-header">
-                      <span className="art-label">PROMPT</span>
+                      <span className="art-label">{detailBladeLabel}</span>
                     </div>
                     <textarea
                       className="art-blade-textarea"
                       ref={promptTextareaRef}
-                      value={promptBladeValue}
+                      value={detailBladeValue}
                       onChange={handlePromptChange}
                       readOnly={!isPromptEditable}
                       rows={3}

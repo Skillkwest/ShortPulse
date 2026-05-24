@@ -244,6 +244,7 @@ export function useAiStudioPerfAuditRuntime({
     const createPerfOutputs = (count: number): StudioOutput[] => {
       const safeCount = Math.max(0, Math.floor(count));
       const runId = Date.now();
+      const baseCreatedAtMs = Date.now();
       return Array.from({ length: safeCount }, (_, index) => {
         const id = `perf-${runId}-${index}`;
         const isPromptOnly = index % 17 === 0;
@@ -258,6 +259,7 @@ export function useAiStudioPerfAuditRuntime({
           aspect,
           model: currentModelLabel,
           modelId: model ?? undefined,
+          createdAt: new Date(baseCreatedAtMs - index).toISOString(),
           status: "ready",
           taskState: "success",
           timestamp: "Perf seed",
@@ -276,6 +278,7 @@ export function useAiStudioPerfAuditRuntime({
     };
     const createPerfOutputsFromInputs = (items: readonly PerfSeedOutputInput[]): StudioOutput[] => {
       const runId = Date.now();
+      const baseCreatedAtMs = Date.now();
       return items.map((item, index) => {
         const mode = item.mode ?? "image";
         const prompt = item.prompt?.trim() || `Perf media reference ${index + 1}`;
@@ -295,6 +298,7 @@ export function useAiStudioPerfAuditRuntime({
           aspect,
           model: currentModelLabel,
           modelId: model ?? undefined,
+          createdAt: new Date(baseCreatedAtMs - index).toISOString(),
           status: "ready",
           taskState: "success",
           timestamp: "Perf seed",

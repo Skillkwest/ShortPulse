@@ -20,6 +20,7 @@ import {
   isNextImageOptimizerUrl,
   isVideoFile,
   resolveMediaMetadataPromptText,
+  resolveMediaMetadataTranscriptText,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
   type MediaDataTab,
@@ -411,6 +412,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         metadata: file.metadata,
       });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
+      const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -422,9 +424,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
             : isVideoFile(file.file_type)
               ? "video"
               : "image",
+          createdAt: file.created_at ?? null,
           originFolderId: activeFolderId,
           filename: file.filename,
           promptText,
+          transcriptText,
           source: file.source ?? null,
           previewStoragePath: file.preview_storage_path ?? file.storage_path,
           fullStoragePath: file.storage_path,
@@ -477,6 +481,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
         payload: {
           id: prompt.id,
           promptText,
+          createdAt: prompt.created_at ?? null,
           originFolderId: activeFolderId,
           title: prompt.title,
         },

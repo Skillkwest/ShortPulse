@@ -3,7 +3,7 @@ import formidable from "formidable";
 import { resolveRequiredAudioVoiceChangerModelId } from "../../../lib/model-runtime/modelCatalog";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import {
   captureSucceededGenerationByProviderRequest,
@@ -29,6 +29,7 @@ import {
   readRemoteMediaBuffer,
   readStoredMediaBuffer,
 } from "../../../lib/server/mediaAudioExtraction";
+import { transcribeAudioBuffer } from "../../../lib/server/openAiAudioTranscription";
 
 type GenerateAudioSuccessResponse = {
   output: {
@@ -50,6 +51,7 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+    transcriptText: string | null;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
@@ -67,6 +69,7 @@ type GenerateAudioSuccessResponse = {
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
     modelId: string;
+    transcriptText: string | null;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
@@ -310,9 +313,37 @@ export default async function handler(
       throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
     }
 
+    let transcriptText: string | null = null;
+    try {
+      transcriptText = await transcribeAudioBuffer({
+        audioBuffer: sourceBuffer,
+        audioContentType: sourceMimeType ?? generated.contentType,
+        filename: sourceFilename,
+      });
+    } catch (transcriptionError) {
+      await writeAppErrorLog({
+        source: "telemetry.voice_changer.transcription_failed",
+        message: "Voice changer transcript generation failed; continuing with prompt fallback.",
+        requestId: charge.sourceRef,
+        userId: charge.userId,
+        statusCode: 200,
+        metadata: {
+          provider_request_id: providerRequestId,
+          model_id: modelId,
+          source_mode: "voice-changer",
+          error:
+            transcriptionError instanceof Error
+              ? transcriptionError.message
+              : "unknown_transcription_error",
+        },
+      }).catch(() => undefined);
+      transcriptText = null;
+    }
+
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
       promptText: `${sourceName} -> ${voiceName}`,
+      transcriptText,
       provider: "elevenlabs",
       modelId,
       providerRequestId,
@@ -371,6 +402,7 @@ export default async function handler(
         persistedRemuxedVideo = await persistGeneratedVideoAsset({
           userId: user.id,
           promptText: `${originalVideoName ?? sourceName} -> ${voiceName} video`,
+          transcriptText,
           provider: "elevenlabs",
           modelId,
           providerRequestId,
@@ -425,6 +457,7 @@ export default async function handler(
         modelId,
         voiceId,
         voiceName,
+        transcriptText,
         saveState: persisted.saveState,
         saveError: persisted.saveError,
       },
@@ -444,6 +477,7 @@ export default async function handler(
               fullStoragePath: persistedRemuxedVideo.fullStoragePath,
               mimeType: remuxedVideo.contentType,
               modelId,
+              transcriptText,
               saveState: persistedRemuxedVideo.saveState,
               saveError: persistedRemuxedVideo.saveError,
             },

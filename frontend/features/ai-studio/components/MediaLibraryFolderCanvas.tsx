@@ -58,6 +58,7 @@ type MediaLibraryFolderCanvasProps = {
     fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
+    transcriptText?: string | null;
     source?: string | null;
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;
@@ -678,6 +679,7 @@ export function MediaLibraryFolderCanvas({
                 : mediaRow && isVideoFile(mediaRow.file_type)
                   ? "video"
                   : "image",
+            createdAt: mediaRow?.created_at ?? null,
             originFolderId: folderId,
             filename: mediaRow?.filename ?? item.alt,
             promptText: mediaRow ? resolveMediaMetadataPromptText(mediaRow.metadata) : null,
@@ -718,6 +720,7 @@ export function MediaLibraryFolderCanvas({
           payload: {
             id: promptId ?? item.id,
             promptText,
+            createdAt: promptRow?.created_at ?? null,
             originFolderId: folderId,
             title: promptRow?.title ?? null,
           },

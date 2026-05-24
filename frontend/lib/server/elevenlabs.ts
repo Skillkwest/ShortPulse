@@ -82,6 +82,7 @@ type ElevenLabsJsonOptions = {
 type PersistGeneratedAudioInput = {
   userId: string;
   promptText: string;
+  transcriptText?: string | null;
   provider: "elevenlabs";
   modelId: string;
   providerRequestId?: string | null;
@@ -99,6 +100,7 @@ type PersistGeneratedAudioInput = {
 type PersistGeneratedVideoInput = {
   userId: string;
   promptText: string;
+  transcriptText?: string | null;
   provider: "elevenlabs";
   modelId: string;
   providerRequestId?: string | null;
@@ -918,6 +920,7 @@ export const createRemuxedVoiceChangerVideo = async ({
 export const persistGeneratedAudioAsset = async ({
   userId,
   promptText,
+  transcriptText = null,
   provider,
   modelId,
   providerRequestId = null,
@@ -937,6 +940,7 @@ export const persistGeneratedAudioAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
+  const normalizedTranscriptText = normalizeOptionalString(transcriptText);
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     supabaseAdmin,
     userId,
@@ -990,6 +994,7 @@ export const persistGeneratedAudioAsset = async ({
         source_mode: sourceMode,
         voice_id: voiceId,
         voice_name: voiceName,
+        transcript_text: normalizedTranscriptText,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosavePolicyDecision.allowed
@@ -1055,6 +1060,7 @@ export const persistGeneratedAudioAsset = async ({
             output_format: outputFormat,
             voice_id: voiceId,
             voice_name: voiceName,
+            transcript_text: normalizedTranscriptText,
             autosave_enabled: mediaAutosaveEnabled,
             autosave_preference_source: mediaAutosavePreference.source,
             autosave_decision: "auto_persisted",
@@ -1153,6 +1159,7 @@ export const persistGeneratedAudioAsset = async ({
       status: "success",
       taskState: "success",
       displayPrompt: promptText,
+      transcriptText: normalizedTranscriptText,
       modelId,
       previewUrl: signedResult.data.signedUrl,
       previewStoragePath: storagePath,
@@ -1209,6 +1216,7 @@ export const persistGeneratedAudioAsset = async ({
 export const persistGeneratedVideoAsset = async ({
   userId,
   promptText,
+  transcriptText = null,
   provider,
   modelId,
   providerRequestId = null,
@@ -1226,6 +1234,7 @@ export const persistGeneratedVideoAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
+  const normalizedTranscriptText = normalizeOptionalString(transcriptText);
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     supabaseAdmin,
     userId,
@@ -1277,6 +1286,7 @@ export const persistGeneratedVideoAsset = async ({
       metadata: {
         provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
+        transcript_text: normalizedTranscriptText,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: autosavePolicyDecision.allowed
@@ -1341,6 +1351,7 @@ export const persistGeneratedVideoAsset = async ({
             provider_request_id: resolvedProviderRequestId,
             source_mode: sourceMode,
             mime_type: outputContentType,
+            transcript_text: normalizedTranscriptText,
             autosave_enabled: mediaAutosaveEnabled,
             autosave_preference_source: mediaAutosavePreference.source,
             autosave_decision: "auto_persisted",
@@ -1472,6 +1483,7 @@ export const persistGeneratedVideoAsset = async ({
       status: "success",
       taskState: "success",
       displayPrompt: promptText,
+      transcriptText: normalizedTranscriptText,
       modelId,
       previewUrl: signedResult.data.signedUrl,
       previewStoragePath,

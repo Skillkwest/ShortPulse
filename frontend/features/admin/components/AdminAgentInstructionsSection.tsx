@@ -407,7 +407,7 @@ export function AdminAgentInstructionsSection() {
   );
   const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
   const hasStyleExtractPromptUnsavedChanges = styleExtractPrompt !== storedStyleExtractPrompt;
-  const pulseCatalogHasBlockingIssue = pulseCatalogDegraded || pulseCatalogLoadIssue !== null;
+  const pulseSaveExpectedUpdatedAt = pulseCatalogDegraded ? undefined : pulseCatalogUpdatedAt;
   const standardPromptUpdatedLabel = React.useMemo(() => {
     if (!standardPromptUpdatedAt) return null;
     const timestamp = new Date(standardPromptUpdatedAt);
@@ -547,7 +547,7 @@ export function AdminAgentInstructionsSection() {
       hydratePulseDrafts(catalog);
       setPulseCatalogLoadIssue(
         catalog.degraded
-          ? "Live Pulse catalog lookup failed. Showing seeded fallback content until the admin route recovers."
+          ? "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
           : null
       );
       setPulseSaveIssue(null);
@@ -561,7 +561,7 @@ export function AdminAgentInstructionsSection() {
         degraded: true,
       });
       setPulseCatalogLoadIssue(
-        "Showing seeded fallback Pulse content because the live admin route could not be reached."
+        "Showing seeded fallback Pulse content because the live admin route could not be reached. Saving an edit will attempt to republish the shared built-in set."
       );
       setPulseSaveIssue(null);
       setPulseSaveState("error");
@@ -888,13 +888,6 @@ export function AdminAgentInstructionsSection() {
   }, [storedPulseDrafts]);
 
   const handleSavePulseDrafts = React.useCallback(async () => {
-    if (pulseCatalogHasBlockingIssue) {
-      setPulseSaveState("error");
-      setPulseSaveIssue(
-        "Unable to save while the live Pulse catalog is unavailable. Reload the page after the admin route recovers."
-      );
-      return;
-    }
     setPulseSaveState("saving");
     setPulseSaveIssue(null);
     try {
@@ -907,7 +900,7 @@ export function AdminAgentInstructionsSection() {
         },
         body: JSON.stringify({
           builtInDefinitions,
-          expectedUpdatedAt: pulseCatalogUpdatedAt,
+          expectedUpdatedAt: pulseSaveExpectedUpdatedAt,
         }),
       });
       const payload = (await response.json()) as {
@@ -942,17 +935,10 @@ export function AdminAgentInstructionsSection() {
         error instanceof Error ? error.message : "Unable to save the global Pulse built-in set."
       );
     }
-  }, [hydratePulseDrafts, pulseCatalogHasBlockingIssue, pulseCatalogUpdatedAt, pulseDrafts]);
+  }, [hydratePulseDrafts, pulseDrafts, pulseSaveExpectedUpdatedAt]);
 
   const handleSavePulseDraft = React.useCallback(
     async (localId: string) => {
-      if (pulseCatalogHasBlockingIssue) {
-        setPulseSaveState("error");
-        setPulseSaveIssue(
-          "Unable to save while the live Pulse catalog is unavailable. Reload the page after the admin route recovers."
-        );
-        return;
-      }
       const targetDraft = pulseDrafts.find((draft) => draft.localId === localId);
       if (!targetDraft) return;
       const payloadDrafts = storedPulseDraftsById[localId]
@@ -970,7 +956,7 @@ export function AdminAgentInstructionsSection() {
           },
           body: JSON.stringify({
             builtInDefinitions: payloadDrafts.map(buildPulseDefinitionFromDraft),
-            expectedUpdatedAt: pulseCatalogUpdatedAt,
+            expectedUpdatedAt: pulseSaveExpectedUpdatedAt,
           }),
         });
         const payload = (await response.json()) as {
@@ -1028,13 +1014,7 @@ export function AdminAgentInstructionsSection() {
         );
       }
     },
-    [
-      pulseCatalogHasBlockingIssue,
-      pulseCatalogUpdatedAt,
-      pulseDrafts,
-      storedPulseDrafts,
-      storedPulseDraftsById,
-    ]
+    [pulseSaveExpectedUpdatedAt, pulseDrafts, storedPulseDrafts, storedPulseDraftsById]
   );
 
   return (
@@ -1439,7 +1419,6 @@ export function AdminAgentInstructionsSection() {
               const canSaveCard =
                 !pulseLoading &&
                 pulseSaveState !== "saving" &&
-                !pulseCatalogHasBlockingIssue &&
                 isDirty &&
                 isPulseDraftPersistable(draft);
               const copyValue = [

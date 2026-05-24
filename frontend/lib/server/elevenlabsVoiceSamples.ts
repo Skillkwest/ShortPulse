@@ -98,3 +98,25 @@ export const createPersistedElevenLabsVoiceSample = async ({
     providerRequestId: generatedSample.providerRequestId,
   };
 };
+
+/**
+ * Deletes a persisted voice sample from the caller-scoped private storage namespace.
+ */
+export const deletePersistedElevenLabsVoiceSample = async ({
+  userId,
+  sampleStoragePath,
+}: {
+  userId: string;
+  sampleStoragePath: string;
+}): Promise<void> => {
+  const storagePath = assertUserScopedMediaStoragePath({
+    userId,
+    path: sampleStoragePath,
+    label: "Voice sample storage path",
+  });
+  const supabaseAdmin = getSupabaseAdmin();
+  const removeResult = await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePath]);
+  if (removeResult.error) {
+    throw new Error(removeResult.error.message || "Unable to delete persisted voice sample.");
+  }
+};

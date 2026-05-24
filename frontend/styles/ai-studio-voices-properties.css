@@ -1900,6 +1900,24 @@
   color: rgba(245, 185, 66, 0.94);
 }
 
+.voices-properties-voice-changer-record-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.voices-properties-voice-changer-record-recovery-hint {
+  margin: 0;
+  max-width: 260px;
+  color: rgba(227, 233, 241, 0.84);
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
 .voices-properties-voice-changer-record-button-wrap {
   display: flex;
   justify-content: center;

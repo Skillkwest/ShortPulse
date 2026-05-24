@@ -5,8 +5,11 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
-import { isVideoUrl } from "./stateParsers";
 import type { StudioOutput } from "../types";
+import {
+  normalizeVideoPosterStoragePathCandidate,
+  resolveVideoPosterStoragePath,
+} from "./videoPosterStoragePaths";
 
 type MediaFilePosterRow = {
   id?: unknown;
@@ -46,15 +49,15 @@ const maybeString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length ? value.trim() : null;
 
 const resolveKnownPosterStoragePath = (output: StudioOutput): string | null => {
-  const posterStoragePath = asCanonicalStoragePath(output.previewPosterStoragePath);
+  const posterStoragePath = normalizeVideoPosterStoragePathCandidate(
+    output.previewPosterStoragePath
+  );
   if (posterStoragePath) return posterStoragePath;
-
-  const previewStoragePath = asCanonicalStoragePath(output.previewStoragePath);
-  if (!previewStoragePath) return null;
-  const fullStoragePath = asCanonicalStoragePath(output.fullStoragePath);
-  if (previewStoragePath === fullStoragePath) return null;
-  if (isVideoUrl(previewStoragePath)) return null;
-  return previewStoragePath;
+  return resolveVideoPosterStoragePath({
+    previewPosterStoragePath: null,
+    previewStoragePath: output.previewStoragePath,
+    fullStoragePath: output.fullStoragePath,
+  });
 };
 
 const resolveRowPosterStoragePath = (row: MediaFilePosterRow | null | undefined): string | null =>

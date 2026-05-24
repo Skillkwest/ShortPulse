@@ -1,4 +1,5 @@
 import type { StudioOutput } from "../types";
+import { sortStudioOutputsByCreatedAtDesc } from "./outputOrdering";
 
 const asTrimmedString = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
@@ -37,9 +38,13 @@ const mergeHydratedGeneratedOutput = (
 ): StudioOutput => ({
   ...existing,
   prompt: existing.prompt?.trim() ? existing.prompt : hydrated.prompt,
+  transcriptText: existing.transcriptText?.trim()
+    ? existing.transcriptText
+    : (hydrated.transcriptText ?? null),
   mode: hydrated.mode,
   aspect: hydrated.aspect ?? existing.aspect,
   model: existing.model?.trim() ? existing.model : hydrated.model,
+  createdAt: hydrated.createdAt ?? existing.createdAt ?? null,
   modelId: existing.modelId ?? hydrated.modelId,
   provider: existing.provider ?? hydrated.provider,
   sourceRef: existing.sourceRef ?? hydrated.sourceRef,
@@ -105,11 +110,11 @@ export const mergeCanonicalGeneratedOutputs = (
     canonicalOutputs.push(hydrated);
   }
 
-  return [
+  return sortStudioOutputsByCreatedAtDesc([
     ...canonicalOutputs,
     ...existingOutputs.filter(
       (output, index) =>
         !matchedExistingIndexes.has(index) && !shouldPruneUnmatchedCanonicalOutput(output)
     ),
-  ];
+  ]);
 };

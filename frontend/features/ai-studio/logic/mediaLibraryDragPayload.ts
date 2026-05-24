@@ -12,6 +12,7 @@ const MEDIA_LIBRARY_FALLBACK_KIND_TYPE = "text/shortpulse-media-library-kind";
 const MEDIA_LIBRARY_FALLBACK_ID_TYPE = "text/shortpulse-media-library-id";
 const MEDIA_LIBRARY_FALLBACK_URL_TYPE = "text/shortpulse-media-library-url";
 const MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE = "text/shortpulse-media-library-file-type";
+const MEDIA_LIBRARY_FALLBACK_CREATED_AT_TYPE = "text/shortpulse-media-library-created-at";
 const MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE =
   "text/shortpulse-media-library-origin-folder-id";
 const MEDIA_LIBRARY_FALLBACK_FILENAME_TYPE = "text/shortpulse-media-library-filename";
@@ -33,6 +34,7 @@ const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE =
 const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
 const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height";
 const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
+const MEDIA_LIBRARY_FALLBACK_TRANSCRIPT_TEXT_TYPE = "text/shortpulse-media-library-transcript";
 const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
 const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
 const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
@@ -148,6 +150,9 @@ const readFallbackMediaLibraryDragPayload = (
       fileTypeRaw === "image" || fileTypeRaw === "video" || fileTypeRaw === "audio"
         ? fileTypeRaw
         : inferLibraryMediaFileType(url);
+    const createdAt = normalizeTransferText(
+      transfer.getData(MEDIA_LIBRARY_FALLBACK_CREATED_AT_TYPE)
+    );
     return {
       kind: "libraryMedia",
       source: "mediaLibrary",
@@ -155,6 +160,7 @@ const readFallbackMediaLibraryDragPayload = (
         id,
         url,
         fileType,
+        ...(createdAt ? { createdAt } : {}),
         originFolderId: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE)
         ),
@@ -162,6 +168,9 @@ const readFallbackMediaLibraryDragPayload = (
         promptText:
           normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE)) ??
           normalizeTransferText(transfer.getData("text/prompt")),
+        transcriptText: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_TRANSCRIPT_TEXT_TYPE)
+        ),
         source: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_SOURCE_TYPE)),
         previewStoragePath: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_STORAGE_PATH_TYPE)
@@ -197,12 +206,16 @@ const readFallbackMediaLibraryDragPayload = (
       normalizeTransferText(transfer.getData("text/prompt")) ??
       normalizeTransferText(transfer.getData("text/plain"));
     if (!promptText) return null;
+    const createdAt = normalizeTransferText(
+      transfer.getData(MEDIA_LIBRARY_FALLBACK_CREATED_AT_TYPE)
+    );
     return {
       kind: "libraryPrompt",
       source: "mediaLibrary",
       payload: {
         id,
         promptText,
+        ...(createdAt ? { createdAt } : {}),
         originFolderId: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE)
         ),
@@ -281,6 +294,11 @@ export const writeMediaLibraryDragPayload = (
     setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_URL_TYPE, payload.payload.url);
     setTransferTextIfPresent(
       transfer,
+      MEDIA_LIBRARY_FALLBACK_CREATED_AT_TYPE,
+      payload.payload.createdAt
+    );
+    setTransferTextIfPresent(
+      transfer,
       MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE,
       payload.payload.originFolderId
     );
@@ -293,6 +311,11 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE,
       payload.payload.promptText
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_TRANSCRIPT_TEXT_TYPE,
+      payload.payload.transcriptText
     );
     setTransferTextIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_SOURCE_TYPE, payload.payload.source);
     setTransferTextIfPresent(
@@ -342,6 +365,11 @@ export const writeMediaLibraryDragPayload = (
       payload.payload.height
     );
   } else {
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_CREATED_AT_TYPE,
+      payload.payload.createdAt
+    );
     setTransferTextIfPresent(
       transfer,
       MEDIA_LIBRARY_FALLBACK_ORIGIN_FOLDER_ID_TYPE,

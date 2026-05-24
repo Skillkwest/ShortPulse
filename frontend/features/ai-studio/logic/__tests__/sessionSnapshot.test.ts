@@ -7,6 +7,7 @@ import {
   patchAiStudioSessionSnapshotWorkspace,
 } from "../sessionSnapshot";
 import type { AiStudioSessionSnapshotV2 } from "../sessionSnapshot";
+import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { StudioOutput } from "../../types";
 import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
@@ -128,7 +129,7 @@ describe("sessionSnapshot", () => {
       klingMultiPrompts: [],
       klingElements: [],
       motionReferenceVideoUrl: null,
-      outputs: [createOutput()],
+      outputs: [createOutput({ createdAt: "2026-03-02T11:59:00.000Z" })],
       archivedOutputs: [],
       activeOutputId: "out-1",
       curatedReferenceIds: ["out-1"],
@@ -160,6 +161,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.expertCreateMode).toBe("pulse");
     expect(snapshot.workspace.activePulsePresetId).toBe("multi_shot");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
+    expect(snapshot.outputs.active[0]?.createdAt).toBe("2026-03-02T11:59:00.000Z");
     expect(snapshot.agent.messages).toEqual([]);
     expect(snapshot.agentRuntimes).toEqual({
       standard: {
@@ -264,6 +266,93 @@ describe("sessionSnapshot", () => {
         errorDetail: "Unknown error",
       })
     );
+  });
+
+  it("round-trips mixed media project outputs without changing newest-first order", () => {
+    const snapshot = createAiStudioProjectWorkspaceSnapshot(
+      buildAiStudioSessionSnapshot({
+        sessionId: "session-mixed-order",
+        updatedAt: "2026-03-02T12:00:00.000Z",
+        mode: "image",
+        selectedTool: "create",
+        prompt: "Mixed order",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        aspect: "9:16",
+        expertCreateMode: "standard",
+        activePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [
+          createOutput({
+            id: "audio-newest",
+            mode: "audio",
+            aspect: "audio",
+            mediaSource: "generated",
+            createdAt: "2026-03-02T11:59:00.000Z",
+            timestamp: "Just now",
+          }),
+          createOutput({
+            id: "image-middle",
+            mode: "image",
+            mediaSource: "library",
+            createdAt: "2026-03-02T11:58:00.000Z",
+            timestamp: "Library",
+          }),
+          createOutput({
+            id: "video-oldest",
+            mode: "video",
+            mediaSource: "upload",
+            createdAt: "2026-03-02T11:57:00.000Z",
+            timestamp: "Uploaded",
+          }),
+        ],
+        archivedOutputs: [],
+        activeOutputId: "audio-newest",
+        curatedReferenceIds: ["video-oldest", "audio-newest"],
+        removedFromAllRefsIds: [],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+        canvasState: null,
+        expertEditSessionState: null,
+      })
+    );
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.outputs.active.map((output) => output.id)).toEqual([
+      "audio-newest",
+      "image-middle",
+      "video-oldest",
+    ]);
+    expect(payload.outputs.active.map((output) => output.createdAt)).toEqual([
+      "2026-03-02T11:59:00.000Z",
+      "2026-03-02T11:58:00.000Z",
+      "2026-03-02T11:57:00.000Z",
+    ]);
+    expect(payload.outputs.activeOutputId).toBe("audio-newest");
+    expect(payload.outputs.curatedReferenceIds).toEqual(["video-oldest", "audio-newest"]);
   });
 
   it("omits unsettled failed generated audio outputs from persisted snapshots", () => {
@@ -640,6 +729,58 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/out-legacy/poster_720.jpg"
     );
+  });
+
+  it("does not misclassify preview-loop video storage as poster storage in snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "preview-loop-video-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "",
+      model: "fal-ai/video",
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          mode: "video",
+          previewUrl: "https://signed.test/video.mp4",
+          previewStoragePath: "user-1/variants/videos/out-preview-loop/preview_loop_360p.mp4",
+          fullStoragePath: "user-1/videos/out-preview-loop.mp4",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    });
+
+    expect(snapshot.outputs.active[0]?.previewStoragePath).toBe(
+      "user-1/variants/videos/out-preview-loop/preview_loop_360p.mp4"
+    );
+    expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBeNull();
   });
 
   it("prefers durable storage authority over temporary signed media urls in output snapshots", () => {

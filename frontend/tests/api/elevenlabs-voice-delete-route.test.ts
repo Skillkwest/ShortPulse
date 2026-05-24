@@ -167,4 +167,35 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
       action: "delete",
     });
   });
+
+  it("does not allow deleting another user's provider-created voice", async () => {
+    listSavedVoicesForUserMock.mockResolvedValue([]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "foreign-clone-1",
+        name: "Foreign Clone",
+        previewUrl: null,
+        description: "Belongs to somebody else",
+        isFallback: false,
+        providerCategory: "cloned",
+        providerVoiceType: "personal",
+      },
+    ]);
+
+    const req = {
+      method: "DELETE",
+      query: { voiceId: "foreign-clone-1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(deleteElevenLabsVoiceMock).not.toHaveBeenCalled();
+    expect(deleteSavedVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice not found",
+      details: "The selected voice could not be found.",
+    });
+  });
 });

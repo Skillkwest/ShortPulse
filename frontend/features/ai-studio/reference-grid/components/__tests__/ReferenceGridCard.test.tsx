@@ -346,6 +346,42 @@ describe("ReferenceGridCard", () => {
     expect(videoNode).toBeNull();
   });
 
+  it("falls back to the hover video when a poster-backed video image fails to load", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "video",
+            previewPosterUrl: "https://signed.test/poster_720.jpg",
+            mediaSource: "generated",
+          }),
+          videoPosterUrl: "https://signed.test/poster_720.jpg",
+          hoverVideoUrl: "https://signed.test/video-full.mp4",
+          isVideoPreview: false,
+          isImagePreview: false,
+          cardPreviewUrl: "https://signed.test/video-full.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "none",
+        })}
+      />
+    );
+
+    const posterImage = document.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(posterImage).not.toBeNull();
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.classList.contains("is-visible")).toBe(false);
+
+    fireEvent.error(posterImage!);
+
+    expect(document.querySelector(".reference-card-image--poster")).toBeNull();
+    expect(videoNode?.classList.contains("is-visible")).toBe(true);
+    expect(videoNode?.getAttribute("src")).toBe("https://signed.test/video-full.mp4");
+  });
+
   it("renders a compact audio preview with timing and waveform", async () => {
     render(
       <ReferenceGridCard

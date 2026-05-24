@@ -20,7 +20,6 @@ export type AiStudioProjectEntryStep = {
 type AiStudioProjectEntryStateProps = {
   variant: "loading" | "error";
   phase: AiStudioProjectEntryPhase;
-  enableExperimentalAnimation?: boolean;
   projectTitle?: string | null;
   title?: string;
   message?: string;
@@ -36,9 +35,6 @@ type AiStudioProjectEntryStateProps = {
 };
 
 type EntryStepState = "complete" | "active" | "pending";
-
-const isExperimentalEntryAnimationEnabled = (requested: boolean): boolean =>
-  requested && process.env.NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT !== "false";
 
 export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
   {
@@ -143,7 +139,6 @@ const getMessage = ({
 export function AiStudioProjectEntryState({
   variant,
   phase,
-  enableExperimentalAnimation = false,
   projectTitle = null,
   title,
   message,
@@ -163,13 +158,12 @@ export function AiStudioProjectEntryState({
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
   const liveMode = variant === "error" ? "assertive" : "polite";
-  const shouldUseExperimentalAnimation =
-    variant === "loading" && isExperimentalEntryAnimationEnabled(enableExperimentalAnimation);
-  const [isExperimentalBgReady, setIsExperimentalBgReady] = React.useState(false);
+  const shouldRenderLoadingAnimation = variant === "loading";
+  const [isAnimatedMaskReady, setIsAnimatedMaskReady] = React.useState(false);
 
   React.useEffect(() => {
-    if (!shouldUseExperimentalAnimation) {
-      setIsExperimentalBgReady(false);
+    if (!shouldRenderLoadingAnimation) {
+      setIsAnimatedMaskReady(false);
       return;
     }
 
@@ -178,27 +172,25 @@ export function AiStudioProjectEntryState({
     bgImage.src = "/loading-entry/mask.png";
 
     if (bgImage.complete) {
-      setIsExperimentalBgReady(true);
+      setIsAnimatedMaskReady(true);
       return;
     }
 
-    const handleLoad = () => setIsExperimentalBgReady(true);
+    const handleLoad = () => setIsAnimatedMaskReady(true);
     bgImage.addEventListener("load", handleLoad);
 
     return () => {
       bgImage.removeEventListener("load", handleLoad);
     };
-  }, [shouldUseExperimentalAnimation]);
+  }, [shouldRenderLoadingAnimation]);
 
-  if (shouldUseExperimentalAnimation) {
+  if (shouldRenderLoadingAnimation) {
     return (
-      <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--experimental">
+      <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--animated">
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
             <div
-              className={`ai-studio-project-entry-pulse-plane${
-                isExperimentalBgReady ? " is-visible" : ""
-              }`}
+              className={`ai-studio-project-entry-pulse-plane${isAnimatedMaskReady ? " is-visible" : ""}`}
             >
               <div className="ai-studio-project-entry-pulse-motion">
                 <div className="ai-studio-project-entry-pulse-bloom" />
@@ -248,7 +240,7 @@ export function AiStudioProjectEntryState({
         </div>
 
         <div className="ai-studio-project-entry-body">
-          {variant === "loading" ? (
+          {shouldRenderLoadingAnimation ? (
             <div className={`ai-studio-project-entry-loader is-${variant}`} aria-hidden="true">
               <div className="reference-spinner ai-studio-project-entry-spinner" />
               <div className="ai-studio-project-entry-loader-bar" />

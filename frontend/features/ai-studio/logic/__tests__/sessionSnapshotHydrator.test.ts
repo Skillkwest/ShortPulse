@@ -246,6 +246,31 @@ describe("sessionSnapshotHydrator", () => {
     );
   });
 
+  it("backfills createdAt from legacy ISO timestamps when the durable field is missing", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-legacy-created-at",
+              prompt: "legacy",
+              mode: "image",
+              aspect: "1:1",
+              model: "fal:foo",
+              status: "ready",
+              timestamp: "2026-03-02T12:34:56.000Z",
+            },
+          ],
+          activeOutputId: "out-legacy-created-at",
+          curatedReferenceIds: ["out-legacy-created-at"],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]?.createdAt).toBe("2026-03-02T12:34:56.000Z");
+  });
+
   it("normalizes legacy poster-backed video storage when hydrating snapshots", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
@@ -277,6 +302,38 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.active[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/out-video-legacy/poster_720.jpg"
     );
+  });
+
+  it("does not infer poster storage from preview-loop video variants when hydrating snapshots", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-video-preview-loop",
+              prompt: "video preview loop",
+              mode: "video",
+              aspect: "9:16",
+              model: "fal:video",
+              status: "ready",
+              timestamp: "t1",
+              previewUrl: "https://signed.test/video.mp4",
+              previewStoragePath:
+                "user-1/variants/videos/out-video-preview-loop/preview_loop_360p.mp4",
+              fullStoragePath: "user-1/videos/out-video-preview-loop.mp4",
+            },
+          ],
+          activeOutputId: "out-video-preview-loop",
+          curatedReferenceIds: ["out-video-preview-loop"],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]?.previewStoragePath).toBe(
+      "user-1/variants/videos/out-video-preview-loop/preview_loop_360p.mp4"
+    );
+    expect(payload.outputs.active[0]?.previewPosterStoragePath).toBeNull();
   });
 
   it("hydrates pulse runtime workspace fields", () => {

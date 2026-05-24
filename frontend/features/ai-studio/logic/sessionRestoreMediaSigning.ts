@@ -5,6 +5,10 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import type { StudioOutput } from "../types";
+import {
+  normalizeVideoPosterStoragePathCandidate,
+  resolveVideoPosterStoragePath,
+} from "./videoPosterStoragePaths";
 
 export type SessionOutputSigningFingerprint = {
   previewUrl: string | null;
@@ -34,7 +38,9 @@ const toCanonicalStoragePath = (value: string | null | undefined): string | null
 const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigningFingerprint => ({
   previewUrl: toNormalizedNullableString(output.previewUrl),
   previewPosterUrl: toNormalizedNullableString(output.previewPosterUrl),
-  previewPosterStoragePath: toCanonicalStoragePath(output.previewPosterStoragePath),
+  previewPosterStoragePath: normalizeVideoPosterStoragePathCandidate(
+    output.previewPosterStoragePath
+  ),
   companionArtUrl: toNormalizedNullableString(output.companionArtUrl),
   companionArtStoragePath: toCanonicalStoragePath(output.companionArtStoragePath),
   previewStoragePath: toCanonicalStoragePath(output.previewStoragePath),
@@ -52,7 +58,7 @@ const resolveSessionVideoPrimaryStoragePath = ({
 }): string | null => {
   if (mode !== "video") return previewStoragePath;
   if (previewStoragePath && /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i.test(previewStoragePath)) {
-    return previewStoragePath;
+    return fullStoragePath ?? previewStoragePath;
   }
   if (fullStoragePath) return fullStoragePath;
   return previewStoragePath;
@@ -105,7 +111,9 @@ export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): stri
   const pathSet = new Set<string>();
   outputs.forEach((output) => {
     const previewStoragePath = toCanonicalStoragePath(output.previewStoragePath);
-    const previewPosterStoragePath = toCanonicalStoragePath(output.previewPosterStoragePath);
+    const previewPosterStoragePath = normalizeVideoPosterStoragePathCandidate(
+      output.previewPosterStoragePath
+    );
     const companionArtStoragePath = toCanonicalStoragePath(output.companionArtStoragePath);
     const fullStoragePath = toCanonicalStoragePath(output.fullStoragePath);
     if (previewStoragePath) {
@@ -157,12 +165,13 @@ export const applySessionRestoreSignedUrls = (
     }
 
     const previewPosterStoragePath =
-      currentFingerprint.previewPosterStoragePath ??
-      (output.mode === "video" &&
-      currentFingerprint.previewStoragePath &&
-      currentFingerprint.previewStoragePath !== currentFingerprint.fullStoragePath
-        ? currentFingerprint.previewStoragePath
-        : null);
+      output.mode === "video"
+        ? resolveVideoPosterStoragePath({
+            previewPosterStoragePath: currentFingerprint.previewPosterStoragePath,
+            previewStoragePath: currentFingerprint.previewStoragePath,
+            fullStoragePath: currentFingerprint.fullStoragePath,
+          })
+        : null;
     const previewStoragePath = resolveSessionVideoPrimaryStoragePath({
       mode: output.mode,
       previewStoragePath: currentFingerprint.previewStoragePath,
@@ -178,9 +187,7 @@ export const applySessionRestoreSignedUrls = (
     const signedPreviewPosterUrl =
       output.mode === "video" && previewPosterStoragePath
         ? (signedByPath.get(previewPosterStoragePath) ?? currentFingerprint.previewPosterUrl)
-        : output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
-          ? signedPreviewUrl
-          : currentFingerprint.previewPosterUrl;
+        : currentFingerprint.previewPosterUrl;
     const signedCompanionArtUrl = companionArtStoragePath
       ? (signedByPath.get(companionArtStoragePath) ?? currentFingerprint.companionArtUrl)
       : currentFingerprint.companionArtUrl;

@@ -9,6 +9,7 @@ import {
   isAudioFile,
   isVideoFile,
   resolveMediaMetadataPromptText,
+  resolveMediaMetadataTranscriptText,
   type MediaFileRow,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
@@ -72,6 +73,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         metadata: file.metadata,
       });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
+      const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -79,9 +81,11 @@ export const useMediaLibraryPanelItemInteractions = ({
           id: file.id,
           url: transferUrl,
           fileType: resolveLibraryMediaReferenceFileType(file.file_type),
+          createdAt: file.created_at ?? null,
           originFolderId: activeFolderId,
           filename: file.filename,
           promptText,
+          transcriptText,
           source: file.source ?? null,
           previewStoragePath,
           fullStoragePath: file.storage_path,
@@ -134,6 +138,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         payload: {
           id: prompt.id,
           promptText,
+          createdAt: prompt.created_at ?? null,
           originFolderId: activeFolderId,
           title: prompt.title,
         },

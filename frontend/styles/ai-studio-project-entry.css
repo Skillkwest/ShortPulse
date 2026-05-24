@@ -15,7 +15,7 @@
   overflow: hidden;
 }
 
-.ai-studio-project-entry-page--experimental {
+.ai-studio-project-entry-page--animated {
   flex-direction: column;
   padding: 32px 24px;
 }
@@ -321,7 +321,7 @@
     padding: 24px 16px;
   }
 
-  .ai-studio-project-entry-page--experimental {
+  .ai-studio-project-entry-page--animated {
     padding: 24px 16px;
   }
 

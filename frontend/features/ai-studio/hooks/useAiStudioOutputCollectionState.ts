@@ -15,6 +15,7 @@ import {
   normalizeStudioOutputCollection,
   type StudioOutputCollectionState,
 } from "../reference-domain";
+import { sortStudioOutputsByCreatedAtDesc } from "../logic/outputOrdering";
 import type { StudioOutput } from "../types";
 import { setAiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
@@ -24,6 +25,9 @@ type OutputCollectionAuthorityState = {
   active: OutputCollectionState;
   archived: OutputCollectionState;
 };
+
+const normalizeActiveRows = (rows: StudioOutput[]): StudioOutputCollectionState =>
+  normalizeStudioOutputCollection(sortStudioOutputsByCreatedAtDesc(rows));
 
 type UseAiStudioOutputCollectionStateResult = {
   activeOutputState: OutputCollectionState;
@@ -120,7 +124,7 @@ export const useAiStudioOutputCollectionState = ({
     setActiveOutputState((prevState) => {
       const prevRows = denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      const nextState = normalizeStudioOutputCollection(resolved);
+      const nextState = normalizeActiveRows(resolved);
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
         return prevState;
@@ -146,7 +150,7 @@ export const useAiStudioOutputCollectionState = ({
 
   const setOutputCollectionsForAuthority = useCallback(
     (targetAuthorityKey: string, activeRows: StudioOutput[], archivedRows: StudioOutput[]) => {
-      const nextActiveState = normalizeStudioOutputCollection(activeRows);
+      const nextActiveState = normalizeActiveRows(activeRows);
       const nextArchivedState = normalizeStudioOutputCollection(archivedRows);
       stateByAuthorityKeyRef.current[targetAuthorityKey] = {
         active: nextActiveState,

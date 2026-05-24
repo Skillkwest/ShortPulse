@@ -154,6 +154,10 @@ describe("VoicesPropertiesPanel", () => {
       configurable: true,
       value: revokeObjectUrlMock,
     });
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: undefined,
+    });
   });
 
   afterEach(() => {
@@ -943,6 +947,145 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByText("From your computer")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(mediaStreamTrackStop).toHaveBeenCalled();
+  });
+
+  it("explains how to recover when microphone access is blocked", async () => {
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "denied", onchange: null }),
+      },
+    });
+    const getUserMediaMock = vi.fn().mockRejectedValue({
+      name: "NotAllowedError",
+      message: "",
+    });
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: getUserMediaMock },
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record your voice sample" }));
+
+    expect(await screen.findByText(/microphone access is blocked/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/allow microphone access in your browser's site settings/i)
+    ).toBeInTheDocument();
+  });
+
+  it("preflights a blocked microphone before the user clicks record", async () => {
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "denied", onchange: null }),
+      },
+    });
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    expect(await screen.findByText(/microphone access is blocked/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/enable shortpulse in your computer's system microphone settings/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows a waiting state while the browser permission prompt is still pending", async () => {
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "prompt", onchange: null }),
+      },
+    });
+    const getUserMediaMock = vi.fn(
+      () =>
+        new Promise<MediaStream>(() => {
+          // Leave the permission request unresolved to mimic the browser prompt waiting on user action.
+        })
+    );
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: getUserMediaMock },
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record your voice sample" }));
+
+    expect(await screen.findByText(/waiting for microphone permission/i)).toBeInTheDocument();
+  });
+
+  it("tells the user the browser will ask for microphone access before recording", async () => {
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "prompt", onchange: null }),
+      },
+    });
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    expect(
+      await screen.findByText(/your browser will ask for microphone access when you record/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/your browser will ask for microphone access when you record/i)
+    ).toBeInTheDocument();
+  });
+
+  it("surfaces a secure-context hint when browser recording APIs are unavailable on an insecure page", async () => {
+    const originalMediaDevices = globalThis.navigator.mediaDevices;
+    const originalIsSecureContext = window.isSecureContext;
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: false,
+    });
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record your voice sample" }));
+
+    expect(
+      await screen.findByText(/microphone recording requires https or localhost/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/open shortpulse in a secure browser tab/i)).toBeInTheDocument();
+
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: originalMediaDevices,
+    });
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: originalIsSecureContext,
+    });
   });
 
   it("renders an interactive waveform preview for loaded audio sources", async () => {
@@ -2218,6 +2361,43 @@ describe("VoicesPropertiesPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(onGenerate).not.toHaveBeenCalled();
+  });
+
+  it("clears stale shared-browser voice state when a fresh voice load fails", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "custom-voice-1",
+            name: "Custom Voice",
+            previewUrl: "https://signed.example/custom-voice-1.mp3",
+            description: "Belongs to the previous user",
+            isFallback: false,
+            librarySection: "my",
+            canRemoveFromLibrary: true,
+            canDeleteFromProvider: false,
+            destructiveAction: "remove",
+            destructiveActionLabel: "Remove",
+          },
+        ],
+      }),
+    });
+
+    const firstRender = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+    expect(screen.getByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
+    firstRender.unmount();
+
+    fetchWithAuthMock.mockRejectedValueOnce(new Error("Unable to load voices."));
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+
+    expect(screen.queryByRole("button", { name: "Custom Voice voice" })).not.toBeInTheDocument();
+    expect(screen.getByText("Unable to load voices.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 
   it("submits generation with the live default voice ids when they load", async () => {

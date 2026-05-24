@@ -121,7 +121,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
   alignItems: "start",
 };
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.94)";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.82)";
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
@@ -986,7 +986,7 @@ export function CharacterPanelWorkspace({
                           }
                           disabled={characterLibraryButtonDisabled}
                         >
-                          <FolderSimple size={24} weight="fill" aria-hidden />
+                          <FolderSimple size={28} weight="fill" aria-hidden />
                           Characters
                         </button>
                         {isSavingCharacter ? (

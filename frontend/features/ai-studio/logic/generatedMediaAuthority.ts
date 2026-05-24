@@ -3,6 +3,10 @@ import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "./stateParsers";
+import {
+  normalizeVideoPosterStoragePathCandidate,
+  resolveVideoPosterStoragePath,
+} from "./videoPosterStoragePaths";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -43,6 +47,7 @@ type GenerationProjectionDeliveryRow = {
   provider?: unknown;
   model_id?: unknown;
   display_prompt?: unknown;
+  transcript_text?: unknown;
   preview_url?: unknown;
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
@@ -71,6 +76,7 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "provider",
   "model_id",
   "display_prompt",
+  "transcript_text",
   "preview_url",
   "companion_art_status",
   "companion_art_storage_path",
@@ -161,6 +167,13 @@ const resolveGenerationProjectionRecencyMs = (row: Record<string, unknown>): num
   parseIsoTimestampMs(row.created_at) ??
   parseIsoTimestampMs(row.updated_at);
 
+const resolveGenerationProjectionCreatedAt = (
+  row: GenerationProjectionDeliveryRow
+): string | null =>
+  asTrimmedString(row.started_at) ??
+  asTrimmedString(row.created_at) ??
+  asTrimmedString(row.updated_at);
+
 const resolveProjectId = (value: string | null | undefined): string | null =>
   asTrimmedString(value);
 
@@ -181,10 +194,11 @@ const resolveVideoDeliveryPosterStoragePath = ({
   fullStoragePath: string | null;
 }): string | null => {
   if (mode !== "video") return null;
-  if (!previewStoragePath) return null;
-  if (previewStoragePath.includes("/variants/")) return previewStoragePath;
-  if (fullStoragePath && previewStoragePath === fullStoragePath) return null;
-  return fullStoragePath ? previewStoragePath : null;
+  return resolveVideoPosterStoragePath({
+    previewPosterStoragePath: null,
+    previewStoragePath,
+    fullStoragePath,
+  });
 };
 
 const resolveVideoDeliveryPrimaryStoragePath = ({
@@ -474,9 +488,11 @@ const toHydratedGeneratedOutput = (
   return {
     id: `generated:${generationId}`,
     prompt: asTrimmedString(row.display_prompt) ?? "",
+    transcriptText: asTrimmedString(row.transcript_text) ?? null,
     mode,
     aspect: replayAspect ?? "1:1",
     model: resolveModelLabel(modelId ?? undefined),
+    createdAt: resolveGenerationProjectionCreatedAt(row),
     modelId: modelId ?? undefined,
     provider: asTrimmedString(row.provider) ?? undefined,
     sourceRef: asTrimmedString(row.source_ref) ?? undefined,
@@ -934,16 +950,24 @@ const applyPublishedGeneratedMediaAuthority = (
     const mediaRow = mediaByGenerationId.get(output.generationId);
     if (!mediaRow) return output;
     const mediaStoragePath = asCanonicalStoragePath(mediaRow.storagePath);
-    const mediaPosterStoragePath = asCanonicalStoragePath(mediaRow.posterVariantPath);
+    const mediaPosterStoragePath = normalizeVideoPosterStoragePathCandidate(
+      mediaRow.posterVariantPath
+    );
     const mediaPreviewVariantPath = asCanonicalStoragePath(mediaRow.previewVariantPath);
     const nextFullStoragePath = asCanonicalStoragePath(output.fullStoragePath) ?? mediaStoragePath;
-    const nextPreviewPosterStoragePath =
-      asCanonicalStoragePath(output.previewPosterStoragePath) ?? mediaPosterStoragePath;
     const nextPreviewStoragePath =
       asCanonicalStoragePath(output.previewStoragePath) ??
       (mediaRow.fileType === "video"
         ? (mediaPreviewVariantPath ?? mediaStoragePath)
         : mediaStoragePath);
+    const nextPreviewPosterStoragePath =
+      normalizeVideoPosterStoragePathCandidate(output.previewPosterStoragePath) ??
+      mediaPosterStoragePath ??
+      resolveVideoDeliveryPosterStoragePath({
+        mode: output.mode,
+        previewStoragePath: nextPreviewStoragePath,
+        fullStoragePath: nextFullStoragePath,
+      });
     if (!nextPreviewStoragePath && !nextFullStoragePath && !nextPreviewPosterStoragePath) {
       return output;
     }
@@ -1023,9 +1047,8 @@ const applySignedVideoPosterUrls = async (outputs: StudioOutput[]): Promise<Stud
   const storagePaths = new Set<string>();
   for (const output of outputs) {
     if (output.mode !== "video") continue;
-    if (asTrimmedString(output.previewPosterUrl)) continue;
     const posterStoragePath =
-      asCanonicalStoragePath(output.previewPosterStoragePath) ??
+      normalizeVideoPosterStoragePathCandidate(output.previewPosterStoragePath) ??
       resolveVideoDeliveryPosterStoragePath({
         mode: output.mode,
         previewStoragePath: asCanonicalStoragePath(output.previewStoragePath),

@@ -35,6 +35,7 @@ type LibraryMediaReferencePayload = {
   id: string;
   url: string;
   fileType: LibraryMediaFileType;
+  createdAt?: string | null;
   originFolderId?: string | null;
   filename?: string | null;
   promptText?: string | null;
@@ -52,6 +53,7 @@ type LibraryMediaReferencePayload = {
 type LibraryPromptReferencePayload = {
   id: string;
   promptText: string;
+  createdAt?: string | null;
   originFolderId?: string | null;
   title?: string | null;
 };
@@ -133,6 +135,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       const nextOutput = result.outputs[0];
@@ -159,6 +162,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       const nextOutput = result.outputs[0];
@@ -312,6 +316,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       const [promptReference] = result.outputs;
@@ -335,6 +340,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       if (!result.outputs.length) return;
@@ -358,6 +364,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       if (!result.outputs.length) return;
@@ -426,6 +433,7 @@ export const useAiStudioReferenceIngestionActions = ({
           model,
           resolveModelLabel,
           randomId,
+          nowIso: () => new Date().toISOString(),
         }
       );
       if (!result.outputs.length) return;

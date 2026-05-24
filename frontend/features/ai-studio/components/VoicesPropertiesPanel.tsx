@@ -14,7 +14,11 @@ import {
 } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
+import {
+  resetSharedVoicesGridStore,
+  useSharedVoicesGrid,
+  type SharedVoiceOption,
+} from "../hooks/useSharedVoicesGrid";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import type { ToolId } from "../types";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -1092,6 +1096,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       setIsVoicesLoading(true);
       setVoicesLoadError(null);
       setVoicesLoadNotice(null);
+      resetSharedVoicesGridStore();
       try {
         const response = await fetchWithAuth("/api/elevenlabs/voices", {
           shortpulseLogScope: "generation",
@@ -1166,6 +1171,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         }
       } catch (error) {
         if (!cancelled) {
+          resetSharedVoicesGridStore();
           setVoicesLoadError(
             sanitizeCustomerFacingProviderText(
               error instanceof Error ? error.message : null,

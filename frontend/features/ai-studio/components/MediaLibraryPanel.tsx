@@ -77,6 +77,7 @@ type MediaLibraryPanelProps = {
     fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
+    transcriptText?: string | null;
     source?: string | null;
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;

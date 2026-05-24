@@ -294,6 +294,53 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).not.toHaveProperty("workflowSession");
   });
 
+  it("serializes explicit Standard prompt attachments into the latest user turn", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Thanks, I used the attached reference text.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        context: {
+          modeHint: "reference",
+          references: [
+            {
+              id: "ref-prompt-1",
+              kind: "prompt",
+              promptSnippet: "Golden-hour portrait with soft rim light.",
+            },
+          ],
+          selectedReferenceIds: ["ref-prompt-1"],
+          focusedSource: "prompt",
+          focusedReferenceId: "ref-prompt-1",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const fetchBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as { messages?: Array<{ role: string; content: unknown }> };
+    const latestUserMessage = [...(fetchBody.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "user");
+    expect(latestUserMessage?.content).toBe(
+      "Improve this prompt.\n\nAttached reference text:\n- Golden-hour portrait with soft rim light."
+    );
+  });
+
   it("fails closed when the Standard runtime prompt is missing", async () => {
     const missingPromptError = new Error(
       "Runtime agent prompt STUDIO_AGENT_SYSTEM is missing from the control plane."

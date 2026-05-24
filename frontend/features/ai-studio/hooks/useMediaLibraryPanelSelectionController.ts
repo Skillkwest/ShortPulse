@@ -5,6 +5,7 @@ import {
   isAudioFile,
   isVideoFile,
   resolveMediaMetadataPromptText,
+  resolveMediaMetadataTranscriptText,
   type MediaFileRow,
 } from "../logic/mediaLibraryModalModel";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
@@ -13,8 +14,10 @@ export type MediaLibrarySelectionPayload = {
   id: string;
   url: string;
   fileType: "image" | "video" | "audio";
+  createdAt?: string | null;
   filename?: string | null;
   promptText?: string | null;
+  transcriptText?: string | null;
   source?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
@@ -88,8 +91,10 @@ export const useMediaLibraryPanelSelectionController = ({
         id: file.id,
         url: nextUrl,
         fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+        createdAt: file.created_at ?? null,
         filename: file.filename,
         promptText: resolveMediaMetadataPromptText(file.metadata),
+        transcriptText: resolveMediaMetadataTranscriptText(file.metadata),
         source: file.source ?? "upload",
         previewStoragePath,
         previewPosterStoragePath,

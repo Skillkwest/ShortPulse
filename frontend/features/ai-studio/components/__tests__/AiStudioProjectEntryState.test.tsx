@@ -1,14 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { AiStudioProjectEntryState } from "../AiStudioProjectEntryState";
 
 describe("AiStudioProjectEntryState", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("renders the project restore loading state with resolved project context", () => {
     render(
       <AiStudioProjectEntryState
@@ -31,14 +27,11 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.queryByText("Workspace snapshot loading")).not.toBeInTheDocument();
   });
 
-  it("renders the experimental loading animation while preserving accessible progress copy", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
-
+  it("renders the animated loading surface while preserving accessible progress copy", () => {
     const { container } = render(
       <AiStudioProjectEntryState
         variant="loading"
         phase="loading-workspace"
-        enableExperimentalAnimation
         projectTitle="Spring Campaign"
       />
     );
@@ -54,14 +47,11 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
   });
 
-  it("keeps the experimental entry surface driven by the exact symbol-only PNG mask", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "true");
-
+  it("keeps the animated entry surface driven by the exact symbol-only PNG mask", () => {
     const { container } = render(
       <AiStudioProjectEntryState
         variant="loading"
         phase="loading-workspace"
-        enableExperimentalAnimation
         projectTitle="Spring Campaign"
       />
     );
@@ -93,20 +83,17 @@ describe("AiStudioProjectEntryState", () => {
     );
   });
 
-  it("keeps the legacy loader when the experimental flag is disabled", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_ENTRY_ANIMATION_EXPERIMENT", "false");
-
+  it("uses the animated entry surface as the canonical loading state", () => {
     const { container } = render(
       <AiStudioProjectEntryState
         variant="loading"
         phase="loading-workspace"
-        enableExperimentalAnimation
         projectTitle="Spring Campaign"
       />
     );
 
-    expect(container.querySelector(".ai-studio-project-entry-loader")).not.toBeNull();
-    expect(container.querySelector(".ai-studio-project-entry-visual-stage")).toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-loader")).toBeNull();
     expect(screen.getByText("Verify session")).toBeInTheDocument();
   });
 

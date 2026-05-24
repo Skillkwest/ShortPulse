@@ -32,9 +32,11 @@ export type ReferenceIngestionInput =
         id: string;
         url: string;
         fileType: LibraryMediaFileType;
+        createdAt?: string | null;
         originFolderId?: string | null;
         filename?: string | null;
         promptText?: string | null;
+        transcriptText?: string | null;
         source?: string | null;
         previewStoragePath?: string | null;
         fullStoragePath?: string | null;
@@ -54,6 +56,7 @@ export type ReferenceIngestionInput =
       payload: {
         id: string;
         promptText: string;
+        createdAt?: string | null;
         originFolderId?: string | null;
         title?: string | null;
       };
@@ -65,6 +68,7 @@ export type ReferenceIngestionContext = {
   model: string | null;
   resolveModelLabel: (value?: string) => string;
   randomId: () => string;
+  nowIso?: () => string;
 };
 
 export type ReferenceIngestionResult = {

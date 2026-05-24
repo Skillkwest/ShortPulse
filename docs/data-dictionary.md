@@ -726,11 +726,30 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
-- `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice cache storing created ElevenLabs voices as `{ voiceId, name, previewUrl, sampleStoragePath, description, provider, isFallback, createdAt }` records so custom voices survive refreshes and provider outages. New Generate Voice and Clone Voice entries include a private `sampleStoragePath`; `/api/elevenlabs/voices` refreshes `previewUrl` from that path before returning the Voices modal inventory.
+- `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice compatibility cache storing `{ voiceId, name, previewUrl, sampleStoragePath, description, provider, isFallback, createdAt }` records. This remains useful for UI metadata and legacy compatibility, but it is no longer sufficient by itself to prove ownership of a custom provider voice.
 - `ai_studio_character_quickswap_tip_hidden` (boolean, default `false`): Per-user flag that hides the embedded Character QuickSwap guidance bubble after high-density deck usage.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### user_owned_custom_voices
+
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, fk -> `auth.users.id`): Owner for RLS scoping and the authoritative custom-voice tenant boundary.
+- `provider` (text): Current fixed provider id. Presently constrained to `elevenlabs`.
+- `voice_id` (text): Upstream provider voice id. Unique per provider so one custom provider voice cannot be claimed by multiple users.
+- `display_name` (text): User-facing voice label stored by the authoritative ownership row.
+- `description` (text, nullable): Provider/user description persisted alongside the owned voice metadata.
+- `preview_url` (text, nullable): Last known preview URL. Signed sample URLs may still be refreshed at request time from `sample_storage_path`.
+- `sample_storage_path` (text, nullable): Private `media_library` storage path for the sample preview generated during create/clone.
+- `origin_kind` (text): Canonical saved-voice origin classification (`provider-user-created`, `provider-saved`, `provider-default`, `legacy-saved`).
+- `saved_source` (text): Ownership/write source (`text-to-voice-create`, `voice-clone`, `provider-save`, `legacy`).
+- `provider_delete_eligible` (boolean): Whether the owned custom voice is allowed to be deleted upstream through ShortPulse.
+- `ownership_provenance` (text): How ownership was established (`text_to_voice_create`, `voice_clone`, `provider_save`, `legacy_migrated`, `admin_repair`).
+- `ownership_confidence` (text): Confidence level for the ownership record (`high`, `migrated`, `disputed`).
+- `created_at` / `updated_at` (timestamptz): Timestamps for first ownership persistence and latest authoritative update.
+- Runtime role: authoritative ledger for custom-provider voice ownership used by the ElevenLabs voice library, generation routes, and destructive voice actions. Shared provider workspace inventory must not override this table.
+- Migration note: `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql` seeds this table from legacy `user_preferences.ai_studio_saved_voices` entries that look like owned custom voices (`provider-user-created`, `text-to-voice-create`, `voice-clone`, or provider-delete-eligible records).
 
 ### create_pulse_builtin_runtime
 

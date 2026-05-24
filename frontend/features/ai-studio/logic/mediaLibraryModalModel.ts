@@ -277,3 +277,17 @@ export const resolveMediaMetadataPromptText = (
   const trimmed = prompt.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+export const resolveMediaMetadataTranscriptText = (
+  metadata?: Record<string, unknown> | null
+): string | null => {
+  if (!metadata) return null;
+  const transcript =
+    typeof metadata.transcript_text === "string"
+      ? metadata.transcript_text
+      : typeof metadata.transcriptText === "string"
+        ? metadata.transcriptText
+        : "";
+  const trimmed = transcript.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};

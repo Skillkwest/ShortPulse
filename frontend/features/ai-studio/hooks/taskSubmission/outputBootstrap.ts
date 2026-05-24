@@ -59,6 +59,7 @@ export const buildPendingSubmissionOutput = ({
   prompt,
   aspect,
   model: modelLabel,
+  createdAt: new Date().toISOString(),
   modelId,
   status: "ready",
   taskState: "pending",

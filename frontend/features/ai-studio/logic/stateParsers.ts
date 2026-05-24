@@ -259,11 +259,11 @@ export const isVideoUrl = (url: string | null | undefined) => {
   if (/^data:video\//i.test(trimmed)) return true;
   if (/^data:image\//i.test(trimmed)) return false;
   if (/^blob:/i.test(trimmed)) return VIDEO_MARKER_PATTERN.test(trimmed);
-  if (VIDEO_EXTENSION_PATTERN.test(trimmed)) return true;
-  if (IMAGE_EXTENSION_PATTERN.test(trimmed)) return false;
 
   const parsed = parseMediaCandidateUrl(trimmed);
   if (!parsed) {
+    if (VIDEO_EXTENSION_PATTERN.test(trimmed)) return true;
+    if (IMAGE_EXTENSION_PATTERN.test(trimmed)) return false;
     const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(trimmed);
     const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(trimmed);
     return hasVideoSegment && !hasImageSegment;
@@ -276,11 +276,6 @@ export const isVideoUrl = (url: string | null | undefined) => {
       return parsed.pathname;
     }
   })();
-  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
-  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
-  if (VIDEO_EXTENSION_PATTERN.test(decodedPathname)) return true;
-  if (IMAGE_EXTENSION_PATTERN.test(decodedPathname)) return false;
-
   const queryMimeType =
     parsed.searchParams.get("mimeType") ??
     parsed.searchParams.get("mime") ??
@@ -289,8 +284,19 @@ export const isVideoUrl = (url: string | null | undefined) => {
     "";
   const normalizedQueryMimeType = queryMimeType.toLowerCase();
   if (normalizedQueryMimeType.startsWith("video/")) return true;
-  if (normalizedQueryMimeType.startsWith("image/")) return false;
+  if (
+    normalizedQueryMimeType.startsWith("audio/") ||
+    normalizedQueryMimeType.startsWith("image/")
+  ) {
+    return false;
+  }
   if (parsed.searchParams.get("video") === "1") return true;
+  if (parsed.searchParams.get("audio") === "1") return false;
+
+  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (VIDEO_EXTENSION_PATTERN.test(decodedPathname)) return true;
+  if (IMAGE_EXTENSION_PATTERN.test(decodedPathname)) return false;
 
   const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(decodedPathname);
   const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(decodedPathname);
@@ -304,11 +310,13 @@ export const isAudioUrl = (url: string | null | undefined) => {
   if (/^data:audio\//i.test(trimmed)) return true;
   if (/^data:(image|video)\//i.test(trimmed)) return false;
   if (/^blob:/i.test(trimmed)) return AUDIO_MARKER_PATTERN.test(trimmed);
-  if (AUDIO_EXTENSION_PATTERN.test(trimmed)) return true;
-  if (VIDEO_EXTENSION_PATTERN.test(trimmed) || IMAGE_EXTENSION_PATTERN.test(trimmed)) return false;
 
   const parsed = parseMediaCandidateUrl(trimmed);
   if (!parsed) {
+    if (AUDIO_EXTENSION_PATTERN.test(trimmed)) return true;
+    if (VIDEO_EXTENSION_PATTERN.test(trimmed) || IMAGE_EXTENSION_PATTERN.test(trimmed)) {
+      return false;
+    }
     const hasAudioSegment = AUDIO_SEGMENT_PATTERN.test(trimmed);
     const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(trimmed);
     const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(trimmed);
@@ -322,15 +330,6 @@ export const isAudioUrl = (url: string | null | undefined) => {
       return parsed.pathname;
     }
   })();
-  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
-  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
-  if (AUDIO_EXTENSION_PATTERN.test(decodedPathname)) return true;
-  if (
-    VIDEO_EXTENSION_PATTERN.test(decodedPathname) ||
-    IMAGE_EXTENSION_PATTERN.test(decodedPathname)
-  )
-    return false;
-
   const queryMimeType =
     parsed.searchParams.get("mimeType") ??
     parsed.searchParams.get("mime") ??
@@ -346,6 +345,17 @@ export const isAudioUrl = (url: string | null | undefined) => {
     return false;
   }
   if (parsed.searchParams.get("audio") === "1") return true;
+  if (parsed.searchParams.get("video") === "1") return false;
+
+  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (AUDIO_EXTENSION_PATTERN.test(decodedPathname)) return true;
+  if (
+    VIDEO_EXTENSION_PATTERN.test(decodedPathname) ||
+    IMAGE_EXTENSION_PATTERN.test(decodedPathname)
+  ) {
+    return false;
+  }
 
   const hasAudioSegment = AUDIO_SEGMENT_PATTERN.test(decodedPathname);
   const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(decodedPathname);
@@ -494,8 +504,11 @@ export const mapUploadsFromFiles = async (
   model: string | null,
   resolveModelLabelFn: (value?: string) => string,
   randomIdFn: () => string,
-  source: "filePicker" | "drop" = "filePicker"
+  nowIsoOrSource: (() => string) | "filePicker" | "drop" | undefined = undefined,
+  sourceArg: "filePicker" | "drop" | undefined = undefined
 ): Promise<StudioOutput[]> => {
+  const nowIsoFn = typeof nowIsoOrSource === "function" ? nowIsoOrSource : undefined;
+  const source = typeof nowIsoOrSource === "string" ? nowIsoOrSource : (sourceArg ?? "filePicker");
   const mediaFiles = Array.from(files)
     .filter(
       (file) =>
@@ -514,6 +527,7 @@ export const mapUploadsFromFiles = async (
       );
     });
   const timestampLabel = source === "drop" ? "Dropped" : "Uploaded";
+  const batchCreatedAt = typeof nowIsoFn === "function" ? nowIsoFn() : new Date().toISOString();
 
   const supportsObjectUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
   const readFileAsDataUrl = (file: File) =>
@@ -549,6 +563,7 @@ export const mapUploadsFromFiles = async (
         mode: isVideo ? ("video" as const) : isAudio ? ("audio" as const) : ("image" as const),
         aspect,
         model: resolveModelLabelFn(model ?? undefined),
+        createdAt: batchCreatedAt,
         modelId: model ?? undefined,
         status: "ready" as const,
         timestamp: timestampLabel,

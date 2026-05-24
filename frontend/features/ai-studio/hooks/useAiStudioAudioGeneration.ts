@@ -38,6 +38,7 @@ type VoicesGenerateSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+    transcriptText?: string | null;
     saveState?: StudioOutputSaveState;
     saveError?: string | null;
   };
@@ -55,6 +56,7 @@ type VoicesGenerateSuccessResponse = {
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
     modelId: string;
+    transcriptText?: string | null;
     saveState?: StudioOutputSaveState;
     saveError?: string | null;
   };
@@ -206,9 +208,11 @@ const buildVoiceChangerRemuxedVideoOutput = ({
   return {
     id: `generated:${payload.generationId}`,
     prompt: `${sourceLabel} -> ${request.voice.name} video`,
+    transcriptText: payload.transcriptText ?? null,
     mode: "video",
     aspect: request.source.extractedFrom?.aspect ?? "1:1",
     model: buildVoicesOutputModelLabel(request),
+    createdAt: new Date().toISOString(),
     modelId: payload.modelId,
     provider: payload.provider,
     generationId: payload.generationId,
@@ -256,6 +260,8 @@ const applyAudioOutputToPlaceholder = ({
     ...item,
     mode: "audio",
     prompt: promptText,
+    transcriptText:
+      (payload as { transcriptText?: string | null }).transcriptText ?? item.transcriptText ?? null,
     model: modelLabel,
     modelId: payload.modelId,
     provider: payload.provider,

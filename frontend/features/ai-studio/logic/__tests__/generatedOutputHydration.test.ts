@@ -20,6 +20,7 @@ describe("generatedOutputHydration", () => {
         id: "local-1",
         generationId: "gen-1",
         taskId: "req-1",
+        createdAt: "2026-05-24T10:00:00.000Z",
         taskState: "running",
         queueState: "dispatched",
         mediaSource: "generated",
@@ -37,6 +38,7 @@ describe("generatedOutputHydration", () => {
         previewUrl: "https://cdn.test/generated-preview.png",
         previewPosterUrl: "https://cdn.test/generated-poster.jpg",
         resultUrls: ["https://cdn.test/generated-full.png"],
+        createdAt: "2026-05-24T12:00:00.000Z",
         timestamp: "Just now",
       }),
     ];
@@ -51,9 +53,40 @@ describe("generatedOutputHydration", () => {
         previewPosterUrl: "https://cdn.test/generated-poster.jpg",
         resultUrls: ["https://cdn.test/generated-full.png"],
         mediaSource: "generated",
+        createdAt: "2026-05-24T12:00:00.000Z",
         timestamp: "Just now",
       }),
     ]);
+  });
+
+  it("replaces fallback generated timestamps with canonical hydrated createdAt", () => {
+    const existing = [
+      createOutput({
+        id: "local-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        createdAt: "2026-05-24T10:00:00.000Z",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        createdAt: "2026-05-24T12:00:00.000Z",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-1",
+        createdAt: "2026-05-24T12:00:00.000Z",
+      })
+    );
   });
 
   it("prepends unseen canonical generated outputs", () => {

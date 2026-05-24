@@ -13,6 +13,7 @@ import {
   clearControlPlaneCatalogCacheState,
   createControlPlaneCatalogCacheState,
   hasSupabaseAdminConfig,
+  resolveControlPlaneCacheTtlMs,
   resolveCachedControlPlaneCatalog,
   resolveControlPlaneCatalogForAdmin,
   saveControlPlaneCatalog,
@@ -50,6 +51,16 @@ const runtimeBuiltInCatalogCache =
 
 export const clearCreatePulseBuiltInControlPlaneCacheForTests = (): void => {
   clearControlPlaneCatalogCacheState(runtimeBuiltInCatalogCache);
+};
+
+const rememberCreatePulseBuiltInCatalogResolution = (
+  resolution: RuntimeCreatePulseBuiltInCatalogResolution,
+  controlPlaneCacheTtlMs = process.env.CREATE_PULSE_BUILTIN_CONTROL_PLANE_CACHE_TTL_MS
+): void => {
+  runtimeBuiltInCatalogCache.current = {
+    expiresAtMs: Date.now() + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
+    resolution,
+  };
 };
 
 export const getSeededCreatePulseBuiltInDefinitions = (): CreatePulseBuiltInPresetDefinition[] => [
@@ -96,6 +107,8 @@ export const resolveRuntimeCreatePulseBuiltInCatalog = async ({
     fetchActiveCatalog: fetchActiveCreatePulseBuiltInCatalog,
     buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogResolution,
     buildSeedResolution: buildSeedCreatePulseBuiltInCatalogResolution,
+    buildDegradedResolutionFromPrevious:
+      buildDegradedCreatePulseBuiltInCatalogResolutionFromPrevious,
   });
 };
 
@@ -106,11 +119,18 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
     return buildSeedCreatePulseBuiltInCatalogResolution(false);
   }
 
-  return resolveControlPlaneCatalogForAdmin({
+  const resolvedCatalog = await resolveControlPlaneCatalogForAdmin({
     fetchActiveCatalog: () => fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin }),
     buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogResolution,
-    buildSeedResolution: buildSeedCreatePulseBuiltInCatalogResolution,
+    buildSeedResolution: (degraded) =>
+      runtimeBuiltInCatalogCache.current
+        ? buildDegradedCreatePulseBuiltInCatalogResolutionFromPrevious(
+            runtimeBuiltInCatalogCache.current.resolution
+          )
+        : buildSeedCreatePulseBuiltInCatalogResolution(degraded),
   });
+  rememberCreatePulseBuiltInCatalogResolution(resolvedCatalog);
+  return resolvedCatalog;
 };
 
 export const saveCreatePulseBuiltInCatalog = async ({
@@ -125,8 +145,8 @@ export const saveCreatePulseBuiltInCatalog = async ({
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
-}): Promise<ActiveCreatePulseBuiltInCatalog> =>
-  saveControlPlaneCatalog({
+}): Promise<ActiveCreatePulseBuiltInCatalog> => {
+  const savedCatalog = await saveControlPlaneCatalog({
     definitions: builtInDefinitions,
     normalizeDefinitions: normalizeCreatePulseBuiltInPresetDefinitions,
     expectedUpdatedAt,
@@ -154,6 +174,11 @@ export const saveCreatePulseBuiltInCatalog = async ({
     missingActiveCatalogMessage:
       "Create Pulse built-in catalog save did not produce a runtime row.",
   });
+  rememberCreatePulseBuiltInCatalogResolution(
+    buildControlPlaneCreatePulseBuiltInCatalogResolution(savedCatalog)
+  );
+  return savedCatalog;
+};
 
 const buildControlPlaneCreatePulseBuiltInCatalogResolution = (
   activeCatalog: ActiveCreatePulseBuiltInCatalog
@@ -173,4 +198,11 @@ const buildSeedCreatePulseBuiltInCatalogResolution = (
   updatedByEmail: null,
   source: "seed",
   degraded,
+});
+
+const buildDegradedCreatePulseBuiltInCatalogResolutionFromPrevious = (
+  previousResolution: RuntimeCreatePulseBuiltInCatalogResolution
+): RuntimeCreatePulseBuiltInCatalogResolution => ({
+  ...previousResolution,
+  degraded: true,
 });

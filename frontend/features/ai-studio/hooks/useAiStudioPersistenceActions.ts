@@ -254,6 +254,7 @@ export const useAiStudioPersistenceActions = ({
               task_id: output.taskId ?? null,
               generation_trace_id: output.generationTraceId ?? output.taskId ?? null,
               submission_trace_id: output.submissionTraceId ?? null,
+              transcript_text: output.transcriptText ?? null,
             },
             posterUrlHint: resolvePersistedPosterUrlHint(output),
             projectId,

@@ -236,6 +236,35 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.savedMediaIds).toEqual(["media-1"]);
   });
 
+  it("preserves transcript text for library media outputs", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-transcript-1",
+          url: "https://example.com/voice-video.mp4",
+          fileType: "video",
+          filename: "clip.mp4 -> Narrator video",
+          promptText: "clip.mp4 -> Narrator video",
+          transcriptText: "I can hear the city waking up below us.",
+          source: "ai_studio",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    expect(result.outputs[0]).toEqual(
+      expect.objectContaining({
+        prompt: "clip.mp4 -> Narrator video",
+        transcriptText: "I can hear the city waking up below us.",
+        mediaSource: "generated",
+      })
+    );
+  });
+
   it("preserves distinct preview and full URLs for library media", async () => {
     const context = createContext();
     const result = await buildStudioOutputsFromReferenceInput(

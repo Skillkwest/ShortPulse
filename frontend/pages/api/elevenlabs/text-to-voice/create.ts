@@ -3,6 +3,7 @@ import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFaci
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
+import { cleanupFailedElevenLabsCustomVoice } from "../../../../lib/server/elevenlabsCustomVoiceCleanup";
 import { createElevenLabsDesignedVoice } from "../../../../lib/server/elevenlabs";
 import { createPersistedElevenLabsVoiceSample } from "../../../../lib/server/elevenlabsVoiceSamples";
 
@@ -88,13 +89,30 @@ export default async function handler(
         (voiceId) => voiceId !== generatedVoiceId
       ),
     });
-    const voiceSample = await createPersistedElevenLabsVoiceSample({
-      userId: user.id,
-      voiceId: createdVoice.voiceId,
-    });
+    const voiceSample: Awaited<ReturnType<typeof createPersistedElevenLabsVoiceSample>> =
+      await createPersistedElevenLabsVoiceSample({
+        userId: user.id,
+        voiceId: createdVoice.voiceId,
+      }).catch(async (sampleError) => {
+        const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
+          userId: user.id,
+          voiceId: createdVoice.voiceId,
+          sampleStoragePath: null,
+        });
+        for (const cleanupError of cleanupResult.cleanupErrors) {
+          await logApiRouteException({
+            req,
+            error: cleanupError,
+            routeLabel: "elevenlabs-text-to-voice-create-cleanup",
+            scope: "generation",
+            user,
+          });
+        }
+        throw sampleError;
+      });
 
     try {
-      await saveVoiceForUser({
+      const savedVoice = await saveVoiceForUser({
         userId: user.id,
         voice: {
           voiceId: createdVoice.voiceId,
@@ -107,6 +125,9 @@ export default async function handler(
           providerDeleteEligible: true,
         },
       });
+      if (!savedVoice) {
+        throw new Error("Unable to persist custom voice ownership.");
+      }
     } catch (persistenceError) {
       await logApiRouteException({
         req,
@@ -114,6 +135,24 @@ export default async function handler(
         routeLabel: "elevenlabs-text-to-voice-create-persistence",
         scope: "generation",
         user,
+      });
+      const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
+        userId: user.id,
+        voiceId: createdVoice.voiceId,
+        sampleStoragePath: voiceSample.sampleStoragePath,
+      });
+      for (const cleanupError of cleanupResult.cleanupErrors) {
+        await logApiRouteException({
+          req,
+          error: cleanupError,
+          routeLabel: "elevenlabs-text-to-voice-create-cleanup",
+          scope: "generation",
+          user,
+        });
+      }
+      return res.status(500).json({
+        error: "Unable to create voice",
+        details: "We couldn't securely save this voice. Please try again.",
       });
     }
 

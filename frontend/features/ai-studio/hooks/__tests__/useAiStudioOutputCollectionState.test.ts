@@ -66,4 +66,40 @@ describe("useAiStudioOutputCollectionState", () => {
     expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
     expect(getAiStudioOutputSnapshot().archivedOutputOrder).toEqual([]);
   });
+
+  it("sorts active outputs newest-first once every row has createdAt", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+
+    act(() => {
+      result.current.setOutputsState([
+        makeOutput("oldest", { createdAt: "2026-05-24T10:00:00.000Z" }),
+        makeOutput("newest", { createdAt: "2026-05-24T12:00:00.000Z" }),
+        makeOutput("middle", { createdAt: "2026-05-24T11:00:00.000Z" }),
+      ]);
+    });
+
+    expect(result.current.outputs.map((output) => output.id)).toEqual([
+      "newest",
+      "middle",
+      "oldest",
+    ]);
+  });
+
+  it("preserves mixed legacy order until every active row has createdAt", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+
+    act(() => {
+      result.current.setOutputsState([
+        makeOutput("legacy-upload"),
+        makeOutput("new-generated", { createdAt: "2026-05-24T12:00:00.000Z" }),
+        makeOutput("older-generated", { createdAt: "2026-05-24T11:00:00.000Z" }),
+      ]);
+    });
+
+    expect(result.current.outputs.map((output) => output.id)).toEqual([
+      "legacy-upload",
+      "new-generated",
+      "older-generated",
+    ]);
+  });
 });

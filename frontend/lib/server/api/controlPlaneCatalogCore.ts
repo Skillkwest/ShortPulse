@@ -51,6 +51,7 @@ export const resolveCachedControlPlaneCatalog = async <TActiveCatalog, TResoluti
   fetchActiveCatalog,
   buildControlPlaneResolution,
   buildSeedResolution,
+  buildDegradedResolutionFromPrevious,
 }: {
   cacheState: ControlPlaneCatalogCacheState<TResolution>;
   bypassCache?: boolean;
@@ -58,6 +59,7 @@ export const resolveCachedControlPlaneCatalog = async <TActiveCatalog, TResoluti
   fetchActiveCatalog: () => Promise<TActiveCatalog | null>;
   buildControlPlaneResolution: (activeCatalog: TActiveCatalog) => TResolution;
   buildSeedResolution: (degraded: boolean) => TResolution;
+  buildDegradedResolutionFromPrevious?: (previousResolution: TResolution) => TResolution;
 }): Promise<TResolution> => {
   const nowMs = Date.now();
   if (!bypassCache && cacheState.current && cacheState.current.expiresAtMs > nowMs) {
@@ -75,7 +77,10 @@ export const resolveCachedControlPlaneCatalog = async <TActiveCatalog, TResoluti
     };
     return resolution;
   } catch {
-    const resolution = buildSeedResolution(true);
+    const resolution =
+      cacheState.current && buildDegradedResolutionFromPrevious
+        ? buildDegradedResolutionFromPrevious(cacheState.current.resolution)
+        : buildSeedResolution(true);
     cacheState.current = {
       expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
       resolution,

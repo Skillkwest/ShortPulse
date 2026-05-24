@@ -32,6 +32,13 @@ export type ResolvedVoiceLibraryEntry = {
   destructiveActionDisabledReason: string | null;
 };
 
+export type ResolvedVoiceAccess = {
+  accessKind: "saved" | "provider-shared";
+  providerVoice: ElevenLabsVoice | null;
+  savedVoice: SavedAiStudioVoice | null;
+  resolvedVoice: ResolvedVoiceLibraryEntry;
+};
+
 const normalizeLookupKey = (voiceId: string): string => voiceId.trim().toLowerCase();
 
 const sanitizeOptionalVoiceText = (value: string | null | undefined): string | null => {
@@ -44,6 +51,19 @@ const shouldExcludeResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): bool
 
 const providerCategoryImpliesUserCreated = (category: string | null): boolean =>
   category === "cloned" || category === "generated";
+
+const shouldHideUnownedProviderVoice = ({
+  providerVoice,
+  savedVoice,
+}: {
+  providerVoice: ElevenLabsVoice | null;
+  savedVoice: SavedAiStudioVoice | null;
+}): boolean =>
+  Boolean(
+    providerVoice &&
+    !savedVoice &&
+    providerCategoryImpliesUserCreated(providerVoice.providerCategory)
+  );
 
 const resolveOriginKind = ({
   providerVoice,
@@ -67,10 +87,6 @@ const resolveOriginKind = ({
     return "provider-default";
   }
 
-  if (providerCategoryImpliesUserCreated(providerVoice?.providerCategory ?? null)) {
-    return "provider-user-created";
-  }
-
   if (savedVoice && providerVoice) {
     return "provider-saved";
   }
@@ -83,17 +99,11 @@ const resolveOriginKind = ({
 };
 
 const resolveProviderDeleteEligibility = ({
-  providerVoice,
   savedVoice,
-  originKind,
 }: {
-  providerVoice: ElevenLabsVoice | null;
   savedVoice: SavedAiStudioVoice | null;
-  originKind: VoiceOriginKind;
 }): boolean => {
-  if (!providerVoice || providerVoice.isFallback) return false;
   if (savedVoice?.providerDeleteEligible === true) return true;
-  if (originKind === "provider-user-created") return true;
   return false;
 };
 
@@ -164,15 +174,15 @@ export const resolveVoiceLibraryEntry = ({
 }): ResolvedVoiceLibraryEntry | null => {
   const baseVoice = providerVoice ?? savedVoice;
   if (!baseVoice) return null;
+  if (shouldHideUnownedProviderVoice({ providerVoice, savedVoice })) {
+    return null;
+  }
 
   const originKind = resolveOriginKind({ providerVoice, savedVoice });
-  const librarySection: "default" | "my" =
-    savedVoice || originKind === "provider-user-created" ? "my" : "default";
+  const librarySection: "default" | "my" = savedVoice ? "my" : "default";
   const canRemoveFromLibrary = Boolean(savedVoice);
   const canDeleteFromProvider = resolveProviderDeleteEligibility({
-    providerVoice,
     savedVoice,
-    originKind,
   });
   const previewUrl = providerVoice?.previewUrl ?? savedVoice?.previewUrl ?? null;
   const description = providerVoice?.description ?? savedVoice?.description ?? null;
@@ -227,6 +237,41 @@ export const buildResolvedVoiceLibraryEntries = ({
     if (!resolved || shouldExcludeResolvedVoiceEntry(resolved)) return [];
     return [resolved];
   });
+};
+
+export const resolveVoiceAccessForUser = ({
+  voiceId,
+  providerVoices,
+  savedVoices,
+}: {
+  voiceId: string;
+  providerVoices: ElevenLabsVoice[];
+  savedVoices: SavedAiStudioVoice[];
+}): ResolvedVoiceAccess | null => {
+  const normalizedVoiceId = normalizeLookupKey(voiceId);
+  if (!normalizedVoiceId) {
+    return null;
+  }
+
+  const providerVoice =
+    providerVoices.find((voice) => normalizeLookupKey(voice.voiceId) === normalizedVoiceId) ?? null;
+  const savedVoice =
+    savedVoices.find((voice) => normalizeLookupKey(voice.voiceId) === normalizedVoiceId) ?? null;
+  const resolvedVoice = resolveVoiceLibraryEntry({
+    providerVoice,
+    savedVoice,
+  });
+
+  if (!resolvedVoice || resolvedVoice.isFallback) {
+    return null;
+  }
+
+  return {
+    accessKind: savedVoice ? "saved" : "provider-shared",
+    providerVoice,
+    savedVoice,
+    resolvedVoice,
+  };
 };
 
 export const buildFallbackVoiceLibraryEntries = (): ResolvedVoiceLibraryEntry[] =>

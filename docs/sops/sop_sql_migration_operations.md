@@ -38,6 +38,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_media_derivative_processing_backlog.sql`: media derivative backlog/retry diagnostics for image rows (read-only).
 - `sql/check_media_derivative_terminal_failures.sql`: terminal derivative failure diagnostics for image rows exhausted out of retry (read-only).
 - `sql/repair_media_derivative_requeue_terminal_row.sql`: targeted operator requeue for a repaired terminal image row (read-write).
+- `sql/check_user_owned_custom_voices_backfill.sql`: custom-voice ownership backfill diagnostics after migrations `128`/`129` (read-only).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC existence/owner/security-definer/execute-grant audit plus canary schema/table/sequence grant checks for app/runtime roles (read-only). This is the release gate for hosted operator RPC posture on families such as admin stats and model-pricing control-plane functions.
 - `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).

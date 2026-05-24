@@ -28,6 +28,7 @@ import {
   PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
+import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { resolveHydratedPulseRuntimeState, resolvePulseRuntimeState } from "./pulseSessionState";
 
 const FALLBACK_MODE: StudioMode = "text";
@@ -77,6 +78,13 @@ const asNullableString = (value: unknown): string | null => {
   return value;
 };
 
+const asIsoTimestampString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return Number.isNaN(Date.parse(normalized)) ? null : normalized;
+};
+
 const sanitizeHydratedMediaUrl = (value: string | null): string | null => {
   if (!value) return null;
   const normalized = value.trim();
@@ -116,9 +124,11 @@ const normalizeHydratedVideoStorageAuthority = ({
       fullStoragePath,
     };
   }
-  const inferredPosterStoragePath =
-    previewPosterStoragePath ??
-    (previewStoragePath && previewStoragePath !== fullStoragePath ? previewStoragePath : null);
+  const inferredPosterStoragePath = resolveVideoPosterStoragePath({
+    previewPosterStoragePath,
+    previewStoragePath,
+    fullStoragePath,
+  });
   const normalizedPreviewStoragePath =
     previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)
       ? previewStoragePath
@@ -431,9 +441,11 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
   const hydratedOutput = normalizeRestoredOutputLifecycle({
     id: output.id,
     prompt: output.prompt,
+    transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
     mode,
     aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
     model: output.model,
+    createdAt: asIsoTimestampString(output.createdAt) ?? asIsoTimestampString(output.timestamp),
     modelId: output.modelId,
     provider: output.provider,
     sourceRef: output.sourceRef,

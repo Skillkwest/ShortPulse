@@ -36,6 +36,7 @@ const {
   mockResolveMediaDirectPreviewUrls,
   mockResolveMediaPreviewCandidates,
   mockResolvePreferredMediaSigningStoragePath,
+  mockResolveMediaStoragePathCandidate,
   mockResolveMediaSigningStoragePaths,
   mockResolveVideoPosterStoragePath,
   mockGetSignedMediaUrl,
@@ -55,6 +56,7 @@ const {
     void args;
     return [] as string[];
   }),
+  mockResolveMediaStoragePathCandidate: vi.fn((value: string | null | undefined) => value ?? null),
   mockResolveMediaPreviewCandidates: vi.fn(
     (row: { storage_path?: string | null }, currentUserId?: string | null) => ({
       storagePaths: mockResolveMediaSigningStoragePaths(row, currentUserId),
@@ -113,6 +115,7 @@ vi.mock("../../../../lib/mediaPreviewPath", () => ({
   resolveDurablePreviewStoragePath: mockResolveDurablePreviewStoragePath,
   resolveMediaDirectPreviewUrls: mockResolveMediaDirectPreviewUrls,
   resolveMediaPreviewCandidates: mockResolveMediaPreviewCandidates,
+  resolveMediaStoragePathCandidate: mockResolveMediaStoragePathCandidate,
   resolvePreferredMediaSigningStoragePath: mockResolvePreferredMediaSigningStoragePath,
   resolveMediaSigningStoragePaths: mockResolveMediaSigningStoragePaths,
   resolveVideoPosterStoragePath: mockResolveVideoPosterStoragePath,
@@ -621,6 +624,7 @@ describe("MediaLibraryModal", () => {
       created_at: "2026-02-14T00:00:00.000Z",
       metadata: {
         prompt: "Golden-hour beach portrait with soft shadows.",
+        transcript_text: "I can hear the city waking up below us.",
       },
     });
     mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/forest.png"]);
@@ -656,6 +660,7 @@ describe("MediaLibraryModal", () => {
       id: "media-prompt-1",
       filename: "forest.png",
       promptText: "Golden-hour beach portrait with soft shadows.",
+      transcriptText: "I can hear the city waking up below us.",
     });
   });
 

@@ -76,6 +76,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
         mode: outputMode,
         aspect,
         model: resolvedModelLabel,
+        createdAt: new Date().toISOString(),
         modelId: modelIdOverride === null ? undefined : (modelIdOverride ?? model ?? undefined),
         provider: resolvedProvider,
         status: "ready",

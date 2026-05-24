@@ -536,7 +536,7 @@ describe("Admin agent instructions page", () => {
     expect(within(styleCard).getByText("Seeded local copy")).toBeInTheDocument();
   });
 
-  it("blocks Pulse saves while the built-in catalog is degraded", async () => {
+  it("allows Pulse saves to republish fallback content when the catalog read is degraded", async () => {
     fetchMock.mockImplementation(async (input: string) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         return buildStandardPromptResponse();
@@ -548,6 +548,14 @@ describe("Admin agent instructions page", () => {
         return buildEditSystemPresetResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        if (fetchMock.mock.calls.filter(([target]) => target === input).length > 1) {
+          return buildCatalogResponse([
+            {
+              ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+              label: "Global Prompt Director",
+            },
+          ]);
+        }
         return {
           ok: true,
           json: async () => ({
@@ -564,7 +572,7 @@ describe("Admin agent instructions page", () => {
 
     render(<AdminAgentInstructionsPage />);
     const degradedMessage = await screen.findByText(
-      "Live Pulse catalog lookup failed. Showing seeded fallback content until the admin route recovers."
+      "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
     );
 
     expect(degradedMessage).toBeInTheDocument();
@@ -576,6 +584,25 @@ describe("Admin agent instructions page", () => {
       target: { value: "Global Prompt Director" },
     });
 
-    expect(within(pulseCard).getByRole("button", { name: "Save" })).toBeDisabled();
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/pulse-builtins",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+    const saveCall = fetchMock.mock.calls.find(
+      ([target, init]) =>
+        target === "/api/admin/agent-instructions/pulse-builtins" &&
+        (init as { method?: string } | undefined)?.method === "PUT"
+    );
+    const body = JSON.parse(String((saveCall?.[1] as { body?: string } | undefined)?.body ?? "{}"));
+    expect(body.expectedUpdatedAt).toBeUndefined();
+    expect(body.builtInDefinitions[0]).toMatchObject({
+      label: "Global Prompt Director",
+    });
   });
 });

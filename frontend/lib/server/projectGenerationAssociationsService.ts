@@ -13,6 +13,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "provider",
   "model_id",
   "display_prompt",
+  "transcript_text",
   "preview_url",
   "companion_art_status",
   "companion_art_storage_path",
@@ -49,6 +50,7 @@ type ProjectGenerationProjectionRow = {
   provider?: unknown;
   model_id?: unknown;
   display_prompt?: unknown;
+  transcript_text?: unknown;
   preview_url?: unknown;
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
@@ -112,11 +114,24 @@ const parseIsoTimestampMs = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const resolveProjectionCreatedAt = (
+  projection: ProjectGenerationProjectionRow | null | undefined
+): string | null =>
+  asTrimmedString(projection?.started_at) ??
+  asTrimmedString(projection?.created_at) ??
+  asTrimmedString(projection?.updated_at);
+
 const asTrimmedStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((entry) => asTrimmedString(entry))
     .filter((entry): entry is string => Boolean(entry));
+};
+
+const asIsoTimestampString = (value: unknown): string | null => {
+  const normalized = asTrimmedString(value);
+  if (!normalized) return null;
+  return parseIsoTimestampMs(normalized) === null ? null : normalized;
 };
 
 const asBoolean = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
@@ -805,6 +820,7 @@ const patchSnapshotOutputRow = ({
   const nextErrorMessageShort = asTrimmedString(projection.error_message_short);
   const nextErrorDetail = asTrimmedString(projection.error_detail);
   const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextTranscriptText = asTrimmedString(projection.transcript_text);
   const nextProvider = asTrimmedString(projection.provider);
   const nextModelId = asTrimmedString(projection.model_id);
   const nextSourceRef = asTrimmedString(projection.source_ref);
@@ -818,7 +834,13 @@ const patchSnapshotOutputRow = ({
 
   return {
     ...row,
+    createdAt:
+      resolveProjectionCreatedAt(projection) ??
+      asIsoTimestampString(row.createdAt) ??
+      asIsoTimestampString(row.timestamp) ??
+      null,
     prompt: nextPrompt ?? row.prompt ?? "",
+    transcriptText: nextTranscriptText ?? row.transcriptText ?? null,
     provider: nextProvider ?? row.provider,
     modelId: nextModelId ?? row.modelId,
     sourceRef: nextSourceRef ?? row.sourceRef,
@@ -906,8 +928,10 @@ const createSnapshotOutputRowFromProjection = ({
       model: modelId ?? "Generated media",
       modelId: modelId ?? undefined,
       prompt: asTrimmedString(projection.display_prompt) ?? "",
+      transcriptText: asTrimmedString(projection.transcript_text) ?? null,
       status: restoredStatus,
       timestamp: "Just now",
+      createdAt: resolveProjectionCreatedAt(projection),
       generationId,
       taskId: requestId ?? undefined,
       generationTraceId: requestId ?? undefined,
@@ -930,67 +954,28 @@ const createSnapshotOutputRowFromProjection = ({
 const areSnapshotRowsSameOrder = (left: SnapshotRecord[], right: SnapshotRecord[]): boolean =>
   left.length === right.length && left.every((row, index) => row === right[index]);
 
-const projectionRecencyMs = (
-  projection: ProjectGenerationProjectionRow | undefined
-): number | null => {
-  return (
-    parseIsoTimestampMs(projection?.started_at) ??
-    parseIsoTimestampMs(projection?.created_at) ??
-    parseIsoTimestampMs(projection?.updated_at)
-  );
-};
-
 const orderActiveSnapshotRowsByProjectGenerationRecency = ({
   rows,
-  recentAssociatedGenerationIds,
-  projectionByGenerationId,
 }: {
   rows: SnapshotRecord[];
-  recentAssociatedGenerationIds: string[];
-  projectionByGenerationId: Map<string, ProjectGenerationProjectionRow>;
 }): SnapshotRecord[] => {
   if (rows.length <= 1) return rows;
-  const generationRankById = new Map(
-    recentAssociatedGenerationIds.map((generationId, index) => [generationId, index])
-  );
-  const rankedRows: Array<{
-    row: SnapshotRecord;
-    index: number;
-    rank: number | null;
-    recencyMs: number | null;
-  }> = [];
-  const unrankedRows: SnapshotRecord[] = [];
-
-  rows.forEach((row, index) => {
-    const generationId = asTrimmedString(row.generationId);
-    if (!generationId) {
-      unrankedRows.push(row);
-      return;
-    }
-    const rank = generationRankById.get(generationId) ?? null;
-    const recencyMs = projectionRecencyMs(projectionByGenerationId.get(generationId));
-    if (rank !== null || recencyMs !== null) {
-      rankedRows.push({ row, index, rank, recencyMs });
-      return;
-    }
-    unrankedRows.push(row);
-  });
-
-  if (rankedRows.length <= 1) return rows;
-  return [
-    ...rankedRows
-      .sort((left, right) => {
-        const leftRecencyMs = left.recencyMs ?? Number.NEGATIVE_INFINITY;
-        const rightRecencyMs = right.recencyMs ?? Number.NEGATIVE_INFINITY;
-        return (
-          (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) ||
-          rightRecencyMs - leftRecencyMs ||
-          left.index - right.index
-        );
-      })
-      .map(({ row }) => row),
-    ...unrankedRows,
-  ];
+  const indexedRows = rows.map((row, index) => ({
+    row,
+    index,
+    createdAtMs: parseIsoTimestampMs(asRecord(row).createdAt),
+  }));
+  if (indexedRows.some((entry) => entry.createdAtMs === null)) {
+    return indexedRows.map(({ row }) => row);
+  }
+  return indexedRows
+    .sort((left, right) => {
+      if (left.createdAtMs !== right.createdAtMs) {
+        return (right.createdAtMs as number) - (left.createdAtMs as number);
+      }
+      return left.index - right.index;
+    })
+    .map(({ row }) => row);
 };
 
 /**
@@ -1146,13 +1131,11 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
     changed = true;
   }
   const unorderedActiveRows = [
-    ...appendedActiveRows,
     ...(Array.isArray(activeRows) ? activeRows : []),
+    ...appendedActiveRows,
   ];
   const orderedActiveRows = orderActiveSnapshotRowsByProjectGenerationRecency({
     rows: unorderedActiveRows,
-    recentAssociatedGenerationIds,
-    projectionByGenerationId,
   });
   if (!areSnapshotRowsSameOrder(unorderedActiveRows, orderedActiveRows)) {
     changed = true;

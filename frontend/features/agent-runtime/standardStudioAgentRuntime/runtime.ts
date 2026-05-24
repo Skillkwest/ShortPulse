@@ -66,6 +66,17 @@ const buildStandardOpenAiMessages = ({
   context: AgentContext;
   systemPrompt?: string | null;
 }): OpenAiChatMessage[] => {
+  const promptReferenceSnippets = Array.from(
+    new Set(
+      context.references
+        ?.filter((item) => item.kind === "prompt")
+        .map((item) => item.promptSnippet?.trim() || "")
+        .filter((item) => item.length > 0) ?? []
+    )
+  ).slice(0, 8);
+  const promptReferenceBlock = promptReferenceSnippets.length
+    ? `Attached reference text:\n${promptReferenceSnippets.map((snippet) => `- ${snippet}`).join("\n")}`
+    : "";
   const imageParts =
     context.media
       ?.filter((item) => item.kind === "image" && typeof item.url === "string" && item.url.length)
@@ -83,17 +94,24 @@ const buildStandardOpenAiMessages = ({
 
   const conversationMessages = messages.map((message, index): OpenAiChatMessage => {
     const role = message.role === "assistant" ? "assistant" : "user";
-    if (index !== latestUserIndex || !imageParts.length || role !== "user") {
+    if (index !== latestUserIndex || role !== "user") {
       return {
         role,
         content: message.content,
       };
     }
     const textContent = message.content.trim();
+    const combinedTextContent = [textContent, promptReferenceBlock].filter(Boolean).join("\n\n");
+    if (!imageParts.length) {
+      return {
+        role,
+        content: combinedTextContent,
+      };
+    }
     return {
       role,
-      content: textContent.length
-        ? [{ type: "text", text: textContent }, ...imageParts]
+      content: combinedTextContent.length
+        ? [{ type: "text", text: combinedTextContent }, ...imageParts]
         : imageParts,
     };
   });

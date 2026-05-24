@@ -3,6 +3,7 @@ import { resolveRequiredAudioVoiceoverModelId } from "../../../lib/model-runtime
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import {
   captureSucceededGenerationByProviderRequest,
@@ -10,8 +11,10 @@ import {
 } from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsVoiceover,
+  listElevenLabsVoices,
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
+import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 
 type TextToSpeechRequestBody = {
@@ -109,6 +112,39 @@ export default async function handler(
       });
     }
 
+    const savedVoices = await listSavedVoicesForUser(user.id);
+    const savedVoiceMatch = savedVoices.some(
+      (savedVoice) => savedVoice.voiceId.trim().toLowerCase() === voiceId.toLowerCase()
+    );
+    let providerVoices = [] as Awaited<ReturnType<typeof listElevenLabsVoices>>;
+    let providerLookupFailed = false;
+    if (!savedVoiceMatch) {
+      try {
+        providerVoices = await listElevenLabsVoices();
+      } catch {
+        providerLookupFailed = true;
+      }
+    }
+
+    const voiceAccess = resolveVoiceAccessForUser({
+      voiceId,
+      savedVoices,
+      providerVoices,
+    });
+    if (!voiceAccess) {
+      if (providerLookupFailed && !savedVoiceMatch) {
+        return res.status(503).json({
+          error: "Voice is unavailable",
+          details: "We couldn't verify the selected voice right now. Please try again shortly.",
+        });
+      }
+      return res.status(403).json({
+        error: "Voice is unavailable",
+        details: "The selected voice is not available for this account.",
+      });
+    }
+    const effectiveVoiceName = voiceAccess.resolvedVoice.name;
+
     charge = await chargeGenerationRequest({
       req,
       res,
@@ -146,7 +182,7 @@ export default async function handler(
       projectId,
       sourceMode: "voiceover",
       voiceId,
-      voiceName,
+      voiceName: effectiveVoiceName,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
@@ -198,7 +234,7 @@ export default async function handler(
         waveformPeaks: null,
         modelId,
         voiceId,
-        voiceName,
+        voiceName: effectiveVoiceName,
         saveState: persisted.saveState,
         saveError: persisted.saveError,
       },

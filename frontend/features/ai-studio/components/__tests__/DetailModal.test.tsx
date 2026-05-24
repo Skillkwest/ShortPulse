@@ -549,6 +549,34 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/16:9");
   });
 
+  it("prefers transcript text for generated voice changer outputs", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "voice-changer-video-transcript-1",
+          prompt: "clip.mp4 -> Narrator video",
+          transcriptText: "I can hear the city waking up below us.",
+          mode: "video",
+          aspect: "16:9",
+          model: "ElevenLabs Voice Changer",
+          modelId: "eleven_multilingual_sts_v2",
+          mediaSource: "generated",
+          generationId: "gen-video-transcript-1",
+          previewUrl: "https://cdn.test/remuxed-video.mp4",
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("TRANSCRIPT")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("I can hear the city waking up below us.")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("clip.mp4 -> Narrator video")).not.toBeInTheDocument();
+  });
+
   it("shows voice changer and the preserved aspect for an active staged source video", () => {
     const { baseElement } = render(
       <DetailModal

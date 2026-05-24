@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isVideoUrl, mapUploadsFromFiles } from "../stateParsers";
+import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../stateParsers";
 
 const toFileList = (files: File[]): FileList => {
   const indexed = files.reduce<Record<number, File>>((acc, file, index) => {
@@ -12,6 +12,8 @@ const toFileList = (files: File[]): FileList => {
     item: (index: number) => files[index] ?? null,
   } as unknown as FileList;
 };
+
+const fixedNowIso = () => "2026-05-24T18:00:00.000Z";
 
 describe("mapUploadsFromFiles", () => {
   const originalCreateObjectURL = URL.createObjectURL;
@@ -96,6 +98,7 @@ describe("mapUploadsFromFiles", () => {
       "fal-ai/bytedance/seedream/v4.5/edit",
       (value) => value ?? "Model",
       () => "id",
+      fixedNowIso,
       "drop"
     );
 
@@ -131,6 +134,7 @@ describe("mapUploadsFromFiles", () => {
       "fal-ai/bytedance/seedream/v4.5/edit",
       (value) => value ?? "Model",
       () => "fallback-id",
+      fixedNowIso,
       "filePicker"
     );
 
@@ -160,6 +164,7 @@ describe("mapUploadsFromFiles", () => {
       "fal-ai/bytedance/seedream/v4.5/edit",
       (value) => value ?? "Model",
       () => "dedupe-id",
+      fixedNowIso,
       "filePicker"
     );
 
@@ -176,5 +181,17 @@ describe("mapUploadsFromFiles", () => {
   it("does not classify model slugs containing video text as video media", () => {
     const imageUrl = "https://cdn.example.com/fal-ai/kling-video/v3/pro/reference-output.png";
     expect(isVideoUrl(imageUrl)).toBe(false);
+  });
+
+  it("honors explicit audio MIME hints on webm URLs", () => {
+    const audioWebmUrl = "https://cdn.example.com/uploads/sample.webm?mimeType=audio%2Fwebm";
+    expect(isAudioUrl(audioWebmUrl)).toBe(true);
+    expect(isVideoUrl(audioWebmUrl)).toBe(false);
+  });
+
+  it("honors explicit video MIME hints on webm URLs", () => {
+    const videoWebmUrl = "https://cdn.example.com/uploads/sample.webm?mimeType=video%2Fwebm";
+    expect(isVideoUrl(videoWebmUrl)).toBe(true);
+    expect(isAudioUrl(videoWebmUrl)).toBe(false);
   });
 });

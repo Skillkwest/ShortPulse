@@ -1062,6 +1062,55 @@ describe("useCreateAgentStateCore", () => {
     expect(secondBody.canonicalPrompt ?? null).toBeNull();
   });
 
+  it("ignores canonicalPrompt returned by Standard responses on later Standard turns", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "first standard reply",
+          canonicalPrompt: "hidden standard canonical prompt",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "second standard reply",
+        }),
+      } as Response);
+
+    const hook = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-standard-1::standard",
+      })
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "first turn",
+        payloadText: "first turn",
+      });
+    });
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "second turn",
+        payloadText: "second turn",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+      canonicalPrompt?: string | null;
+    };
+    expect(secondBody.canonicalPrompt ?? null).toBeNull();
+    expect(secondBody.messages).toEqual([
+      { role: "user", content: "first turn" },
+      { role: "assistant", content: "first standard reply" },
+      { role: "user", content: "second turn" },
+    ]);
+  });
+
   it("keeps Standard override sends blocked from Pulse bootstrap namespaces", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,

@@ -186,6 +186,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const hoverAutoplayStartedRef = React.useRef(false);
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
+  const [hasPosterImageError, setHasPosterImageError] = React.useState(false);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const saveDisabled =
@@ -218,17 +219,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;
   const hasVideoPosterPreview = Boolean(item.mode === "video" && resolvedVideoPosterUrl);
   const hasPosterBackedVideoPreview = Boolean(hasVideoPosterPreview && resolvedHoverVideoUrl);
-  const shouldShowGeneratedVideoSurfaceByDefault = Boolean(
+  const shouldPreferVideoSurfaceByDefault = Boolean(
     item.mode === "video" &&
-    item.mediaSource === "generated" &&
-    !hasVideoPosterPreview &&
-    resolvedHoverVideoUrl
+    resolvedHoverVideoUrl &&
+    (!hasVideoPosterPreview || hasPosterImageError)
   );
   const shouldRenderVideoElement = Boolean(
     (isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview
   );
   const shouldRenderImageElement = Boolean(
-    (isImagePreview && cardPreviewUrl) || hasVideoPosterPreview
+    (isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError)
   );
   const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
   const shouldRenderAudioElement = Boolean(audioPreviewUrl);
@@ -250,6 +250,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ].join(" | "),
     [composerImageArtifact?.displayArtifactUrl, dragImageSrc, primaryImageDataSrc, primaryImageSrc]
   );
+
+  React.useEffect(() => {
+    setHasPosterImageError(false);
+  }, [item.id, resolvedVideoPosterUrl]);
+
   const startHoverPlayback = React.useCallback(() => {
     if (!resolvedHoverVideoUrl) return;
     setIsHoveringVideo(true);
@@ -362,7 +367,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     >
       {shouldRenderVideoElement ? (
         <video
-          className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible || shouldShowGeneratedVideoSurfaceByDefault ? "is-visible" : ""}`}
+          className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible || shouldPreferVideoSurfaceByDefault ? "is-visible" : ""}`}
           ref={(node) => {
             videoNodeRef.current = node;
             registerVideoNode(videoNodeKey, item.id, node);
@@ -408,7 +413,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
             onLoad={() => markLoaded(item.id)}
-            onError={() => markLoaded(item.id, { notifyAutoSave: false })}
+            onError={() => {
+              if (hasVideoPosterPreview) {
+                setHasPosterImageError(true);
+              }
+              markLoaded(item.id, { notifyAutoSave: false });
+            }}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

@@ -3,9 +3,11 @@ import handler from "../../pages/api/elevenlabs/text-to-speech";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const listSavedVoicesForUserMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceoverMock = vi.fn();
+const listElevenLabsVoicesMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
 
@@ -17,6 +19,10 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 
+vi.mock("../../lib/server/api/userSavedVoices", () => ({
+  listSavedVoicesForUser: (...args: unknown[]) => listSavedVoicesForUserMock(...args),
+}));
+
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
   captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
@@ -24,6 +30,7 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
+  listElevenLabsVoices: (...args: unknown[]) => listElevenLabsVoicesMock(...args),
   generateElevenLabsVoiceover: (...args: unknown[]) => generateElevenLabsVoiceoverMock(...args),
   persistGeneratedAudioAsset: (...args: unknown[]) => persistGeneratedAudioAssetMock(...args),
 }));
@@ -42,6 +49,18 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    listSavedVoicesForUserMock.mockResolvedValue([]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-1",
+        name: "Darian",
+        previewUrl: null,
+        description: "Warm narrator",
+        isFallback: false,
+        providerCategory: "premade",
+        providerVoiceType: "default",
+      },
+    ]);
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_v2",
@@ -199,6 +218,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         requestId: "billing-source-tts-1",
         providerRequestId: "provider-tts-1",
         projectId: "project-1",
+        voiceName: "Darian",
         extraMetadata: expect.objectContaining({
           debited_credits: 15,
           provider_request_id: "provider-tts-1",
@@ -280,5 +300,43 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       error: "Unable to generate speech",
       details: "save_error missing from schema cache",
     });
+  });
+
+  it("rejects foreign provider-created custom voices before billing", async () => {
+    listElevenLabsVoicesMock.mockResolvedValueOnce([
+      {
+        voiceId: "foreign-generated-1",
+        name: "Foreign Generated",
+        previewUrl: null,
+        description: "Should stay private",
+        isFallback: false,
+        providerCategory: "generated",
+        providerVoiceType: "personal",
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "foreign-generated-1",
+        voiceName: "Foreign Generated",
+        text: "Nope.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_multilingual_v2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice is unavailable",
+      details: "The selected voice is not available for this account.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
   });
 });

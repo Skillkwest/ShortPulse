@@ -3,6 +3,7 @@ import handler from "../../pages/api/elevenlabs/speech-to-speech";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceChangerMock = vi.fn();
@@ -13,6 +14,7 @@ const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
+const transcribeAudioBufferMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockFiles: Record<string, unknown> = {};
@@ -65,6 +67,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
@@ -98,6 +101,10 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
 
 vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
   markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+}));
+
+vi.mock("../../lib/server/openAiAudioTranscription", () => ({
+  transcribeAudioBuffer: (...args: unknown[]) => transcribeAudioBufferMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -136,8 +143,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     readStoredMediaBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockReset();
     markAudioCompanionArtPendingMock.mockReset();
+    transcribeAudioBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
     markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_sts_v2",
@@ -268,6 +277,11 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         sourceFilename: "source.wav",
       })
     );
+    expect(transcribeAudioBufferMock).toHaveBeenCalledWith({
+      audioBuffer: Buffer.from("staged-audio"),
+      audioContentType: "audio/wav",
+      filename: "source.wav",
+    });
     expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         shortpulseContext: {
@@ -288,6 +302,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         userId: "user-1",
         projectId: "project-1",
         sourceMode: "voice-changer",
+        transcriptText: "I can hear the city waking up below us.",
         extraMetadata: expect.objectContaining({
           shortpulse_context: {
             displayed_billed_credits: 15,
@@ -356,6 +371,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",
         voiceName: "Darian",
+        transcriptText: "I can hear the city waking up below us.",
       },
       remuxedVideo: {
         provider: "elevenlabs",
@@ -371,6 +387,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         fullStoragePath: "user-1/generations/video/gen-video-1/source.mp4",
         mimeType: "video/mp4",
         modelId: "eleven_multilingual_sts_v2",
+        transcriptText: "I can hear the city waking up below us.",
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
@@ -484,6 +501,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",
         voiceName: "Darian",
+        transcriptText: "I can hear the city waking up below us.",
       },
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(

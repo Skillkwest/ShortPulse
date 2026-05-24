@@ -66,9 +66,11 @@ export type StudioOutputSaveState = "idle" | "saving" | "saved" | "failed" | "bl
 export type StudioOutput = {
   id: string;
   prompt: string;
+  transcriptText?: string | null;
   mode: StudioMode;
   aspect: string;
   model: string;
+  createdAt?: string | null;
   modelId?: string;
   provider?: string;
   sourceRef?: string;

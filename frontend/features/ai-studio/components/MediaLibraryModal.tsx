@@ -19,6 +19,7 @@ import {
   isVideoFile,
   normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
+  resolveMediaMetadataTranscriptText,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
   type MediaDataTab,
@@ -47,8 +48,10 @@ type MediaLibraryModalProps = {
     id: string;
     url: string;
     fileType: "image" | "video" | "audio";
+    createdAt?: string | null;
     filename?: string | null;
     promptText?: string | null;
+    transcriptText?: string | null;
     source?: string | null;
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;
@@ -57,7 +60,12 @@ type MediaLibraryModalProps = {
     previewPosterStoragePath?: string | null;
     fullUrl?: string | null;
   }) => void;
-  onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
+  onSelectPrompt: (payload: {
+    id: string;
+    promptText: string;
+    createdAt?: string | null;
+    title?: string | null;
+  }) => void;
 };
 
 export function MediaLibraryModal({
@@ -297,6 +305,7 @@ export function MediaLibraryModal({
       onSelectPrompt({
         id: prompt.id,
         promptText: prompt.prompt_text,
+        createdAt: prompt.created_at ?? null,
         title: prompt.title,
       });
     },
@@ -336,8 +345,10 @@ export function MediaLibraryModal({
         id: file.id,
         url: nextUrl,
         fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+        createdAt: file.created_at ?? null,
         filename: file.filename,
         promptText: resolveMediaMetadataPromptText(file.metadata),
+        transcriptText: resolveMediaMetadataTranscriptText(file.metadata),
         source: file.source ?? "upload",
         previewStoragePath,
         previewPosterStoragePath,

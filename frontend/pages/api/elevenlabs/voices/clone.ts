@@ -4,6 +4,7 @@ import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFaci
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
+import { cleanupFailedElevenLabsCustomVoice } from "../../../../lib/server/elevenlabsCustomVoiceCleanup";
 import { createElevenLabsClonedVoice } from "../../../../lib/server/elevenlabs";
 import { createPersistedElevenLabsVoiceSample } from "../../../../lib/server/elevenlabsVoiceSamples";
 import {
@@ -114,13 +115,30 @@ export default async function handler(
       sourceMimeType: storedSource.contentType,
       removeBackgroundNoise,
     });
-    const voiceSample = await createPersistedElevenLabsVoiceSample({
-      userId: user.id,
-      voiceId: clonedVoice.voiceId,
-    });
+    const voiceSample: Awaited<ReturnType<typeof createPersistedElevenLabsVoiceSample>> =
+      await createPersistedElevenLabsVoiceSample({
+        userId: user.id,
+        voiceId: clonedVoice.voiceId,
+      }).catch(async (sampleError) => {
+        const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
+          userId: user.id,
+          voiceId: clonedVoice.voiceId,
+          sampleStoragePath: null,
+        });
+        for (const cleanupError of cleanupResult.cleanupErrors) {
+          await logApiRouteException({
+            req,
+            error: cleanupError,
+            routeLabel: "elevenlabs-voice-clone-cleanup",
+            scope: "generation",
+            user,
+          });
+        }
+        throw sampleError;
+      });
 
     try {
-      await saveVoiceForUser({
+      const savedVoice = await saveVoiceForUser({
         userId: user.id,
         voice: {
           voiceId: clonedVoice.voiceId,
@@ -133,6 +151,9 @@ export default async function handler(
           providerDeleteEligible: true,
         },
       });
+      if (!savedVoice) {
+        throw new Error("Unable to persist custom voice ownership.");
+      }
     } catch (persistenceError) {
       await logApiRouteException({
         req,
@@ -140,6 +161,24 @@ export default async function handler(
         routeLabel: "elevenlabs-voice-clone-persistence",
         scope: "generation",
         user,
+      });
+      const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
+        userId: user.id,
+        voiceId: clonedVoice.voiceId,
+        sampleStoragePath: voiceSample.sampleStoragePath,
+      });
+      for (const cleanupError of cleanupResult.cleanupErrors) {
+        await logApiRouteException({
+          req,
+          error: cleanupError,
+          routeLabel: "elevenlabs-voice-clone-cleanup",
+          scope: "generation",
+          user,
+        });
+      }
+      return res.status(500).json({
+        error: "Unable to clone voice",
+        details: "We couldn't securely save this voice. Please try again.",
       });
     }
 

@@ -260,6 +260,37 @@ describe("studioAgentRequestGuards", () => {
     expect(context.focusedReferenceId).toBe("attached-image");
   });
 
+  it("keeps explicitly attached Standard prompt references", () => {
+    const context = sanitizeStudioAgentContext(
+      {
+        mode: "image",
+        modeHint: "reference",
+        focusedSource: "prompt",
+        focusedReferenceId: "attached-prompt",
+        selectedReferenceIds: ["attached-prompt"],
+        references: [
+          {
+            id: "attached-prompt",
+            kind: "prompt",
+            promptSnippet: "Golden-hour portrait with soft rim light.",
+          },
+        ],
+      },
+      "standard"
+    );
+
+    expect(context.references).toEqual([
+      {
+        id: "attached-prompt",
+        kind: "prompt",
+        promptSnippet: "Golden-hour portrait with soft rim light.",
+        caption: null,
+      },
+    ]);
+    expect(context.selectedReferenceIds).toEqual(["attached-prompt"]);
+    expect(context.focusedReferenceId).toBe("attached-prompt");
+  });
+
   it("resolves request byte limits by payload shape", () => {
     expect(resolveStudioAgentMaxRequestBytes({ context: { media: [] } })).toBe(
       STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES

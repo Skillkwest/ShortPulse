@@ -126,6 +126,11 @@ const defaultVoiceChangerDropzoneCopy: VoiceSourceDropzoneCopy = {
 };
 
 type BrowserMediaRecorder = typeof MediaRecorder;
+type RecordingFeedback = {
+  message: string;
+  recoveryHint: string | null;
+};
+type MicrophonePermissionState = "granted" | "prompt" | "denied" | "unsupported";
 type VoiceSourceDropSnapshot = {
   transferTypes: string[];
   files: File[];
@@ -173,9 +178,34 @@ const inferSourceKindFromUrl = (
   return null;
 };
 
+const resolveMimeTypeHintFromUrl = (value: string | null | undefined): string | null => {
+  const normalized = normalizeReferenceTransferUrlCandidate(value, { unwrapNextImage: false });
+  if (!normalized) return null;
+  try {
+    const parsed = new URL(
+      normalized,
+      typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
+    );
+    const hint =
+      parsed.searchParams.get("mimeType") ??
+      parsed.searchParams.get("mime") ??
+      parsed.searchParams.get("contentType") ??
+      parsed.searchParams.get("type") ??
+      "";
+    const trimmed = hint.trim().toLowerCase();
+    return trimmed || null;
+  } catch {
+    return null;
+  }
+};
+
 const inferMimeTypeFromUrl = (value: string | null | undefined): string | null => {
   const normalized = normalizeReferenceTransferUrlCandidate(value, { unwrapNextImage: false });
   if (!normalized) return null;
+  const mimeTypeHint = resolveMimeTypeHintFromUrl(normalized);
+  if (mimeTypeHint?.startsWith("audio/") || mimeTypeHint?.startsWith("video/")) {
+    return mimeTypeHint;
+  }
   if (/\.mp3(?:$|[?#])/i.test(normalized)) return "audio/mpeg";
   if (/\.wav(?:$|[?#])/i.test(normalized)) return "audio/wav";
   if (/\.m4a(?:$|[?#])/i.test(normalized)) return "audio/mp4";
@@ -256,6 +286,108 @@ const resolveRecordingExtension = (mimeType: string): string => {
   if (normalized.includes("ogg")) return "ogg";
   if (normalized.includes("wav")) return "wav";
   return "webm";
+};
+
+const resolveRecordingUnavailableFeedback = (): RecordingFeedback => {
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    return {
+      message: "Microphone recording requires HTTPS or localhost.",
+      recoveryHint:
+        "Open ShortPulse in a secure browser tab, then try recording again. If this still fails, check your browser and system microphone settings.",
+    };
+  }
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return {
+      message: "Recording is not supported in this browser.",
+      recoveryHint:
+        "Upload an audio file instead, or switch to a browser that supports microphone recording.",
+    };
+  }
+  return {
+    message: "This browser cannot record audio here.",
+    recoveryHint:
+      "Upload an audio file instead, or switch to a browser that supports microphone recording.",
+  };
+};
+
+const resolveRecordingStartErrorFeedback = (error: unknown): RecordingFeedback => {
+  const name =
+    typeof (error as { name?: unknown } | null)?.name === "string"
+      ? ((error as { name: string }).name || "").trim()
+      : "";
+  const normalizedName = name.toLowerCase();
+  const message =
+    typeof (error as { message?: unknown } | null)?.message === "string"
+      ? ((error as { message: string }).message || "").trim()
+      : "";
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedName === "notallowederror" ||
+    normalizedName === "permissiondeniederror" ||
+    normalizedName === "securityerror" ||
+    /permission|denied|not allowed|disallow/.test(normalizedMessage)
+  ) {
+    return {
+      message: "Microphone access is blocked.",
+      recoveryHint:
+        "Allow microphone access in your browser's site settings. If it is still blocked, enable ShortPulse in your computer's system microphone settings, then try again.",
+    };
+  }
+  if (
+    normalizedName === "notfounderror" ||
+    normalizedName === "devicesnotfounderror" ||
+    normalizedName === "overconstrainederror" ||
+    /no microphone|no audio input|not found|no device/.test(normalizedMessage)
+  ) {
+    return {
+      message: "No microphone was found on this device.",
+      recoveryHint: "Connect or enable a microphone, then try recording again.",
+    };
+  }
+  if (
+    normalizedName === "notreadableerror" ||
+    normalizedName === "trackstarterror" ||
+    /not readable|could not start audio source|device in use|hardware error|concurrent mic process limit/.test(
+      normalizedMessage
+    )
+  ) {
+    return {
+      message: "Your microphone is unavailable or already in use by another app.",
+      recoveryHint: "Close other apps that may be using the microphone, then try again.",
+    };
+  }
+  if (normalizedName === "aborterror") {
+    return {
+      message: "Microphone access was interrupted.",
+      recoveryHint:
+        "Try recording again. If it keeps happening, refresh the page and recheck your microphone permissions.",
+    };
+  }
+  return {
+    message: "Unable to start recording.",
+    recoveryHint: "Check your browser and system microphone settings, then try again.",
+  };
+};
+
+const resolvePermissionPreflightFeedback = (
+  permissionState: MicrophonePermissionState,
+  idleCue: string
+): RecordingFeedback | null => {
+  if (permissionState === "denied") {
+    return {
+      message: "Microphone access is blocked.",
+      recoveryHint:
+        "Allow microphone access in your browser's site settings. If it is still blocked, enable ShortPulse in your computer's system microphone settings before recording.",
+    };
+  }
+  if (permissionState === "prompt") {
+    return {
+      message: idleCue,
+      recoveryHint: "Your browser will ask for microphone access when you record.",
+    };
+  }
+  return null;
 };
 
 const formatRecordingDuration = (valueMs: number): string => {
@@ -685,8 +817,12 @@ export function VoiceChangerSourceDropzone({
   const recordingStartedAtRef = React.useRef<number | null>(null);
   const [isDragActive, setIsDragActive] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
+  const [isRequestingPermission, setIsRequestingPermission] = React.useState(false);
+  const [microphonePermissionState, setMicrophonePermissionState] =
+    React.useState<MicrophonePermissionState>("unsupported");
   const [recordingElapsedMs, setRecordingElapsedMs] = React.useState(0);
   const [recordingError, setRecordingError] = React.useState<string | null>(null);
+  const [recordingRecoveryHint, setRecordingRecoveryHint] = React.useState<string | null>(null);
 
   const openFilePicker = React.useCallback(() => {
     fileInputRef.current?.click();
@@ -697,9 +833,11 @@ export function VoiceChangerSourceDropzone({
       if (!nextSource) return;
       if (!acceptedKinds.includes(nextSource.kind)) {
         setRecordingError(copy.unableReferenceError);
+        setRecordingRecoveryHint(null);
         return;
       }
       setRecordingError(null);
+      setRecordingRecoveryHint(null);
       onSourceChange(nextSource);
     },
     [acceptedKinds, copy.unableReferenceError, onSourceChange]
@@ -848,6 +986,52 @@ export function VoiceChangerSourceDropzone({
     };
   }, [stopRecorderStream]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return;
+    }
+    if (!navigator.permissions?.query) {
+      setMicrophonePermissionState("unsupported");
+      return;
+    }
+
+    let isActive = true;
+    let permissionStatus: PermissionStatus | null = null;
+    const applyPermissionState = (value: string) => {
+      if (!isActive) return;
+      if (value === "granted" || value === "prompt" || value === "denied") {
+        setMicrophonePermissionState(value);
+        return;
+      }
+      setMicrophonePermissionState("unsupported");
+    };
+
+    void navigator.permissions
+      .query({ name: "microphone" as PermissionName })
+      .then((status) => {
+        permissionStatus = status;
+        applyPermissionState(status.state);
+        status.onchange = () => applyPermissionState(status.state);
+      })
+      .catch(() => {
+        if (isActive) {
+          setMicrophonePermissionState("unsupported");
+        }
+      });
+
+    return () => {
+      isActive = false;
+      if (permissionStatus) {
+        permissionStatus.onchange = null;
+      }
+    };
+  }, []);
+
+  const permissionPreflightFeedback = React.useMemo(
+    () => resolvePermissionPreflightFeedback(microphonePermissionState, copy.recordIdleCue),
+    [copy.recordIdleCue, microphonePermissionState]
+  );
+
   const handleRecordSampleClick = React.useCallback(async () => {
     if (isRecording) {
       recorderRef.current?.stop();
@@ -859,14 +1043,20 @@ export function VoiceChangerSourceDropzone({
       !navigator.mediaDevices?.getUserMedia ||
       typeof MediaRecorder === "undefined"
     ) {
-      setRecordingError("Recording is not supported in this browser.");
+      setIsRequestingPermission(false);
+      const feedback = resolveRecordingUnavailableFeedback();
+      setRecordingError(feedback.message);
+      setRecordingRecoveryHint(feedback.recoveryHint);
       return;
     }
 
     setRecordingError(null);
+    setRecordingRecoveryHint(null);
+    setIsRequestingPermission(true);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setIsRequestingPermission(false);
       recorderStreamRef.current = stream;
       const mimeType = resolveRecordingMimeType(MediaRecorder);
       const recorder = mimeType
@@ -883,6 +1073,10 @@ export function VoiceChangerSourceDropzone({
 
       recorder.onerror = () => {
         setRecordingError("Unable to record audio right now.");
+        setRecordingRecoveryHint(
+          "Check your browser and system microphone settings, then try again."
+        );
+        setIsRequestingPermission(false);
         setIsRecording(false);
         recorderRef.current = null;
         recordingChunksRef.current = [];
@@ -899,6 +1093,7 @@ export function VoiceChangerSourceDropzone({
 
         if (!recordedBlob.size) {
           setRecordingError("No audio was captured.");
+          setRecordingRecoveryHint("Try again and speak after the recording indicator turns on.");
           return;
         }
 
@@ -915,13 +1110,12 @@ export function VoiceChangerSourceDropzone({
       recorder.start();
     } catch (error) {
       stopRecorderStream();
+      setIsRequestingPermission(false);
       setIsRecording(false);
       setRecordingElapsedMs(0);
-      setRecordingError(
-        error instanceof Error && /permission|denied|notallowed/i.test(error.message)
-          ? "Microphone access was denied."
-          : "Unable to start recording."
-      );
+      const feedback = resolveRecordingStartErrorFeedback(error);
+      setRecordingError(feedback.message);
+      setRecordingRecoveryHint(feedback.recoveryHint);
     }
   }, [handleSourceSelection, isRecording, stopRecorderStream]);
 
@@ -1052,6 +1246,7 @@ export function VoiceChangerSourceDropzone({
                       : copy.recordButtonIdleAriaLabel
                   }
                   aria-pressed={isRecording}
+                  disabled={isRequestingPermission}
                   onClick={handleRecordSampleClick}
                 >
                   <span
@@ -1062,15 +1257,40 @@ export function VoiceChangerSourceDropzone({
               </div>
 
               <div className="voices-properties-voice-changer-record-footer">
-                {recordingError || isRecording ? (
-                  <p
-                    className={`voices-properties-voice-changer-record-status-line${
-                      recordingError ? " is-error" : ""
-                    }`}
-                    aria-live="polite"
-                  >
-                    {recordingError ?? `Recording ${formatRecordingDuration(recordingElapsedMs)}`}
-                  </p>
+                {recordingError || isRecording || isRequestingPermission ? (
+                  <div className="voices-properties-voice-changer-record-status-stack">
+                    <p
+                      className={`voices-properties-voice-changer-record-status-line${
+                        recordingError ? " is-error" : ""
+                      }`}
+                      aria-live="polite"
+                    >
+                      {recordingError ??
+                        (isRequestingPermission
+                          ? "Waiting for microphone permission..."
+                          : `Recording ${formatRecordingDuration(recordingElapsedMs)}`)}
+                    </p>
+                    {recordingError && recordingRecoveryHint ? (
+                      <p className="voices-properties-voice-changer-record-recovery-hint">
+                        {recordingRecoveryHint}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : permissionPreflightFeedback ? (
+                  <div className="voices-properties-voice-changer-record-status-stack">
+                    <p
+                      className={`voices-properties-voice-changer-record-status-line${
+                        microphonePermissionState === "denied" ? " is-error" : ""
+                      }`}
+                    >
+                      {permissionPreflightFeedback.message}
+                    </p>
+                    {permissionPreflightFeedback.recoveryHint ? (
+                      <p className="voices-properties-voice-changer-record-recovery-hint">
+                        {permissionPreflightFeedback.recoveryHint}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : (
                   <span className="voices-properties-voice-changer-record-idle-cue">
                     {copy.recordIdleCue}

@@ -454,23 +454,27 @@ describe("associateGenerationWithProjectForUser", () => {
               id: "local-oldest",
               generationId: "gen-oldest",
               prompt: "Oldest local",
+              createdAt: "2026-04-18T16:11:00.000Z",
               resultUrls: ["https://fal.test/oldest-stale.png"],
             },
             {
               id: "local-newest",
               generationId: "gen-newest",
               prompt: "Newest local",
+              createdAt: "2026-04-18T16:13:00.000Z",
               resultUrls: ["https://fal.test/newest-stale.png"],
             },
             {
               id: "local-middle",
               generationId: "gen-middle",
               prompt: "Middle local",
+              createdAt: "2026-04-18T16:12:00.000Z",
               resultUrls: ["https://fal.test/middle-stale.png"],
             },
             {
               id: "local-upload",
               prompt: "Upload",
+              createdAt: "2026-04-18T16:10:00.000Z",
             },
           ],
           archived: [],
@@ -509,6 +513,7 @@ describe("associateGenerationWithProjectForUser", () => {
           provider: "fal",
           model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
           display_prompt: "Generated",
+          transcript_text: "The skyline glows through a morning haze.",
           preview_url: "https://fal.test/generated.png",
           result_urls: ["https://fal.test/generated.png"],
           task_state: "success",
@@ -570,6 +575,7 @@ describe("associateGenerationWithProjectForUser", () => {
             expect.objectContaining({
               id: "generated-1",
               previewUrl: "https://fal.test/generated.png",
+              transcriptText: "The skyline glows through a morning haze.",
             }),
             expect.objectContaining({
               id: "library-1",
@@ -584,6 +590,280 @@ describe("associateGenerationWithProjectForUser", () => {
             }),
           ],
         }),
+      })
+    );
+  });
+
+  it("preserves existing mixed legacy ordering until every restored row has a durable createdAt", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "gen-newer" }, { generation_id: "gen-older" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        { generation_id: "gen-newer", updated_at: "2026-04-18T16:30:00.000Z" },
+        { generation_id: "gen-older", updated_at: "2026-04-18T16:20:00.000Z" },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-newer",
+          started_at: "2026-04-18T16:30:00.000Z",
+          created_at: "2026-04-18T16:30:00.000Z",
+          updated_at: "2026-04-18T16:30:05.000Z",
+        },
+        {
+          generation_id: "gen-older",
+          started_at: "2026-04-18T16:20:00.000Z",
+          created_at: "2026-04-18T16:20:00.000Z",
+          updated_at: "2026-04-18T16:20:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-newer",
+          updated_at: "2026-04-18T16:30:00.000Z",
+          request_id: "req-newer",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Newer generated",
+          preview_url: "https://fal.test/newer.png",
+          result_urls: ["https://fal.test/newer.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-older",
+          updated_at: "2026-04-18T16:20:00.000Z",
+          request_id: "req-older",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Older generated",
+          preview_url: "https://fal.test/older.png",
+          result_urls: ["https://fal.test/older.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "legacy-upload",
+              prompt: "Upload",
+            },
+            {
+              id: "local-older",
+              generationId: "gen-older",
+              prompt: "Older local",
+            },
+            {
+              id: "local-newer",
+              generationId: "gen-newer",
+              prompt: "Newer local",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const outputs = snapshot.outputs as {
+      active: Array<{ id: string; createdAt?: string | null }>;
+    };
+    expect(outputs.active.map((row) => row.id)).toEqual([
+      "legacy-upload",
+      "local-older",
+      "local-newer",
+    ]);
+    expect(outputs.active[1]?.createdAt).toBe("2026-04-18T16:20:00.000Z");
+    expect(outputs.active[2]?.createdAt).toBe("2026-04-18T16:30:00.000Z");
+  });
+
+  it("appends newly associated generated rows after legacy rows when mixed restore cannot sort yet", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "gen-appended" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "gen-appended", updated_at: "2026-04-18T16:35:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-appended",
+          started_at: "2026-04-18T16:35:00.000Z",
+          created_at: "2026-04-18T16:35:00.000Z",
+          updated_at: "2026-04-18T16:35:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-appended",
+          updated_at: "2026-04-18T16:35:00.000Z",
+          request_id: "req-appended",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Appended generated",
+          preview_url: "https://fal.test/appended.png",
+          result_urls: ["https://fal.test/appended.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "legacy-upload",
+              prompt: "Upload",
+            },
+            {
+              id: "legacy-library",
+              prompt: "Library",
+              timestamp: "Library",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const outputs = snapshot.outputs as {
+      active: Array<{ id: string; createdAt?: string | null }>;
+    };
+    expect(outputs.active.map((row) => row.id)).toEqual([
+      "legacy-upload",
+      "legacy-library",
+      "generated:gen-appended",
+    ]);
+    expect(outputs.active[2]?.createdAt).toBe("2026-04-18T16:35:00.000Z");
+  });
+
+  it("replaces fallback generated createdAt with projection time during restore", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          started_at: "2026-04-18T16:30:00.000Z",
+          created_at: "2026-04-18T16:30:00.000Z",
+          updated_at: "2026-04-18T16:30:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+          request_id: "req-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated",
+          preview_url: "https://fal.test/generated.png",
+          result_urls: ["https://fal.test/generated.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              prompt: "Generated",
+              createdAt: "2026-04-18T15:00:00.000Z",
+              previewUrl: "https://expired.example/generated.png",
+              resultUrls: ["https://expired.example/generated.png"],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const outputs = snapshot.outputs as {
+      active: Array<{ id: string; createdAt?: string | null }>;
+    };
+    expect(outputs.active[0]).toEqual(
+      expect.objectContaining({
+        id: "generated-1",
+        createdAt: "2026-04-18T16:30:00.000Z",
       })
     );
   });
@@ -884,8 +1164,8 @@ describe("associateGenerationWithProjectForUser", () => {
 
     const outputs = snapshot.outputs as { active: Array<{ id: string }> };
     expect(outputs.active.map((row) => row.id)).toEqual([
-      "local-added-latest",
       "local-started-latest",
+      "local-added-latest",
     ]);
   });
 });

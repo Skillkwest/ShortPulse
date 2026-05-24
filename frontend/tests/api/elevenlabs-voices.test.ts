@@ -104,7 +104,7 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.warning).toBeUndefined();
   });
 
-  it("classifies provider-user-created voices into My Voices", async () => {
+  it("does not expose unowned provider-created voices to other users", async () => {
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
       {
@@ -129,27 +129,11 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       source: "api" | "fallback";
-      voices: Array<{
-        voiceId: string;
-        librarySection: "default" | "my";
-        originKind: string;
-        canRemoveFromLibrary: boolean;
-        canDeleteFromProvider: boolean;
-        destructiveAction: "none" | "remove" | "delete";
-      }>;
+      voices: Array<{ voiceId: string }>;
     };
     expect(payload.source).toBe("api");
-    expect(payload.voices).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          voiceId: "voice-created-1",
-          librarySection: "my",
-          originKind: "provider-user-created",
-          canRemoveFromLibrary: false,
-          canDeleteFromProvider: true,
-          destructiveAction: "delete",
-        }),
-      ])
+    expect(payload.voices).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ voiceId: "voice-created-1" })])
     );
   });
 

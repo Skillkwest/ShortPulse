@@ -246,6 +246,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 124.  `sql/migrations/124_add_generation_projection_save_error.sql`
 125.  `sql/migrations/125_add_expert_edit_system_preset_control_plane.sql`
 126.  `sql/migrations/126_seed_standard_runtime_prompt.sql`
+127.  `sql/migrations/127_add_generation_projection_transcript_text.sql`
+128.  `sql/migrations/128_add_user_owned_custom_voices.sql`
+129.  `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql`
       Rollback files:
 
 
@@ -320,6 +323,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/108_retire_legacy_ai_studio_pulses_rollback.sql`
     - `sql/migrations/rollback/120_remove_legacy_onboarding_user_preference_rollback.sql`
     - `sql/migrations/rollback/122_retire_character_sheet_alias_compat_rollback.sql`
+    - `sql/migrations/rollback/127_add_generation_projection_transcript_text_rollback.sql`
+    - `sql/migrations/rollback/128_add_user_owned_custom_voices_rollback.sql`
+    - `sql/migrations/rollback/129_backfill_user_owned_custom_voices_from_preferences_rollback.sql`
 
 Hosted SQL lint note:
 

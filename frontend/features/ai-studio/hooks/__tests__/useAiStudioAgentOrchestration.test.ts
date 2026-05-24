@@ -326,6 +326,47 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
+  it("ignores selected right-rail output overrides for Standard sends", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const getAgentContext = vi.fn(() => ({
+      focusedSource: "agent-output" as const,
+      activePrompt: "existing assistant context",
+      lastAssistantMessage: "existing assistant context",
+    }));
+    const params = createParams({
+      agentInput: "Hello there",
+      sendToAgent,
+      getAgentContext,
+      runtimePolicy: standardRuntimePolicy(),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend(undefined, {
+        selectedOverride: makeOutput("selected-out", {
+          previewUrl: "https://cdn.test/selected.png",
+          prompt: "selected output prompt",
+        }),
+      });
+    });
+
+    expect(getAgentContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastAssistantMessage: null,
+        includeActiveOutput: false,
+      })
+    );
+    const firstSendCall = ((sendToAgent.mock.calls as unknown[][])[0]?.[0] ?? null) as {
+      context?: Record<string, unknown>;
+    } | null;
+    expect(firstSendCall?.context).toEqual(
+      expect.not.objectContaining({
+        focusedReferenceId: "selected-out",
+        selectedReferenceIds: ["selected-out"],
+      })
+    );
+  });
+
   it("allows follow-up sends for custom pulses without guided workflow metadata", async () => {
     const sendToAgent = vi.fn(async () => ({
       response: { message: "CUSTOM-PULSE-MARKER: ok" },

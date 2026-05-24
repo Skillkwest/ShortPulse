@@ -107,12 +107,11 @@ export const runStandardCreateAgentSend = async ({
   const outboundText = trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
   if (!outboundText && !allowImageOnlySend) return;
   const outboundAttachments = cloneMessageAttachments(agentAttachments);
-  const selectedOverride =
-    options?.selectedOverride === undefined ? null : options.selectedOverride;
   const baseContext = stripModeSpecificContext(
     getAgentContext({
       lastAssistantMessage,
-      selectedOverride,
+      // Standard mode only uses explicit composer attachments as reference context.
+      // Passive right-rail selection must not become agent input automatically.
       includeActiveOutput: false,
       modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
     })

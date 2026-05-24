@@ -143,7 +143,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleAgentInputChange: (value: string) => void;
   handleAgentSend: (
     textOverride?: string,
-    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null }
+    options?: { captureResult?: boolean }
   ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;

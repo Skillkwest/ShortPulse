@@ -82,6 +82,8 @@ const CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   justifyContent: "space-between",
   gap: "10px",
   flexWrap: "wrap",
+  width: "100%",
+  minWidth: 0,
 };
 const CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",

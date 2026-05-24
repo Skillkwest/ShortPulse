@@ -307,10 +307,7 @@ export const useStandardCreateAgentRuntime = ({
   const isPromptRefining = false;
 
   const handleAgentSend = useCallback(
-    async (
-      textOverride?: string,
-      options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null }
-    ) =>
+    async (textOverride?: string, options?: { captureResult?: boolean }) =>
       runStandardCreateAgentSend({
         agentIsSending,
         agentBootstrapReady,

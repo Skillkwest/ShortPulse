@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus } from "phosphor-react";
+import { CaretLeft, CaretRight, Plus } from "phosphor-react";
 import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPresetTabs";
 import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
@@ -36,8 +36,33 @@ const ROOT_STYLE: React.CSSProperties = {
 };
 
 const CONTROL_ROW_STYLE: React.CSSProperties = {
-  display: "block",
+  display: "grid",
+  gap: "4px",
   minWidth: 0,
+};
+
+const OVERFLOW_ACTIONS_STYLE: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  alignItems: "center",
+  gap: "4px",
+  minHeight: "18px",
+};
+
+const OVERFLOW_ACTION_BUTTON_STYLE: React.CSSProperties = {
+  width: "18px",
+  minWidth: "18px",
+  height: "18px",
+  borderRadius: "999px",
+  border: "1px solid rgba(56, 64, 76, 0.92)",
+  background: "rgba(18, 22, 28, 0.92)",
+  color: "rgba(183, 194, 208, 0.94)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  flexShrink: 0,
+  cursor: "pointer",
 };
 
 const TAB_VIEWPORT_STYLE: React.CSSProperties = {
@@ -181,6 +206,20 @@ export function EmbeddedCharacterLooksControl({
   } | null>(null);
   const suppressPointerActivationRef = React.useRef(false);
   const suppressPointerActivationTimerRef = React.useRef<number | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const syncScrollAffordances = React.useCallback(() => {
+    const viewport = railViewportRef.current;
+    if (!viewport) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    setCanScrollLeft(viewport.scrollLeft > 2);
+    setCanScrollRight(viewport.scrollLeft < maxScrollLeft - 2);
+  }, []);
 
   const handleArrowNavigation = React.useCallback(
     (direction: 1 | -1) => {
@@ -193,6 +232,21 @@ export function EmbeddedCharacterLooksControl({
       void onSelectPreset(nextPresetId);
     },
     [activePresetId, onSelectPreset, presetIds]
+  );
+
+  const handleViewportStepScroll = React.useCallback(
+    (direction: -1 | 1) => {
+      const viewport = railViewportRef.current;
+      if (!viewport) return;
+      const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const scrollStepPx = Math.max(tabMinWidthPx * 2, Math.round(viewport.clientWidth * 0.6), 72);
+      viewport.scrollLeft = Math.max(
+        0,
+        Math.min(maxScrollLeft, viewport.scrollLeft + direction * scrollStepPx)
+      );
+      syncScrollAffordances();
+    },
+    [syncScrollAffordances, tabMinWidthPx]
   );
 
   const handlePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -249,9 +303,68 @@ export function EmbeddedCharacterLooksControl({
     []
   );
 
+  React.useEffect(() => {
+    syncScrollAffordances();
+    const viewport = railViewportRef.current;
+    if (!viewport) return;
+    const handleScroll = () => {
+      syncScrollAffordances();
+    };
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      viewport.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [presetIds, syncScrollAffordances]);
+
   return (
     <div style={ROOT_STYLE}>
       <div style={CONTROL_ROW_STYLE}>
+        <div style={OVERFLOW_ACTIONS_STYLE}>
+          <button
+            type="button"
+            aria-label="Scroll looks left"
+            style={{
+              ...OVERFLOW_ACTION_BUTTON_STYLE,
+              opacity: canScrollLeft ? 1 : 0.42,
+              cursor: canScrollLeft ? "pointer" : "default",
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={() => {
+              handleViewportStepScroll(-1);
+            }}
+            disabled={!canScrollLeft}
+          >
+            <CaretLeft size={10} weight="bold" />
+          </button>
+          <button
+            type="button"
+            aria-label="Scroll looks right"
+            style={{
+              ...OVERFLOW_ACTION_BUTTON_STYLE,
+              opacity: canScrollRight ? 1 : 0.42,
+              cursor: canScrollRight ? "pointer" : "default",
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={() => {
+              handleViewportStepScroll(1);
+            }}
+            disabled={!canScrollRight}
+          >
+            <CaretRight size={10} weight="bold" />
+          </button>
+        </div>
         <div
           ref={railViewportRef}
           style={{

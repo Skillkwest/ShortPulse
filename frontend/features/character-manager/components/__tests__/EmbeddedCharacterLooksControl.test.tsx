@@ -79,6 +79,44 @@ describe("EmbeddedCharacterLooksControl", () => {
     expect(screen.queryByRole("button", { name: "Manage looks" })).not.toBeInTheDocument();
   });
 
+  it("shows left and right arrow controls for scrolling overflow tabs", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4", "5", "6"]} initialActivePresetId="1" />);
+
+    const tablist = screen.getByRole("tablist", { name: "Character looks" });
+    const viewport = tablist.parentElement as HTMLDivElement;
+
+    Object.defineProperty(viewport, "clientWidth", {
+      configurable: true,
+      value: 120,
+    });
+    Object.defineProperty(viewport, "scrollWidth", {
+      configurable: true,
+      value: 520,
+    });
+    Object.defineProperty(viewport, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    fireEvent(window, new Event("resize"));
+
+    const leftButton = screen.getByRole("button", { name: "Scroll looks left" });
+    const rightButton = screen.getByRole("button", { name: "Scroll looks right" });
+
+    await waitFor(() => {
+      expect(leftButton).toBeDisabled();
+      expect(rightButton).toBeEnabled();
+    });
+
+    fireEvent.click(rightButton);
+
+    await waitFor(() => {
+      expect(viewport.scrollLeft).toBeGreaterThan(0);
+      expect(leftButton).toBeEnabled();
+    });
+  });
+
   it("supports direct tab selection", async () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 

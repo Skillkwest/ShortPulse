@@ -207,6 +207,17 @@ describe("create composer layout contract", () => {
     expect(pulseParagraph).toContain("font-weight: 400;");
   });
 
+  it("keeps latest Standard assistant replies on the brand blue color", () => {
+    const css = fs.readFileSync(createComposerChatCssPath, "utf8");
+    const latestAssistantOnly = extractRuleBlock(
+      css,
+      ".create-composer-panel .create-composer-prompt-step .agent-chat-panel--latest-assistant-only .agent-message.agent-assistant .tiny"
+    );
+
+    expect(latestAssistantOnly).toContain("color: #25a9bf !important;");
+    expect(latestAssistantOnly).toContain("font-weight: 400;");
+  });
+
   it("matches the collapsed empty prompt height to the adjacent create control columns", () => {
     const composerCss = fs.readFileSync(createComposerLayoutCssPath, "utf8");
     const controlsCss = fs.readFileSync(createComposerControlsCssPath, "utf8");

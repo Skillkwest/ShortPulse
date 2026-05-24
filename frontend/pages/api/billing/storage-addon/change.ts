@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { BILLING_CONTRACT_SOURCE_INTERNAL_COMP } from "../../../../lib/server/api/billingContracts";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { stripeGet, stripePostForm } from "../../../../lib/server/api/stripe";
 
@@ -66,6 +67,12 @@ type StripeSubscriptionResponse = {
     }>;
   };
 };
+
+const BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT = {
+  keyPrefix: "billing-storage-addon-change",
+  maxRequests: 10,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeStorageAddonId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -210,6 +217,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT,
+      keyPrefix: `${BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   const body = (req.body ?? {}) as ChangeStorageAddonRequest;
   const storageAddonId = normalizeStorageAddonId(body.storageAddonId);
@@ -366,8 +381,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
     return res.status(500).json({
-      error:
-        error instanceof Error ? error.message : "Unable to update recurring storage right now.",
+      error: "Unable to update recurring storage right now.",
     });
   }
 }

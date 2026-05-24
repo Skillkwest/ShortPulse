@@ -6,6 +6,7 @@ import {
   BILLING_CONTRACT_SOURCE_INTERNAL_COMP,
   BILLING_CONTRACT_SOURCE_STRIPE,
 } from "../../../../lib/server/api/billingContracts";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import {
   getCanonicalAppBaseUrl,
@@ -80,6 +81,12 @@ type StripeSubscriptionResponse = {
     }>;
   };
 };
+
+const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
+  keyPrefix: "billing-subscription-change",
+  maxRequests: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizePlanId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -262,6 +269,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT,
+      keyPrefix: `${BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   const body = (req.body ?? {}) as ChangeSubscriptionRequest;
   const targetPlanId = normalizePlanId(body.targetPlanId);
@@ -486,7 +501,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata: { target_plan_id: targetPlanId },
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to start the subscription change.",
+      error: "Unable to start the subscription change.",
     });
   }
 }

@@ -12,6 +12,7 @@ Purpose: concise durable memory for Dave's ShortPulse security stewardship. This
 
 - Never expose, retain, print, or commit raw secrets, service-role keys, bearer tokens, customer-private data, raw production logs, or `.env` values.
 - Treat `docs/security-checklist.md`, `docs/deployment.md`, `docs/supabase_auth_setup.md`, and relevant SOPs as canonical security references.
+- Use `docs/agents/dave-the-security-guy/security-decision-framework.md` to decide whether a proposed security lane is real launch-value work or just adjacency/momentum.
 - Treat Vercel project settings and provider consoles as deployed source of truth; local temp exports are non-authoritative.
 - Preserve Supabase RLS, private storage, service-role-only RPCs, admin-only APIs, route-level auth, webhook signature/idempotency, and cron-secret gates.
 - Use Supabase CLI and avoid Docker-based Supabase workflows.

@@ -149,10 +149,6 @@ Owns:
 
 Primary entry docs:
 
-- `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-build-loop-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_saved_creators.md`

@@ -108,6 +108,39 @@ export const fetchActiveRuntimeAgentPromptRecord = async ({
   };
 };
 
+const bootstrapRuntimeAgentPromptRecordFromSeed = async ({
+  promptId,
+  supabaseAdmin = getSupabaseAdmin(),
+}: {
+  promptId: AgentPromptId;
+  supabaseAdmin?: SupabaseClient;
+}): Promise<ActiveRuntimeAgentPromptRecord | null> => {
+  const seededPromptBody = getSeededRuntimeAgentPrompt(promptId)?.trim() ?? "";
+  if (!seededPromptBody.length) {
+    return null;
+  }
+
+  const { error } = await supabaseAdmin.from("agent_prompt_runtime").upsert(
+    {
+      prompt_id: promptId,
+      prompt_body: seededPromptBody,
+      updated_by_user_id: null,
+      updated_by_email: "system_bootstrap",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "prompt_id" }
+  );
+
+  if (error) {
+    throw new Error(error.message || `Failed to bootstrap runtime agent prompt ${promptId}.`);
+  }
+
+  return fetchActiveRuntimeAgentPromptRecord({
+    promptId,
+    supabaseAdmin,
+  });
+};
+
 export const resolveRuntimeAgentPrompt = async ({
   promptId,
   controlPlaneCacheTtlMs = process.env.AGENT_PROMPT_CONTROL_PLANE_CACHE_TTL_MS,
@@ -153,15 +186,21 @@ export const resolveRequiredRuntimeAgentPrompt = async ({
     promptId,
     supabaseAdmin,
   });
-  if (!activePromptRecord) {
+  const resolvedPromptRecord =
+    activePromptRecord ??
+    (await bootstrapRuntimeAgentPromptRecordFromSeed({
+      promptId,
+      supabaseAdmin,
+    }));
+  if (!resolvedPromptRecord) {
     throw new RequiredRuntimeAgentPromptMissingError(promptId);
   }
 
   return {
     promptId,
-    promptBody: activePromptRecord.promptBody,
-    updatedAt: activePromptRecord.updatedAt,
-    updatedByEmail: activePromptRecord.updatedByEmail,
+    promptBody: resolvedPromptRecord.promptBody,
+    updatedAt: resolvedPromptRecord.updatedAt,
+    updatedByEmail: resolvedPromptRecord.updatedByEmail,
     source: "control_plane",
   };
 };

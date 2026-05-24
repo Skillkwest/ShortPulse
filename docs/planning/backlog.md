@@ -75,8 +75,6 @@ Structure (locked):
 
 ## Program 4: Workflows And Product Surfaces
 
-- [ ] Execute the AI Studio character-panel lean hardening program: lock current behavior, eradicate QuickSwap from the live runtime, simplify persistence, convert the top workspace to inline-owned styling, and clean active docs after runtime truth changes.
-      Reference: `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`, `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`, `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small download buttons.
 - [ ] Build a complete, polished collection of small save buttons.

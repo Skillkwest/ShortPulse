@@ -264,9 +264,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/planning/ai-studio-agent-modularization-tracker.md`
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`
   - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
-  - `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
-  - `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
-  - `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
 - Recently archived examples:
   - `docs/archive/planning/model-modal-policy-phase-plan-2026-05-10.md`
   - `docs/archive/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`

@@ -165,9 +165,10 @@ const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {
   overflow: "hidden",
 };
 const CHARACTER_TOP_SCROLL_INNER_STYLE: React.CSSProperties = {
-  display: "block",
-  flex: "none",
+  display: "flex",
+  flex: "1 1 auto",
   minHeight: 0,
+  flexDirection: "column",
   gap: "8px",
   overflowY: "auto",
   overflowX: "hidden",
@@ -598,10 +599,21 @@ export function CharacterPanelWorkspace({
   const editorFieldsWrapperStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE,
+      flex: "1 1 auto",
+      alignContent: "start",
       gap: `${responsiveLayout.editorWrapperGapPx}px`,
       padding: `${responsiveLayout.editorWrapperPaddingTopPx}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
     }),
     [responsiveLayout]
+  );
+
+  const characterProfileCardStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      display: "flex",
+      flexDirection: "column",
+      minHeight: "100%",
+    }),
+    []
   );
 
   const topFieldGroupStyle = React.useMemo<React.CSSProperties>(
@@ -951,7 +963,7 @@ export function CharacterPanelWorkspace({
             >
               <div style={topScrollInnerStyle}>
                 <div style={topSectionContentStyle}>
-                  <div className="character-profile-card">
+                  <div className="character-profile-card" style={characterProfileCardStyle}>
                     <div className="character-panel-profile-top-row" style={topRowActionsStyle}>
                       <div style={topRowPrimaryActionsStyle}>
                         <button

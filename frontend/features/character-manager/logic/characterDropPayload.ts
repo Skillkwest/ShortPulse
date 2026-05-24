@@ -4,6 +4,7 @@
  */
 
 import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPolicy";
+import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 
@@ -168,12 +169,36 @@ export const resolveDroppedImageReference = (
 };
 
 /**
+ * Resolves a saved Media Library image drag before native browser file fallbacks.
+ */
+export const resolveMediaLibraryDroppedImageReference = (
+  transfer: DataTransfer | null | undefined
+): DroppedImageReference | null => {
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+  if (mediaLibraryPayload?.kind !== "libraryMedia") return null;
+  const payload = mediaLibraryPayload.payload;
+  if (payload.fileType !== "image") return null;
+  const url =
+    parseDropUrlCandidate(payload.fullUrl) ??
+    parseDropUrlCandidate(payload.url) ??
+    parseDropUrlCandidate(payload.previewUrl);
+  if (!url || !isTrustedDroppedImageUrl(url)) return null;
+  return {
+    url,
+    mimeType: inferMimeTypeFromUrl(url),
+    characterMediaId: payload.id,
+    storagePath: payload.fullStoragePath ?? payload.previewStoragePath ?? null,
+  };
+};
+
+/**
  * Returns whether the drag payload contains a trusted dropped image reference.
  */
 export const hasDroppedImageReferenceTransfer = (
   transfer: DataTransfer | null | undefined
 ): boolean => {
   if (!transfer) return false;
+  if (resolveMediaLibraryDroppedImageReference(transfer)) return true;
   if (extractDroppedFiles(transfer).length > 0) {
     return true;
   }

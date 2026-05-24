@@ -6,6 +6,7 @@ import {
   isTrustedDroppedImageUrl,
   parseDropMediaFileId,
   parseDropUrlCandidate,
+  resolveMediaLibraryDroppedImageReference,
 } from "../characterDropPayload";
 
 describe("characterDropPayload", () => {
@@ -49,6 +50,47 @@ describe("characterDropPayload", () => {
       getData: () => "",
     } as unknown as DataTransfer;
 
+    expect(hasDroppedImageReferenceTransfer(transfer)).toBe(true);
+  });
+
+  it("resolves media-library image payloads before native file fallbacks", () => {
+    const payload = {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-1",
+        url: "data:image/png;base64,abc",
+        fileType: "image",
+        originFolderId: null,
+        filename: "portrait.png",
+        promptText: null,
+        source: "upload",
+        previewStoragePath: "user-1/thumbs/portrait.png",
+        fullStoragePath: "user-1/originals/portrait.png",
+        previewUrl: "data:image/png;base64,preview",
+        previewPosterUrl: null,
+        previewPosterStoragePath: null,
+        fullUrl: "data:image/png;base64,full",
+        width: 1024,
+        height: 1024,
+      },
+    };
+    const data = new Map<string, string>([
+      ["text/x-shortpulse-media-library-item", JSON.stringify(payload)],
+    ]);
+    const transfer = {
+      files: [new File(["ghost"], "ghost.txt", { type: "text/plain" })],
+      items: [],
+      types: Array.from(data.keys()),
+      getData: (type: string) => data.get(type) ?? "",
+    } as unknown as DataTransfer;
+
+    expect(resolveMediaLibraryDroppedImageReference(transfer)).toEqual({
+      url: "data:image/png;base64,full",
+      mimeType: "image/png",
+      characterMediaId: "media-1",
+      storagePath: "user-1/originals/portrait.png",
+    });
     expect(hasDroppedImageReferenceTransfer(transfer)).toBe(true);
   });
 });

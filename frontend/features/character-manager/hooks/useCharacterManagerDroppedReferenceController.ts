@@ -11,6 +11,7 @@ import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   extractDroppedFiles,
   resolveDroppedImageReference,
+  resolveMediaLibraryDroppedImageReference,
   type DroppedImageReference,
 } from "../logic/characterDropPayload";
 import type { CharacterSheetDropZoneKey } from "../types";
@@ -529,6 +530,12 @@ export const useCharacterManagerDroppedReferenceController = ({
         }
       }
 
+      const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
+      if (mediaLibraryReference) {
+        await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
+        return;
+      }
+
       const droppedFile = extractDroppedFiles(transfer)[0] ?? null;
       if (droppedFile) {
         await setCharacterSheetPresetFile(zoneKey, droppedFile);
@@ -638,6 +645,12 @@ export const useCharacterManagerDroppedReferenceController = ({
         } finally {
           setPendingDropTarget((current) => (current?.target === "quickswap" ? null : current));
         }
+      }
+
+      const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
+      if (mediaLibraryReference) {
+        await ingestQuickSwapDroppedReference(mediaLibraryReference);
+        return;
       }
 
       const droppedReference = resolveDroppedImageReference(transfer);

@@ -977,7 +977,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestSigningArgs?.surface).toBe("elements-media-panel");
   });
 
-  it("passes the fixed 4:5 assignment ratio through the embedded Elements all-media grid", async () => {
+  it("keeps the embedded Elements all-media grid on true masonry ratios in assignment mode", async () => {
     render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
 
     await waitFor(() => {
@@ -986,10 +986,10 @@ describe("MediaLibraryPanel", () => {
 
     const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps?.surface).toBe("elements-media-panel");
-    expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
+    expect(latestProps?.fixedVisualAspectRatio).toBeNull();
   });
 
-  it("passes the fixed 4:5 assignment ratio through the embedded Elements image grid", async () => {
+  it("keeps the embedded Elements image grid on true masonry ratios in assignment mode", async () => {
     render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
 
     await waitFor(() => {
@@ -1002,6 +1002,23 @@ describe("MediaLibraryPanel", () => {
       expect(mediaGridPropsSpy).toHaveBeenCalled();
     });
     const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.surface).toBe("elements-media-panel");
+    expect(latestProps?.fixedVisualAspectRatio).toBeNull();
+  });
+
+  it("passes an explicit fixed visual ratio through the embedded Elements all-media grid", async () => {
+    render(
+      <ElementsEmbeddedMediaLibraryPanel
+        mediaCardInteractionMode="assignment"
+        fixedVisualAspectRatio={4 / 5}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps?.surface).toBe("elements-media-panel");
     expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
   });

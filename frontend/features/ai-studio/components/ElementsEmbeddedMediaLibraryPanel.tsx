@@ -64,6 +64,7 @@ type ElementsEmbeddedMediaLibraryPanelProps = {
     id: string;
   } | null>;
   mediaCardInteractionMode?: "selection" | "assignment";
+  fixedVisualAspectRatio?: number | null;
   onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
 };
 
@@ -72,12 +73,11 @@ type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 const EMPTY_SET = new Set<string>();
 const ELEMENTS_MEDIA_PANEL_SURFACE = "elements-media-panel" as const;
 const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
-const ASSIGNMENT_VISUAL_ASPECT_RATIO = 4 / 5;
-
 export function ElementsEmbeddedMediaLibraryPanel({
   projectId = null,
   resolveInternalDropItem,
   mediaCardInteractionMode = "selection",
+  fixedVisualAspectRatio = null,
   onSelectMedia,
 }: ElementsEmbeddedMediaLibraryPanelProps) {
   const activeFolderId = MEDIA_LIBRARY_ROOT_FOLDER_ID;
@@ -320,7 +320,6 @@ export function ElementsEmbeddedMediaLibraryPanel({
     signStoragePath,
   });
   const mediaCardUsesAssignment = mediaCardInteractionMode === "assignment";
-  const fixedVisualAspectRatio = mediaCardUsesAssignment ? ASSIGNMENT_VISUAL_ASPECT_RATIO : null;
   const activeSelectedMediaIds = mediaCardUsesAssignment ? EMPTY_SET : selectedIds;
 
   React.useEffect(() => {

@@ -59,6 +59,7 @@ describe("CharacterPanelSplitHost", () => {
     expect(container.querySelector(".character-panel-bottom-section")).not.toBeNull();
     expect(embeddedMediaPanelSpy).toHaveBeenCalledWith(
       expect.objectContaining({
+        fixedVisualAspectRatio: null,
         mediaCardInteractionMode: "assignment",
         projectId: "project-123",
         resolveInternalDropItem: resolveMediaLibraryInternalDropItem,

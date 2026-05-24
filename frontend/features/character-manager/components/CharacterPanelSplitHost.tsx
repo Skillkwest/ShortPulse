@@ -50,15 +50,13 @@ export function CharacterPanelSplitHost({
   });
   const topSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      flex: "0 0 auto",
+      ...split.topSectionStyle,
     }),
-    []
+    [split.topSectionStyle]
   );
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...split.bottomSectionStyle,
-      flexGrow: 0,
-      flexShrink: 0,
       maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
     }),
     [split.bottomSectionStyle]
@@ -89,6 +87,7 @@ export function CharacterPanelSplitHost({
       <div className="character-panel-bottom-section" style={bottomSectionStyle}>
         <ElementsEmbeddedMediaLibraryPanel
           mediaCardInteractionMode="assignment"
+          fixedVisualAspectRatio={null}
           projectId={projectId}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
         />

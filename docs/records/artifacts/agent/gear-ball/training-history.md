@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.1/10`
-- What went right: Gear Ball restarted from the top, validated the final shipped runtime lane honestly, and recovered both restored billing test seams before the push so the final tree that reached `production` was complete.
-- What went wrong: the run still paid one cheap docs formatting recovery cycle, and two stash-restored billing test tails surfaced after the main runtime commit, forcing extra follow-up commits.
-- Capability decision: keep the lane collapsed, but add one final live-worktree-vs-manifest comparison before push so restored tests get folded into the main commit instead of surfacing as late tails.
+- Score: `7.7/10`
+- What went right: Gear Ball restarted from the top, validated the final shipped runtime lane honestly, and recovered the restored billing and Standard attachment-preview test seams before the push so the final tree that reached `production` was complete.
+- What went wrong: the run still paid one cheap docs formatting recovery cycle, and three stash-restored tails surfaced after the first commit path, forcing multiple follow-up commits.
+- Capability decision: keep the lane collapsed, but add a strict repeated live-worktree-vs-manifest check before push so restored tests and sibling seams get folded into the main commit instead of surfacing as serial late tails.
 
 ## Previous Supervised Synthesis
 

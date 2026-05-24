@@ -144,6 +144,24 @@ describe("create composer layout contract", () => {
     expect(expandedOverlayZone).toContain("filter: blur(6px);");
   });
 
+  it("keeps the active Pulse history composer in a bottom flow lane", () => {
+    const css = fs.readFileSync(createComposerChatCssPath, "utf8");
+    const activePulseFlowShell = extractRuleBlock(
+      css,
+      ".create-composer-panel:not(.create-composer-panel--no-history) .create-composer-panel-shell.is-pulse-rail-active .create-composer-flow-shell"
+    );
+    const activePulseMessages = extractRuleBlock(
+      css,
+      ".create-composer-panel .create-composer-panel-shell.is-pulse-rail-active .create-composer-prompt-step .agent-messages"
+    );
+
+    expect(activePulseFlowShell).toContain("flex: 1 1 auto;");
+    expect(activePulseFlowShell).toContain("min-height: 0;");
+    expect(activePulseMessages).toContain("flex: 1 1 auto;");
+    expect(activePulseMessages).toContain("max-height: none;");
+    expect(activePulseMessages).toContain("overflow-y: auto;");
+  });
+
   it("keeps functional spinners animated inside the motion-flat properties rail", () => {
     const css = fs.readFileSync(aiStudioPropertiesCssPath, "utf8");
 

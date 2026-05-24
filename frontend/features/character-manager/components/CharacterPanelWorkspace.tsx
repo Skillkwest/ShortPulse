@@ -332,6 +332,7 @@ export function CharacterPanelWorkspace({
     isSavingName,
     isCreatingCharacter,
     isSavingCharacter,
+    characterSaveProgressMessage,
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingCharacterSheetPreset,
@@ -393,6 +394,8 @@ export function CharacterPanelWorkspace({
     isSavingCharacter ||
     isDeletingCharacter ||
     isSavingCharacterSheetPreset;
+  const resolvedCharacterSaveProgressMessage =
+    characterSaveProgressMessage ?? "Saving character...";
 
   const resolvedCharacterSheetPresetAssignments = React.useMemo(
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
@@ -573,10 +576,21 @@ export function CharacterPanelWorkspace({
   const editorFieldsWrapperStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE,
+      flex: "1 1 auto",
+      alignContent: "start",
       gap: `${responsiveLayout.editorWrapperGapPx}px`,
       padding: `${responsiveLayout.editorWrapperPaddingTopPx}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
     }),
     [responsiveLayout]
+  );
+
+  const characterProfileCardStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      display: "flex",
+      flexDirection: "column",
+      minHeight: "100%",
+    }),
+    []
   );
 
   const topFieldGroupStyle = React.useMemo<React.CSSProperties>(
@@ -909,7 +923,7 @@ export function CharacterPanelWorkspace({
         {isSavingName ? "Saving character name..." : ""}
       </p>
       <p className="sr-only" role="status" aria-live="polite">
-        {isSavingCharacter ? "Saving character..." : ""}
+        {isSavingCharacter ? resolvedCharacterSaveProgressMessage : ""}
       </p>
 
       <div className="character-panel-library-workspace">
@@ -926,7 +940,7 @@ export function CharacterPanelWorkspace({
             >
               <div style={topScrollInnerStyle}>
                 <div style={topSectionContentStyle}>
-                  <div className="character-profile-card">
+                  <div className="character-profile-card" style={characterProfileCardStyle}>
                     <div className="character-panel-profile-top-row" style={topRowActionsStyle}>
                       <div style={topRowPrimaryActionsStyle}>
                         <button
@@ -953,13 +967,13 @@ export function CharacterPanelWorkspace({
                             className="character-panel-save-progress"
                             role="status"
                             aria-live="polite"
-                            aria-label="Saving character"
+                            aria-label={resolvedCharacterSaveProgressMessage}
                           >
                             <span
                               className="character-panel-save-progress-spinner"
                               aria-hidden="true"
                             />
-                            <span>Saving character</span>
+                            <span>{resolvedCharacterSaveProgressMessage}</span>
                           </span>
                         ) : null}
                         {showSaveSuccessIndicator ? (

@@ -49,6 +49,7 @@ const createDraftState = () => ({
   isSavingName: false,
   isCreatingCharacter: false,
   isSavingCharacter: false,
+  characterSaveProgressMessage: null as string | null,
   isDeletingCharacter: false,
   isSwitchingCharacter: false,
   isSavingCharacterSheetPreset: false,
@@ -292,6 +293,25 @@ describe("CharacterPanelWorkspace", () => {
     });
 
     expect(saveCharacterMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a visible saving indicator beside the Characters button while character save is in progress", () => {
+    currentDraftState = {
+      ...createDraftState(),
+      isSavingCharacter: true,
+      characterSaveProgressMessage: "Saving references...",
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    const saveStatus = screen.getByRole("status", { name: "Saving references..." });
+    expect(saveStatus).toBeInTheDocument();
+    expect(saveStatus).toHaveTextContent("Saving references...");
+    expect(screen.getByRole("button", { name: "Characters" })).toHaveAttribute(
+      "aria-describedby",
+      "character-save-progress-status"
+    );
+    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
   });
 
   it("shows a brief saved check indicator after a successful save", async () => {

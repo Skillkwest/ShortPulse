@@ -316,6 +316,135 @@ describe("useCharacterManagerDraft", () => {
     });
   });
 
+  it("reports phase-specific progress while first save is in flight", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const draftSave = createDeferred<DraftSnapshot>();
+    const assignmentSave =
+      createDeferred<ReturnType<typeof createEmptyCharacterSheetAssignments>>();
+    const hydratedSave = createDeferred<DraftSnapshot>();
+    const initialSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+    } as DraftSnapshot;
+    const hydratedSnapshot = {
+      ...initialSnapshot,
+      characterDescription: "Hydrated description",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockReturnValue(
+      draftSave.promise as ReturnType<typeof saveCharacterManagerDraft>
+    );
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockReturnValue(
+      assignmentSave.promise as ReturnType<typeof saveCharacterManagerCharacterSheetAssignments>
+    );
+    loadCharacterManagerDraftByCharacterIdMock.mockReturnValue(
+      hydratedSave.promise as ReturnType<typeof loadCharacterManagerDraftByCharacterId>
+    );
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    let savePromise!: Promise<boolean>;
+    act(() => {
+      savePromise = result.current.saveCharacter();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSavingCharacter).toBe(true);
+      expect(result.current.characterSaveProgressMessage).toBe("Creating character...");
+    });
+
+    await act(async () => {
+      draftSave.resolve(initialSnapshot);
+      await draftSave.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterSaveProgressMessage).toBe("Saving references...");
+    });
+
+    await act(async () => {
+      assignmentSave.resolve(createEmptyCharacterSheetAssignments());
+      await assignmentSave.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.characterSaveProgressMessage).toBe("Loading saved character...");
+    });
+
+    await act(async () => {
+      hydratedSave.resolve(hydratedSnapshot);
+      await savePromise;
+    });
+
+    expect(await savePromise).toBe(true);
+    expect(result.current.isSavingCharacter).toBe(false);
+    expect(result.current.characterSaveProgressMessage).toBeNull();
+    expect(result.current.selectedCharacterId).toBe("char-saved");
+  });
+
+  it("ignores a stale first-save response after the local draft is reset", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const draftSave = createDeferred<DraftSnapshot>();
+    const initialSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-stale",
+      characterSheetId: "sheet-stale",
+      characterName: "Stale Save",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockReturnValue(
+      draftSave.promise as ReturnType<typeof saveCharacterManagerDraft>
+    );
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    let savePromise!: Promise<boolean>;
+    act(() => {
+      savePromise = result.current.saveCharacter();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSavingCharacter).toBe(true);
+      expect(result.current.characterSaveProgressMessage).toBe("Creating character...");
+    });
+
+    await act(async () => {
+      await result.current.createCharacter();
+    });
+
+    expect(result.current.isSavingCharacter).toBe(false);
+    expect(result.current.characterSaveProgressMessage).toBeNull();
+
+    await act(async () => {
+      draftSave.resolve(initialSnapshot);
+      await savePromise;
+    });
+
+    expect(await savePromise).toBe(false);
+    expect(loadCharacterManagerDraftByCharacterIdMock).not.toHaveBeenCalledWith("char-stale");
+    expect(publishCharacterListChangedMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "create" })
+    );
+    expect(result.current.selectedCharacterId).toBeNull();
+    expect(result.current.characters).toEqual([]);
+  });
+
   it("clears persisted selection when staging a new local draft", async () => {
     const snapshot = createDraftSnapshot();
     configureBootstrap(snapshot);

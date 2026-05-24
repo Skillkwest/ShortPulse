@@ -368,8 +368,8 @@
   .create-composer-prompt-step
   .agent-messages {
   min-height: 0;
-  max-height: min(62vh, 680px);
-  flex: 0 1 auto;
+  max-height: none;
+  flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -413,6 +413,35 @@
   flex-basis: auto;
   min-height: 0;
   overflow: visible;
+}
+
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-flow-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-bottom-block,
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step,
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
+  .agent-chat-wrapper--inline,
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
+  .agent-chat-panel,
+.create-composer-panel:not(.create-composer-panel--no-history)
+  .create-composer-panel-shell.is-pulse-rail-active
+  .create-composer-prompt-step
+  .agent-chat-surface {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .create-composer-panel .create-composer-prompt-step .agent-chat-panel {

@@ -89,6 +89,10 @@ If Gear Ball presents a `run your SOP` execution as complete before classifying 
 
 If Gear Ball drafts the final SOP report before rechecking the post-build live tree and the report omits still-live repo-backed work, the total score is capped at `8.2`.
 
+### Gate 8. No early score-loop writeback
+
+If Gear Ball records or commits the score loop before the final shipped lane has converged cleanly and later related tails still have to be committed, the total score is capped at `8.0`.
+
 ## Confidence Tag
 
 Each scored run should also carry a confidence tag:

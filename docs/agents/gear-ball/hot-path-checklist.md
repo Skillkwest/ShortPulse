@@ -90,11 +90,17 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 6. Before any push or push-ready claim, rerun `git status --short` and confirm that every remaining non-temp change has been explicitly classified.
 7. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
 8. Before every commit, rerun `git diff --cached --name-only` and compare it to the intended lane manifest so pre-staged files cannot silently leak across batch boundaries.
-9. Before push, rerun only the final required validation on the exact final tree.
-10. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
-11. Push only the approved branch.
-12. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
-13. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+9. After every commit, run a post-commit convergence loop:
+   - rerun `git status --short`
+   - compare the live tree to the just-validated lane manifest
+   - if related product/test/support tails surfaced, fold them back into the same lane before any push or score-loop writeback
+   - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
+10. Do not commit the score loop while any related repo-backed tail is still live. Score-loop writeback happens only after the final commit set is complete.
+11. Before push, rerun only the final required validation on the exact final tree.
+12. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
+13. Push only the approved branch.
+14. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+15. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 
@@ -104,7 +110,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - what Gear Ball did wrong
    - the smallest change that would raise the next run's score
 3. Score it out of 10.
-4. Append one compact training row for the run to `docs/records/artifacts/agent/gear-ball/performance-ledger.md`.
+4. Append one compact training row for the run to `docs/records/artifacts/agent/gear-ball/performance-ledger.md` only after the final commit set is actually complete.
 5. If the run scored below `9.0` or taught a new durable lesson, update the smallest necessary retained training surfaces (`training-history`, SOP, memory, scorecard, or dataset).
 6. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
 7. Keep suggested next steps inside Gear Ball's lane by default:

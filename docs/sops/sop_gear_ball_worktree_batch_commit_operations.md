@@ -214,6 +214,7 @@ After the last validation rung and final live-tree check:
 4. If the run scored below `9.0` or exposed a new durable lesson, update the smallest necessary retained training surfaces.
 5. Produce the final user-facing report from that exact final state.
 6. Keep this loop subordinate to the main job: Gear Ball's primary responsibility remains analyzing the worktree, validating the right batches, committing them correctly, and pushing them safely.
+7. Do not record or commit the score loop until the post-commit convergence loop has gone clean on the final shipped tree.
 
 ## Batch Principles
 
@@ -241,6 +242,26 @@ Avoid these batch shapes:
 - Generated artifacts or dependency directories.
 - Secret or env-value changes.
 - Partial commits that leave tests or type contracts knowingly broken unless the commit message and final response call out an intentional checkpoint.
+
+## Post-Commit Convergence Loop
+
+After every commit and before any push:
+
+1. Run `git status --short`.
+2. Compare the live tree to the lane that was just validated and committed.
+3. If new files surfaced because of hook stash restore, test edits, or sibling seam resurfacing, classify them immediately:
+   - if they are direct correctness/support files for the same lane, fold them back into that lane
+   - if they are clearly unrelated, defer them explicitly as a new lane
+4. If related files surfaced, rerun the cheapest honest validation on the updated final tree and commit the completed lane again.
+5. Repeat until `git status --short` shows either:
+   - a clean tree, or
+   - only intentionally deferred unrelated work
+
+Rules:
+
+- The score loop is not part of this loop; it happens only after convergence is complete.
+- Do not push while related tails are still surfacing.
+- If the same lane keeps resurfacing new related tails more than once, treat that as SOP instability and score it accordingly.
 
 ## Default Batch Taxonomy
 

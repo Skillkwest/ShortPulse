@@ -4,6 +4,7 @@ import collectionHandler from "../../pages/api/projects";
 import dynamicProjectHandler, {
   resolveProjectDynamicRoute,
 } from "../../pages/api/projects/[...projectPath]";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 import itemHandler from "../../lib/server/projectApiRoutes/item";
 import workspaceHandler from "../../lib/server/projectApiRoutes/workspace";
 
@@ -58,6 +59,7 @@ const createMockResponse = () => ({
 describe("projects routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
     parseProjectIdMock.mockImplementation((value: unknown) =>
       typeof value === "string" ? value : null
@@ -102,7 +104,7 @@ describe("projects routes", () => {
   });
 
   it("creates the project without bootstrapping legacy media folders", async () => {
-    const req = { method: "POST", body: { title: "" } };
+    const req = { method: "POST", body: { title: "" }, socket: { remoteAddress: "127.0.0.1" } };
     const res = createMockResponse();
 
     await createHandler(req as never, res as never);
@@ -119,6 +121,53 @@ describe("projects routes", () => {
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T00:00:00.000Z",
       },
+    });
+  });
+
+  it("returns a sanitized 500 when project creation fails unexpectedly", async () => {
+    createProjectForUserMock.mockRejectedValueOnce(new Error("database exploded"));
+    const req = {
+      method: "POST",
+      body: { title: "Boom" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await createHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to create project",
+    });
+  });
+
+  it("rate limits repeated project creation attempts for the same authenticated user", async () => {
+    for (let index = 0; index < 12; index += 1) {
+      const req = {
+        method: "POST",
+        body: { title: `Project ${index}` },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+
+      await createHandler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { title: "Project blocked" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await createHandler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 

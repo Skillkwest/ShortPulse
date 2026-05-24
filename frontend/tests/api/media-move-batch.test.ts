@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/move-batch";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const moveMediaFileForUserMock = vi.fn();
@@ -24,6 +25,7 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -57,6 +59,7 @@ const createMoveSuccess = (fileId: string) => ({
 describe("POST /api/media/move-batch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
@@ -138,5 +141,64 @@ describe("POST /api/media/move-batch", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(moveMediaFileForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a sanitized 500 when batched media moves fail unexpectedly", async () => {
+    moveMediaFileForUserMock.mockRejectedValueOnce(new Error("database exploded"));
+
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "private",
+        fileIds: ["file-1"],
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to move media files",
+    });
+  });
+
+  it("rate limits repeated media move batches for the same authenticated user", async () => {
+    moveMediaFileForUserMock.mockResolvedValue(createMoveSuccess("file-1"));
+
+    for (let index = 0; index < 20; index += 1) {
+      const req = {
+        method: "POST",
+        body: {
+          destinationTab: "private",
+          fileIds: ["file-1"],
+        },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: {
+        destinationTab: "private",
+        fileIds: ["file-1"],
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

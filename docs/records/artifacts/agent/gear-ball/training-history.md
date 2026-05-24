@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept a very large tree collapsed to two honest lanes, validated the runtime/product lane with a real shared-runtime ladder, validated the workspace rehome lane with docs checks, and finished with a fully clean tree.
-- What went wrong: the product lane still burned time on repeated formatting-only blockers before the meaningful validation signal appeared.
-- Capability decision: keep the aggressive lane collapse on large mixed runs when the seams are obvious, but front-load one broader touched-file Prettier sweep on shared-runtime batches so the first preflight spends time on real failures instead of style churn.
+- Score: `8.9/10`
+- What went right: Gear Ball restarted from the top, held the live tree to three honest lanes, validated the docs, client/runtime, and server lanes with focused ladders, and finished with a green build on the exact final tree.
+- What went wrong: the first validation pass still paid avoidable formatting-only cleanup across both docs and shared-runtime files before the real signal could surface.
+- Capability decision: keep the lean 3-lane split, but run one manifest-wide Prettier sweep before the first preflight whenever a production run mixes docs and shared-runtime files.
 
 ## Previous Supervised Synthesis
 

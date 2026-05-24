@@ -27,13 +27,16 @@ Purpose: enforce consistent startup behavior in every new task/session so contex
    - Run workspace safety check before broad/repo-wide commands.
 2. **Core docs**
    - Load the root + docs core references listed above.
-   - Load scoped AGENTS files for touched directories.
+   - Load only the scoped AGENTS files for touched directories.
 3. **Task routing**
    - SQL/migrations: load SQL SOP + migration + security docs and touched migration files.
    - Routes/UI behavior: load route map + relevant SOPs + top-level `README.md`.
    - Pricing/credits: run `skills/skill-pricing-audit/SKILL.md`.
    - Pricing display/debit wiring: also run `skills/skill-pricing-wiring/SKILL.md`.
+   - New agent creation/training/maintenance: load `agent-teaching/README.md`, the referenced foundation/setup/operations docs, and the relevant prompts.
+   - System inventory/rating/workflow-boundary work: load `docs/systems/README.md`, `docs/systems/catalog.md`, `docs/systems/rating-rubric.md`, plus the relevant product/route/operator docs.
    - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
+   - Audit/inspection/online research: run `skills/skill-subagent-audit-research/SKILL.md`.
 4. **Web browsing decision**
    - Use local repo sources by default.
    - Browse only when requested, when recency matters, or when facts are high-stakes/unstable.
@@ -41,12 +44,15 @@ Purpose: enforce consistent startup behavior in every new task/session so contex
    - No file edits until core + task-specific context is loaded.
    - In brainstorm/no-edit mode, do not mutate files.
 
+## Priority Rule
+- If this helper ever disagrees with `AGENTS.md`, follow `AGENTS.md` and treat this helper as stale until it is updated.
+
 ## Output template (recommended)
 ```text
 Startup summary
 - Mode: <brainstorm/no-edit | implementation>
 - Core docs loaded: <list>
-- Task scope: <sql | routes/ui | pricing | docs | other>
+- Task scope: <sql | routes/ui | pricing | agent-training | systems | audit/research | docs | other>
 - Task-specific docs/code loaded: <list>
 - Web browse required: <yes/no and why>
 - Edits currently blocked: <yes/no>

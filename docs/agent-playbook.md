@@ -6,7 +6,8 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 
 - Frontend dev server: `cd frontend && npm run dev`
 - One-time deps: `cd frontend && npm install`
-- Optional checks: `cd frontend && npm run lint` / `npm run build`
+- Common checks: `cd frontend && npm run lint` / `npm run build`
+- Full pre-launch release-gate stack lives in `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`; do not treat the common checks above as the whole ship bar.
 
 ## Structure to respect
 
@@ -60,6 +61,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - During the pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, stay on `production` for local work and target GitHub `production` for branch operations.
 - Keep `git config --local shortpulse.allowedBranch` set to `production`. Local Husky `pre-commit` and `pre-push` hooks enforce that the current branch and push target match it.
 - Never push directly to `main` unless the user explicitly changes that rule.
+- During this phase, prefer direct `production` push/check/review coordination; do not assume a cross-branch PR flow unless the user explicitly rewrites the branch policy.
 - Use targeted validation during a lane and reserve full `npm run validate` for meaningful checkpoints, not every small diff.
 - Stop when the next change is no longer clearly reducing risk more than it adds churn.
 

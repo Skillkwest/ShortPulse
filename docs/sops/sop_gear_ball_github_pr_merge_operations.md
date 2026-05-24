@@ -1,6 +1,6 @@
 # Gear Ball GitHub PR And Merge Operations SOP
 
-Purpose: define Gear Ball's repeatable workflow for pushing approved commits, opening GitHub pull requests, coordinating review, and reporting merge readiness without bypassing repo or human gates.
+Purpose: define Gear Ball's repeatable workflow for pushing approved commits, coordinating GitHub review/check flow, and reporting merge readiness without bypassing repo or human gates.
 
 ## Scope
 
@@ -9,7 +9,8 @@ Use this SOP after worktree changes have been organized and committed through `d
 This SOP covers:
 
 - Push readiness checks.
-- Draft pull request creation.
+- Direct `production` push/check/review coordination for the current pre-launch phase.
+- Draft pull request creation when the active branch policy explicitly allows it.
 - Pull request body and evidence standards.
 - Review routing and CODEOWNERS awareness.
 - CI/status-check monitoring.
@@ -52,13 +53,24 @@ These sources informed this SOP and should be rechecked when GitHub agent behavi
 ## Required Preconditions
 
 - The user explicitly authorized the requested GitHub action in the current thread.
-- Current branch matches the current user-approved branch.
-- `git config --local shortpulse.allowedBranch` matches the current user-approved branch before push or merge work.
+- Current branch matches `shortpulse.allowedBranch`.
+- `git config --local shortpulse.allowedBranch` matches the active user-approved branch before push or merge work.
 - Local commits were reviewed and validated, or any validation gaps are documented.
 - No secrets, raw env values, tokens, customer-private data, generated build artifacts, dependency folders, or scratch exports are included.
 - No staged changes remain unintentionally.
 - The target base branch is explicit.
 - Direct push to `main` remains forbidden unless the user explicitly changes that repo rule in the current thread.
+
+## Pre-Launch Production-Only Rule
+
+During the current pre-launch production-readiness phase through `2026-07-02`, the root repo policy requires local work and GitHub branch operations to stay on `production`.
+
+- Default GitHub coordination path in this phase:
+  - push approved commits to `production` only after explicit user authorization,
+  - monitor GitHub checks on `production`,
+  - produce review/readiness summaries from the pushed production state.
+- Do not assume a cross-branch PR flow during this phase.
+- Only use the PR sections below if the user explicitly rewrites the branch policy in the current thread or otherwise authorizes a non-production GitHub branch flow.
 
 ## Agentic Coordination Model
 
@@ -120,6 +132,8 @@ After pushing, capture:
 If push is rejected, do not force push. Diagnose the rejection and report the next safe options.
 
 ### 3. Pull Request Creation
+
+This section is conditional. Skip it during the current production-only phase unless the user explicitly authorizes a branch-policy rewrite or another allowed PR path.
 
 Default to a draft pull request for agent-coordinated work unless the user explicitly asks for a ready PR:
 

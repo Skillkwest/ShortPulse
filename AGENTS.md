@@ -39,7 +39,7 @@ npm run build
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
 - Pre-launch branch policy: ShortPulse is in a pre-launch production-readiness phase through the Copperknot effective launch decision window ending `2026-07-02` (`docs/agents/copperknot/production-readiness-plan-2026-07-02.md` and `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`). During this pre-launch phase, all repo work must be performed on the local `production` branch, and any GitHub branch operations must target the GitHub `production` branch.
-- Pre-launch branch isolation policy: work only on `production`. Do not switch branches, create feature branches, commit on another branch, push another branch, merge into another branch, promote work to another branch, or open GitHub work against another branch unless the user explicitly rewrites this pre-launch policy in the current thread. Never push directly to `main`.
+- Pre-launch branch isolation policy: work only on `production`. Do not switch branches, create feature branches, commit on another branch, push another branch, merge into another branch, promote work to another branch, or open GitHub work against another branch unless the user explicitly rewrites this pre-launch policy in the current thread. During this phase, the default GitHub coordination model is direct work on `production` plus checks/review reporting, not cross-branch PR flow. Never push directly to `main`.
 - Branch enforcement policy: keep `git config --local shortpulse.allowedBranch` set to `production` during the pre-launch phase. Husky `pre-commit` and `pre-push` must block commit/push activity when the current branch or push target does not match `production`.
 - Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
@@ -49,7 +49,7 @@ npm run build
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
 - Subagent audit/research policy: when the user asks to audit, inspect, investigate, or do online research, run `skills/skill-subagent-audit-research/SKILL.md` and use subagents for substantive audit/research lanes when they are available, allowed, and useful. The agent may decide subagents are unnecessary for narrow scopes and may close unused subagents at will.
 - Cross-agent prompt policy: do not run a prompt from one agent's prompt library against a different agent by default. Interpret agent-scoped prompts as targeting the exact agent named by their containing folder unless the user explicitly instructs a different target in the same message.
-- After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
+- After completing a task, always audit your work to see if you have missed anything. Only continue into additional changes when there is a concrete repo-backed problem statement and better ROI than stopping. Then provide high level suggested next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)
 
@@ -75,7 +75,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Read this root `AGENTS.md`.
 - Read `docs/dev-ground-rules.md`, `docs/conventions.md`, and `docs/agent-playbook.md`.
 - Read `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
-- Read scoped instructions for touched areas (`frontend/AGENTS.md`, `docs/AGENTS.md`).
+- Read the scoped instructions for the touched areas (`frontend/AGENTS.md`, `docs/AGENTS.md`) instead of loading unrelated scoped surfaces by default.
 
 3. **Task classification + targeted context load**
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/billing/subscription/change";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -32,7 +33,7 @@ vi.mock("../../lib/server/api/stripeCustomer", () => ({
 }));
 
 const createMockResponse = () => ({
-  setHeader: vi.fn(),
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -154,6 +155,7 @@ const createSupabaseAdminMock = (params: {
 describe("POST /api/billing/subscription/change", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
@@ -221,7 +223,11 @@ describe("POST /api/billing/subscription/change", () => {
       url: "https://stripe.test/portal_update",
     });
 
-    const req = { method: "POST", body: { targetPlanId: "business" } };
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -279,7 +285,11 @@ describe("POST /api/billing/subscription/change", () => {
       url: "https://stripe.test/checkout_business",
     });
 
-    const req = { method: "POST", body: { targetPlanId: "business" } };
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -356,7 +366,11 @@ describe("POST /api/billing/subscription/change", () => {
       url: "https://stripe.test/portal_update_generic",
     });
 
-    const req = { method: "POST", body: { targetPlanId: "business" } };
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -394,7 +408,11 @@ describe("POST /api/billing/subscription/change", () => {
       url: "https://stripe.test/portal_cancel",
     });
 
-    const req = { method: "POST", body: { targetPlanId: "free" } };
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "free" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -434,7 +452,11 @@ describe("POST /api/billing/subscription/change", () => {
       })
     );
 
-    const req = { method: "POST", body: { targetPlanId: "free" } };
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "free" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -461,5 +483,134 @@ describe("POST /api/billing/subscription/change", () => {
     );
     expect(stripePostFormMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns a sanitized 500 when subscription change setup fails", async () => {
+    ensureStripeCustomerForUserMock.mockRejectedValueOnce(new Error("stripe exploded"));
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to start the subscription change.",
+    });
+  });
+
+  it("rate limits repeated subscription change attempts for the same authenticated user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "sub_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
+      },
+    });
+    stripePostFormMock.mockResolvedValue({
+      id: "bps_123",
+      url: "https://stripe.test/portal_update",
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      const req = {
+        method: "POST",
+        body: { targetPlanId: "business" },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

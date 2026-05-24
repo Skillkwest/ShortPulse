@@ -2,7 +2,7 @@
 
 Scope: `ShortPulse/docs/agents/holomony/` and Holomony-led media optimization work across the approved ShortPulse media surfaces.
 
-Inherit the root repo contract in `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/AGENTS.md` first, then apply these Holomony-specific rules.
+Inherit the root repo contract in `AGENTS.md` first, then apply these Holomony-specific rules.
 
 ## Purpose
 
@@ -31,13 +31,13 @@ Onboarded candidate surfaces:
 
 Primary supporting code and tooling:
 
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/media-library/`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/lib/mediaPerfTelemetry.ts`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_panel_kpi_score.mjs`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_panel_kpi_capture.mjs`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_library_checkpoint_runner.mjs`
+- `frontend/features/media-library/`
+- `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
+- `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+- `frontend/lib/mediaPerfTelemetry.ts`
+- `frontend/scripts/media_panel_kpi_score.mjs`
+- `frontend/scripts/media_panel_kpi_capture.mjs`
+- `frontend/scripts/media_library_checkpoint_runner.mjs`
 
 Out of scope unless the user explicitly reopens them:
 
@@ -48,20 +48,20 @@ Out of scope unless the user explicitly reopens them:
 
 For substantive Holomony runs, load:
 
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/agents/holomony/README.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/agents/holomony/memory.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-scorecard.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-ledger.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_panel_performance_kpi.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_performance_operations.md`
+- `docs/agents/holomony/README.md`
+- `docs/agents/holomony/memory.md`
+- `docs/records/artifacts/agent/holomony/performance-scorecard.md`
+- `docs/records/artifacts/agent/holomony/performance-ledger.md`
+- `docs/sops/sop_media_panel_performance_kpi.md`
+- `docs/sops/sop_media_performance_operations.md`
 
 Load only the additional surface-specific SOPs, reports, and artifacts needed for the current lane.
 
 For `character-panel-media-assignment`, load:
 
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_character_manager_operations.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/adr/0040-character-panel-media-isolation-v2.md`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
+- `docs/sops/sop_character_manager_operations.md`
+- `docs/adr/0040-character-panel-media-isolation-v2.md`
+- `docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
 
 ## Operating Rules
 
@@ -82,13 +82,15 @@ For `character-panel-media-assignment`, load:
 9. Before each new change after a meaningful improvement, explicitly classify the lane as `continue`, `pivot`, `done enough for now`, or `done`.
 10. If the remaining weakness is mostly evidence depth or persistence proof rather than a clear runtime blocker, default to `done enough for now` unless the user explicitly asks to keep pushing.
 11. If a surface reuses the shared media panel for browse but owns a separate persistence/assignment contract, do not classify it as part of the panel KPI family by default.
-12. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
+12. Work only on maintenance and hygiene issues inside Holomony's own folder unless the user explicitly changes that scope.
+13. Never work in another agent's folder for another agent unless the user explicitly rewrites that boundary.
+14. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
 
 - direct verdict first,
 - separate `tool validity`, `evidence freshness`, and `coverage completeness`,
 - and avoid blended status summaries that hide which layer is actually weak.
 
-13. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
+15. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
 
 ## Deliverable Rules
 
@@ -107,10 +109,10 @@ Use `docs/agents/holomony/memory.md` as the only canonical current-state surface
 
 After substantive Holomony runs:
 
-- score the run against `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-scorecard.md`
-- append notable outcomes to `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-ledger.md` when warranted
-- record repeated mistakes in `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/failure-taxonomy.md`
-- record durable wins or failed ideas in `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/experiment-ledger.md` when the run teaches a reusable lesson
+- score the run against `docs/records/artifacts/agent/holomony/performance-scorecard.md`
+- append notable outcomes to `docs/records/artifacts/agent/holomony/performance-ledger.md` when warranted
+- record repeated mistakes in `docs/records/artifacts/agent/holomony/failure-taxonomy.md`
+- record durable wins or failed ideas in `docs/records/artifacts/agent/holomony/experiment-ledger.md` when the run teaches a reusable lesson
 
 If the run is too small to score meaningfully, say so explicitly instead of forcing a fake score.
 

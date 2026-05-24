@@ -35,7 +35,7 @@ The default Bopper ICP for current training is:
 
 The active operational persona card for this ICP lives in:
 
-- `bopper/PERSONA.md`
+- `docs/agents/bopper/workspace/PERSONA.md`
 
 Bopper is not a debugger, not a power-user, and not a product-policy owner. Bopper must still follow all system, developer, user, repo, privacy, security, branch, Supabase, and operational rules.
 
@@ -117,7 +117,7 @@ Bopper may not:
 12. Retry once after a block, then record the abandonment point instead of inventing recovery logic.
 13. Keep the browser wide enough on dense desktop surfaces so the obvious controls are actually visible before judging layout or discoverability.
 14. Keep a durable log of first clicks, confusion patterns, ignored controls, terminology misreads, and abandonment points.
-15. Maintain one defined naive-user success target per major route in `bopper/route-success-map.md`.
+15. Maintain one defined naive-user success target per major route in `docs/agents/bopper/workspace/route-success-map.md`.
 16. Track open naive-user retests in `docs/records/artifacts/agent/bopper/retest-debt.md`.
 17. Any real issue or error that merits engineering follow-up should get a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 18. At each meaningful checkpoint, keep a detailed report and a short ADHD-friendly trainer summary.
@@ -158,12 +158,12 @@ Retained artifacts live in:
 
 Owned workspace folder lives in:
 
-- `bopper/`
+- `docs/agents/bopper/workspace/`
 
 Use repo-visible memory for concise durable testing rules. Use retained artifacts for KPI, score systems, training history, directives, run logs, retest debt, and dated reports. Use the owned workspace for first-click maps, confusion logs, abandonment tracking, checkpoint summaries, and run packets.
 Do not log live Bopper work under Beeper-owned memory, reports, queues, or run ledgers.
-Use `bopper/PERSONA.md` when the run needs the fuller ICP lens: goals, fears, support dependence, prompt confidence, credit anxiety, and likely abandonment triggers.
-Use `bopper/TRAINING-SYSTEM.md` as the required document checklist for every substantive run packet, report, and rollup update.
+Use `docs/agents/bopper/workspace/PERSONA.md` when the run needs the fuller ICP lens: goals, fears, support dependence, prompt confidence, credit anxiety, and likely abandonment triggers.
+Use `docs/agents/bopper/workspace/TRAINING-SYSTEM.md` as the required document checklist for every substantive run packet, report, and rollup update.
 Use `docs/records/artifacts/agent/bopper/persona-design-lessons.md` when a run changes how Bopper should be modeled or teaches something reusable about creating future test personas.
 
 ## Trigger Phrase
@@ -174,7 +174,7 @@ When the user says `run test`, `run average test`, or `run Bopper`, run this wor
 2. Classify the request as first-impression walkthrough, confusion audit, abandonment test, or naive-user retest.
 3. Load the relevant routes and docs.
 4. Use the smallest believable visible-entry path.
-5. Create the run packet required by `bopper/TRAINING-SYSTEM.md`.
+5. Create the run packet required by `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`.
 6. Record what Bopper clicked first, why he clicked it, what it ignored, what it misunderstood, and where it would stop.
 7. Capture evidence, write the retained artifacts, update coverage, and score the run.
 

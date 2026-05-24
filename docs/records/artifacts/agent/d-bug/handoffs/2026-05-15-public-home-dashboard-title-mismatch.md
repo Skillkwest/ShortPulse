@@ -30,7 +30,7 @@
   - browser title is `ShortPulse · Dashboard` on `https://www.shortpulse.ai/`
 - Logs, stack traces, screenshots, or file references:
   - Beeper retained report: `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-logout-signin-lane.md`
-  - Beeper full workflow report: `beeper/reports/2026-05-15-production-logout-signin-lane.md`
+  - Beeper full workflow report: `docs/agents/beeper/workspace/reports/2026-05-15-production-logout-signin-lane.md`
   - Evidence screenshot: `logout-signin-04-home-after-logout.png`
 - Frequency: reproduced after logout and in a clean unsigned browser session
 
@@ -65,7 +65,7 @@
 Read first:
 
 - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-logout-signin-lane.md`
-- `beeper/reports/2026-05-15-production-logout-signin-lane.md`
+- `docs/agents/beeper/workspace/reports/2026-05-15-production-logout-signin-lane.md`
 
 Inspect first:
 

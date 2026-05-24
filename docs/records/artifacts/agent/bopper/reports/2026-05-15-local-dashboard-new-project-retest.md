@@ -44,8 +44,8 @@ Purpose: public-entry expectation audit for a paying `Studio` user who tries to 
 
 | Step | Surface | Action | Why Bopper clicked it | Expected | Actual | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `/` public dashboard | Clicked `New Project` | Largest work-starting CTA, and the helper text literally promises `Open the AI Studio` | Move toward creation or the studio | Landed on `/pricing?intent=create-project` | `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/observed-path.txt` |
-| 2 | `/pricing?intent=create-project` | Followed `Log in` | He already pays for `Studio`, so logging in is the obvious recovery path | Reach auth and continue toward the workspace | Landed on `/auth?next=%2Fdashboard` | `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/auth-gate.png` |
+| 1 | `/` public dashboard | Clicked `New Project` | Largest work-starting CTA, and the helper text literally promises `Open the AI Studio` | Move toward creation or the studio | Landed on `/pricing?intent=create-project` | `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/observed-path.txt` |
+| 2 | `/pricing?intent=create-project` | Followed `Log in` | He already pays for `Studio`, so logging in is the obvious recovery path | Reach auth and continue toward the workspace | Landed on `/auth?next=%2Fdashboard` | `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/auth-gate.png` |
 
 ## Findings
 
@@ -103,13 +103,13 @@ Purpose: public-entry expectation audit for a paying `Studio` user who tries to 
 
 ## Evidence Packet
 
-- JSON packet: `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/packet.json`
-- Evidence manifest: `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/README.md`
-- Run brief: `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/run-brief.md`
-- Click log: `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/click-log.md`
-- Decision log: `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/decision-log.md`
+- JSON packet: `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/packet.json`
+- Evidence manifest: `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/README.md`
+- Run brief: `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/run-brief.md`
+- Click log: `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/click-log.md`
+- Decision log: `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/decision-log.md`
 - Screenshots:
-  - `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/auth-gate.png`
+  - `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/evidence/auth-gate.png`
 - Console / runtime signals: none
 - Local code references:
   - `frontend/features/dashboard/components/GuestDashboardView.tsx`

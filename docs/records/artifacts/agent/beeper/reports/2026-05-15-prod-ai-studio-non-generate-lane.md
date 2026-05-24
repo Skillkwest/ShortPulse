@@ -81,8 +81,8 @@ Purpose: prod ai studio non generate lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-non-generate-summary.json`
-  - `beeper/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-left-libraries.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-non-generate-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-left-libraries.json`
 - Screenshots:
   - `studio-non-gen-01-home.png`
   - `studio-non-gen-02-projects-overlay.png`

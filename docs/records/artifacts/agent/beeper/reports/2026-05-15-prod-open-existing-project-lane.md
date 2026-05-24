@@ -63,7 +63,7 @@ Purpose: production open existing project lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-150037-prod-open-existing-project-lane/evidence/open-existing-project-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-150037-prod-open-existing-project-lane/evidence/open-existing-project-summary.json`
 - Screenshots:
   - `open-existing-01-dashboard.png`
   - `open-existing-02-projects-overlay.png`

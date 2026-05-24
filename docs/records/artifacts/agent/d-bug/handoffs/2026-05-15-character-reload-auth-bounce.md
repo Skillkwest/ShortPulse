@@ -38,11 +38,11 @@
 - Beeper retained report:
   - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-character-reuse-lane.md`
 - Beeper full report:
-  - `beeper/reports/2026-05-15-production-character-reuse-lane.md`
+  - `docs/agents/beeper/workspace/reports/2026-05-15-production-character-reuse-lane.md`
 - Run packet:
-  - `beeper/runs/2026-05-15-231544-prod-character-reuse-lane`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-231544-prod-character-reuse-lane`
 - Summary packet:
-  - `beeper/runs/2026-05-15-231544-prod-character-reuse-lane/evidence/character-reuse-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-231544-prod-character-reuse-lane/evidence/character-reuse-summary.json`
 - Related older Character handoff:
   - `docs/records/artifacts/agent/d-bug/handoffs/2026-05-15-character-route-bootstrap-stall.md`
 

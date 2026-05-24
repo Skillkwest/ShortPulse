@@ -13,7 +13,7 @@ Purpose: publish the Supabase auth-email hardening lane and the new Ayla/Beeper 
 | Commit      | Batch                | Files/Scope                                              | Risk   | Validation                                                                                                 |
 | ----------- | -------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
 | `0f2b2fdae` | auth-email hardening | auth routes, profile auth actions, auth docs, auth tests | medium | `gear-ball:preflight`, `docs:check`, targeted auth tests, `npm -C frontend run build`, full `npm run test` |
-| `7013b198a` | agent scaffolding    | `ayla/`, `beeper/`, agent contracts, retained artifacts  | low    | `gear-ball:preflight`, `docs:check`                                                                        |
+| `7013b198a` | agent scaffolding    | `docs/agents/ayla/workspace/`, `docs/agents/beeper/workspace/`, agent contracts, retained artifacts  | low    | `gear-ball:preflight`, `docs:check`                                                                        |
 | `ddeb9624b` | docs reconciliation  | shared docs indexes for auth ADR/SOP and new agents      | low    | `docs:check`                                                                                               |
 | `<pending>` | gear-ball closeout   | self-audit, SOP/contract hardening, retained run records | low    | `gear-ball:preflight`, `docs:check`                                                                        |
 

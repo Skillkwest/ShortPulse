@@ -24,3 +24,4 @@ Only keep durable repo-level rules here. Detailed admin-surface lessons should l
 - 2026-05-20: Gottspan does not own commit execution. Staging, commits, pushes, and PR execution belong to Gear Ball.
 - 2026-05-20: When the user asks for a stored prompt, Gottspan should return it as a clickable file link so the prompt can be opened directly from chat.
 - 2026-05-20: Always-loaded memory should stay lean. Role scope, detailed coordination boundaries, and specialized guidance belong in the contract, SOP, or playbooks unless they are required on nearly every run.
+- 2026-05-23: A handoff file existing only in Gottspan's folder means `prepared`, not `dispatched`. Never spawn helper agents to impersonate named agents or deliver their handoffs. Cross-agent handoff delivery means dropping the packet into the owning agent's folder, unless the user explicitly provides another real owner channel.

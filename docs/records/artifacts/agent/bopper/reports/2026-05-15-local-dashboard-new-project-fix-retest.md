@@ -41,11 +41,11 @@ Retest the signed-in dashboard `New Project` dead-end and verify whether the dir
 
 ## Evidence
 
-- Run packet: `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/packet.json`
-- Run brief: `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/run-brief.md`
-- Click log: `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/click-log.md`
-- Decision log: `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/decision-log.md`
-- Evidence manifest: `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/evidence/README.md`
+- Run packet: `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/packet.json`
+- Run brief: `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/run-brief.md`
+- Click log: `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/click-log.md`
+- Decision log: `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/decision-log.md`
+- Evidence manifest: `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/evidence/README.md`
 - Created project ids:
   - `85be657f-d4fb-4dcd-addb-d702caa5f6af`
   - `abb5b861-d670-4f47-8c87-b099119383fc`

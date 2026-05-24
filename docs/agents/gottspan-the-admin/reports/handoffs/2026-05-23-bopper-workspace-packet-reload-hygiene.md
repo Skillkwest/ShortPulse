@@ -9,16 +9,16 @@ Bopper is healthier than Beeper and already has explicit segregation from Beeper
 ## Evidence
 
 - Workspace-local files include:
-  - `bopper/HANDOFF.md`
-  - `bopper/AGENT-INSTRUCTIONS.md`
-  - `bopper/MEMORY.md`
-  - `bopper/TRAINING-SYSTEM.md`
-  - `bopper/PERSONA.md`
+  - `docs/agents/bopper/workspace/HANDOFF.md`
+  - `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md`
+  - `docs/agents/bopper/workspace/MEMORY.md`
+  - `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`
+  - `docs/agents/bopper/workspace/PERSONA.md`
 - Run packet JSON files exist under:
-  - `bopper/runs/2026-05-15-202334-dashboard-new-project-retest/packet.json`
-  - `bopper/runs/2026-05-15-204909-dashboard-new-project-fix-retest/packet.json`
-  - `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/packet.json`
-- `bopper/HANDOFF.md` already says not to expand local reload files into a second contract. That is the right direction and should be enforced.
+  - `docs/agents/bopper/workspace/runs/2026-05-15-202334-dashboard-new-project-retest/packet.json`
+  - `docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/packet.json`
+  - `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/packet.json`
+- `docs/agents/bopper/workspace/HANDOFF.md` already says not to expand local reload files into a second contract. That is the right direction and should be enforced.
 
 ## Requested Cleanup
 

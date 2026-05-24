@@ -54,7 +54,7 @@ Purpose: audit Beeper's prior production reports to determine whether the testin
   - `docs/agents/beeper/README.md`
   - `docs/agents/beeper/memory.md`
   - `docs/agents/beeper/standard-operating-procedure.md`
-  - `beeper/templates/workflow-ux-audit-template.md`
+  - `docs/agents/beeper/workspace/templates/workflow-ux-audit-template.md`
   - `docs/records/artifacts/agent/beeper/reports/run-report-template.md`
 - Supporting docs or tests inspected:
   - Beeper report corpus

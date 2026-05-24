@@ -7,8 +7,8 @@ Purpose: track Bopper workflow references and emerging SOP needs.
 - `docs/agents/bopper/standard-operating-procedure.md`
 - `docs/agents/d-bug/handoff-template.md`
 - `docs/records/artifacts/agent/bopper/handoff-from-beeper-2026-05-15.md`
-- `bopper/TRAINING-SYSTEM.md`
-- `bopper/route-success-map.md`
+- `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`
+- `docs/agents/bopper/workspace/route-success-map.md`
 - `docs/records/artifacts/agent/bopper/retest-debt.md`
 - `docs/routes.md`
 - `docs/testing-guide.md`
@@ -20,7 +20,7 @@ Purpose: track Bopper workflow references and emerging SOP needs.
 - Canonical retained handoff:
   - `docs/records/artifacts/agent/bopper/handoff-from-beeper-2026-05-15.md`
 - Workspace-local distilled handoff:
-  - `bopper/HANDOFF.md`
+  - `docs/agents/bopper/workspace/HANDOFF.md`
 - Standing contract:
   - `docs/agents/bopper/README.md`
 - Standing SOP:

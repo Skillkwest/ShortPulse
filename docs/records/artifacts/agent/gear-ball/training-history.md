@@ -16,6 +16,14 @@ Canonical detailed surfaces:
 
 ## Latest Supervised Synthesis
 
+- `2026-05-23` batching-speed audit across the last few production runs
+- User signal: Gear Ball may be over-batching and over-classifying, and the user wants the work to speed up without losing correctness.
+- Inference: the user is not asking for looser standards; they are pointing at a process-shape bug. The slow part is often not validation itself, but the amount of energy spent naming, defending, and rechecking lane boundaries after the honest split is already obvious.
+- Why this matters: Gear Ball's job is to reach a clean validated push, not to produce a perfect taxonomy of the dirty tree. Once classification goes past decision usefulness, it becomes overhead that delays the real work.
+- Required pivot: bias toward the fewest honest lanes, aim for 1 to 3 lanes total on normal mixed runs, and stop refining boundaries once one validation seam can clearly carry the batch.
+
+## Previous Supervised Synthesis
+
 - `2026-05-23` compact every-run score-loop correction
 - User signal: after every SOP run, Gear Ball should explicitly decide what it did wrong, what it did right, and what would raise the score next time, then write that into training data.
 - Inference: the user wants a stable learning loop embedded into SOP execution, but not at the cost of turning Gear Ball into a bloated self-maintenance agent. The learning step should be mandatory, compact, and subordinate to the publish job.
@@ -76,7 +84,7 @@ Canonical detailed surfaces:
 
 ## Current Training Priorities
 
-1. Split mixed trees earlier and defer resurfaced unrelated files by default unless they are required for correctness.
+1. Split mixed trees earlier, but stop at the first honest 1-to-3 lane shape instead of polishing the taxonomy further.
 2. Verify optional browser/smoke tooling availability before paying setup or reasoning cost for visual QA.
 3. Keep the retained score loop current after every sub-`9/10` supervised run so drift becomes visible immediately.
 4. Keep post-run suggestions restricted to SOP/process/self-scoring improvements unless the user explicitly asks for broader recommendations.
@@ -98,3 +106,4 @@ Canonical detailed surfaces:
 - Before the final SOP message, require an explicit answer to this question too: "what commits actually reached `production`, and does `git status --short` still show any real repo-backed work?"
 - After the final push-ready check, require one more explicit answer before the run is truly done: "what went right, what went wrong, and what single change would raise the next score?"
 - On shared-runtime UI lanes, do one cheap scan for dead callback dependencies and single-file formatting drift before the first preflight; that class of small cleanup is still a repeat cost center on otherwise healthy runs.
+- When one product behavior change already spans UI, tests, and a small docs update, keep it as one lane unless a different validation ladder is truly required.

@@ -18,7 +18,7 @@ Purpose: keep a durable log of the user's standing instructions, prompt patterns
 - Money is tight enough that wasted credits, wasted time, and unclear product value hit hard.
 - He is interested in AI influencer output but does not really want to put much work into mastering the system.
 - Frequent admin dependence should be treated as meaningful product friction, not neutral support behavior.
-- The fuller active ICP card should live in `bopper/PERSONA.md`, not be duplicated ad hoc in every report.
+- The fuller active ICP card should live in `docs/agents/bopper/workspace/PERSONA.md`, not be duplicated ad hoc in every report.
 
 ### 2026-05-15 - ICP testing emphasis
 

@@ -59,7 +59,7 @@ The following areas did not need a new cleanup handoff from this pass:
 - D-Bug already has a status section, but it is a manual list inside `docs/records/artifacts/agent/d-bug/handoffs/README.md`; the packet asks D-Bug to make the convention explicit and durable.
 - Holomony active instructions contain stale absolute paths to an older repo location under `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/`.
 - Gear Ball active memory and GitHub operations guidance still use `current user-approved branch` wording instead of leading with the current pre-launch `production` rule.
-- Bopper is healthier than Beeper, but its workspace contains local reload files plus run packets/JSON under `bopper/runs/`; the packet asks Bopper to keep the reload layer thin and make packet retention intentional.
+- Bopper is healthier than Beeper, but its workspace contains local reload files plus run packets/JSON under `docs/agents/bopper/workspace/runs/`; the packet asks Bopper to keep the reload layer thin and make packet retention intentional.
 - `docs/agents/change-impact-auditor.md` remains a flat file while most active agents now use a folder contract pattern.
 - Gottspan's older May 20 branch-policy reports are now historical and conflict with the newer pre-launch production-only rule unless clearly marked as superseded/historical.
 

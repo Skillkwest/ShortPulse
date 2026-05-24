@@ -50,7 +50,7 @@ Actions taken:
 
 - Added a frozen Beeper baseline KPI for training quality targets.
 - Added a retained Beeper run-report template focused on action logs, evidence, findings, and code handoff.
-- Added a `beeper/runs/` packet area plus scratch-note template for chronological supervised-run logging.
+- Added a `docs/agents/beeper/workspace/runs/` packet area plus scratch-note template for chronological supervised-run logging.
 - Added `start-training-run.mjs` so dated run packets and retained reports can be created mechanically.
 - Updated Beeper's contract, memory, tools, run log, and artifact README so supervised logging is mandatory rather than implied.
 
@@ -182,7 +182,7 @@ Task: make every Beeper checkpoint easy for the human trainer to scan and correc
 
 Actions taken:
 
-- Added a dedicated `beeper/checkpoint-summaries/` lane for short user-facing checkpoint recaps.
+- Added a dedicated `docs/agents/beeper/workspace/checkpoint-summaries/` lane for short user-facing checkpoint recaps.
 - Updated Beeper's contract, memory, SOP, workspace docs, and retained artifact docs so each meaningful checkpoint now requires both a full report and a short ADHD-friendly summary.
 - Added a reusable template for those summaries.
 - Backfilled the existing production checkpoints into the new summary lane so prior work is easy to review.
@@ -205,7 +205,7 @@ Task: give Beeper a durable way to track which routes, controls, and real-user a
 
 Actions taken:
 
-- Added a dedicated `beeper/action-coverage/` lane for route/control/action history.
+- Added a dedicated `docs/agents/beeper/workspace/action-coverage/` lane for route/control/action history.
 - Updated Beeper's contract, memory, SOP, checklist, workspace docs, and retained docs so future runs must consult and update coverage before choosing the next lane.
 - Backfilled the known production checkpoints into a master coverage log with status labels for route access, control exercise, and create/edit/save depth.
 - Added a reusable coverage-update template for future manual logging.
@@ -397,7 +397,7 @@ Task: reduce planning churn and make it easier for Beeper to resume with the hig
 
 Actions taken:
 
-- Added a ranked `beeper/next-run-queue.md` with the current highest-value real-user testing lanes.
+- Added a ranked `docs/agents/beeper/workspace/next-run-queue.md` with the current highest-value real-user testing lanes.
 - Updated memory, SOP, retained memory, tools inventory, and artifact docs so the queue becomes part of the normal run-start workflow.
 - Added a durable rule that deeper workflow coverage should win over further process-only hardening unless process drift is blocking the run.
 
@@ -417,7 +417,7 @@ Task: validate the full production logout -> sign-back-in loop like a real user 
 
 Actions taken:
 
-- Chose the top-ranked lane from `beeper/next-run-queue.md`.
+- Chose the top-ranked lane from `docs/agents/beeper/workspace/next-run-queue.md`.
 - Opened the signed-in dashboard, used the visible `Profile menu`, and triggered logout.
 - Initially misread the first `Log out` click as a failed logout, then verified the expected confirmation dialog and corrected the run.
 - Confirmed that the second `Log out` click cleared auth token keys and landed on the public home page.
@@ -441,7 +441,7 @@ Task: validate the dashboard projects overlay by reopening an existing saved pro
 
 Actions taken:
 
-- Chose the top-ranked lane from `beeper/next-run-queue.md`.
+- Chose the top-ranked lane from `docs/agents/beeper/workspace/next-run-queue.md`.
 - Opened the signed-in dashboard and used the visible `Open Projects` path.
 - Confirmed that the saved Beeper production project was visible in the overlay and selected it.
 - Landed in AI Studio with a stable `projectId`, reopened the in-studio projects overlay, and reloaded the route.
@@ -577,7 +577,7 @@ Task: tighten Beeper's reporting process so route-level success criteria and unr
 
 Actions taken:
 
-- Added `beeper/route-success-map.md` to define one believable normal-user success target per major route.
+- Added `docs/agents/beeper/workspace/route-success-map.md` to define one believable normal-user success target per major route.
 - Added `docs/records/artifacts/agent/beeper/retest-debt.md` to track open issue validations after handoff and fix work.
 - Updated Beeper's contract, memory, SOP, KPI, workspace docs, retained artifact README, and run-report template so route success targets, retest debt, and optional ROI tags are part of the standing workflow.
 - Logged the hardening pass in the retained run log so the process change is traceable without creating a trainer-facing process-only checkpoint summary.
@@ -679,7 +679,7 @@ Actions taken:
 
 - Designed `dumb-average-user` as a stricter first-impression and abandonment persona.
 - Designed `experienced-alpha-tester` as a deep workflow, continuity, and persistence persona.
-- Created working folders for both modes under `beeper/personas/`.
+- Created working folders for both modes under `docs/agents/beeper/workspace/personas/`.
 - Created contracts, memory, and SOPs for both modes under `docs/agents/beeper-modes/`.
 - Created retained artifact areas for both modes under `docs/records/artifacts/agent/beeper-modes/`.
 - Updated the parent Beeper contract, memory, SOP, workspace docs, and retained artifact README so Beeper now acts as the coordinator and can dispatch these personas as subagents.
@@ -747,20 +747,20 @@ Task: audit Beeper's own workspace for evidence bloat, privacy leakage, and low-
 
 Actions taken:
 
-- Audited the full `beeper/` workspace using the Gottspan audit-and-prune prompt and a second-pass self-check.
+- Audited the full `docs/agents/beeper/workspace/` workspace using the Gottspan audit-and-prune prompt and a second-pass self-check.
 - Confirmed that tracked raw evidence was the dominant bloat source: `107` PNG screenshots and `29` JSON captures across historical run packets.
 - Confirmed that multiple JSON files exposed sensitive material, including:
   - auth/session payloads
   - signed Supabase object URLs
   - identity-linked request traces and user/object identifiers
-- Created a new `beeper/findings/` folder to hold high-signal product syntheses that are worth loading before old run packets.
-- Created a new `beeper/evidence-manifests/` folder and backfilled a redacted run-evidence index for the 2026-05-15 production runs.
-- Created `beeper/evidence-cache/` as ignored local-only storage for future raw screenshots, JSON packets, and storage-state files.
+- Created a new `docs/agents/beeper/workspace/findings/` folder to hold high-signal product syntheses that are worth loading before old run packets.
+- Created a new `docs/agents/beeper/workspace/evidence-manifests/` folder and backfilled a redacted run-evidence index for the 2026-05-15 production runs.
+- Created `docs/agents/beeper/workspace/evidence-cache/` as ignored local-only storage for future raw screenshots, JSON packets, and storage-state files.
 - Updated Beeper's contract, SOP, memory, retained memory, tooling notes, templates, and helper scripts so future runs default to:
   - local raw evidence cache
   - tracked redacted manifest
   - tracked human-readable reports and handoffs
-- Retired the historical tracked `beeper/runs/*/evidence/` payloads after their usable product signal was preserved in human reports and the redacted manifest index.
+- Retired the historical tracked `docs/agents/beeper/workspace/runs/*/evidence/` payloads after their usable product signal was preserved in human reports and the redacted manifest index.
 
 Training result:
 
@@ -779,7 +779,7 @@ Task: prune internal Beeper persona scaffolds that were adding drift after Boppe
 
 Actions taken:
 
-- Removed the inactive `beeper/personas/` workspace tree.
+- Removed the inactive `docs/agents/beeper/workspace/personas/` workspace tree.
 - Removed the obsolete `docs/agents/beeper-modes/` child-mode contracts and SOPs.
 - Removed the obsolete `docs/records/artifacts/agent/beeper-modes/` retained artifact tree.
 - Simplified Beeper's current contract, memory, SOP, workspace docs, retained memory, tools, and indexes so the live operating model is now:

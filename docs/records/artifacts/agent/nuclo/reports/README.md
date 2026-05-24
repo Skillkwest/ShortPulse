@@ -2,6 +2,12 @@
 
 Purpose: store full environment audits, branch-to-environment maps, cutover packets, and validation summaries authored by Nuclo.
 
+Current context note:
+
+- Dated reports in this folder are historical snapshots.
+- They may describe earlier branch-ladder decisions, cutover posture, or environment mappings that are useful for traceability but are not Nuclo's current standing branch instruction.
+- For the current operating rule, use `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md`.
+
 ## Current Reports
 
 - `2026-05-08-environment-separation-and-production-cutover-plan.md`: audited environment-separation, production-readiness, and cutover plan based on live Vercel, GitHub, and Supabase inspection.

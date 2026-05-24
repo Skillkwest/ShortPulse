@@ -59,8 +59,8 @@ Suggested scoring:
 
 Coverage should be judged mainly from:
 
-- `bopper/action-coverage/master-coverage-log.md`
-- `bopper/route-success-map.md`
+- `docs/agents/bopper/workspace/action-coverage/master-coverage-log.md`
+- `docs/agents/bopper/workspace/route-success-map.md`
 - whether low-coverage routes are actually being closed
 
 ## Impact Score

@@ -251,5 +251,5 @@ Do not use it alone to judge Beeper's whole effectiveness as a tester.
 Campaign-level judgment should also consult:
 
 - `docs/records/artifacts/agent/beeper/campaign-scorecard.md`
-- `beeper/action-coverage/master-coverage-log.md`
+- `docs/agents/beeper/workspace/action-coverage/master-coverage-log.md`
 - outstanding D-Bug handoffs and retest debt

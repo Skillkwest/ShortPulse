@@ -33,9 +33,9 @@ Standing trigger phrase: `run Ayla`.
 
 ### Temporary workspace
 
-- `ayla/README.md`
-- `ayla/dropbox/README.md`
-- `ayla/drafts/README.md`
+- `docs/agents/ayla/workspace/README.md`
+- `docs/agents/ayla/workspace/dropbox/README.md`
+- `docs/agents/ayla/workspace/drafts/README.md`
 
 ### Core support references
 
@@ -109,7 +109,7 @@ Handoffs should include:
 
 - `docs/agents/ayla/memory.md` is the durable high-signal memory home.
 - `docs/records/artifacts/agent/ayla/` is for sanitized retained records and templates.
-- `ayla/` is temporary workspace only.
+- `docs/agents/ayla/workspace/` is temporary workspace only.
 - Do not retain raw customer/member data by default.
 - Redact names, email addresses, phone numbers, billing details, tokens, login links, and unnecessary screenshots before keeping any durable artifact.
 - Delete dropbox inputs after review unless Kirk explicitly approves a sanitized retained record.

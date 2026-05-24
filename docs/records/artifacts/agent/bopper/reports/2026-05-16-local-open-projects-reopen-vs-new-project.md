@@ -92,10 +92,10 @@ Retain the full operator view of the attempted `Open Projects` trust lane after 
 
 ## Evidence Packet
 
-- JSON packet: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/packet.json`
-- Run brief: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/run-brief.md`
-- Click log: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/click-log.md`
-- Decision log: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/decision-log.md`
+- JSON packet: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/packet.json`
+- Run brief: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/run-brief.md`
+- Click log: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/click-log.md`
+- Decision log: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/decision-log.md`
 - Screenshots: Computer Use screenshots embedded in the run transcript and summarized in `evidence/README.md`
 - Console / runtime signals: dev server/browser runtime output with exact `Module not found`, `ReferenceError`, and `TypeError` signatures
 - Local code references: `frontend/features/ai-studio/components/edit/expertEditPresets.ts`, `frontend/features/ai-studio/hooks/useExpertEditSystemPresetCatalog.ts`, `frontend/features/ai-studio/hooks/generationCharacterPreparation.ts`

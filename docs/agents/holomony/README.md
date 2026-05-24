@@ -6,6 +6,8 @@ Companion local instructions live in `AGENTS.md` in this same folder. Use that f
 
 Standing procedure lives in `standard-operating-procedure.md` in this same folder. Use it as the main repeatable Holomony workflow after loading the contract and local instruction overlay.
 
+Current active handoff, when one exists, lives in `CURRENT-HANDOFF.md` in this same folder. Completed handoffs belong under `previous-handoffs/`.
+
 Ownership boundaries live in `ownership-manifest.md` in this same folder. Use it when auditing what belongs inside Holomony space versus what should remain shared or owned elsewhere.
 
 Kirk-specific quick explainer lives in `Kirk.html` in this same folder. Use it when you want the simple, human-readable version of who Holomony is, what Holomony is doing, and what Holomony is learning.

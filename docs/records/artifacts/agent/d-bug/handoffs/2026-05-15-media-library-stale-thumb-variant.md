@@ -30,11 +30,11 @@ Historical note: the standalone Media Library page was removed from the product.
 - Expected behavior: route-first preview seeding should only hand the browser a valid lightweight preview URL or a safe fallback that does not force a failed image request first.
 - Actual behavior: `/api/media/list` seeds `signedById` with a signed `thumb_variant_path` that resolves to a missing object; Chromium reports `ERR_BLOCKED_BY_ORB`, then the client falls back to the original upload URL.
 - Logs, stack traces, screenshots, or file references:
-  - Beeper retained report: `beeper/reports/2026-05-15-prod-core-audit.md`
-  - Packet notes: `beeper/runs/2026-05-15-120659-prod-core-audit/notes.md`
-  - Route sweep packet: `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`
-  - Focused media packet: `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-focused.json`
-  - Captured in-app API body: `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-list-network.json`
+  - Beeper retained report: `docs/agents/beeper/workspace/reports/2026-05-15-prod-core-audit.md`
+  - Packet notes: `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/notes.md`
+  - Route sweep packet: `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`
+  - Focused media packet: `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-focused.json`
+  - Captured in-app API body: `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-list-network.json`
 - Frequency: reproduced in the first production audit run; currently confirmed for at least one row.
 
 ### Scope control
@@ -68,7 +68,7 @@ Historical note: the standalone Media Library page was removed from the product.
 
 Read first:
 
-- `beeper/reports/2026-05-15-prod-core-audit.md`
+- `docs/agents/beeper/workspace/reports/2026-05-15-prod-core-audit.md`
 - [docs/troubleshooting.md](../../../../../troubleshooting.md)
 - [docs/systems/catalog.md](../../../../../systems/catalog.md)
 

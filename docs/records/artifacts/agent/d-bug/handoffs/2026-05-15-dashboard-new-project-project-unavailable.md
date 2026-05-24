@@ -38,8 +38,8 @@
   - `Open projects` then lists the newly created `Untitled project`, so the app simultaneously claims the project is missing and present
 - Logs, stack traces, screenshots, or file references:
   - Bopper retained report: `docs/records/artifacts/agent/bopper/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
-  - Bopper full workflow report: `bopper/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
-  - Bopper run packet: `bopper/runs/2026-05-15-181132-dashboard-new-project-dead-end/notes.md`
+  - Bopper full workflow report: `docs/agents/bopper/workspace/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
+  - Bopper run packet: `docs/agents/bopper/workspace/runs/2026-05-15-181132-dashboard-new-project-dead-end/notes.md`
   - Runtime signals:
     - `POST /api/projects/create 200 in 2.6s`
     - repeated `GET /api/projects/db95508d-82f2-4827-a60d-32f9f0c48716 404`
@@ -78,7 +78,7 @@
 Read first:
 
 - `docs/records/artifacts/agent/bopper/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
-- `bopper/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
+- `docs/agents/bopper/workspace/reports/2026-05-15-local-dashboard-new-project-dead-end.md`
 
 Inspect first:
 

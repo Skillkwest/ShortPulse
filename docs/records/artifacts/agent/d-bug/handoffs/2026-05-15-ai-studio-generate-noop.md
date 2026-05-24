@@ -35,11 +35,11 @@
   - a workspace `PUT` occurs after the click
 - Logs, stack traces, screenshots, or file references:
   - Beeper retained report: `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-ai-studio-working-lane.md`
-  - Beeper full workflow report: `beeper/reports/2026-05-15-production-ai-studio-working-lane.md`
-  - Packet notes: `beeper/runs/2026-05-15-133731-prod-ai-studio-working-lane/notes.md`
+  - Beeper full workflow report: `docs/agents/beeper/workspace/reports/2026-05-15-production-ai-studio-working-lane.md`
+  - Packet notes: `docs/agents/beeper/workspace/runs/2026-05-15-133731-prod-ai-studio-working-lane/notes.md`
   - Evidence JSON:
-    - `beeper/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-control-map.json`
-    - `beeper/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-generate-summary.json`
+    - `docs/agents/beeper/workspace/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-control-map.json`
+    - `docs/agents/beeper/workspace/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-generate-summary.json`
   - Evidence screenshots:
     - `ai-working-09-prompt-filled.png`
     - `ai-working-10-after-generate-click.png`
@@ -79,7 +79,7 @@
 Read first:
 
 - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-ai-studio-working-lane.md`
-- `beeper/reports/2026-05-15-production-ai-studio-working-lane.md`
+- `docs/agents/beeper/workspace/reports/2026-05-15-production-ai-studio-working-lane.md`
 
 Inspect first:
 

@@ -2,6 +2,12 @@
 
 Purpose: record supervised Nuclo training runs, prompt patterns, lessons, SOP/template updates, tool changes, and next training focus.
 
+Current context note:
+
+- This file is historical training record only.
+- Earlier entries may describe ladder-era branch assumptions that no longer apply as standing operating instruction.
+- Nuclo's current branch rule lives in `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md`.
+
 ## 2026-05-08: Agent Setup
 
 Task: establish Nuclo as the ShortPulse version and environment manager with its own folder and durable memory.

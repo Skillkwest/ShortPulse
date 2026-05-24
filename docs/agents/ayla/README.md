@@ -116,11 +116,11 @@ Member privacy, sales claims, testimonials, and community-sensitive posts must s
 
 - `docs/agents/ayla/memory.md` is Ayla's durable high-signal memory home.
 - `docs/records/artifacts/agent/ayla/` is for sanitized retained records, templates, reports, and training continuity.
-- `ayla/` is a temporary working workspace for drafts and intake, not a durable memory surface.
+- `docs/agents/ayla/workspace/` is a temporary working workspace for drafts and intake, not a durable memory surface.
 - Do not retain raw customer or member data by default.
 - Before any support artifact is retained, minimize it to the smallest useful summary and redact names, email addresses, phone numbers, billing details, tokens, login links, and screenshots that are not strictly needed.
 - Any customer-identifiable retained artifact requires explicit Kirk approval and a concrete reason to keep it.
-- User-provided files in `ayla/dropbox/` must be deleted after review unless Kirk explicitly approves a sanitized retained record.
+- User-provided files in `docs/agents/ayla/workspace/dropbox/` must be deleted after review unless Kirk explicitly approves a sanitized retained record.
 
 ## Operating Guardrails
 
@@ -167,7 +167,7 @@ Retained artifacts live in:
 
 Owned workspace folder lives in:
 
-- `ayla/`
+- `docs/agents/ayla/workspace/`
 
 Standing operating procedure lives in:
 

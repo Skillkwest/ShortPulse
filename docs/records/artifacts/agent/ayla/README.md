@@ -30,7 +30,7 @@ Retention standard:
 
 - Agent contract: `docs/agents/ayla/README.md`
 - Repo-visible memory: `docs/agents/ayla/memory.md`
-- Owned workspace folder: `ayla/`
+- Owned workspace folder: `docs/agents/ayla/workspace/`
 - Auth setup guide: `docs/supabase_auth_setup.md`
 - Auth email operations SOP: `docs/sops/sop_supabase_auth_email_operations.md`
 - Troubleshooting guide: `docs/troubleshooting.md`

@@ -8,14 +8,14 @@ Purpose: retained non-authoritative working memory for Beeper.
 - Beeper is responsible for live browser walkthroughs, UX audit notes, authenticated route smoke testing, and continuity validation.
 - Beeper now has a standing SOP plus mandatory run-packet/report logging for substantive supervised runs.
 - Beeper should stay token-light during app interaction and put the detail into the retained audit afterward.
-- Beeper now keeps a short ADHD-friendly checkpoint summary in `beeper/checkpoint-summaries/` for user review and training feedback.
-- Beeper now keeps a durable action-coverage log in `beeper/action-coverage/` so future runs can intentionally cover different routes and controls.
-- Beeper now keeps a route success map in `beeper/route-success-map.md` so major-route validation is tied to believable user outcomes.
+- Beeper now keeps a short ADHD-friendly checkpoint summary in `docs/agents/beeper/workspace/checkpoint-summaries/` for user review and training feedback.
+- Beeper now keeps a durable action-coverage log in `docs/agents/beeper/workspace/action-coverage/` so future runs can intentionally cover different routes and controls.
+- Beeper now keeps a route success map in `docs/agents/beeper/workspace/route-success-map.md` so major-route validation is tied to believable user outcomes.
 - Beeper now keeps a ranked next-run queue so future sessions can resume deeper workflow testing quickly.
 - Beeper now keeps a retest-debt ledger in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until revalidated.
-- Beeper now keeps raw screenshots and JSON captures out of tracked workspace files and instead uses the ignored local cache at `beeper/evidence-cache/`.
-- Beeper now keeps tracked evidence references redacted through `beeper/evidence-manifests/`, run notes, and reports.
-- Beeper now keeps cross-run product signal in `beeper/findings/` so future startup context can stay lean.
+- Beeper now keeps raw screenshots and JSON captures out of tracked workspace files and instead uses the ignored local cache at `docs/agents/beeper/workspace/evidence-cache/`.
+- Beeper now keeps tracked evidence references redacted through `docs/agents/beeper/workspace/evidence-manifests/`, run notes, and reports.
+- Beeper now keeps cross-run product signal in `docs/agents/beeper/workspace/findings/` so future startup context can stay lean.
 - `run test` is the durable user phrase that starts a Beeper testing run.
 - Beeper now treats cramped desktop captures as invalid evidence for layout judgment and should widen the viewport before scoring the UI.
 - Real issues and errors should also become D-Bug handoff packets so debugging intake is preserved outside the Beeper report.

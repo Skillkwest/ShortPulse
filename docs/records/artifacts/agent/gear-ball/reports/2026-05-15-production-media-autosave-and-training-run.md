@@ -13,7 +13,7 @@ Purpose: publish the production AI Studio/media autosave hardening lane, the Bee
 | Commit              | Batch                            | Files/Scope                                                                 | Risk   | Validation |
 | ------------------- | -------------------------------- | --------------------------------------------------------------------------- | ------ | ---------- |
 | `d8eb70d50` | Production AI Studio/media lane  | `frontend/**`, `sql/migrations/124*`, media persistence docs/runtime files | High   | changed tests, `build`, full suite, `docs:check` |
-| `2d9a44e83` | Beeper/Bopper training lane      | `beeper/**`, `bopper/**`, `docs/agents/**`, `docs/records/artifacts/**`    | Medium | `docs:check`, full suite |
+| `2d9a44e83` | Beeper/Bopper training lane      | `docs/agents/beeper/workspace/**`, `docs/agents/bopper/workspace/**`, `docs/agents/**`, `docs/records/artifacts/**`    | Medium | `docs:check`, full suite |
 | `this closeout commit` | Gear Ball retained closeout lane | retained Gear Ball report, run log, training history                        | Low    | retained-file review |
 
 ## Validation Results

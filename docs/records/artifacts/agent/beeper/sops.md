@@ -7,7 +7,7 @@ Purpose: track Beeper workflow references and emerging SOP needs.
 - `docs/agents/beeper/standard-operating-procedure.md`
 - `docs/agents/d-bug/handoff-template.md`
 - `docs/agents/bopper/standard-operating-procedure.md`
-- `beeper/route-success-map.md`
+- `docs/agents/beeper/workspace/route-success-map.md`
 - `docs/records/artifacts/agent/beeper/retest-debt.md`
 - `docs/routes.md`
 - `docs/testing-guide.md`

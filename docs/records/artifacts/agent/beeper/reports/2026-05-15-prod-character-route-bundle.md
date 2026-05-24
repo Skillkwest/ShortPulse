@@ -86,13 +86,13 @@ Purpose: production Character route bundle.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-home-summary.json`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-route-ready-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-home-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-route-ready-summary.json`
 - Screenshots:
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-09-initial-create-shell.png`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-16-renamed-before-reload.png`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-17-after-add-look.png`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-19-fresh-session-reopen.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-09-initial-create-shell.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-16-renamed-before-reload.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-17-after-add-look.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-19-fresh-session-reopen.png`
 - Console / runtime signals:
   - no clean retained runtime packet because the browser lane stalled around fresh-session settle behavior rather than surfacing a neat API exception
 - Local code references:

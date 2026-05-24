@@ -45,21 +45,21 @@ This SOP governs:
 
 ### Working materials
 
-- `beeper/checklists/live-product-walkthrough.md`
-- `beeper/action-coverage/README.md`
-- `beeper/findings/README.md`
-- `beeper/evidence-manifests/README.md`
-- `beeper/evidence-cache/README.md`
-- `beeper/route-success-map.md`
-- `beeper/next-run-queue.md`
-- `beeper/checkpoint-summaries/README.md`
-- `beeper/reports/README.md`
-- `beeper/runs/README.md`
-- `beeper/templates/action-coverage-update-template.md`
-- `beeper/templates/training-run-notes-template.md`
-- `beeper/templates/checkpoint-user-summary-template.md`
+- `docs/agents/beeper/workspace/checklists/live-product-walkthrough.md`
+- `docs/agents/beeper/workspace/action-coverage/README.md`
+- `docs/agents/beeper/workspace/findings/README.md`
+- `docs/agents/beeper/workspace/evidence-manifests/README.md`
+- `docs/agents/beeper/workspace/evidence-cache/README.md`
+- `docs/agents/beeper/workspace/route-success-map.md`
+- `docs/agents/beeper/workspace/next-run-queue.md`
+- `docs/agents/beeper/workspace/checkpoint-summaries/README.md`
+- `docs/agents/beeper/workspace/reports/README.md`
+- `docs/agents/beeper/workspace/runs/README.md`
+- `docs/agents/beeper/workspace/templates/action-coverage-update-template.md`
+- `docs/agents/beeper/workspace/templates/training-run-notes-template.md`
+- `docs/agents/beeper/workspace/templates/checkpoint-user-summary-template.md`
 - `docs/records/artifacts/agent/beeper/reports/run-report-template.md`
-- `beeper/templates/workflow-ux-audit-template.md`
+- `docs/agents/beeper/workspace/templates/workflow-ux-audit-template.md`
 
 ### Core product references
 
@@ -71,11 +71,11 @@ This SOP governs:
 
 ### Current helper scripts
 
-- `node beeper/scripts/start-training-run.mjs --slug <name>`
-- `node beeper/scripts/start-checkpoint-report.mjs --slug <name>`
-- `node beeper/scripts/ensure-audit-user.mjs --apply`
-- `node beeper/scripts/ensure-audit-user.mjs --environment production --apply`
-- `node beeper/scripts/live-product-walkthrough.mjs`
+- `node docs/agents/beeper/workspace/scripts/start-training-run.mjs --slug <name>`
+- `node docs/agents/beeper/workspace/scripts/start-checkpoint-report.mjs --slug <name>`
+- `node docs/agents/beeper/workspace/scripts/ensure-audit-user.mjs --apply`
+- `node docs/agents/beeper/workspace/scripts/ensure-audit-user.mjs --environment production --apply`
+- `node docs/agents/beeper/workspace/scripts/live-product-walkthrough.mjs`
 
 ## Standard Run Types
 
@@ -110,13 +110,13 @@ Use only when the trainer explicitly wants Beeper's alpha read compared against 
 ### Step 2. Start the training packet
 
 - Create a dated packet before substantive supervised work:
-  - `node beeper/scripts/start-training-run.mjs --slug <name>`
+  - `node docs/agents/beeper/workspace/scripts/start-training-run.mjs --slug <name>`
 - Use the packet for chronological notes and the tracked redacted manifest.
 - Use the retained report for the durable audit summary.
-- Check `beeper/action-coverage/master-coverage-log.md` before picking the next lane so the run expands coverage on purpose.
-- Check `beeper/findings/` before reopening old packets when the goal is product understanding rather than raw forensic review.
-- Check `beeper/route-success-map.md` so the run is aiming at a real route-level success target instead of vague activity.
-- Check `beeper/next-run-queue.md` before inventing a new lane from scratch.
+- Check `docs/agents/beeper/workspace/action-coverage/master-coverage-log.md` before picking the next lane so the run expands coverage on purpose.
+- Check `docs/agents/beeper/workspace/findings/` before reopening old packets when the goal is product understanding rather than raw forensic review.
+- Check `docs/agents/beeper/workspace/route-success-map.md` so the run is aiming at a real route-level success target instead of vague activity.
+- Check `docs/agents/beeper/workspace/next-run-queue.md` before inventing a new lane from scratch.
 - Check `docs/records/artifacts/agent/beeper/retest-debt.md` before choosing a new lane so open fix validations are not skipped.
 - Check `docs/records/artifacts/agent/beeper/trainer-directives-log.md` so the active trainer intent is explicit before the run starts.
 - Bias lane selection toward the lowest-coverage meaningful route unless a retest or blocker has higher ROI.
@@ -182,10 +182,10 @@ If the lane does not plausibly support continuity pressure, say so plainly in th
 
 ### Step 6.5. Handle evidence safely
 
-- Keep raw screenshots, JSON packets, storage-state dumps, and network captures in the ignored local cache at `beeper/evidence-cache/`.
+- Keep raw screenshots, JSON packets, storage-state dumps, and network captures in the ignored local cache at `docs/agents/beeper/workspace/evidence-cache/`.
 - Do not commit signed Supabase URLs, auth tokens, refresh tokens, or identity-linked request traces into tracked Beeper workspace files.
 - Preserve tracked evidence only through redacted manifests, checkpoint summaries, Beeper reports, retained reports, and D-Bug handoffs.
-- If an older report references raw evidence under `beeper/runs/.../evidence/`, replace that dependency with the matching redacted manifest before relying on it as current operating context.
+- If an older report references raw evidence under `docs/agents/beeper/workspace/runs/.../evidence/`, replace that dependency with the matching redacted manifest before relying on it as current operating context.
 
 ### Step 7. Classify observations
 
@@ -251,11 +251,11 @@ When a finding is a real issue or error rather than a light UX observation:
 When the user wants deeper UI/UX workflow analysis:
 
 - keep the compact durable report in `docs/records/artifacts/agent/beeper/reports/`,
-- and write the fuller analysis in `beeper/reports/` with bottlenecks, behavioral observations, and fix ideas.
+- and write the fuller analysis in `docs/agents/beeper/workspace/reports/` with bottlenecks, behavioral observations, and fix ideas.
 
 At each meaningful checkpoint in a longer testing run:
 
-- create a detailed checkpoint report in `beeper/reports/`,
+- create a detailed checkpoint report in `docs/agents/beeper/workspace/reports/`,
 - record what Beeper actually tried,
 - state whether the checkpoint was `real-user path`, `mixed`, or `targeted probe`,
 - separate what worked from what failed,
@@ -269,7 +269,7 @@ For evidence references during or after the checkpoint:
 
 At each meaningful checkpoint in any user-facing training run:
 
-- create a short ADHD-friendly summary in `beeper/checkpoint-summaries/`,
+- create a short ADHD-friendly summary in `docs/agents/beeper/workspace/checkpoint-summaries/`,
 - make it easy to scan in under a minute,
 - explicitly list what was tried, what worked, what failed, and what got handed off,
 - and link the fuller Beeper report, retained report, run packet, and D-Bug handoff when they exist.
@@ -278,7 +278,7 @@ Do not create a trainer-facing checkpoint summary for process-only hardening or 
 
 At each meaningful checkpoint in any expanding product audit:
 
-- update `beeper/action-coverage/master-coverage-log.md`,
+- update `docs/agents/beeper/workspace/action-coverage/master-coverage-log.md`,
 - record the route, control, or workflow that was exercised,
 - mark whether it was only opened, actually used, or fully validated through create/edit/save/reopen style behavior,
 - and choose future runs to push into actions that are still untouched or only partially covered.

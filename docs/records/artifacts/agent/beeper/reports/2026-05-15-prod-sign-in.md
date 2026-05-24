@@ -46,8 +46,8 @@ Purpose: sign into production ShortPulse.
 
 ## Evidence Packet
 
-- JSON packet: `beeper/runs/2026-05-15-084342-prod-sign-in/evidence/prod-storage-state.json`
-- Screenshots: `beeper/runs/2026-05-15-084342-prod-sign-in/evidence/prod-dashboard-after-sign-in.png`
+- JSON packet: `docs/agents/beeper/workspace/runs/2026-05-15-084342-prod-sign-in/evidence/prod-storage-state.json`
+- Screenshots: `docs/agents/beeper/workspace/runs/2026-05-15-084342-prod-sign-in/evidence/prod-dashboard-after-sign-in.png`
 - Console / runtime signals: in-app browser credential entry failed because the runtime virtual clipboard was unavailable; standalone Playwright sign-in succeeded
 - Local code references: none needed for this run
 

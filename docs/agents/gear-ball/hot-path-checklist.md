@@ -18,8 +18,9 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - publish now
    - defer intentionally
    - ignore as temp/noise
-7. If the run is large or mixed, lock a file-backed manifest before staging.
-8. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
+7. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
+8. If the run is large or mixed, lock a file-backed manifest before staging.
+9. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Profiles
 
@@ -43,7 +44,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 ### `shared-runtime`
 
 1. Inventory the diff.
-2. Default to one commit unless a real risk boundary exists.
+2. Default to one commit unless a real risk boundary exists. Do not split merely because the lane spans UI, tests, and closely-coupled docs.
 3. Run `gear-ball:preflight`.
 4. Run targeted tests.
 5. Run `build`.
@@ -82,17 +83,18 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 ## Common Rules
 
 1. Start from one intended commit and split only on real boundaries.
-2. Use `gear-ball:preflight` for substantial or risky batches, not every tiny docs-only edit.
-3. Run `git status --short` after every commit before staging the next batch.
-4. If post-commit stash restore resurfaces unrelated files, treat them as a new lane by default and defer them unless they are required for correctness.
-5. Before any push or push-ready claim, rerun `git status --short` and confirm that every remaining non-temp change has been explicitly classified.
-6. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
-7. Before every commit, rerun `git diff --cached --name-only` and compare it to the intended lane manifest so pre-staged files cannot silently leak across batch boundaries.
-8. Before push, rerun only the final required validation on the exact final tree.
-9. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
-10. Push only the approved branch.
-11. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
-12. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+2. Do not refine lane boundaries past the point of decision usefulness. Once 1 to 3 coherent lanes are obvious, move to validation.
+3. Use `gear-ball:preflight` for substantial or risky batches, not every tiny docs-only edit.
+4. Run `git status --short` after every commit before staging the next batch.
+5. If post-commit stash restore resurfaces unrelated files, treat them as a new lane by default and defer them unless they are required for correctness.
+6. Before any push or push-ready claim, rerun `git status --short` and confirm that every remaining non-temp change has been explicitly classified.
+7. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
+8. Before every commit, rerun `git diff --cached --name-only` and compare it to the intended lane manifest so pre-staged files cannot silently leak across batch boundaries.
+9. Before push, rerun only the final required validation on the exact final tree.
+10. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
+11. Push only the approved branch.
+12. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+13. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
 

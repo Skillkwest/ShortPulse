@@ -86,8 +86,8 @@ Purpose: prod ai studio working lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-control-map.json`
-  - `beeper/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-generate-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-control-map.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-133731-prod-ai-studio-working-lane/evidence/ai-studio-generate-summary.json`
 - Screenshots:
   - `ai-studio-map-01-projects-overlay.png`
   - `ai-studio-map-02-ai-studio-home.png`

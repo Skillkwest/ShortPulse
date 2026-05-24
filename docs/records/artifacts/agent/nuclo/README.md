@@ -20,6 +20,11 @@ The agent has a durable contract, repo-visible memory, retained artifact area, a
 
 These artifacts support training, traceability, and operational planning. They do not override canonical repo rules, deployment docs, current user instructions, live provider state, or direct validation evidence.
 
+Current branch-policy note:
+
+- Historical references to `working-development`, `staging-preview`, or older branch-ladder decisions in this artifact area are retained for traceability only.
+- Nuclo's current standing operating rule lives in `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md`: during the current pre-launch phase, operate only on `production` unless the user explicitly changes that rule in-thread.
+
 ## Canonical Entry Points
 
 - Active handoff: `docs/agents/nuclo/CURRENT-HANDOFF.md`
@@ -29,4 +34,4 @@ These artifacts support training, traceability, and operational planning. They d
 - Local development guide: `docs/local-development.md`
 - Database migration guide: `docs/database-migrations.md`
 - Security checklist: `docs/security-checklist.md`
-- Owned workspace folder: `nuclo/`
+- Owned workspace folder: `docs/agents/nuclo/workspace/`

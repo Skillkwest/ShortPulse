@@ -5,7 +5,7 @@ Purpose: sanitized retained report for the production Supabase auth storage-stat
 ## Summary
 
 - Severity: P0 credential/session exposure.
-- Affected file: `beeper/runs/2026-05-15-084342-prod-sign-in/evidence/prod-storage-state.json`.
+- Affected file: `docs/agents/beeper/workspace/runs/2026-05-15-084342-prod-sign-in/evidence/prod-storage-state.json`.
 - Affected environment: production.
 - Affected account: Beeper production audit user `aiagentayla@gmail.com`.
 - Raw token values retained here: no.
@@ -16,7 +16,7 @@ Purpose: sanitized retained report for the production Supabase auth storage-stat
 - The file was introduced by commit `35c9a1dc9`.
 - The file contained a Playwright storage-state payload for `https://www.shortpulse.ai`.
 - The payload included a Supabase auth localStorage key with access-token and refresh-token material.
-- The working tree already contains deletions for the historical `beeper/runs/*/evidence/*` raw evidence set.
+- The working tree already contains deletions for the historical `docs/agents/beeper/workspace/runs/*/evidence/*` raw evidence set.
 - Beeper now has an ignored local raw evidence cache model plus tracked redacted evidence manifests.
 
 ## Response Completed In This Run

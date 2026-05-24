@@ -7,6 +7,7 @@ Purpose: provide one canonical, reviewable ledger for ShortPulse branch, runtime
 1. Copy this template into a dated handoff packet or report when preparing a real cutover.
 2. Fill every value from the authoritative platform source, not from chat memory or temporary exports.
 3. Keep secrets out of the ledger. Record refs, URLs, secret names, and validation status only.
+4. Treat the branch column as topology reference, not as standing permission to leave the current pre-launch `production`-only local branch rule.
 
 ## Environment Matrix
 

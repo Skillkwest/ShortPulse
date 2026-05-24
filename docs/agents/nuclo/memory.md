@@ -6,9 +6,9 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 
 - Formal name: Nuclo.
 - Short name: Nuclo.
-- Role: environment and version manager for the ShortPulse branch ladder, Vercel topology, and Supabase project wiring.
+- Role: environment and version manager for ShortPulse's pre-launch `production` operating posture, Vercel topology, and Supabase project wiring.
 - Default posture: map first, mutate second.
-- Branch ladder rule: `working-development` -> `staging-preview` -> `production`.
+- Historical environment topology reference: `working-development` -> `staging-preview` -> `production`.
 - Standing user branch rule: during the current pre-launch phase, work only on `production` unless the user explicitly changes that rule in the current thread.
 - Branch safety rule: keep `git config --local shortpulse.allowedBranch` aligned before branch-affecting work.
 - Env rule: local env files are convenience surfaces, not deployed source of truth.
@@ -23,7 +23,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - 2026-05-08: At Nuclo setup time, the repo was linked locally to Vercel project `shortpulse` through `.vercel/project.json`.
 - 2026-05-08: At Nuclo setup time, the repo's local Supabase link pointed to project ref `jwmcytzyhcvacjwqtynn` (`ShortPulse`), while a separate hosted production project ref `ftgrqgjrchpimronuhop` (`ShortPulse – PRODUCTION – Live`) already existed.
 - 2026-05-08: A live Vercel environment audit from this shell was blocked because no authenticated `vercel` credentials or `SHORTPULSE_VERCEL_API_TOKEN` were available.
-- 2026-05-08: Nuclo should preserve the distinction between repo-visible contract docs, retained artifacts, and the top-level `nuclo/` workspace. The workspace is useful, but it is not higher authority than canonical docs.
+- 2026-05-08: Nuclo should preserve the distinction between repo-visible contract docs, retained artifacts, and the top-level `docs/agents/nuclo/workspace/` workspace. The workspace is useful, but it is not higher authority than canonical docs.
 - 2026-05-08: Once live credentials were available, direct inspection showed Vercel branch routing was mostly correct, but `Development`, `Preview`, and `Production` still resolved core Supabase runtime variables to the staging Supabase project.
 - 2026-05-08: Direct production runtime inspection showed base URL envs were still pointed at the Vercel default domain instead of `https://www.shortpulse.ai`.
 - 2026-05-08: The hosted production Supabase project existed but was not app-ready during live inspection; core app tables, auth users, and storage buckets were not yet present.
@@ -93,7 +93,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - 2026-05-14: Staging was still behind working-development on migration `123`: `public.generation_projection` was missing `companion_art_status`, `companion_art_storage_path`, `companion_art_attempt_count`, and index `ix_generation_projection_companion_art_pending`. Applying `sql/migrations/123_add_audio_companion_art_projection_fields.sql` to staging closed that drift.
 - 2026-05-14: `scripts/ops/supabase_public_schema_parity.sh` now checks columns and indexes in addition to tables, routines, and policies. This was required because the earlier name-only parity pass falsely reported dev/staging parity even while staging was missing migration `123` column/index objects.
 - 2026-05-14: `scripts/check_vercel_env_contract.mjs` no longer carries the default preview branch into development-only audits. `node scripts/check_vercel_env_contract.mjs --environment development` now passes cleanly instead of false-failing with `--git-branch can only be used when auditing preview`.
-- 2026-05-14: The standing user branch directive is now explicit in Nuclo contract and memory: operate only on `working-development`, and never switch to another branch unless the user explicitly changes that rule in the current thread.
+- 2026-05-14: During the earlier ladder-era phase, Nuclo contract and memory were updated to operate only on `working-development`. Treat that instruction as historical context only; it is superseded by the 2026-05-23 pre-launch `production`-only rule.
 - 2026-05-23: The current pre-launch operating posture overrides Nuclo's earlier ladder-era local branch default. Until the user explicitly changes the rule again, Nuclo should operate only on `production`.
 
 ## Open Follow-Ups

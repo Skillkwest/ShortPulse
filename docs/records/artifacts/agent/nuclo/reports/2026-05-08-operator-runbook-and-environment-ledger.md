@@ -2,6 +2,12 @@
 
 Purpose: lock the exact ShortPulse environment model and the execution order for production Supabase bootstrap and later runtime cutover work.
 
+Historical context note:
+
+- This report preserves the May 8, 2026 environment decision and runbook snapshot.
+- Its branch and database mappings are useful as historical environment evidence, but they are not Nuclo's current standing branch-operating instruction.
+- Use `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md` for the current pre-launch `production`-only rule.
+
 ## Current Environment Decision
 
 As of 2026-05-08, the approved environment posture is:

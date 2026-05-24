@@ -19,7 +19,7 @@ Purpose: define the baseline quality targets Bopper should improve against over 
 - Substantive runs with a confidence tag, gate check, and next-run drill: target `100%`
 - Substantive runs that expose one believable trust-breaking average-user problem or validate one naive-user success path: target `>= 90%`
 - Coverage growth across obvious-entry surfaces: target `>= 70%`
-- Major routes with one defined naive-user success target in `bopper/route-success-map.md`: target `100%`
+- Major routes with one defined naive-user success target in `docs/agents/bopper/workspace/route-success-map.md`: target `100%`
 - Open retest-debt items with a clear validation trigger in `retest-debt.md`: target `100%`
 - Campaign Coverage Score from `campaign-scorecard.md`: target `>= 8.0`
 - Campaign Impact Score from `campaign-scorecard.md`: target `>= 8.5`

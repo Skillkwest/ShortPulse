@@ -37,15 +37,15 @@
 - Beeper retained report:
   - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-character-route-bundle.md`
 - Beeper full report:
-  - `beeper/reports/2026-05-15-production-character-route-bundle.md`
+  - `docs/agents/beeper/workspace/reports/2026-05-15-production-character-route-bundle.md`
 - Run packet:
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle`
 - Primary screenshots:
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-17-after-add-look.png`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-19-fresh-session-reopen.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-17-after-add-look.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-19-fresh-session-reopen.png`
 - Supporting route captures:
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-09-initial-create-shell.png`
-  - `beeper/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-16-renamed-before-reload.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-09-initial-create-shell.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-170121-prod-character-route-bundle/evidence/character-16-renamed-before-reload.png`
 
 ## Likely Code Surfaces
 

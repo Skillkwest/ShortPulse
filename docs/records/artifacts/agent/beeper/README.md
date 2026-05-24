@@ -8,13 +8,13 @@ Beeper is currently at `Level 1: Supervised`.
 
 The agent has a durable contract, repo-visible memory, retained artifact area, owned workspace folder, standing SOP, and training packet flow. Beeper is ready for supervised live-product alpha-testing runs.
 Real issues that merit engineering follow-up should also produce a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
-User-facing checkpoint summaries live in `beeper/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
-Cross-run product syntheses live in `beeper/findings/` so future sessions can load compact truth before raw packet archaeology.
-Tracked redacted evidence references live in `beeper/evidence-manifests/` or per-run `evidence-manifest.md` files.
-Local raw screenshots and JSON packets live only in the ignored cache at `beeper/evidence-cache/`.
-Route/control/action coverage history lives in `beeper/action-coverage/` so Beeper can expand functional coverage over time.
-The ranked next-lane queue lives in `beeper/next-run-queue.md` so Beeper can resume with less planning churn.
-Major-route success targets live in `beeper/route-success-map.md` so coverage depth is judged against real user outcomes.
+User-facing checkpoint summaries live in `docs/agents/beeper/workspace/checkpoint-summaries/` so the human trainer can scan each checkpoint quickly.
+Cross-run product syntheses live in `docs/agents/beeper/workspace/findings/` so future sessions can load compact truth before raw packet archaeology.
+Tracked redacted evidence references live in `docs/agents/beeper/workspace/evidence-manifests/` or per-run `evidence-manifest.md` files.
+Local raw screenshots and JSON packets live only in the ignored cache at `docs/agents/beeper/workspace/evidence-cache/`.
+Route/control/action coverage history lives in `docs/agents/beeper/workspace/action-coverage/` so Beeper can expand functional coverage over time.
+The ranked next-lane queue lives in `docs/agents/beeper/workspace/next-run-queue.md` so Beeper can resume with less planning churn.
+Major-route success targets live in `docs/agents/beeper/workspace/route-success-map.md` so coverage depth is judged against real user outcomes.
 Open retest debt lives in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs stay visible until Beeper revalidates them.
 
 ## Artifact Layout
@@ -52,10 +52,10 @@ These artifacts support training, traceability, and workflow continuity. They do
 
 - Agent contract: `docs/agents/beeper/README.md`
 - Repo-visible memory: `docs/agents/beeper/memory.md`
-- Owned workspace folder: `beeper/`
-- Findings folder: `beeper/findings/`
-- Evidence manifest folder: `beeper/evidence-manifests/`
+- Owned workspace folder: `docs/agents/beeper/workspace/`
+- Findings folder: `docs/agents/beeper/workspace/findings/`
+- Evidence manifest folder: `docs/agents/beeper/workspace/evidence-manifests/`
 - Routes map: `docs/routes.md`
 - Testing guide: `docs/testing-guide.md`
 - Local development guide: `docs/local-development.md`
-- Beeper workspace run packets: `beeper/runs/`
+- Beeper workspace run packets: `docs/agents/beeper/workspace/runs/`

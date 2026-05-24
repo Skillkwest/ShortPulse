@@ -107,7 +107,7 @@ Purpose: production Character continuity reuse lane in the Codex in-app browser.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-231544-prod-character-reuse-lane/evidence/character-reuse-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-231544-prod-character-reuse-lane/evidence/character-reuse-summary.json`
 - Screenshots:
   - none retained in this packet
 - Console / runtime signals:

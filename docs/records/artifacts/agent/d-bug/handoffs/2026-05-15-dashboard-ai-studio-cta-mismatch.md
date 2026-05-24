@@ -29,10 +29,10 @@
 - Actual behavior: the CTA language promises AI Studio, but the first click opens the project-name modal without route change.
 - Logs, stack traces, screenshots, or file references:
   - Beeper retained report: `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-real-user-exploratory.md`
-  - Beeper full workflow report: `beeper/reports/2026-05-15-production-dashboard-entry-and-settings-ux.md`
-  - Packet notes: `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/notes.md`
-  - Evidence JSON: `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/dashboard-entry-flow-summary.json`
-  - Evidence screenshot: `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/real-user-05-dashboard-ai-studio-cta-modal.png`
+  - Beeper full workflow report: `docs/agents/beeper/workspace/reports/2026-05-15-production-dashboard-entry-and-settings-ux.md`
+  - Packet notes: `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/notes.md`
+  - Evidence JSON: `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/dashboard-entry-flow-summary.json`
+  - Evidence screenshot: `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/real-user-05-dashboard-ai-studio-cta-modal.png`
 - Frequency: reproduced on the first real-user production dashboard pass; deterministic in that run.
 
 ### Scope control
@@ -67,7 +67,7 @@
 Read first:
 
 - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-real-user-exploratory.md`
-- `beeper/reports/2026-05-15-production-dashboard-entry-and-settings-ux.md`
+- `docs/agents/beeper/workspace/reports/2026-05-15-production-dashboard-entry-and-settings-ux.md`
 - `docs/routes.md`
 
 Inspect first:

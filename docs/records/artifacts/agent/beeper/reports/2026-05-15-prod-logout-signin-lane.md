@@ -68,7 +68,7 @@ Purpose: production logout sign in lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-143100-prod-logout-signin-lane/evidence/logout-signin-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-143100-prod-logout-signin-lane/evidence/logout-signin-summary.json`
 - Screenshots:
   - `logout-signin-01-dashboard.png`
   - `logout-signin-02-profile-menu.png`

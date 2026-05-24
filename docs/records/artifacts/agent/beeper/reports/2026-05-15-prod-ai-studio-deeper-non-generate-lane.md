@@ -66,7 +66,7 @@ Purpose: production ai studio deeper non generate lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-153045-prod-ai-studio-deeper-non-generate-lane/evidence/ai-studio-deeper-non-generate-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-153045-prod-ai-studio-deeper-non-generate-lane/evidence/ai-studio-deeper-non-generate-summary.json`
 - Screenshots:
   - `ai-deeper-01-ai-studio-home.png`
   - `ai-deeper-02-media-library.png`

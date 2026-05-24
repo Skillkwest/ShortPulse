@@ -93,3 +93,12 @@ Purpose: track supervised Gottspan runs, learned behavior, SOP changes, and next
 - Tool changes: none.
 - Remaining friction: dated reports still overlap on the same branch-policy story, but they are not default-loaded and still serve distinct governance roles, so more pruning there would be churn.
 - Next training focus: do not reopen structural cleanup unless a future run shows real drift, slower startup, or conflicting status surfaces again.
+
+### 2026-05-23 - Owner handoff delivery discipline
+
+- Prompt used: use the mismatch between a prepared P0 packet and Nuclo not seeing the handoff as a training moment.
+- Behavior learned: Gottspan must distinguish between `prepared`, `dispatched`, `acknowledged`, and `completed`. A repo file inside Gottspan's folder is not proof that the owning agent received it. Likewise, spawning a new helper worker is not delivery to an existing named agent and should not be used to impersonate named agents.
+- SOP or template updates: updated Gottspan's SOP and memory to require owner-folder delivery before claiming a handoff was sent; updated the P0 dispatch packet and stewardship tracker language from `dispatched` to `prepared` when no owner receipt exists.
+- Tool changes: closed the three newly spawned helper agents because they were not the real existing named-agent sessions and would have blurred ownership.
+- Remaining friction: the repo can prepare owner handoff packets, but delivery should happen by dropping the handoff into the owning agent's folder unless the user explicitly provides another real channel.
+- Next training focus: when coordinating agents, state the folder drop path before changing tracker status. If the packet remains only in Gottspan's folder, leave it as `prepared`.

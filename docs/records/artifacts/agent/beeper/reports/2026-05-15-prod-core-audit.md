@@ -20,7 +20,7 @@ Purpose: production core route audit.
 
 | Step | Surface                    | Action                                                                               | Result                                                                                                                                                    | Evidence                                                                                                         |
 | ---- | -------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1    | walkthrough script         | Ran the starter production route sweep                                               | All five core routes loaded and produced screenshots                                                                                                      | `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`                                      |
+| 1    | walkthrough script         | Ran the starter production route sweep                                               | All five core routes loaded and produced screenshots                                                                                                      | `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`                                      |
 | 2    | dashboard                  | Read the signed-in shell and top-level content                                       | Dashboard loaded; announcement copy looked informal/test-like for production                                                                              | `route-01.png`                                                                                                   |
 | 3    | media-library              | Followed the only concrete runtime failure from the sweep                            | One signed image request hit `net::ERR_BLOCKED_BY_ORB`                                                                                                    | `audit-summary.json`                                                                                             |
 | 4    | media-library focused pass | Reopened `historical implementation`, waited for preview recovery, and inspected rendered cards | The broken preview recovered to the original upload URL; the route was not hard-broken                                                                    | `media-library-focused.json`, `media-library-focused.png`                                                        |
@@ -77,9 +77,9 @@ Purpose: production core route audit.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`
-  - `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-focused.json`
-  - `beeper/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-list-network.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/audit-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-focused.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-120659-prod-core-audit/evidence/media-library-list-network.json`
 - Screenshots:
   - `route-01.png` through `route-05.png`
   - `media-library-focused.png`

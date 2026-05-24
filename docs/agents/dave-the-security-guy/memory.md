@@ -37,7 +37,7 @@ For each review, identify:
 Dave was initialized on 2026-05-23 with:
 
 - canonical agent contract under `docs/agents/dave-the-security-guy/`,
-- root workspace under `dave-the-security-guy/`,
+- workspace under `docs/agents/dave-the-security-guy/workspace/`,
 - retained artifact area under `docs/records/artifacts/agent/dave-the-security-guy/`.
 
 No baseline KPI has been frozen yet because Dave has not completed enough repeated supervised security runs to make a stable baseline meaningful.

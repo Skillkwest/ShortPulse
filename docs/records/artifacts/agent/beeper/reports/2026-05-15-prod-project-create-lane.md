@@ -68,7 +68,7 @@ Purpose: prod project create lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-133047-prod-project-create-lane/evidence/project-create-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-133047-prod-project-create-lane/evidence/project-create-summary.json`
 - Screenshots:
   - `project-create-01-dashboard.png`
   - `project-create-02-modal.png`

@@ -6,18 +6,18 @@ Purpose: retain Beeper's helper inventory and future tooling needs.
 
 - local browser-driven route testing
 - existing Playwright audit scripts under `frontend/tests/e2e/`
-- `node beeper/scripts/ensure-audit-user.mjs --apply`
-- `node beeper/scripts/ensure-audit-user.mjs --environment production --apply`
-- `node beeper/scripts/live-product-walkthrough.mjs`
-- `node beeper/scripts/start-training-run.mjs --slug <name>`
-- `beeper/evidence-cache/` for ignored local raw screenshots, JSON packets, and storage-state files
-- `beeper/evidence-manifests/` for tracked redacted evidence references
-- `beeper/findings/` for compact cross-run product synthesis
+- `node docs/agents/beeper/workspace/scripts/ensure-audit-user.mjs --apply`
+- `node docs/agents/beeper/workspace/scripts/ensure-audit-user.mjs --environment production --apply`
+- `node docs/agents/beeper/workspace/scripts/live-product-walkthrough.mjs`
+- `node docs/agents/beeper/workspace/scripts/start-training-run.mjs --slug <name>`
+- `docs/agents/beeper/workspace/evidence-cache/` for ignored local raw screenshots, JSON packets, and storage-state files
+- `docs/agents/beeper/workspace/evidence-manifests/` for tracked redacted evidence references
+- `docs/agents/beeper/workspace/findings/` for compact cross-run product synthesis
 - thread heartbeat automation: `beeper-30-minute-test-heartbeat`
 - `docs/agents/d-bug/handoff-template.md` for durable debug intake when Beeper finds a real issue
-- `beeper/action-coverage/master-coverage-log.md` for route/control/action coverage planning between runs
-- `beeper/route-success-map.md` for defining major-route success targets
-- `beeper/next-run-queue.md` for ranked lane selection
+- `docs/agents/beeper/workspace/action-coverage/master-coverage-log.md` for route/control/action coverage planning between runs
+- `docs/agents/beeper/workspace/route-success-map.md` for defining major-route success targets
+- `docs/agents/beeper/workspace/next-run-queue.md` for ranked lane selection
 - `docs/agents/bopper/README.md` for the separate average-user comparison lane
 - `docs/records/artifacts/agent/beeper/retest-debt.md` for retest prioritization after bug discovery
 - `docs/records/artifacts/agent/beeper/performance-scorecard.md` for run scoring

@@ -33,7 +33,7 @@ Actions taken:
 - Followed the natural create flow into `/ai-studio?projectId=...`.
 - Captured the resulting `Project unavailable` / `Project not found.` dead end and the contradictory recovery state where `Open projects` still listed the newly created project.
 - Added a Bopper run packet, detailed report, checkpoint summary, retained report, coverage updates, and a D-Bug handoff.
-- Added `bopper/scripts/start-average-run.mjs` so future Bopper runs can scaffold their own packet and report shells consistently.
+- Added `docs/agents/bopper/workspace/scripts/start-average-run.mjs` so future Bopper runs can scaffold their own packet and report shells consistently.
 
 Training result:
 
@@ -73,7 +73,7 @@ Task: make Bopper's run data useful both for better design decisions and for tea
 
 Actions taken:
 
-- Formalized the dual-use objective inside `bopper/TRAINING-SYSTEM.md`.
+- Formalized the dual-use objective inside `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`.
 - Added `docs/records/artifacts/agent/bopper/persona-design-lessons.md` as the durable cross-agent teaching artifact.
 - Updated the Bopper contract, memory, SOP, and retained-artifact index so persona-learning lessons become part of the standard workflow.
 
@@ -114,9 +114,9 @@ Task: ensure Bopper's own folder contains explicit saved instructions and memory
 
 Actions taken:
 
-- Added `bopper/AGENT-INSTRUCTIONS.md` as the workspace-local instruction entrypoint.
-- Added `bopper/MEMORY.md` as the workspace-local memory entrypoint.
-- Updated `bopper/README.md` so both files are part of the normal folder map.
+- Added `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md` as the workspace-local instruction entrypoint.
+- Added `docs/agents/bopper/workspace/MEMORY.md` as the workspace-local memory entrypoint.
+- Updated `docs/agents/bopper/workspace/README.md` so both files are part of the normal folder map.
 
 Training result:
 
@@ -150,7 +150,7 @@ Task: make every checkpoint summary a short ADHD-friendly digest of the full Bop
 
 Actions taken:
 
-- Tightened `bopper/checkpoint-summaries/README.md` with a fixed skim format.
+- Tightened `docs/agents/bopper/workspace/checkpoint-summaries/README.md` with a fixed skim format.
 - Updated the Bopper SOP and training system so summaries explicitly digest the packet, detailed report, and retained report.
 - Updated the run scaffold so new summaries always prompt for `Lane`, `Confused`, `ICP takeaway`, and `Handoff`.
 - Saved the directive in the trainer directives log.
@@ -169,8 +169,8 @@ Task: write the ADHD-friendly checkpoint-summary rule into Bopper's own local in
 
 Actions taken:
 
-- Updated `bopper/AGENT-INSTRUCTIONS.md`.
-- Updated `bopper/MEMORY.md`.
+- Updated `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md`.
+- Updated `docs/agents/bopper/workspace/MEMORY.md`.
 
 Training result:
 
@@ -211,7 +211,7 @@ Task: reduce Bopper workspace drift and correct the trigger split between Beeper
 
 Actions taken:
 
-- Promoted `bopper/HANDOFF.md` into the single workspace command-center file.
+- Promoted `docs/agents/bopper/workspace/HANDOFF.md` into the single workspace command-center file.
 - Removed redundant workspace-local instruction and memory overlays that mostly duplicated canonical docs.
 - Corrected Bopper's canonical trigger surfaces so `run average test` is primary and `run test` stays with Beeper unless explicitly redirected.
 
@@ -231,7 +231,7 @@ Task: audit Bopper's space for Beeper drift, restore missing local reload files,
 
 Actions taken:
 
-- Restored `bopper/AGENT-INSTRUCTIONS.md` and `bopper/MEMORY.md` as thin workspace-local reload files.
+- Restored `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md` and `docs/agents/bopper/workspace/MEMORY.md` as thin workspace-local reload files.
 - Corrected the active trigger across Bopper's live surfaces so `run test` is primary and older phrases remain aliases.
 - Removed active instructions that routed `run test` or live Bopper work back through Beeper.
 - Clarified that historical Beeper handoff files remain archival context rather than daily operating truth.
@@ -330,8 +330,8 @@ Task: make sure the richer ADHD-summary format lives inside Bopper's saved instr
 Actions taken:
 
 - Strengthened `docs/agents/bopper/memory.md` with the rich-summary requirement.
-- Tightened `bopper/AGENT-INSTRUCTIONS.md` so the required summary shape is explicit.
-- Tightened `bopper/MEMORY.md` so the minimum section layout is preserved locally.
+- Tightened `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md` so the required summary shape is explicit.
+- Tightened `docs/agents/bopper/workspace/MEMORY.md` so the minimum section layout is preserved locally.
 
 Training result:
 

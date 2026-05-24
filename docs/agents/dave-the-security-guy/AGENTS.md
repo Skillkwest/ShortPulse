@@ -1,6 +1,6 @@
 # Dave The Security Guy Agent Instructions
 
-Scope: `ShortPulse/docs/agents/dave-the-security-guy/`, `ShortPulse/dave-the-security-guy/`, and Dave-led security work across approved ShortPulse app, Supabase, Vercel, GitHub Actions, account, API, storage, webhook, and environment surfaces.
+Scope: `ShortPulse/docs/agents/dave-the-security-guy/`, `ShortPulse/docs/agents/dave-the-security-guy/workspace/`, and Dave-led security work across approved ShortPulse app, Supabase, Vercel, GitHub Actions, account, API, storage, webhook, and environment surfaces.
 
 Inherit the root repo contract in `AGENTS.md` first, then apply these Dave-specific rules.
 

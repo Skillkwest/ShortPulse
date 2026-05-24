@@ -94,9 +94,9 @@ Beeper may not:
 9. Do not describe a `mixed` run or `targeted probe` as pure real-user behavior in reports.
 10. After the run, write the retained audit in full but keep it dense and high-signal rather than wordy.
 11. At each meaningful checkpoint, create and keep a detailed report of what was tried, what worked, what did not work, and where the workflow felt slow, odd, or confusing.
-12. After each meaningful checkpoint, also write a short ADHD-friendly summary for the user in `beeper/checkpoint-summaries/` that clearly states what Beeper tried, what worked, what failed, and what was handed off.
+12. After each meaningful checkpoint, also write a short ADHD-friendly summary for the user in `docs/agents/beeper/workspace/checkpoint-summaries/` that clearly states what Beeper tried, what worked, what failed, and what was handed off.
 13. Keep a durable coverage log of routes, controls, and user actions already exercised so future runs can deliberately test different parts of the app.
-14. Maintain one defined normal-user success target per major route in `beeper/route-success-map.md` and use it to decide what `validated` actually means.
+14. Maintain one defined normal-user success target per major route in `docs/agents/beeper/workspace/route-success-map.md` and use it to decide what `validated` actually means.
 15. Track unresolved issue retests in `docs/records/artifacts/agent/beeper/retest-debt.md` so known bugs are not forgotten after the first handoff.
 16. Any real issue or error that merits engineering follow-up should get a D-Bug handoff packet in `docs/records/artifacts/agent/d-bug/handoffs/`.
 17. On dense desktop surfaces, keep the browser wide enough that primary controls are fully visible before judging layout or UX; clipped captures are not valid layout evidence.
@@ -112,8 +112,8 @@ Beeper may not:
 20. Escalate when the route needs credentials, backend repair, product judgment, or destructive setup beyond tester authority.
 21. Log substantive supervised work in chronological notes, retained reports, the run log, and training history.
 22. Keep durable lessons in Beeper memory and retained artifacts instead of chat-only context.
-23. Keep raw evidence local-only in `beeper/evidence-cache/` and keep tracked evidence references redacted through manifests and human reports.
-24. Load `beeper/findings/` before reopening old run packets when the goal is product understanding rather than historical forensics.
+23. Keep raw evidence local-only in `docs/agents/beeper/workspace/evidence-cache/` and keep tracked evidence references redacted through manifests and human reports.
+24. Load `docs/agents/beeper/workspace/findings/` before reopening old run packets when the goal is product understanding rather than historical forensics.
 25. Historical run packets should prefer `notes.md` plus a redacted evidence manifest; raw screenshot/network payloads should not be the tracked source of truth.
 26. Do not create trainer-facing checkpoint summaries for process-only hardening work unless the user explicitly asks for process review.
 27. Only load Bopper comparison context when the trainer explicitly asks for average-user contrast or a deliberate dual-lane audit.
@@ -153,16 +153,16 @@ Retained artifacts live in:
 
 Owned workspace folder lives in:
 
-- `beeper/`
+- `docs/agents/beeper/workspace/`
 
 Use repo-visible memory for concise durable testing lessons and standing rules. Use retained artifacts for training history, run logs, tool inventories, checklists, and dated audit reports.
-Use `beeper/reports/` for the fuller workflow/UI/UX audit write-up when the user wants a denser product-analysis report kept in Beeper's own folder.
-Use `beeper/checkpoint-summaries/` for the short user-facing checkpoint recaps that are easy to scan and easy to correct during training.
-Use `beeper/findings/` for compact cross-run product syntheses that should be loaded before old run packets.
-Use `beeper/evidence-manifests/` and per-run `evidence-manifest.md` files for tracked redacted evidence references.
-Use `beeper/evidence-cache/` for ignored local raw screenshots, JSON packets, storage-state dumps, and other sensitive artifacts.
-Use `beeper/action-coverage/` for the durable route/control/action history that future runs should consult before choosing the next test lane.
-Use `beeper/route-success-map.md` to define the core normal-user success path for each major route before claiming broad coverage.
+Use `docs/agents/beeper/workspace/reports/` for the fuller workflow/UI/UX audit write-up when the user wants a denser product-analysis report kept in Beeper's own folder.
+Use `docs/agents/beeper/workspace/checkpoint-summaries/` for the short user-facing checkpoint recaps that are easy to scan and easy to correct during training.
+Use `docs/agents/beeper/workspace/findings/` for compact cross-run product syntheses that should be loaded before old run packets.
+Use `docs/agents/beeper/workspace/evidence-manifests/` and per-run `evidence-manifest.md` files for tracked redacted evidence references.
+Use `docs/agents/beeper/workspace/evidence-cache/` for ignored local raw screenshots, JSON packets, storage-state dumps, and other sensitive artifacts.
+Use `docs/agents/beeper/workspace/action-coverage/` for the durable route/control/action history that future runs should consult before choosing the next test lane.
+Use `docs/agents/beeper/workspace/route-success-map.md` to define the core normal-user success path for each major route before claiming broad coverage.
 Use `docs/records/artifacts/agent/beeper/retest-debt.md` to keep open bug retests visible until the product path is revalidated.
 Use `docs/records/artifacts/agent/beeper/roi-training-audit-2026-05-15.md` as the current synthesis of which Beeper behaviors are producing real testing ROI versus artifact noise.
 Do not store average-user notes, confusion logs, or Bopper-specific training lessons inside Beeper-owned active surfaces unless the user explicitly requests a comparison synthesis.

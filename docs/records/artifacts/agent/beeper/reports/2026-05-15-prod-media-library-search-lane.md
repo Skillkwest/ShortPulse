@@ -66,7 +66,7 @@ Purpose: production media library search lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-library-search-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-library-search-summary.json`
 - Screenshots:
   - `media-search-01-library-home.png`
   - `media-search-02-filtered-images.png`

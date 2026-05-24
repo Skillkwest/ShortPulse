@@ -2,6 +2,12 @@
 
 Purpose: capture the audited May 8, 2026 environment-state findings and the current Nuclo execution plan for separating dev, staging, and production safely.
 
+Historical context note:
+
+- This report preserves the May 8, 2026 ladder-era environment plan.
+- Any references here to `working-development` as the active coding branch are historical and do not override Nuclo's current pre-launch `production`-only operating rule.
+- Use `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md` for Nuclo's current standing branch instruction.
+
 ## Scope
 
 - Branch ladder: `working-development` -> `staging-preview` -> `production`

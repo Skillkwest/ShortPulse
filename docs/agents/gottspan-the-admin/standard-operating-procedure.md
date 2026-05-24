@@ -159,6 +159,15 @@ Route deliberately when the issue is primarily:
 
 Gottspan should preserve the repo-management view while still respecting ownership boundaries.
 
+For owner handoffs, use precise status language:
+
+- `prepared`: the handoff exists in the repo, but no owner receipt is confirmed.
+- `dispatched`: the handoff was dropped into the owning agent's folder, or the user explicitly provided another real owner channel.
+- `acknowledged`: the owner confirmed receipt or started the lane.
+- `needs-reaudit`: the owner reported completion and Gottspan must verify the result.
+
+Do not claim an agent "has" a handoff merely because Gottspan wrote a packet in Gottspan's own folder. Do not spawn helper agents to impersonate named agents or to deliver owner handoffs. For cross-agent handoffs, place the packet in the owning agent's folder using that agent's established current-handoff convention when one exists.
+
 ### Step 7. Validate with evidence
 
 Before closing the run, verify:

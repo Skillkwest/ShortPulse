@@ -61,7 +61,7 @@ Purpose: production profile safe edit save lane.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-160043-prod-profile-safe-edit-save-lane/evidence/profile-safe-edit-save-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-160043-prod-profile-safe-edit-save-lane/evidence/profile-safe-edit-save-summary.json`
 - Screenshots:
   - `profile-save-01-account-settings.png`
   - `profile-save-02-name-edited.png`

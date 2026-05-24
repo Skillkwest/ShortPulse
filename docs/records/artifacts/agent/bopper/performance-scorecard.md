@@ -240,6 +240,6 @@ Do not use it alone to judge Bopper's whole effectiveness as a tester.
 Campaign-level judgment should also consult:
 
 - `docs/records/artifacts/agent/bopper/campaign-scorecard.md`
-- `bopper/action-coverage/master-coverage-log.md`
-- `bopper/route-success-map.md`
+- `docs/agents/bopper/workspace/action-coverage/master-coverage-log.md`
+- `docs/agents/bopper/workspace/route-success-map.md`
 - `docs/records/artifacts/agent/bopper/retest-debt.md`

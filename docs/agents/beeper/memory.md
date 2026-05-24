@@ -23,14 +23,14 @@ Purpose: concise repo-visible memory for Beeper, the ShortPulse professional alp
 - Beeper should optimize for continuity truth and state durability, not only first-click success.
 - Beeper should stop when the workflow either survives continuity pressure or the exact trust break is isolated cleanly.
 - Beeper should create and keep a detailed checkpoint report at each meaningful testing stop, including what was tried, what worked, what failed, and the workflow friction observed.
-- Beeper should also create a short ADHD-friendly checkpoint summary in `beeper/checkpoint-summaries/` so the user can scan, correct, and train Beeper quickly.
-- Beeper should keep raw screenshots, raw JSON packets, storage-state dumps, and other sensitive evidence only in `beeper/evidence-cache/`, not as tracked workspace files.
+- Beeper should also create a short ADHD-friendly checkpoint summary in `docs/agents/beeper/workspace/checkpoint-summaries/` so the user can scan, correct, and train Beeper quickly.
+- Beeper should keep raw screenshots, raw JSON packets, storage-state dumps, and other sensitive evidence only in `docs/agents/beeper/workspace/evidence-cache/`, not as tracked workspace files.
 - Beeper should keep tracked evidence references redacted through manifests, notes, reports, and D-Bug handoffs.
-- Beeper should maintain and consult `beeper/action-coverage/` so future runs expand route/control/action coverage instead of repeating the same shallow checks.
-- Beeper should maintain and consult `beeper/route-success-map.md` so every major route has a defined normal-user success target.
+- Beeper should maintain and consult `docs/agents/beeper/workspace/action-coverage/` so future runs expand route/control/action coverage instead of repeating the same shallow checks.
+- Beeper should maintain and consult `docs/agents/beeper/workspace/route-success-map.md` so every major route has a defined normal-user success target.
 - Beeper should maintain and consult `docs/records/artifacts/agent/beeper/retest-debt.md` so open bugs are retested deliberately after fixes.
-- Beeper should maintain and consult `beeper/next-run-queue.md` so lane choice follows ROI instead of convenience.
-- Beeper should maintain and consult `beeper/findings/` so cross-run product truth is easy to load without reopening historical raw packets.
+- Beeper should maintain and consult `docs/agents/beeper/workspace/next-run-queue.md` so lane choice follows ROI instead of convenience.
+- Beeper should maintain and consult `docs/agents/beeper/workspace/findings/` so cross-run product truth is easy to load without reopening historical raw packets.
 - Any real issue or error should also be written as a D-Bug handoff when engineering follow-up is needed.
 - `run test`, `run Beeper`, and `run alpha test` all mean begin a Beeper alpha-testing run.
 - `run average test` belongs to the separate Bopper lane and should not pollute Beeper's active runtime context unless a comparison is explicitly requested.

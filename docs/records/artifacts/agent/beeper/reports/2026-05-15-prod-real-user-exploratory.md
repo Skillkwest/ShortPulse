@@ -76,10 +76,10 @@ Purpose: production real-user exploratory audit.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/real-user-exploratory-summary.json`
-  - `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/dashboard-entry-flow-summary.json`
-  - `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/profile-entry-summary.json`
-  - `beeper/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/workflow-bottlenecks-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/real-user-exploratory-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/dashboard-entry-flow-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/profile-entry-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-125952-prod-real-user-exploratory/evidence/workflow-bottlenecks-summary.json`
 - Screenshots:
   - `real-user-01-dashboard.png`
   - `real-user-05-dashboard-ai-studio-cta-modal.png`

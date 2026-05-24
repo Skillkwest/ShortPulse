@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "slug": "open-projects-reopen-vs-new-project",
+  "task": "Bopper compare Open Projects as the first deliberate entry path against New Project trust and reopening clarity",
+  "environment": "local",
+  "baseUrl": "http://localhost:3000",
+  "dateLabel": "2026-05-16",
+  "timestampLabel": "2026-05-16-082511",
+  "datedSlug": "2026-05-16-local-open-projects-reopen-vs-new-project",
+  "runDir": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project",
+  "evidenceDir": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/evidence",
+  "evidenceManifestPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/evidence/README.md",
+  "packetPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/packet.json",
+  "runBriefPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/run-brief.md",
+  "notesPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/notes.md",
+  "clickLogPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/click-log.md",
+  "decisionLogPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/decision-log.md",
+  "detailedReportPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md",
+  "checkpointSummaryPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/checkpoint-summaries/2026-05-16-local-open-projects-reopen-vs-new-project-summary.md",
+  "retainedReportPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/bopper/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md"
+}

@@ -36,13 +36,13 @@ Historical note: the standalone Media Library page was removed from the product.
 - Beeper retained report:
   - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-media-library-search-lane.md`
 - Beeper full report:
-  - `beeper/reports/2026-05-15-production-media-library-search-lane.md`
+  - `docs/agents/beeper/workspace/reports/2026-05-15-production-media-library-search-lane.md`
 - Run packet:
-  - `beeper/runs/2026-05-15-163023-prod-media-library-search-lane`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-163023-prod-media-library-search-lane`
 - Primary screenshot:
-  - `beeper/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-search-04-no-match-empty-state.png`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-search-04-no-match-empty-state.png`
 - JSON summary:
-  - `beeper/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-library-search-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-163023-prod-media-library-search-lane/evidence/media-library-search-summary.json`
 
 ## Likely Code Surfaces
 

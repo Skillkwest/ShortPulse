@@ -19,15 +19,16 @@ Use this path when setting up a new agent for a new recurring task:
 
 - `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.
   - `docs/agents/beeper/standard-operating-procedure.md`: standing SOP for Beeper live testing, issue capture, handoff packets, and supervised training records.
+  - `docs/agents/beeper/workspace/README.md`: Beeper-owned operational workspace for testing reports, run packets, evidence manifests, helper scripts, queues, and temporary working material.
 - `docs/agents/bopper/README.md`: Bopper average-user testing, confusion capture, and abandonment-truth contract and memory entrypoint.
   - `docs/agents/bopper/standard-operating-procedure.md`: standing SOP for Bopper first-impression, CTA trust, and naive-user workflow audits.
-  - `bopper/PERSONA.md`: active ICP card for Bopper's paying Studio-plan average-user persona.
-  - `bopper/TRAINING-SYSTEM.md`: required run-packet, report, and rollup checklist for Bopper training data.
+  - `docs/agents/bopper/workspace/PERSONA.md`: active ICP card for Bopper's paying Studio-plan average-user persona.
+  - `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`: required run-packet, report, and rollup checklist for Bopper training data.
 - `docs/agents/ayla/README.md`: Ayla, Kirk's primary AI personal assistant for ShortPulse, contract and authority surface.
   - `docs/agents/ayla/memory.md`: Ayla's repo-visible durable memory entrypoint.
   - `docs/agents/ayla/standard-operating-procedure.md`: Ayla's standing SOP for support replies, approval-sensitive outbound drafts, escalation, and retention.
   - `docs/agents/ayla/ux-playbook.md`: Ayla's applied UX lens for support trust, hesitation, auth recovery, pricing confusion, and escalation clarity.
-  - `ayla/README.md`: Ayla's temporary workspace and intake surface.
+  - `docs/agents/ayla/workspace/README.md`: Ayla's temporary workspace and intake surface.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.
@@ -35,12 +36,13 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/dave-the-security-guy/AGENTS.md`: Dave-scoped security execution overlay.
   - `docs/agents/dave-the-security-guy/standard-operating-procedure.md`: Dave's standing SOP for security review, hardening, incident response, and environment-security work.
   - `docs/agents/dave-the-security-guy/security-ownership-map.md`: Dave's security control-family and steward handoff map.
-  - `dave-the-security-guy/README.md`: Dave's temporary workspace and intake surface.
+  - `docs/agents/dave-the-security-guy/workspace/README.md`: Dave's temporary workspace and intake surface.
 - `docs/agents/change-impact-auditor.md`: change-impact audit helper contract.
 - `docs/agents/gear-ball/README.md`: worktree, branch, environment, Vercel, and database coordination contract and memory entrypoint.
   - `docs/agents/gear-ball/github-operations.md`: Gear Ball's local GitHub push, PR, review, and merge coordination summary.
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
+  - `docs/agents/nuclo/workspace/README.md`: Nuclo-owned operational workspace for managed scratch, inbox material, and handoff preparation.
 - `docs/agents/ophestivus/README.md`: admin board steward contract.
   - Ophestivus local instructions, retained memory, and artifacts live under `docs/records/artifacts/agent/ophestivus/`.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.

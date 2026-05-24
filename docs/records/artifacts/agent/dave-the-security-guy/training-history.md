@@ -18,7 +18,7 @@ Behavior learned:
 
 Artifacts created:
 
-- `dave-the-security-guy/`
+- `docs/agents/dave-the-security-guy/workspace/`
 - `docs/agents/dave-the-security-guy/`
 - `docs/records/artifacts/agent/dave-the-security-guy/`
 

@@ -51,18 +51,18 @@ This SOP governs:
 
 ### Working materials
 
-- `bopper/TRAINING-SYSTEM.md`
-- `bopper/action-coverage/master-coverage-log.md`
-- `bopper/checkpoint-summaries/README.md`
-- `bopper/reports/README.md`
-- `bopper/runs/README.md`
-- `bopper/route-success-map.md`
-- `bopper/next-run-queue.md`
-- `bopper/first-click-map.md`
-- `bopper/confusion-patterns.md`
-- `bopper/abandon-points.md`
-- `bopper/ignored-controls-log.md`
-- `bopper/terminology-misread-log.md`
+- `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`
+- `docs/agents/bopper/workspace/action-coverage/master-coverage-log.md`
+- `docs/agents/bopper/workspace/checkpoint-summaries/README.md`
+- `docs/agents/bopper/workspace/reports/README.md`
+- `docs/agents/bopper/workspace/runs/README.md`
+- `docs/agents/bopper/workspace/route-success-map.md`
+- `docs/agents/bopper/workspace/next-run-queue.md`
+- `docs/agents/bopper/workspace/first-click-map.md`
+- `docs/agents/bopper/workspace/confusion-patterns.md`
+- `docs/agents/bopper/workspace/abandon-points.md`
+- `docs/agents/bopper/workspace/ignored-controls-log.md`
+- `docs/agents/bopper/workspace/terminology-misread-log.md`
 - `docs/records/artifacts/agent/bopper/reports/run-report-template.md`
 
 ### Core product references
@@ -113,13 +113,13 @@ Use when Bopper is paired with Beeper and the goal is to contrast naive-user tru
   - `click-log.md`
   - `decision-log.md`
   - raw evidence under `evidence/`
-- Check `bopper/action-coverage/master-coverage-log.md` before picking the lane.
-- Check `bopper/route-success-map.md` so the run aims at a believable naive-user success target.
-- Check `bopper/next-run-queue.md` before inventing a new lane.
+- Check `docs/agents/bopper/workspace/action-coverage/master-coverage-log.md` before picking the lane.
+- Check `docs/agents/bopper/workspace/route-success-map.md` so the run aims at a believable naive-user success target.
+- Check `docs/agents/bopper/workspace/next-run-queue.md` before inventing a new lane.
 - Check `docs/records/artifacts/agent/bopper/retest-debt.md` before choosing a new lane so unresolved trust-fix validations are not forgotten.
 - Check `docs/records/artifacts/agent/bopper/trainer-directives-log.md` so the current trainer intent is explicit before the run starts.
 - Bias lane selection toward low-coverage routes or open trust-breaking retests.
-- Use `bopper/TRAINING-SYSTEM.md` as the checklist for what the run must preserve.
+- Use `docs/agents/bopper/workspace/TRAINING-SYSTEM.md` as the checklist for what the run must preserve.
 
 ### Step 3. Confirm environment and identity
 
@@ -232,14 +232,14 @@ When a finding is a real issue or error rather than a light UX observation:
 
 At each meaningful checkpoint in a longer testing run:
 
-- create a detailed checkpoint report in `bopper/reports/`,
+- create a detailed checkpoint report in `docs/agents/bopper/workspace/reports/`,
 - state whether the checkpoint was `naive-user path`, `mixed`, or `targeted probe`,
 - separate what worked from what failed,
 - and preserve first-click confusion while it is still fresh.
 
 At each meaningful checkpoint in any trainer-facing run:
 
-- create a short ADHD-friendly summary in `bopper/checkpoint-summaries/`,
+- create a short ADHD-friendly summary in `docs/agents/bopper/workspace/checkpoint-summaries/`,
 - make it easy to scan in under a minute,
 - treat it as the short digest of the packet, detailed report, and retained report,
 - keep it focused on user experience rather than technical operator detail,
@@ -288,8 +288,8 @@ For every substantive supervised run:
 
 When Bopper encounters a repeated confusion pattern, add it to:
 
-- `bopper/confusion-patterns.md`
-- `bopper/terminology-misread-log.md`
+- `docs/agents/bopper/workspace/confusion-patterns.md`
+- `docs/agents/bopper/workspace/terminology-misread-log.md`
 - this SOP if it changes the standing workflow
 
 When the same weak scoring category appears in `3` consecutive substantive runs, Bopper should escalate from note-taking to a concrete system fix:

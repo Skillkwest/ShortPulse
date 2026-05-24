@@ -57,7 +57,7 @@ Purpose: production AI Studio stateful non-generate persistence validation.
   - AI Studio workspace persistence path already implicated by the earlier generate no-op handoff and this saved-state success
 - Supporting docs or tests inspected:
   - prior Beeper project-create and existing-project packets
-  - shared `beeper/scripts/lib/beeperAuditRuntime.mjs`
+  - shared `docs/agents/beeper/workspace/scripts/lib/beeperAuditRuntime.mjs`
 - What another agent should inspect first:
   - no new D-Bug lane from this checkpoint
   - if AI Studio persistence regresses later, start with the project/workspace save path behind the studio prompt state
@@ -65,9 +65,9 @@ Purpose: production AI Studio stateful non-generate persistence validation.
 ## Evidence Packet
 
 - JSON packet:
-  - `beeper/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-01-summary.json`
-  - `beeper/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-02-prompt-persistence-summary.json`
-  - `beeper/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-04-fresh-context-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-01-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-02-prompt-persistence-summary.json`
+  - `docs/agents/beeper/workspace/runs/2026-05-15-171728-prod-ai-studio-stateful-non-generate/evidence/ai-state-04-fresh-context-summary.json`
 - Screenshots:
   - `ai-state-01-home.png`
   - `ai-state-02-prompt-edited.png`
@@ -78,7 +78,7 @@ Purpose: production AI Studio stateful non-generate persistence validation.
   - no page errors
   - request aborts occurred during route transitions/reload, but no tied user-visible breakage was reproduced here
 - Local code references:
-  - `beeper/scripts/lib/beeperAuditRuntime.mjs`
+  - `docs/agents/beeper/workspace/scripts/lib/beeperAuditRuntime.mjs`
 
 ## Self Audit
 

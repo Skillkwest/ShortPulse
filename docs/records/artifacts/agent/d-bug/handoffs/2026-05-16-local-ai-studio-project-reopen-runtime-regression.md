@@ -32,12 +32,12 @@
 - Expected behavior: saved local projects reopen into usable AI Studio, and dashboard recovery stays usable.
 - Actual behavior: local saved-project restore and related dashboard recovery fall into runtime failures before the user can continue work.
 - Logs, stack traces, screenshots, or file references:
-  - Bopper detailed report: `bopper/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
+  - Bopper detailed report: `docs/agents/bopper/workspace/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
   - Bopper retained report: `docs/records/artifacts/agent/bopper/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
-  - Packet notes: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/notes.md`
-  - Click log: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/click-log.md`
-  - Decision log: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/decision-log.md`
-  - Evidence manifest: `bopper/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/evidence/README.md`
+  - Packet notes: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/notes.md`
+  - Click log: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/click-log.md`
+  - Decision log: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/decision-log.md`
+  - Evidence manifest: `docs/agents/bopper/workspace/runs/2026-05-16-082511-open-projects-reopen-vs-new-project/evidence/README.md`
 - Frequency: reproduced within this run after reopening a recent local AI Studio project tab; the dashboard recovery error also reproduced during the same run.
 
 ### Scope control
@@ -76,7 +76,7 @@
 
 Read first:
 
-- `bopper/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
+- `docs/agents/bopper/workspace/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
 - `docs/records/artifacts/agent/bopper/reports/2026-05-16-local-open-projects-reopen-vs-new-project.md`
 - `README.md`
 

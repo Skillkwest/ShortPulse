@@ -12,7 +12,7 @@ Purpose: publish the Ayla support-playbook refresh plus the AI Studio project-en
 
 | Commit              | Batch            | Files/Scope                                        | Risk   | Validation                                                |
 | ------------------- | ---------------- | -------------------------------------------------- | ------ | --------------------------------------------------------- |
-| `8e36f26b1`         | support-docs     | `ayla/**`, `docs/agents/ayla/**`, retained Ayla docs | medium | support preflight, docs checks                            |
+| `8e36f26b1`         | support-docs     | `docs/agents/ayla/workspace/**`, `docs/agents/ayla/**`, retained Ayla docs | medium | support preflight, docs checks                            |
 | `3d98f4057`         | ai-studio-ui     | project entry state, voices layout, character panel, CSS | medium | product preflight, Node 22 build, full suite, rerun build |
 | `<this closeout>`   | gear-ball-report | retained report + training artifacts               | low    | `docs:check`                                              |
 

@@ -28,19 +28,19 @@ The agent has a durable contract, repo-visible memory, retained artifact area, o
 
 - Agent contract: `docs/agents/bopper/README.md`
 - Repo-visible memory: `docs/agents/bopper/memory.md`
-- Owned workspace folder: `bopper/`
-- Active ICP card: `bopper/PERSONA.md`
-- Training doc system: `bopper/TRAINING-SYSTEM.md`
+- Owned workspace folder: `docs/agents/bopper/workspace/`
+- Active ICP card: `docs/agents/bopper/workspace/PERSONA.md`
+- Training doc system: `docs/agents/bopper/workspace/TRAINING-SYSTEM.md`
 - Retained Beeper handoff: `docs/records/artifacts/agent/bopper/handoff-from-beeper-2026-05-15.md`
-- Workspace-local handoff synthesis: `bopper/HANDOFF.md`
-- Local reload files: `bopper/AGENT-INSTRUCTIONS.md`, `bopper/MEMORY.md`
+- Workspace-local handoff synthesis: `docs/agents/bopper/workspace/HANDOFF.md`
+- Local reload files: `docs/agents/bopper/workspace/AGENT-INSTRUCTIONS.md`, `docs/agents/bopper/workspace/MEMORY.md`
 
 ## Usage Notes
 
 - Use retained artifacts for KPI, scoring, logs, directives, retest debt, and durable reports.
 - Treat retained reports and run packets as the technical/operator layer for real follow-up work.
 - Use `persona-design-lessons.md` to capture evidence-backed lessons that should improve Bopper and inform the construction of future test personas.
-- Use `bopper/` for working coverage maps, checkpoint summaries, and route-level operating notes.
-- Treat `bopper/checkpoint-summaries/` as the lightweight human-read layer only.
-- Use the per-run packet under `bopper/runs/<timestamp>-<slug>/` to preserve planning, click rationale, and ICP judgments for every substantive run.
+- Use `docs/agents/bopper/workspace/` for working coverage maps, checkpoint summaries, and route-level operating notes.
+- Treat `docs/agents/bopper/workspace/checkpoint-summaries/` as the lightweight human-read layer only.
+- Use the per-run packet under `docs/agents/bopper/workspace/runs/<timestamp>-<slug>/` to preserve planning, click rationale, and ICP judgments for every substantive run.
 - Use `docs/records/artifacts/agent/bopper/handoff-from-beeper-2026-05-15.md` as historical origin context only, not as the day-to-day operating source.

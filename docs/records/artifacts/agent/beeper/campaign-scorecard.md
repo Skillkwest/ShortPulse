@@ -59,8 +59,8 @@ Suggested scoring:
 
 Coverage should be judged mainly from:
 
-- `beeper/action-coverage/master-coverage-log.md`
-- `beeper/route-success-map.md`
+- `docs/agents/beeper/workspace/action-coverage/master-coverage-log.md`
+- `docs/agents/beeper/workspace/route-success-map.md`
 - whether low-coverage routes are actually being closed
 
 ## Impact Score

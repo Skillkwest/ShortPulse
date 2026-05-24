@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "slug": "dashboard-new-project-fix-retest",
+  "task": "dashboard new project fix retest",
+  "environment": "local",
+  "baseUrl": "http://localhost:3000",
+  "dateLabel": "2026-05-15",
+  "timestampLabel": "2026-05-15-204909",
+  "datedSlug": "2026-05-15-local-dashboard-new-project-fix-retest",
+  "interactionFidelity": "mixed",
+  "auditUser": "codexledger20260513@gmail.com",
+  "personaPlanExpectation": "Studio",
+  "visiblePlanLabel": "Default access",
+  "entryRoute": "/dashboard",
+  "firstClick": "New Project",
+  "adjacentComparePath": "Open Projects -> New Project -> Create",
+  "primaryPath": "Dashboard -> New Project -> Create",
+  "oldIssueReproduced": false,
+  "routeResult": "validated",
+  "handoffNeeded": false,
+  "createdProjectIds": [
+    "85be657f-d4fb-4dcd-addb-d702caa5f6af",
+    "abb5b861-d670-4f47-8c87-b099119383fc"
+  ],
+  "score": {
+    "total": 8.9,
+    "confidence": "medium",
+    "gate": "none"
+  },
+  "runDir": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest",
+  "evidenceDir": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/evidence",
+  "evidenceManifestPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/evidence/README.md",
+  "packetPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/packet.json",
+  "runBriefPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/run-brief.md",
+  "notesPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/notes.md",
+  "clickLogPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/click-log.md",
+  "decisionLogPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/runs/2026-05-15-204909-dashboard-new-project-fix-retest/decision-log.md",
+  "detailedReportPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/reports/2026-05-15-local-dashboard-new-project-fix-retest.md",
+  "checkpointSummaryPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/bopper/workspace/checkpoint-summaries/2026-05-15-local-dashboard-new-project-fix-retest-summary.md",
+  "retainedReportPath": "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/bopper/reports/2026-05-15-local-dashboard-new-project-fix-retest.md"
+}

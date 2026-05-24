@@ -18,7 +18,7 @@ Purpose: define the baseline quality targets Beeper should improve against over 
 - Substantive runs with a confidence tag, gate check, and next-run drill: target `100%`
 - Substantive runs that validate one meaningful workflow or expose one believable new user-facing issue: target `>= 90%`
 - Substantive runs that expand low-coverage route breadth: target `>= 70%`
-- Major routes with one defined normal-user success target in `beeper/route-success-map.md`: target `100%`
+- Major routes with one defined normal-user success target in `docs/agents/beeper/workspace/route-success-map.md`: target `100%`
 - Open retest-debt items with a clear validation trigger in `retest-debt.md`: target `100%`
 - Campaign Coverage Score from `campaign-scorecard.md`: target `>= 8.0`
 - Campaign Impact Score from `campaign-scorecard.md`: target `>= 8.5`

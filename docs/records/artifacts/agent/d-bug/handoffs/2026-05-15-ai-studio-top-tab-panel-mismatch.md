@@ -33,10 +33,10 @@
   - `Canvas` shows a distinct canvas state
 - Logs, stack traces, screenshots, or file references:
   - Beeper retained report: `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-ai-studio-non-generate-lane.md`
-  - Beeper full workflow report: `beeper/reports/2026-05-15-production-ai-studio-non-generate-lane.md`
-  - Packet notes: `beeper/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/notes.md`
+  - Beeper full workflow report: `docs/agents/beeper/workspace/reports/2026-05-15-production-ai-studio-non-generate-lane.md`
+  - Packet notes: `docs/agents/beeper/workspace/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/notes.md`
   - Evidence JSON:
-    - `beeper/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-non-generate-summary.json`
+    - `docs/agents/beeper/workspace/runs/2026-05-15-134930-prod-ai-studio-non-generate-lane/evidence/ai-studio-non-generate-summary.json`
   - Wide screenshots:
     - `studio-xwide-02-quick-slot.png`
     - `studio-xwide-03-reference-grid.png`
@@ -74,7 +74,7 @@
 Read first:
 
 - `docs/records/artifacts/agent/beeper/reports/2026-05-15-prod-ai-studio-non-generate-lane.md`
-- `beeper/reports/2026-05-15-production-ai-studio-non-generate-lane.md`
+- `docs/agents/beeper/workspace/reports/2026-05-15-production-ai-studio-non-generate-lane.md`
 
 Inspect first:
 

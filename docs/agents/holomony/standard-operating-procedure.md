@@ -70,13 +70,13 @@ This SOP does not govern:
 
 ### Shared code and tooling surfaces
 
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/media-library/`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/lib/mediaPerfTelemetry.ts`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_panel_kpi_score.mjs`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_panel_kpi_capture.mjs`
-- `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/frontend/scripts/media_library_checkpoint_runner.mjs`
+- `frontend/features/media-library/`
+- `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
+- `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+- `frontend/lib/mediaPerfTelemetry.ts`
+- `frontend/scripts/media_panel_kpi_score.mjs`
+- `frontend/scripts/media_panel_kpi_capture.mjs`
+- `frontend/scripts/media_library_checkpoint_runner.mjs`
 
 ### Current exclusions
 
@@ -121,18 +121,18 @@ Use when enough KPI history exists to compare runs and determine whether the sur
 
 - Follow the root `AGENTS.md` startup contract.
 - Load:
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/agents/holomony/README.md`
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/agents/holomony/AGENTS.md`
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/agents/holomony/memory.md`
+  - `docs/agents/holomony/README.md`
+  - `docs/agents/holomony/AGENTS.md`
+  - `docs/agents/holomony/memory.md`
 - Load the relevant Holomony scoring and retained-operation docs:
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-scorecard.md`
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/performance-ledger.md`
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/holomony/failure-taxonomy.md`
+  - `docs/records/artifacts/agent/holomony/performance-scorecard.md`
+  - `docs/records/artifacts/agent/holomony/performance-ledger.md`
+  - `docs/records/artifacts/agent/holomony/failure-taxonomy.md`
 - Load the current media KPI and operations SOPs when the run is performance-facing:
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_panel_performance_kpi.md`
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_media_performance_operations.md`
+  - `docs/sops/sop_media_panel_performance_kpi.md`
+  - `docs/sops/sop_media_performance_operations.md`
 - Load the character workflow SOP when the run touches character-panel media assignment:
-  - `/Users/worldbuilder/Desktop/Desktop Clean/Projects/Coding Projects/ShortPulse Dev/ShortPulse/docs/sops/sop_character_manager_operations.md`
+  - `docs/sops/sop_character_manager_operations.md`
 
 ### Step 2. Freeze the surface and run type
 

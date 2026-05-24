@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `7.7/10`
-- What went right: Gear Ball restarted from the top, validated the final shipped runtime lane honestly, and recovered the restored billing and Standard attachment-preview test seams before the push so the final tree that reached `production` was complete.
-- What went wrong: the run still paid one cheap docs formatting recovery cycle, and three stash-restored tails surfaced after the first commit path, forcing multiple follow-up commits.
-- Capability decision: keep the lane collapsed, but add a strict repeated live-worktree-vs-manifest check before push so restored tests and sibling seams get folded into the main commit instead of surfacing as serial late tails.
+- Score: `8.0/10`
+- What went right: Gear Ball restarted from the top, validated the final shipped voices/looks/API lane honestly, and the new post-commit convergence loop kept the run alive until the live tree was actually clean before the score loop and push.
+- What went wrong: three related API test tails still surfaced after the first runtime commit, forcing extra follow-up commits before convergence completed.
+- Capability decision: keep the convergence loop, but broaden the first manifest to include sibling API tests whenever one route in a shared rate-limit/sanitized-error family changes.
 
 ## Previous Supervised Synthesis
 

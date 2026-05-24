@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Live Preview Master Plan (2026-04-14)
 
 Status: draft  
@@ -65,12 +67,12 @@ This program is successful when all of the following are true:
 5. No worker migration unless the dedicated preview-layer architecture still fails the done state after implementation.
 
 ## Program Phases
-1. `docs/planning/ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`
-2. `docs/planning/ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`
-3. `docs/planning/ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`
-4. `docs/planning/ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`
-5. `docs/planning/ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`
-6. `docs/planning/ai-studio-inpaint-live-preview-tracker-2026-04-14.md`
+1. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`
+2. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`
+3. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`
+4. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`
+5. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`
+6. `docs/archive/planning/ai-studio-inpaint-live-preview-tracker-2026-04-14.md`
 
 ## Entry Criteria
 1. The repo-backed audit confirms the dedicated transient preview layer is the preferred architecture.

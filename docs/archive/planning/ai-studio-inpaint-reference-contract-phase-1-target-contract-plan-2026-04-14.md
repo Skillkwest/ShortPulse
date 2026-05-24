@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Reference Contract Phase 1: Target Contract Plan (2026-04-14)
 
 Status: draft  

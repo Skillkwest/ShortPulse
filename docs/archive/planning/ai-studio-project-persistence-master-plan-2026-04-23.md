@@ -221,11 +221,11 @@ When the done state above is met:
 4. the correct closeout reminder is: the done state has been achieved and this lane should not continue by momentum.
 
 ## Phase Links
-1. `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
-2. `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`
-3. `docs/planning/ai-studio-project-persistence-phase-2-project-runtime-entry-and-title-authority-plan-2026-04-23.md`
-4. `docs/planning/ai-studio-project-persistence-phase-3-project-workspace-authority-plan-2026-04-23.md`
-5. `docs/planning/ai-studio-project-persistence-phase-4-project-asset-association-plan-2026-04-23.md`
-6. `docs/planning/ai-studio-project-persistence-phase-5-project-folder-cutover-plan-2026-04-23.md`
-7. `docs/planning/ai-studio-project-persistence-phase-6-dashboard-saved-project-surfaces-plan-2026-04-23.md`
-8. `docs/planning/ai-studio-project-persistence-phase-7-legacy-session-demotion-and-cleanup-plan-2026-04-23.md`
+1. `docs/archive/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
+2. `docs/archive/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`
+3. `docs/archive/planning/ai-studio-project-persistence-phase-2-project-runtime-entry-and-title-authority-plan-2026-04-23.md`
+4. `docs/archive/planning/ai-studio-project-persistence-phase-3-project-workspace-authority-plan-2026-04-23.md`
+5. `docs/archive/planning/ai-studio-project-persistence-phase-4-project-asset-association-plan-2026-04-23.md`
+6. `docs/archive/planning/ai-studio-project-persistence-phase-5-project-folder-cutover-plan-2026-04-23.md`
+7. `docs/archive/planning/ai-studio-project-persistence-phase-6-dashboard-saved-project-surfaces-plan-2026-04-23.md`
+8. `docs/archive/planning/ai-studio-project-persistence-phase-7-legacy-session-demotion-and-cleanup-plan-2026-04-23.md`

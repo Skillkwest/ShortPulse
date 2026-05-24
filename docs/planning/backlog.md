@@ -105,9 +105,9 @@ Structure (locked):
 ## Done (verified in repo)
 
 - [x] AI Studio model-platform cleanup: complete the `ModelModal` shared-metadata phase and stop at the explicit product-policy boundary.
-      Evidence: `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/ai-studio/logic/modelModalPresentation.ts`, `frontend/features/ai-studio/components/__tests__/ModelModal.test.tsx`, `frontend/features/ai-studio/logic/__tests__/modelModalPresentation.test.ts`, `scripts/model_doctor.js`
+      Evidence: `docs/archive/planning/model-modal-policy-phase-plan-2026-05-10.md`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/ai-studio/logic/modelModalPresentation.ts`, `frontend/features/ai-studio/components/__tests__/ModelModal.test.tsx`, `frontend/features/ai-studio/logic/__tests__/modelModalPresentation.test.ts`, `scripts/model_doctor.js`
 - [x] AI Studio model-platform cleanup: complete the Fal route-surface reduction phase and keep generated `/api/fal/*` wrappers as the intended ownership model for the current system phase.
-      Evidence: `docs/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`, `scripts/lib/fal_route_inventory.js`, `scripts/sync_fal_route_wrappers.js`, `frontend/tests/api/fal-route-inventory-regression.test.ts`, `frontend/tests/api/model-catalog-route-coverage.test.ts`, `docs/sops/sop_new_model_ingestion.md`, `README.md`
+      Evidence: `docs/archive/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`, `scripts/lib/fal_route_inventory.js`, `scripts/sync_fal_route_wrappers.js`, `frontend/tests/api/fal-route-inventory-regression.test.ts`, `frontend/tests/api/model-catalog-route-coverage.test.ts`, `docs/sops/sop_new_model_ingestion.md`, `README.md`
 - [x] Add platform filter tabs (IG/TikTok/YT) on Performance.
       Evidence: `frontend/features/performance/components/FilterBars.tsx`
 - [x] Integrate Media Library UI polish (error banners, retry behavior, empty states).

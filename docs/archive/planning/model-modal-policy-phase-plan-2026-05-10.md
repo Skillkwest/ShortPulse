@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning-index cleanup. Reason: completed/superseded phase plan removed from the active planning reading path.
+
 # ModelModal Policy Phase Plan (2026-05-10)
 
 ## Purpose

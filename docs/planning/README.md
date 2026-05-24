@@ -54,6 +54,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 4: Workflows And Product Surfaces
 
 - `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-build-loop-2026-05-23.md`
 - `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
 - `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
 - `docs/planning/ai-studio-character-panel-lean-hardening-phase-1-behavior-lock-and-replacement-contract-plan-2026-05-23.md`
@@ -86,8 +87,10 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 ## Recent Completed Phase Checkpoints
 
-- `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`
-- `docs/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`
+- `docs/archive/planning/model-modal-policy-phase-plan-2026-05-10.md`
+- `docs/archive/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`
+- `docs/archive/planning/ai-studio-pricing-runtime-alignment-coverage-2026-05-11.md`
+- `docs/archive/planning/ai-studio-primary-character-panel-build-plan.md`
 
 ## Maintenance
 

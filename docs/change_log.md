@@ -4,6 +4,18 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 
+- Documentation cleanup:
+  - archived the dormant inpaint reference-contract packet, the dormant inpaint live-preview packet, and the unreferenced create-character-mode hardening plan under `docs/archive/planning/`,
+  - retargeted the archived packet cross-links to their archive paths,
+  - and kept those dormant draft packets out of the active planning reading path.
+- Documentation cleanup:
+  - archived the dormant AI Studio project-persistence phase packet and the unreferenced Media Library redesign plan under `docs/archive/planning/`,
+  - retargeted the surviving active project-persistence inventory and archived master plan to the archived phase-plan paths,
+  - and kept the active planning surface focused on the newer workspace-isolation execution lane instead of future migration packet history.
+- Documentation cleanup:
+  - archived four dormant/completed planning docs out of `docs/planning/` into `docs/archive/planning/`,
+  - trimmed the top-level docs index so planning navigation now points readers to the curated active index instead of a giant historical file list,
+  - and updated the active/archive planning indexes to reflect the narrower current reading path.
 - AI Studio generate concurrency hardening:
   - removed the remaining active generate-button click locks in Music and Expert Edit so users can trigger repeated generations without waiting for prior renders to settle,
   - converted AI Studio lane/audio busy tracking to concurrent-aware counting and replaced the old boolean-shaped lane API with explicit begin/end generation markers,

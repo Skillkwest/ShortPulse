@@ -1,10 +1,12 @@
 ---
 title: AI Studio Primary Character Panel Full-Surface Plan
-status: Active
+status: archived
 owner: Product + Engineering
 created: 2026-02-15
-last_updated: 2026-03-29
+last_updated: 2026-05-23
 ---
+
+> Archived 2026-05-23 during planning-index cleanup. Reason: superseded by the active character-panel lean-hardening planning packet dated 2026-05-23.
 
 # AI Studio Primary Character Panel Full-Surface Plan
 

@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning-index cleanup. Reason: the runtime wiring lane is already marked done and no longer needs to stay in the active planning surface.
+
 # AI Studio Pricing Runtime Alignment Coverage
 
 Date: 2026-05-11

@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Reference Contract Master Plan (2026-04-14)
 
 Status: draft  
@@ -63,11 +65,11 @@ This program is successful when all of the following are true:
 Do not implement secondary-reference support for inpaint until Phase 1 locks the lane contract. If the product requirement is multi-reference masked editing and the current FLUX Fill lane cannot support it, stop and change the provider/model lane instead of shipping prompt-only reference behavior or UI-only fixes.
 
 ## Program Phases
-1. `docs/planning/ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`
-2. `docs/planning/ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`
-3. `docs/planning/ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`
-4. `docs/planning/ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`
-5. `docs/planning/ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`
+1. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`
+2. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`
+3. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`
+4. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`
+5. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`
 
 ## Non-Goals
 1. This program does not redesign the Expert Edit stage, selection, or transform system.

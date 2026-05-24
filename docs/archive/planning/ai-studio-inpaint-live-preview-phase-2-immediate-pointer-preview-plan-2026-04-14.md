@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Live Preview Phase 2: Immediate Pointer Preview Plan (2026-04-14)
 
 Status: draft  

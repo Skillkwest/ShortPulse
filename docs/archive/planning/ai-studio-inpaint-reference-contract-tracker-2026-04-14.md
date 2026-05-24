@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Reference Contract Tracker (2026-04-14)
 
 Last updated: 2026-04-14  
@@ -42,9 +44,9 @@ The planning task is done when:
 10. The hidden-model submit path also affects debit and polling-provider behavior, so model changes must account for those seams.
 
 ## Phase Links
-1. `docs/planning/ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`
-2. `docs/planning/ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`
-3. `docs/planning/ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`
-4. `docs/planning/ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`
-5. `docs/planning/ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`
-6. `docs/planning/ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`
+1. `docs/archive/planning/ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`
+2. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`
+3. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`
+4. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`
+5. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`
+6. `docs/archive/planning/ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`

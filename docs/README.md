@@ -250,212 +250,28 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 
 - `docs/planning/README.md`
 - `docs/planning/execution-authority.md`
-- `docs/planning/validation-matrix-by-program-2026-05-11.md`
-- `docs/planning/ai-studio-audio-companion-art-plan-2026-05-11.md`
-- `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-2-project-runtime-entry-and-title-authority-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-3-project-workspace-authority-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-4-project-asset-association-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-5-project-folder-cutover-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-6-dashboard-saved-project-surfaces-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-phase-7-legacy-session-demotion-and-cleanup-plan-2026-04-23.md`
-- `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-server-authority-execution-checklist-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-client-demotion-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`
-- `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`
-- `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
-- `docs/planning/ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-tracker-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-master-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`
-- `docs/planning/ai-studio-inpaint-live-preview-tracker-2026-04-14.md`
-- `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`
-- `docs/planning/master-rollout-proposal.md`
-- `docs/planning/shortpulse-unified-buildout-master-plan.md`
-- `docs/planning/shortpulse-unified-buildout-tracker.md`
-- `docs/planning/shortpulse-unified-overlap-matrix.md`
-- `docs/planning/shortpulse-unified-decision-log.md`
-- `docs/planning/migration-number-reservation-map.md`
-- `docs/planning/implementation-tracker.md`
-- `docs/planning/ci-policy-checks.md`
-- `docs/planning/trunk-safety-contract.md`
-- `docs/planning/final-validation-summary.md`
-- `docs/planning/policies/README.md`
 - `docs/planning/backlog.md`
-- `docs/planning/billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`
-- `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
-- `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-- `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
-- `docs/planning/lane-c-master-plan-2026-03-16.md`
-- `docs/planning/lane-c-tracker-spec-2026-03-16.md`
-- `docs/planning/lane-c-execution-plan-2026-03-16.md`
-- `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
-- `docs/archive/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
-- `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`
-- `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-master-roadmap-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r0-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r2-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r3-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r4-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r5-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-phase-r6-execution-plan-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-provider-contract-matrix-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-decision-log-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-risk-register-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-evidence-packet-template.md`
-- `docs/planning/generation-reliability-hardening-implementation-entry-checklist-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`
-- `docs/planning/generation-reliability-hardening-readiness-state-2026-03-20.md`
-- `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
-- `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
-- `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
-- `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
-- `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
-- `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
-- `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-risk-register-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-decision-log-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-foundation-lane-master-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-foundation-lane-execution-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-pipeline-lane-master-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-pipeline-lane-execution-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-surface-lane-master-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-surface-lane-execution-plan-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-contract-matrix-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-image-surface-inventory-lock-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-metadata-authority-spec-2026-03-16.md`
-- `docs/planning/media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`
-- `docs/planning/media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`
-- `mini-ecosystem/README.md` (standalone operational system, outside `docs/`)
-- `docs/archive/planning/documentation-audit-2026-02-17.md`
-- `docs/archive/planning/audit-progress.md`
-- `docs/archive/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`
-- `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
-- `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
-- `docs/planning/mvp-ui-ux-pass-execution-plan-2026-03-16.md`
-- `docs/planning/mvp-ui-ux-sprint-ticket-breakdown.md`
-- `docs/planning/mvp-ui-ux-issue-board.md`
-- `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
-- `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
-- `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
-- `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
-- `docs/planning/ai-studio-full-recovery-program.md`
-- `docs/planning/ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-tracker-spec-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-decision-log-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-risk-register-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`
-- `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`
-- `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
-- `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
-- `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`
-- `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
-- `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
-- `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
-- `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
-- `docs/planning/ai-studio-generation-admission-rollout-plan.md`
-- `docs/planning/ai-studio-agent-tooling-phased-plan.md`
-- `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
-- `docs/planning/ai-studio-agent-modularization-program.md`
-- `docs/planning/ai-studio-agent-modularization-tracker.md`
-- `docs/planning/ai-studio-agent-safety-control-plane-plan.md`
-- `docs/planning/ai-studio-agent-safety-control-plane-tracker.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`
-- `docs/planning/ai-studio-ux-prompt-adjacency-rollout-plan.md`
-- `docs/planning/ai-studio-ux-prompt-adjacency-rollout-tracker.md`
-- `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
-- `docs/planning/ai-studio-reference-grid-modularization-program.md`
-- `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
-- `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`
-- `docs/planning/naming-canonicalization-program.md`
-- `docs/planning/naming-canonical-map.md`
-- `docs/planning/naming-decision-log.md`
-- `docs/planning/naming-canonicalization-tracker.md`
-- `docs/planning/naming-phase-7-entry-readiness.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-phase-1-behavior-lock-and-replacement-contract-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-phase-2-quickswap-runtime-eradication-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-phase-3-persistence-and-cleanup-simplification-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-phase-4-top-workspace-inline-style-conversion-plan-2026-05-23.md`
-- `docs/planning/ai-studio-character-panel-lean-hardening-phase-5-docs-sql-and-closeout-plan-2026-05-23.md`
-- `docs/planning/media-library-reference-grid-optimization-plan.md`
-- `docs/planning/adaptive-media-v2-migration-checklist.md`
-- `docs/planning/media-optimization-phase0-measurement-spec.md`
-- `docs/planning/media-optimization-schema-and-migration-spec.md`
-- `docs/planning/tooling-audit-2026-02-16.md`
-- `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
+- Use `docs/planning/README.md` as the active planning index and `docs/archive/planning/README.md` for completed or superseded planning history.
+- Active execution defaults:
+  - `docs/planning/execution-authority.md`
+  - `docs/planning/backlog.md`
+  - `docs/planning/validation-matrix-by-program-2026-05-11.md`
+- Current active program examples:
+  - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
+  - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+  - `docs/planning/ai-studio-agent-modularization-program.md`
+  - `docs/planning/ai-studio-agent-modularization-tracker.md`
+  - `docs/planning/ai-studio-reference-grid-modularization-program.md`
+  - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+  - `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
+  - `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
+  - `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
+- Recently archived examples:
+  - `docs/archive/planning/model-modal-policy-phase-plan-2026-05-10.md`
+  - `docs/archive/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`
+  - `docs/archive/planning/ai-studio-pricing-runtime-alignment-coverage-2026-05-11.md`
+  - `docs/archive/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/change_log.md`
 
 ## Records And Evidence

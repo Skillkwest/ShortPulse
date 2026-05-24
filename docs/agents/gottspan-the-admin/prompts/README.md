@@ -14,4 +14,4 @@ Purpose: store reusable prompts that improve Gottspan's repo-steward, audit, and
 
 - `audit-and-prune-agent-prompt.md`: full self-audit, re-audit, prune, and cleanup prompt for reducing context drag and improving operating performance.
 - `product-understanding-audit-prompt.md`: deep product-understanding audit prompt covering technical, product, human, and business understanding.
-- `setup-build-automation-prompt-draft.md`: draft checkpointed execution-loop prompt for build, cleanup, and repo-management tasks that need explicit stop conditions and continuation rules.
+- `setup-build-automation-prompt.md`: checkpointed execution-loop prompt for build, cleanup, and repo-management tasks that need explicit stop conditions, scope locks, checkpoint audits, and continuation rules.

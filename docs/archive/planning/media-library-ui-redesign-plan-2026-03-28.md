@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant redesign plan with no active index or live-doc references.
+
 # Media Library UI Redesign Plan (2026-03-28)
 
 Status: draft  

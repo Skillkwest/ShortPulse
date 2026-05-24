@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft plan packet no longer part of the active planning reading path.
+
 # AI Studio Inpaint Live Preview Tracker (2026-04-14)
 
 Last updated: 2026-04-14  
@@ -30,9 +32,9 @@ The program is done when:
 | 5 | Planned | Validate the done state and enforce the stop rule. | Phases 1-4 are functionally complete. | Targeted tests pass and the master-plan done state is satisfied. | Roll back only preview-layer work if the done state is not reached cleanly. |
 
 ## Phase Links
-1. `docs/planning/ai-studio-inpaint-live-preview-master-plan-2026-04-14.md`
-2. `docs/planning/ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`
-3. `docs/planning/ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`
-4. `docs/planning/ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`
-5. `docs/planning/ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`
-6. `docs/planning/ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`
+1. `docs/archive/planning/ai-studio-inpaint-live-preview-master-plan-2026-04-14.md`
+2. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`
+3. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`
+4. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`
+5. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`
+6. `docs/archive/planning/ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`

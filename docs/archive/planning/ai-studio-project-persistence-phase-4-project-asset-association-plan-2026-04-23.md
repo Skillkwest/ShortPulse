@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant future migration phase plan removed from the active planning surface after the workspace-isolation lane became the active execution contract.
+
 # AI Studio Project Persistence Phase 4: Project Asset Association Plan (2026-04-23)
 
 Status: draft  

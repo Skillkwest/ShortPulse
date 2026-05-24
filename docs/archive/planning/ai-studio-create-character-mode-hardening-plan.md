@@ -1,3 +1,5 @@
+> Archived 2026-05-23 during planning cleanup. Reason: dormant draft hardening plan with no active index or live-doc references.
+
 # AI Studio Create Character Mode Hardening Plan
 
 Status: draft

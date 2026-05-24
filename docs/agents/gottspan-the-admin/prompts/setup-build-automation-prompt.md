@@ -1,6 +1,6 @@
-# Setup Build Automation Prompt Draft
+# Setup Build Automation Prompt
 
-Purpose: draft reusable prompt for turning a build, cleanup, or repo-management task into a checkpointed execution loop with a clear stop condition and durable continuation path.
+Purpose: reusable prompt for turning a build, cleanup, or repo-management task into a checkpointed execution loop with a clear stop condition, scope lock, and durable continuation path.
 
 ## Prompt
 
@@ -10,6 +10,8 @@ Set up this task as a checkpointed build loop.
 The goal is to keep working through checkpoints until the stop condition is met, while avoiding scope drift, vague continuation, or unfinished plans that only exist in chat.
 
 The most important rule: do not drift. Every checkpoint and every continuation must prove that the next action is directly required by the stop condition.
+
+If the task does not include enough information to define a verifiable stop condition, pause and ask for the missing scope instead of inventing it.
 
 ## First: define the stop condition
 
@@ -117,6 +119,7 @@ If blocked, report:
 - Each checkpoint must answer: "Is this action required to meet the stop condition?" If the answer is not clearly yes, do not do it.
 - Continuation prompts must carry forward the scope lock unchanged unless the user explicitly changes scope.
 - New discoveries become separate follow-ups or handoffs, not silent additions to the current loop.
+- Do not create recurring automation when a durable continuation note or immediate next checkpoint is enough.
 - Do not mark owner handoffs as dispatched unless they are placed in the owning agent's folder or delivered through another user-approved channel.
 - Do not spawn helper agents to impersonate named agents.
 - Respect repo branch, validation, security, and ownership rules.

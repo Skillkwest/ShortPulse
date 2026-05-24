@@ -39,6 +39,23 @@ const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+const CHARACTER_DESCRIPTION_PLACEHOLDER_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: "20px",
+  left: "20px",
+  right: "20px",
+  margin: 0,
+  color: "rgba(175, 187, 200, 0.52)",
+  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  fontSize: "0.96rem",
+  lineHeight: 1.58,
+  fontStyle: "italic",
+  fontWeight: 400,
+  letterSpacing: "0.003em",
+  pointerEvents: "none",
+  whiteSpace: "pre-wrap",
+};
+
 const CHARACTER_DESCRIPTION_CARD_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "8px",
@@ -49,17 +66,40 @@ const CHARACTER_DESCRIPTION_LABEL_ROW_STYLE: React.CSSProperties = {
   marginBottom: "2px",
 };
 
+const CHARACTER_DESCRIPTION_LABEL_STYLE: React.CSSProperties = {
+  display: "block",
+  margin: 0,
+  marginBottom: "3px",
+  color: "#25a9bf",
+  fontFamily:
+    '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
+  fontSize: "clamp(0.9rem, 0.86rem + 0.28vw, 1.02rem)",
+  lineHeight: 1.16,
+  fontWeight: 400,
+  letterSpacing: "0.08em",
+};
+
 const CHARACTER_DESCRIPTION_COUNT_STYLE: React.CSSProperties = {
   position: "absolute",
   right: "12px",
   bottom: "10px",
   margin: 0,
   color: "rgba(183, 190, 204, 0.78)",
-  fontSize: "0.8rem",
+  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  fontSize: "12px",
+  lineHeight: 1.4,
 };
 
 const CHARACTER_DESCRIPTION_HELPER_ROW_STYLE: React.CSSProperties = {
   minHeight: "14px",
+};
+
+const CHARACTER_DESCRIPTION_HELPER_STYLE: React.CSSProperties = {
+  margin: 0,
+  color: "rgba(116, 255, 169, 0.96)",
+  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  fontSize: "12px",
+  lineHeight: 1.4,
 };
 
 type CharacterDescriptionEditorCardProps = {
@@ -103,25 +143,21 @@ export function CharacterDescriptionEditorCard({
   const resolvedContainerPaddingBottomPx = containerPaddingBottomPx ?? 30;
   const resolvedTextareaPaddingYpx = textareaPaddingYpx ?? 6;
   const resolvedFooterMinHeightPx = footerMinHeightPx ?? 14;
+  const showPlaceholder = description.length === 0;
 
   return (
     <div
-      className="character-sheet-description-card character-profile-fields character-profile-fields--label-serif"
       style={{
         ...CHARACTER_DESCRIPTION_CARD_STYLE,
         gap: `${cardGapPx ?? 8}px`,
       }}
     >
-      <div
-        className="character-description-label-row"
-        style={CHARACTER_DESCRIPTION_LABEL_ROW_STYLE}
-      >
-        <label className="input-label" htmlFor="character-manager-description">
+      <div style={CHARACTER_DESCRIPTION_LABEL_ROW_STYLE}>
+        <label htmlFor="character-manager-description" style={CHARACTER_DESCRIPTION_LABEL_STYLE}>
           Description:
         </label>
       </div>
       <div
-        className="character-description-text-container"
         style={{
           ...CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE,
           padding: `${resolvedContainerPaddingTopPx}px ${resolvedContainerPaddingXpx}px ${resolvedContainerPaddingBottomPx}px`,
@@ -130,9 +166,22 @@ export function CharacterDescriptionEditorCard({
           maxHeight: `${resolvedContainerHeightPx}px`,
         }}
       >
+        {showPlaceholder ? (
+          <p
+            aria-hidden="true"
+            style={{
+              ...CHARACTER_DESCRIPTION_PLACEHOLDER_STYLE,
+              top: `${resolvedContainerPaddingTopPx + resolvedTextareaPaddingYpx}px`,
+              left: `${resolvedContainerPaddingXpx + 4}px`,
+              right: `${resolvedContainerPaddingXpx + 4}px`,
+            }}
+          >
+            A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim,
+            toned waist, a curvy lower body, and thick thighs.
+          </p>
+        ) : null}
         <textarea
           id="character-manager-description"
-          className="character-description-input"
           style={{
             ...CHARACTER_DESCRIPTION_INPUT_STYLE,
             padding: `${resolvedTextareaPaddingYpx}px 4px`,
@@ -141,26 +190,20 @@ export function CharacterDescriptionEditorCard({
           value={description}
           maxLength={maxLength}
           onChange={(event) => onChangeDescription(event.target.value)}
-          placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
+          placeholder=""
           disabled={disabled}
         />
-        <p
-          className="character-description-count tiny subdued"
-          style={CHARACTER_DESCRIPTION_COUNT_STYLE}
-        >
+        <p style={CHARACTER_DESCRIPTION_COUNT_STYLE}>
           {description.length}/{maxLength}
         </p>
       </div>
       <div
-        className="character-description-footer-row"
         style={{
           ...CHARACTER_DESCRIPTION_HELPER_ROW_STYLE,
           minHeight: `${resolvedFooterMinHeightPx}px`,
         }}
       >
-        {helperText ? (
-          <p className="character-description-helper tiny subdued">{helperText}</p>
-        ) : null}
+        {helperText ? <p style={CHARACTER_DESCRIPTION_HELPER_STYLE}>{helperText}</p> : null}
       </div>
     </div>
   );

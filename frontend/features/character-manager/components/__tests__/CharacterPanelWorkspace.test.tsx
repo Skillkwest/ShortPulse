@@ -71,6 +71,10 @@ const createDraftState = () => ({
 });
 
 let currentDraftState = createDraftState();
+let currentDroppedReferenceState = {
+  pendingDropTarget: null as null | { target: "character_sheet"; zoneKey: "portrait" },
+  isDropResolutionBusy: false,
+};
 
 vi.mock("next/image", () => ({
   default: ({ unoptimized, ...props }: Record<string, unknown>) => {
@@ -86,8 +90,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
 
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
   useCharacterManagerDroppedReferenceController: () => ({
-    pendingDropTarget: null,
-    isDropResolutionBusy: false,
+    ...currentDroppedReferenceState,
     handleCharacterSheetReferenceDrop: async () => undefined,
   }),
 }));
@@ -154,6 +157,10 @@ describe("CharacterPanelWorkspace", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     currentDraftState = createDraftState();
+    currentDroppedReferenceState = {
+      pendingDropTarget: null,
+      isDropResolutionBusy: false,
+    };
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
     clearCharacterSheetAssignmentMock.mockReset();
@@ -313,6 +320,20 @@ describe("CharacterPanelWorkspace", () => {
     );
     expect(screen.getByRole("button", { name: "Characters" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+  });
+
+  it("shows a loading spinner over the target reference card while a drop is loading", () => {
+    currentDroppedReferenceState = {
+      pendingDropTarget: { target: "character_sheet", zoneKey: "portrait" },
+      isDropResolutionBusy: true,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    expect(screen.getByRole("status", { name: "Loading Portrait reference" })).toHaveTextContent(
+      "Loading..."
+    );
+    expect(screen.getByText("Portrait").closest("article")).toHaveAttribute("aria-busy", "true");
   });
 
   it("keeps the Characters modal browsable but read-only while character save is in progress", () => {

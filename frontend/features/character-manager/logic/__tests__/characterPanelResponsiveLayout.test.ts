@@ -6,12 +6,10 @@ describe("resolveCharacterPanelResponsiveLayout", () => {
     const compact = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 560,
       panelHeightPx: 260,
-      isEmbeddedMediaLibraryMaximized: false,
     });
     const expanded = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 560,
       panelHeightPx: 520,
-      isEmbeddedMediaLibraryMaximized: false,
     });
 
     expect(expanded.contentPaddingTopPx).toBe(compact.contentPaddingTopPx);
@@ -24,12 +22,10 @@ describe("resolveCharacterPanelResponsiveLayout", () => {
     const narrow = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 420,
       panelHeightPx: 360,
-      isEmbeddedMediaLibraryMaximized: false,
     });
     const wide = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 760,
       panelHeightPx: 360,
-      isEmbeddedMediaLibraryMaximized: false,
     });
 
     expect(narrow.isCompactWidth).toBe(true);
@@ -38,28 +34,10 @@ describe("resolveCharacterPanelResponsiveLayout", () => {
     expect(wide.looksTabMinWidthPx).toBeGreaterThan(narrow.looksTabMinWidthPx);
   });
 
-  it("biases reference sizing upward when the media library is maximized", () => {
-    const defaultLayout = resolveCharacterPanelResponsiveLayout({
-      panelWidthPx: 600,
-      panelHeightPx: 420,
-      isEmbeddedMediaLibraryMaximized: false,
-    });
-    const maximizedLayout = resolveCharacterPanelResponsiveLayout({
-      panelWidthPx: 600,
-      panelHeightPx: 420,
-      isEmbeddedMediaLibraryMaximized: true,
-    });
-
-    expect(maximizedLayout.referenceCardMaxWidthPx).toBeGreaterThanOrEqual(
-      defaultLayout.referenceCardMaxWidthPx
-    );
-  });
-
   it("matches the description box height to the reference card height", () => {
     const layout = resolveCharacterPanelResponsiveLayout({
       panelWidthPx: 640,
       panelHeightPx: 420,
-      isEmbeddedMediaLibraryMaximized: false,
     });
 
     expect(layout.descriptionHeightPx).toBe(Math.round(layout.referenceCardMaxWidthPx * (5 / 4)));

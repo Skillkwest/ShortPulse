@@ -29,19 +29,14 @@ export type ResolveCharacterDropReference = (
   payload: InternalReferenceDragPayload
 ) => Promise<ResolvedCharacterDropReference | null>;
 
-export type PendingCharacterDropTarget =
-  | { target: "quickswap" }
-  | { target: "character_sheet"; zoneKey: CharacterSheetDropZoneKey }
-  | null;
+export type PendingCharacterDropTarget = {
+  target: "character_sheet";
+  zoneKey: CharacterSheetDropZoneKey;
+} | null;
 
 type UseCharacterManagerDroppedReferenceControllerParams = {
-  pageBusy: boolean;
-  quickSwapMutating: boolean;
-  clearAllMessages: () => void;
-  appendQuickSwapFiles: (files: File[]) => Promise<boolean>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
-  hasQuickSwapMediaFileId: (mediaId: string) => boolean;
 };
 
 type UseCharacterManagerDroppedReferenceControllerResult = {
@@ -51,7 +46,6 @@ type UseCharacterManagerDroppedReferenceControllerResult = {
     zoneKey: CharacterSheetDropZoneKey,
     transfer: DataTransfer
   ) => Promise<void>;
-  handleQuickSwapReferenceDrop: (transfer: DataTransfer) => Promise<void>;
 };
 
 type DroppedStorageCandidate = {
@@ -264,19 +258,31 @@ const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise
 };
 
 export const useCharacterManagerDroppedReferenceController = ({
-  pageBusy,
-  quickSwapMutating,
-  clearAllMessages,
-  appendQuickSwapFiles,
   setCharacterSheetPresetFile,
   resolveCharacterDropReference,
-  hasQuickSwapMediaFileId,
 }: UseCharacterManagerDroppedReferenceControllerParams): UseCharacterManagerDroppedReferenceControllerResult => {
   const [pendingDropTarget, setPendingDropTarget] = useState<PendingCharacterDropTarget>(null);
   const mediaReferenceCacheRef = useRef(
     new Map<string, { storagePath: string; previewUrl: string | null }>()
   );
   const isDropResolutionBusy = pendingDropTarget !== null;
+
+  const withCharacterSheetDropPending = useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, action: () => Promise<void>) => {
+      setPendingDropTarget({
+        target: "character_sheet",
+        zoneKey,
+      });
+      try {
+        await action();
+      } finally {
+        setPendingDropTarget((current) =>
+          current?.target === "character_sheet" && current.zoneKey === zoneKey ? null : current
+        );
+      }
+    },
+    []
+  );
 
   const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
     const normalizedMediaId = mediaId.trim();
@@ -330,17 +336,15 @@ export const useCharacterManagerDroppedReferenceController = ({
   const resolveInternalCharacterDrop = useCallback(
     async ({
       transfer,
-      target,
       zoneKey,
     }: {
       transfer: DataTransfer;
-      target: "quickswap" | "character_sheet";
       zoneKey?: CharacterSheetDropZoneKey;
     }): Promise<ResolvedCharacterDropReference | null> => {
       const payload = extractInternalReferenceDragPayload(transfer);
       if (!payload) return null;
       logCharacterDropBreadcrumb("character_drop_attempt", {
-        target,
+        target: "character_sheet",
         zone_key: zoneKey ?? null,
         origin: payload.origin,
         source_surface: payload.sourceSurface ?? null,
@@ -349,7 +353,7 @@ export const useCharacterManagerDroppedReferenceController = ({
       });
       if (!resolveCharacterDropReference) {
         logCharacterDropBreadcrumb("character_drop_rejected", {
-          target,
+          target: "character_sheet",
           zone_key: zoneKey ?? null,
           reason: "resolver_unavailable",
           origin: payload.origin,
@@ -362,7 +366,7 @@ export const useCharacterManagerDroppedReferenceController = ({
         const previewUrl = resolved?.previewUrl?.trim() || null;
         if (!mediaId && !previewUrl) {
           logCharacterDropBreadcrumb("character_drop_rejected", {
-            target,
+            target: "character_sheet",
             zone_key: zoneKey ?? null,
             reason: "missing_media_id_and_preview_url",
             origin: payload.origin,
@@ -372,7 +376,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           return null;
         }
         logCharacterDropBreadcrumb("character_drop_resolved", {
-          target,
+          target: "character_sheet",
           zone_key: zoneKey ?? null,
           origin: payload.origin,
           source_surface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
@@ -394,7 +398,7 @@ export const useCharacterManagerDroppedReferenceController = ({
         const reason =
           error instanceof Error && error.message.trim().length ? error.message : "resolver_failed";
         logCharacterDropBreadcrumb("character_drop_failed_autosave", {
-          target,
+          target: "character_sheet",
           zone_key: zoneKey ?? null,
           origin: payload.origin,
           output_id: payload.outputId ?? null,
@@ -434,41 +438,6 @@ export const useCharacterManagerDroppedReferenceController = ({
     [setCharacterSheetPresetFile]
   );
 
-  const ingestQuickSwapDroppedReference = useCallback(
-    async (reference: DroppedImageReference, options?: { suppressErrorTelemetry?: boolean }) => {
-      try {
-        if (pageBusy || quickSwapMutating) return false;
-        const file = await toDroppedReferenceFile(reference);
-        clearAllMessages();
-        const appended = await appendQuickSwapFiles([file]);
-        if (!appended) {
-          throw new Error("Failed to append dropped media to QuickSwap deck.");
-        }
-        return true;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error && error.message.trim().length
-            ? error.message
-            : "Failed to process dropped QuickSwap reference.";
-        if (!options?.suppressErrorTelemetry) {
-          void reportAppError({
-            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-            scope: "app",
-            severity: "low",
-            message: "quickswap_drop_reference_failed",
-            metadata: {
-              target: "quickswap",
-              reference_media_file_id: reference.characterMediaId,
-              reason: errorMessage,
-            },
-          });
-        }
-        return false;
-      }
-    },
-    [appendQuickSwapFiles, clearAllMessages, pageBusy, quickSwapMutating]
-  );
-
   const handleCharacterSheetReferenceDrop = useCallback(
     async (zoneKey: CharacterSheetDropZoneKey, transfer: DataTransfer) => {
       const internalReference = extractInternalReferenceDragPayload(transfer);
@@ -480,7 +449,6 @@ export const useCharacterManagerDroppedReferenceController = ({
         try {
           const resolvedReference = await resolveInternalCharacterDrop({
             transfer,
-            target: "character_sheet",
             zoneKey,
           });
           if (!resolvedReference) {
@@ -532,13 +500,17 @@ export const useCharacterManagerDroppedReferenceController = ({
 
       const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
       if (mediaLibraryReference) {
-        await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
+        await withCharacterSheetDropPending(zoneKey, async () => {
+          await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
+        });
         return;
       }
 
       const droppedFile = extractDroppedFiles(transfer)[0] ?? null;
       if (droppedFile) {
-        await setCharacterSheetPresetFile(zoneKey, droppedFile);
+        await withCharacterSheetDropPending(zoneKey, async () => {
+          await setCharacterSheetPresetFile(zoneKey, droppedFile);
+        });
         return;
       }
 
@@ -557,7 +529,9 @@ export const useCharacterManagerDroppedReferenceController = ({
         });
         return;
       }
-      await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
+      await withCharacterSheetDropPending(zoneKey, async () => {
+        await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
+      });
     },
     [
       setCharacterSheetPresetFile,
@@ -566,116 +540,7 @@ export const useCharacterManagerDroppedReferenceController = ({
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
       resolveMediaReferenceById,
-    ]
-  );
-
-  const handleQuickSwapReferenceDrop = useCallback(
-    async (transfer: DataTransfer) => {
-      const internalReference = extractInternalReferenceDragPayload(transfer);
-      if (internalReference && resolveCharacterDropReference) {
-        setPendingDropTarget({ target: "quickswap" });
-        try {
-          const resolvedReference = await resolveInternalCharacterDrop({
-            transfer,
-            target: "quickswap",
-          });
-          if (!resolvedReference) return;
-          const mediaId = resolvedReference.mediaId.trim();
-          if (hasQuickSwapMediaFileId(mediaId)) return;
-          let previewUrl = resolvedReference.previewUrl?.trim() || null;
-          if (!previewUrl && mediaId) {
-            const mediaReference = await resolveMediaReferenceById(mediaId);
-            previewUrl = mediaReference?.previewUrl?.trim() || null;
-          }
-          if (!previewUrl) {
-            void reportAppError({
-              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-              scope: "app",
-              severity: "low",
-              message: "quickswap_drop_reference_missing_preview_url",
-              metadata: {
-                target: "quickswap",
-                media_id: mediaId || null,
-                output_id: resolvedReference.outputId ?? null,
-                image_index: resolvedReference.imageIndex ?? null,
-              },
-            });
-            logCharacterDropBreadcrumb("character_drop_rejected", {
-              target: "quickswap",
-              reason: "missing_preview_url",
-              media_id: mediaId || null,
-              output_id: resolvedReference.outputId ?? null,
-              image_index: resolvedReference.imageIndex ?? null,
-            });
-            return;
-          }
-          const uploaded = await ingestQuickSwapDroppedReference(
-            {
-              url: previewUrl,
-              mimeType: null,
-              characterMediaId: mediaId || null,
-              storagePath: resolvedReference.storagePath ?? null,
-            },
-            {
-              suppressErrorTelemetry: true,
-            }
-          );
-          if (uploaded) return;
-          void reportAppError({
-            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-            scope: "app",
-            severity: "low",
-            message: "quickswap_drop_reference_failed_after_internal_resolve",
-            metadata: {
-              target: "quickswap",
-              media_id: mediaId || null,
-              output_id: resolvedReference.outputId ?? null,
-              image_index: resolvedReference.imageIndex ?? null,
-              reason: "quickswap_upload_failed",
-            },
-          });
-          logCharacterDropBreadcrumb("character_drop_rejected", {
-            target: "quickswap",
-            reason: "quickswap_upload_failed",
-            media_id: mediaId || null,
-            output_id: resolvedReference.outputId ?? null,
-            image_index: resolvedReference.imageIndex ?? null,
-          });
-          return;
-        } finally {
-          setPendingDropTarget((current) => (current?.target === "quickswap" ? null : current));
-        }
-      }
-
-      const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
-      if (mediaLibraryReference) {
-        await ingestQuickSwapDroppedReference(mediaLibraryReference);
-        return;
-      }
-
-      const droppedReference = resolveDroppedImageReference(transfer);
-      if (!droppedReference) {
-        void reportAppError({
-          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-          scope: "app",
-          severity: "low",
-          message: "quickswap_drop_reference_blocked_by_trust_policy",
-          metadata: {
-            target: "quickswap",
-            transfer_types: Array.from(transfer.types ?? []),
-          },
-        });
-        return;
-      }
-      await ingestQuickSwapDroppedReference(droppedReference);
-    },
-    [
-      hasQuickSwapMediaFileId,
-      ingestQuickSwapDroppedReference,
-      logCharacterDropBreadcrumb,
-      resolveCharacterDropReference,
-      resolveInternalCharacterDrop,
-      resolveMediaReferenceById,
+      withCharacterSheetDropPending,
     ]
   );
 
@@ -683,6 +548,5 @@ export const useCharacterManagerDroppedReferenceController = ({
     pendingDropTarget,
     isDropResolutionBusy,
     handleCharacterSheetReferenceDrop,
-    handleQuickSwapReferenceDrop,
   };
 };

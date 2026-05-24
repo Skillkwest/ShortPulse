@@ -278,10 +278,6 @@
   gap: 4px;
 }
 
-.character-panel-workspace.is-embedded-media-library-maximized .character-sheet-preset-panel {
-  align-content: start;
-}
-
 .character-panel-workspace .character-panel-preset-content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);

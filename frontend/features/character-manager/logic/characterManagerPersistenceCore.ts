@@ -375,7 +375,7 @@ export const createCharacterMediaAsset = async ({
 }: {
   userId: string;
   characterId: string;
-  assetKind: "profile" | "sheet_slot" | "sheet_preset" | "quickswap";
+  assetKind: "profile" | "sheet_slot" | "sheet_preset";
   storagePath: string;
   filename: string;
   fileType: string;

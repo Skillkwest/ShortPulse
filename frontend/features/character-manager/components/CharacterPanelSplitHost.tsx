@@ -24,7 +24,6 @@ type CharacterPanelSplitHostProps = {
 const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.36;
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
 const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
-const CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX = 500;
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
@@ -44,7 +43,6 @@ export function CharacterPanelSplitHost({
     defaultTopRatio: CHARACTER_PANEL_DEFAULT_TOP_RATIO,
     minTopSectionHeightPx: CHARACTER_PANEL_MIN_TOP_HEIGHT_PX,
     minBottomSectionHeightPx: CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX,
-    maxBottomSectionHeightPx: CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX,
     minTopRatioFloor: 0.32,
     ariaLabel: "Resize character workspace and media library sections",
   });
@@ -54,14 +52,6 @@ export function CharacterPanelSplitHost({
     }),
     [split.topSectionStyle]
   );
-  const bottomSectionStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      ...split.bottomSectionStyle,
-      maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
-    }),
-    [split.bottomSectionStyle]
-  );
-
   return (
     <div ref={splitContainerRef} className="character-panel-split-host">
       <div className="character-panel-top-section" style={topSectionStyle}>
@@ -70,7 +60,6 @@ export function CharacterPanelSplitHost({
           externalCreateRequestKey={externalCreateRequestKey}
           externalUploadRequest={externalUploadRequest}
           onExternalUploadRequestHandled={onExternalUploadRequestHandled}
-          isEmbeddedMediaLibraryMaximized={split.isAllRefsExpanded}
           preferredCharacterId={preferredCharacterId}
           suppressSelectedCharacterPersistence={suppressSelectedCharacterPersistence}
           onSelectedCharacterIdChange={onSelectedCharacterIdChange}
@@ -84,7 +73,7 @@ export function CharacterPanelSplitHost({
         <div className="reference-grid-horizontal-divider" />
       </div>
 
-      <div className="character-panel-bottom-section" style={bottomSectionStyle}>
+      <div className="character-panel-bottom-section" style={split.bottomSectionStyle}>
         <ElementsEmbeddedMediaLibraryPanel
           mediaCardInteractionMode="assignment"
           fixedVisualAspectRatio={null}

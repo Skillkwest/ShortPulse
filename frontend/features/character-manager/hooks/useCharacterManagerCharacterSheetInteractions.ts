@@ -11,16 +11,11 @@ import {
 } from "../../../lib/internalReferenceDragPayload";
 import { CHARACTER_SHEET_DROP_ZONES } from "../constants";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
-import type {
-  CharacterQuickSwapItem,
-  CharacterSheetDropZoneKey,
-  CharacterSheetPresetAssignments,
-} from "../types";
+import type { CharacterSheetDropZoneKey, CharacterSheetPresetAssignments } from "../types";
 
 type UseCharacterManagerCharacterSheetInteractionsParams = {
   pageBusy: boolean;
   isDropResolutionBusy: boolean;
-  selectedCharacterId: string | null;
   pendingCharacterSheetUploadZoneKey: CharacterSheetDropZoneKey | null;
   setPendingCharacterSheetUploadZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
@@ -28,10 +23,6 @@ type UseCharacterManagerCharacterSheetInteractionsParams = {
   saveCharacterSheetPresetAssignments: (
     assignments: CharacterSheetPresetAssignments
   ) => Promise<unknown>;
-  quickSwapItemById: Map<string, CharacterQuickSwapItem>;
-  quickSwapItemByMediaFileId: Map<string, CharacterQuickSwapItem>;
-  quickSwapItemByLegacySlotKey: Map<string, CharacterQuickSwapItem>;
-  draggedQuickSwapItemId: string | null;
   draggedCharacterSheetZoneKey: CharacterSheetDropZoneKey | null;
   canResolveCharacterDropReference: boolean;
   handleCharacterSheetReferenceDrop: (
@@ -40,7 +31,6 @@ type UseCharacterManagerCharacterSheetInteractionsParams = {
   ) => Promise<void>;
   setActiveCharacterSheetDropZone: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   openCharacterSheetPicker: (dropZoneKey: CharacterSheetDropZoneKey) => void;
-  referenceSlotMimeType: string;
   characterSheetZoneMimeType: string;
 };
 
@@ -59,22 +49,16 @@ type UseCharacterManagerCharacterSheetInteractionsResult = {
 export const useCharacterManagerCharacterSheetInteractions = ({
   pageBusy,
   isDropResolutionBusy,
-  selectedCharacterId,
   pendingCharacterSheetUploadZoneKey,
   setPendingCharacterSheetUploadZoneKey,
   setCharacterSheetPresetFile,
   resolvedCharacterSheetPresetAssignments,
   saveCharacterSheetPresetAssignments,
-  quickSwapItemById,
-  quickSwapItemByMediaFileId,
-  quickSwapItemByLegacySlotKey,
-  draggedQuickSwapItemId,
   draggedCharacterSheetZoneKey,
   canResolveCharacterDropReference,
   handleCharacterSheetReferenceDrop,
   setActiveCharacterSheetDropZone,
   openCharacterSheetPicker,
-  referenceSlotMimeType,
   characterSheetZoneMimeType,
 }: UseCharacterManagerCharacterSheetInteractionsParams): UseCharacterManagerCharacterSheetInteractionsResult => {
   const persistCharacterSheetPresetAssignments = useCallback(
@@ -82,30 +66,6 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       void saveCharacterSheetPresetAssignments(nextAssignments);
     },
     [saveCharacterSheetPresetAssignments]
-  );
-
-  const assignReferenceToCharacterSheetSlot = useCallback(
-    (characterSheetSlotKey: CharacterSheetDropZoneKey, quickSwapItemId: string) => {
-      if (!selectedCharacterId) return;
-      const referenceEntry = quickSwapItemById.get(quickSwapItemId);
-      if (!referenceEntry) return;
-      const nextAssignments = {
-        ...resolvedCharacterSheetPresetAssignments,
-        [characterSheetSlotKey]: {
-          characterMediaId: referenceEntry.characterMediaId,
-          storagePath: referenceEntry.storagePath,
-          previewStoragePath: referenceEntry.previewStoragePath ?? null,
-          previewUrl: referenceEntry.previewUrl,
-        },
-      };
-      persistCharacterSheetPresetAssignments(nextAssignments);
-    },
-    [
-      persistCharacterSheetPresetAssignments,
-      quickSwapItemById,
-      resolvedCharacterSheetPresetAssignments,
-      selectedCharacterId,
-    ]
   );
 
   const handleCharacterSheetFileSelection = useCallback(
@@ -126,48 +86,6 @@ export const useCharacterManagerCharacterSheetInteractions = ({
     ]
   );
 
-  const resolveDraggedQuickSwapItem = useCallback(
-    (transfer: DataTransfer): CharacterQuickSwapItem | null => {
-      const rawPayload = transfer.getData("application/x-shortpulse-quickswap-item");
-      if (rawPayload) {
-        try {
-          const parsed = JSON.parse(rawPayload) as { id?: string };
-          const parsedId = parsed.id?.trim();
-          if (parsedId && quickSwapItemById.has(parsedId)) {
-            return quickSwapItemById.get(parsedId) ?? null;
-          }
-        } catch {
-          // Ignore malformed payload and continue with compatibility fallbacks.
-        }
-      }
-      const mediaId =
-        transfer.getData(referenceSlotMimeType)?.trim() ||
-        transfer.getData("text/plain")?.trim() ||
-        "";
-      if (!mediaId) {
-        return draggedQuickSwapItemId
-          ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
-          : null;
-      }
-      if (quickSwapItemByMediaFileId.has(mediaId)) {
-        return quickSwapItemByMediaFileId.get(mediaId) ?? null;
-      }
-      if (quickSwapItemByLegacySlotKey.has(mediaId)) {
-        return quickSwapItemByLegacySlotKey.get(mediaId) ?? null;
-      }
-      return draggedQuickSwapItemId
-        ? (quickSwapItemById.get(draggedQuickSwapItemId) ?? null)
-        : null;
-    },
-    [
-      draggedQuickSwapItemId,
-      quickSwapItemById,
-      quickSwapItemByLegacySlotKey,
-      quickSwapItemByMediaFileId,
-      referenceSlotMimeType,
-    ]
-  );
-
   const handleCharacterSheetDragOver = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: DragEvent<HTMLElement>) => {
       if (pageBusy || isDropResolutionBusy) return;
@@ -175,29 +93,21 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         (event.dataTransfer.getData(characterSheetZoneMimeType) as
           | CharacterSheetDropZoneKey
           | "") || draggedCharacterSheetZoneKey;
-      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
       const internalReferenceGridPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       const hasInternalReferenceGridHints = hasInternalReferenceDragTypeHints(event.dataTransfer);
       const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
       const isInternalSheetDrag =
         Boolean(sourceCharacterSheetZoneKey) &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
-      const isInternalReferenceDrag = Boolean(quickSwapItem);
       const isInternalReferenceGridDrag = Boolean(
         canResolveCharacterDropReference &&
         (internalReferenceGridPayload || hasInternalReferenceGridHints)
       );
-      if (
-        !isInternalSheetDrag &&
-        !isInternalReferenceDrag &&
-        !isInternalReferenceGridDrag &&
-        !hasExternalImageReference
-      ) {
+      if (!isInternalSheetDrag && !isInternalReferenceGridDrag && !hasExternalImageReference) {
         return;
       }
       event.preventDefault();
-      event.dataTransfer.dropEffect =
-        isInternalSheetDrag || isInternalReferenceDrag ? "move" : "copy";
+      event.dataTransfer.dropEffect = isInternalSheetDrag ? "move" : "copy";
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
     },
     [
@@ -206,7 +116,6 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       draggedCharacterSheetZoneKey,
       isDropResolutionBusy,
       pageBusy,
-      resolveDraggedQuickSwapItem,
       setActiveCharacterSheetDropZone,
     ]
   );
@@ -251,12 +160,6 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         return;
       }
 
-      const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
-      if (quickSwapItem) {
-        assignReferenceToCharacterSheetSlot(characterSheetSlotKey, quickSwapItem.id);
-        return;
-      }
-
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
       void handleCharacterSheetReferenceDrop(characterSheetSlotKey, event.dataTransfer).finally(
         () => {
@@ -267,14 +170,12 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       );
     },
     [
-      assignReferenceToCharacterSheetSlot,
       characterSheetZoneMimeType,
       draggedCharacterSheetZoneKey,
       handleCharacterSheetReferenceDrop,
       isDropResolutionBusy,
       pageBusy,
       persistCharacterSheetPresetAssignments,
-      resolveDraggedQuickSwapItem,
       resolvedCharacterSheetPresetAssignments,
       setActiveCharacterSheetDropZone,
     ]

@@ -35,7 +35,6 @@ type CharacterPanelWorkspaceProps = {
   externalCreateRequestKey?: number;
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
-  isEmbeddedMediaLibraryMaximized?: boolean;
   preferredCharacterId?: string | null;
   suppressSelectedCharacterPersistence?: boolean;
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
@@ -43,7 +42,6 @@ type CharacterPanelWorkspaceProps = {
 
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
-const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
 const CHARACTER_TEXT_ENTRY_BACKGROUND = "#15161a";
@@ -112,7 +110,7 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
   alignItems: "start",
 };
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 1)";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.94)";
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
@@ -132,6 +130,17 @@ const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
   margin: 0,
+};
+const CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE: React.CSSProperties = {
+  display: "block",
+  margin: 0,
+  color: "#25a9bf",
+  fontFamily:
+    '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
+  fontSize: "0.8rem",
+  lineHeight: 1.16,
+  fontWeight: 400,
+  letterSpacing: "0.06em",
 };
 const CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
@@ -158,7 +167,12 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
 };
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  flex: "1 1 auto",
+  minHeight: "100%",
   padding: "14px 16px 2px",
+  boxSizing: "border-box",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
 const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {
@@ -186,7 +200,9 @@ const CHARACTER_REFERENCE_COLUMN_INLINE_STYLE: React.CSSProperties = {
   minWidth: 0,
 };
 const CHARACTER_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
-  marginBottom: "2px",
+  display: "grid",
+  gap: "2px",
+  margin: "0 0 4px",
 };
 const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
   width: "min(100%, 114px)",
@@ -303,7 +319,6 @@ export function CharacterPanelWorkspace({
   externalCreateRequestKey = 0,
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
-  isEmbeddedMediaLibraryMaximized = false,
   preferredCharacterId = null,
   suppressSelectedCharacterPersistence = false,
   onSelectedCharacterIdChange,
@@ -351,7 +366,6 @@ export function CharacterPanelWorkspace({
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [hoveredCharacterSheetActionZone, setHoveredCharacterSheetActionZone] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
-  const [draggedQuickSwapItemId, setDraggedQuickSwapItemId] = React.useState<string | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
   const [measuredReferenceCardHeightPx, setMeasuredReferenceCardHeightPx] = React.useState<
@@ -432,9 +446,8 @@ export function CharacterPanelWorkspace({
       resolveCharacterPanelResponsiveLayout({
         panelWidthPx: editorPanelSize.width,
         panelHeightPx: editorPanelSize.height,
-        isEmbeddedMediaLibraryMaximized,
       }),
-    [editorPanelSize.height, editorPanelSize.width, isEmbeddedMediaLibraryMaximized]
+    [editorPanelSize.height, editorPanelSize.width]
   );
 
   const actionButtonStyle = React.useMemo<React.CSSProperties>(
@@ -653,17 +666,13 @@ export function CharacterPanelWorkspace({
     () => ({
       ...CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE,
       display: "grid",
-      gridTemplateColumns: isEmbeddedMediaLibraryMaximized
-        ? "minmax(0, 1fr)"
-        : "minmax(0, 1.02fr) minmax(0, 0.98fr)",
-      gridTemplateAreas: isEmbeddedMediaLibraryMaximized
-        ? '"references"'
-        : '"description references"',
+      gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+      gridTemplateAreas: '"description references"',
       columnGap: `${responsiveLayout.presetContentColumnGapPx}px`,
       rowGap: `${responsiveLayout.presetContentRowGapPx}px`,
       alignItems: "start",
     }),
-    [isEmbeddedMediaLibraryMaximized, responsiveLayout]
+    [responsiveLayout]
   );
 
   const descriptionColumnStyle = React.useMemo<React.CSSProperties>(
@@ -705,13 +714,8 @@ export function CharacterPanelWorkspace({
 
   const { pendingDropTarget, isDropResolutionBusy, handleCharacterSheetReferenceDrop } =
     useCharacterManagerDroppedReferenceController({
-      pageBusy,
-      quickSwapMutating: false,
-      clearAllMessages: clearMessages,
-      appendQuickSwapFiles: async () => false,
       setCharacterSheetPresetFile,
       resolveCharacterDropReference,
-      hasQuickSwapMediaFileId: () => false,
     });
 
   const openCharacterSheetPicker = React.useCallback((zoneKey: CharacterSheetDropZoneKey) => {
@@ -728,35 +732,26 @@ export function CharacterPanelWorkspace({
   } = useCharacterManagerCharacterSheetInteractions({
     pageBusy,
     isDropResolutionBusy,
-    selectedCharacterId,
     pendingCharacterSheetUploadZoneKey,
     setPendingCharacterSheetUploadZoneKey,
     setCharacterSheetPresetFile,
     resolvedCharacterSheetPresetAssignments,
     saveCharacterSheetPresetAssignments,
-    quickSwapItemById: new Map(),
-    quickSwapItemByMediaFileId: new Map(),
-    quickSwapItemByLegacySlotKey: new Map(),
-    draggedQuickSwapItemId,
     draggedCharacterSheetZoneKey,
     canResolveCharacterDropReference: Boolean(resolveCharacterDropReference),
     handleCharacterSheetReferenceDrop,
     setActiveCharacterSheetDropZone,
     openCharacterSheetPicker,
-    referenceSlotMimeType: DND_REFERENCE_SLOT_KEY,
     characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
   });
 
   const { handleCharacterSheetDragStart, handleReferenceDragEnd } =
     useCharacterManagerDragInteractions({
       pageBusy,
-      quickSwapMutating: false,
       isDropResolutionBusy,
       resolvedCharacterSheetPresetAssignments,
-      setDraggedQuickSwapItemId,
       setDraggedCharacterSheetZoneKey,
       setActiveCharacterSheetDropZone,
-      quickSwapMimeType: DND_QUICK_SWAP_ITEM,
       referenceSlotMimeType: DND_REFERENCE_SLOT_KEY,
       characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
     });
@@ -931,11 +926,7 @@ export function CharacterPanelWorkspace({
   );
 
   return (
-    <div
-      className={`character-panel-workspace ${
-        isEmbeddedMediaLibraryMaximized ? "is-embedded-media-library-maximized" : ""
-      }`.trim()}
-    >
+    <div className="character-panel-workspace">
       {error ? (
         <div className="character-feedback error" role="status">
           <XCircle size={16} weight="fill" />
@@ -1062,11 +1053,10 @@ export function CharacterPanelWorkspace({
                           style={topFieldGroupStyle}
                         >
                           <label
-                            className="character-profile-fields character-profile-fields--label-serif"
                             htmlFor="character-panel-name"
                             style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
                           >
-                            <span className="input-label">Name:</span>
+                            <span style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
                           </label>
 
                           <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
@@ -1087,11 +1077,8 @@ export function CharacterPanelWorkspace({
 
                         <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
                           <div style={topFieldGroupStyle}>
-                            <div
-                              className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif"
-                              style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}
-                            >
-                              <p className="input-label">Looks:</p>
+                            <div style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}>
+                              <p style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Looks:</p>
                             </div>
 
                             <div
@@ -1142,46 +1129,41 @@ export function CharacterPanelWorkspace({
                           className="character-panel-preset-content-grid"
                           style={presetContentGridStyle}
                         >
-                          {isEmbeddedMediaLibraryMaximized ? null : (
-                            <div
-                              className="character-panel-preset-description-column"
-                              style={descriptionColumnStyle}
-                            >
-                              <CharacterDescriptionEditorCard
-                                description={characterDescription}
-                                maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
-                                rows={5}
-                                disabled={loading}
-                                cardGapPx={responsiveLayout.descriptionCardGapPx}
-                                containerHeightPx={
-                                  measuredReferenceCardHeightPx ??
-                                  responsiveLayout.descriptionHeightPx
-                                }
-                                containerPaddingTopPx={
-                                  responsiveLayout.descriptionContainerPaddingTopPx
-                                }
-                                containerPaddingXpx={
-                                  responsiveLayout.descriptionContainerPaddingXpx
-                                }
-                                containerPaddingBottomPx={
-                                  responsiveLayout.descriptionContainerPaddingBottomPx
-                                }
-                                textareaPaddingYpx={responsiveLayout.descriptionTextareaPaddingYpx}
-                                footerMinHeightPx={responsiveLayout.descriptionFooterMinHeightPx}
-                                onChangeDescription={setCharacterDescription}
-                              />
-                            </div>
-                          )}
+                          <div
+                            className="character-panel-preset-description-column"
+                            style={descriptionColumnStyle}
+                          >
+                            <CharacterDescriptionEditorCard
+                              description={characterDescription}
+                              maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                              rows={5}
+                              disabled={loading}
+                              cardGapPx={responsiveLayout.descriptionCardGapPx}
+                              containerHeightPx={
+                                measuredReferenceCardHeightPx ??
+                                responsiveLayout.descriptionHeightPx
+                              }
+                              containerPaddingTopPx={
+                                responsiveLayout.descriptionContainerPaddingTopPx
+                              }
+                              containerPaddingXpx={responsiveLayout.descriptionContainerPaddingXpx}
+                              containerPaddingBottomPx={
+                                responsiveLayout.descriptionContainerPaddingBottomPx
+                              }
+                              textareaPaddingYpx={responsiveLayout.descriptionTextareaPaddingYpx}
+                              footerMinHeightPx={responsiveLayout.descriptionFooterMinHeightPx}
+                              onChangeDescription={setCharacterDescription}
+                            />
+                          </div>
 
                           <div
                             className="character-panel-preset-references-column"
                             style={referenceColumnStyle}
                           >
-                            <div
-                              className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif"
-                              style={CHARACTER_REFERENCE_TITLE_INLINE_STYLE}
-                            >
-                              <p className="input-label">Character References:</p>
+                            <div style={CHARACTER_REFERENCE_TITLE_INLINE_STYLE}>
+                              <p style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>
+                                Character References:
+                              </p>
                             </div>
                             <div
                               className="character-reference-empty-grid"
@@ -1217,6 +1199,7 @@ export function CharacterPanelWorkspace({
                                         ? "is-dragging"
                                         : ""
                                     } ${isDropPending ? "is-drop-pending" : ""}`}
+                                    aria-busy={isDropPending}
                                     style={{
                                       ...CHARACTER_REFERENCE_CARD_INLINE_STYLE,
                                       width: "100%",
@@ -1366,13 +1349,27 @@ export function CharacterPanelWorkspace({
                                             {slotRequirementCopy}
                                           </span>
                                           {isDropPending ? (
-                                            <span className="character-character-sheet-drop-pending tiny">
-                                              Assigning...
-                                            </span>
+                                            <span className="sr-only">Loading reference...</span>
                                           ) : null}
                                         </span>
                                       )}
                                     </div>
+                                    {isDropPending ? (
+                                      <div
+                                        className="character-character-sheet-loading-overlay"
+                                        role="status"
+                                        aria-live="polite"
+                                        aria-label={`Loading ${dropZone.label} reference`}
+                                      >
+                                        <span className="character-character-sheet-loading-indicator">
+                                          <span
+                                            className="character-character-sheet-loading-spinner"
+                                            aria-hidden="true"
+                                          />
+                                          <span>Loading...</span>
+                                        </span>
+                                      </div>
+                                    ) : null}
                                     <span
                                       className="character-reference-empty-hint"
                                       style={{

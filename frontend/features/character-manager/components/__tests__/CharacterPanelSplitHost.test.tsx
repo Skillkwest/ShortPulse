@@ -26,7 +26,6 @@ vi.mock("../../../ai-studio/hooks/useReferenceGridHorizontalSplit", () => ({
     return {
       topSectionStyle: { flexBasis: "47%" },
       bottomSectionStyle: { flexBasis: "53%" },
-      isAllRefsExpanded: false,
       dividerProps: {
         role: "separator",
         "aria-orientation": "horizontal",
@@ -65,19 +64,30 @@ describe("CharacterPanelSplitHost", () => {
         resolveInternalDropItem: resolveMediaLibraryInternalDropItem,
       })
     );
-    expect(workspaceSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isEmbeddedMediaLibraryMaximized: false,
-      })
-    );
+    const workspaceProps = workspaceSpy.mock.calls.at(-1)?.[0];
+    expect(workspaceProps).toEqual(expect.any(Object));
+    expect(workspaceProps).not.toHaveProperty("isEmbeddedMediaLibraryMaximized");
     const splitHookArgs = splitHookSpy.mock.calls[0]?.[0];
     expect(splitHookArgs).toEqual(
       expect.objectContaining({
         defaultTopRatio: 0.36,
         minTopSectionHeightPx: 336,
         minBottomSectionHeightPx: 248,
-        maxBottomSectionHeightPx: 500,
       })
     );
+  });
+
+  it("keeps the embedded media library in assignment mode without click-selection wiring", () => {
+    render(<CharacterPanelSplitHost projectId="project-123" />);
+
+    const embeddedPanelProps = embeddedMediaPanelSpy.mock.calls.at(-1)?.[0];
+    expect(embeddedPanelProps).toEqual(
+      expect.objectContaining({
+        mediaCardInteractionMode: "assignment",
+        fixedVisualAspectRatio: null,
+        projectId: "project-123",
+      })
+    );
+    expect(embeddedPanelProps?.onSelectMedia).toBeUndefined();
   });
 });

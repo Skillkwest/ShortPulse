@@ -6,11 +6,7 @@ import {
   type DragEvent,
   type SetStateAction,
 } from "react";
-import type {
-  CharacterQuickSwapItem,
-  CharacterSheetDropZoneKey,
-  CharacterSheetPresetAssignments,
-} from "../types";
+import type { CharacterSheetDropZoneKey, CharacterSheetPresetAssignments } from "../types";
 
 const DRAG_GHOST_SCALE = 0.74;
 const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
@@ -18,21 +14,15 @@ const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
 
 type UseCharacterManagerDragInteractionsParams = {
   pageBusy: boolean;
-  quickSwapMutating: boolean;
   isDropResolutionBusy: boolean;
   resolvedCharacterSheetPresetAssignments: CharacterSheetPresetAssignments;
-  setDraggedQuickSwapItemId: Dispatch<SetStateAction<string | null>>;
   setDraggedCharacterSheetZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   setActiveCharacterSheetDropZone: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
-  quickSwapMimeType: string;
   referenceSlotMimeType: string;
   characterSheetZoneMimeType: string;
 };
 
 type UseCharacterManagerDragInteractionsResult = {
-  handleReferenceDragStart: (
-    item: CharacterQuickSwapItem
-  ) => (event: DragEvent<HTMLElement>) => void;
   handleCharacterSheetDragStart: (
     characterSheetSlotKey: CharacterSheetDropZoneKey
   ) => (event: DragEvent<HTMLElement>) => void;
@@ -41,13 +31,10 @@ type UseCharacterManagerDragInteractionsResult = {
 
 export const useCharacterManagerDragInteractions = ({
   pageBusy,
-  quickSwapMutating,
   isDropResolutionBusy,
   resolvedCharacterSheetPresetAssignments,
-  setDraggedQuickSwapItemId,
   setDraggedCharacterSheetZoneKey,
   setActiveCharacterSheetDropZone,
-  quickSwapMimeType,
   referenceSlotMimeType,
   characterSheetZoneMimeType,
 }: UseCharacterManagerDragInteractionsParams): UseCharacterManagerDragInteractionsResult => {
@@ -93,40 +80,6 @@ export const useCharacterManagerDragInteractions = ({
     dragNode.classList.add("is-dragging");
   }, []);
 
-  const handleReferenceDragStart = useCallback(
-    (item: CharacterQuickSwapItem) => (event: DragEvent<HTMLElement>) => {
-      if (pageBusy || quickSwapMutating || isDropResolutionBusy) {
-        event.preventDefault();
-        return;
-      }
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(
-        quickSwapMimeType,
-        JSON.stringify({
-          id: item.id,
-          characterMediaId: item.characterMediaId,
-          storagePath: item.storagePath,
-          previewUrl: item.previewUrl,
-        })
-      );
-      event.dataTransfer.setData(referenceSlotMimeType, item.characterMediaId);
-      event.dataTransfer.setData("text/plain", item.characterMediaId);
-      setDraggedQuickSwapItemId(item.id);
-      setDraggedCharacterSheetZoneKey(null);
-      applyDragGhost(event);
-    },
-    [
-      applyDragGhost,
-      isDropResolutionBusy,
-      pageBusy,
-      quickSwapMimeType,
-      quickSwapMutating,
-      referenceSlotMimeType,
-      setDraggedCharacterSheetZoneKey,
-      setDraggedQuickSwapItemId,
-    ]
-  );
-
   const handleCharacterSheetDragStart = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: DragEvent<HTMLElement>) => {
       if (pageBusy || isDropResolutionBusy) {
@@ -143,7 +96,6 @@ export const useCharacterManagerDragInteractions = ({
       event.dataTransfer.setData(referenceSlotMimeType, assignedReference.characterMediaId);
       event.dataTransfer.setData("text/plain", assignedReference.characterMediaId);
       setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
-      setDraggedQuickSwapItemId(null);
       applyDragGhost(event);
     },
     [
@@ -154,7 +106,6 @@ export const useCharacterManagerDragInteractions = ({
       referenceSlotMimeType,
       resolvedCharacterSheetPresetAssignments,
       setDraggedCharacterSheetZoneKey,
-      setDraggedQuickSwapItemId,
     ]
   );
 
@@ -167,11 +118,10 @@ export const useCharacterManagerDragInteractions = ({
         ghost.remove();
         dragGhostMapRef.current.delete(dragNode);
       }
-      setDraggedQuickSwapItemId(null);
       setDraggedCharacterSheetZoneKey(null);
       setActiveCharacterSheetDropZone(null);
     },
-    [setActiveCharacterSheetDropZone, setDraggedCharacterSheetZoneKey, setDraggedQuickSwapItemId]
+    [setActiveCharacterSheetDropZone, setDraggedCharacterSheetZoneKey]
   );
 
   useEffect(
@@ -185,7 +135,6 @@ export const useCharacterManagerDragInteractions = ({
   );
 
   return {
-    handleReferenceDragStart,
     handleCharacterSheetDragStart,
     handleReferenceDragEnd,
   };

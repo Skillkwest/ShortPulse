@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCharacterManagerDroppedReferenceController } from "../useCharacterManagerDroppedReferenceController";
 import { reportAppError } from "../../../../lib/appErrorReporter";
@@ -6,6 +6,16 @@ import { reportAppError } from "../../../../lib/appErrorReporter";
 vi.mock("../../../../lib/appErrorReporter", () => ({
   reportAppError: vi.fn(),
 }));
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+};
 
 describe("useCharacterManagerDroppedReferenceController", () => {
   afterEach(() => {
@@ -24,12 +34,7 @@ describe("useCharacterManagerDroppedReferenceController", () => {
 
     const { result } = renderHook(() =>
       useCharacterManagerDroppedReferenceController({
-        pageBusy: false,
-        quickSwapMutating: false,
-        clearAllMessages: vi.fn(),
-        appendQuickSwapFiles: vi.fn(async () => false),
         setCharacterSheetPresetFile,
-        hasQuickSwapMediaFileId: () => false,
       })
     );
 
@@ -42,12 +47,13 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(result.current.pendingDropTarget).toBeNull();
   });
 
-  it("prefers a media-library image payload over a browser synthetic file", async () => {
+  it("shows the target character-sheet card as pending while a media-library image is loading", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
     } as Response);
-    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const saveDeferred = createDeferred<boolean>();
+    const setCharacterSheetPresetFile = vi.fn().mockReturnValue(saveDeferred.promise);
     const syntheticFile = new File(["ghost"], "ghost.txt", { type: "text/plain" });
     const payload = {
       kind: "libraryMedia",
@@ -82,25 +88,35 @@ describe("useCharacterManagerDroppedReferenceController", () => {
 
     const { result } = renderHook(() =>
       useCharacterManagerDroppedReferenceController({
-        pageBusy: false,
-        quickSwapMutating: false,
-        clearAllMessages: vi.fn(),
-        appendQuickSwapFiles: vi.fn(async () => false),
         setCharacterSheetPresetFile,
-        hasQuickSwapMediaFileId: () => false,
       })
     );
 
-    await act(async () => {
-      await result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
+    let dropPromise!: Promise<void>;
+    act(() => {
+      dropPromise = result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
     });
 
-    expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.pendingDropTarget).toEqual({
+      target: "character_sheet",
+      zoneKey: "portrait",
+    });
+
     const uploadedFile = setCharacterSheetPresetFile.mock.calls[0]?.[1] as File;
     expect(setCharacterSheetPresetFile.mock.calls[0]?.[0]).toBe("portrait");
     expect(uploadedFile).toBeInstanceOf(File);
     expect(uploadedFile.type).toBe("image/png");
     expect(uploadedFile).not.toBe(syntheticFile);
+
+    await act(async () => {
+      saveDeferred.resolve(true);
+      await dropPromise;
+    });
+
+    expect(result.current.pendingDropTarget).toBeNull();
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
 });

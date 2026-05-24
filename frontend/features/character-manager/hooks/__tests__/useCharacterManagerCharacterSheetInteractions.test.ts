@@ -10,7 +10,6 @@ describe("useCharacterManagerCharacterSheetInteractions", () => {
       useCharacterManagerCharacterSheetInteractions({
         pageBusy: false,
         isDropResolutionBusy: false,
-        selectedCharacterId: null,
         pendingCharacterSheetUploadZoneKey: null,
         setPendingCharacterSheetUploadZoneKey: vi.fn(),
         setCharacterSheetPresetFile: vi.fn(),
@@ -24,16 +23,11 @@ describe("useCharacterManagerCharacterSheetInteractions", () => {
           front_shot: null,
         },
         saveCharacterSheetPresetAssignments,
-        quickSwapItemById: new Map(),
-        quickSwapItemByMediaFileId: new Map(),
-        quickSwapItemByLegacySlotKey: new Map(),
-        draggedQuickSwapItemId: null,
         draggedCharacterSheetZoneKey: null,
         canResolveCharacterDropReference: false,
         handleCharacterSheetReferenceDrop: vi.fn(),
         setActiveCharacterSheetDropZone: vi.fn(),
         openCharacterSheetPicker: vi.fn(),
-        referenceSlotMimeType: "application/x-shortpulse-reference-slot-key",
         characterSheetZoneMimeType: "application/x-shortpulse-character-sheet-zone-key",
       })
     );

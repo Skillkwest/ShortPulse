@@ -1331,6 +1331,62 @@ body.character-manager-body {
     0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
+.character-character-sheet-card.is-drop-pending {
+  cursor: wait;
+}
+
+.character-character-sheet-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: rgba(8, 11, 15, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.character-character-sheet-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(110, 214, 233, 0.32);
+  border-radius: 999px;
+  background: rgba(11, 19, 26, 0.86);
+  color: rgba(213, 245, 255, 0.96);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.character-character-sheet-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(110, 214, 233, 0.24);
+  border-top-color: rgba(110, 214, 233, 0.98);
+  border-right-color: rgba(37, 204, 255, 0.72);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  animation: character-reference-loading-spin 0.82s linear infinite;
+}
+
+@keyframes character-reference-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-character-sheet-loading-spinner {
+    animation: none;
+  }
+}
+
 .character-drag-ghost {
   border-radius: 14px;
   overflow: hidden;

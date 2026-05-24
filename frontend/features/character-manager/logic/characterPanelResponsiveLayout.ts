@@ -7,7 +7,6 @@
 export type CharacterPanelResponsiveLayoutInput = {
   panelWidthPx: number;
   panelHeightPx: number;
-  isEmbeddedMediaLibraryMaximized: boolean;
 };
 
 export type CharacterPanelResponsiveLayoutMetrics = {
@@ -77,14 +76,11 @@ const resolveReferenceCardHeightPx = (referenceCardMaxWidthPx: number): number =
  */
 export const resolveCharacterPanelResponsiveLayout = ({
   panelWidthPx,
-  isEmbeddedMediaLibraryMaximized,
 }: CharacterPanelResponsiveLayoutInput): CharacterPanelResponsiveLayoutMetrics => {
   const safeWidth = clamp(panelWidthPx || 0, 320, 960);
   const widthProgress = normalize(safeWidth, 360, 820);
   const balancedProgress = widthProgress;
-  const referenceGrowthBoost = isEmbeddedMediaLibraryMaximized ? 0.1 : 0;
-  const referenceProgress = clamp(widthProgress + referenceGrowthBoost, 0, 1);
-  const referenceCardMaxWidthPx = round(interpolate(88, 136, referenceProgress));
+  const referenceCardMaxWidthPx = round(interpolate(88, 136, widthProgress));
   const referenceCardHeightPx = resolveReferenceCardHeightPx(referenceCardMaxWidthPx);
 
   return {

@@ -99,7 +99,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("hydrates signed-in Expert Edit preferences from local storage before auth resolution completes", async () => {
+  it("does not hydrate signed-in Expert Edit preferences from global localStorage fallback", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.expert_edit_preset_panel_ids",
       JSON.stringify(["low_angle", "custom_8"])
@@ -131,10 +131,8 @@ describe("useExpertEditPresetPanelPreference", () => {
     const { result } = renderHook(() => useExpertEditPresetPanelPreference());
 
     await waitFor(() => {
-      expect(result.current.presetPanelIds).toEqual(["low_angle", "custom_8"]);
-      expect(result.current.customPresetOverrides).toEqual({
-        custom_8: { label: "My Custom Eight", prompt: "Use custom eight prompt." },
-      });
+      expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
+      expect(result.current.customPresetOverrides).toEqual({});
     });
     expect(result.current.loading).toBe(true);
 
@@ -148,6 +146,8 @@ describe("useExpertEditPresetPanelPreference", () => {
       expect(result.current.syncState).toBe("ready");
     });
 
+    expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
+    expect(result.current.customPresetOverrides).toEqual({});
     expect(maybeSingle).toHaveBeenCalledTimes(1);
   });
 
@@ -301,7 +301,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(result.current.presetPanelIds).toEqual(["selfie", "zoom_out", "custom_18"]);
 
     const storedRaw = window.localStorage.getItem(
-      "shortpulse.ai_studio.expert_edit_preset_panel_ids"
+      "shortpulse.ai_studio.expert_edit_preset_panel_ids:user-1"
     );
     expect(storedRaw).toBeTruthy();
     const storedParsed = JSON.parse(storedRaw ?? "[]") as unknown[];

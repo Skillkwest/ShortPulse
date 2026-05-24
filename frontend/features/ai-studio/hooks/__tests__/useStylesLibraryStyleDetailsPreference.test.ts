@@ -130,7 +130,7 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
     expect(result.current.error).toContain("Saved locally. Cloud sync timed out");
     expect(
       JSON.parse(
-        window.localStorage.getItem("shortpulse.ai_studio.style_details_overrides") ?? "{}"
+        window.localStorage.getItem("shortpulse.ai_studio.style_details_overrides:user-123") ?? "{}"
       )
     ).toEqual({
       "style-library-custom-1": {
@@ -142,4 +142,40 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
       },
     });
   }, 10_000);
+
+  it("does not hydrate signed-in style details from global localStorage fallback", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.style_details_overrides",
+      JSON.stringify({
+        cinematic: {
+          style: "Cinematic",
+          title: "Cinematic",
+          referenceImageName: "Cinematic",
+          stylePrompt: "cinematic prompt",
+          previewImageUrl: "data:image/png;base64,cinematic",
+        },
+      })
+    );
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    supabaseQueryClientMock.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    }));
+
+    const { result } = renderHook(() => useStylesLibraryStyleDetailsPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.styleDetailsById).toEqual({});
+    expect(
+      window.localStorage.getItem("shortpulse.ai_studio.style_details_overrides:user-123")
+    ).toBe("{}");
+  });
 });

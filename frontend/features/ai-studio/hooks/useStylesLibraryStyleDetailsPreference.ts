@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
+import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
 import {
   areStyleDetailMapsEqual,
@@ -13,6 +14,8 @@ import {
 } from "../logic/styleDetailsNormalization";
 
 const STYLE_DETAILS_STORAGE_KEY = "shortpulse.ai_studio.style_details_overrides";
+const buildStyleDetailsStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(STYLE_DETAILS_STORAGE_KEY, userId);
 const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS = 4_000;
 const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE = "STYLE_DETAILS_REMOTE_SYNC_TIMEOUT";
 const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE =
@@ -36,9 +39,9 @@ type StyleDetailsRemoteSyncTimeoutError = Error & {
   timeoutMs: number;
 };
 
-const readLocalStyleDetails = (): StylesLibraryStyleDetailsMap => {
+const readLocalStyleDetails = (userId?: string | null): StylesLibraryStyleDetailsMap => {
   if (typeof window === "undefined") return {};
-  const stored = window.localStorage.getItem(STYLE_DETAILS_STORAGE_KEY);
+  const stored = window.localStorage.getItem(buildStyleDetailsStorageKey(userId));
   if (!stored) return {};
   try {
     return normalizeStyleDetailsMap(JSON.parse(stored) as unknown);
@@ -47,9 +50,12 @@ const readLocalStyleDetails = (): StylesLibraryStyleDetailsMap => {
   }
 };
 
-const writeLocalStyleDetails = (value: StylesLibraryStyleDetailsMap): void => {
+const writeLocalStyleDetails = (
+  value: StylesLibraryStyleDetailsMap,
+  userId?: string | null
+): void => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STYLE_DETAILS_STORAGE_KEY, JSON.stringify(value));
+  window.localStorage.setItem(buildStyleDetailsStorageKey(userId), JSON.stringify(value));
 };
 
 const createStyleDetailsRemoteSyncTimeoutError = (
@@ -119,12 +125,15 @@ export const useStylesLibraryStyleDetailsPreference =
     const remoteSyncEnabledRef = useRef(true);
     const hasLocalOverrideRef = useRef(false);
 
-    const updateLocalValue = useCallback((value: StylesLibraryStyleDetailsMap) => {
-      const normalizedValue = normalizeStyleDetailsMap(value);
-      latestValueRef.current = normalizedValue;
-      setStyleDetailsById(normalizedValue);
-      writeLocalStyleDetails(normalizedValue);
-    }, []);
+    const updateLocalValue = useCallback(
+      (value: StylesLibraryStyleDetailsMap, storageUserId?: string | null) => {
+        const normalizedValue = normalizeStyleDetailsMap(value);
+        latestValueRef.current = normalizedValue;
+        setStyleDetailsById(normalizedValue);
+        writeLocalStyleDetails(normalizedValue, storageUserId ?? userId);
+      },
+      [userId]
+    );
 
     useEffect(() => {
       let active = true;
@@ -132,10 +141,10 @@ export const useStylesLibraryStyleDetailsPreference =
       setSyncState("loading");
 
       (async () => {
-        updateLocalValue(readLocalStyleDetails());
         try {
           if (!supabaseQueryClient) {
             if (!active) return;
+            updateLocalValue(readLocalStyleDetails(), null);
             remoteSyncEnabledRef.current = false;
             setUserId(null);
             setError(null);
@@ -146,6 +155,7 @@ export const useStylesLibraryStyleDetailsPreference =
           const id = await readSupabaseUserId();
           if (!id) {
             if (!active) return;
+            updateLocalValue(readLocalStyleDetails(), null);
             setUserId(null);
             setError(null);
             setSyncState("ready");
@@ -153,6 +163,8 @@ export const useStylesLibraryStyleDetailsPreference =
           }
           if (!active) return;
           setUserId(id);
+          const localValue = readLocalStyleDetails(id);
+          updateLocalValue(localValue, id);
 
           const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
@@ -165,9 +177,9 @@ export const useStylesLibraryStyleDetailsPreference =
           const remoteValue = normalizeStyleDetailsMap(
             storedPreference?.ai_studio_style_details_overrides
           );
-          const mergedValue = mergeStyleDetailsMaps(remoteValue, latestValueRef.current);
+          const mergedValue = mergeStyleDetailsMaps(remoteValue, localValue);
           if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue);
+            updateLocalValue(mergedValue, id);
           }
 
           if (!active) return;

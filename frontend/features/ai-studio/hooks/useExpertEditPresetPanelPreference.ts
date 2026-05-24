@@ -4,6 +4,7 @@
  */
 import { useCallback } from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
@@ -21,6 +22,15 @@ const EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY =
 const EXPERT_EDIT_CUSTOM_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.expert_edit_custom_presets";
 const LEGACY_EXPERT_EDIT_PRESET_PANEL_LABELS_STORAGE_KEY =
   "shortpulse.ai_studio.expert_edit_preset_panel_labels";
+
+const buildExpertEditPresetPanelIdsStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY, userId);
+
+const buildExpertEditCustomPresetsStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(EXPERT_EDIT_CUSTOM_PRESETS_STORAGE_KEY, userId);
+
+const buildLegacyExpertEditPresetPanelLabelsStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(LEGACY_EXPERT_EDIT_PRESET_PANEL_LABELS_STORAGE_KEY, userId);
 
 type ExpertEditPresetPanelSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -103,17 +113,18 @@ const normalizePresetPreferenceValue = (
 };
 
 const readLocalPresetPreferenceValue = (
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  userId?: string | null
 ): ExpertEditPresetPreferenceValue => {
   if (typeof window === "undefined") return DEFAULT_PRESET_PREFERENCE_VALUE;
   const storedPresetPanelIds = window.localStorage.getItem(
-    EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY
+    buildExpertEditPresetPanelIdsStorageKey(userId)
   );
   const storedCustomPresetOverrides = window.localStorage.getItem(
-    EXPERT_EDIT_CUSTOM_PRESETS_STORAGE_KEY
+    buildExpertEditCustomPresetsStorageKey(userId)
   );
   const legacyStoredPresetPanelLabels = window.localStorage.getItem(
-    LEGACY_EXPERT_EDIT_PRESET_PANEL_LABELS_STORAGE_KEY
+    buildLegacyExpertEditPresetPanelLabelsStorageKey(userId)
   );
 
   const parsedPresetPanelIds = (() => {
@@ -155,16 +166,17 @@ const readLocalPresetPreferenceValue = (
 
 const writeLocalPresetPreferenceValue = (
   value: ExpertEditPresetPreferenceValue,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  userId?: string | null
 ): void => {
   if (typeof window === "undefined") return;
   const normalizedValue = normalizePresetPreferenceValue(value, systemPresetDefinitions);
   window.localStorage.setItem(
-    EXPERT_EDIT_PRESET_PANEL_IDS_STORAGE_KEY,
+    buildExpertEditPresetPanelIdsStorageKey(userId),
     JSON.stringify(normalizedValue.presetPanelIds)
   );
   window.localStorage.setItem(
-    EXPERT_EDIT_CUSTOM_PRESETS_STORAGE_KEY,
+    buildExpertEditCustomPresetsStorageKey(userId),
     JSON.stringify(normalizedValue.customPresetOverrides)
   );
 };
@@ -181,12 +193,12 @@ export const useExpertEditPresetPanelPreference = ({
     [systemPresetDefinitions]
   );
   const readLocalPreferenceValue = useCallback(
-    () => readLocalPresetPreferenceValue(systemPresetDefinitions),
+    (userId?: string | null) => readLocalPresetPreferenceValue(systemPresetDefinitions, userId),
     [systemPresetDefinitions]
   );
   const writeLocalPreferenceValue = useCallback(
-    (value: ExpertEditPresetPreferenceValue) =>
-      writeLocalPresetPreferenceValue(value, systemPresetDefinitions),
+    (value: ExpertEditPresetPreferenceValue, userId?: string | null) =>
+      writeLocalPresetPreferenceValue(value, systemPresetDefinitions, userId),
     [systemPresetDefinitions]
   );
   const loadRemotePreferenceValue = useCallback(
@@ -242,7 +254,6 @@ export const useExpertEditPresetPanelPreference = ({
     latestValueRef,
     persistValue,
   } = useUserPreferenceSync<ExpertEditPresetPreferenceValue>({
-    readLocalBeforeUserResolution: true,
     defaultValue: DEFAULT_PRESET_PREFERENCE_VALUE,
     normalizeValue: normalizePreferenceValue,
     readLocal: readLocalPreferenceValue,

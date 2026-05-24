@@ -4,8 +4,11 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
+import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 
 const DELETED_STYLE_IDS_STORAGE_KEY = "shortpulse.ai_studio.deleted_style_ids";
+const buildDeletedStyleIdsStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(DELETED_STYLE_IDS_STORAGE_KEY, userId);
 
 export type StylesLibraryDeleteSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -31,9 +34,9 @@ const normalizeDeletedStyleIds = (value: unknown): string[] => {
   return normalized;
 };
 
-const readLocalDeletedStyleIds = (): string[] => {
+const readLocalDeletedStyleIds = (userId?: string | null): string[] => {
   if (typeof window === "undefined") return [];
-  const stored = window.localStorage.getItem(DELETED_STYLE_IDS_STORAGE_KEY);
+  const stored = window.localStorage.getItem(buildDeletedStyleIdsStorageKey(userId));
   if (!stored) return [];
   try {
     return normalizeDeletedStyleIds(JSON.parse(stored) as unknown);
@@ -42,9 +45,9 @@ const readLocalDeletedStyleIds = (): string[] => {
   }
 };
 
-const writeLocalDeletedStyleIds = (value: string[]): void => {
+const writeLocalDeletedStyleIds = (value: string[], userId?: string | null): void => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DELETED_STYLE_IDS_STORAGE_KEY, JSON.stringify(value));
+  window.localStorage.setItem(buildDeletedStyleIdsStorageKey(userId), JSON.stringify(value));
 };
 
 const isMissingDeletedStyleStorageError = (error: unknown): boolean => {
@@ -80,12 +83,15 @@ export const useStylesLibraryDeletedStyleIdsPreference =
     const remoteSyncEnabledRef = useRef(true);
     const hasLocalOverrideRef = useRef(false);
 
-    const updateLocalValue = useCallback((value: string[]) => {
-      const normalizedValue = normalizeDeletedStyleIds(value);
-      latestValueRef.current = normalizedValue;
-      setDeletedStyleIds(normalizedValue);
-      writeLocalDeletedStyleIds(normalizedValue);
-    }, []);
+    const updateLocalValue = useCallback(
+      (value: string[], storageUserId?: string | null) => {
+        const normalizedValue = normalizeDeletedStyleIds(value);
+        latestValueRef.current = normalizedValue;
+        setDeletedStyleIds(normalizedValue);
+        writeLocalDeletedStyleIds(normalizedValue, storageUserId ?? userId);
+      },
+      [userId]
+    );
 
     useEffect(() => {
       let active = true;
@@ -93,10 +99,10 @@ export const useStylesLibraryDeletedStyleIdsPreference =
       setSyncState("loading");
 
       (async () => {
-        updateLocalValue(readLocalDeletedStyleIds());
         try {
           if (!supabaseQueryClient) {
             if (!active) return;
+            updateLocalValue(readLocalDeletedStyleIds(), null);
             remoteSyncEnabledRef.current = false;
             setUserId(null);
             setError(null);
@@ -107,6 +113,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           const id = await readSupabaseUserId();
           if (!id) {
             if (!active) return;
+            updateLocalValue(readLocalDeletedStyleIds(), null);
             setUserId(null);
             setError(null);
             setSyncState("ready");
@@ -114,6 +121,8 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           }
           if (!active) return;
           setUserId(id);
+          const localValue = readLocalDeletedStyleIds(id);
+          updateLocalValue(localValue, id);
 
           const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
@@ -126,9 +135,9 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           const remoteValue = normalizeDeletedStyleIds(
             storedPreference?.ai_studio_deleted_style_ids
           );
-          const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...latestValueRef.current]);
+          const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...localValue]);
           if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue);
+            updateLocalValue(mergedValue, id);
           }
 
           if (!active) return;
@@ -166,7 +175,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
         const nextValue = normalizeDeletedStyleIds([...previousValue, normalizedStyleId]);
         if (nextValue.length === previousValue.length) return true;
 
-        updateLocalValue(nextValue);
+        updateLocalValue(nextValue, userId);
         setSyncState("saving");
         setError(null);
 
@@ -197,7 +206,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
             setSyncState("ready");
             return true;
           }
-          updateLocalValue(previousValue);
+          updateLocalValue(previousValue, userId);
           setError(err instanceof Error ? err.message : "Unable to delete style.");
           setSyncState("error");
           return false;

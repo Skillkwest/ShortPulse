@@ -56,4 +56,30 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       JSON.parse(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids") ?? "[]")
     ).toEqual(["cinematic", "anime"]);
   });
+
+  it("does not hydrate signed-in style order from global localStorage fallback", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.style_panel_ids",
+      JSON.stringify(["anime", "cinematic"])
+    );
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    supabaseQueryClientMock.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    }));
+
+    const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.stylePanelIds).toEqual([]);
+    expect(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids:user-123")).toBe("[]");
+  });
 });

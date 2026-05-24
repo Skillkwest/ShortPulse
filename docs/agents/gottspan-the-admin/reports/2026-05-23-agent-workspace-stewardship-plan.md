@@ -69,7 +69,8 @@ A handoff is done only when:
 
 - `open`: known owner packet exists, but the owner has not run or declined it.
 - `queued`: Gottspan has selected it for the next owner-run batch, but no owner result exists yet.
-- `dispatched`: Gottspan has issued the owner-run packet and is waiting for owner action or a decline.
+- `prepared`: Gottspan has written the owner-run packet, but no owner receipt is confirmed.
+- `dispatched`: Gottspan or the user has delivered the owner-run packet into the owning agent's active channel and is waiting for owner action or a decline.
 - `in-progress`: owning agent has started the lane or a human has explicitly assigned it.
 - `needs-reaudit`: owning agent reports completion and Gottspan must verify the result.
 - `done`: Gottspan verified the result against the handoff and validation evidence.
@@ -95,9 +96,9 @@ Gottspan should not directly edit:
 
 | Priority | Status | Owner | Handoff | Acceptance Check | Gottspan Next Action |
 | --- | --- | --- | --- | --- | --- |
-| P0 | dispatched | Nuclo | `handoffs/2026-05-23-nuclo-branch-instruction-reconciliation.md` | Active Nuclo contract leads with production-only pre-launch rule; ladder-era mentions are historical or environment-reference. | Wait for Nuclo result, then re-audit. |
-| P0 | dispatched | Gear Ball | `handoffs/2026-05-23-gear-ball-prelaunch-branch-reconciliation.md` | Gear Ball active execution guidance leads with local/GitHub `production` for pre-launch. | Wait for Gear Ball result, then re-audit. |
-| P0 | dispatched | Holomony | `handoffs/2026-05-23-holomony-stale-absolute-paths.md` | Active Holomony instruction files have zero stale old-checkout absolute paths. | Wait for Holomony result, then re-audit. |
+| P0 | prepared | Nuclo | `handoffs/2026-05-23-nuclo-branch-instruction-reconciliation.md` | Active Nuclo contract leads with production-only pre-launch rule; ladder-era mentions are historical or environment-reference. | Deliver packet to Nuclo, then wait for result and re-audit. |
+| P0 | prepared | Gear Ball | `handoffs/2026-05-23-gear-ball-prelaunch-branch-reconciliation.md` | Gear Ball active execution guidance leads with local/GitHub `production` for pre-launch. | Deliver packet to Gear Ball, then wait for result and re-audit. |
+| P0 | prepared | Holomony | `handoffs/2026-05-23-holomony-stale-absolute-paths.md` | Active Holomony instruction files have zero stale old-checkout absolute paths. | Deliver packet to Holomony, then wait for result and re-audit. |
 | P1 | open | Ophestivus | `handoffs/2026-05-23-ophestivus-contract-artifact-reconciliation.md` | New Ophestivus run can identify active contract, memory, tools, SOP index, and artifact home without reading historical reports. | Queue after P0 drift fixes. |
 | P1 | done | Gottspan | `handoffs/2026-05-23-gottspan-branch-report-reconciliation.md` | May 20 branch reports are explicitly historical relative to current pre-launch production-only policy. | Recheck only if branch policy changes again. |
 | P1 | done | Shared/Gottspan | `handoffs/2026-05-23-shared-artifact-index-refresh.md` | Active artifact homes are listed explicitly while legacy namespaces remain distinguished. | Recheck during next index drift audit. |
@@ -182,8 +183,8 @@ On each future Gottspan agent-space audit, check:
 
 The first implementation pass is underway:
 
-1. `P0` owner packets are dispatched in `2026-05-23-p0-owner-dispatch.md`.
+1. `P0` owner packets are prepared in `2026-05-23-p0-owner-dispatch.md`.
 2. Gottspan-owned May 20 branch reports are marked historical relative to the current pre-launch production-only policy.
 3. The shared agent artifact index now lists active retained artifact homes explicitly.
 
-Next best action: wait for the `P0` owner results, then re-audit Nuclo, Gear Ball, and Holomony against their packet acceptance checks.
+Next best action: deliver the `P0` packets into Nuclo, Gear Ball, and Holomony's active work channels, then re-audit each owner result against the packet acceptance checks.

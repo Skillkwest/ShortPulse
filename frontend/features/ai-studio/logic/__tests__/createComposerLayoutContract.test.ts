@@ -197,17 +197,14 @@ describe("create composer layout contract", () => {
       css,
       ".create-composer-panel .create-composer-prompt-step .agent-message.agent-assistant.agent-message--pulse-guided .agent-message-rich-paragraph"
     );
-    const pulseFinalArtifact = extractRuleBlock(
-      css,
-      ".create-composer-panel .create-composer-prompt-step .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable"
-    );
-
     expect(pulseBubble).toContain("border-color: transparent;");
     expect(pulseBubble).toContain("background: transparent;");
     expect(pulseBubble).toContain("box-shadow: none;");
+    expect(pulseBubble).toContain("color: #25a9bf !important;");
+    expect(pulseLead).toContain("color: #25a9bf !important;");
     expect(pulseLead).toContain("font-weight: 500;");
+    expect(pulseParagraph).toContain("color: #25a9bf !important;");
     expect(pulseParagraph).toContain("font-weight: 400;");
-    expect(pulseFinalArtifact).toContain("color: #25a9bf !important;");
   });
 
   it("matches the collapsed empty prompt height to the adjacent create control columns", () => {

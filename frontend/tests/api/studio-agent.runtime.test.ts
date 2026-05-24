@@ -11,6 +11,7 @@ const upsertAgentConversationCanonicalPromptMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveRuntimeSafetyProfileMock = vi.fn();
 const resolveRuntimeCreatePulseBuiltInCatalogMock = vi.fn();
+const resolveRequiredRuntimeAgentPromptMock = vi.fn();
 let apiUserCounter = 0;
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -43,6 +44,23 @@ vi.mock("../../lib/server/api/agentSafetyPolicyControlPlane", () => ({
 vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
   resolveRuntimeCreatePulseBuiltInCatalog: (...args: unknown[]) =>
     resolveRuntimeCreatePulseBuiltInCatalogMock(...args),
+}));
+
+vi.mock("../../lib/server/api/runtimeAgentPromptControlPlane", () => ({
+  resolveRequiredRuntimeAgentPrompt: (...args: unknown[]) =>
+    resolveRequiredRuntimeAgentPromptMock(...args),
+  RequiredRuntimeAgentPromptMissingError: class RequiredRuntimeAgentPromptMissingError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} is missing from the control plane.`);
+      this.name = "RequiredRuntimeAgentPromptMissingError";
+    }
+  },
+  RequiredRuntimeAgentPromptUnavailableError: class RequiredRuntimeAgentPromptUnavailableError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} requires a live control-plane connection.`);
+      this.name = "RequiredRuntimeAgentPromptUnavailableError";
+    }
+  },
 }));
 
 const createMockResponse = () => {
@@ -148,6 +166,13 @@ const resetRuntimeTestState = () => {
   });
   readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
   upsertAgentConversationCanonicalPromptMock.mockResolvedValue("saved prompt");
+  resolveRequiredRuntimeAgentPromptMock.mockResolvedValue({
+    promptId: "STUDIO_AGENT_SYSTEM",
+    promptBody: "Standard control-plane instructions.",
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+    source: "control_plane",
+  });
   runThinkerFormatterTurnMock.mockResolvedValue({
     ok: true,
     result: {
@@ -250,6 +275,12 @@ describe("AI Studio Create agent runtime boundaries", () => {
     await standardStudioAgentHandler(req as never, res as never);
 
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.stringContaining('"role":"system"'),
+      })
+    );
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -261,6 +292,26 @@ describe("AI Studio Create agent runtime boundaries", () => {
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
+  });
+
+  it("fails closed when the Standard runtime prompt is missing", async () => {
+    const missingPromptError = new Error(
+      "Runtime agent prompt STUDIO_AGENT_SYSTEM is missing from the control plane."
+    );
+    missingPromptError.name = "RequiredRuntimeAgentPromptMissingError";
+    resolveRequiredRuntimeAgentPromptMock.mockRejectedValue(missingPromptError);
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Runtime agent prompt STUDIO_AGENT_SYSTEM is missing from the control plane.",
+      })
+    );
   });
 
   it("requires Pulse context on the Pulse route", async () => {

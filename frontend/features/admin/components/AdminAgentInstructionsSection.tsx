@@ -206,7 +206,12 @@ const loadStandardPromptDraft = async (): Promise<StandardPromptDraft> => {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new Error("Unable to load the Standard system prompt.");
+    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    throw new Error(
+      typeof payload?.error === "string"
+        ? payload.error
+        : "Unable to load the Standard system prompt."
+    );
   }
   const payload = (await response.json()) as {
     promptBody?: unknown;
@@ -486,13 +491,9 @@ export function AdminAgentInstructionsSection() {
     try {
       const draft = await loadStandardPromptDraft();
       hydrateStandardPrompt(draft);
-      setStandardPromptLoadIssue(
-        draft.degraded
-          ? "Live control-plane lookup failed. Showing the seeded Standard system prompt until the admin route recovers."
-          : null
-      );
+      setStandardPromptLoadIssue(null);
       setStandardPromptSaveState("idle");
-    } catch {
+    } catch (error) {
       hydrateStandardPrompt({
         promptBody: SEEDED_STANDARD_SYSTEM_PROMPT,
         source: "seed",
@@ -501,7 +502,9 @@ export function AdminAgentInstructionsSection() {
         degraded: false,
       });
       setStandardPromptLoadIssue(
-        "Showing the seeded Standard system prompt because the live admin route could not be reached."
+        error instanceof Error
+          ? `${error.message} Showing the local code copy for reference until the runtime prompt is restored.`
+          : "Unable to load the live Standard system prompt. Showing the local code copy for reference until the runtime prompt is restored."
       );
       setStandardPromptSaveState("error");
     } finally {
@@ -1062,12 +1065,12 @@ export function AdminAgentInstructionsSection() {
                   className={`${styles.pill} ${hasStandardPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
                 >
                   {standardPromptLoadIssue
-                    ? "Seeded local copy"
+                    ? "Runtime blocked"
                     : hasStandardPromptUnsavedChanges
                       ? "Unsaved edits"
                       : standardPromptSource === "control_plane"
-                        ? "Live override"
-                        : "Seed fallback"}
+                        ? "Live runtime"
+                        : "Local code copy"}
                 </span>
               </div>
               <p className={styles.agentInstructionDescription}>
@@ -1138,15 +1141,15 @@ export function AdminAgentInstructionsSection() {
                   : standardPromptSaveState === "error"
                     ? "Unable to save the live Standard system prompt."
                     : standardPromptSource === "control_plane"
-                      ? `Live runtime override${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
-                      : "No runtime override yet. The Standard agent is currently using the seeded code prompt fallback.")}
+                      ? `Live Standard runtime prompt${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
+                      : "Showing the local code copy. Standard runtime remains blocked until the live control-plane prompt exists.")}
             </p>
           </div>
           {standardCardCollapsed ? (
             <p className={styles.agentInstructionCollapsedSummary}>
               {standardPromptSource === "control_plane"
-                ? "Live override active for the Standard Create system prompt."
-                : "Seed fallback active for the Standard Create system prompt."}
+                ? "Live Standard runtime prompt is active."
+                : "Standard runtime prompt is missing; local code copy shown for reference."}
             </p>
           ) : null}
         </article>

@@ -385,11 +385,6 @@
   transform: translateY(-1px);
 }
 
-.create-composer-presets-chip-item.is-active .create-composer-presets-chip {
-  border-color: rgba(100, 209, 230, 0.42);
-  background: rgba(33, 56, 64, 0.42);
-}
-
 .create-composer-presets-chip-item.is-pinned .create-composer-presets-chip {
   border-color: rgba(205, 210, 220, 0.3);
 }

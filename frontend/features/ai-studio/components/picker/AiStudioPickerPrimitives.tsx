@@ -107,6 +107,7 @@ export const AiStudioPickerGrid = ({ ariaLabel, children }: AiStudioPickerGridPr
 type AiStudioPickerCardProps = {
   isActive: boolean;
   className?: string;
+  disabled?: boolean;
   onSelect: () => void;
   avatar: ReactNode;
   label: ReactNode;
@@ -118,6 +119,7 @@ type AiStudioPickerCardProps = {
 export const AiStudioPickerCard = ({
   isActive,
   className = "",
+  disabled = false,
   onSelect,
   avatar,
   label,
@@ -135,6 +137,7 @@ export const AiStudioPickerCard = ({
       type="button"
       className="ai-character-list-select-btn"
       aria-pressed={isActive}
+      disabled={disabled}
       onClick={onSelect}
     >
       <div className="ai-character-list-main">

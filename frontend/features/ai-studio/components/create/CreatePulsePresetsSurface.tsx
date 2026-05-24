@@ -241,8 +241,8 @@ export const CreatePulsePresetsSurface = ({
                 key={preset.presetId}
                 role="listitem"
                 className={`create-composer-presets-chip-item ${
-                  activePresetId === preset.presetId ? "is-active" : ""
-                } ${selectedPresetIds.includes(preset.presetId) ? "is-pinned" : ""}`.trim()}
+                  selectedPresetIds.includes(preset.presetId) ? "is-pinned" : ""
+                }`.trim()}
               >
                 <button
                   type="button"

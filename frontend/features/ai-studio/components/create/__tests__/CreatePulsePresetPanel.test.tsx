@@ -615,6 +615,19 @@ describe("CreatePulsePresetPanel", () => {
     expect(within(pulsesSurface).getByRole("button", { name: "Storyboard" })).toBeInTheDocument();
   });
 
+  it("does not show a visual active state inside the Pulses activation surface", () => {
+    render(<CreatePulsePresetPanel activePresetId="image" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    const activePulse = within(pulsesSurface).getByRole("button", {
+      name: "Video Prompt Magic",
+    });
+
+    expect(activePulse).toHaveAttribute("aria-pressed", "true");
+    expect(activePulse.closest(".create-composer-presets-chip-item")).not.toHaveClass("is-active");
+  });
+
   it("renders custom and built-in Pulses inside one catalog grid", () => {
     render(
       <CreatePulsePresetPanel

@@ -17,16 +17,13 @@ export const resolveStandardCreateAgentTransportSuccess = (
   response: AgentResponse
 ): StandardCreateAgentTransportSuccess => {
   const actions = normalizeActions(response.actions);
-  const canonicalPrompt = sanitizeGenerationPromptText(
-    response.canonicalPrompt ?? actions?.applyPrompt ?? null
-  );
-  const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
+  const canonicalPrompt = sanitizeGenerationPromptText(response.canonicalPrompt ?? null);
   const rawMessageText = typeof response.message === "string" ? response.message : "";
   const hasRawMessageText = rawMessageText.trim().length > 0;
   return {
     actions,
     canonicalPrompt,
-    assistantContent: applyPromptText || (hasRawMessageText ? rawMessageText : ""),
-    assistantOutputPrompt: applyPromptText || (hasRawMessageText ? rawMessageText : null),
+    assistantContent: hasRawMessageText ? rawMessageText : "",
+    assistantOutputPrompt: null,
   };
 };

@@ -394,6 +394,11 @@ export function CharacterPanelWorkspace({
     isSavingCharacter ||
     isDeletingCharacter ||
     isSavingCharacterSheetPreset;
+  const characterLibraryButtonDisabled =
+    loading || isSwitchingCharacter || isCreatingCharacter || isDeletingCharacter;
+  const characterLibrarySelectionDisabled = pageBusy;
+  const saveActionDisabled = pageBusy;
+  const createActionDisabled = pageBusy;
   const resolvedCharacterSaveProgressMessage =
     characterSaveProgressMessage ?? "Saving character...";
 
@@ -530,9 +535,14 @@ export function CharacterPanelWorkspace({
       getTopActionButtonStyle(
         charactersButtonStyle,
         hoveredTopActionButton === "characters",
-        pageBusy
+        characterLibraryButtonDisabled
       ),
-    [charactersButtonStyle, getTopActionButtonStyle, hoveredTopActionButton, pageBusy]
+    [
+      characterLibraryButtonDisabled,
+      charactersButtonStyle,
+      getTopActionButtonStyle,
+      hoveredTopActionButton,
+    ]
   );
 
   const saveTopButtonStyle = React.useMemo(
@@ -540,9 +550,14 @@ export function CharacterPanelWorkspace({
       getTopActionButtonStyle(
         secondaryActionButtonStyle,
         hoveredTopActionButton === "save",
-        pageBusy
+        saveActionDisabled
       ),
-    [getTopActionButtonStyle, hoveredTopActionButton, pageBusy, secondaryActionButtonStyle]
+    [
+      getTopActionButtonStyle,
+      hoveredTopActionButton,
+      saveActionDisabled,
+      secondaryActionButtonStyle,
+    ]
   );
 
   const createTopButtonStyle = React.useMemo(
@@ -550,9 +565,14 @@ export function CharacterPanelWorkspace({
       getTopActionButtonStyle(
         secondaryActionButtonStyle,
         hoveredTopActionButton === "create",
-        pageBusy
+        createActionDisabled
       ),
-    [getTopActionButtonStyle, hoveredTopActionButton, pageBusy, secondaryActionButtonStyle]
+    [
+      createActionDisabled,
+      getTopActionButtonStyle,
+      hoveredTopActionButton,
+      secondaryActionButtonStyle,
+    ]
   );
 
   React.useEffect(
@@ -865,12 +885,12 @@ export function CharacterPanelWorkspace({
 
   const handleCharacterSelection = React.useCallback(
     async (characterId: string) => {
-      if (pageBusy) return;
+      if (characterLibrarySelectionDisabled) return;
       clearMessages();
       setIsCharacterLibraryModalOpen(false);
       await selectCharacter(characterId);
     },
-    [clearMessages, pageBusy, selectCharacter]
+    [characterLibrarySelectionDisabled, clearMessages, selectCharacter]
   );
 
   const confirmDeleteCharacter = React.useCallback(async () => {
@@ -957,7 +977,7 @@ export function CharacterPanelWorkspace({
                               current === "characters" ? null : current
                             )
                           }
-                          disabled={pageBusy}
+                          disabled={characterLibraryButtonDisabled}
                         >
                           Characters
                         </button>
@@ -1002,7 +1022,7 @@ export function CharacterPanelWorkspace({
                               current === "save" ? null : current
                             )
                           }
-                          disabled={pageBusy}
+                          disabled={saveActionDisabled}
                         >
                           <FloppyDisk size={13} weight="bold" aria-hidden />
                           {isSavingCharacter ? "Saving..." : "Save"}
@@ -1020,7 +1040,7 @@ export function CharacterPanelWorkspace({
                               current === "create" ? null : current
                             )
                           }
-                          disabled={pageBusy}
+                          disabled={createActionDisabled}
                         >
                           <Plus size={14} weight="bold" aria-hidden />
                           <span>Create</span>
@@ -1428,6 +1448,7 @@ export function CharacterPanelWorkspace({
             <button
               type="button"
               className="ai-character-picker-library-btn"
+              disabled={createActionDisabled}
               onClick={() => {
                 void handleCreateNewCharacter();
               }}
@@ -1445,6 +1466,17 @@ export function CharacterPanelWorkspace({
           </div>
         }
       >
+        {isSavingCharacter ? (
+          <div
+            className="character-panel-save-progress character-panel-save-progress--modal"
+            role="status"
+            aria-live="polite"
+            aria-label={resolvedCharacterSaveProgressMessage}
+          >
+            <span className="character-panel-save-progress-spinner" aria-hidden="true" />
+            <span>{resolvedCharacterSaveProgressMessage}</span>
+          </div>
+        ) : null}
         <AiStudioPickerSection>
           {characters.length > 0 ? (
             <AiStudioPickerGrid ariaLabel="Saved characters">
@@ -1491,13 +1523,14 @@ export function CharacterPanelWorkspace({
                     }
                     label={isSelected ? "Selected" : "Character"}
                     name={chipName}
+                    disabled={characterLibrarySelectionDisabled}
                     footer={
                       <div style={CHARACTER_LIBRARY_CARD_FOOTER_STYLE}>
                         <button
                           type="button"
                           aria-label={`Delete ${chipName}`}
                           style={CHARACTER_LIBRARY_CARD_DELETE_BUTTON_STYLE}
-                          disabled={pageBusy}
+                          disabled={characterLibrarySelectionDisabled}
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();

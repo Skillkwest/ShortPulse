@@ -245,7 +245,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 123.  `sql/migrations/123_add_audio_companion_art_projection_fields.sql`
 124.  `sql/migrations/124_add_generation_projection_save_error.sql`
 125.  `sql/migrations/125_add_expert_edit_system_preset_control_plane.sql`
-Rollback files:
+126.  `sql/migrations/126_seed_standard_runtime_prompt.sql`
+      Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`

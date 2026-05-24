@@ -45,11 +45,6 @@
     padding: 16px 14px;
     border-radius: 16px;
   }
-
-  .create-composer-panel--no-history .create-composer-pulse-start-shell-message {
-    max-width: 24ch;
-  }
-
   .create-composer-ready-text {
     font-size: clamp(19px, 7vw, 26px);
   }

@@ -101,9 +101,7 @@ describe("Create generate guardrail messaging", () => {
             pulseLoadingState: {
               phase: "starting_pulse",
               title: "Generating...",
-              message: "Preparing your guided workflow...",
               presetLabel: "Multi Sequence Video Prompt",
-              stepLabel: "Upload Image",
             },
           } as unknown as PromptStepProps
         }
@@ -117,7 +115,8 @@ describe("Create generate guardrail messaging", () => {
       name: "Starting Multi Sequence Video Prompt",
     });
     expect(screen.getByText("Starting Pulse")).toBeInTheDocument();
-    expect(screen.getByText("Preparing your guided workflow...")).toBeInTheDocument();
+    expect(screen.queryByText("Preparing your guided workflow...")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Next up:/)).not.toBeInTheDocument();
     expect(within(startupStatus).getByText(/Multi Sequence Video Prompt/)).toBeInTheDocument();
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });

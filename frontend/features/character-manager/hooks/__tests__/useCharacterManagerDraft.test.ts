@@ -3,7 +3,7 @@
  * Locks bootstrap selection, asset persistence, preview stability, and preset fallback flows before B3-02 controller extraction.
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDefaultCharacterSheetPresetDescriptions,
   createDefaultCharacterSheetPresetLabels,
@@ -205,6 +205,10 @@ describe("useCharacterManagerDraft", () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("uses the user-scoped persisted selection during bootstrap", async () => {
     const snapshot = createDraftSnapshot();
     readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
@@ -324,25 +328,17 @@ describe("useCharacterManagerDraft", () => {
     const draftSave = createDeferred<DraftSnapshot>();
     const assignmentSave =
       createDeferred<ReturnType<typeof createEmptyCharacterSheetAssignments>>();
-    const hydratedSave = createDeferred<DraftSnapshot>();
     const initialSnapshot = {
       ...createDraftSnapshot(),
       characterId: "char-saved",
       characterSheetId: "sheet-saved",
       characterName: "Fresh Save",
     } as DraftSnapshot;
-    const hydratedSnapshot = {
-      ...initialSnapshot,
-      characterDescription: "Hydrated description",
-    } as DraftSnapshot;
     saveCharacterManagerDraftMock.mockReturnValue(
       draftSave.promise as ReturnType<typeof saveCharacterManagerDraft>
     );
     saveCharacterManagerCharacterSheetAssignmentsMock.mockReturnValue(
       assignmentSave.promise as ReturnType<typeof saveCharacterManagerCharacterSheetAssignments>
-    );
-    loadCharacterManagerDraftByCharacterIdMock.mockReturnValue(
-      hydratedSave.promise as ReturnType<typeof loadCharacterManagerDraftByCharacterId>
     );
 
     const { result } = renderHook(() => useCharacterManagerDraft());
@@ -376,12 +372,7 @@ describe("useCharacterManagerDraft", () => {
       await assignmentSave.promise;
     });
 
-    await waitFor(() => {
-      expect(result.current.characterSaveProgressMessage).toBe("Loading saved character...");
-    });
-
     await act(async () => {
-      hydratedSave.resolve(hydratedSnapshot);
       await savePromise;
     });
 
@@ -389,6 +380,74 @@ describe("useCharacterManagerDraft", () => {
     expect(result.current.isSavingCharacter).toBe(false);
     expect(result.current.characterSaveProgressMessage).toBeNull();
     expect(result.current.selectedCharacterId).toBe("char-saved");
+  });
+
+  it("escalates progress copy when a first-save phase takes too long", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const draftSave = createDeferred<DraftSnapshot>();
+    const assignmentSave =
+      createDeferred<ReturnType<typeof createEmptyCharacterSheetAssignments>>();
+    const initialSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockReturnValue(
+      draftSave.promise as ReturnType<typeof saveCharacterManagerDraft>
+    );
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockReturnValue(
+      assignmentSave.promise as ReturnType<typeof saveCharacterManagerCharacterSheetAssignments>
+    );
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    vi.useFakeTimers();
+    let savePromise!: Promise<boolean>;
+    act(() => {
+      savePromise = result.current.saveCharacter();
+    });
+
+    expect(result.current.characterSaveProgressMessage).toBe("Creating character...");
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(result.current.characterSaveProgressMessage).toBe("Still creating character...");
+
+    await act(async () => {
+      draftSave.resolve(initialSnapshot);
+      await draftSave.promise;
+    });
+
+    expect(result.current.characterSaveProgressMessage).toBe("Saving references...");
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(result.current.characterSaveProgressMessage).toBe("Still saving references...");
+
+    await act(async () => {
+      assignmentSave.resolve(createEmptyCharacterSheetAssignments());
+      await assignmentSave.promise;
+    });
+
+    await act(async () => {
+      await savePromise;
+    });
+
+    expect(await savePromise).toBe(true);
+    expect(result.current.characterSaveProgressMessage).toBeNull();
   });
 
   it("ignores a stale first-save response after the local draft is reset", async () => {
@@ -443,6 +502,51 @@ describe("useCharacterManagerDraft", () => {
     );
     expect(result.current.selectedCharacterId).toBeNull();
     expect(result.current.characters).toEqual([]);
+  });
+
+  it("retries a failed first save without creating another draft character", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const initialSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-retry",
+      characterSheetId: "sheet-retry",
+      characterName: "Retry Hero",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockResolvedValue(initialSnapshot as never);
+    saveCharacterManagerCharacterSheetAssignmentsMock
+      .mockRejectedValueOnce(new Error("Reference assignment timed out."))
+      .mockResolvedValueOnce(createEmptyCharacterSheetAssignments() as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(false);
+    });
+
+    expect(result.current.error).toContain("Reference assignment timed out.");
+    expect(result.current.error).toContain("retry Save to continue");
+    expect(saveCharacterManagerDraftMock).toHaveBeenCalledTimes(1);
+    expect(result.current.selectedCharacterId).toBeNull();
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(true);
+    });
+
+    expect(saveCharacterManagerDraftMock).toHaveBeenCalledTimes(1);
+    expect(saveCharacterManagerCharacterSheetAssignmentsMock).toHaveBeenCalledTimes(2);
+    expect(loadCharacterManagerDraftByCharacterIdMock).not.toHaveBeenCalledWith("char-retry");
+    expect(result.current.error).toBeNull();
+    expect(result.current.selectedCharacterId).toBe("char-retry");
   });
 
   it("clears persisted selection when staging a new local draft", async () => {
@@ -778,6 +882,85 @@ describe("useCharacterManagerDraft", () => {
       expect(result.current.slots.front_full?.previewUrl).toBe(
         "https://signed.example/front-full.png"
       );
+    });
+  });
+
+  it("uploads staged preset assets in parallel during first save", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const hydratedSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-parallel",
+      characterSheetId: "sheet-parallel",
+      characterName: "Parallel Hero",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockResolvedValue({
+      ...hydratedSnapshot,
+      characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+      characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
+    } as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(hydratedSnapshot as never);
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
+      createEmptyCharacterSheetAssignments() as never
+    );
+    const portraitUpload = createDeferred<ReturnType<typeof createPresetMedia>>();
+    const closeUpUpload = createDeferred<ReturnType<typeof createPresetMedia>>();
+    const portraitAsset = createPresetMedia("parallel-portrait", "https://signed.example/p.png");
+    const closeUpAsset = createPresetMedia("parallel-close", "https://signed.example/c.png");
+    saveCharacterManagerCharacterSheetPresetAssetMock.mockImplementation(({ file }) => {
+      if (file.name === "portrait.png") {
+        return portraitUpload.promise as ReturnType<
+          typeof saveCharacterManagerCharacterSheetPresetAsset
+        >;
+      }
+      if (file.name === "close-up.png") {
+        return closeUpUpload.promise as ReturnType<
+          typeof saveCharacterManagerCharacterSheetPresetAsset
+        >;
+      }
+      throw new Error(`Unexpected file: ${file.name}`);
+    });
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    const portraitFile = new File(["portrait"], "portrait.png", { type: "image/png" });
+    const closeUpFile = new File(["close-up"], "close-up.png", { type: "image/png" });
+    await act(async () => {
+      await result.current.setCharacterSheetPresetFile("portrait", portraitFile);
+      await result.current.setCharacterSheetPresetFile("close_up", closeUpFile);
+    });
+
+    let savePromise!: Promise<boolean>;
+    act(() => {
+      savePromise = result.current.saveCharacter();
+    });
+
+    await waitFor(() => {
+      expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledTimes(2);
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      portraitUpload.resolve(portraitAsset);
+      closeUpUpload.resolve(closeUpAsset);
+      await savePromise;
+    });
+
+    expect(await savePromise).toBe(true);
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+      characterId: "char-parallel",
+      presetId: "1",
+      assignments: expect.objectContaining({
+        portrait: portraitAsset,
+        close_up: closeUpAsset,
+      }),
     });
   });
 

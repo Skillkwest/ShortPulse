@@ -19,6 +19,7 @@ import {
   saveCharacterManagerDraft,
   saveCharacterManagerCharacterSheetPresetTabDescription,
   updateCharacterManagerName,
+  type CharacterManagerDraftSnapshot,
 } from "../logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
@@ -107,6 +108,13 @@ const CHARACTER_SAVE_PROGRESS_COPY = {
   hydration: "Loading saved character...",
   finalizing: "Finishing save...",
 } as const;
+const CHARACTER_SAVE_LONG_PROGRESS_COPY = {
+  creating: "Still creating character...",
+  references: "Still saving references...",
+  hydration: "Still loading saved character...",
+  finalizing: "Still finishing save...",
+} as const;
+const CHARACTER_SAVE_LONG_PROGRESS_THRESHOLD_MS = 10_000;
 const createPresetRequestCounterMap = (): Record<CharacterSheetPresetId, number> =>
   CHARACTER_SHEET_PRESET_IDS.reduce(
     (acc, presetId) => {
@@ -220,6 +228,8 @@ export const useCharacterManagerDraft = ({
   const selectedCharacterStorageScopeRef = useRef<string | null>(null);
   const selectionRequestIdRef = useRef(0);
   const saveCharacterRequestIdRef = useRef(0);
+  const saveProgressEscalationTimerRef = useRef<number | null>(null);
+  const firstSaveRetrySnapshotRef = useRef<CharacterManagerDraftSnapshot | null>(null);
   const characterSheetAssignmentsRequestRef = useRef(0);
   const activeCharacterSheetPresetIdRef = useRef<CharacterSheetPresetId>("1");
   const activeCharacterSheetPresetRequestRef = useRef(0);
@@ -243,6 +253,19 @@ export const useCharacterManagerDraft = ({
   const clearMessages = useCallback(() => {
     setError(null);
   }, []);
+
+  const clearSaveProgressEscalationTimer = useCallback(() => {
+    if (saveProgressEscalationTimerRef.current == null) return;
+    window.clearTimeout(saveProgressEscalationTimerRef.current);
+    saveProgressEscalationTimerRef.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearSaveProgressEscalationTimer();
+    },
+    [clearSaveProgressEscalationTimer]
+  );
 
   useEffect(() => {
     characterIdRef.current = characterId;
@@ -565,6 +588,8 @@ export const useCharacterManagerDraft = ({
   const createCharacter = useCallback(async () => {
     clearMessages();
     saveCharacterRequestIdRef.current += 1;
+    clearSaveProgressEscalationTimer();
+    firstSaveRetrySnapshotRef.current = null;
     setIsSavingCharacter(false);
     setCharacterSaveProgressMessage(null);
     setIsCreatingCharacter(true);
@@ -577,7 +602,13 @@ export const useCharacterManagerDraft = ({
     } finally {
       setIsCreatingCharacter(false);
     }
-  }, [applyLocalDraft, clearMessages, clearUnsavedDraftAssets, onSelectedCharacterIdChange]);
+  }, [
+    applyLocalDraft,
+    clearMessages,
+    clearSaveProgressEscalationTimer,
+    clearUnsavedDraftAssets,
+    onSelectedCharacterIdChange,
+  ]);
 
   const flushPendingCharacterNamePersist = useCallback(async () => {
     if (!characterId) return true;
@@ -692,39 +723,62 @@ export const useCharacterManagerDraft = ({
     const saveStartedAt = nowMs();
     const markPhase = (phase: keyof typeof CHARACTER_SAVE_PROGRESS_COPY) => {
       if (!isCurrentSaveRequest()) return;
+      clearSaveProgressEscalationTimer();
       setCharacterSaveProgressMessage(CHARACTER_SAVE_PROGRESS_COPY[phase]);
       addCharacterSaveBreadcrumb(phase, {
         request: requestId,
         elapsed_ms: Math.round(nowMs() - saveStartedAt),
       });
+      saveProgressEscalationTimerRef.current = window.setTimeout(() => {
+        if (!isCurrentSaveRequest()) return;
+        setCharacterSaveProgressMessage(CHARACTER_SAVE_LONG_PROGRESS_COPY[phase]);
+        addCharacterSaveBreadcrumb(`${phase}_slow`, {
+          request: requestId,
+          elapsed_ms: Math.round(nowMs() - saveStartedAt),
+        });
+      }, CHARACTER_SAVE_LONG_PROGRESS_THRESHOLD_MS);
     };
 
     clearMessages();
     setIsSavingCharacter(true);
-    markPhase("creating");
     try {
-      const initialSnapshot = await saveCharacterManagerDraft({
-        name: characterName,
-        activeCharacterSheetPresetId: activeCharacterSheetPresetIdRef.current,
-        visibleCharacterSheetPresetIds: visibleCharacterSheetPresetIdsRef.current,
-        characterSheetPresetLabels: characterSheetPresetLabelsRef.current,
-        characterSheetPresetDescriptions: characterSheetPresetDescriptionsRef.current,
-      });
-      if (!isCurrentSaveRequest()) {
-        return false;
+      let initialSnapshot = firstSaveRetrySnapshotRef.current;
+      if (initialSnapshot) {
+        addCharacterSaveBreadcrumb("retry", {
+          request: requestId,
+          elapsed_ms: Math.round(nowMs() - saveStartedAt),
+        });
+      } else {
+        markPhase("creating");
+        initialSnapshot = await saveCharacterManagerDraft({
+          name: characterName,
+          activeCharacterSheetPresetId: activeCharacterSheetPresetIdRef.current,
+          visibleCharacterSheetPresetIds: visibleCharacterSheetPresetIdsRef.current,
+          characterSheetPresetLabels: characterSheetPresetLabelsRef.current,
+          characterSheetPresetDescriptions: characterSheetPresetDescriptionsRef.current,
+        });
+        if (!isCurrentSaveRequest()) {
+          return false;
+        }
+        firstSaveRetrySnapshotRef.current = initialSnapshot;
       }
       markPhase("references");
-      await persistUnsavedDraftAssets({
+      const assetPersistenceResult = await persistUnsavedDraftAssets({
         characterId: initialSnapshot.characterId,
         characterSheetId: initialSnapshot.characterSheetId,
       });
       if (!isCurrentSaveRequest()) {
         return false;
       }
-      markPhase("hydration");
-      const snapshot = await loadAndApplyCharacterSnapshot(initialSnapshot.characterId);
-      if (!isCurrentSaveRequest()) {
-        return false;
+      let snapshot = initialSnapshot;
+      if (assetPersistenceResult.persistedAssetCount > 0) {
+        markPhase("hydration");
+        snapshot = await loadAndApplyCharacterSnapshot(initialSnapshot.characterId);
+        if (!isCurrentSaveRequest()) {
+          return false;
+        }
+      } else {
+        applyLoadedCharacterSnapshot(snapshot);
       }
       markPhase("finalizing");
       upsertCharacterListItem({
@@ -742,6 +796,7 @@ export const useCharacterManagerDraft = ({
         reason: "create",
       });
       onSelectedCharacterIdChange?.(snapshot.characterId);
+      firstSaveRetrySnapshotRef.current = null;
       addCharacterSaveBreadcrumb("complete", {
         request: requestId,
         elapsed_ms: Math.round(nowMs() - saveStartedAt),
@@ -755,10 +810,16 @@ export const useCharacterManagerDraft = ({
         request: requestId,
         elapsed_ms: Math.round(nowMs() - saveStartedAt),
       });
-      setError(toErrorMessage(nextError, "Failed to save character."));
+      const baseMessage = toErrorMessage(nextError, "Failed to save character.");
+      setError(
+        firstSaveRetrySnapshotRef.current
+          ? `${baseMessage} Your staged references are still available; retry Save to continue.`
+          : baseMessage
+      );
       return false;
     } finally {
       if (isCurrentSaveRequest()) {
+        clearSaveProgressEscalationTimer();
         setIsSavingCharacter(false);
         setCharacterSaveProgressMessage(null);
       }
@@ -767,6 +828,8 @@ export const useCharacterManagerDraft = ({
     characterId,
     characterName,
     clearMessages,
+    clearSaveProgressEscalationTimer,
+    applyLoadedCharacterSnapshot,
     flushPendingCharacterDescriptionsPersist,
     flushPendingCharacterNamePersist,
     loadAndApplyCharacterSnapshot,
@@ -782,6 +845,8 @@ export const useCharacterManagerDraft = ({
 
       clearMessages();
       saveCharacterRequestIdRef.current += 1;
+      clearSaveProgressEscalationTimer();
+      firstSaveRetrySnapshotRef.current = null;
       setIsSavingCharacter(false);
       setCharacterSaveProgressMessage(null);
       setIsDeletingCharacter(true);
@@ -828,6 +893,7 @@ export const useCharacterManagerDraft = ({
       applyLocalDraft,
       characterId,
       clearMessages,
+      clearSaveProgressEscalationTimer,
       charactersRef,
       loadAndApplyCharacterSnapshot,
       onSelectedCharacterIdChange,
@@ -841,6 +907,8 @@ export const useCharacterManagerDraft = ({
       if (!nextCharacterId || nextCharacterId === characterId) return;
       clearMessages();
       saveCharacterRequestIdRef.current += 1;
+      clearSaveProgressEscalationTimer();
+      firstSaveRetrySnapshotRef.current = null;
       setIsSavingCharacter(false);
       setCharacterSaveProgressMessage(null);
       const requestId = selectionRequestIdRef.current + 1;
@@ -867,6 +935,7 @@ export const useCharacterManagerDraft = ({
       applyLoadedCharacterSnapshot,
       characterId,
       clearMessages,
+      clearSaveProgressEscalationTimer,
       clearUnsavedDraftAssets,
       onSelectedCharacterIdChange,
     ]

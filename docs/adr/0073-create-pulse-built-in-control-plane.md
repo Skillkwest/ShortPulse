@@ -37,7 +37,7 @@ That model no longer fits the admin-owned `Agent Instructions` workspace. The bu
 
 ## Guardrails
 
-- Standard-mode agent instructions remain scaffold-only UI until Standard intentionally adopts a control-plane contract.
+- Standard-mode agent instructions now use their own live control-plane contract and fail closed when the Standard runtime prompt row is missing or unreadable.
 - Customer sessions must never read `create_pulse_builtin_runtime` directly.
 - Built-in guided-workflow execution must fail closed to the server-resolved catalog, not fall back to user override payloads.
 - Built-in catalog writes must validate unique preset ids plus non-empty labels, descriptions, and system instructions before persistence.

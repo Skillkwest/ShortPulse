@@ -100,6 +100,31 @@ describe("PulseCreatePropertiesPanel", () => {
     expect(screen.getByTestId("pulse-history-header")).toBeEmptyDOMElement();
   });
 
+  it("omits helper step messaging while built-in workflows generate the next turn", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        activePulsePresetId="story_builder"
+        activePulsePresetLabel="DFY Story Builder"
+        activePulsePresetKind="guided_workflow"
+        agentUiBusy={false}
+        agentIsSending
+        agentMessages={[{ id: "assistant-1", role: "assistant", content: "Upload your image." }]}
+        pulseWorkflowSession={{
+          presetId: "story_builder",
+          status: "running",
+          currentStepIndex: 2,
+          currentStepLabel: "Image Gate",
+          currentStepPrompt: "Upload your image.",
+          collectedInputs: ["hero"],
+          lastArtifact: null,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
+  });
+
   it("treats an in-flight send as startup loading when the first pulse response has not landed yet", () => {
     render(
       <PulseCreatePropertiesPanel

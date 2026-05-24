@@ -15,9 +15,7 @@ import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlig
 export type PromptStepPulseLoadingState = {
   phase: "starting_pulse" | "generating_step";
   title: string;
-  message: string;
   presetLabel?: string | null;
-  stepLabel?: string | null;
 };
 
 export type PromptStepProps = {

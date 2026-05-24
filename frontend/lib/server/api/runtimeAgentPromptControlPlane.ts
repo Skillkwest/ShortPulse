@@ -38,10 +38,32 @@ export type RuntimeAgentPromptAdminResolution = RuntimeAgentPromptResolution & {
   degraded: boolean;
 };
 
+export type RequiredRuntimeAgentPromptResolution = {
+  promptId: AgentPromptId;
+  promptBody: string;
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  source: "control_plane";
+};
+
 export class RuntimeAgentPromptVersionMismatchError extends Error {
   constructor(promptId: AgentPromptId) {
     super(`Runtime agent prompt ${promptId} changed since it was loaded.`);
     this.name = "RuntimeAgentPromptVersionMismatchError";
+  }
+}
+
+export class RequiredRuntimeAgentPromptUnavailableError extends Error {
+  constructor(promptId: AgentPromptId) {
+    super(`Runtime agent prompt ${promptId} requires a live control-plane connection.`);
+    this.name = "RequiredRuntimeAgentPromptUnavailableError";
+  }
+}
+
+export class RequiredRuntimeAgentPromptMissingError extends Error {
+  constructor(promptId: AgentPromptId) {
+    super(`Runtime agent prompt ${promptId} is missing from the control plane.`);
+    this.name = "RequiredRuntimeAgentPromptMissingError";
   }
 }
 
@@ -114,6 +136,34 @@ export const resolveRuntimeAgentPrompt = async ({
     buildControlPlaneResolution: buildControlPlaneRuntimeAgentPromptResolution,
     buildSeedResolution: () => buildSeedRuntimeAgentPromptResolution(promptId),
   });
+};
+
+export const resolveRequiredRuntimeAgentPrompt = async ({
+  promptId,
+  supabaseAdmin = getSupabaseAdmin(),
+}: {
+  promptId: AgentPromptId;
+  supabaseAdmin?: SupabaseClient;
+}): Promise<RequiredRuntimeAgentPromptResolution> => {
+  if (!hasSupabaseAdminConfig()) {
+    throw new RequiredRuntimeAgentPromptUnavailableError(promptId);
+  }
+
+  const activePromptRecord = await fetchActiveRuntimeAgentPromptRecord({
+    promptId,
+    supabaseAdmin,
+  });
+  if (!activePromptRecord) {
+    throw new RequiredRuntimeAgentPromptMissingError(promptId);
+  }
+
+  return {
+    promptId,
+    promptBody: activePromptRecord.promptBody,
+    updatedAt: activePromptRecord.updatedAt,
+    updatedByEmail: activePromptRecord.updatedByEmail,
+    source: "control_plane",
+  };
 };
 
 export const resolveRuntimeAgentPromptForAdmin = async ({

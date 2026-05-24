@@ -109,7 +109,6 @@ export function PulseCreatePropertiesPanel({
   createModeToggle = null,
   activePulsePresetId,
   activePulsePresetLabel = null,
-  activePulsePresetKind = null,
   hasActivePulseSession = Boolean(activePulsePresetId),
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
@@ -120,7 +119,6 @@ export function PulseCreatePropertiesPanel({
   onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
-  const isGuidedWorkflowPulse = activePulsePresetKind === "guided_workflow";
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
       return null;
@@ -130,7 +128,6 @@ export function PulseCreatePropertiesPanel({
     const assistantMessageCount = agentMessages.filter(
       (message) => message.role === "assistant" && message.content.trim().length > 0
     ).length;
-    const stepLabel = pulseWorkflowSession?.currentStepLabel?.trim() || null;
     const hasPendingStartupStep =
       pulseWorkflowSession?.status === "running" && assistantMessageCount === 0;
     const shouldShowStartupState =
@@ -140,22 +137,14 @@ export function PulseCreatePropertiesPanel({
       return {
         phase: "starting_pulse",
         title: PULSE_LOADING_TITLE,
-        message: "",
         presetLabel,
-        stepLabel,
       };
     }
     if ((agentTransportSending || agentIsSending) && assistantMessageCount > 0) {
       return {
         phase: "generating_step",
         title: PULSE_LOADING_TITLE,
-        message: isGuidedWorkflowPulse
-          ? stepLabel
-            ? `Building the next instruction for ${stepLabel}.`
-            : "Building the next instruction for your workflow."
-          : "",
         presetLabel,
-        stepLabel,
       };
     }
     return null;
@@ -166,8 +155,6 @@ export function PulseCreatePropertiesPanel({
     agentIsSending,
     agentTransportSending,
     agentUiBusy,
-    isGuidedWorkflowPulse,
-    pulseWorkflowSession?.currentStepLabel,
     pulseWorkflowSession?.status,
   ]);
   const pulseGenerateControl = (

@@ -175,9 +175,6 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       <span className="create-composer-pulse-loading-spinner" aria-hidden="true" />
       <div className="create-composer-pulse-loading-card-copy">
         <p className="create-composer-pulse-loading-card-title">{pulseLoadingTitle}</p>
-        {pulseLoadingState.message ? (
-          <p className="create-composer-pulse-loading-card-message">{pulseLoadingState.message}</p>
-        ) : null}
       </div>
     </div>
   ) : null;

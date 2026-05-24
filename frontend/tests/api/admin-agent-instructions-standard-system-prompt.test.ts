@@ -17,8 +17,20 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/runtimeAgentPromptControlPlane", () => ({
+  RequiredRuntimeAgentPromptMissingError: class RequiredRuntimeAgentPromptMissingError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} is missing from the control plane.`);
+      this.name = "RequiredRuntimeAgentPromptMissingError";
+    }
+  },
+  RequiredRuntimeAgentPromptUnavailableError: class RequiredRuntimeAgentPromptUnavailableError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} requires a live control-plane connection.`);
+      this.name = "RequiredRuntimeAgentPromptUnavailableError";
+    }
+  },
   RuntimeAgentPromptVersionMismatchError: class RuntimeAgentPromptVersionMismatchError extends Error {},
-  resolveRuntimeAgentPromptForAdmin: (...args: unknown[]) =>
+  resolveRequiredRuntimeAgentPrompt: (...args: unknown[]) =>
     resolveRuntimeAgentPromptForAdminMock(...args),
   saveRuntimeAgentPrompt: (...args: unknown[]) => saveRuntimeAgentPromptMock(...args),
 }));
@@ -42,7 +54,6 @@ describe("admin standard system prompt API", () => {
       updatedAt: "2026-05-08T17:00:00.000Z",
       updatedByEmail: "admin@example.com",
       source: "control_plane",
-      degraded: false,
     });
 
     const req = { method: "GET" };
@@ -60,6 +71,24 @@ describe("admin standard system prompt API", () => {
       updatedByEmail: "admin@example.com",
       source: "control_plane",
       degraded: false,
+    });
+  });
+
+  it("returns 503 when the live Standard runtime prompt row is missing", async () => {
+    const missingPromptError = new Error(
+      "Runtime agent prompt STUDIO_AGENT_SYSTEM is missing from the control plane."
+    );
+    missingPromptError.name = "RequiredRuntimeAgentPromptMissingError";
+    resolveRuntimeAgentPromptForAdminMock.mockRejectedValue(missingPromptError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      code: "STANDARD_PROMPT_UNAVAILABLE",
+      error: "Runtime agent prompt STUDIO_AGENT_SYSTEM is missing from the control plane.",
     });
   });
 

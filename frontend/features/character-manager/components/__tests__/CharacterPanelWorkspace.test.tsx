@@ -311,7 +311,35 @@ describe("CharacterPanelWorkspace", () => {
       "aria-describedby",
       "character-save-progress-status"
     );
+    expect(screen.getByRole("button", { name: "Characters" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+  });
+
+  it("keeps the Characters modal browsable but read-only while character save is in progress", () => {
+    const selectCharacterMock = vi.fn(async () => undefined);
+    const createCharacterMock = vi.fn(async () => undefined);
+    currentDraftState = {
+      ...createDraftState(),
+      isSavingCharacter: true,
+      characterSaveProgressMessage: "Loading saved character...",
+      createCharacter: createCharacterMock,
+      selectCharacter: selectCharacterMock,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Characters" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Character library" });
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("status", { name: "Loading saved character..." })
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /\+ create new character/i })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Selected Taylor" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Delete Taylor" })).toBeDisabled();
+    expect(selectCharacterMock).not.toHaveBeenCalled();
+    expect(createCharacterMock).not.toHaveBeenCalled();
   });
 
   it("shows a brief saved check indicator after a successful save", async () => {

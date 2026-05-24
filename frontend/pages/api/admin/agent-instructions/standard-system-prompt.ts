@@ -3,8 +3,10 @@ import type { AgentPromptId } from "../../../../lib/agentPromptsConfig";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import {
+  RequiredRuntimeAgentPromptMissingError,
+  RequiredRuntimeAgentPromptUnavailableError,
   RuntimeAgentPromptVersionMismatchError,
-  resolveRuntimeAgentPromptForAdmin,
+  resolveRequiredRuntimeAgentPrompt,
   saveRuntimeAgentPrompt,
 } from "../../../../lib/server/api/runtimeAgentPromptControlPlane";
 
@@ -29,18 +31,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "GET") {
     try {
-      const resolvedPrompt = await resolveRuntimeAgentPromptForAdmin({
+      const resolvedPrompt = await resolveRequiredRuntimeAgentPrompt({
         promptId: STANDARD_SYSTEM_PROMPT_ID,
       });
       return res.status(200).json({
         promptId: STANDARD_SYSTEM_PROMPT_ID,
-        promptBody: resolvedPrompt.promptBody ?? "",
+        promptBody: resolvedPrompt.promptBody,
         updatedAt: resolvedPrompt.updatedAt,
         updatedByEmail: resolvedPrompt.updatedByEmail,
         source: resolvedPrompt.source,
-        degraded: resolvedPrompt.degraded,
+        degraded: false,
       });
     } catch (error) {
+      if (
+        error instanceof RequiredRuntimeAgentPromptMissingError ||
+        error instanceof RequiredRuntimeAgentPromptUnavailableError ||
+        (error instanceof Error &&
+          (error.name === "RequiredRuntimeAgentPromptMissingError" ||
+            error.name === "RequiredRuntimeAgentPromptUnavailableError"))
+      ) {
+        return res.status(503).json({
+          code: "STANDARD_PROMPT_UNAVAILABLE",
+          error: error.message,
+        });
+      }
       await logApiRouteException({
         req,
         error,

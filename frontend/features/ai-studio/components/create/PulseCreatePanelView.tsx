@@ -103,16 +103,6 @@ const PulseCreatePanelViewContent = ({
             <span className="create-composer-pulse-start-shell-spinner" aria-hidden="true" />
             <div className="create-composer-pulse-start-shell-copy">
               <p className="create-composer-pulse-start-shell-title">Starting Pulse</p>
-              {pulseLoadingState.message ? (
-                <p className="create-composer-pulse-start-shell-message">
-                  {pulseLoadingState.message}
-                </p>
-              ) : null}
-              {pulseLoadingState.stepLabel ? (
-                <p className="create-composer-pulse-start-shell-step">
-                  Next up: {pulseLoadingState.stepLabel}
-                </p>
-              ) : null}
             </div>
           </div>
         </div>

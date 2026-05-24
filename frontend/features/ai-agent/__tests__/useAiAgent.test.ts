@@ -1264,7 +1264,7 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
-  it("treats Standard message-only successes as reusable prompt outputs", async () => {
+  it("keeps Standard message-only successes as plain assistant chat replies", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -1295,8 +1295,8 @@ describe("useCreateAgentStateCore", () => {
       expect.objectContaining({
         role: "assistant",
         content: "Hello. How can I help?",
-        outputPrompt: "Hello. How can I help?",
-        canUseAsPrompt: true,
+        outputPrompt: null,
+        canUseAsPrompt: false,
         outcomeClass: "success_message",
       })
     );
@@ -1570,8 +1570,8 @@ describe("useCreateAgentStateCore", () => {
       expect.objectContaining({
         role: "assistant",
         content: "Cinematic portrait of a woman in golden-hour forest light.",
-        outputPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
-        canUseAsPrompt: true,
+        outputPrompt: null,
+        canUseAsPrompt: false,
         outcomeClass: "success_prompt",
       })
     );
@@ -1748,14 +1748,16 @@ describe("useCreateAgentStateCore", () => {
     expect(assistantMessage?.id).toMatch(/^agent-assistant-/);
   });
 
-  it("appends assistant history from applyPrompt when the response omits message text", async () => {
+  it("appends Pulse assistant history from applyPrompt when the response omits message text", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
         actions: { applyPrompt: "cinematic fragrance bottle with glossy reflections" },
       }),
     } as Response);
-    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({

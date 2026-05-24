@@ -75,7 +75,7 @@ type UseCharacterManagerAssetControllerResult = {
   persistUnsavedDraftAssets: (params: {
     characterId: string;
     characterSheetId: string;
-  }) => Promise<void>;
+  }) => Promise<{ persistedAssetCount: number }>;
 };
 
 const CHARACTER_MANAGER_MAX_IMAGE_MB = Math.round(
@@ -601,11 +601,13 @@ export const useCharacterManagerAssetController = ({
       characterId: string;
       characterSheetId: string;
     }) => {
+      let persistedAssetCount = 0;
       if (stagedProfileImageFileRef.current) {
         await saveCharacterManagerProfileImage({
           characterId: persistedCharacterId,
           file: stagedProfileImageFileRef.current,
         });
+        persistedAssetCount += 1;
         const hasCustomTransform =
           profileImageTransform.zoom !== defaultProfileImageTransform.zoom ||
           profileImageTransform.offsetX !== defaultProfileImageTransform.offsetX ||
@@ -627,23 +629,27 @@ export const useCharacterManagerAssetController = ({
         const currentAssignments =
           characterSheetPresetsRef.current[presetId] ??
           createEmptyCharacterSheetPresetAssignments();
+        const stagedUploads = (
+          Object.entries(stagedFiles) as Array<[CharacterSheetDropZoneKey, File | undefined]>
+        ).filter((entry): entry is [CharacterSheetDropZoneKey, File] => Boolean(entry[1]));
+        const uploadedAssets = await Promise.all(
+          stagedUploads.map(async ([zoneKey, stagedFile]) => {
+            const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
+              characterId: persistedCharacterId,
+              file: stagedFile,
+            });
+            return [zoneKey, uploadedAsset] as const;
+          })
+        );
+        persistedAssetCount += uploadedAssets.length;
         let nextAssignments = currentAssignments;
-        let hasPresetUploads = false;
-        for (const [zoneKey, stagedFile] of Object.entries(stagedFiles) as Array<
-          [CharacterSheetDropZoneKey, File | undefined]
-        >) {
-          if (!stagedFile) continue;
-          const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
-            characterId: persistedCharacterId,
-            file: stagedFile,
-          });
+        for (const [zoneKey, uploadedAsset] of uploadedAssets) {
           nextAssignments = {
             ...nextAssignments,
             [zoneKey]: uploadedAsset,
           };
-          hasPresetUploads = true;
         }
-        if (hasPresetUploads) {
+        if (uploadedAssets.length > 0) {
           await saveCharacterManagerCharacterSheetPresetAssignments({
             characterId: persistedCharacterId,
             presetId,
@@ -658,17 +664,25 @@ export const useCharacterManagerAssetController = ({
       const stagedSlotEntries = Object.entries(stagedSlotFilesRef.current) as Array<
         [CharacterReferenceSlotKey, File | undefined]
       >;
-      for (const [slotKey, stagedFile] of stagedSlotEntries) {
-        if (!stagedFile) continue;
-        const currentSlot = slotsRef.current[slotKey];
-        await saveCharacterManagerSlot({
-          characterId: persistedCharacterId,
-          characterSheetId: persistedCharacterSheetId,
-          slotKey,
-          file: stagedFile,
-          validationStatus: currentSlot?.validationStatus ?? "pending",
-          validationNotes: currentSlot?.validationNotes ?? createPendingValidationNotes(stagedFile),
-        });
+      const savedSlotUploads = await Promise.all(
+        stagedSlotEntries
+          .filter((entry): entry is [CharacterReferenceSlotKey, File] => Boolean(entry[1]))
+          .map(async ([slotKey, stagedFile]) => {
+            const currentSlot = slotsRef.current[slotKey];
+            await saveCharacterManagerSlot({
+              characterId: persistedCharacterId,
+              characterSheetId: persistedCharacterSheetId,
+              slotKey,
+              file: stagedFile,
+              validationStatus: currentSlot?.validationStatus ?? "pending",
+              validationNotes:
+                currentSlot?.validationNotes ?? createPendingValidationNotes(stagedFile),
+            });
+            return currentSlot;
+          })
+      );
+      persistedAssetCount += savedSlotUploads.length;
+      for (const currentSlot of savedSlotUploads) {
         revokeObjectUrl(currentSlot?.previewUrl ?? null);
       }
 
@@ -678,6 +692,7 @@ export const useCharacterManagerAssetController = ({
       });
 
       clearUnsavedDraftAssets();
+      return { persistedAssetCount };
     },
     [
       clearUnsavedDraftAssets,

@@ -19,7 +19,7 @@ Purpose: index durable reports for Gottspan The Admin repo-stewardship work, inc
 - `2026-05-20-branch-policy-decision-packet.md`: decision packet recommending that the current `production`-branch workflow be treated as an explicit exception unless the user later asks for a real branch-policy rewrite.
 - `2026-05-23-agent-workspace-audit.md`: agent-folder retention and instruction-drift audit with owner-specific handoff packets under `handoffs/`.
 - `2026-05-23-agent-workspace-stewardship-plan.md`: audited execution plan and tracker for agent-workspace handoffs.
-- `2026-05-23-p0-owner-dispatch.md`: prepared P0 owner-run packet batch for Nuclo, Gear Ball, and Holomony; delivered by copying packets into each owning agent's `CURRENT-HANDOFF.md`.
+- `2026-05-23-p0-owner-dispatch.md`: completed P0 owner-run dispatch record for Nuclo, Gear Ball, and Holomony, with archived result links for each owner.
 
 ## Default Naming
 

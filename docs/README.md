@@ -442,7 +442,14 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/naming-decision-log.md`
 - `docs/planning/naming-canonicalization-tracker.md`
 - `docs/planning/naming-phase-7-entry-readiness.md`
-- `docs/planning/ai-studio-primary-character-panel-build-plan.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-readiness-state-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-implementation-entry-checklist-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-phase-1-behavior-lock-and-replacement-contract-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-phase-2-quickswap-runtime-eradication-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-phase-3-persistence-and-cleanup-simplification-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-phase-4-top-workspace-inline-style-conversion-plan-2026-05-23.md`
+- `docs/planning/ai-studio-character-panel-lean-hardening-phase-5-docs-sql-and-closeout-plan-2026-05-23.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/adaptive-media-v2-migration-checklist.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`

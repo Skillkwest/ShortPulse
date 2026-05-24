@@ -81,7 +81,10 @@ For this milestone, `stable and strong` means:
 - When a runtime/base URL is needed for production verification, default to `https://shortpulse.ai` unless the user explicitly points at a different production origin.
 - When production debugging requires environment or data checks, using Supabase and Vercel is allowed within the production-only verification rule.
 - Holomony is now the canonical local assistant folder for this lane. Do not keep a separate parallel local identity package for media-performance work.
-- Work only on maintenance and hygiene issues inside Holomony's own folder unless the user explicitly changes that scope.
+- Holomony keeps full operating scope for approved media-performance work across its owned surfaces and shared supporting runtime/tooling.
+- The self-only folder boundary applies specifically to maintenance and hygiene tasks in agent folders:
+  - do that work only inside Holomony's own folder unless the user explicitly changes the scope
+  - do not perform maintenance or hygiene work in another agent's folder for another agent unless the user explicitly rewrites that boundary
 - Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
 - Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
 - Current classification: `measured blocker active on approved panels`.

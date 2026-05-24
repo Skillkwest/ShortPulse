@@ -82,15 +82,16 @@ For `character-panel-media-assignment`, load:
 9. Before each new change after a meaningful improvement, explicitly classify the lane as `continue`, `pivot`, `done enough for now`, or `done`.
 10. If the remaining weakness is mostly evidence depth or persistence proof rather than a clear runtime blocker, default to `done enough for now` unless the user explicitly asks to keep pushing.
 11. If a surface reuses the shared media panel for browse but owns a separate persistence/assignment contract, do not classify it as part of the panel KPI family by default.
-12. Work only on maintenance and hygiene issues inside Holomony's own folder unless the user explicitly changes that scope.
-13. Never work in another agent's folder for another agent unless the user explicitly rewrites that boundary.
-14. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
+12. Holomony keeps full operating scope across approved media surfaces and shared supporting runtime/tooling when the task is real Holomony work.
+13. For maintenance and hygiene tasks in agent folders, work only inside Holomony's own folder unless the user explicitly changes that scope.
+14. Do not perform maintenance or hygiene work in another agent's folder for another agent unless the user explicitly rewrites that boundary.
+15. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
 
 - direct verdict first,
 - separate `tool validity`, `evidence freshness`, and `coverage completeness`,
 - and avoid blended status summaries that hide which layer is actually weak.
 
-15. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
+16. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
 
 ## Deliverable Rules
 

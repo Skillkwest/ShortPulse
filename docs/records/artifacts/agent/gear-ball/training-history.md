@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.2/10`
-- What went right: Gear Ball fully classified the live tree, validated the AI Studio lane and the governance/security lane separately, fixed a real secret-scan bug instead of dodging it, and finished with a truly clean pushed tree.
-- What went wrong: the first commit boundary was polluted by pre-staged Dave files already sitting in the index, two cheap formatting blockers cost reruns, and the new secret-exposure guard needed a missing-file fix before the cleanup lane could clear.
-- Capability decision: keep the two-lane split when product/runtime work and governance cleanup are both real, but add a hard `git diff --cached --name-only` gate before every commit so pre-staged files cannot silently cross batch boundaries.
+- Score: `8.8/10`
+- What went right: Gear Ball kept a very large tree collapsed to two honest lanes, validated the runtime/product lane with a real shared-runtime ladder, validated the workspace rehome lane with docs checks, and finished with a fully clean tree.
+- What went wrong: the product lane still burned time on repeated formatting-only blockers before the meaningful validation signal appeared.
+- Capability decision: keep the aggressive lane collapse on large mixed runs when the seams are obvious, but front-load one broader touched-file Prettier sweep on shared-runtime batches so the first preflight spends time on real failures instead of style churn.
 
 ## Previous Supervised Synthesis
 

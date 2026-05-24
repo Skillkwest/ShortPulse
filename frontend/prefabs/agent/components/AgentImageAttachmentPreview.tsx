@@ -113,6 +113,7 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
 
   const resolvedSrc = allSources[activeSourceIndex] ?? null;
   const resolvedDebugLabel = debugLabel ?? formatPerfAuditDebugLine("chip", resolvedSrc);
+  const isLoading = deliveryStatus === "pending" || deliveryStatus === "preparing";
 
   React.useEffect(() => {
     recordCreateWorkflowEvent("preview_resolved_source_changed", {
@@ -123,7 +124,6 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
   }, [activeSourceIndex, allSources.length, resolvedSrc]);
 
   if (!resolvedSrc) {
-    const isLoading = deliveryStatus === "pending" || deliveryStatus === "preparing";
     return (
       <>
         <div
@@ -182,6 +182,11 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
           });
         }}
       />
+      {isLoading ? (
+        <span className="agent-attachment-card-loading-overlay" aria-hidden="true">
+          <span className="agent-send-spinner agent-attachment-card-spinner" />
+        </span>
+      ) : null}
       {showPerfAuditDebug ? (
         <div
           aria-label={resolvedDebugLabel}

@@ -726,7 +726,61 @@ export const useAiStudioAgentComposer = ({
         })();
         return;
       }
+      const structuredDropReferenceId =
+        composerImagePayload?.outputId ??
+        composerImagePayload?.referenceId ??
+        internalPayload?.outputId ??
+        null;
+      const structuredDropMediaId =
+        composerImagePayload?.mediaId ?? internalPayload?.mediaId ?? null;
+      const structuredDropPromptText = composerImagePayload?.promptText?.trim() || null;
+      const structuredDropPreviewUrl =
+        normalizeDroppedImageCandidate(composerImagePayload?.displayArtifactUrl) ??
+        normalizeDroppedImageCandidate(composerImagePayload?.referenceUrl) ??
+        normalizeDroppedImageCandidate(dropSnapshot.referenceRenderUrl) ??
+        normalizeDroppedImageCandidate(dropSnapshot.referenceUrl) ??
+        normalizeDroppedImageCandidate(dropSnapshot.imageUrl);
+      const shouldInsertStructuredImagePlaceholder =
+        Boolean(composerImagePayload) ||
+        (Boolean(internalPayload) &&
+          internalPayload?.mediaKind !== "video" &&
+          internalPayload?.mediaKind !== "audio");
       void (async () => {
+        let structuredPreparingAttachmentId: string | null = null;
+        let structuredDropSessionEnsured = false;
+        const ensureStructuredDropSession = () => {
+          if (agentSessionEnabled || structuredDropSessionEnsured) return;
+          ensureAgentSession();
+          structuredDropSessionEnsured = true;
+        };
+        const clearStructuredPreparingAttachment = () => {
+          if (!structuredPreparingAttachmentId) return;
+          removeAttachmentById(structuredPreparingAttachmentId);
+          structuredPreparingAttachmentId = null;
+        };
+        if (shouldInsertStructuredImagePlaceholder) {
+          ensureStructuredDropSession();
+          setAgentAttachmentError(null);
+          const preparingAttachment: AgentAttachment = {
+            id: randomId(),
+            kind: "image",
+            source: "ephemeral_local",
+            referenceId: structuredDropReferenceId,
+            mediaId: structuredDropMediaId,
+            imageUrl: structuredDropPreviewUrl,
+            modelDataUrl: null,
+            submissionImageUrl: null,
+            text: structuredDropPromptText,
+            aspect: null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          };
+          structuredPreparingAttachmentId = resolveStagedAttachmentId(preparingAttachment);
+          insertAttachment({
+            ...preparingAttachment,
+            id: structuredPreparingAttachmentId,
+          });
+        }
         const resolvedInternalImageSource =
           internalPayload && resolveInternalImageDropSource
             ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
@@ -751,10 +805,12 @@ export const useAiStudioAgentComposer = ({
           const hasInternalAudioReference =
             internalPayload?.mediaKind === "audio" || matchedOutput?.mode === "audio";
           if (hasInternalVideoReference) {
+            clearStructuredPreparingAttachment();
             setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
           if (hasInternalAudioReference) {
+            clearStructuredPreparingAttachment();
             setAgentAttachmentError(NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
@@ -770,12 +826,10 @@ export const useAiStudioAgentComposer = ({
             ? await resolvedInternalImageSource.loadBlob().catch(() => null)
             : null;
           if (normalizedInternalImageUrl || internalSourceBlob) {
-            if (!agentSessionEnabled) {
-              ensureAgentSession();
-            }
+            ensureStructuredDropSession();
             setAgentAttachmentError(null);
             const preparingAttachment: AgentAttachment = {
-              id: randomId(),
+              id: structuredPreparingAttachmentId ?? randomId(),
               kind: "image",
               source: "ephemeral_local",
               referenceId: droppedReferenceId,
@@ -792,7 +846,8 @@ export const useAiStudioAgentComposer = ({
               deliveryStatus: "preparing",
               deliveryError: null,
             };
-            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            const attachmentId =
+              structuredPreparingAttachmentId ?? resolveStagedAttachmentId(preparingAttachment);
             insertAttachment({
               ...preparingAttachment,
               id: attachmentId,
@@ -816,6 +871,7 @@ export const useAiStudioAgentComposer = ({
               return;
             }
             removeAttachmentById(attachmentId);
+            structuredPreparingAttachmentId = null;
           }
 
           const displayArtifactUrl = normalizeDroppedImageCandidate(
@@ -840,12 +896,10 @@ export const useAiStudioAgentComposer = ({
                 fullStoragePath: composerImagePayload.fullStoragePath ?? null,
                 referenceUrl: durableReferenceUrl,
               }));
-            if (!agentSessionEnabled) {
-              ensureAgentSession();
-            }
+            ensureStructuredDropSession();
             setAgentAttachmentError(null);
             const preparingAttachment: AgentAttachment = {
-              id: randomId(),
+              id: structuredPreparingAttachmentId ?? randomId(),
               kind: "image",
               source: "ephemeral_local",
               referenceId: droppedReferenceId,
@@ -858,7 +912,8 @@ export const useAiStudioAgentComposer = ({
               deliveryStatus: "preparing",
               deliveryError: null,
             };
-            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            const attachmentId =
+              structuredPreparingAttachmentId ?? resolveStagedAttachmentId(preparingAttachment);
             insertAttachment({
               ...preparingAttachment,
               id: attachmentId,
@@ -877,6 +932,7 @@ export const useAiStudioAgentComposer = ({
               return;
             }
             removeAttachmentById(attachmentId);
+            structuredPreparingAttachmentId = null;
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
@@ -889,16 +945,15 @@ export const useAiStudioAgentComposer = ({
           const normalizedImageUrl = orderedImageUrls[0] ?? null;
 
           if (!normalizedImageUrl) {
+            clearStructuredPreparingAttachment();
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
 
-          if (!agentSessionEnabled) {
-            ensureAgentSession();
-          }
+          ensureStructuredDropSession();
           setAgentAttachmentError(null);
           const preparingAttachment: AgentAttachment = {
-            id: randomId(),
+            id: structuredPreparingAttachmentId ?? randomId(),
             kind: "image",
             source: "ephemeral_local",
             referenceId: droppedReferenceId,
@@ -911,7 +966,8 @@ export const useAiStudioAgentComposer = ({
             deliveryStatus: "preparing",
             deliveryError: null,
           };
-          const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+          const attachmentId =
+            structuredPreparingAttachmentId ?? resolveStagedAttachmentId(preparingAttachment);
           insertAttachment({
             ...preparingAttachment,
             id: attachmentId,
@@ -927,6 +983,7 @@ export const useAiStudioAgentComposer = ({
           });
           if (!fallbackAttachment) {
             removeAttachmentById(attachmentId);
+            structuredPreparingAttachmentId = null;
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
@@ -970,21 +1027,21 @@ export const useAiStudioAgentComposer = ({
             matchedOutput?.mode === "audio";
 
           if (hasInternalVideoReference) {
+            clearStructuredPreparingAttachment();
             setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
           if (hasInternalAudioReference) {
+            clearStructuredPreparingAttachment();
             setAgentAttachmentError(NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE);
             return;
           }
 
           if (normalizedInternalImageUrl || internalSourceBlob) {
-            if (!agentSessionEnabled) {
-              ensureAgentSession();
-            }
+            ensureStructuredDropSession();
             setAgentAttachmentError(null);
             const preparingAttachment: AgentAttachment = {
-              id: randomId(),
+              id: structuredPreparingAttachmentId ?? randomId(),
               kind: "image",
               source: "ephemeral_local",
               referenceId: droppedReferenceId,
@@ -997,7 +1054,8 @@ export const useAiStudioAgentComposer = ({
               deliveryStatus: "preparing",
               deliveryError: null,
             };
-            const attachmentId = resolveStagedAttachmentId(preparingAttachment);
+            const attachmentId =
+              structuredPreparingAttachmentId ?? resolveStagedAttachmentId(preparingAttachment);
             insertAttachment({
               ...preparingAttachment,
               id: attachmentId,
@@ -1017,12 +1075,12 @@ export const useAiStudioAgentComposer = ({
               return;
             }
             removeAttachmentById(attachmentId);
+            structuredPreparingAttachmentId = null;
           }
 
           if (droppedPromptText) {
-            if (!agentSessionEnabled) {
-              ensureAgentSession();
-            }
+            clearStructuredPreparingAttachment();
+            ensureStructuredDropSession();
             insertAttachment({
               id: randomId(),
               kind: "prompt",
@@ -1033,6 +1091,7 @@ export const useAiStudioAgentComposer = ({
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
+          clearStructuredPreparingAttachment();
           setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
           return;
         }
@@ -1142,9 +1201,7 @@ export const useAiStudioAgentComposer = ({
         }
 
         if (!normalizedImageUrl && !normalizedPromptText) return;
-        if (!agentSessionEnabled) {
-          ensureAgentSession();
-        }
+        ensureStructuredDropSession();
         setAgentAttachmentError(null);
 
         if (normalizedImageUrl) {

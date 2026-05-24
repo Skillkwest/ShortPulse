@@ -1306,6 +1306,93 @@ describe("useAiStudioAgentComposer", () => {
     );
   });
 
+  it("shows a preparing attachment immediately while an internal reference image is resolving", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "image",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+    let resolveInternalSource: ((value: ResolvedInternalReferenceSource) => void) | null = null;
+    const resolveInternalImageDropSource = vi.fn(
+      () =>
+        new Promise<ResolvedInternalReferenceSource>((resolve) => {
+          resolveInternalSource = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+        resolveInternalImageDropSource,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        deliveryStatus: "preparing",
+      });
+    });
+
+    act(() => {
+      resolveInternalSource?.({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "out-1",
+        provenance: {
+          origin: "ai-studio-reference-grid",
+          outputId: "out-1",
+          mediaId: "media-1",
+          imageIndex: 0,
+          sourceSurface: "curated",
+          resolutionReason: "saved_media_lookup",
+        },
+        outputId: "out-1",
+        mediaId: "media-1",
+        mediaSource: "generated",
+        preview: {
+          url: "https://signed.example.com/stable-preview.png",
+        },
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        promptText: "Resolved prompt",
+        preparedImageUrl: "https://signed.example.com/stable-preview.png",
+        loadBlob: async () => new Blob(["image"]),
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        deliveryStatus: "ready",
+      });
+    });
+  });
+
   it("shows an explicit error when internal image resolution fails closed", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl:

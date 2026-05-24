@@ -59,6 +59,27 @@ describe("AgentComposerAttachmentImage", () => {
     expect(container.querySelector(".agent-attachment-card-spinner")).toBeTruthy();
   });
 
+  it("renders a spinner overlay while a preview-backed image attachment is still preparing", () => {
+    const attachment = {
+      id: "att-1",
+      kind: "image" as const,
+      referenceId: "out-1",
+      imageUrl: "https://example.com/staged.png",
+      imageFallbackUrls: [],
+      text: null,
+      aspect: null,
+      deliveryStatus: "preparing" as const,
+    };
+
+    const { container } = render(<AgentComposerAttachmentImage attachment={attachment} />);
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/staged.png"
+    );
+    expect(container.querySelector(".agent-attachment-card-loading-overlay")).toBeTruthy();
+    expect(container.querySelector(".agent-attachment-card-spinner")).toBeTruthy();
+  });
+
   it("falls back to the next attachment preview candidate when the first image fails", async () => {
     const attachment = {
       id: "att-1",

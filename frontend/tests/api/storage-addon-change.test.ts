@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/billing/storage-addon/change";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -122,6 +123,7 @@ const createSupabaseAdminMock = (params: {
 describe("POST /api/billing/storage-addon/change", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user@example.com",
@@ -435,6 +437,7 @@ describe("POST /api/billing/storage-addon/change", () => {
     const req = {
       method: "POST",
       body: { storageAddonId: "storage_100gb", action: "add" },
+      socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
 
@@ -442,7 +445,82 @@ describe("POST /api/billing/storage-addon/change", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      error: "This payment requires additional customer action.",
+      error: "Unable to update recurring storage right now.",
+    });
+  });
+
+  it("rate limits repeated storage add-on mutations for the same authenticated user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_100gb",
+          display_name: "Extra 100 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 1500,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "sub_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
+      },
+    });
+    stripePostFormMock.mockResolvedValue({ id: "sub_123" });
+
+    for (let index = 0; index < 10; index += 1) {
+      const req = {
+        method: "POST",
+        body: { storageAddonId: "storage_100gb", action: "add" },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

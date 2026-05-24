@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball restarted from the top, recognized one small character-panel lane, validated it with focused contract tests plus a final build, and finished with the exact pushed tree clean.
-- What went wrong: the first preflight still paid one cheap formatting recovery cycle on the loading skeleton file before the real signal could surface.
-- Capability decision: keep these micro-lanes collapsed to one batch and run a single-file Prettier sweep before the first preflight when the lane is this small.
+- Score: `8.8/10`
+- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/control-plane lane plus one small character-panel lane, validated both with focused checks, and finished with a green build on the exact final tree.
+- What went wrong: the docs lane still paid one cheap recovery cycle because `docs/api/api-internal-routes.md` needed formatting before the real validation signal could surface.
+- Capability decision: keep the two-lane collapse, but add a tiny docs formatting sweep before the first mixed docs/control-plane preflight.
 
 ## Previous Supervised Synthesis
 

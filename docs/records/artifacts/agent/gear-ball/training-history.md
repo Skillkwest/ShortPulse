@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-23` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball restarted from the top, held the live tree to three honest lanes, validated the docs, client/runtime, and server lanes with focused ladders, and finished with a green build on the exact final tree.
-- What went wrong: the first validation pass still paid avoidable formatting-only cleanup across both docs and shared-runtime files before the real signal could surface.
-- Capability decision: keep the lean 3-lane split, but run one manifest-wide Prettier sweep before the first preflight whenever a production run mixes docs and shared-runtime files.
+- Score: `8.8/10`
+- What went right: Gear Ball restarted from the top, collapsed the live tree into one coherent account-hardening product lane plus one small docs lane, validated the changed account/billing/profile surfaces with focused tests, and finished with a green build on the exact final tree.
+- What went wrong: the first validation pass still paid avoidable formatting churn plus one trivial unused-catch lint miss before the meaningful checks could surface.
+- Capability decision: keep the lean lane collapse, but add one touched-manifest Prettier plus dead-binding sweep before the first broad preflight on mixed product/docs runs.
 
 ## Previous Supervised Synthesis
 

@@ -34,9 +34,9 @@ Canonical detailed surfaces:
 
 - `2026-05-24` on `production`
 - Score: `8.9/10`
-- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/archive lane plus one coherent character-panel runtime lane, validated the runtime removals with focused tests, and finished with a green build on the exact final tree.
-- What went wrong: the first product preflight still paid one cheap formatting recovery cycle before the meaningful checks could surface.
-- Capability decision: keep the lean two-lane collapse, but add one tiny touched-file Prettier sweep before the first character-panel preflight on broad removal lanes.
+- What went right: Gear Ball restarted from the top, recognized one small character-panel lane, validated it with focused contract tests plus a final build, and finished with the exact pushed tree clean.
+- What went wrong: the first preflight still paid one cheap formatting recovery cycle on the loading skeleton file before the real signal could surface.
+- Capability decision: keep these micro-lanes collapsed to one batch and run a single-file Prettier sweep before the first preflight when the lane is this small.
 
 ## Previous Supervised Synthesis
 

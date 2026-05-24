@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 
 type ClientErrorRequest = {
   source?: string;
@@ -20,6 +21,12 @@ type ClientErrorRequest = {
   occurredAt?: string | null;
 };
 
+const CLIENT_ERROR_INGEST_RATE_LIMIT = {
+  keyPrefix: "log-client-error",
+  maxRequests: 60,
+  windowMs: 5 * 60 * 1000,
+} as const;
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -27,6 +34,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) {
+    return;
+  }
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...CLIENT_ERROR_INGEST_RATE_LIMIT,
+      keyPrefix: `${CLIENT_ERROR_INGEST_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
     return;
   }
 
@@ -60,9 +75,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       skipped: writeResult.skipped,
       id: writeResult.id,
     });
-  } catch (error) {
+  } catch {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Client error log ingestion failed.",
+      error: "Client error log ingestion failed.",
     });
   }
 }

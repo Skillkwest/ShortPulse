@@ -5,6 +5,7 @@ import {
 } from "../../../../lib/server/api/accountIdentity";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { syncStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type ProfileUpdateResponse = {
@@ -14,6 +15,12 @@ type ProfileUpdateResponse = {
 type ProfileUpdateBody = {
   displayName?: unknown;
 };
+
+const ACCOUNT_PROFILE_UPDATE_RATE_LIMIT = {
+  keyPrefix: "account-profile-update",
+  maxRequests: 10,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,6 +33,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ACCOUNT_PROFILE_UPDATE_RATE_LIMIT,
+      keyPrefix: `${ACCOUNT_PROFILE_UPDATE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   const displayName = normalizeDisplayNameInput(
     (req.body as ProfileUpdateBody | null)?.displayName
@@ -63,7 +78,7 @@ export default async function handler(
       user,
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to update your profile.",
+      error: "Unable to update your profile.",
     });
   }
 }

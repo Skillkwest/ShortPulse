@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/billing/stripe/checkout";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -32,6 +33,7 @@ vi.mock("../../lib/server/api/stripeCustomer", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -39,6 +41,7 @@ const createMockResponse = () => ({
 describe("POST /api/billing/stripe/checkout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
@@ -91,7 +94,11 @@ describe("POST /api/billing/stripe/checkout", () => {
       url: "https://stripe.test/sess_123",
     });
 
-    const req = { method: "POST", body: { packageId: "pkg_studio_10000" } };
+    const req = {
+      method: "POST",
+      body: { packageId: "pkg_studio_10000" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -145,12 +152,64 @@ describe("POST /api/billing/stripe/checkout", () => {
       }),
     });
 
-    const req = { method: "POST", body: { packageId: "pkg_studio_10000" } };
+    const req = {
+      method: "POST",
+      body: { packageId: "pkg_studio_10000" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "bootstrap failed" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to create checkout session." });
+  });
+
+  it("rate limits repeated checkout session attempts for the same authenticated user", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "pkg_studio_10000",
+                display_name: "Studio 10,000",
+                is_active: true,
+                stripe_price_id: "price_123",
+                credit_amount_cents: 10000,
+                price_cents: 12900,
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    stripePostFormMock.mockResolvedValue({
+      id: "sess_123",
+      url: "https://stripe.test/sess_123",
+    });
+
+    for (let index = 0; index < 5; index += 1) {
+      const req = {
+        method: "POST",
+        body: { packageId: "pkg_studio_10000" },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { packageId: "pkg_studio_10000" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
   });
 });

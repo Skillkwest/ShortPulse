@@ -100,9 +100,10 @@ const CHARACTER_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "flex-end",
+  justifyContent: "space-between",
   gap: "10px",
-  flexWrap: "wrap",
+  flex: "1 1 0",
+  minWidth: 0,
   marginLeft: "auto",
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
@@ -164,10 +165,9 @@ const CHARACTER_TOP_SCROLL_OUTER_STYLE: React.CSSProperties = {
   overflow: "hidden",
 };
 const CHARACTER_TOP_SCROLL_INNER_STYLE: React.CSSProperties = {
-  display: "flex",
-  flex: "1 1 auto",
+  display: "block",
+  flex: "none",
   minHeight: 0,
-  flexDirection: "column",
   gap: "8px",
   overflowY: "auto",
   overflowX: "hidden",
@@ -227,6 +227,16 @@ const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
   fontSize: "0.74rem",
   gap: "4px",
 };
+const CHARACTER_SAVE_ICON_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  width: "42px",
+  minWidth: "42px",
+  maxWidth: "42px",
+  height: "42px",
+  minHeight: "42px",
+  maxHeight: "42px",
+  padding: 0,
+  borderRadius: "12px",
+};
 const CHARACTER_TOP_ACTION_BUTTON_TRANSITION =
   "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease";
 const CHARACTER_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
@@ -244,25 +254,6 @@ const CHARACTER_REFERENCE_MEDIA_FILLED_INLINE_STYLE: React.CSSProperties = {
   alignItems: "stretch",
   justifyContent: "stretch",
   padding: 0,
-};
-const CHARACTER_LIBRARY_CARD_FOOTER_STYLE: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "flex-end",
-  padding: "0 10px 10px",
-};
-const CHARACTER_LIBRARY_CARD_DELETE_BUTTON_STYLE: React.CSSProperties = {
-  width: "22px",
-  height: "22px",
-  borderRadius: "999px",
-  border: "1px solid rgba(196, 70, 86, 0.9)",
-  background: "rgba(73, 18, 27, 0.94)",
-  color: "rgba(255, 204, 212, 0.98)",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 0,
-  cursor: "pointer",
-  boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
 };
 const CHARACTER_REFERENCE_IMAGE_INLINE_STYLE: React.CSSProperties = {
   width: "100%",
@@ -509,6 +500,22 @@ export function CharacterPanelWorkspace({
     [actionButtonStyle, responsiveLayout]
   );
 
+  const saveIconButtonBaseStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...secondaryActionButtonStyle,
+      ...CHARACTER_SAVE_ICON_BUTTON_INLINE_STYLE,
+    }),
+    [secondaryActionButtonStyle]
+  );
+
+  const createActionButtonBaseStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...secondaryActionButtonStyle,
+      marginLeft: "auto",
+    }),
+    [secondaryActionButtonStyle]
+  );
+
   const getTopActionButtonStyle = React.useCallback(
     (
       baseStyle: React.CSSProperties,
@@ -548,30 +555,25 @@ export function CharacterPanelWorkspace({
   const saveTopButtonStyle = React.useMemo(
     () =>
       getTopActionButtonStyle(
-        secondaryActionButtonStyle,
+        saveIconButtonBaseStyle,
         hoveredTopActionButton === "save",
         saveActionDisabled
       ),
-    [
-      getTopActionButtonStyle,
-      hoveredTopActionButton,
-      saveActionDisabled,
-      secondaryActionButtonStyle,
-    ]
+    [getTopActionButtonStyle, hoveredTopActionButton, saveActionDisabled, saveIconButtonBaseStyle]
   );
 
   const createTopButtonStyle = React.useMemo(
     () =>
       getTopActionButtonStyle(
-        secondaryActionButtonStyle,
+        createActionButtonBaseStyle,
         hoveredTopActionButton === "create",
         createActionDisabled
       ),
     [
+      createActionButtonBaseStyle,
       createActionDisabled,
       getTopActionButtonStyle,
       hoveredTopActionButton,
-      secondaryActionButtonStyle,
     ]
   );
 
@@ -596,21 +598,10 @@ export function CharacterPanelWorkspace({
   const editorFieldsWrapperStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE,
-      flex: "1 1 auto",
-      alignContent: "start",
       gap: `${responsiveLayout.editorWrapperGapPx}px`,
       padding: `${responsiveLayout.editorWrapperPaddingTopPx}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
     }),
     [responsiveLayout]
-  );
-
-  const characterProfileCardStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      display: "flex",
-      flexDirection: "column",
-      minHeight: "100%",
-    }),
-    []
   );
 
   const topFieldGroupStyle = React.useMemo<React.CSSProperties>(
@@ -960,7 +951,7 @@ export function CharacterPanelWorkspace({
             >
               <div style={topScrollInnerStyle}>
                 <div style={topSectionContentStyle}>
-                  <div className="character-profile-card" style={characterProfileCardStyle}>
+                  <div className="character-profile-card">
                     <div className="character-panel-profile-top-row" style={topRowActionsStyle}>
                       <div style={topRowPrimaryActionsStyle}>
                         <button
@@ -1013,6 +1004,8 @@ export function CharacterPanelWorkspace({
                           type="button"
                           className="character-panel-action-btn"
                           style={saveTopButtonStyle}
+                          aria-label={isSavingCharacter ? "Saving..." : "Save"}
+                          title={isSavingCharacter ? "Saving..." : "Save"}
                           onClick={() => {
                             void handleSaveCharacter();
                           }}
@@ -1024,8 +1017,7 @@ export function CharacterPanelWorkspace({
                           }
                           disabled={saveActionDisabled}
                         >
-                          <FloppyDisk size={13} weight="bold" aria-hidden />
-                          {isSavingCharacter ? "Saving..." : "Save"}
+                          <FloppyDisk size={20} weight="fill" aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -1525,11 +1517,11 @@ export function CharacterPanelWorkspace({
                     name={chipName}
                     disabled={characterLibrarySelectionDisabled}
                     footer={
-                      <div style={CHARACTER_LIBRARY_CARD_FOOTER_STYLE}>
+                      <div className="ai-character-picker-card-delete-control">
                         <button
                           type="button"
+                          className="ai-character-picker-card-delete-btn"
                           aria-label={`Delete ${chipName}`}
-                          style={CHARACTER_LIBRARY_CARD_DELETE_BUTTON_STYLE}
                           disabled={characterLibrarySelectionDisabled}
                           onClick={(event) => {
                             event.preventDefault();

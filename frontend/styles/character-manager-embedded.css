@@ -759,6 +759,11 @@
   transform: none;
 }
 
+.character-manager-page--embedded .character-sheet-preset-tab:not(.is-active),
+.character-manager-page--embedded .character-sheet-preset-tab:not(.is-active):hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
 .character-manager-page--embedded .character-profile-card {
   grid-template-columns: minmax(0, 1fr);
   min-height: auto;

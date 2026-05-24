@@ -432,6 +432,45 @@
   color: var(--ai-accent, rgba(37, 169, 191, 0.6));
 }
 
+.ai-character-picker-card--character .ai-character-picker-card-delete-control {
+  position: absolute;
+  inset: 7px 7px auto auto;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(-2px) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.ai-character-picker-card--character:hover .ai-character-picker-card-delete-control,
+.ai-character-picker-card--character:focus-within .ai-character-picker-card-delete-control {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.ai-character-picker-card-delete-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(196, 70, 86, 0.9);
+  background: rgba(73, 18, 27, 0.94);
+  color: rgba(255, 204, 212, 0.98);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255, 92, 115, 0.12);
+}
+
+.ai-character-picker-card-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .ai-character-list-select-btn {
   box-sizing: border-box;
   width: 100%;

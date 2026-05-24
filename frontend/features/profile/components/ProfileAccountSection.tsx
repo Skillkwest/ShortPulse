@@ -7,6 +7,7 @@ import { ProfilePreferenceToggleCard } from "./ProfilePreferenceToggleCard";
 type ProfileAccountSectionProps = {
   displayNameInput: string;
   workspaceEmail: string;
+  currentPasswordInput: string;
   pendingWorkspaceEmail: string;
   mediaAutosaveEnabled: boolean;
   mediaAutosaveDisabled: boolean;
@@ -14,6 +15,7 @@ type ProfileAccountSectionProps = {
   mediaAutosaveError: string | null;
   onDisplayNameInputChange: (value: string) => void;
   onWorkspaceEmailChange: (value: string) => void;
+  onCurrentPasswordInputChange: (value: string) => void;
   onProfileSave: () => void;
   onEmailUpdate: () => void;
   onPasswordReset: () => void;
@@ -26,6 +28,7 @@ type ProfileAccountSectionProps = {
 export function ProfileAccountSection({
   displayNameInput,
   workspaceEmail,
+  currentPasswordInput,
   pendingWorkspaceEmail,
   mediaAutosaveEnabled,
   mediaAutosaveDisabled,
@@ -33,6 +36,7 @@ export function ProfileAccountSection({
   mediaAutosaveError,
   onDisplayNameInputChange,
   onWorkspaceEmailChange,
+  onCurrentPasswordInputChange,
   onProfileSave,
   onEmailUpdate,
   onPasswordReset,
@@ -83,6 +87,18 @@ export function ProfileAccountSection({
             onChange={(event) => onWorkspaceEmailChange(event.target.value)}
             className="profile-input"
             placeholder="you@example.com"
+          />
+        </div>
+        <div className="profile-field">
+          <label htmlFor="workspace-current-password">Current password</label>
+          <input
+            id="workspace-current-password"
+            type="password"
+            value={currentPasswordInput}
+            onChange={(event) => onCurrentPasswordInputChange(event.target.value)}
+            className="profile-input"
+            autoComplete="current-password"
+            placeholder="Enter your current password"
           />
         </div>
         {pendingWorkspaceEmail ? (

@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { resolveAuthDisplayName } from "../../../../lib/server/api/accountIdentity";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
@@ -14,6 +15,12 @@ type CheckoutRequest = {
 };
 
 type StripeCheckoutResponse = { id: string; url?: string | null };
+
+const BILLING_CHECKOUT_RATE_LIMIT = {
+  keyPrefix: "billing-stripe-checkout",
+  maxRequests: 5,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -25,6 +32,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) {
+    return;
+  }
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...BILLING_CHECKOUT_RATE_LIMIT,
+      keyPrefix: `${BILLING_CHECKOUT_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
     return;
   }
 
@@ -105,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata: { package_id: packageId },
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to create checkout session.",
+      error: "Unable to create checkout session.",
     });
   }
 }

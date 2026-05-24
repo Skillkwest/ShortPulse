@@ -4,18 +4,40 @@ import {
   isValidEmailAddress,
   normalizeEmailInput,
   updateSupabaseAuthUser,
+  verifySupabasePassword,
 } from "../../../../lib/server/api/accountIdentity";
+import { resolveEmailChangeErrorMessage } from "../../../../lib/authErrorMessages";
 import { resolvePublicAppOrigin } from "../../../../lib/server/api/appOrigin";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 
 type EmailUpdateBody = {
   email?: unknown;
+  currentPassword?: unknown;
 };
 
 type EmailUpdateResponse = {
   email: string;
   confirmationRequired: true;
+};
+
+const ACCOUNT_EMAIL_UPDATE_RATE_LIMIT = {
+  keyPrefix: "account-email-update",
+  maxRequests: 5,
+  windowMs: 15 * 60 * 1000,
+} as const;
+
+const resolveSafeEmailUpdateErrorMessage = (error: unknown): string => {
+  if (!(error instanceof Error)) {
+    return "Unable to update your email.";
+  }
+  const rawMessage = error.message.trim();
+  const normalized = resolveEmailChangeErrorMessage(error, "Unable to update your email.");
+  if (!rawMessage || normalized === rawMessage) {
+    return "Unable to update your email.";
+  }
+  return normalized;
 };
 
 export default async function handler(
@@ -29,10 +51,32 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ACCOUNT_EMAIL_UPDATE_RATE_LIMIT,
+      keyPrefix: `${ACCOUNT_EMAIL_UPDATE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
-  const email = normalizeEmailInput((req.body as EmailUpdateBody | null)?.email);
+  const body = ((req.body as EmailUpdateBody | null) ?? {}) as EmailUpdateBody;
+  const email = normalizeEmailInput(body.email);
+  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
   if (!email || !isValidEmailAddress(email)) {
     return res.status(400).json({ error: "Enter a valid email." });
+  }
+  if (!currentPassword.trim()) {
+    return res.status(400).json({ error: "Enter your current password." });
+  }
+  if (
+    !user.email ||
+    !(await verifySupabasePassword({
+      email: user.email,
+      password: currentPassword,
+    }))
+  ) {
+    return res.status(401).json({ error: "Current password is incorrect." });
   }
 
   try {
@@ -58,7 +102,7 @@ export default async function handler(
       user,
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to update your email.",
+      error: resolveSafeEmailUpdateErrorMessage(error),
     });
   }
 }

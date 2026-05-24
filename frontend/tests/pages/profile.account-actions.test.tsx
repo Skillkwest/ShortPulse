@@ -177,13 +177,16 @@ describe("Profile account actions", () => {
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "alice@example.com" },
     });
+    fireEvent.change(screen.getByLabelText("Current password"), {
+      target: { value: "secret-pass" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/email/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "alice@example.com" }),
+        body: JSON.stringify({ email: "alice@example.com", currentPassword: "secret-pass" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -203,11 +206,26 @@ describe("Profile account actions", () => {
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "alice@example.com" },
     });
+    fireEvent.change(screen.getByLabelText("Current password"), {
+      target: { value: "secret-pass" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Too many email confirmation requests were made. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
     );
+  });
+
+  it("requires the current password before requesting an email change", async () => {
+    render(<ProfilePage />);
+
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Update email" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Enter your current password.");
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
   it("sends a password reset link to the workspace email", async () => {

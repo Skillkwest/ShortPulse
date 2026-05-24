@@ -48,10 +48,25 @@ export function CharacterPanelSplitHost({
     minTopRatioFloor: 0.32,
     ariaLabel: "Resize character workspace and media library sections",
   });
+  const topSectionStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      flex: "0 0 auto",
+    }),
+    []
+  );
+  const bottomSectionStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...split.bottomSectionStyle,
+      flexGrow: 0,
+      flexShrink: 0,
+      maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+    }),
+    [split.bottomSectionStyle]
+  );
 
   return (
     <div ref={splitContainerRef} className="character-panel-split-host">
-      <div className="character-panel-top-section" style={split.topSectionStyle}>
+      <div className="character-panel-top-section" style={topSectionStyle}>
         <CharacterPanelWorkspace
           resolveCharacterDropReference={resolveCharacterDropReference}
           externalCreateRequestKey={externalCreateRequestKey}
@@ -71,7 +86,7 @@ export function CharacterPanelSplitHost({
         <div className="reference-grid-horizontal-divider" />
       </div>
 
-      <div className="character-panel-bottom-section" style={split.bottomSectionStyle}>
+      <div className="character-panel-bottom-section" style={bottomSectionStyle}>
         <ElementsEmbeddedMediaLibraryPanel
           mediaCardInteractionMode="assignment"
           projectId={projectId}

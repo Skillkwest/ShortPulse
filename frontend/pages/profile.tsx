@@ -124,6 +124,7 @@ export default function ProfilePage() {
   const [pendingCancelPlanId, setPendingCancelPlanId] = useState<string | null>(null);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
@@ -689,18 +690,23 @@ export default function ProfilePage() {
       setNotice({ tone: "error", message: "Enter a valid email." });
       return;
     }
+    if (!currentPasswordInput.trim()) {
+      setNotice({ tone: "error", message: "Enter your current password." });
+      return;
+    }
 
     try {
       const response = await fetchWithAuth("/api/account/email/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: nextEmail }),
+        body: JSON.stringify({ email: nextEmail, currentPassword: currentPasswordInput }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || "Email update failed.");
       }
       void refreshSupabaseSession({ preserveSnapshotOnError: true }).catch(() => null);
+      setCurrentPasswordInput("");
       setNotice({
         tone: "success",
         message: "Email update requested. Check your inbox to confirm.",
@@ -952,6 +958,7 @@ export default function ProfilePage() {
             <ProfileAccountSection
               displayNameInput={displayNameInput}
               workspaceEmail={workspaceEmail}
+              currentPasswordInput={currentPasswordInput}
               pendingWorkspaceEmail={pendingWorkspaceEmail}
               mediaAutosaveEnabled={mediaAutosaveEnabled}
               mediaAutosaveDisabled={mediaAutosaveDisabled}
@@ -959,6 +966,7 @@ export default function ProfilePage() {
               mediaAutosaveError={mediaAutosaveError}
               onDisplayNameInputChange={setDisplayNameInput}
               onWorkspaceEmailChange={setWorkspaceEmail}
+              onCurrentPasswordInputChange={setCurrentPasswordInput}
               onProfileSave={handleProfileSave}
               onEmailUpdate={handleEmailUpdate}
               onPasswordReset={handlePasswordReset}

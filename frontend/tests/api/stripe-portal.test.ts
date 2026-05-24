@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/billing/stripe/portal";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -25,6 +26,7 @@ vi.mock("../../lib/server/api/stripeCustomer", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -32,6 +34,7 @@ const createMockResponse = () => ({
 describe("POST /api/billing/stripe/portal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
@@ -46,7 +49,7 @@ describe("POST /api/billing/stripe/portal", () => {
   });
 
   it("creates a portal session through bootstrap-safe customer resolution", async () => {
-    const req = { method: "POST", body: {} };
+    const req = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
     const res = createMockResponse();
     stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
 
@@ -63,7 +66,7 @@ describe("POST /api/billing/stripe/portal", () => {
   it("uses canonical app base url for return_url", async () => {
     stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
 
-    const req = { method: "POST", body: {} };
+    const req = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -84,6 +87,24 @@ describe("POST /api/billing/stripe/portal", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "bootstrap failed" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to create billing portal session." });
+  });
+
+  it("rate limits repeated billing portal session attempts for the same authenticated user", async () => {
+    stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
+
+    for (let index = 0; index < 8; index += 1) {
+      const req = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
   });
 });

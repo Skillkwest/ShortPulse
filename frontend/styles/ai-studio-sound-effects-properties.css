@@ -283,14 +283,14 @@
 
 .sound-effects-properties-script-actions {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
 .sound-effects-properties-script-actions-left {
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   flex: 0 0 auto;
 }
 

@@ -5,10 +5,17 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { resolveAuthDisplayName } from "../../../../lib/server/api/accountIdentity";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type StripePortalSession = { id: string; url: string };
+
+const BILLING_PORTAL_RATE_LIMIT = {
+  keyPrefix: "billing-stripe-portal",
+  maxRequests: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -20,6 +27,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) {
+    return;
+  }
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...BILLING_PORTAL_RATE_LIMIT,
+      keyPrefix: `${BILLING_PORTAL_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
     return;
   }
 
@@ -44,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user,
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to create billing portal session.",
+      error: "Unable to create billing portal session.",
     });
   }
 }

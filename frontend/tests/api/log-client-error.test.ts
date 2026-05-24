@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/log/client-error";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
@@ -13,6 +14,7 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -20,6 +22,7 @@ const createMockResponse = () => ({
 describe("POST /api/log/client-error", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "inc-1" });
   });
@@ -126,6 +129,32 @@ describe("POST /api/log/client-error", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "db down" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Client error log ingestion failed." });
+  });
+
+  it("rate limits repeated client-error ingest for the same authenticated user", async () => {
+    for (let index = 0; index < 60; index += 1) {
+      const req = {
+        method: "POST",
+        body: { message: `failure-${index}` },
+        headers: {},
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(202);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { message: "blocked" },
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
   });
 });

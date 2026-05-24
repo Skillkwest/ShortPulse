@@ -13,7 +13,7 @@ import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
-const fetchMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -40,6 +40,10 @@ vi.mock("../../lib/authGuard", () => ({
 
 vi.mock("../../features/admin/logic/useAdminAccess", () => ({
   useAdminAccess: (...args: unknown[]) => useAdminAccessMock(...args),
+}));
+
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
 const buildCatalogResponse = (
@@ -93,8 +97,7 @@ const buildEditSystemPresetResponse = (
 describe("Admin agent instructions page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockImplementation(async (input: string) => {
+    fetchWithAuthMock.mockImplementation(async (input: string) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         return buildStandardPromptResponse();
       }
@@ -152,7 +155,7 @@ describe("Admin agent instructions page", () => {
       },
     ];
 
-    fetchMock.mockImplementation(async (input: string, init?: { method?: string }) => {
+    fetchWithAuthMock.mockImplementation(async (input: string, init?: { method?: string }) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         if (init?.method === "PUT") {
           return buildStandardPromptResponse("Future standard instructions.");
@@ -189,7 +192,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(standardCard).getByRole("button", { name: "Save prompt" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/standard-system-prompt",
         expect.objectContaining({
           method: "PUT",
@@ -197,7 +200,7 @@ describe("Admin agent instructions page", () => {
       );
     });
 
-    const standardSaveRequest = fetchMock.mock.calls.find(
+    const standardSaveRequest = fetchWithAuthMock.mock.calls.find(
       ([input, init]) =>
         input === "/api/admin/agent-instructions/standard-system-prompt" && init?.method === "PUT"
     );
@@ -235,7 +238,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Pulse set" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/pulse-builtins",
         expect.objectContaining({
           method: "PUT",
@@ -243,7 +246,7 @@ describe("Admin agent instructions page", () => {
       );
     });
 
-    const saveRequest = fetchMock.mock.calls.find(
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
       ([input, init]) =>
         input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
     );
@@ -293,7 +296,7 @@ describe("Admin agent instructions page", () => {
       storedDefinitions[1],
     ];
 
-    fetchMock.mockImplementation(
+    fetchWithAuthMock.mockImplementation(
       async (input: string, init?: { method?: string; body?: string }) => {
         if (input === "/api/admin/agent-instructions/standard-system-prompt") {
           return buildStandardPromptResponse();
@@ -334,7 +337,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(firstCard).getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/pulse-builtins",
         expect.objectContaining({
           method: "PUT",
@@ -342,7 +345,7 @@ describe("Admin agent instructions page", () => {
       );
     });
 
-    const saveRequest = fetchMock.mock.calls.find(
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
       ([input, init]) =>
         input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
     );
@@ -363,7 +366,7 @@ describe("Admin agent instructions page", () => {
   });
 
   it("edits and saves the live style-extraction prompt", async () => {
-    fetchMock.mockImplementation(
+    fetchWithAuthMock.mockImplementation(
       async (input: string, init?: { method?: string; body?: string }) => {
         if (input === "/api/admin/agent-instructions/standard-system-prompt") {
           return buildStandardPromptResponse();
@@ -400,7 +403,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(styleCard).getByRole("button", { name: "Save prompt" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/style-extract-prompt",
         expect.objectContaining({
           method: "PUT",
@@ -412,7 +415,7 @@ describe("Admin agent instructions page", () => {
       );
     });
 
-    const saveRequest = fetchMock.mock.calls.find(
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
       ([input, init]) =>
         input === "/api/admin/agent-instructions/style-extract-prompt" && init?.method === "PUT"
     );
@@ -424,7 +427,7 @@ describe("Admin agent instructions page", () => {
   });
 
   it("edits and saves the global Edit system preset catalog", async () => {
-    fetchMock.mockImplementation(
+    fetchWithAuthMock.mockImplementation(
       async (input: string, init?: { method?: string; body?: string }) => {
         if (input === "/api/admin/agent-instructions/standard-system-prompt") {
           return buildStandardPromptResponse();
@@ -481,7 +484,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(editPresetDialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/edit-system-presets",
         expect.objectContaining({
           method: "PUT",
@@ -489,7 +492,7 @@ describe("Admin agent instructions page", () => {
       );
     });
 
-    const editSaveRequest = fetchMock.mock.calls.find(
+    const editSaveRequest = fetchWithAuthMock.mock.calls.find(
       ([input, init]) =>
         input === "/api/admin/agent-instructions/edit-system-presets" && init?.method === "PUT"
     );
@@ -500,7 +503,7 @@ describe("Admin agent instructions page", () => {
   });
 
   it("surfaces degraded control-plane reads on the style-extraction prompt card", async () => {
-    fetchMock.mockImplementation(async (input: string) => {
+    fetchWithAuthMock.mockImplementation(async (input: string) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         return buildStandardPromptResponse();
       }
@@ -537,7 +540,7 @@ describe("Admin agent instructions page", () => {
   });
 
   it("allows Pulse saves to republish fallback content when the catalog read is degraded", async () => {
-    fetchMock.mockImplementation(async (input: string) => {
+    fetchWithAuthMock.mockImplementation(async (input: string) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         return buildStandardPromptResponse();
       }
@@ -548,7 +551,7 @@ describe("Admin agent instructions page", () => {
         return buildEditSystemPresetResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
-        if (fetchMock.mock.calls.filter(([target]) => target === input).length > 1) {
+        if (fetchWithAuthMock.mock.calls.filter(([target]) => target === input).length > 1) {
           return buildCatalogResponse([
             {
               ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
@@ -587,14 +590,14 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/admin/agent-instructions/pulse-builtins",
         expect.objectContaining({
           method: "PUT",
         })
       );
     });
-    const saveCall = fetchMock.mock.calls.find(
+    const saveCall = fetchWithAuthMock.mock.calls.find(
       ([target, init]) =>
         target === "/api/admin/agent-instructions/pulse-builtins" &&
         (init as { method?: string } | undefined)?.method === "PUT"
@@ -604,5 +607,61 @@ describe("Admin agent instructions page", () => {
     expect(body.builtInDefinitions[0]).toMatchObject({
       label: "Global Prompt Director",
     });
+  });
+
+  it("shows the Pulse save failure instead of hiding it behind a stale load warning", async () => {
+    fetchWithAuthMock.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        return buildStandardPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        if (init?.method === "PUT") {
+          return {
+            ok: false,
+            json: async () => ({
+              error: "Failed to save built-in guided workflows.",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            builtInDefinitions: [CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0]],
+            source: "seed" as const,
+            updatedAt: null,
+            updatedByEmail: null,
+            degraded: true,
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
+
+    render(<AdminAgentInstructionsPage />);
+    const degradedMessage = await screen.findByText(
+      "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
+    );
+    expect(degradedMessage).toBeInTheDocument();
+    const degradedMessageText = degradedMessage.textContent ?? "";
+
+    const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
+    if (!pulseCard) throw new Error("Expected Pulse card.");
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Global Prompt Director" },
+    });
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Failed to save built-in guided workflows.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(degradedMessageText)).not.toBeInTheDocument();
+    expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
   });
 });

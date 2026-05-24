@@ -3,6 +3,7 @@ import formidable from "formidable";
 import { resolveRequiredAudioVoiceChangerModelId } from "../../../lib/model-runtime/modelCatalog";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
 import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import {
@@ -18,10 +19,12 @@ import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath"
 import {
   createRemuxedVoiceChangerVideo,
   generateElevenLabsVoiceChanger,
+  listElevenLabsVoices,
   persistGeneratedAudioAsset,
   persistGeneratedVideoAsset,
   readRemoteSourceBuffer,
 } from "../../../lib/server/elevenlabs";
+import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
 import {
   MAX_VOICE_CHANGER_SOURCE_BYTES,
   MediaAudioExtractionInputError,
@@ -197,6 +200,39 @@ export default async function handler(
       });
     }
 
+    const savedVoices = await listSavedVoicesForUser(user.id);
+    const savedVoiceMatch = savedVoices.some(
+      (savedVoice) => savedVoice.voiceId.trim().toLowerCase() === voiceId.toLowerCase()
+    );
+    let providerVoices = [] as Awaited<ReturnType<typeof listElevenLabsVoices>>;
+    let providerLookupFailed = false;
+    if (!savedVoiceMatch) {
+      try {
+        providerVoices = await listElevenLabsVoices();
+      } catch {
+        providerLookupFailed = true;
+      }
+    }
+
+    const voiceAccess = resolveVoiceAccessForUser({
+      voiceId,
+      savedVoices,
+      providerVoices,
+    });
+    if (!voiceAccess) {
+      if (providerLookupFailed && !savedVoiceMatch) {
+        return res.status(503).json({
+          error: "Voice is unavailable",
+          details: "We couldn't verify the selected voice right now. Please try again shortly.",
+        });
+      }
+      return res.status(403).json({
+        error: "Voice is unavailable",
+        details: "The selected voice is not available for this account.",
+      });
+    }
+    const effectiveVoiceName = voiceAccess.resolvedVoice.name;
+
     let sourceBuffer: Buffer | null = null;
     let sourceMimeType: string | null = null;
     let sourceFilename: string | null = null;
@@ -342,7 +378,7 @@ export default async function handler(
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
-      promptText: `${sourceName} -> ${voiceName}`,
+      promptText: `${sourceName} -> ${effectiveVoiceName}`,
       transcriptText,
       provider: "elevenlabs",
       modelId,
@@ -351,7 +387,7 @@ export default async function handler(
       projectId,
       sourceMode: "voice-changer",
       voiceId,
-      voiceName,
+      voiceName: effectiveVoiceName,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
@@ -401,7 +437,7 @@ export default async function handler(
 
         persistedRemuxedVideo = await persistGeneratedVideoAsset({
           userId: user.id,
-          promptText: `${originalVideoName ?? sourceName} -> ${voiceName} video`,
+          promptText: `${originalVideoName ?? sourceName} -> ${effectiveVoiceName} video`,
           transcriptText,
           provider: "elevenlabs",
           modelId,
@@ -456,7 +492,7 @@ export default async function handler(
         waveformPeaks: null,
         modelId,
         voiceId,
-        voiceName,
+        voiceName: effectiveVoiceName,
         transcriptText,
         saveState: persisted.saveState,
         saveError: persisted.saveError,

@@ -186,6 +186,10 @@ const mergeSavedVoices = ({
   }
   for (const voice of legacyVoices) {
     const lookupKey = voice.voiceId.trim().toLowerCase();
+    if (!merged.has(lookupKey) && shouldPersistInOwnedCustomVoices(voice)) {
+      // Custom/provider-created voices must reconcile to the ownership ledger first.
+      continue;
+    }
     if (!merged.has(lookupKey)) {
       merged.set(lookupKey, voice);
     }

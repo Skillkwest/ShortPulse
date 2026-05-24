@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/text-to-voice/design";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const designElevenLabsVoiceMock = vi.fn();
+const issueVoiceDesignPreviewTokenMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -17,6 +18,10 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   designElevenLabsVoice: (...args: unknown[]) => designElevenLabsVoiceMock(...args),
 }));
 
+vi.mock("../../lib/server/elevenlabsVoiceDesignTokens", () => ({
+  issueVoiceDesignPreviewToken: (...args: unknown[]) => issueVoiceDesignPreviewTokenMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -26,6 +31,9 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    issueVoiceDesignPreviewTokenMock.mockImplementation(
+      ({ generatedVoiceId }: { generatedVoiceId: string }) => `token:${generatedVoiceId}`
+    );
   });
 
   it("uses the catalog-backed default voice-design model id", async () => {
@@ -33,6 +41,7 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
       previews: [
         {
           generatedVoiceId: "voice-preview-1",
+          previewToken: "token:voice-preview-1",
           audioBase64: "Zm9v",
           mediaType: "audio/mpeg",
           durationSecs: 12,
@@ -63,6 +72,7 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
       previews: [
         {
           generatedVoiceId: "voice-preview-1",
+          previewToken: "token:voice-preview-1",
           audioBase64: "Zm9v",
           mediaType: "audio/mpeg",
           durationSecs: 12,

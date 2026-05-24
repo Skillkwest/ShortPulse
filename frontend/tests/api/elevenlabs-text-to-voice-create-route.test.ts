@@ -7,6 +7,7 @@ const saveVoiceForUserMock = vi.fn();
 const cleanupFailedElevenLabsCustomVoiceMock = vi.fn();
 const createElevenLabsDesignedVoiceMock = vi.fn();
 const createPersistedElevenLabsVoiceSampleMock = vi.fn();
+const verifyVoiceDesignPreviewTokenMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -29,6 +30,10 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   createElevenLabsDesignedVoice: (...args: unknown[]) => createElevenLabsDesignedVoiceMock(...args),
 }));
 
+vi.mock("../../lib/server/elevenlabsVoiceDesignTokens", () => ({
+  verifyVoiceDesignPreviewToken: (...args: unknown[]) => verifyVoiceDesignPreviewTokenMock(...args),
+}));
+
 vi.mock("../../lib/server/elevenlabsVoiceSamples", () => ({
   createPersistedElevenLabsVoiceSample: (...args: unknown[]) =>
     createPersistedElevenLabsVoiceSampleMock(...args),
@@ -43,6 +48,7 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    verifyVoiceDesignPreviewTokenMock.mockReturnValue(true);
     createElevenLabsDesignedVoiceMock.mockResolvedValue({
       voiceId: "generated-voice-1",
       name: "Generated Narrator",
@@ -79,7 +85,9 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
         voiceName: "Generated Narrator",
         voiceDescription: "Measured, warm narration with a gentle documentary tone.",
         generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
         playedNotSelectedVoiceIds: ["preview-2", "preview-1"],
+        playedNotSelectedVoiceTokens: ["token-preview-2", "token-preview-1"],
       },
     };
     const res = createMockResponse();
@@ -130,6 +138,7 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
         voiceName: "Generated Narrator",
         voiceDescription: "Measured, warm narration with a gentle documentary tone.",
         generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
       },
     };
     const res = createMockResponse();
@@ -164,6 +173,7 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
         voiceName: "Generated Narrator",
         voiceDescription: "Measured, warm narration with a gentle documentary tone.",
         generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
       },
     };
     const res = createMockResponse();
@@ -179,6 +189,31 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to create voice",
       details: "We couldn't securely save this voice. Please try again.",
+    });
+  });
+
+  it("rejects preview ids that were not issued to the current user", async () => {
+    verifyVoiceDesignPreviewTokenMock.mockReturnValueOnce(false);
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Generated Narrator",
+        voiceDescription: "Measured, warm narration with a gentle documentary tone.",
+        generatedVoiceId: "preview-1",
+        generatedVoiceToken: "foreign-preview-token",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createElevenLabsDesignedVoiceMock).not.toHaveBeenCalled();
+    expect(createPersistedElevenLabsVoiceSampleMock).not.toHaveBeenCalled();
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice preview is unavailable",
+      details: "The selected voice preview is no longer available for this account.",
     });
   });
 });

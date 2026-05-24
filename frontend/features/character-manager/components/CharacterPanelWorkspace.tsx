@@ -1261,8 +1261,8 @@ export function CharacterPanelWorkspace({
                                       className="character-panel-slot-actions"
                                       style={{
                                         ...CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE,
-                                        top: `${responsiveLayout.referenceActionInsetPx}px`,
-                                        right: `${responsiveLayout.referenceActionInsetPx}px`,
+                                        top: 0,
+                                        right: 0,
                                       }}
                                     >
                                       {assignedReference ? (

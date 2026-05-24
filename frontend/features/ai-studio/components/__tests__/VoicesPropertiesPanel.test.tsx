@@ -27,6 +27,7 @@ const resolveVoiceChangerSourceStoragePathMock = vi.hoisted(() => vi.fn());
 const signVoiceChangerStoragePathMock = vi.hoisted(() => vi.fn());
 const createObjectUrlMock = vi.hoisted(() => vi.fn());
 const revokeObjectUrlMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -66,6 +67,10 @@ const openCreateVoiceModal = async () => {
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  useSupabaseSessionState: () => useSupabaseSessionStateMock(),
 }));
 
 vi.mock("../../utils/voiceChangerSourceAsset", () => ({
@@ -137,6 +142,11 @@ describe("VoicesPropertiesPanel", () => {
     signVoiceChangerStoragePathMock.mockImplementation(async (storagePath: string) => {
       const filename = storagePath.split("/").filter(Boolean).pop() ?? "source";
       return `https://signed.example/${encodeURIComponent(filename)}`;
+    });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1" },
     });
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
@@ -1773,6 +1783,7 @@ describe("VoicesPropertiesPanel", () => {
           previews: [
             {
               generatedVoiceId: "generated-voice-1",
+              previewToken: "token-generated-voice-1",
               audioBase64: "ZmFrZS1hdWRpby0x",
               mediaType: "audio/mpeg",
               durationSecs: 2.4,
@@ -1780,6 +1791,7 @@ describe("VoicesPropertiesPanel", () => {
             },
             {
               generatedVoiceId: "generated-voice-2",
+              previewToken: "token-generated-voice-2",
               audioBase64: "ZmFrZS1hdWRpby0y",
               mediaType: "audio/mpeg",
               durationSecs: 2.1,
@@ -1845,7 +1857,9 @@ describe("VoicesPropertiesPanel", () => {
           voiceName: "Lantern",
           voiceDescription: "Measured documentary narrator with a warm, grounded cadence.",
           generatedVoiceId: "generated-voice-2",
+          generatedVoiceToken: "token-generated-voice-2",
           playedNotSelectedVoiceIds: ["generated-voice-1"],
+          playedNotSelectedVoiceTokens: ["token-generated-voice-1"],
         }),
         shortpulseLogScope: "generation",
       });
@@ -2398,6 +2412,58 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: "Custom Voice voice" })).not.toBeInTheDocument();
     expect(screen.getByText("Unable to load voices.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+  });
+
+  it("clears create-voice and library state when the authenticated user changes", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "custom-voice-1",
+            name: "Custom Voice",
+            previewUrl: "https://signed.example/custom-voice-1.mp3",
+            description: "Belongs to the previous user",
+            isFallback: false,
+            librarySection: "my",
+            canRemoveFromLibrary: true,
+            canDeleteFromProvider: false,
+            destructiveAction: "remove",
+            destructiveActionLabel: "Remove",
+          },
+        ],
+      }),
+    });
+
+    const view = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+    expect(screen.getByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Leaked Preview Voice" },
+    });
+
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-2" } },
+      user: { id: "user-2" },
+    });
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [],
+      }),
+    });
+
+    view.rerender(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    });
+    await openVoicesLibraryModal();
+    expect(screen.queryByRole("button", { name: "Custom Voice voice" })).not.toBeInTheDocument();
   });
 
   it("submits generation with the live default voice ids when they load", async () => {

@@ -5,6 +5,7 @@
 import React from "react";
 import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import {
@@ -241,6 +242,7 @@ type VoicesListResponse = {
 
 type VoiceDesignPreview = {
   generatedVoiceId: string;
+  previewToken: string;
   audioBase64: string;
   mediaType: string | null;
   durationSecs: number | null;
@@ -364,6 +366,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   voicePrompt: controlledVoicePrompt,
   voiceScript: controlledVoiceScript,
 }: VoicesPropertiesPanelProps) {
+  const sessionSnapshot = useSupabaseSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
   void _balanceCredits;
   const {
     voices: libraryVoices,
@@ -1392,6 +1396,21 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setActivePreviewVoiceId(null);
   }, []);
 
+  React.useEffect(() => {
+    resetSharedVoicesGridStore();
+    stopActiveVoicePreview();
+    resetCreateVoiceModalState();
+    setIsCreatePanelOpen(false);
+    setIsVoicesLibraryModalOpen(false);
+    setVoicesLoadError(null);
+    setVoicesLoadNotice(null);
+    setPendingDeleteVoice(null);
+    setIsDeletingSelectedVoice(false);
+    setActiveVoicesLibrarySection("my");
+    setPendingLoadedVoiceCueVoiceId(null);
+    setLoadedVoiceCueVoiceId(null);
+  }, [resetCreateVoiceModalState, sessionUserId, stopActiveVoicePreview]);
+
   const handleCloseVoicesLibraryModal = React.useCallback(() => {
     stopActiveVoicePreview();
     setIsVoicesLibraryModalOpen(false);
@@ -1570,6 +1589,15 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setSaveVoiceError(null);
     setIsSavingDesignedVoice(true);
     try {
+      const playedNotSelectedPreviews = playedVoiceDesignPreviewIds
+        .filter((previewId) => previewId !== selectedVoiceDesignPreviewId)
+        .map((previewId) =>
+          voiceDesignPreviews.find((preview) => preview.generatedVoiceId === previewId)
+        )
+        .filter(
+          (preview): preview is CreateVoiceModalPreview =>
+            Boolean(preview?.generatedVoiceId) && Boolean(preview?.previewToken)
+        );
       const response = await fetchWithAuth("/api/elevenlabs/text-to-voice/create", {
         method: "POST",
         headers: {
@@ -1579,8 +1607,15 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           voiceName: nextVoiceName,
           voiceDescription: nextVoiceDescription,
           generatedVoiceId: selectedVoiceDesignPreviewId,
-          playedNotSelectedVoiceIds: playedVoiceDesignPreviewIds.filter(
-            (previewId) => previewId !== selectedVoiceDesignPreviewId
+          generatedVoiceToken:
+            voiceDesignPreviews.find(
+              (preview) => preview.generatedVoiceId === selectedVoiceDesignPreviewId
+            )?.previewToken ?? null,
+          playedNotSelectedVoiceIds: playedNotSelectedPreviews.map(
+            (preview) => preview.generatedVoiceId
+          ),
+          playedNotSelectedVoiceTokens: playedNotSelectedPreviews.map(
+            (preview) => preview.previewToken
           ),
         }),
         shortpulseLogScope: "generation",
@@ -1629,6 +1664,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     playedVoiceDesignPreviewIds,
     selectedVoiceDesignPreviewId,
     upsertSharedVoice,
+    voiceDesignPreviews,
     voiceName,
     voicePrompt,
   ]);

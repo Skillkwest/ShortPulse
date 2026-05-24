@@ -8,6 +8,7 @@ import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdro
 
 export type CreateVoiceModalPreview = {
   generatedVoiceId: string;
+  previewToken: string;
   durationSecs: number | null;
   language: string | null;
   audioSrc: string;

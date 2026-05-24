@@ -192,6 +192,47 @@ describe("userSavedVoices", () => {
     await expect(listSavedVoicesForUser("user-123")).resolves.toEqual([]);
   });
 
+  it("does not treat legacy custom voice rows as live ownership when the authority table has no match", async () => {
+    const { admin } = buildSupabaseAdminMock({
+      legacyData: {
+        ai_studio_saved_voices: [
+          {
+            voiceId: "foreign-custom-voice",
+            name: "Foreign Custom Voice",
+            previewUrl: "https://expired.shortpulse.test/foreign-custom.mp3",
+            description: "Leaked through legacy state",
+            createdAt: "2026-04-20T12:00:00.000Z",
+            originKind: "provider-user-created",
+            savedSource: "voice-clone",
+            providerDeleteEligible: true,
+            sampleStoragePath: "user-123/voice-samples/foreign-custom/sample.mp3",
+          },
+          {
+            voiceId: "voice_shared",
+            name: "Shared Save",
+            previewUrl: null,
+            description: "Safe shared bookmark",
+            createdAt: "2026-04-19T12:00:00.000Z",
+            originKind: "provider-default",
+            savedSource: "provider-save",
+            providerDeleteEligible: false,
+          },
+        ],
+      },
+      ownedData: [],
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const voices = await listSavedVoicesForUser("user-123");
+
+    expect(voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_shared",
+        name: "Shared Save",
+      }),
+    ]);
+  });
+
   it("filters excluded provider voices from legacy preferences and persists the cleanup", async () => {
     const { admin, calls } = buildSupabaseAdminMock({
       legacyData: {

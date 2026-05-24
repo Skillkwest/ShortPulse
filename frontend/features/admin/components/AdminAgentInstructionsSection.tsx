@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { CaretDown } from "phosphor-react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { agentPrompts } from "../../../lib/agentPromptsConfig";
 import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
@@ -200,17 +201,24 @@ const buildEmptyAdminEditPresetDraft = (counter: number): PendingEditSystemPrese
   prompt: "",
 });
 
+const readResponseErrorMessage = async (
+  response: Response,
+  fallbackMessage: string
+): Promise<string> => {
+  const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  return typeof payload?.error === "string" && payload.error.trim().length > 0
+    ? payload.error
+    : fallbackMessage;
+};
+
 const loadStandardPromptDraft = async (): Promise<StandardPromptDraft> => {
-  const response = await fetch("/api/admin/agent-instructions/standard-system-prompt", {
+  const response = await fetchWithAuth("/api/admin/agent-instructions/standard-system-prompt", {
     method: "GET",
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
     throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : "Unable to load the Standard system prompt."
+      await readResponseErrorMessage(response, "Unable to load the Standard system prompt.")
     );
   }
   const payload = (await response.json()) as {
@@ -230,12 +238,14 @@ const loadStandardPromptDraft = async (): Promise<StandardPromptDraft> => {
 };
 
 const loadStyleExtractPromptDraft = async (): Promise<StyleExtractPromptDraft> => {
-  const response = await fetch("/api/admin/agent-instructions/style-extract-prompt", {
+  const response = await fetchWithAuth("/api/admin/agent-instructions/style-extract-prompt", {
     method: "GET",
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new Error("Unable to load the style extraction prompt.");
+    throw new Error(
+      await readResponseErrorMessage(response, "Unable to load the style extraction prompt.")
+    );
   }
   const payload = (await response.json()) as {
     promptBody?: unknown;
@@ -254,12 +264,14 @@ const loadStyleExtractPromptDraft = async (): Promise<StyleExtractPromptDraft> =
 };
 
 const loadPulseBuiltInCatalog = async (): Promise<PulseBuiltInCatalogDraft> => {
-  const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
+  const response = await fetchWithAuth("/api/admin/agent-instructions/pulse-builtins", {
     method: "GET",
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new Error("Unable to load the global Pulse built-in set.");
+    throw new Error(
+      await readResponseErrorMessage(response, "Unable to load the global Pulse built-in set.")
+    );
   }
   const payload = (await response.json()) as {
     builtInDefinitions?: unknown;
@@ -283,12 +295,14 @@ const loadPulseBuiltInCatalog = async (): Promise<PulseBuiltInCatalogDraft> => {
 };
 
 const loadEditSystemPresetCatalog = async (): Promise<EditSystemPresetCatalogDraft> => {
-  const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+  const response = await fetchWithAuth("/api/admin/agent-instructions/edit-system-presets", {
     method: "GET",
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new Error("Unable to load global Edit system presets.");
+    throw new Error(
+      await readResponseErrorMessage(response, "Unable to load global Edit system presets.")
+    );
   }
   const payload = (await response.json()) as {
     presetDefinitions?: unknown;
@@ -523,7 +537,7 @@ export function AdminAgentInstructionsSection() {
           : null
       );
       setStyleExtractPromptSaveState("idle");
-    } catch {
+    } catch (error) {
       hydrateStyleExtractPrompt({
         promptBody: SEEDED_STYLE_EXTRACT_PROMPT,
         source: "seed",
@@ -532,7 +546,9 @@ export function AdminAgentInstructionsSection() {
         degraded: false,
       });
       setStyleExtractPromptLoadIssue(
-        "Showing the seeded code prompt because the live admin route could not be reached."
+        error instanceof Error
+          ? `${error.message} Showing the seeded code prompt until the admin route recovers.`
+          : "Showing the seeded code prompt because the live admin route could not be reached."
       );
       setStyleExtractPromptSaveState("error");
     } finally {
@@ -552,7 +568,7 @@ export function AdminAgentInstructionsSection() {
       );
       setPulseSaveIssue(null);
       setPulseSaveState("idle");
-    } catch {
+    } catch (error) {
       hydratePulseDrafts({
         drafts: buildPulseDraftsFromDefinitions(resolveCreatePulseBuiltInPresetDefinitions()),
         source: "seed",
@@ -561,7 +577,9 @@ export function AdminAgentInstructionsSection() {
         degraded: true,
       });
       setPulseCatalogLoadIssue(
-        "Showing seeded fallback Pulse content because the live admin route could not be reached. Saving an edit will attempt to republish the shared built-in set."
+        error instanceof Error
+          ? `${error.message} Showing seeded fallback Pulse content. Saving an edit will attempt to republish the shared built-in set.`
+          : "Showing seeded fallback Pulse content because the live admin route could not be reached. Saving an edit will attempt to republish the shared built-in set."
       );
       setPulseSaveIssue(null);
       setPulseSaveState("error");
@@ -581,7 +599,7 @@ export function AdminAgentInstructionsSection() {
           : null
       );
       setEditSystemPresetSaveState("idle");
-    } catch {
+    } catch (error) {
       hydrateEditSystemPresetCatalog({
         presetDefinitions: [...SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS],
         source: "seed",
@@ -590,7 +608,9 @@ export function AdminAgentInstructionsSection() {
         degraded: false,
       });
       setEditSystemPresetLoadIssue(
-        "Showing the seeded Edit preset catalog because the live admin route could not be reached."
+        error instanceof Error
+          ? `${error.message} Showing the seeded Edit preset catalog until the admin route recovers.`
+          : "Showing the seeded Edit preset catalog because the live admin route could not be reached."
       );
       setEditSystemPresetSaveState("error");
     } finally {
@@ -643,7 +663,7 @@ export function AdminAgentInstructionsSection() {
   const handleSaveStandardPrompt = React.useCallback(async () => {
     setStandardPromptSaveState("saving");
     try {
-      const response = await fetch("/api/admin/agent-instructions/standard-system-prompt", {
+      const response = await fetchWithAuth("/api/admin/agent-instructions/standard-system-prompt", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -682,7 +702,7 @@ export function AdminAgentInstructionsSection() {
   const handleSaveStyleExtractPrompt = React.useCallback(async () => {
     setStyleExtractPromptSaveState("saving");
     try {
-      const response = await fetch("/api/admin/agent-instructions/style-extract-prompt", {
+      const response = await fetchWithAuth("/api/admin/agent-instructions/style-extract-prompt", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -747,7 +767,7 @@ export function AdminAgentInstructionsSection() {
 
     setEditSystemPresetSaveState("saving");
     try {
-      const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+      const response = await fetchWithAuth("/api/admin/agent-instructions/edit-system-presets", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -798,7 +818,7 @@ export function AdminAgentInstructionsSection() {
       const nextDrafts = editSystemPresetDrafts.filter((draft) => draft.presetId !== presetId);
       setEditSystemPresetSaveState("saving");
       try {
-        const response = await fetch("/api/admin/agent-instructions/edit-system-presets", {
+        const response = await fetchWithAuth("/api/admin/agent-instructions/edit-system-presets", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -892,7 +912,7 @@ export function AdminAgentInstructionsSection() {
     setPulseSaveIssue(null);
     try {
       const builtInDefinitions = pulseDrafts.map(buildPulseDefinitionFromDraft);
-      const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
+      const response = await fetchWithAuth("/api/admin/agent-instructions/pulse-builtins", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -948,7 +968,7 @@ export function AdminAgentInstructionsSection() {
       setPulseSaveState("saving");
       setPulseSaveIssue(null);
       try {
-        const response = await fetch("/api/admin/agent-instructions/pulse-builtins", {
+        const response = await fetchWithAuth("/api/admin/agent-instructions/pulse-builtins", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -1370,10 +1390,10 @@ export function AdminAgentInstructionsSection() {
               point. Save applies the current set for all Create users.
             </p>
             <p className={styles.agentInstructionNote}>
-              {pulseCatalogLoadIssue
-                ? pulseCatalogLoadIssue
-                : pulseSaveIssue
-                  ? pulseSaveIssue
+              {pulseSaveIssue
+                ? pulseSaveIssue
+                : pulseCatalogLoadIssue
+                  ? pulseCatalogLoadIssue
                   : pulseCatalogSource === "control_plane"
                     ? `Live global Pulse catalog${pulseCatalogUpdatedByEmail ? ` last updated by ${pulseCatalogUpdatedByEmail}` : ""}${pulseCatalogUpdatedLabel ? ` on ${pulseCatalogUpdatedLabel}` : ""}.`
                     : "Showing the seeded Pulse catalog. Saving here creates or replaces the shared built-in set for all users."}

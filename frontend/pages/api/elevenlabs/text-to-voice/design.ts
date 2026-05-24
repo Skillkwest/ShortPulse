@@ -4,6 +4,7 @@ import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFaci
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { designElevenLabsVoice } from "../../../../lib/server/elevenlabs";
+import { issueVoiceDesignPreviewToken } from "../../../../lib/server/elevenlabsVoiceDesignTokens";
 
 type TextToVoiceDesignRequestBody = {
   voiceDescription?: unknown;
@@ -13,6 +14,7 @@ type TextToVoiceDesignRequestBody = {
 type TextToVoiceDesignSuccessResponse = {
   previews: Array<{
     generatedVoiceId: string;
+    previewToken: string;
     audioBase64: string;
     mediaType: string | null;
     durationSecs: number | null;
@@ -80,7 +82,13 @@ export default async function handler(
     });
 
     return res.status(200).json({
-      previews: designedVoice.previews,
+      previews: designedVoice.previews.map((preview) => ({
+        ...preview,
+        previewToken: issueVoiceDesignPreviewToken({
+          generatedVoiceId: preview.generatedVoiceId,
+          userId: user.id,
+        }),
+      })),
       previewText: designedVoice.text,
       modelId: DEFAULT_VOICE_DESIGN_MODEL_ID,
     });

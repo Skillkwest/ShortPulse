@@ -5,13 +5,16 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { cleanupFailedElevenLabsCustomVoice } from "../../../../lib/server/elevenlabsCustomVoiceCleanup";
 import { createElevenLabsDesignedVoice } from "../../../../lib/server/elevenlabs";
+import { verifyVoiceDesignPreviewToken } from "../../../../lib/server/elevenlabsVoiceDesignTokens";
 import { createPersistedElevenLabsVoiceSample } from "../../../../lib/server/elevenlabsVoiceSamples";
 
 type TextToVoiceCreateRequestBody = {
   voiceName?: unknown;
   voiceDescription?: unknown;
   generatedVoiceId?: unknown;
+  generatedVoiceToken?: unknown;
   playedNotSelectedVoiceIds?: unknown;
+  playedNotSelectedVoiceTokens?: unknown;
 };
 
 type TextToVoiceCreateSuccessResponse = {
@@ -62,14 +65,42 @@ export default async function handler(
     const voiceName = normalizeRequiredString(body.voiceName);
     const voiceDescription = normalizeRequiredString(body.voiceDescription);
     const generatedVoiceId = normalizeRequiredString(body.generatedVoiceId);
+    const generatedVoiceToken = normalizeRequiredString(body.generatedVoiceToken);
     const playedNotSelectedVoiceIds = normalizeOptionalStringArray(body.playedNotSelectedVoiceIds);
+    const playedNotSelectedVoiceTokens = normalizeOptionalStringArray(
+      body.playedNotSelectedVoiceTokens
+    );
 
-    if (!voiceName || !voiceDescription || !generatedVoiceId) {
+    if (!voiceName || !voiceDescription || !generatedVoiceId || !generatedVoiceToken) {
       return res.status(400).json({
         error: "Invalid request",
-        details: "voiceName, voiceDescription, and generatedVoiceId are required.",
+        details:
+          "voiceName, voiceDescription, generatedVoiceId, and generatedVoiceToken are required.",
       });
     }
+
+    if (
+      !verifyVoiceDesignPreviewToken({
+        generatedVoiceId,
+        token: generatedVoiceToken,
+        userId: user.id,
+      })
+    ) {
+      return res.status(403).json({
+        error: "Voice preview is unavailable",
+        details: "The selected voice preview is no longer available for this account.",
+      });
+    }
+
+    const verifiedPlayedNotSelectedVoiceIds = playedNotSelectedVoiceIds.filter((voiceId, index) => {
+      const token = playedNotSelectedVoiceTokens[index];
+      if (!token || voiceId === generatedVoiceId) return false;
+      return verifyVoiceDesignPreviewToken({
+        generatedVoiceId: voiceId,
+        token,
+        userId: user.id,
+      });
+    });
 
     if (
       voiceDescription.length < MIN_VOICE_DESCRIPTION_CHARACTERS ||
@@ -85,9 +116,7 @@ export default async function handler(
       voiceName,
       voiceDescription,
       generatedVoiceId,
-      playedNotSelectedVoiceIds: playedNotSelectedVoiceIds.filter(
-        (voiceId) => voiceId !== generatedVoiceId
-      ),
+      playedNotSelectedVoiceIds: verifiedPlayedNotSelectedVoiceIds,
     });
     const voiceSample: Awaited<ReturnType<typeof createPersistedElevenLabsVoiceSample>> =
       await createPersistedElevenLabsVoiceSample({

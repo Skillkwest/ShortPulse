@@ -34,7 +34,7 @@ Canonical detailed surfaces:
 
 - `2026-05-24` on `production`
 - Score: `8.8/10`
-- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/control-plane lane plus one small character-panel lane, validated both with focused checks, and finished with a green build on the exact final tree.
+- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/control-plane lane plus one small UI/runtime polish lane, validated both with focused checks, and finished with a green build on the exact final tree.
 - What went wrong: the docs lane still paid one cheap recovery cycle because `docs/api/api-internal-routes.md` needed formatting before the real validation signal could surface.
 - Capability decision: keep the two-lane collapse, but add a tiny docs formatting sweep before the first mixed docs/control-plane preflight.
 

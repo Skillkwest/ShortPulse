@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.7/10`
-- What went right: Gear Ball kept a very large dirty tree collapsed to one honest custom-voice/transcript/runtime lane, validated the critical seams with 29 focused test files, and finished with passing docs checks plus a clean final build on the exact pushed tree.
-- What went wrong: the manifest wrapper underreached on the long file list, and the build still surfaced one real type-narrowing bug in `AiStudioProjectEntryState.tsx` before the lane could finish.
-- Capability decision: on very large single-lane runs, skip the wrapper immediately and go straight to the manual validation ladder so the only remaining time cost is real code correction rather than tooling friction.
+- Score: `8.9/10`
+- What went right: Gear Ball kept the tree collapsed to one shared voice/admin lane, validated the critical seams with a focused 6-file suite, and finished with passing build plus docs checks on the exact pushed tree.
+- What went wrong: the first pass still lost a cheap cycle because two touched files only needed Prettier before the rest of the ladder could speak cleanly.
+- Capability decision: on compact shared-runtime lanes, start with a tiny Prettier sweep on obviously touched new/edited files so the rest of the ladder can stay one-pass clean.
 
 ## Previous Run
 
 - `2026-05-24` on `production`
-- Score: `8.4/10`
-- What went right: Gear Ball kept the run converged, pulled the related media/API tail into the live lane before commit, and cleared the focused tests plus final build on the exact pushed tree before writing the score loop.
-- What went wrong: the first scoped wrapper underreached because `next.config.js` triggered an ignored-file ESLint warning, and the new media-copy rate-limit test hid a fake 500 by reusing one `Response` body across looped requests.
-- Capability decision: when a lane touches ignored config files like `next.config.js`, skip the wrapper immediately and run the manual validation ladder from the outset so the first pass stays honest and fast.
+- Score: `8.7/10`
+- What went right: Gear Ball kept a very large dirty tree collapsed to one honest custom-voice/transcript/runtime lane, validated the critical seams with 29 focused test files, and finished with passing docs checks plus a clean final build on the exact pushed tree.
+- What went wrong: the manifest wrapper underreached on the long file list, and the build still surfaced one real type-narrowing bug in `AiStudioProjectEntryState.tsx` before the lane could finish.
+- Capability decision: on very large single-lane runs, skip the wrapper immediately and go straight to the manual validation ladder so the only remaining time cost is real code correction rather than tooling friction.
 
 ## Previous Supervised Synthesis
 

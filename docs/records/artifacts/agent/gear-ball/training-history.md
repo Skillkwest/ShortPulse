@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.4/10`
-- What went right: Gear Ball kept the run converged, pulled the related media/API tail into the live lane before commit, and cleared the focused tests plus final build on the exact pushed tree before writing the score loop.
-- What went wrong: the first scoped wrapper underreached because `next.config.js` triggered an ignored-file ESLint warning, and the new media-copy rate-limit test hid a fake 500 by reusing one `Response` body across looped requests.
-- Capability decision: when a lane touches ignored config files like `next.config.js`, skip the wrapper immediately and run the manual validation ladder from the outset so the first pass stays honest and fast.
+- Score: `8.7/10`
+- What went right: Gear Ball kept a very large dirty tree collapsed to one honest custom-voice/transcript/runtime lane, validated the critical seams with 29 focused test files, and finished with passing docs checks plus a clean final build on the exact pushed tree.
+- What went wrong: the manifest wrapper underreached on the long file list, and the build still surfaced one real type-narrowing bug in `AiStudioProjectEntryState.tsx` before the lane could finish.
+- Capability decision: on very large single-lane runs, skip the wrapper immediately and go straight to the manual validation ladder so the only remaining time cost is real code correction rather than tooling friction.
 
 ## Previous Run
 
 - `2026-05-24` on `production`
-- Score: `8.0/10`
-- What went right: Gear Ball restarted from the top, validated the final shipped voices/looks/API lane honestly, and the new post-commit convergence loop kept the run alive until the live tree was actually clean before the score loop and push.
-- What went wrong: three related API test tails still surfaced after the first runtime commit, forcing extra follow-up commits before convergence completed.
-- Capability decision: keep the convergence loop, but broaden the first manifest to include sibling API tests whenever one route in a shared rate-limit/sanitized-error family changes.
+- Score: `8.4/10`
+- What went right: Gear Ball kept the run converged, pulled the related media/API tail into the live lane before commit, and cleared the focused tests plus final build on the exact pushed tree before writing the score loop.
+- What went wrong: the first scoped wrapper underreached because `next.config.js` triggered an ignored-file ESLint warning, and the new media-copy rate-limit test hid a fake 500 by reusing one `Response` body across looped requests.
+- Capability decision: when a lane touches ignored config files like `next.config.js`, skip the wrapper immediately and run the manual validation ladder from the outset so the first pass stays honest and fast.
 
 ## Previous Supervised Synthesis
 

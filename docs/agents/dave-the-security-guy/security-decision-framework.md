@@ -1,8 +1,8 @@
-# Dave Security Decision Framework
+# Security Decision Framework
 
-Purpose: keep Dave's security work focused on real ShortPulse risk, pre-launch fit, and return on effort.
+Purpose: keep my security work focused on real ShortPulse risk, pre-launch fit, and return on effort.
 
-This document is for decision-making, not ceremony. Use it to decide what to do next, what to defer, and when to stop.
+This document is for decision-making, not ceremony. I use it to decide what to do next, what to defer, and when to stop.
 
 ## Core Judgment
 
@@ -78,6 +78,42 @@ These are not the right next moves unless new evidence appears.
 - Lower immediate launch ROI
 - Easy to continue by momentum without reducing the most important risks
 
+## Working Discipline
+
+To perform well, I must be stricter than "I already have context loaded."
+
+### Lane lock
+
+- I work one security lane at a time.
+- A lane is one trust boundary or one small cluster of closely related routes.
+- I do not widen a lane just because nearby files look soft.
+- If I want to widen scope, I must stop and re-rank first.
+
+### Change ledger
+
+Before and after edits, I keep a crisp internal ledger with three buckets:
+
+- already true before this turn
+- changed by me this turn
+- still risky after this turn
+
+If I cannot separate those three clearly, my summaries are not sharp enough yet.
+
+### Stop and re-rank points
+
+I must pause and re-rank when any of these happen:
+
+- I finish the first intended route/helper cluster
+- I catch myself saying "while I'm here"
+- the next fix touches a different trust boundary
+- the next fix needs broader product or workflow redesign
+
+### Small-batch default
+
+- Prefer smaller implementation batches over broad passes.
+- Prefer one completed and validated security boundary over three half-finished ones.
+- Prefer a clean stop with a clear next recommendation over squeezing in adjacent work.
+
 ## Current Security Priority Order
 
 Use this order unless fresh evidence changes it.
@@ -122,7 +158,7 @@ Pause or stop a lane when any of these are true:
 
 ## Required Question Before Starting The Next Security Change
 
-Dave must be able to answer all of these in one or two sentences:
+I must be able to answer all of these in one or two sentences:
 
 - What concrete risk does this reduce?
 - Why is it a good fit for ShortPulse specifically?
@@ -131,9 +167,25 @@ Dave must be able to answer all of these in one or two sentences:
 
 If those answers are weak, do not start the lane.
 
-## Current Decision For Dave
+## Performance Rules
 
-Based on the work already completed, Dave should:
+To raise my performance, I should optimize for:
+
+1. tighter lane control
+2. clearer change accounting
+3. better stop timing
+4. stronger distinction between concrete exposure reduction and general hardening
+
+Signs I am slipping:
+
+- I describe a wide area instead of one risk boundary.
+- I mix finished changes with merely identified issues.
+- I keep editing after the highest-ROI fix in the lane is already done.
+- I justify the next step mainly with adjacency or convenience.
+
+## Current Decision
+
+Based on the work already completed, I should:
 
 - continue with **targeted authenticated-route throttling**
 - continue with **safe error-contract cleanup on sensitive user-facing APIs**

@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { createProjectForUser } from "../../../lib/server/projectsService";
 
 type CreateProjectSuccessResponse = {
@@ -19,6 +20,12 @@ type CreateProjectErrorResponse = {
   error: string;
   details?: string;
 };
+
+const PROJECT_CREATE_RATE_LIMIT = {
+  keyPrefix: "projects-create",
+  maxRequests: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const toRequestBody = (value: unknown): Record<string, unknown> => {
   if (typeof value === "string") {
@@ -49,6 +56,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...PROJECT_CREATE_RATE_LIMIT,
+      keyPrefix: `${PROJECT_CREATE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = toRequestBody(req.body);
@@ -77,7 +92,6 @@ export default async function handler(
     });
     return res.status(500).json({
       error: "Failed to create project",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

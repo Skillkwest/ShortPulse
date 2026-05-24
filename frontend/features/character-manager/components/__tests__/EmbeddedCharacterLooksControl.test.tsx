@@ -36,6 +36,7 @@ function Harness({
       presetIds={presetIds}
       activePresetId={activePresetId}
       presetLabels={labels}
+      headerContent={<span>Looks:</span>}
       onSelectPreset={(presetId) => {
         setActivePresetId(presetId);
       }}

@@ -194,10 +194,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
     expect(screen.getByText("Voice Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Voice Clone" })).toHaveAttribute(
-      "aria-haspopup",
-      "dialog"
-    );
+    expect(screen.queryByRole("button", { name: "Voice Clone" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(
       "aria-selected",
@@ -470,35 +467,6 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
-  });
-
-  it("opens the create voice modal in clone mode from the main-page shortcut without changing the active surface", async () => {
-    render(<VoicesPropertiesPanel />);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
-    fireEvent.click(screen.getByRole("button", { name: "Voice Clone" }));
-
-    const createVoiceModal = await screen.findByRole("dialog", { name: "Create New Voice" });
-    const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
-    await waitFor(() => {
-      expect(voiceNameField).toHaveFocus();
-    });
-
-    expect(createVoiceModal).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Clone Voice" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByRole("tab", { name: "Clone Voice" })).toHaveAttribute(
-      "data-voice-mode",
-      "voice-clone"
-    );
-    expect(screen.getByRole("tab", { name: "Voice Changer" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByText("Drop a voice sample")).toBeInTheDocument();
-    expect(screen.getByText("Record a voice sample to create a cloned voice.")).toBeInTheDocument();
   });
 
   it("renders skeleton voice chips while the live voices request is loading", () => {
@@ -1627,22 +1595,6 @@ describe("VoicesPropertiesPanel", () => {
     });
     fireEvent.click(voicesButton);
     expect(screen.queryByRole("button", { name: /beacon voice/i })).not.toBeInTheDocument();
-  });
-
-  it("restores focus to the voice clone shortcut when its modal is closed", async () => {
-    render(<VoicesPropertiesPanel />);
-
-    const voiceCloneButton = screen.getByRole("button", { name: "Voice Clone" });
-    fireEvent.click(voiceCloneButton);
-
-    expect(await screen.findByRole("dialog", { name: "Create New Voice" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Close create voice modal" }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
-    });
-    expect(voiceCloneButton).toHaveFocus();
   });
 
   it("generates previews and saves the selected provider voice into the voices grid", async () => {

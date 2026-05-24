@@ -986,7 +986,7 @@ export function CharacterPanelWorkspace({
                           }
                           disabled={characterLibraryButtonDisabled}
                         >
-                          <FolderSimple size={16} weight="fill" aria-hidden />
+                          <FolderSimple size={24} weight="fill" aria-hidden />
                           Characters
                         </button>
                         {isSavingCharacter ? (
@@ -1091,10 +1091,6 @@ export function CharacterPanelWorkspace({
 
                         <div style={CHARACTER_TOP_FIELD_CONTROL_INLINE_STYLE}>
                           <div style={topFieldGroupStyle}>
-                            <div style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}>
-                              <p style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Looks:</p>
-                            </div>
-
                             <div
                               className="character-sheet-looks-block"
                               style={CHARACTER_LOOKS_BLOCK_INLINE_STYLE}
@@ -1119,6 +1115,13 @@ export function CharacterPanelWorkspace({
                                 }}
                                 panelId="character-panel-preset-panel"
                                 disabled={pageBusy}
+                                headerContent={
+                                  <div style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}>
+                                    <p style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>
+                                      Looks:
+                                    </p>
+                                  </div>
+                                }
                                 idBase="character-panel-looks"
                                 viewportMinHeightPx={responsiveLayout.looksViewportMinHeightPx}
                                 viewportPaddingXpx={responsiveLayout.looksViewportPaddingXpx}

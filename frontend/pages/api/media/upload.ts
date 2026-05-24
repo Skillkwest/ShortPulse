@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   MediaUploadServiceError,
   type MediaUploadResponseFile,
@@ -36,6 +37,12 @@ export const config = {
   },
 };
 
+const MEDIA_UPLOAD_RATE_LIMIT = {
+  keyPrefix: "media-upload",
+  maxRequests: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 /**
  * Handles Media Library file uploads via a server-authoritative persistence path.
  */
@@ -49,6 +56,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...MEDIA_UPLOAD_RATE_LIMIT,
+      keyPrefix: `${MEDIA_UPLOAD_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   if (!isMediaUploadApiEnabled()) {
     return res.status(503).json({
@@ -81,7 +96,6 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Upload failed",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

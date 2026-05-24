@@ -13,6 +13,7 @@ type EmbeddedCharacterLooksControlProps = {
   activePresetId: CharacterSheetPresetId;
   presetLabels: Record<CharacterSheetPresetId, string>;
   panelId: string;
+  headerContent?: React.ReactNode;
   idBase?: string;
   disabled?: boolean;
   viewportMinHeightPx?: number;
@@ -31,13 +32,20 @@ type EmbeddedCharacterLooksControlProps = {
 const ROOT_STYLE: React.CSSProperties = {
   position: "relative",
   display: "grid",
-  gap: "8px",
+  gap: "6px",
   width: "100%",
 };
 
 const CONTROL_ROW_STYLE: React.CSSProperties = {
-  display: "grid",
-  gap: "4px",
+  display: "block",
+  minWidth: 0,
+};
+
+const HEADER_ROW_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "8px",
   minWidth: 0,
 };
 
@@ -47,6 +55,7 @@ const OVERFLOW_ACTIONS_STYLE: React.CSSProperties = {
   alignItems: "center",
   gap: "4px",
   minHeight: "18px",
+  flexShrink: 0,
 };
 
 const OVERFLOW_ACTION_BUTTON_STYLE: React.CSSProperties = {
@@ -181,6 +190,7 @@ export function EmbeddedCharacterLooksControl({
   activePresetId,
   presetLabels,
   panelId,
+  headerContent,
   idBase = "embedded-character-looks",
   disabled = false,
   viewportMinHeightPx = 36,
@@ -320,51 +330,56 @@ export function EmbeddedCharacterLooksControl({
 
   return (
     <div style={ROOT_STYLE}>
-      <div style={CONTROL_ROW_STYLE}>
-        <div style={OVERFLOW_ACTIONS_STYLE}>
-          <button
-            type="button"
-            aria-label="Scroll looks left"
-            style={{
-              ...OVERFLOW_ACTION_BUTTON_STYLE,
-              opacity: canScrollLeft ? 1 : 0.42,
-              cursor: canScrollLeft ? "pointer" : "default",
-            }}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={() => {
-              handleViewportStepScroll(-1);
-            }}
-            disabled={!canScrollLeft}
-          >
-            <CaretLeft size={10} weight="bold" />
-          </button>
-          <button
-            type="button"
-            aria-label="Scroll looks right"
-            style={{
-              ...OVERFLOW_ACTION_BUTTON_STYLE,
-              opacity: canScrollRight ? 1 : 0.42,
-              cursor: canScrollRight ? "pointer" : "default",
-            }}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={() => {
-              handleViewportStepScroll(1);
-            }}
-            disabled={!canScrollRight}
-          >
-            <CaretRight size={10} weight="bold" />
-          </button>
+      {headerContent ? (
+        <div style={HEADER_ROW_STYLE}>
+          <div style={{ minWidth: 0 }}>{headerContent}</div>
+          <div style={OVERFLOW_ACTIONS_STYLE}>
+            <button
+              type="button"
+              aria-label="Scroll looks left"
+              style={{
+                ...OVERFLOW_ACTION_BUTTON_STYLE,
+                opacity: canScrollLeft ? 1 : 0.42,
+                cursor: canScrollLeft ? "pointer" : "default",
+              }}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={() => {
+                handleViewportStepScroll(-1);
+              }}
+              disabled={!canScrollLeft}
+            >
+              <CaretLeft size={10} weight="bold" />
+            </button>
+            <button
+              type="button"
+              aria-label="Scroll looks right"
+              style={{
+                ...OVERFLOW_ACTION_BUTTON_STYLE,
+                opacity: canScrollRight ? 1 : 0.42,
+                cursor: canScrollRight ? "pointer" : "default",
+              }}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={() => {
+                handleViewportStepScroll(1);
+              }}
+              disabled={!canScrollRight}
+            >
+              <CaretRight size={10} weight="bold" />
+            </button>
+          </div>
         </div>
+      ) : null}
+      <div style={CONTROL_ROW_STYLE}>
         <div
           ref={railViewportRef}
           style={{

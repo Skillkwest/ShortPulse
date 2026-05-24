@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   isMediaDataTab,
   moveMediaFileForUser,
@@ -45,6 +46,11 @@ type MoveBatchErrorResponse = {
 
 const MAX_MOVE_BATCH_SIZE = 100;
 const MOVE_BATCH_CONCURRENCY = 6;
+const MEDIA_MOVE_BATCH_RATE_LIMIT = {
+  keyPrefix: "media-move-batch",
+  maxRequests: 20,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const mapWithConcurrency = async <TInput, TOutput>(
   items: TInput[],
@@ -117,6 +123,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...MEDIA_MOVE_BATCH_RATE_LIMIT,
+      keyPrefix: `${MEDIA_MOVE_BATCH_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const requestBody = toRequestBody(req.body);
@@ -200,7 +214,6 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Failed to move media files",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

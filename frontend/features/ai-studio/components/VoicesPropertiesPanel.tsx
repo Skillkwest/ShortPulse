@@ -441,7 +441,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const voiceCloneShortcutTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const previewAudioVoiceIdRef = React.useRef<string | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
@@ -1328,12 +1327,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     });
   }, [openCreateVoiceModal]);
 
-  const handleVoiceCloneShortcutEntry = React.useCallback(() => {
-    openCreateVoiceModal("clone", {
-      restoreFocusTo: voiceCloneShortcutTriggerRef.current,
-    });
-  }, [openCreateVoiceModal]);
-
   const handleCloseCreatePanel = React.useCallback(() => {
     resetCreateVoiceModalState();
     setIsCreatePanelOpen(false);
@@ -1834,14 +1827,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceModeTabsStyle = React.useMemo(
     () =>
       ({
-        ["--voices-properties-mode-index" as string]:
-          isCreateVoiceModalOpen && createVoiceMode === "clone"
-            ? 2
-            : surfaceMode === "edit"
-              ? 1
-              : 0,
+        ["--voices-properties-mode-index" as string]: surfaceMode === "edit" ? 1 : 0,
       }) as React.CSSProperties,
-    [createVoiceMode, isCreateVoiceModalOpen, surfaceMode]
+    [surfaceMode]
   );
 
   return (
@@ -1889,18 +1877,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                           Voice Changer
                         </button>
                       </div>
-                      <button
-                        ref={voiceCloneShortcutTriggerRef}
-                        type="button"
-                        data-voice-mode="voice-clone"
-                        aria-haspopup="dialog"
-                        className={`voices-properties-mode-tab voices-properties-mode-shortcut-tab ${
-                          isCreateVoiceModalOpen && createVoiceMode === "clone" ? "is-active" : ""
-                        }`}
-                        onClick={handleVoiceCloneShortcutEntry}
-                      >
-                        Voice Clone
-                      </button>
                     </div>
                   </div>
                 </div>

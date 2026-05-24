@@ -1514,13 +1514,13 @@
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-control-row {
-  --voices-properties-mode-slots: 3;
+  --voices-properties-mode-slots: 2;
   --voices-properties-mode-pad: 2px;
   --voices-properties-mode-slot-width: calc(
     (100% - (var(--voices-properties-mode-pad) * 2)) / var(--voices-properties-mode-slots)
   );
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 0;
   width: 100%;
@@ -1553,7 +1553,7 @@
 }
 
 .voices-properties-compose-mode-switcher .voices-properties-mode-tabs {
-  grid-column: 1 / span 2;
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
@@ -1567,8 +1567,7 @@
   z-index: 1;
 }
 
-.voices-properties-compose-mode-switcher .voices-properties-mode-tab,
-.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab {
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab {
   border: 1px solid transparent;
   min-height: 0;
   height: 100%;
@@ -1589,17 +1588,11 @@
   text-align: center;
 }
 
-.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab {
-  grid-column: 3;
-}
-
-.voices-properties-compose-mode-switcher .voices-properties-mode-tab:hover,
-.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab:hover {
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab:hover {
   color: rgba(201, 205, 214, 0.84);
 }
 
-.voices-properties-compose-mode-switcher .voices-properties-mode-tab.is-active,
-.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab.is-active {
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
   color: #f0f3f9;
@@ -1607,11 +1600,7 @@
 }
 
 .voices-properties-compose-mode-switcher
-  .voices-properties-mode-tab.is-active[data-voice-mode="voice-changer"],
-.voices-properties-compose-mode-switcher
-  .voices-properties-mode-tab.is-active[data-voice-mode="voice-clone"],
-.voices-properties-compose-mode-switcher
-  .voices-properties-mode-shortcut-tab.is-active[data-voice-mode="voice-clone"] {
+  .voices-properties-mode-tab.is-active[data-voice-mode="voice-changer"] {
   background: transparent;
   color: #f0f3f9;
   box-shadow: none;
@@ -1621,8 +1610,7 @@
   outline: none;
 }
 
-.voices-properties-compose-mode-switcher .voices-properties-mode-tab:focus-visible,
-.voices-properties-compose-mode-switcher .voices-properties-mode-shortcut-tab:focus-visible {
+.voices-properties-compose-mode-switcher .voices-properties-mode-tab:focus-visible {
   outline: 1px solid rgba(201, 205, 214, 0.62);
   outline-offset: -2px;
   border-color: rgba(201, 205, 214, 0.62);

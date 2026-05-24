@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/control-plane lane plus one small UI/runtime polish lane, validated both with focused checks, and finished with a green build on the exact final tree.
-- What went wrong: the docs lane still paid one cheap recovery cycle because `docs/api/api-internal-routes.md` needed formatting before the real validation signal could surface.
-- Capability decision: keep the two-lane collapse, but add a tiny docs formatting sweep before the first mixed docs/control-plane preflight.
+- Score: `8.4/10`
+- What went right: Gear Ball restarted from the top, validated the final shipped runtime lane honestly, and recovered the restored billing test seam before the push so the final tree that reached `production` was complete.
+- What went wrong: the run still paid one cheap docs formatting recovery cycle, and a stash-restored billing test tail surfaced after the main runtime commit, forcing an extra follow-up commit.
+- Capability decision: keep the lane collapsed, but add one final live-worktree-vs-manifest comparison before push so restored tests get folded into the main commit instead of surfacing as a late tail.
 
 ## Previous Supervised Synthesis
 

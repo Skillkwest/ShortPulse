@@ -73,7 +73,7 @@ const CHARACTER_DESCRIPTION_LABEL_STYLE: React.CSSProperties = {
   color: "#25a9bf",
   fontFamily:
     '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
-  fontSize: "clamp(0.9rem, 0.86rem + 0.28vw, 1.02rem)",
+  fontSize: "0.8rem",
   lineHeight: 1.16,
   fontWeight: 400,
   letterSpacing: "0.08em",

@@ -1379,6 +1379,10 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
     throw new Error(asErrorMessage(mediaRowsError, "Failed to load character media for deletion."));
   }
 
+  // Retained legacy compatibility boundary:
+  // historical datasets can still contain quick-swap-owned media rows, including known contamination
+  // cases from older staging/bootstrap data. Keep these cleanup candidates in delete flows until an
+  // explicit compatibility/data-retirement decision says the table no longer needs protection.
   const { data: quickSwapRows, error: quickSwapRowsError } = await supabase
     .from("character_quick_swap_items")
     .select("character_media_id, storage_path")

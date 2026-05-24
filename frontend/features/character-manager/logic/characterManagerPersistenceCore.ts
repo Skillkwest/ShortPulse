@@ -828,6 +828,10 @@ export const cleanupOrphanedMedia = async ({
   storagePath: string | null;
 }) => {
   const { supabase, userId } = await resolveSupabaseContext();
+  // Retained legacy compatibility boundary:
+  // orphan cleanup still respects historical quick-swap references because prior migrations and
+  // bootstrap data can leave surviving character_quick_swap_items rows in older environments.
+  // Treat this as intentional protection, not dead runtime behavior, until retirement is approved.
   const { count: quickSwapCount, error: quickSwapRefError } = await supabase
     .from("character_quick_swap_items")
     .select("id", { count: "exact", head: true })

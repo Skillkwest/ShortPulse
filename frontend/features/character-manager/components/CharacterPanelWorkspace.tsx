@@ -1,6 +1,15 @@
 import Image from "next/image";
 import React from "react";
-import { CheckCircle, FloppyDisk, Plus, Trash, UploadSimple, X, XCircle } from "phosphor-react";
+import {
+  CheckCircle,
+  FloppyDisk,
+  FolderSimple,
+  Plus,
+  Trash,
+  UploadSimple,
+  X,
+  XCircle,
+} from "phosphor-react";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
@@ -98,7 +107,7 @@ const CHARACTER_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   gap: "10px",
   flex: "1 1 0",
   minWidth: 0,
@@ -219,8 +228,8 @@ const CHARACTER_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_REFERENCE_SLOT_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   position: "absolute",
-  top: "8px",
-  right: "8px",
+  top: "2px",
+  right: "2px",
   zIndex: 2,
 };
 const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
@@ -525,7 +534,9 @@ export function CharacterPanelWorkspace({
   const createActionButtonBaseStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...secondaryActionButtonStyle,
-      marginLeft: "auto",
+      width: "fit-content",
+      minWidth: "fit-content",
+      flex: "0 0 auto",
     }),
     [secondaryActionButtonStyle]
   );
@@ -973,6 +984,7 @@ export function CharacterPanelWorkspace({
                           }
                           disabled={characterLibraryButtonDisabled}
                         >
+                          <FolderSimple size={16} weight="fill" aria-hidden />
                           Characters
                         </button>
                         {isSavingCharacter ? (

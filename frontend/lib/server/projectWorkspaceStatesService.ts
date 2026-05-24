@@ -4,6 +4,7 @@
  */
 import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
+import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -173,11 +174,13 @@ const collectSnapshotGenerationIds = (snapshot: Record<string, unknown>): string
 };
 
 const sanitizeProjectWorkspaceOutputs = ({
+  userId,
   snapshot,
   ownedMediaFileIds,
   ownedPromptIds,
   ownedGenerationIds,
 }: {
+  userId: string;
   snapshot: Record<string, unknown>;
   ownedMediaFileIds: readonly string[];
   ownedPromptIds: readonly string[];
@@ -187,6 +190,26 @@ const sanitizeProjectWorkspaceOutputs = ({
   const allowedMediaFileIds = new Set(ownedMediaFileIds);
   const allowedPromptIds = new Set(ownedPromptIds);
   const allowedGenerationIds = new Set(ownedGenerationIds);
+  const sanitizeScopedStoragePathFields = (row: Record<string, unknown>) => {
+    for (const field of [
+      "previewStoragePath",
+      "fullStoragePath",
+      "previewPosterStoragePath",
+    ] as const) {
+      const value = row[field];
+      if (value == null) continue;
+      if (typeof value !== "string") {
+        delete row[field];
+        continue;
+      }
+      const normalized = value.trim();
+      if (!normalized || !isUserScopedMediaStoragePath(normalized, userId)) {
+        delete row[field];
+        continue;
+      }
+      row[field] = normalized;
+    }
+  };
   const isFailedWorkspaceOutputRow = (row: Record<string, unknown>): boolean =>
     typeof row.taskState === "string" && row.taskState.trim() === "fail";
 
@@ -232,6 +255,7 @@ const sanitizeProjectWorkspaceOutputs = ({
         if (savedMediaIds.length === 0 && "savedMediaIds" in nextRow) {
           delete nextRow.savedMediaIds;
         }
+        sanitizeScopedStoragePathFields(nextRow);
 
         return nextRow;
       })
@@ -462,6 +486,7 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
     });
   }
   const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
+    userId,
     snapshot,
     ownedMediaFileIds,
     ownedPromptIds,
@@ -508,6 +533,7 @@ const hydrateProjectWorkspaceSnapshotAfterSave = async ({
   const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
 
   return sanitizeProjectWorkspaceOutputs({
+    userId,
     snapshot: hydratedSnapshot,
     ownedMediaFileIds,
     ownedPromptIds,
@@ -532,6 +558,7 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
         snapshot,
       });
     const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
+      userId,
       snapshot,
       ownedMediaFileIds,
       ownedPromptIds,
@@ -547,6 +574,7 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
     const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
 
     return sanitizeProjectWorkspaceOutputs({
+      userId,
       snapshot: hydratedSnapshot,
       ownedMediaFileIds,
       ownedPromptIds,

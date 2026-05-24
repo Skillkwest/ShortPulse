@@ -3,6 +3,7 @@
  * Owns server-authoritative create/read access for user-owned project rows.
  */
 import { resolvePolicySignedImageTransform } from "../mediaSignedTransformPolicy";
+import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 const DEFAULT_PROJECT_TITLE = "Untitled project";
@@ -101,7 +102,8 @@ const isFailedSnapshotOutputPreviewRecord = (output: SnapshotOutputPreviewRecord
   output.taskState === "fail";
 
 const resolveSnapshotOutputImageCandidate = (
-  output: SnapshotOutputPreviewRecord
+  output: SnapshotOutputPreviewRecord,
+  userId?: string | null
 ): ProjectPreviewCandidate | null => {
   if (output.mode !== "image") return null;
   const storagePath =
@@ -118,13 +120,14 @@ const resolveSnapshotOutputImageCandidate = (
         : null;
   if (!storagePath && !fallbackUrl) return null;
   return {
-    storagePaths: resolveProjectCardPreviewSigningStoragePaths(storagePath),
+    storagePaths: resolveProjectCardPreviewSigningStoragePaths(storagePath, userId),
     fallbackUrl,
   };
 };
 
 export const resolveProjectCardPreviewSigningStoragePaths = (
-  storagePath: string | null | undefined
+  storagePath: string | null | undefined,
+  userId?: string | null
 ): string[] => {
   const normalized =
     typeof storagePath === "string" && storagePath.trim().length > 0 ? storagePath.trim() : null;
@@ -132,12 +135,18 @@ export const resolveProjectCardPreviewSigningStoragePaths = (
   const candidates = normalized.endsWith("/thumb_480")
     ? [normalized.replace(/\/thumb_480$/, "/thumb_240"), normalized]
     : [normalized];
-  return Array.from(new Set(candidates.filter((value) => value.length > 0)));
+  return Array.from(
+    new Set(
+      candidates.filter(
+        (value) => value.length > 0 && (!userId || isUserScopedMediaStoragePath(value, userId))
+      )
+    )
+  );
 };
 
 const collectUniqueImageCandidates = (
   outputs: SnapshotOutputPreviewRecord[],
-  options?: { excludeHiddenInReferenceGrid?: boolean; limit?: number }
+  options?: { excludeHiddenInReferenceGrid?: boolean; limit?: number; userId?: string | null }
 ): ProjectPreviewCandidate[] => {
   const results: ProjectPreviewCandidate[] = [];
   const seen = new Set<string>();
@@ -147,7 +156,7 @@ const collectUniqueImageCandidates = (
     if (options?.excludeHiddenInReferenceGrid && output.hiddenInReferenceGrid === true) {
       continue;
     }
-    const candidate = resolveSnapshotOutputImageCandidate(output);
+    const candidate = resolveSnapshotOutputImageCandidate(output, options?.userId);
     const uniqueKey =
       candidate?.storagePaths[candidate.storagePaths.length - 1] ?? candidate?.fallbackUrl;
     if (!candidate || !uniqueKey || seen.has(uniqueKey)) continue;
@@ -160,7 +169,8 @@ const collectUniqueImageCandidates = (
 };
 
 const resolveProjectPreviewImageCandidatesFromSnapshot = (
-  snapshot: Record<string, unknown> | null | undefined
+  snapshot: Record<string, unknown> | null | undefined,
+  userId?: string | null
 ): ProjectPreviewCandidate[] => {
   const outputsRecord = asRecord(asRecord(snapshot).outputs);
   const activeOutputs = Array.isArray(outputsRecord.active)
@@ -193,7 +203,7 @@ const resolveProjectPreviewImageCandidatesFromSnapshot = (
     curatedReferenceIds
       .map((id) => outputsById[id])
       .filter((output): output is SnapshotOutputPreviewRecord => Boolean(output)),
-    { limit: PROJECT_PREVIEW_IMAGE_LIMIT }
+    { limit: PROJECT_PREVIEW_IMAGE_LIMIT, userId }
   );
   if (quickSlotPreviews.length > 0) {
     return quickSlotPreviews;
@@ -202,6 +212,7 @@ const resolveProjectPreviewImageCandidatesFromSnapshot = (
   return collectUniqueImageCandidates(activeOutputs, {
     excludeHiddenInReferenceGrid: true,
     limit: PROJECT_PREVIEW_IMAGE_LIMIT,
+    userId,
   });
 };
 
@@ -336,7 +347,8 @@ export const listProjectsForUser = async ({
   (workspaceRows ?? []).forEach((row) => {
     const workspaceRow = row as ProjectWorkspacePreviewRow;
     const previewCandidates = resolveProjectPreviewImageCandidatesFromSnapshot(
-      workspaceRow.snapshot
+      workspaceRow.snapshot,
+      userId
     );
     previewCandidatesByProjectId.set(workspaceRow.project_id, previewCandidates);
     previewCandidates.forEach((candidate) => {

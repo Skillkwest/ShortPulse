@@ -136,6 +136,15 @@ describe("resolveProjectCardPreviewSigningStoragePaths", () => {
     ).toEqual(["user-1/generations/images/project-1.png"]);
   });
 
+  it("drops out-of-scope storage paths when a user scope is provided", () => {
+    expect(
+      resolveProjectCardPreviewSigningStoragePaths(
+        "user-2/generations/images/project-1.png",
+        "user-1"
+      )
+    ).toEqual([]);
+  });
+
   it("returns no signing paths when storage is unavailable", () => {
     expect(resolveProjectCardPreviewSigningStoragePaths(null)).toEqual([]);
   });

@@ -712,6 +712,71 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-storage-scope-save",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:storage-scope-save",
+        },
+        workspace: {},
+        outputs: {
+          active: [
+            {
+              id: "out-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              previewStoragePath: "user-2/generated/foreign-preview.png",
+              fullStoragePath: "user-2/generated/foreign-full.png",
+              previewPosterStoragePath: "user-2/generated/foreign-poster.png",
+              savedMediaIds: ["media-1"],
+            },
+          ],
+          archived: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const savedRow = (
+      ((firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+        ?.active ?? []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(savedRow).toMatchObject({
+      id: "out-1",
+      savedMediaIds: ["media-1"],
+      previewUrl: "https://cdn.example.com/library.png",
+      resultUrls: ["https://cdn.example.com/library.png"],
+    });
+    expect(savedRow).not.toHaveProperty("previewStoragePath");
+    expect(savedRow).not.toHaveProperty("fullStoragePath");
+    expect(savedRow).not.toHaveProperty("previewPosterStoragePath");
+  });
+
   it("persists the sanitized snapshot when restored-project projection hydration fails during save", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
@@ -1220,6 +1285,72 @@ describe("projectWorkspaceStatesService", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  it("strips out-of-scope preview storage paths from legacy workspace snapshots on read", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-storage-scope-read",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:storage-scope-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              previewStoragePath: "user-2/generated/foreign-preview.png",
+              fullStoragePath: "user-2/generated/foreign-full.png",
+              previewPosterStoragePath: "user-2/generated/foreign-poster.png",
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "out-1",
+      mediaSource: "library",
+      previewUrl: "https://cdn.example.com/library.png",
+      resultUrls: ["https://cdn.example.com/library.png"],
+      savedMediaIds: ["media-1"],
+      saveState: "saved",
+    });
+    expect(restoredRow).not.toHaveProperty("previewStoragePath");
+    expect(restoredRow).not.toHaveProperty("fullStoragePath");
+    expect(restoredRow).not.toHaveProperty("previewPosterStoragePath");
   });
 
   it("preserves settled non-generated refs when project workspace reads refresh generated outputs", async () => {

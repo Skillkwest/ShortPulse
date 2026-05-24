@@ -32,11 +32,11 @@ Canonical detailed surfaces:
 
 ## Latest Run
 
-- `2026-05-23` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball restarted from the top, collapsed the live tree into one coherent account-hardening product lane plus one small docs lane, validated the changed account/billing/profile surfaces with focused tests, and finished with a green build on the exact final tree.
-- What went wrong: the first validation pass still paid avoidable formatting churn plus one trivial unused-catch lint miss before the meaningful checks could surface.
-- Capability decision: keep the lean lane collapse, but add one touched-manifest Prettier plus dead-binding sweep before the first broad preflight on mixed product/docs runs.
+- `2026-05-24` on `production`
+- Score: `8.9/10`
+- What went right: Gear Ball restarted from the top, collapsed the live tree into one docs/archive lane plus one coherent character-panel runtime lane, validated the runtime removals with focused tests, and finished with a green build on the exact final tree.
+- What went wrong: the first product preflight still paid one cheap formatting recovery cycle before the meaningful checks could surface.
+- Capability decision: keep the lean two-lane collapse, but add one tiny touched-file Prettier sweep before the first character-panel preflight on broad removal lanes.
 
 ## Previous Supervised Synthesis
 

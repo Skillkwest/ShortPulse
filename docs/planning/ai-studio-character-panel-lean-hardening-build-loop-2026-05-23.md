@@ -22,6 +22,7 @@ Stop this build loop only when another agent could verify all of the following w
    - explicitly moved into the next bounded checkpoint,
    - or explicitly marked blocked because it requires a compatibility or data-retirement decision outside this safe loop.
 5. The current continuation state exists in this repo-owned build-loop document rather than only in chat.
+6. If the work becomes blocked beyond agent control or beyond what can be safely completed and proven from the repo and current environment, the loop stops and records that blocker explicitly instead of guessing or drifting.
 
 Concrete outputs required before closing this loop:
 
@@ -50,6 +51,7 @@ Stop instead of continuing when:
 1. The next action is useful but not required by the stop condition.
 2. The next action requires expanding into SQL/data-retirement work without an explicit compatibility decision.
 3. The next action primarily belongs to a different lane, such as bottom-carriage styling or docs-wide cleanup.
+4. The next action is blocked beyond agent control, beyond available system capability, or beyond what can be safely proven from the repo and current environment.
 
 ## 2. Scope Lock
 
@@ -291,7 +293,7 @@ Decision rule:
 
 Status:
 
-1. Pending
+1. Completed
 
 ### Checkpoint 7: Compatibility-Sensitive QuickSwap Cleanup Decision
 
@@ -324,14 +326,16 @@ Decision rule:
 
 Status:
 
-1. Pending
+1. Blocked
+2. Evidence gathered in this loop shows the remaining `character_quick_swap_items` queries still protect historical cleanup behavior and known legacy contamination cases.
+3. Safe removal cannot be proven from the repo and current environment alone.
 
 ## 4. Current Checkpoint Execution
 
 Current checkpoint state:
 
-1. Checkpoints 1 through 5 are complete.
-2. The active next checkpoint is Checkpoint 6.
+1. Checkpoints 1 through 6 are complete.
+2. Checkpoint 7 is blocked pending explicit compatibility/data-retirement direction.
 
 Completed implementation summary:
 
@@ -340,15 +344,16 @@ Completed implementation summary:
 3. Removed active QuickSwap drag/drop contamination from the live character-sheet interaction path.
 4. Removed the disconnected standalone QuickSwap persistence module and orphaned types.
 5. Converted the description card and top workspace heading labels away from shared character stylesheet label/helper hooks into inline-owned styles.
+6. Converted the top-workspace loading prefab away from stylesheet-owned classes into inline-owned structure, typography, and animation behavior.
 
 Current next required action:
 
-1. Convert `CharacterProfileLoadingSkeleton.tsx` and the remaining top-workspace parent label/title style hooks to raw inline ownership.
+1. Stop this loop and carry forward the explicit blocker instead of forcing removal of the remaining QuickSwap cleanup queries.
 
 Why this next action is required by the stop condition:
 
-1. The stop condition requires the currently safe top-workspace styling tranche to be rebuilt raw inline for panel-owned surfaces.
-2. The loading prefab is the next bounded top-surface style dependency still clearly in scope.
+1. The stop condition requires blocked work to be recorded explicitly instead of guessed through.
+2. The only remaining known QuickSwap residue in this loop is compatibility-sensitive cleanup logic that still has evidence of historical data protection value.
 
 Relevant files:
 
@@ -368,6 +373,7 @@ Self-audit:
 1. The completed checkpoints stayed in the safe runtime/style lane and did not expand into bottom-carriage styling or SQL retirement.
 2. The remaining historical QuickSwap cleanup queries were intentionally preserved because they still protect legacy cleanup behavior and are not proven safe to remove blindly.
 3. The top-surface style work used live style values rather than inventing new visual treatment.
+4. This checkpoint correctly stopped at the compatibility boundary instead of treating historical cleanup protection as dead code.
 
 Scope-lock check:
 
@@ -380,22 +386,24 @@ Validation already run:
 1. Focused character-panel and AI Studio character-mode suite: `9` files / `60` tests passed after the active QuickSwap drop/runtime cleanup checkpoint.
 2. Focused character-panel and persistence suite: `12` files / `78` tests passed after the disconnected persistence-module removal checkpoint.
 3. Focused character-panel and persistence suite: `12` files / `78` tests passed after the top-surface inline label/description checkpoint.
+4. Focused character-panel and persistence suite: `12` files / `78` tests passed after the top-workspace loading-prefab inline conversion checkpoint.
+5. Documentation validation passed after recording the blocked checkpoint state.
 
 ## 6. Status Against Stop Condition
 
 Current status:
 
-1. Stop condition is not yet met.
+1. The implementation loop is blocked beyond what can be safely proven and completed from the repo and current environment.
 2. QuickSwap dead runtime and disconnected dead persistence surfaces are removed.
-3. The first top-surface inline style tranche is complete.
-4. The next required checkpoint is clear.
-5. The remaining compatibility-sensitive cleanup boundary is identified but intentionally not forced.
+3. The current safe top-workspace inline-style tranche is complete.
+4. The remaining compatibility-sensitive cleanup boundary is identified and intentionally not forced.
+5. The smallest unblocking action is an explicit decision on whether historical `character_quick_swap_items` cleanup protection may be retired despite known legacy contamination and migration/backfill history.
 
 ## 7. Next Checkpoint Or Continuation Prompt
 
 Exact next checkpoint to run:
 
-1. Checkpoint 6: Top-Surface Inline Ownership Slice 2
+1. None until the compatibility/data-retirement blocker is resolved.
 
 Continuation prompt:
 
@@ -406,6 +414,7 @@ Use:
 - docs/planning/ai-studio-character-panel-lean-hardening-build-loop-2026-05-23.md
 - docs/planning/ai-studio-character-panel-lean-hardening-master-plan-2026-05-23.md
 - docs/planning/ai-studio-character-panel-lean-hardening-phase-4-top-workspace-inline-style-conversion-plan-2026-05-23.md
+- docs/planning/ai-studio-character-panel-lean-hardening-phase-3-persistence-and-cleanup-simplification-plan-2026-05-23.md
 
 Stop condition:
 - Remove disconnected QuickSwap runtime/dead persistence surfaces from the live panel path.
@@ -423,24 +432,44 @@ Completed checkpoints:
 - Checkpoint 3: active QuickSwap drag/drop seam cleanup
 - Checkpoint 4: disconnected QuickSwap persistence dead-surface purge
 - Checkpoint 5: top-surface inline ownership slice 1
+- Checkpoint 6: top-surface inline ownership slice 2
 
 Next checkpoint:
-- Convert CharacterProfileLoadingSkeleton.tsx and remaining top-workspace label/title style hooks to raw inline ownership.
+- Do not continue automatically. Resume only after an explicit compatibility/data-retirement decision about the remaining `character_quick_swap_items` cleanup protection.
 
 Why this checkpoint is required:
-- The active stop condition still requires the current safe top-workspace styling tranche to be raw inline for panel-owned surfaces.
+- The active stop condition now requires the loop to stay stopped until the blocker is resolved.
 
 Relevant files:
-- frontend/features/character-manager/components/CharacterProfileLoadingSkeleton.tsx
-- frontend/features/character-manager/components/CharacterPanelWorkspace.tsx
-- frontend/features/character-manager/components/CharacterDescriptionEditorCard.tsx
-- frontend/features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx
+- frontend/features/character-manager/logic/characterManagerPersistence.ts
+- frontend/features/character-manager/logic/characterManagerPersistenceCore.ts
+- frontend/features/character-manager/logic/__tests__/characterSheetPresets.test.ts
+- frontend/features/character-manager/logic/__tests__/characterManagerPersistenceCore.test.ts
 
 Validation already run:
 - Focused suite passed at 12 files / 78 tests after the latest completed checkpoint.
 
 Known blocker boundary:
 - characterManagerPersistence.ts and characterManagerPersistenceCore.ts still contain compatibility-sensitive QuickSwap cleanup queries; do not remove them without explicit evidence that the historical protection is no longer needed.
+- Repo evidence supporting the blocker includes:
+  - `frontend/features/character-manager/logic/__tests__/characterSheetPresets.test.ts` still models `character_quick_swap_items` as part of orphan-cleanup protection.
+  - `docs/agents/nuclo/memory.md` records legacy staging contamination involving `character_quick_swap_items` linked to the wrong `asset_kind`.
+  - `sql/migrations/045_add_character_quickswap_deck.sql`, `068_add_character_media_assets_isolation.sql`, and `119_require_character_media_id_on_character_links.sql` all encode historical backfill/integrity behavior around the table.
+
+## 8. Closeout When Complete Or Blocked
+
+Current closeout state:
+
+1. Not complete.
+2. Blocked.
+3. Automation should stop until the compatibility/data-retirement blocker is explicitly resolved.
+
+Blocked closeout rule:
+
+1. If a checkpoint cannot continue because the blocker is beyond agent control or beyond what can be safely completed and proven from the repo and current environment, stop the loop immediately.
+2. Record the blocker in this build-loop document.
+3. Record the smallest unblocking action.
+4. Do not continue into adjacent work as a substitute.
 ```
 
 ## 8. Closeout When Complete Or Blocked

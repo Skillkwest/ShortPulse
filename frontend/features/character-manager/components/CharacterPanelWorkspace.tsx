@@ -1001,8 +1001,6 @@ export function CharacterPanelWorkspace({
                             <span>Saved</span>
                           </span>
                         ) : null}
-                      </div>
-                      <div style={topRowSecondaryActionsStyle}>
                         <button
                           type="button"
                           className="character-panel-action-btn"
@@ -1022,6 +1020,8 @@ export function CharacterPanelWorkspace({
                         >
                           <FloppyDisk size={20} weight="fill" aria-hidden />
                         </button>
+                      </div>
+                      <div style={topRowSecondaryActionsStyle}>
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"

@@ -1,6 +1,7 @@
 import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/upload";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const buildWebmTrackSignature = (trackType: number): Buffer =>
   Buffer.from([
@@ -91,6 +92,7 @@ vi.mock("../../lib/server/videoPosterVariant", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -164,6 +166,7 @@ const setupSupabaseUpload = (options?: {
 describe("POST /api/media/upload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     vi.unstubAllEnvs();
     upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
     upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
@@ -435,7 +438,6 @@ describe("POST /api/media/upload", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Upload failed",
-      details: "Multipart parser exploded",
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -443,5 +445,44 @@ describe("POST /api/media/upload", () => {
         error: expect.objectContaining({ message: "Multipart parser exploded" }),
       })
     );
+  });
+
+  it("rate limits repeated uploads for the same authenticated user", async () => {
+    vi.spyOn(fs, "readFileSync").mockReturnValue(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    );
+    setupSupabaseUpload();
+
+    for (let index = 0; index < 12; index += 1) {
+      const req = {
+        method: "POST",
+        headers: {
+          "content-type": "multipart/form-data; boundary=x",
+        },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

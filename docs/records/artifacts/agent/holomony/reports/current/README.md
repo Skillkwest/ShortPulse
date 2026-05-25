@@ -8,6 +8,7 @@ Use this folder first when you need:
 - the latest paired approved-panel runtime check
 - the current active density-plan reference
 - the current candidate-surface onboarding reference
+- the current Reference Grid onboarding plan and stop criteria
 - the latest incident/hotfix retained read
 
 If the answer is not in this folder, only then step into `../archive/`.

@@ -15,7 +15,7 @@
 
 - Fresh protected-route browser verification on `2026-05-16` confirmed the internal `Reference Grid -> Styles` drag/drop path succeeds end to end.
 - The intentionally external blocked-source path still fails deterministically with the expected user-facing message.
-- The remaining gap is tooling-only: the checked-in audit harness still needs a separate follow-up so it enters `/ai-studio?perfAuditRuntime=1` automatically.
+- The checked-in audit harness now enters `/ai-studio?perfAuditRuntime=1` automatically; fresh reruns should no longer require manual route edits to mount the perf-audit helpers.
 
 ### What changed before resolution
 
@@ -72,7 +72,7 @@
 
 ### Residual follow-up
 
-- Keep the optional tooling cleanup scoped to the test harness entry route.
+- Keep future harness changes aligned with the perf-audit route contract.
 - Do not reopen this as a product blocker unless fresh live-runtime evidence regresses the internal happy path.
 
 ## TikTok profile links fail in ChatGPT Atlas

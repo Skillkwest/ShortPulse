@@ -413,6 +413,8 @@ Monitor these events during rollout:
 
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
+- Production automation command:
+  - `cd frontend && PLAYWRIGHT_BASE_URL=https://shortpulse.ai PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run test:perf:ai-studio`
 - Runtime API (development, or production when `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`):
   - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count)`
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`

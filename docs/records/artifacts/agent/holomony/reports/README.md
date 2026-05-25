@@ -61,6 +61,8 @@ Use:
   - active retained density-plan contract for the five-column library lane
 - `current/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
   - current onboarding audit for the character-panel candidate surface
+- `current/2026-05-25-reference-grid-onboarding-plan.md`
+  - audited onboarding plan and stop/decision contract for the Reference Grid candidate surface
 - `current/2026-05-19-ai-studio-panel-baseline.packet.json`
 - `current/2026-05-19-ai-studio-panel-persistence-audit.json`
 - `current/2026-05-19-elements-media-panel-baseline.packet.json`

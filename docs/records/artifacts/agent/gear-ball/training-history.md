@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/media-ingestion lane, the focused suite cleared 9 files with 89 tests, and the final build plus docs checks passed on the exact pushed tree.
-- What went wrong: the first validation pass still surfaced one avoidable lint warning from an unused import in `ReferenceGridCard.tsx` before the lane could finish.
-- Capability decision: on compact single-lane runs, do one final dead-import scan immediately after the initial formatting sweep so the first validation pass stays fully clean.
+- Score: `8.8/10`
+- What went right: Gear Ball split the live tree cleanly into one Holomony docs lane and one compact character-mode runtime lane, focused tests cleared 56 checks, and the final build plus docs checks passed before publish.
+- What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, which cost one avoidable rerun before the real validation signal.
+- Capability decision: on frontend-only runtime lanes, derive ESLint commands directly from the `frontend/` workdir up front so the first validation pass stays clean.
 
 ## Previous Run
 
 - `2026-05-25` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/reference-grid lane, the focused suites plus docs checks passed, and the final build cleared on the exact pushed tree.
-- What went wrong: the first cheap cleanup pass used the wrong working-directory path shape, which cost one avoidable recovery cycle before the real validation ladder started.
-- Capability decision: on repo-root mixed lanes, derive the initial formatting sweep from the repo root and include untracked files in that first manifest so the first ladder pass stays clean.
+- Score: `8.9/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/media-ingestion lane, the focused suite cleared 9 files with 89 tests, and the final build plus docs checks passed on the exact pushed tree.
+- What went wrong: the first validation pass still surfaced one avoidable lint warning from an unused import in `ReferenceGridCard.tsx` before the lane could finish.
+- Capability decision: on compact single-lane runs, do one final dead-import scan immediately after the initial formatting sweep so the first validation pass stays fully clean.
 
 ## Previous Supervised Synthesis
 

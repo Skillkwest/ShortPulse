@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.1/10`
-- What went right: Gear Ball still kept the live tree collapsed to one coherent AI Studio/admin governance lane, the focused suites plus docs checks passed, and the final build cleared before publish.
-- What went wrong: the first pass paid a broad formatting-only cleanup across 18 files, the Reference Grid suite still emitted recurring `act(...)` warning noise, and the ADR index tail surfaced after the first score-loop writeback so convergence needed one more correction step.
-- Capability decision: on very large mixed runtime/docs lanes, run a manifest-wide Prettier sweep before the main ladder and re-check doc index tails before writing the score loop so the run closes in one shot.
+- Score: `8.8/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/reference-grid lane, the focused suites plus docs checks passed, and the final build cleared on the exact pushed tree.
+- What went wrong: the first cheap cleanup pass used the wrong working-directory path shape, which cost one avoidable recovery cycle before the real validation ladder started.
+- Capability decision: on repo-root mixed lanes, derive the initial formatting sweep from the repo root and include untracked files in that first manifest so the first ladder pass stays clean.
 
 ## Previous Run
 
 - `2026-05-25` on `production`
-- Score: `8.5/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio runtime/governance lane, the focused suites plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still paid a broad formatting-only cleanup across 18 files before the lane could finish.
-- Capability decision: on large mixed runtime/docs lanes, do one manifest-wide Prettier sweep before the main ladder so the first validation pass speaks only to real failures.
+- Score: `8.1/10`
+- What went right: Gear Ball still kept the live tree collapsed to one coherent AI Studio/admin governance lane, the focused suites plus docs checks passed, and the final build cleared before publish.
+- What went wrong: the first pass paid a broad formatting-only cleanup across 18 files, the Reference Grid suite still emitted recurring `act(...)` warning noise, and the ADR index tail surfaced after the first score-loop writeback so convergence needed one more correction step.
+- Capability decision: on very large mixed runtime/docs lanes, run a manifest-wide Prettier sweep before the main ladder and re-check doc index tails before writing the score loop so the run closes in one shot.
 
 ## Previous Supervised Synthesis
 

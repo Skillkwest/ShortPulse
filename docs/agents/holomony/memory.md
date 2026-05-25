@@ -111,3 +111,11 @@ For this milestone, `stable and strong` means:
     - selection/drop to saved-character latency or failure evidence
     - save/reopen trust
     - `character_media_assets` isolation correctness
+- `reference-grid` now has its first retained production baseline.
+  - baseline date: `2026-05-25`
+  - retained report:
+    - `docs/records/artifacts/agent/holomony/reports/current/2026-05-25-reference-grid-production-baseline.md`
+  - current classification:
+    - `no clear blocker`
+  - default next action:
+    - stop unless a fresh production incident or a deeper telemetry need justifies reopening the lane

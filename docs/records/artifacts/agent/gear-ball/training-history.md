@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball kept the tree collapsed to one shared voice/admin lane, validated the critical seams with a focused 6-file suite, and finished with passing build plus docs checks on the exact pushed tree.
-- What went wrong: the first pass still lost a cheap cycle because two touched files only needed Prettier before the rest of the ladder could speak cleanly.
-- Capability decision: on compact shared-runtime lanes, start with a tiny Prettier sweep on obviously touched new/edited files so the rest of the ladder can stay one-pass clean.
+- Score: `8.8/10`
+- What went right: Gear Ball kept a wide issue-reports/Ophestivus/custom-voice tree collapsed to one coherent lane, validated the important seams with 17 focused test files, and finished with passing build plus docs checks on the exact pushed tree.
+- What went wrong: the first pass still paid a small formatting cycle because three new admin-report files only needed Prettier before the direct ladder could go fully green.
+- Capability decision: on medium-size mixed UI/docs/tooling lanes, run a tiny Prettier sweep on brand-new files before the rest of the ladder so the direct pass stays one-shot clean.
 
 ## Previous Run
 
 - `2026-05-24` on `production`
-- Score: `8.7/10`
-- What went right: Gear Ball kept a very large dirty tree collapsed to one honest custom-voice/transcript/runtime lane, validated the critical seams with 29 focused test files, and finished with passing docs checks plus a clean final build on the exact pushed tree.
-- What went wrong: the manifest wrapper underreached on the long file list, and the build still surfaced one real type-narrowing bug in `AiStudioProjectEntryState.tsx` before the lane could finish.
-- Capability decision: on very large single-lane runs, skip the wrapper immediately and go straight to the manual validation ladder so the only remaining time cost is real code correction rather than tooling friction.
+- Score: `8.9/10`
+- What went right: Gear Ball kept the tree collapsed to one shared voice/admin lane, validated the critical seams with a focused 6-file suite, and finished with passing build plus docs checks on the exact pushed tree.
+- What went wrong: the first pass still lost a cheap cycle because two touched files only needed Prettier before the rest of the ladder could speak cleanly.
+- Capability decision: on compact shared-runtime lanes, start with a tiny Prettier sweep on obviously touched new/edited files so the rest of the ladder can stay one-pass clean.
 
 ## Previous Supervised Synthesis
 

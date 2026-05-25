@@ -32,9 +32,13 @@ const validateBuiltInDefinitionsPayload = (
 
 const validateExpectedUpdatedAt = (
   value: unknown
-): { ok: true; expectedUpdatedAt: string | null | undefined } | { ok: false; message: string } => {
+): { ok: true; expectedUpdatedAt: string | null } | { ok: false; message: string } => {
   if (value === undefined) {
-    return { ok: true, expectedUpdatedAt: undefined };
+    return {
+      ok: false,
+      message:
+        "expectedUpdatedAt is required so fallback catalog content cannot overwrite live built-ins.",
+    };
   }
   if (value === null) {
     return { ok: true, expectedUpdatedAt: null };
@@ -49,6 +53,7 @@ const validateExpectedUpdatedAt = (
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const adminUser = await requireAdminUser(req, res);
   if (!adminUser) return;
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method === "GET") {
     try {

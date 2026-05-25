@@ -1022,6 +1022,31 @@ describe("ReferenceGrid curated split", () => {
     expect(onSelectOutput).toHaveBeenCalledWith("out-2");
   });
 
+  it("adds curated refs from degraded all-refs drags without legacy reference-id payloads", () => {
+    const onAddCuratedReference = vi.fn();
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddCuratedReference,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeTransfer({
+        "text/reference-output-id": "out-2",
+        "text/reference-source-surface": "all-refs",
+      }),
+    });
+
+    expect(onAddCuratedReference).toHaveBeenCalledWith("out-2");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+  });
+
   it("dedupes duplicate curated drops from all-refs and keeps focus", () => {
     const onAddCuratedReference = vi.fn();
     const onSelectOutput = vi.fn();
@@ -1080,6 +1105,45 @@ describe("ReferenceGrid curated split", () => {
       clientY: 10,
       dataTransfer: makeTransfer({
         "text/reference-id": "out-2",
+        "text/reference-source-surface": "curated",
+      }),
+    });
+
+    expect(onReorderCuratedReference).toHaveBeenCalledWith("out-2", "out-1", "after");
+  });
+
+  it("reorders curated refs from degraded curated drags without legacy reference-id payloads", () => {
+    const onReorderCuratedReference = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1", "out-2"],
+          onReorderCuratedReference,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const targetCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(targetCard).toBeTruthy();
+    Object.defineProperty(targetCard, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 100,
+        right: 100,
+        bottom: 100,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.drop(targetCard, {
+      clientY: 10,
+      dataTransfer: makeTransfer({
+        "text/reference-output-id": "out-2",
         "text/reference-source-surface": "curated",
       }),
     });

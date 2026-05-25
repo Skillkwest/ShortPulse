@@ -22,7 +22,7 @@ export type UseControlPlaneCatalogResult<T> = {
   source: ControlPlaneCatalogSource | null;
   degraded: boolean;
   isAuthoritative: boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<ControlPlaneCatalogLoadResult<T> | null>;
 };
 
 export const useControlPlaneCatalog = <T>({
@@ -39,12 +39,18 @@ export const useControlPlaneCatalog = <T>({
 
   const refresh = useCallback(async () => {
     if (!enabled) {
-      setValue(getSeededValue());
+      const seededValue = getSeededValue();
+      const seededCatalog: ControlPlaneCatalogLoadResult<T> = {
+        value: seededValue,
+        source: "seed",
+        degraded: false,
+      };
+      setValue(seededValue);
       setLoading(false);
       setError(null);
       setSource("seed");
       setDegraded(false);
-      return;
+      return seededCatalog;
     }
 
     setLoading(true);
@@ -54,8 +60,10 @@ export const useControlPlaneCatalog = <T>({
       setSource(nextCatalog.source);
       setDegraded(nextCatalog.degraded);
       setError(null);
+      return nextCatalog;
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : fallbackErrorMessage);
+      return null;
     } finally {
       setLoading(false);
     }

@@ -306,6 +306,8 @@ describe("sessionSnapshot", () => {
             mode: "audio",
             aspect: "audio",
             mediaSource: "generated",
+            generationId: "gen-audio-newest",
+            taskId: "task-audio-newest",
             createdAt: "2026-03-02T11:59:00.000Z",
             timestamp: "Just now",
           }),
@@ -313,6 +315,8 @@ describe("sessionSnapshot", () => {
             id: "image-middle",
             mode: "image",
             mediaSource: "library",
+            previewStoragePath: "users/user-1/library/image-middle.png",
+            fullStoragePath: "users/user-1/library/image-middle.png",
             createdAt: "2026-03-02T11:58:00.000Z",
             timestamp: "Library",
           }),
@@ -320,6 +324,8 @@ describe("sessionSnapshot", () => {
             id: "video-oldest",
             mode: "video",
             mediaSource: "upload",
+            previewStoragePath: "users/user-1/projects/project-1/video-oldest.mp4",
+            fullStoragePath: "users/user-1/projects/project-1/video-oldest.mp4",
             createdAt: "2026-03-02T11:57:00.000Z",
             timestamp: "Uploaded",
           }),
@@ -1210,7 +1216,7 @@ describe("sessionSnapshot", () => {
     );
   });
 
-  it("strips Pulse runtime and prompts from project workspace snapshots", () => {
+  it("preserves parked Pulse runtime and prompts in project workspace snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       updatedAt: "2026-03-02T12:00:00.000Z",
@@ -1265,12 +1271,12 @@ describe("sessionSnapshot", () => {
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
-    expect(projectSnapshot.workspace.expertCreateMode).toBe("standard");
+    expect(projectSnapshot.workspace.expertCreateMode).toBe("pulse");
     expect(projectSnapshot.workspace.selectedTool).toBe("create");
-    expect(projectSnapshot.workspace.prompt).toBe("");
+    expect(projectSnapshot.workspace.prompt).toBe("A cinematic portrait");
     expect(projectSnapshot.workspace.standardPrompt).toBe("");
-    expect(projectSnapshot.workspace.pulsePrompt).toBe("");
-    expect(projectSnapshot.workspace.activePulsePresetId).toBeNull();
+    expect(projectSnapshot.workspace.pulsePrompt).toBe("A cinematic portrait");
+    expect(projectSnapshot.workspace.activePulsePresetId).toBe("multi_shot");
     expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();
     expect(projectSnapshot.agent).toEqual({
       messages: [],
@@ -1280,14 +1286,14 @@ describe("sessionSnapshot", () => {
       chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
-    expect("agentRuntimes" in projectSnapshot).toBe(false);
+    expect(projectSnapshot.agentRuntimes).toEqual(snapshot.agentRuntimes);
     expect(projectSnapshot.schemaVersion).toBe(2);
     if (projectSnapshot.schemaVersion === 2) {
       expect(projectSnapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
     }
   });
 
-  it("strips Standard composer drafts from project workspace snapshots", () => {
+  it("preserves Create prompts while stripping non-Create draft fields from project workspace snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "standard-project-session",
       updatedAt: "2026-05-18T15:00:00.000Z",
@@ -1335,8 +1341,8 @@ describe("sessionSnapshot", () => {
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
-    expect(projectSnapshot.workspace.prompt).toBe("");
-    expect(projectSnapshot.workspace.standardPrompt).toBe("");
+    expect(projectSnapshot.workspace.prompt).toBe("Analyze this image");
+    expect(projectSnapshot.workspace.standardPrompt).toBe("Analyze this image");
     expect(projectSnapshot.workspace.pulsePrompt).toBe("");
     expect(projectSnapshot.workspace.editReferenceText).toBe("");
     expect(projectSnapshot.workspace.videoReferenceText).toBe("");
@@ -1418,6 +1424,84 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.outputs.activeOutputId).toBeNull();
     expect(projectSnapshot.outputs.curatedReferenceIds).toEqual(["out-success"]);
     expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual([]);
+  });
+
+  it("removes local-only upload refs from project workspace snapshots while keeping durable and recoverable outputs", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-local-upload-filter-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-local-upload",
+          mediaSource: "upload",
+          previewUrl: "blob:http://localhost/local-upload",
+        }),
+        createOutput({
+          id: "out-durable-upload",
+          mediaSource: "upload",
+          previewStoragePath: "users/user-1/projects/project-1/reference-grid/durable-upload.png",
+          fullStoragePath: "users/user-1/projects/project-1/reference-grid/durable-upload.png",
+        }),
+        createOutput({
+          id: "out-generated-pending",
+          mediaSource: "generated",
+          taskId: "task-generated-pending",
+          taskState: "pending",
+          generationId: "gen-generated-pending",
+          previewUrl: "blob:http://localhost/generated-preview",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-local-upload",
+      curatedReferenceIds: ["out-local-upload", "out-durable-upload", "out-generated-pending"],
+      removedFromAllRefsIds: ["out-local-upload", "out-generated-pending"],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+
+    expect(projectSnapshot.outputs.active.map((output) => output.id)).toEqual([
+      "out-durable-upload",
+      "out-generated-pending",
+    ]);
+    expect(projectSnapshot.outputs.activeOutputId).toBeNull();
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
+      "out-durable-upload",
+      "out-generated-pending",
+    ]);
+    expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual(["out-generated-pending"]);
   });
 
   it("patches workspace-selected character state and recomputes snapshot metadata", () => {

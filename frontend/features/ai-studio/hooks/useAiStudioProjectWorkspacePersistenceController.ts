@@ -37,6 +37,9 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
+  hydrateFromSessionAgentSnapshot?: (
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
+  ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
@@ -125,6 +128,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   buildBaseSessionSnapshot,
   patchSessionSnapshot,
   hydrateFromSessionSnapshot,
+  hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
@@ -304,6 +308,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId,
     projectWorkspaceRestoreCandidate: sessionRestoreCandidate,
     hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,

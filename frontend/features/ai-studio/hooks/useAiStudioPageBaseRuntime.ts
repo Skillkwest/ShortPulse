@@ -1,7 +1,6 @@
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import type { CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioEditSubmitIntent } from "./useAiStudioEditSubmitIntent";
 import { useAiStudioInternalDropResolvers } from "./useAiStudioInternalDropResolvers";
 import { useAiStudioCreateModeRuntime } from "./useAiStudioCreateModeRuntime";
@@ -427,9 +426,6 @@ export const useAiStudioPageBaseRuntime = () => {
     setUiError,
     trackCharacterModeEvent: trackUiEvent,
   });
-  const pendingCreateRuntimeAgentHydrationRef = useRef<CreateRuntimeAgentHydrationPayload | null>(
-    null
-  );
   return {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -532,7 +528,6 @@ export const useAiStudioPageBaseRuntime = () => {
     optimisticDebitEntries,
     optimisticUncoveredDebitCredits,
     outputs,
-    pendingCreateRuntimeAgentHydrationRef,
     pendingHoldCredits,
     publishExpertEditSessionState,
     project,

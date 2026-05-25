@@ -78,6 +78,8 @@ function ReferenceGridComponent({
   onDropFiles,
   onPasteTextReference,
   onPasteMediaReference,
+  onAddLibraryMediaReference,
+  onAddLibraryPromptReference,
   onTriggerFileSelect,
   onOpenMediaLibrary,
   onSaveToLibrary,
@@ -400,7 +402,10 @@ function ReferenceGridComponent({
       normalizeMediaFiles,
       buildFileList,
       onDropFiles,
+      onPasteMediaReference,
       onPasteTextReference,
+      onAddLibraryMediaReference,
+      onAddLibraryPromptReference,
     });
 
   const { handlePanelPointerEnter, handlePanelPointerLeave, handlePanelPointerDown } =

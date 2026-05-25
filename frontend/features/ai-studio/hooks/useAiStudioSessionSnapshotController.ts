@@ -12,6 +12,8 @@ import {
 } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
+  type AiStudioSessionCreateModeReferenceStateV1,
+  type AiStudioSessionCreateModeReferenceStatesV1,
   buildAiStudioSessionSnapshot,
   type AiStudioSessionAgentV1,
   type AiStudioSessionAgentRuntimesV2,
@@ -112,6 +114,9 @@ type UseAiStudioSessionSnapshotControllerParams = {
       detailOutputId?: string | null;
     }
   ) => void;
+  getReferenceSelectionStateForCreateMode: (
+    createMode: "standard" | "pulse"
+  ) => AiStudioSessionCreateModeReferenceStateV1;
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
@@ -212,6 +217,7 @@ export const useAiStudioSessionSnapshotController = ({
   setPulseSessionInstanceId,
   setReferenceImageUrl,
   setReferenceSelectionStateForCreateMode,
+  getReferenceSelectionStateForCreateMode,
   setExtraImageUrl,
   setEditReferenceText,
   setVideoReferenceText,
@@ -260,6 +266,24 @@ export const useAiStudioSessionSnapshotController = ({
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
       const workspace = payload.workspace;
       const outputPayload = payload.outputs;
+      const standardReferenceSelectionState = workspace.createModeReferenceStates?.standard ?? {
+        selectedTool: workspace.expertCreateMode === "standard" ? workspace.selectedTool : "create",
+        referenceImageUrl:
+          workspace.expertCreateMode === "standard" ? workspace.referenceImageUrl : null,
+        extraImageUrls:
+          workspace.expertCreateMode === "standard" ? workspace.extraImageUrls : [null, null, null],
+        motionReferenceVideoUrl:
+          workspace.expertCreateMode === "standard" ? workspace.motionReferenceVideoUrl : null,
+      };
+      const pulseReferenceSelectionState = workspace.createModeReferenceStates?.pulse ?? {
+        selectedTool: workspace.expertCreateMode === "pulse" ? workspace.selectedTool : "create",
+        referenceImageUrl:
+          workspace.expertCreateMode === "pulse" ? workspace.referenceImageUrl : null,
+        extraImageUrls:
+          workspace.expertCreateMode === "pulse" ? workspace.extraImageUrls : [null, null, null],
+        motionReferenceVideoUrl:
+          workspace.expertCreateMode === "pulse" ? workspace.motionReferenceVideoUrl : null,
+      };
       const placeholderOnlyRestoredCount = [
         ...outputPayload.active,
         ...outputPayload.archived,
@@ -279,12 +303,8 @@ export const useAiStudioSessionSnapshotController = ({
       }
 
       setMode(workspace.mode);
-      setReferenceSelectionStateForCreateMode(workspace.expertCreateMode, {
-        selectedTool: workspace.selectedTool,
-        referenceImageUrl: workspace.referenceImageUrl,
-        extraImageUrls: workspace.extraImageUrls,
-        motionReferenceVideoUrl: workspace.motionReferenceVideoUrl,
-      });
+      setReferenceSelectionStateForCreateMode("standard", standardReferenceSelectionState);
+      setReferenceSelectionStateForCreateMode("pulse", pulseReferenceSelectionState);
       setSelectedTool(workspace.selectedTool);
       setStandardCreatePrompt(workspace.standardPrompt);
       setPulseCreatePrompt(workspace.pulsePrompt);
@@ -464,6 +484,10 @@ export const useAiStudioSessionSnapshotController = ({
         model,
         aspect,
         pulseWorkspaceState,
+        createModeReferenceStates: {
+          standard: getReferenceSelectionStateForCreateMode("standard"),
+          pulse: getReferenceSelectionStateForCreateMode("pulse"),
+        } satisfies AiStudioSessionCreateModeReferenceStatesV1,
         referenceImageUrl,
         extraImageUrls,
         editReferenceText,
@@ -531,6 +555,7 @@ export const useAiStudioSessionSnapshotController = ({
       pulseCreatePrompt,
       pulseWorkspaceState,
       activeCreatePrompt,
+      getReferenceSelectionStateForCreateMode,
       referenceImageUrl,
       removedFromAllRefsIds,
       selectedTool,

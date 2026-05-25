@@ -14,6 +14,7 @@ import type {
 } from "../referenceGridTypes";
 import type { StudioOutput } from "../../types";
 import {
+  extractInternalReferenceDragPayload,
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   type ReferenceDragSourceSurface,
@@ -63,7 +64,18 @@ const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
   return Boolean(transfer.getData("text/reference-id"));
 };
 
+const resolveReferenceDragOutputId = (transfer: DataTransfer): string => {
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  return (
+    internalPayload?.outputId ??
+    internalPayload?.referenceId ??
+    transfer.getData("text/reference-id")
+  ).trim();
+};
+
 const resolveReferenceDragSourceSurface = (transfer: DataTransfer): ReferenceDragSourceSurface => {
+  const sourceSurfaceFromPayload = extractInternalReferenceDragPayload(transfer)?.sourceSurface;
+  if (sourceSurfaceFromPayload) return sourceSurfaceFromPayload;
   const types = getNormalizedTransferTypes(transfer);
   if (types.length > 0 && !types.includes("text/reference-source-surface")) {
     return "all-refs";
@@ -135,7 +147,7 @@ export const useReferenceGridCuratedDndController = ({
       ) {
         return;
       }
-      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
+      const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
       if (sourceSurface === "all-refs") {
@@ -173,9 +185,13 @@ export const useReferenceGridCuratedDndController = ({
         setCuratedDropActiveSafe(false);
         return;
       }
+      if (hasLibraryPayloadHint) {
+        event.dataTransfer.dropEffect = "copy";
+        setCuratedDropActiveSafe(true);
+        return;
+      }
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      event.dataTransfer.dropEffect =
-        sourceSurface === "curated" && !hasLibraryPayloadHint ? "move" : "copy";
+      event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
       setCuratedDropActiveSafe(true);
     },
     [isCuratedSplitEnabled, setCuratedDropActiveSafe]
@@ -226,7 +242,7 @@ export const useReferenceGridCuratedDndController = ({
         });
         return;
       }
-      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
+      const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
       if (sourceSurface === "all-refs") {

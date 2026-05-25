@@ -31,6 +31,7 @@ type AddPresetToPanelResult = "added" | "already_present" | "panel_full" | "save
 
 type UseCreatePulsePresetRuntimeParams = {
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
+  refreshBuiltInDefinitions?: () => Promise<readonly CreatePulseBuiltInPresetDefinition[] | null>;
   savedPresets: CreatePulseSavedPreset[];
   activePresetId: CreatePulsePresetId | null;
   updateSelectedPresetIds: (
@@ -63,6 +64,7 @@ type UseCreatePulsePresetRuntimeParams = {
  */
 export const useCreatePulsePresetRuntime = ({
   builtInDefinitions,
+  refreshBuiltInDefinitions,
   savedPresets,
   activePresetId,
   updateSelectedPresetIds,
@@ -137,11 +139,7 @@ export const useCreatePulsePresetRuntime = ({
 
   const handlePanelPresetApply = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      const resolvedPreset = resolveCreatePulsePresetById(
-        presetId,
-        savedPresets,
-        builtInDefinitions
-      );
+      let resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets, builtInDefinitions);
       const presetLabel = resolveCreatePulsePresetLabelById(
         presetId,
         savedPresets,
@@ -163,6 +161,44 @@ export const useCreatePulsePresetRuntime = ({
         return {
           status: "started",
         } satisfies CreatePulsePresetStartResult;
+      }
+      if (!resolvedPreset) {
+        const failedMessage = "Unable to start this Pulse. Reload the Pulse catalog and try again.";
+        showPersistentStatus(failedMessage, "warning");
+        return {
+          status: "failed",
+          reason: "activation_seed_missing",
+          message: failedMessage,
+        } satisfies CreatePulsePresetStartResult;
+      }
+      if (resolvedPreset.isBuiltIn && refreshBuiltInDefinitions) {
+        const refreshedBuiltIns = await refreshBuiltInDefinitions();
+        if (!refreshedBuiltIns) {
+          const failedMessage =
+            "Built-in Pulse catalog is temporarily unavailable. Reload and try again.";
+          showPersistentStatus(failedMessage, "warning");
+          return {
+            status: "failed",
+            reason: "transport_error",
+            message: failedMessage,
+          } satisfies CreatePulsePresetStartResult;
+        }
+        const refreshedPreset = resolveCreatePulsePresetById(
+          presetId,
+          savedPresets,
+          refreshedBuiltIns
+        );
+        if (!refreshedPreset?.isBuiltIn) {
+          const failedMessage =
+            "This built-in Pulse is no longer available. Reload the Pulse catalog and try again.";
+          showPersistentStatus(failedMessage, "warning");
+          return {
+            status: "failed",
+            reason: "activation_seed_missing",
+            message: failedMessage,
+          } satisfies CreatePulsePresetStartResult;
+        }
+        resolvedPreset = refreshedPreset;
       }
       const pulseSessionInstanceId = createPulseSessionInstanceId();
       const didStartWorkflowPreset = Boolean(
@@ -208,6 +244,7 @@ export const useCreatePulsePresetRuntime = ({
       onPresetStart,
       shouldRestartActivePreset,
       builtInDefinitions,
+      refreshBuiltInDefinitions,
       savedPresets,
       setActivePresetId,
       showPersistentStatus,

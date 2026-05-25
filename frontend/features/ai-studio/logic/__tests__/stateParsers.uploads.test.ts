@@ -17,6 +17,7 @@ const fixedNowIso = () => "2026-05-24T18:00:00.000Z";
 
 describe("mapUploadsFromFiles", () => {
   const originalCreateObjectURL = URL.createObjectURL;
+  const originalFileReader = FileReader;
   const originalVideoElement = HTMLMediaElement.prototype.load;
   const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
   const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
@@ -25,6 +26,10 @@ describe("mapUploadsFromFiles", () => {
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: originalCreateObjectURL,
+    });
+    Object.defineProperty(globalThis, "FileReader", {
+      configurable: true,
+      value: originalFileReader,
     });
     Object.defineProperty(HTMLMediaElement.prototype, "load", {
       configurable: true,
@@ -91,7 +96,7 @@ describe("mapUploadsFromFiles", () => {
       new File(["audio"], "voice.mp3", { type: "audio/mpeg" }),
     ]);
 
-    const outputs = await mapUploadsFromFiles(
+    const { outputs, rejectedFileCount } = await mapUploadsFromFiles(
       files,
       "image",
       "1:1",
@@ -103,6 +108,7 @@ describe("mapUploadsFromFiles", () => {
     );
 
     expect(createObjectUrlMock).toHaveBeenCalledTimes(3);
+    expect(rejectedFileCount).toBe(0);
     expect(outputs).toHaveLength(3);
     expect(outputs[0]?.mediaSource).toBe("upload");
     expect(outputs[0]?.previewTier).toBe("full");
@@ -127,7 +133,7 @@ describe("mapUploadsFromFiles", () => {
     });
 
     const files = toFileList([new File(["image"], "image.png", { type: "image/png" })]);
-    const outputs = await mapUploadsFromFiles(
+    const { outputs, rejectedFileCount } = await mapUploadsFromFiles(
       files,
       "image",
       "1:1",
@@ -139,25 +145,33 @@ describe("mapUploadsFromFiles", () => {
     );
 
     expect(outputs).toHaveLength(1);
+    expect(rejectedFileCount).toBe(0);
     expect(outputs[0]?.localObjectUrl).toBeNull();
     expect(outputs[0]?.previewUrl?.startsWith("data:image/png;base64,")).toBe(true);
     expect(outputs[0]?.timestamp).toBe("Uploaded");
   });
 
-  it("dedupes duplicate file entries across picker/drop ingestion", async () => {
-    const createObjectUrlMock = vi.fn().mockReturnValue("blob:https://local/image-1");
+  it("preserves file entries even when metadata signatures match", async () => {
+    const createObjectUrlMock = vi
+      .fn()
+      .mockReturnValueOnce("blob:https://local/image-1")
+      .mockReturnValueOnce("blob:https://local/image-2");
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: createObjectUrlMock,
     });
 
-    const duplicate = new File(["image"], "image.png", {
+    const first = new File(["image"], "image.png", {
       type: "image/png",
       lastModified: 1700000000000,
     });
-    const files = toFileList([duplicate, duplicate]);
+    const second = new File(["image"], "image.png", {
+      type: "image/png",
+      lastModified: 1700000000000,
+    });
+    const files = toFileList([first, second]);
 
-    const outputs = await mapUploadsFromFiles(
+    const { outputs, rejectedFileCount } = await mapUploadsFromFiles(
       files,
       "image",
       "1:1",
@@ -168,8 +182,57 @@ describe("mapUploadsFromFiles", () => {
       "filePicker"
     );
 
+    expect(outputs).toHaveLength(2);
+    expect(rejectedFileCount).toBe(0);
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps successful files when one image read fails", async () => {
+    const createObjectUrlMock = vi
+      .fn()
+      .mockReturnValueOnce("blob:https://local/image-1")
+      .mockReturnValueOnce("blob:https://local/image-2");
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrlMock,
+    });
+    Object.defineProperty(globalThis, "FileReader", {
+      configurable: true,
+      value: class MockFileReader {
+        result: string | null = null;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        readAsDataURL(file: File) {
+          if (file.name === "broken.png") {
+            this.onerror?.();
+            return;
+          }
+          this.result = `data:${file.type};base64,good-file`;
+          this.onload?.();
+        }
+      },
+    });
+
+    const files = toFileList([
+      new File(["good"], "good.png", { type: "image/png" }),
+      new File(["broken"], "broken.png", { type: "image/png" }),
+    ]);
+
+    const { outputs, rejectedFileCount } = await mapUploadsFromFiles(
+      files,
+      "image",
+      "1:1",
+      "fal-ai/bytedance/seedream/v4.5/edit",
+      (value) => value ?? "Model",
+      () => "partial-id",
+      fixedNowIso,
+      "drop"
+    );
+
     expect(outputs).toHaveLength(1);
-    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+    expect(outputs[0]?.prompt).toBe("good.png");
+    expect(rejectedFileCount).toBe(1);
   });
 
   it("does not classify image optimizer URLs as video when source contains /videos/", () => {

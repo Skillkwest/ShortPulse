@@ -5,6 +5,10 @@
 import { useMemo } from "react";
 import type { StudioOutput } from "../types";
 import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
+import type {
+  LibraryMediaReferencePayload,
+  LibraryPromptReferencePayload,
+} from "../reference-grid/referenceGridTypes";
 
 export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
@@ -22,6 +26,8 @@ export type UseAiStudioReferenceGridPropsParams = {
   isMediaStorageFull?: boolean;
   handlePasteTextReference: (text: string) => void;
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
+  handleAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  handleAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   retryOutputStatus: (id: string) => void;
   handleRerollOutput?: (id: string) => void;
   deleteOutput: (id: string) => void;
@@ -56,6 +62,8 @@ export const useAiStudioReferenceGridProps = ({
   isMediaStorageFull = false,
   handlePasteTextReference,
   handlePasteMediaReference,
+  handleAddLibraryMediaReference,
+  handleAddLibraryPromptReference,
   retryOutputStatus,
   handleRerollOutput,
   deleteOutput,
@@ -84,6 +92,8 @@ export const useAiStudioReferenceGridProps = ({
       onDownload: (output) => handleDownloadReference(output.id),
       onPasteTextReference: handlePasteTextReference,
       onPasteMediaReference: handlePasteMediaReference,
+      onAddLibraryMediaReference: handleAddLibraryMediaReference,
+      onAddLibraryPromptReference: handleAddLibraryPromptReference,
       onRetryStatus: (output) => retryOutputStatus(output.id),
       onRerollOutput: handleRerollOutput
         ? (output) => {
@@ -108,6 +118,8 @@ export const useAiStudioReferenceGridProps = ({
       clearGenerationOutput,
       deleteOutput,
       handleDownloadReference,
+      handleAddLibraryMediaReference,
+      handleAddLibraryPromptReference,
       handlePasteMediaReference,
       handlePasteTextReference,
       handleRerollOutput,

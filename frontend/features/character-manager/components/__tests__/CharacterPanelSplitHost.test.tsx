@@ -32,11 +32,7 @@ describe("CharacterPanelSplitHost", () => {
 
     expect(screen.getByTestId("character-top-workspace")).toBeInTheDocument();
     expect(screen.getByTestId("character-bottom-media-library")).toBeInTheDocument();
-    expect(
-      screen.getByRole("separator", {
-        name: "Resize character workspace and media library sections",
-      })
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument();
     expect(container.querySelector(".character-panel-top-section")).not.toBeNull();
     const bottomSection = container.querySelector(
       ".character-panel-bottom-section"

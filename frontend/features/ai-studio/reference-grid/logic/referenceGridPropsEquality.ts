@@ -98,6 +98,12 @@ export const areReferenceGridPropsEqual = (
   if (previous.onPasteMediaReference !== next.onPasteMediaReference) {
     return false;
   }
+  if (previous.onAddLibraryMediaReference !== next.onAddLibraryMediaReference) {
+    return false;
+  }
+  if (previous.onAddLibraryPromptReference !== next.onAddLibraryPromptReference) {
+    return false;
+  }
   if (previous.onTriggerFileSelect !== next.onTriggerFileSelect) {
     return false;
   }

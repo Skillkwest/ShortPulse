@@ -42,6 +42,10 @@ vi.mock("../../lib/server/api/agentSafetyPolicyControlPlane", () => ({
 }));
 
 vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
+  isAuthoritativeCreatePulseBuiltInCatalogResolution: (resolution: {
+    source?: string;
+    degraded?: boolean;
+  }) => resolution.source === "control_plane" && resolution.degraded !== true,
   resolveRuntimeCreatePulseBuiltInCatalog: (...args: unknown[]) =>
     resolveRuntimeCreatePulseBuiltInCatalogMock(...args),
 }));
@@ -617,6 +621,36 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(serializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS");
     expect(serializedRequest).not.toContain("CLIENT OVERRIDE SHOULD NOT WIN");
     expect(serializedRequest).not.toContain("Client Drifted Label");
+  });
+
+  it("fails closed when the built-in Pulse catalog is not authoritative", async () => {
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [],
+      source: "seed",
+      updatedAt: null,
+      updatedByEmail: null,
+      degraded: true,
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: createPulseContext(),
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({ bypassCache: true });
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        code: "PULSE_PRESET_CATALOG_UNAVAILABLE",
+      })
+    );
   });
 
   it("fails closed when a built-in Pulse request does not match the server catalog", async () => {

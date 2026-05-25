@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveIssueReportSourcePath } from "../../lib/issueReports";
+import {
+  normalizeIssueReportSourcePath,
+  resolveIssueReportSourcePath,
+} from "../../lib/issueReports";
 
 describe("resolveIssueReportSourcePath", () => {
   it("prefers an explicit sourcePath query value over the report page route", () => {
@@ -36,5 +39,10 @@ describe("resolveIssueReportSourcePath", () => {
         origin: "https://shortpulse.ai",
       })
     ).toBe("/report-issue");
+  });
+
+  it("rejects protocol-relative and oversized source paths", () => {
+    expect(normalizeIssueReportSourcePath("//evil.example/path")).toBeNull();
+    expect(normalizeIssueReportSourcePath(`/${"a".repeat(1024)}`)).toBeNull();
   });
 });

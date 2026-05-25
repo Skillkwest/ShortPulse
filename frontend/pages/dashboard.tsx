@@ -551,6 +551,12 @@ export default function DashboardPage({
                     <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
                       Billing & subscription
                     </Link>
+                    <Link
+                      href="/report-issue?from=%2Fdashboard"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      Report an issue
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {

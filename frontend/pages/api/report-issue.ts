@@ -4,6 +4,7 @@ import {
   ISSUE_REPORT_MESSAGE_MAX_LENGTH,
   ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH,
   ISSUE_REPORT_USER_AGENT_MAX_LENGTH,
+  normalizeIssueReportSourcePath,
 } from "../../lib/issueReports";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../lib/server/api/auth";
@@ -18,6 +19,48 @@ const toTrimmedString = (value: unknown, maxLength: number): string | null => {
   const normalized = value.trim();
   if (!normalized) return null;
   return normalized.slice(0, maxLength);
+};
+
+const toRequiredMessage = (value: unknown): { value: string | null; tooLong: boolean } => {
+  if (typeof value !== "string") {
+    return { value: null, tooLong: false };
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return { value: null, tooLong: false };
+  }
+  if (normalized.length > ISSUE_REPORT_MESSAGE_MAX_LENGTH) {
+    return { value: null, tooLong: true };
+  }
+  return { value: normalized, tooLong: false };
+};
+
+const toOptionalSourcePath = (
+  value: unknown
+): {
+  value: string | null;
+  tooLong: boolean;
+  invalid: boolean;
+} => {
+  if (typeof value !== "string") {
+    return { value: null, tooLong: false, invalid: false };
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return { value: null, tooLong: false, invalid: false };
+  }
+
+  if (normalized.length > ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH) {
+    return { value: null, tooLong: true, invalid: false };
+  }
+
+  const sourcePath = normalizeIssueReportSourcePath(normalized);
+  if (!sourcePath) {
+    return { value: null, tooLong: false, invalid: true };
+  }
+
+  return { value: sourcePath, tooLong: false, invalid: false };
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -47,12 +90,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .json({ error: "Your account needs a valid email address to submit a report." });
   }
 
-  const message = toTrimmedString(req.body?.message, ISSUE_REPORT_MESSAGE_MAX_LENGTH);
+  const { value: message, tooLong: messageTooLong } = toRequiredMessage(req.body?.message);
   if (!message) {
+    if (messageTooLong) {
+      return res.status(400).json({
+        error: `Issue reports must be ${ISSUE_REPORT_MESSAGE_MAX_LENGTH} characters or fewer.`,
+      });
+    }
     return res.status(400).json({ error: "Please describe the issue you ran into." });
   }
 
-  const sourcePath = toTrimmedString(req.body?.sourcePath, ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH);
+  const {
+    value: sourcePath,
+    tooLong: sourcePathTooLong,
+    invalid: sourcePathInvalid,
+  } = toOptionalSourcePath(req.body?.sourcePath);
+  if (sourcePathTooLong) {
+    return res.status(400).json({
+      error: `Issue context paths must be ${ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH} characters or fewer.`,
+    });
+  }
+  if (sourcePathInvalid) {
+    return res.status(400).json({
+      error: "Issue context paths must be a valid ShortPulse route.",
+    });
+  }
+
   const userAgent = toTrimmedString(req.headers["user-agent"], ISSUE_REPORT_USER_AGENT_MAX_LENGTH);
 
   try {

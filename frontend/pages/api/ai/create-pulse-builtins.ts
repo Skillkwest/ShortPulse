@@ -1,9 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { resolveRuntimeCreatePulseBuiltInCatalog } from "../../../lib/server/api/createPulseBuiltInControlPlane";
+import {
+  isAuthoritativeCreatePulseBuiltInCatalogResolution,
+  resolveRuntimeCreatePulseBuiltInCatalog,
+} from "../../../lib/server/api/createPulseBuiltInControlPlane";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
@@ -13,7 +17,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return;
 
   try {
-    const builtInCatalog = await resolveRuntimeCreatePulseBuiltInCatalog();
+    const builtInCatalog = await resolveRuntimeCreatePulseBuiltInCatalog({ bypassCache: true });
+    if (!isAuthoritativeCreatePulseBuiltInCatalogResolution(builtInCatalog)) {
+      return res.status(503).json({
+        error: "Create Pulse built-ins are temporarily unavailable. Reload and try again.",
+        source: builtInCatalog.source,
+        degraded: builtInCatalog.degraded,
+      });
+    }
     return res.status(200).json({
       builtInDefinitions: builtInCatalog.builtInDefinitions.map((definition) => {
         const { systemInstructions, ...publicDefinition } = definition;

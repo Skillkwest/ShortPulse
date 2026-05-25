@@ -234,15 +234,16 @@ describe("CharacterPanelWorkspace", () => {
       display: "block",
     });
     expect(screen.getByDisplayValue("Taylor")).toHaveStyle({
-      background: "rgba(31, 35, 41, 0.82)",
-      backgroundColor: "rgba(31, 35, 41, 0.82)",
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
     });
     expect(screen.getByRole("textbox", { name: "Description:" })).toHaveStyle({
-      background: "rgba(31, 35, 41, 0.82)",
-      backgroundColor: "rgba(31, 35, 41, 0.82)",
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
     });
     expect(screen.getByText("Portrait")).toHaveStyle({
-      background: "rgba(31, 35, 41, 0.82)",
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
     });
   });
 

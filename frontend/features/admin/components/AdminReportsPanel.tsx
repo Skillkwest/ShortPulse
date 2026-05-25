@@ -96,37 +96,6 @@ export function AdminReportsPanel({
         </div>
 
         <div className={styles.adminReportsSummaryGrid}>
-          <article className={`${styles.adminCard} ${styles.adminReportsHeroCard}`}>
-            <p className={styles.adminLabel}>Queue posture</p>
-            <div className={styles.adminReportsHeroRow}>
-              <div>
-                <p className={styles.adminReportsHeroMetric}>{reportSummary.newCount}</p>
-                <p className={styles.adminReportsHeroLabel}>Need first review</p>
-              </div>
-              <div className={styles.adminReportsHeroDivider} />
-              <div className={styles.adminReportsHeroStack}>
-                <span className={styles.adminReportsMetaPill}>
-                  Reviewing {reportSummary.reviewingCount}
-                </span>
-                <span className={styles.adminReportsMetaPill}>
-                  Resolved {reportSummary.resolvedCount}
-                </span>
-                {selectedReport ? (
-                  <span className={styles.adminReportsSelectionPill}>
-                    Selected {selectedReport.submitterEmail}
-                  </span>
-                ) : (
-                  <span className={styles.adminReportsSelectionPill}>
-                    Select a report to open detail
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="tiny subdued">
-              Use this lane for manual triage, notes, and quick pivots into user-health or trace
-              tooling.
-            </p>
-          </article>
           <article className={styles.adminCard}>
             <p className={styles.adminLabel}>Total reports</p>
             <p className={styles.adminMetric}>{reportSummary.totalCount}</p>

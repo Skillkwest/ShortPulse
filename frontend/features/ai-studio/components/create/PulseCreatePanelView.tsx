@@ -60,6 +60,7 @@ const PulseCreatePanelViewContent = ({
     setPresetPanelIds: onSelectedPulsePresetIdsChange,
     savedPresets: savedPulsePresets,
     builtInDefinitions,
+    refreshBuiltInDefinitions,
     setSavedPresets: onSavedPulsePresetsChange,
   } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
@@ -78,15 +79,8 @@ const PulseCreatePanelViewContent = ({
       presetId === activePulsePresetId &&
       isActivePulseSession &&
       !hasVisibleAgentMessages &&
-      !pulseWorkflowSession &&
       !hasPulseLoadingSurface,
-    [
-      activePulsePresetId,
-      hasPulseLoadingSurface,
-      hasVisibleAgentMessages,
-      isActivePulseSession,
-      pulseWorkflowSession,
-    ]
+    [activePulsePresetId, hasPulseLoadingSurface, hasVisibleAgentMessages, isActivePulseSession]
   );
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
@@ -162,6 +156,7 @@ const PulseCreatePanelViewContent = ({
               onPresetStart={onPulsePresetStart}
               isActivationBusy={isPulseSessionLocked}
               builtInDefinitions={builtInDefinitions}
+              refreshBuiltInDefinitions={refreshBuiltInDefinitions}
               savedPresets={savedPulsePresets}
               onSavedPresetsChange={onSavedPulsePresetsChange}
               onOpenPresetsLibrary={onOpenPresetsLibrary}

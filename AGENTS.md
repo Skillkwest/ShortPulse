@@ -44,6 +44,7 @@ npm run build
 - Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
+- AI Studio global right-rail policy: `Reference Grid`, `Quick Slot Inventory`, and `Canvas` are workspace-global right-rail surfaces across all AI Studio workflows and Create modes. Do not fork them into per-workflow, per-mode, Standard-only, Pulse-only, or route-local state. Use `docs/adr/0083-create-mode-global-right-rail-authority.md`, `docs/sops/sop_ai_studio_pulse_mode.md`, and `docs/sops/sop_ai_studio_create_properties_generation_wiring.md` as the authority references.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - For system inventory, system rating, workflow-boundary, or panel-to-system mapping questions, use `docs/systems/README.md`, `docs/systems/catalog.md`, and `docs/systems/rating-rubric.md` as the primary references.
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.

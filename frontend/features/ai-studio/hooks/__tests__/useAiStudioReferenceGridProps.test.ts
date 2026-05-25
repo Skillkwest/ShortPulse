@@ -45,6 +45,8 @@ describe("useAiStudioReferenceGridProps", () => {
     const handleDownloadReference = vi.fn();
     const handlePasteTextReference = vi.fn();
     const handlePasteMediaReference = vi.fn();
+    const handleAddLibraryMediaReference = vi.fn();
+    const handleAddLibraryPromptReference = vi.fn();
     const retryOutputStatus = vi.fn();
     const handleRerollOutput = vi.fn();
 
@@ -55,6 +57,8 @@ describe("useAiStudioReferenceGridProps", () => {
           handleDownloadReference,
           handlePasteTextReference,
           handlePasteMediaReference,
+          handleAddLibraryMediaReference,
+          handleAddLibraryPromptReference,
           retryOutputStatus,
           handleRerollOutput,
         })
@@ -68,6 +72,15 @@ describe("useAiStudioReferenceGridProps", () => {
       url: "https://example.com/cat.png",
       mimeType: "image/*",
     });
+    result.current.onAddLibraryMediaReference?.({
+      id: "media-1",
+      url: "https://example.com/library.png",
+      fileType: "image",
+    });
+    result.current.onAddLibraryPromptReference?.({
+      id: "prompt-1",
+      promptText: "library prompt",
+    });
     result.current.onRetryStatus?.(output);
     result.current.onRerollOutput?.(output);
 
@@ -77,6 +90,15 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(handlePasteMediaReference).toHaveBeenCalledWith({
       url: "https://example.com/cat.png",
       mimeType: "image/*",
+    });
+    expect(handleAddLibraryMediaReference).toHaveBeenCalledWith({
+      id: "media-1",
+      url: "https://example.com/library.png",
+      fileType: "image",
+    });
+    expect(handleAddLibraryPromptReference).toHaveBeenCalledWith({
+      id: "prompt-1",
+      promptText: "library prompt",
     });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
     expect(handleRerollOutput).toHaveBeenCalledWith("out-1");

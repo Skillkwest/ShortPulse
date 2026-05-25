@@ -41,6 +41,13 @@ const makeFileList = (files: File[]): FileList =>
     item: (index: number) => files[index] ?? null,
   }) as unknown as FileList;
 
+const makeTransfer = (data: Record<string, string>, files: File[] = []): DataTransfer =>
+  ({
+    files: makeFileList(files),
+    types: [...Object.keys(data), ...(files.length > 0 ? ["Files"] : [])],
+    getData: vi.fn((type: string) => data[type] ?? ""),
+  }) as unknown as DataTransfer;
+
 const baseProps: ReferenceGridProps = {
   outputs: [],
   activeOutputId: null,
@@ -197,6 +204,138 @@ describe("ReferenceGrid paste handling", () => {
 
     expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
     expect(onDropFiles).not.toHaveBeenCalled();
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+  });
+
+  it("routes dropped media URLs through onPasteMediaReference", () => {
+    const onDropFiles = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const onPasteMediaReference = vi.fn();
+    const dataTransfer = makeTransfer({
+      "text/uri-list": "https://cdn.example.com/dropped-image.png",
+    });
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onPasteTextReference={onPasteTextReference}
+        onPasteMediaReference={onPasteMediaReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onPasteMediaReference).toHaveBeenCalledWith({
+      url: "https://cdn.example.com/dropped-image.png",
+      mimeType: "image/*",
+    });
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+  });
+
+  it("routes media-library media drops through onAddLibraryMediaReference", () => {
+    const onDropFiles = vi.fn();
+    const onAddLibraryMediaReference = vi.fn();
+    const dataTransfer = makeTransfer({
+      "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+      "text/shortpulse-media-library-kind": "libraryMedia",
+      "text/shortpulse-media-library-id": "media-drop-1",
+      "text/shortpulse-media-library-file-type": "image",
+      "text/reference-url": "https://cdn.example.com/library-drop-1.png",
+      "text/shortpulse-media-library-filename": "library-drop-1.png",
+      "text/prompt": "Library media prompt",
+    });
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onAddLibraryMediaReference={onAddLibraryMediaReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryMediaReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-drop-1",
+        url: "https://cdn.example.com/library-drop-1.png",
+        fileType: "image",
+        filename: "library-drop-1.png",
+        promptText: "Library media prompt",
+      })
+    );
+    expect(onDropFiles).not.toHaveBeenCalled();
+  });
+
+  it("routes media-library prompt drops through onAddLibraryPromptReference", () => {
+    const onDropFiles = vi.fn();
+    const onAddLibraryPromptReference = vi.fn();
+    const dataTransfer = makeTransfer({
+      "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+      "text/shortpulse-media-library-kind": "libraryPrompt",
+      "text/shortpulse-media-library-id": "prompt-drop-1",
+      "text/shortpulse-media-library-title": "Library prompt title",
+      "text/prompt": "Library prompt text",
+      "text/plain": "Library prompt text",
+    });
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onAddLibraryPromptReference={onAddLibraryPromptReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryPromptReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "prompt-drop-1",
+        promptText: "Library prompt text",
+        originFolderId: null,
+        title: "Library prompt title",
+      })
+    );
+    expect(onDropFiles).not.toHaveBeenCalled();
+  });
+
+  it("ignores degraded internal drags even when browsers expose synthetic file payloads", () => {
+    const onDropFiles = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const onPasteMediaReference = vi.fn();
+    const syntheticFile = new File(["image"], "dragged-reference.png", { type: "image/png" });
+    const dataTransfer = makeTransfer(
+      {
+        "text/reference-output-id": "out-1",
+        "text/reference-source-surface": "all-refs",
+      },
+      [syntheticFile]
+    );
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onPasteTextReference={onPasteTextReference}
+        onPasteMediaReference={onPasteMediaReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(onPasteTextReference).not.toHaveBeenCalled();
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 

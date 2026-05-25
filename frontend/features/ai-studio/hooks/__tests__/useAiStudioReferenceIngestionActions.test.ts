@@ -200,7 +200,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(updateOutputById).toHaveBeenCalledTimes(1);
   });
 
-  it("uploads pasted local project media before inserting it into outputs", async () => {
+  it("inserts pasted local project media immediately and lets background durability handle uploads", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -223,18 +223,17 @@ describe("useAiStudioReferenceIngestionActions", () => {
       });
     });
 
-    expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("data:image/png;base64,abc");
     expect(nextOutputs[0]).toEqual(
       expect.objectContaining({
-        previewUrl: "https://signed.test/reference.png",
-        previewStoragePath: "user-1/reference.png",
-        fullStoragePath: "user-1/reference.png",
-        localObjectUrl: undefined,
+        previewUrl: "data:image/png;base64,abc",
+        previewStoragePath: null,
+        fullStoragePath: null,
       })
     );
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("uploads project-route file refs before inserting them into outputs", async () => {
+  it("inserts project-route file refs immediately and lets background durability handle uploads", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -267,21 +266,196 @@ describe("useAiStudioReferenceIngestionActions", () => {
         await result.current.addOutputsFromFiles(files, "filePicker");
       });
 
-      expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith(
-        expect.stringMatching(/^data:image\/png|^blob:/)
-      );
       expect(nextOutputs[0]).toEqual(
         expect.objectContaining({
-          previewUrl: "https://signed.test/reference.png",
-          previewStoragePath: "user-1/reference.png",
-          fullStoragePath: "user-1/reference.png",
-          localObjectUrl: undefined,
+          previewUrl: expect.stringMatching(/^data:image\/png;base64,/),
+          localObjectUrl: "blob:reference-image-1",
         })
       );
-      expect(revokeSpy).toHaveBeenCalledWith("blob:reference-image-1");
+      expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+      expect(revokeSpy).not.toHaveBeenCalled();
     } finally {
       objectUrlSpy.mockRestore();
       revokeSpy.mockRestore();
+    }
+  });
+
+  it("inserts multiple dropped project-route image refs without blocking on batch durability", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const first = new File(["one"], "reference-1.png", { type: "image/png" });
+    const second = new File(["two"], "reference-2.png", { type: "image/png" });
+    const files = {
+      0: first,
+      1: second,
+      length: 2,
+      item: (index: number) => [first, second][index] ?? null,
+      [Symbol.iterator]: function* () {
+        yield first;
+        yield second;
+      },
+    } as unknown as FileList;
+    const objectUrlSpy = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:reference-image-1")
+      .mockReturnValueOnce("blob:reference-image-2");
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      await act(async () => {
+        await result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(nextOutputs).toHaveLength(2);
+      expect(nextOutputs.map((output) => output.prompt)).toEqual([
+        "reference-1.png",
+        "reference-2.png",
+      ]);
+      expect(nextOutputs.every((output) => output.timestamp === "Dropped")).toBe(true);
+      expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+    } finally {
+      objectUrlSpy.mockRestore();
+    }
+  });
+
+  it("keeps successful file refs when one dropped image fails to read", async () => {
+    const originalFileReader = FileReader;
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const setUiError = vi.fn();
+    const goodFile = new File(["good"], "good.png", { type: "image/png" });
+    const brokenFile = new File(["broken"], "broken.png", { type: "image/png" });
+    const files = {
+      0: goodFile,
+      1: brokenFile,
+      length: 2,
+      item: (index: number) => [goodFile, brokenFile][index] ?? null,
+      [Symbol.iterator]: function* () {
+        yield goodFile;
+        yield brokenFile;
+      },
+    } as unknown as FileList;
+    const objectUrlSpy = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:good-image")
+      .mockReturnValueOnce("blob:broken-image");
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    Object.defineProperty(globalThis, "FileReader", {
+      configurable: true,
+      value: class MockFileReader {
+        result: string | null = null;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        readAsDataURL(file: File) {
+          if (file.name === "broken.png") {
+            this.onerror?.();
+            return;
+          }
+          this.result = `data:${file.type};base64,good-file`;
+          this.onload?.();
+        }
+      },
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+            setUiError,
+          })
+        )
+      );
+
+      await act(async () => {
+        await result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(nextOutputs).toHaveLength(1);
+      expect(nextOutputs[0]?.prompt).toBe("good.png");
+      expect(setUiError).toHaveBeenCalledWith(
+        "Some files could not be added. The rest were added."
+      );
+      expect(revokeSpy).toHaveBeenCalledWith("blob:broken-image");
+    } finally {
+      objectUrlSpy.mockRestore();
+      revokeSpy.mockRestore();
+      Object.defineProperty(globalThis, "FileReader", {
+        configurable: true,
+        value: originalFileReader,
+      });
+    }
+  });
+
+  it("surfaces a full drop error when every image in the batch fails to read", async () => {
+    const originalFileReader = FileReader;
+    const setOutputs = vi.fn();
+    const setUiError = vi.fn();
+    const brokenFile = new File(["broken"], "broken.png", { type: "image/png" });
+    const files = {
+      0: brokenFile,
+      length: 1,
+      item: (index: number) => (index === 0 ? brokenFile : null),
+      [Symbol.iterator]: function* () {
+        yield brokenFile;
+      },
+    } as unknown as FileList;
+    const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:broken-image");
+    Object.defineProperty(globalThis, "FileReader", {
+      configurable: true,
+      value: class MockFileReader {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        readAsDataURL() {
+          this.onerror?.();
+        }
+      },
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+            setUiError,
+          })
+        )
+      );
+
+      await act(async () => {
+        await result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(setOutputs).not.toHaveBeenCalled();
+      expect(setUiError).toHaveBeenCalledWith(
+        "Unable to add those files right now. Please try again."
+      );
+    } finally {
+      objectUrlSpy.mockRestore();
+      Object.defineProperty(globalThis, "FileReader", {
+        configurable: true,
+        value: originalFileReader,
+      });
     }
   });
 });

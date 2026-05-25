@@ -344,6 +344,7 @@ export const usePulseCreateAgentRuntime = ({
         pulseSessionInstanceId?: string | null;
         deferWorkflowSessionCommit?: boolean;
         activationIsCurrent?: () => boolean;
+        allowInterruptCurrentPulse?: boolean;
       }
     ) => {
       const result = await runPulsePresetStartRuntime({

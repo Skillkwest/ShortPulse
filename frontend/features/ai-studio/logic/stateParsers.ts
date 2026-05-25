@@ -506,26 +506,15 @@ export const mapUploadsFromFiles = async (
   randomIdFn: () => string,
   nowIsoOrSource: (() => string) | "filePicker" | "drop" | undefined = undefined,
   sourceArg: "filePicker" | "drop" | undefined = undefined
-): Promise<StudioOutput[]> => {
+): Promise<{ outputs: StudioOutput[]; rejectedFileCount: number }> => {
   const nowIsoFn = typeof nowIsoOrSource === "function" ? nowIsoOrSource : undefined;
   const source = typeof nowIsoOrSource === "string" ? nowIsoOrSource : (sourceArg ?? "filePicker");
-  const mediaFiles = Array.from(files)
-    .filter(
-      (file) =>
-        file.type.startsWith("image/") ||
-        file.type.startsWith("video/") ||
-        file.type.startsWith("audio/")
-    )
-    .filter((file, index, all) => {
-      const signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
-      return (
-        all.findIndex(
-          (candidate) =>
-            `${candidate.name}:${candidate.type}:${candidate.size}:${candidate.lastModified}` ===
-            signature
-        ) === index
-      );
-    });
+  const mediaFiles = Array.from(files).filter(
+    (file) =>
+      file.type.startsWith("image/") ||
+      file.type.startsWith("video/") ||
+      file.type.startsWith("audio/")
+  );
   const timestampLabel = source === "drop" ? "Dropped" : "Uploaded";
   const batchCreatedAt = typeof nowIsoFn === "function" ? nowIsoFn() : new Date().toISOString();
 
@@ -537,49 +526,68 @@ export const mapUploadsFromFiles = async (
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-  const outputs = await Promise.all(
+  const results = await Promise.allSettled(
     mediaFiles.map(async (file) => {
       const isVideo = file.type.startsWith("video/");
       const isAudio = file.type.startsWith("audio/");
       const isImage = !isVideo && !isAudio;
       const objectUrl = supportsObjectUrl ? URL.createObjectURL(file) : null;
-      const fallbackDataUrl = await (async () => {
-        if (!isImage && objectUrl) return null;
-        return readFileAsDataUrl(file);
-      })();
-      // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
-      // for deterministic cleanup via URL.revokeObjectURL.
-      const previewBase = isImage ? (fallbackDataUrl ?? objectUrl ?? "") : (objectUrl ?? "");
-      const previewUrl = isVideo
-        ? `${previewBase}#video=1`
-        : isAudio && objectUrl
-          ? `${previewBase}#audio=1`
-          : previewBase;
-      const previewPosterUrl =
-        isVideo && previewBase ? await extractVideoPosterDataUrl(previewBase) : null;
-      return {
-        id: `upload-${randomIdFn()}`,
-        prompt: file.name,
-        mode: isVideo ? ("video" as const) : isAudio ? ("audio" as const) : ("image" as const),
-        aspect,
-        model: resolveModelLabelFn(model ?? undefined),
-        createdAt: batchCreatedAt,
-        modelId: model ?? undefined,
-        status: "ready" as const,
-        timestamp: timestampLabel,
-        previewUrl,
-        previewPosterUrl,
-        previewTier: "full" as const,
-        mimeType: file.type || null,
-        mediaSource: "upload" as const,
-        localObjectUrl: objectUrl,
-        saveState: "idle" as const,
-        saveError: null,
-      };
+      try {
+        const fallbackDataUrl = await (async () => {
+          if (!isImage && objectUrl) return null;
+          return readFileAsDataUrl(file);
+        })();
+        // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
+        // for deterministic cleanup via URL.revokeObjectURL.
+        const previewBase = isImage ? (fallbackDataUrl ?? objectUrl ?? "") : (objectUrl ?? "");
+        const previewUrl = isVideo
+          ? `${previewBase}#video=1`
+          : isAudio && objectUrl
+            ? `${previewBase}#audio=1`
+            : previewBase;
+        const previewPosterUrl =
+          isVideo && previewBase ? await extractVideoPosterDataUrl(previewBase) : null;
+        return {
+          id: `upload-${randomIdFn()}`,
+          prompt: file.name,
+          mode: isVideo ? ("video" as const) : isAudio ? ("audio" as const) : ("image" as const),
+          aspect,
+          model: resolveModelLabelFn(model ?? undefined),
+          createdAt: batchCreatedAt,
+          modelId: model ?? undefined,
+          status: "ready" as const,
+          timestamp: timestampLabel,
+          previewUrl,
+          previewPosterUrl,
+          previewTier: "full" as const,
+          mimeType: file.type || null,
+          mediaSource: "upload" as const,
+          localObjectUrl: objectUrl,
+          saveState: "idle" as const,
+          saveError: null,
+        };
+      } catch (error) {
+        if (objectUrl && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+          URL.revokeObjectURL(objectUrl);
+        }
+        throw error;
+      }
     })
   );
+  const outputs: StudioOutput[] = [];
+  let rejectedFileCount = 0;
+  results.forEach((result) => {
+    if (result.status === "fulfilled") {
+      outputs.push(result.value);
+      return;
+    }
+    rejectedFileCount += 1;
+  });
 
-  return outputs;
+  return {
+    outputs,
+    rejectedFileCount,
+  };
 };
 
 export const filterModelOptions = (

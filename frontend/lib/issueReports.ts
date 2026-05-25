@@ -15,10 +15,11 @@ const toTrimmedString = (value: unknown): string | null => {
   return normalized ? normalized : null;
 };
 
-const toRelativePath = (value: unknown): string | null => {
+export const normalizeIssueReportSourcePath = (value: unknown): string | null => {
   const normalized = toTrimmedString(value);
-  if (!normalized || !normalized.startsWith("/")) return null;
-  return normalized.slice(0, ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH);
+  if (!normalized || !normalized.startsWith("/") || normalized.startsWith("//")) return null;
+  if (normalized.length > ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH) return null;
+  return normalized;
 };
 
 const toSameOriginReferrerPath = (
@@ -35,10 +36,7 @@ const toSameOriginReferrerPath = (
         return null;
       }
     }
-    return `${parsedReferrer.pathname}${parsedReferrer.search}`.slice(
-      0,
-      ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH
-    );
+    return normalizeIssueReportSourcePath(`${parsedReferrer.pathname}${parsedReferrer.search}`);
   } catch {
     return null;
   }
@@ -57,10 +55,12 @@ export const resolveIssueReportSourcePath = ({
   referrer?: string | null;
   origin?: string | null;
 }): string => {
-  const explicitSourcePath = toRelativePath(Array.isArray(sourcePath) ? sourcePath[0] : sourcePath);
+  const explicitSourcePath = normalizeIssueReportSourcePath(
+    Array.isArray(sourcePath) ? sourcePath[0] : sourcePath
+  );
   if (explicitSourcePath) return explicitSourcePath;
 
-  const fromSourcePath = toRelativePath(Array.isArray(from) ? from[0] : from);
+  const fromSourcePath = normalizeIssueReportSourcePath(Array.isArray(from) ? from[0] : from);
   if (fromSourcePath) return fromSourcePath;
 
   const referrerPath = toSameOriginReferrerPath(referrer, origin);
@@ -68,7 +68,7 @@ export const resolveIssueReportSourcePath = ({
     return referrerPath;
   }
 
-  return toRelativePath(currentPath) ?? "/report-issue";
+  return normalizeIssueReportSourcePath(currentPath) ?? "/report-issue";
 };
 
 export const isIssueReportStatus = (value: unknown): value is IssueReportStatus =>

@@ -42,6 +42,7 @@ type CreatePulsePresetPanelProps = {
     presetIds: CreatePulsePresetId[]
   ) => Promise<boolean> | boolean | void;
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
+  refreshBuiltInDefinitions?: () => Promise<readonly CreatePulseBuiltInPresetDefinition[] | null>;
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
@@ -59,6 +60,7 @@ export function CreatePulsePresetPanel({
   selectedPresetIds,
   onSelectedPresetIdsChange,
   builtInDefinitions,
+  refreshBuiltInDefinitions,
   savedPresets,
   onSavedPresetsChange,
   onOpenPresetsLibrary,
@@ -182,6 +184,7 @@ export function CreatePulsePresetPanel({
   } = useCreatePulsePresetRuntime({
     savedPresets: resolvedSavedPresets,
     builtInDefinitions,
+    refreshBuiltInDefinitions,
     activePresetId: activePresetId ?? null,
     updateSelectedPresetIds,
     updateSavedPresets,

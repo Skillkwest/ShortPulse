@@ -90,6 +90,26 @@ export const extractDroppedPromptText = (transfer: DataTransfer): string | null 
 };
 
 /**
+ * Parses a dropped media URL reference from URI list / HTML / plain text payloads.
+ */
+export const getDroppedMediaReference = (
+  transfer: Pick<DataTransfer, "getData">
+): ClipboardMediaUrlReference | null => {
+  const uriListReference = getMediaReferenceFromUriList(transfer.getData("text/uri-list"));
+  if (uriListReference) return uriListReference;
+  const htmlReference = getMediaReferenceFromHtml(transfer.getData("text/html"));
+  if (htmlReference) return htmlReference;
+  const plainTextUrl = parseUrlCandidate(transfer.getData("text/plain"));
+  if (plainTextUrl && isMediaUrl(plainTextUrl)) {
+    return {
+      url: plainTextUrl,
+      mimeType: inferClipboardMimeTypeFromUrl(plainTextUrl),
+    };
+  }
+  return null;
+};
+
+/**
  * Infers MIME type from filename extension.
  */
 export const inferMimeTypeFromFilename = (filename: string): string | null => {

@@ -107,6 +107,7 @@ export const useAiStudioPageSessionPersistence = ({
     buildBaseSessionSnapshot: buildSessionSnapshotForSessionId,
     patchSessionSnapshot: patchSessionSnapshotForPersistence,
     hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
@@ -134,7 +135,6 @@ export const useAiStudioPageSessionPersistence = ({
 
   void sessionTitleOverride;
   void hydrateFromSessionSnapshot;
-  void hydrateFromSessionAgentSnapshot;
   void hydrateFromSessionCanvasSnapshot;
   void hydrateFromSessionExpertEditSnapshot;
   void handleSessionPersistenceWarning;

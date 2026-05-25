@@ -82,7 +82,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
     expect(uploadImageAssetToStorageMock).toHaveBeenCalledTimes(1);
   });
 
-  it("uploads data-url image references and patches storage-backed delivery", async () => {
+  it("prefers local object urls over data-url previews when durabilizing image references", async () => {
     uploadImageAssetToStorageMock.mockResolvedValueOnce({
       url: "https://signed/user-1/images/ref-data.png",
       path: "user-1/images/ref-data.png",
@@ -104,7 +104,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
       expect(result.current.outputs[0]?.previewStoragePath).toBe("user-1/images/ref-data.png");
       expect(result.current.outputs[0]?.fullStoragePath).toBe("user-1/images/ref-data.png");
     });
-    expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("data:image/png;base64,ref-data");
+    expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("blob:local-image-upload-1");
   });
 
   it("uploads local video references and patches storage-backed delivery", async () => {

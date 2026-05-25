@@ -78,11 +78,12 @@ behave like guided workflow tools.
 7. Switching from one Pulse to another starts a fresh Pulse session by default.
 8. Deactivating a Pulse clears the current Pulse runtime and leaves Pulse mode open with no active Pulse.
 9. Switching `Pulse -> Standard` parks the active hidden Pulse runtime. Switching back to `Pulse` restores that parked session when preset/session authority is still valid.
-10. Any active submission path used while Pulse is active must obey the same Pulse runtime contract or be disabled.
-11. Switching from one active Pulse to another is transactional: the previous
+10. `Reference Grid`, `Quick Slot Inventory`, and `Canvas` remain workspace-global right-rail surfaces across `Standard` and `Pulse`. Create-mode switching must not fork those surfaces into per-mode state.
+11. Any active submission path used while Pulse is active must obey the same Pulse runtime contract or be disabled.
+12. Switching from one active Pulse to another is transactional: the previous
     Pulse must remain intact, or be fully restored, until the new Pulse kickoff
     has successfully started.
-12. Leaving the Create tool for another workflow does not deactivate Pulse. Returning to Create restores the active Pulse mode and the current Pulse session state.
+13. Leaving the Create tool for another workflow does not deactivate Pulse. Returning to Create restores the active Pulse mode and the current Pulse session state.
 
 ## User-facing behavior
 
@@ -145,7 +146,8 @@ behave like guided workflow tools.
 - Switching to `Standard` hides the Pulse rail.
 - The Standard chat-mode preference is restored.
 - Standard-owned prompt/chat state remains Standard-owned.
-- Active Pulse ownership, transcript state, draft input, workflow session state, and latest artifact/prompt state are cleared.
+- Active Pulse ownership, transcript state, draft input, workflow session state, and Pulse-only prompt state stay hidden from visible Standard agent surfaces.
+- The right rail remains global: `Reference Grid`, `Quick Slot Inventory`, and `Canvas` keep their current workspace state across `Standard` and `Pulse`.
 - Hidden Pulse runtime must not leak into Standard surfaces.
 - Leaving the Create tool for another workflow keeps the active Pulse runtime alive in the background.
 - Returning to Create restores the Pulse lane exactly as it was, including the active Pulse session and current workflow/chat state.
@@ -315,9 +317,9 @@ Pulse runtime config:
 
 ### Project-route restore boundary
 
-- Current shipped project routes reset restore back to the Standard/Create shell baseline.
-- Project workspace restore must not hydrate conversational Pulse runtime state.
-- Treat project restore as workspace-shell restore, not Pulse chat restore.
+- Project workspace restore preserves authoritative parked Pulse runtime state when preset/session ownership is still valid.
+- Standard-mode project restore must still fail closed against hidden Pulse UI leakage.
+- Treat project restore as dual-lane runtime restore, not as a Standard-only shell reset.
 
 ## Current repo-backed interaction flow
 

@@ -30,11 +30,6 @@ const CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE: React.CSSProperties = {
   flex: "1 1 auto",
   minHeight: `${CHARACTER_PANEL_MIN_TOP_HEIGHT_PX}px`,
 };
-const CHARACTER_PANEL_DIVIDER_PROPS = {
-  role: "separator" as const,
-  "aria-orientation": "horizontal" as const,
-  "aria-label": "Resize character workspace and media library sections",
-};
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
@@ -73,13 +68,6 @@ export function CharacterPanelSplitHost({
           suppressSelectedCharacterPersistence={suppressSelectedCharacterPersistence}
           onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         />
-      </div>
-
-      <div
-        className="reference-grid-horizontal-divider-wrap character-panel-horizontal-divider-wrap"
-        {...CHARACTER_PANEL_DIVIDER_PROPS}
-      >
-        <div className="reference-grid-horizontal-divider" />
       </div>
 
       <div className="character-panel-bottom-section" style={bottomSectionStyle}>

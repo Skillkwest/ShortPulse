@@ -261,6 +261,7 @@ export const useAiStudioState = ({
     openModelModal,
     closeModelModal,
     setAuthorityState: setReferenceSelectionAuthorityState,
+    getAuthorityState: getReferenceSelectionAuthorityState,
   } = useAiStudioReferenceSelectionState({
     activeOutputPreviewUrl,
     authorityKey: createModeRuntimeAuthorityKey,
@@ -285,6 +286,12 @@ export const useAiStudioState = ({
       );
     },
     [baseRuntimeAuthorityKey, setReferenceSelectionAuthorityState]
+  );
+
+  const getReferenceSelectionStateForCreateMode = useCallback(
+    (createMode: "standard" | "pulse") =>
+      getReferenceSelectionAuthorityState(`${baseRuntimeAuthorityKey}:create:${createMode}`),
+    [baseRuntimeAuthorityKey, getReferenceSelectionAuthorityState]
   );
 
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
@@ -567,6 +574,7 @@ export const useAiStudioState = ({
     setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
     setReferenceImageUrl,
     setReferenceSelectionStateForCreateMode,
+    getReferenceSelectionStateForCreateMode,
     setRuntimeUiStateForCreateMode,
     setSaved,
     setSeedance2InputMode,

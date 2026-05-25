@@ -39,6 +39,10 @@ export type RuntimeCreatePulseBuiltInCatalogResolution = {
 export type RuntimeCreatePulseBuiltInCatalogAdminResolution =
   RuntimeCreatePulseBuiltInCatalogResolution;
 
+export const isAuthoritativeCreatePulseBuiltInCatalogResolution = (
+  resolution: RuntimeCreatePulseBuiltInCatalogResolution
+): boolean => resolution.source === "control_plane" && !resolution.degraded;
+
 export class CreatePulseBuiltInCatalogVersionMismatchError extends Error {
   constructor() {
     super("Create Pulse built-in catalog changed since it was loaded.");

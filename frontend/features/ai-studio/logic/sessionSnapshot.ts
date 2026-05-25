@@ -46,6 +46,19 @@ export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
 export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
 export type AiStudioSessionExpertCreateMode = "standard" | "pulse";
+export type AiStudioSessionCreateModeReferenceStateV1 = {
+  selectedTool: ToolId | null;
+  showCreateTools?: boolean;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
+  motionReferenceVideoUrl: string | null;
+  useReferenceImageIndicator?: boolean;
+  detailOutputId?: string | null;
+};
+export type AiStudioSessionCreateModeReferenceStatesV1 = {
+  standard: AiStudioSessionCreateModeReferenceStateV1;
+  pulse: AiStudioSessionCreateModeReferenceStateV1;
+};
 
 export type AiStudioSessionOutputV1 = {
   id: string;
@@ -135,6 +148,7 @@ export type AiStudioSessionWorkspaceV1 = {
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   pulseSessionInstanceId?: string | null;
+  createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -241,6 +255,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   pulseSessionInstanceId?: string | null;
+  createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -363,6 +378,18 @@ const sanitizeWorkspaceExtraImageUrls = (
   sanitizeWorkspaceMediaUrl(values[1]),
   sanitizeWorkspaceMediaUrl(values[2]),
 ];
+
+const sanitizeCreateModeReferenceState = (
+  value: AiStudioSessionCreateModeReferenceStateV1
+): AiStudioSessionCreateModeReferenceStateV1 => ({
+  selectedTool: value.selectedTool,
+  showCreateTools: value.showCreateTools ?? false,
+  referenceImageUrl: sanitizeWorkspaceMediaUrl(value.referenceImageUrl),
+  extraImageUrls: sanitizeWorkspaceExtraImageUrls(value.extraImageUrls),
+  motionReferenceVideoUrl: sanitizeWorkspaceMediaUrl(value.motionReferenceVideoUrl),
+  useReferenceImageIndicator: value.useReferenceImageIndicator ?? false,
+  detailOutputId: typeof value.detailOutputId === "string" ? value.detailOutputId : null,
+});
 
 const sanitizeAgentAttachments = (
   attachments: AgentMessage["attachments"]
@@ -729,6 +756,30 @@ export const buildAiStudioSessionSnapshot = (
   const persistedPulseSessionInstanceId = shouldPersistPulseWorkspaceState
     ? resolvedPulseSessionInstanceId
     : null;
+  const persistedCreateModeReferenceStates = input.createModeReferenceStates
+    ? {
+        standard: sanitizeCreateModeReferenceState(input.createModeReferenceStates.standard),
+        pulse: sanitizeCreateModeReferenceState(input.createModeReferenceStates.pulse),
+      }
+    : {
+        standard: sanitizeCreateModeReferenceState({
+          selectedTool: resolvedExpertCreateMode === "standard" ? input.selectedTool : "create",
+          referenceImageUrl:
+            resolvedExpertCreateMode === "standard" ? input.referenceImageUrl : null,
+          extraImageUrls:
+            resolvedExpertCreateMode === "standard" ? input.extraImageUrls : [null, null, null],
+          motionReferenceVideoUrl:
+            resolvedExpertCreateMode === "standard" ? input.motionReferenceVideoUrl : null,
+        }),
+        pulse: sanitizeCreateModeReferenceState({
+          selectedTool: resolvedExpertCreateMode === "pulse" ? input.selectedTool : "create",
+          referenceImageUrl: resolvedExpertCreateMode === "pulse" ? input.referenceImageUrl : null,
+          extraImageUrls:
+            resolvedExpertCreateMode === "pulse" ? input.extraImageUrls : [null, null, null],
+          motionReferenceVideoUrl:
+            resolvedExpertCreateMode === "pulse" ? input.motionReferenceVideoUrl : null,
+        }),
+      };
   const canvas = input.canvasState
     ? serializeAiStudioSessionCanvasState(input.canvasState)
     : undefined;
@@ -804,6 +855,7 @@ export const buildAiStudioSessionSnapshot = (
       expertCreateMode: resolvedExpertCreateMode,
       activePulsePresetId: persistedActivePulsePresetId,
       pulseSessionInstanceId: persistedPulseSessionInstanceId,
+      createModeReferenceStates: persistedCreateModeReferenceStates,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
       extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
       editReferenceText: input.editReferenceText,

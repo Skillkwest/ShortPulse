@@ -704,6 +704,8 @@ const useAiStudioReferenceExperienceRuntime = ({
     activeOutput,
     activeOutputId,
     addCuratedReference,
+    addLibraryMediaReference,
+    addLibraryPromptReference,
     addPastedMediaReference,
     addPastedPromptReference,
     archivedOutputs,
@@ -760,6 +762,8 @@ const useAiStudioReferenceExperienceRuntime = ({
     handleDownloadReference,
     handlePasteTextReference: addPastedPromptReference,
     handlePasteMediaReference: addPastedMediaReference,
+    handleAddLibraryMediaReference: addLibraryMediaReference,
+    handleAddLibraryPromptReference: addLibraryPromptReference,
     retryOutputStatus,
     handleRerollOutput: rerollOutputFromReplay,
     deleteOutput,
@@ -1233,6 +1237,7 @@ const AiStudioPageRuntimeBody = ({
           pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
           deferWorkflowSessionCommit: options?.deferWorkflowSessionCommit ?? false,
           activationIsCurrent: activation.isCurrent,
+          allowInterruptCurrentPulse: options?.allowInterruptCurrentPulse,
         });
         if (!activation.isCurrent()) {
           return {
@@ -1298,7 +1303,6 @@ const AiStudioPageRuntimeBody = ({
       standardCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
-    pendingCreateRuntimeAgentHydrationRef: base.pendingCreateRuntimeAgentHydrationRef,
     persistedAgentRuntime,
     persistedPulseAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,
     persistedStandardAgentRuntime: standardCreateAgentRuntime.persistedAgentRuntime,

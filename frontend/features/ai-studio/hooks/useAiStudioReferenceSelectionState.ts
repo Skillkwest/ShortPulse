@@ -28,7 +28,7 @@ type ReferenceSelectionAuthorityState = {
   detailOutputId: string | null;
 };
 
-type ReferenceSelectionAuthorityStateSeed = {
+export type ReferenceSelectionAuthorityStateSeed = {
   selectedTool: ToolId | null;
   showCreateTools?: boolean;
   referenceImageUrl: string | null;
@@ -262,6 +262,57 @@ export const useAiStudioReferenceSelectionState = ({
     []
   );
 
+  const getAuthorityState = useCallback(
+    (targetAuthorityKey: string): ReferenceSelectionAuthorityStateSeed => {
+      if (activeAuthorityKeyRef.current === targetAuthorityKey) {
+        return {
+          selectedTool: normalizeSelectedToolForAuthorityKey(targetAuthorityKey, selectedTool),
+          showCreateTools,
+          referenceImageUrl,
+          extraImageUrls,
+          motionReferenceVideoUrl,
+          useReferenceImageIndicator,
+          detailOutputId,
+        };
+      }
+      const restoredState =
+        stateByAuthorityKeyRef.current[targetAuthorityKey] ??
+        createEmptyReferenceSelectionAuthorityState();
+      const normalizedSelectedTool = normalizeSelectedToolForAuthorityKey(
+        targetAuthorityKey,
+        restoredState.selectedTool
+      );
+      const restoredReferenceInputs =
+        normalizedSelectedTool === "video" || normalizedSelectedTool === "kling"
+          ? {
+              referenceImageUrl: restoredState.videoReferenceImageUrl,
+              extraImageUrls: restoredState.videoExtraImageUrls,
+            }
+          : {
+              referenceImageUrl: restoredState.imageReferenceImageUrl,
+              extraImageUrls: restoredState.imageExtraImageUrls,
+            };
+      return {
+        selectedTool: normalizedSelectedTool,
+        showCreateTools: restoredState.showCreateTools,
+        referenceImageUrl: restoredReferenceInputs.referenceImageUrl,
+        extraImageUrls: restoredReferenceInputs.extraImageUrls,
+        motionReferenceVideoUrl: restoredState.motionReferenceVideoUrl,
+        useReferenceImageIndicator: restoredState.useReferenceImageIndicator,
+        detailOutputId: restoredState.detailOutputId,
+      };
+    },
+    [
+      detailOutputId,
+      extraImageUrls,
+      motionReferenceVideoUrl,
+      referenceImageUrl,
+      selectedTool,
+      showCreateTools,
+      useReferenceImageIndicator,
+    ]
+  );
+
   return {
     selectedTool,
     setSelectedTool,
@@ -297,5 +348,6 @@ export const useAiStudioReferenceSelectionState = ({
     openModelModal,
     closeModelModal,
     setAuthorityState,
+    getAuthorityState,
   };
 };

@@ -221,7 +221,7 @@ describe("Dashboard actions", () => {
     expect(document.documentElement.classList.contains("dashboard-body")).toBe(false);
   });
 
-  it("opens the profile menu with account and billing links", async () => {
+  it("opens the profile menu with account, billing, and issue-report links", async () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
@@ -233,6 +233,10 @@ describe("Dashboard actions", () => {
     expect(screen.getByRole("link", { name: "Billing & subscription" })).toHaveAttribute(
       "href",
       "/profile?section=credits"
+    );
+    expect(screen.getByRole("link", { name: "Report an issue" })).toHaveAttribute(
+      "href",
+      "/report-issue?from=%2Fdashboard"
     );
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });

@@ -15,6 +15,9 @@ type UseAiStudioProjectWorkspaceRestoreHydrationParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
+  hydrateFromSessionAgentSnapshot?: (
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
+  ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
@@ -32,6 +35,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
   projectId,
   projectWorkspaceRestoreCandidate,
   hydrateFromSessionSnapshot,
+  hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
@@ -110,6 +114,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
       if (snapshot) {
         resetProjectAgentConversation?.();
         const payload = hydrateFromSessionSnapshot(snapshot);
+        hydrateFromSessionAgentSnapshot?.(payload);
         hydrateFromSessionCanvasSnapshot?.(payload.canvas);
         hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
       } else {
@@ -141,12 +146,14 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
         snapshot_updated_at: snapshot?.updatedAt ?? null,
         empty_project_applied: !snapshot,
         agent_conversation_reset: Boolean(resetProjectAgentConversation && snapshot),
+        agent_runtime_hydration_applied: Boolean(hydrateFromSessionAgentSnapshot && snapshot),
         canvas_hydration_applied: Boolean(hydrateFromSessionCanvasSnapshot),
         expert_edit_hydration_applied: Boolean(hydrateFromSessionExpertEditSnapshot),
       },
     });
   }, [
     applyEmptyProjectState,
+    hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     hydrateFromSessionSnapshot,

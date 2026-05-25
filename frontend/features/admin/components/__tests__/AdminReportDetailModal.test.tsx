@@ -49,9 +49,7 @@ describe("AdminReportDetailModal", () => {
       />
     );
 
-    const notesInput = screen.getByPlaceholderText(
-      "Capture what you learned, next actions, or why this was resolved."
-    ) as HTMLTextAreaElement;
+    const notesInput = screen.getByLabelText("Admin notes") as HTMLTextAreaElement;
     expect(notesInput.maxLength).toBe(4000);
     expect(notesInput.value).toBe("Initial notes");
 
@@ -74,10 +72,6 @@ describe("AdminReportDetailModal", () => {
       />
     );
 
-    expect(
-      screen.getByPlaceholderText(
-        "Capture what you learned, next actions, or why this was resolved."
-      )
-    ).toHaveValue("Fresh report notes");
+    expect(screen.getByLabelText("Admin notes")).toHaveValue("Fresh report notes");
   });
 });

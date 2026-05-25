@@ -11,8 +11,13 @@ import {
   CREATE_PULSE_SCHEMA_VERSION,
   normalizeCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulseBuiltInPresetDefinitions,
+  type CreatePulseActivationMode,
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetDefinition,
+  type CreatePulseMemoryPolicy,
+  type CreatePulseOutputMode,
+  type CreatePulsePresetKind,
+  type CreatePulseRuntimeMode,
 } from "../../../lib/model-runtime/createPulseBuiltIns";
 import { copyToClipboard } from "../logic/copyToClipboard";
 import {
@@ -33,6 +38,12 @@ type AdminPulseDraft = {
   workflowStageHints: string;
   artifactTarget: CreatePulseArtifactTarget;
   systemInstructions: string;
+  pulseKind: CreatePulsePresetKind;
+  runtimeMode: CreatePulseRuntimeMode;
+  activationMode: CreatePulseActivationMode;
+  outputMode: CreatePulseOutputMode;
+  memoryPolicy: CreatePulseMemoryPolicy;
+  schemaVersion: number;
 };
 type SaveState = "idle" | "saving" | "saved" | "error";
 type AdminEditPresetDraft = {
@@ -101,6 +112,12 @@ const buildPulseDraftFromDefinition = (
   workflowStageHints: definition.workflowStageHints?.join(", ") ?? "",
   artifactTarget: definition.artifactTarget,
   systemInstructions: definition.systemInstructions,
+  pulseKind: definition.pulseKind,
+  runtimeMode: definition.runtimeMode,
+  activationMode: definition.activationMode,
+  outputMode: definition.outputMode,
+  memoryPolicy: definition.memoryPolicy,
+  schemaVersion: definition.schemaVersion,
 });
 
 const buildPulseDraftsFromDefinitions = (
@@ -130,12 +147,12 @@ const buildPulseDefinitionFromDraft = (
     .filter((entry) => entry.length > 0),
   artifactTarget: draft.artifactTarget,
   systemInstructions: draft.systemInstructions.trim(),
-  pulseKind: CREATE_PULSE_GUIDED_AUTHORING_KIND,
-  runtimeMode: "workflow_gpt",
-  activationMode: "activate_and_start",
-  outputMode: "chat_reply",
-  memoryPolicy: "session",
-  schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+  pulseKind: draft.pulseKind,
+  runtimeMode: draft.runtimeMode,
+  activationMode: draft.activationMode,
+  outputMode: draft.outputMode,
+  memoryPolicy: draft.memoryPolicy,
+  schemaVersion: draft.schemaVersion,
 });
 
 const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
@@ -147,6 +164,12 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   workflowStageHints: "",
   artifactTarget: "text_artifact",
   systemInstructions: "",
+  pulseKind: CREATE_PULSE_GUIDED_AUTHORING_KIND,
+  runtimeMode: "workflow_gpt",
+  activationMode: "activate_and_start",
+  outputMode: "chat_reply",
+  memoryPolicy: "session",
+  schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
 });
 
 const isPulseDraftPersistable = (draft: AdminPulseDraft): boolean =>
@@ -162,7 +185,13 @@ const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boo
   left.starterAssistantMessage === right.starterAssistantMessage &&
   left.workflowStageHints === right.workflowStageHints &&
   left.artifactTarget === right.artifactTarget &&
-  left.systemInstructions === right.systemInstructions;
+  left.systemInstructions === right.systemInstructions &&
+  left.pulseKind === right.pulseKind &&
+  left.runtimeMode === right.runtimeMode &&
+  left.activationMode === right.activationMode &&
+  left.outputMode === right.outputMode &&
+  left.memoryPolicy === right.memoryPolicy &&
+  left.schemaVersion === right.schemaVersion;
 
 const arePulseDraftListsEqual = (
   left: readonly AdminPulseDraft[],
@@ -419,9 +448,14 @@ export function AdminAgentInstructionsSection() {
     () => !arePulseDraftListsEqual(pulseDrafts, storedPulseDrafts),
     [pulseDrafts, storedPulseDrafts]
   );
+  const hasUnpublishablePulseDrafts = React.useMemo(
+    () => pulseDrafts.some((draft) => isPulseDraftBlank(draft) || !isPulseDraftPersistable(draft)),
+    [pulseDrafts]
+  );
   const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
   const hasStyleExtractPromptUnsavedChanges = styleExtractPrompt !== storedStyleExtractPrompt;
-  const pulseSaveExpectedUpdatedAt = pulseCatalogDegraded ? undefined : pulseCatalogUpdatedAt;
+  const isPulseSaveBlockedByDegradedCatalog = pulseCatalogDegraded;
+  const pulseSaveExpectedUpdatedAt = pulseCatalogUpdatedAt;
   const standardPromptUpdatedLabel = React.useMemo(() => {
     if (!standardPromptUpdatedAt) return null;
     const timestamp = new Date(standardPromptUpdatedAt);
@@ -563,7 +597,7 @@ export function AdminAgentInstructionsSection() {
       hydratePulseDrafts(catalog);
       setPulseCatalogLoadIssue(
         catalog.degraded
-          ? "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
+          ? "Live Pulse catalog lookup failed. Showing fallback Pulse content. Reload before saving so the live shared set is not overwritten."
           : null
       );
       setPulseSaveIssue(null);
@@ -578,8 +612,8 @@ export function AdminAgentInstructionsSection() {
       });
       setPulseCatalogLoadIssue(
         error instanceof Error
-          ? `${error.message} Showing seeded fallback Pulse content. Saving an edit will attempt to republish the shared built-in set.`
-          : "Showing seeded fallback Pulse content because the live admin route could not be reached. Saving an edit will attempt to republish the shared built-in set."
+          ? `${error.message} Showing seeded fallback Pulse content. Reload before saving so the live shared set is not overwritten.`
+          : "Showing seeded fallback Pulse content because the live admin route could not be reached. Reload before saving so the live shared set is not overwritten."
       );
       setPulseSaveIssue(null);
       setPulseSaveState("error");
@@ -908,6 +942,20 @@ export function AdminAgentInstructionsSection() {
   }, [storedPulseDrafts]);
 
   const handleSavePulseDrafts = React.useCallback(async () => {
+    if (isPulseSaveBlockedByDegradedCatalog) {
+      setPulseSaveState("error");
+      setPulseSaveIssue(
+        "Reload the live Pulse catalog before saving. Fallback content cannot be published as the global built-in set."
+      );
+      return;
+    }
+    if (hasUnpublishablePulseDrafts) {
+      setPulseSaveState("error");
+      setPulseSaveIssue(
+        "Complete or remove every Pulse slot before saving the shared built-in set."
+      );
+      return;
+    }
     setPulseSaveState("saving");
     setPulseSaveIssue(null);
     try {
@@ -955,12 +1003,25 @@ export function AdminAgentInstructionsSection() {
         error instanceof Error ? error.message : "Unable to save the global Pulse built-in set."
       );
     }
-  }, [hydratePulseDrafts, pulseDrafts, pulseSaveExpectedUpdatedAt]);
+  }, [
+    hydratePulseDrafts,
+    hasUnpublishablePulseDrafts,
+    isPulseSaveBlockedByDegradedCatalog,
+    pulseDrafts,
+    pulseSaveExpectedUpdatedAt,
+  ]);
 
   const handleSavePulseDraft = React.useCallback(
     async (localId: string) => {
       const targetDraft = pulseDrafts.find((draft) => draft.localId === localId);
       if (!targetDraft) return;
+      if (isPulseSaveBlockedByDegradedCatalog) {
+        setPulseSaveState("error");
+        setPulseSaveIssue(
+          "Reload the live Pulse catalog before saving. Fallback content cannot be published as the global built-in set."
+        );
+        return;
+      }
       const payloadDrafts = storedPulseDraftsById[localId]
         ? storedPulseDrafts.map((draft) => (draft.localId === localId ? targetDraft : draft))
         : [...storedPulseDrafts, targetDraft];
@@ -1034,7 +1095,13 @@ export function AdminAgentInstructionsSection() {
         );
       }
     },
-    [pulseSaveExpectedUpdatedAt, pulseDrafts, storedPulseDrafts, storedPulseDraftsById]
+    [
+      isPulseSaveBlockedByDegradedCatalog,
+      pulseSaveExpectedUpdatedAt,
+      pulseDrafts,
+      storedPulseDrafts,
+      storedPulseDraftsById,
+    ]
   );
 
   return (
@@ -1439,6 +1506,7 @@ export function AdminAgentInstructionsSection() {
               const canSaveCard =
                 !pulseLoading &&
                 pulseSaveState !== "saving" &&
+                !isPulseSaveBlockedByDegradedCatalog &&
                 isDirty &&
                 isPulseDraftPersistable(draft);
               const copyValue = [
@@ -1687,7 +1755,13 @@ export function AdminAgentInstructionsSection() {
                   type="button"
                   className="ghost-btn mini"
                   onClick={() => void handleSavePulseDrafts()}
-                  disabled={pulseLoading || pulseSaveState === "saving" || !hasPulseUnsavedChanges}
+                  disabled={
+                    pulseLoading ||
+                    pulseSaveState === "saving" ||
+                    isPulseSaveBlockedByDegradedCatalog ||
+                    hasUnpublishablePulseDrafts ||
+                    !hasPulseUnsavedChanges
+                  }
                 >
                   {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
                 </button>

@@ -4043,8 +4043,7 @@
   justify-content: flex-end;
 }
 
-.adminReportsMetaPill,
-.adminReportsSelectionPill {
+.adminReportsMetaPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4058,66 +4057,11 @@
   line-height: 1;
 }
 
-.adminReportsSelectionPill {
-  border-color: var(--admin-accent-border);
-  background: rgba(37, 169, 191, 0.08);
-  color: var(--admin-accent-text);
-}
-
 .adminReportsSummaryGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.4fr) repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
-}
-
-.adminReportsHeroCard {
-  display: grid;
-  gap: 10px;
-  border-color: rgba(37, 169, 191, 0.22);
-  background:
-    radial-gradient(circle at top right, rgba(37, 169, 191, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
-    var(--admin-surface-2);
-}
-
-.adminReportsHeroRow {
-  display: grid;
-  grid-template-columns: auto 1px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-}
-
-.adminReportsHeroMetric {
-  margin: 0;
-  font-size: clamp(32px, 4vw, 44px);
-  font-weight: 800;
-  line-height: 0.95;
-  color: var(--admin-text-strong);
-}
-
-.adminReportsHeroLabel {
-  margin: 4px 0 0;
-  color: var(--admin-text-muted);
-  font-size: 13px;
-}
-
-.adminReportsHeroDivider {
-  width: 1px;
-  min-height: 66px;
-  background: linear-gradient(
-    180deg,
-    rgba(37, 169, 191, 0),
-    rgba(37, 169, 191, 0.55),
-    rgba(37, 169, 191, 0)
-  );
-}
-
-.adminReportsHeroStack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
 }
 
 .adminReportsToolbar {
@@ -4420,14 +4364,6 @@
 
   .adminReportsSummaryGrid {
     grid-template-columns: 1fr;
-  }
-
-  .adminReportsHeroRow {
-    grid-template-columns: 1fr;
-  }
-
-  .adminReportsHeroDivider {
-    display: none;
   }
 
   .adminReportsHead,

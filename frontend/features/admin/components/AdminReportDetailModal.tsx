@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   ISSUE_REPORT_ADMIN_NOTES_MAX_LENGTH,
   type IssueReportStatus,
@@ -40,6 +40,7 @@ export function AdminReportDetailModal({
   const backdropDismiss = useGuardedBackdropDismiss<HTMLElement>(onClose, {
     disabled: !selectedReport,
   });
+  const adminNotesFieldId = useId();
   const [adminNotesDraft, setAdminNotesDraft] = useState(selectedReport?.adminNotes ?? "");
 
   if (!selectedReport) return null;
@@ -116,9 +117,12 @@ export function AdminReportDetailModal({
           </div>
         </div>
 
-        <label className={styles.errorCell}>
-          <span className="tiny subdued">Admin notes</span>
+        <div className={styles.errorCell}>
+          <label htmlFor={adminNotesFieldId} className="tiny subdued">
+            Admin notes
+          </label>
           <textarea
+            id={adminNotesFieldId}
             className={styles.reportNotesInput}
             value={adminNotesDraft}
             onChange={(event) => setAdminNotesDraft(event.target.value)}
@@ -127,7 +131,7 @@ export function AdminReportDetailModal({
             placeholder="Capture what you learned, next actions, or why this was resolved."
           />
           <span className="tiny subdued">{remainingCharacters} characters remaining</span>
-        </label>
+        </div>
 
         <div className={styles.errorActions}>
           <button

@@ -41,6 +41,9 @@ type UseAiStudioRuntimeAuthorityUiStateParams = {
 
 /**
  * Returns create-mode helpers for storing and restoring runtime UI state by authority key.
+ * The Create-mode switch deliberately does not fork right-rail authority:
+ * Reference Grid, Quick Slot Inventory, Canvas-adjacent output focus, and saved-state
+ * remain workspace-global within the current base runtime authority.
  */
 export const useAiStudioRuntimeAuthorityUiState = ({
   activeOutputId,
@@ -61,6 +64,7 @@ export const useAiStudioRuntimeAuthorityUiState = ({
   const getRuntimeAuthorityKeyForCreateMode = useCallback(
     (createMode: "standard" | "pulse") => {
       void createMode;
+      // Standard and Pulse intentionally share one right-rail/output lane.
       return baseRuntimeAuthorityKey;
     },
     [baseRuntimeAuthorityKey]

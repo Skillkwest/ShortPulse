@@ -26,7 +26,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
               systemInstructions: "Use the control-plane catalog.",
               runtimeMode: "workflow_gpt",
               activationMode: "activate_and_start",
-              outputMode: "chat_reply",
+              outputMode: "apply_prompt",
               memoryPolicy: "session",
               starterAssistantMessage: null,
               workflowStageHints: null,
@@ -51,6 +51,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
 
     expect(fetchWithAuth).toHaveBeenCalledWith("/api/ai/create-pulse-builtins", {
       method: "GET",
+      cache: "no-store",
       headers: {
         Accept: "application/json",
       },
@@ -64,6 +65,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
         expect.objectContaining({
           presetId: "catalog_test",
           artifactTarget: "image_prompt",
+          outputMode: "apply_prompt",
         }),
       ])
     );

@@ -17,7 +17,12 @@ export type UseCreatePulseBuiltInCatalogResult = {
   source: "control_plane" | "seed" | null;
   degraded: boolean;
   isAuthoritative: boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<{
+    builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
+    source: "control_plane" | "seed";
+    degraded: boolean;
+    isAuthoritative: boolean;
+  } | null>;
 };
 
 const loadCreatePulseBuiltInCatalog = async (): Promise<{
@@ -27,6 +32,7 @@ const loadCreatePulseBuiltInCatalog = async (): Promise<{
 }> => {
   const response = await fetchWithAuth("/api/ai/create-pulse-builtins", {
     method: "GET",
+    cache: "no-store",
     headers: {
       Accept: "application/json",
     },
@@ -63,6 +69,15 @@ export const useCreatePulseBuiltInCatalog = ({
     source: catalog.source,
     degraded: catalog.degraded,
     isAuthoritative: catalog.isAuthoritative,
-    refresh: catalog.refresh,
+    refresh: async () => {
+      const nextCatalog = await catalog.refresh();
+      if (!nextCatalog) return null;
+      return {
+        builtInDefinitions: nextCatalog.value,
+        source: nextCatalog.source,
+        degraded: nextCatalog.degraded,
+        isAuthoritative: nextCatalog.source === "control_plane" && !nextCatalog.degraded,
+      };
+    },
   };
 };

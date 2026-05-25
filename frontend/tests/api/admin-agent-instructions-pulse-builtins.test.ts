@@ -123,12 +123,31 @@ describe("admin pulse built-ins API", () => {
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.json).toHaveBeenCalledWith({
       builtInDefinitions: nextDefinitions,
       updatedAt: "2026-05-08T17:05:00.000Z",
       updatedByEmail: "admin@example.com",
       source: "control_plane",
       degraded: false,
+    });
+  });
+
+  it("rejects saves that omit the expected updatedAt token", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "expectedUpdatedAt is required so fallback catalog content cannot overwrite live built-ins.",
     });
   });
 

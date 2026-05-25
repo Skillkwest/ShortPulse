@@ -24,8 +24,36 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-const shouldPersistOutputInProjectWorkspaceSnapshot = (output: Record<string, unknown>): boolean =>
-  output.taskState !== "fail";
+const hasText = (value: unknown): boolean => typeof value === "string" && value.trim().length > 0;
+
+const hasStringEntries = (value: unknown): boolean =>
+  Array.isArray(value) && value.some((entry) => hasText(entry));
+
+const hasProjectRestorableOutputPayload = (output: Record<string, unknown>): boolean =>
+  hasText(output.previewText) ||
+  hasText(output.previewUrl) ||
+  hasText(output.previewPosterUrl) ||
+  hasStringEntries(output.resultUrls);
+
+const hasProjectDurableOutputAuthority = (output: Record<string, unknown>): boolean =>
+  hasText(output.previewPosterStoragePath) ||
+  hasText(output.previewStoragePath) ||
+  hasText(output.fullStoragePath) ||
+  hasStringEntries(output.savedMediaIds);
+
+const hasProjectRecoverableRuntimeIdentity = (output: Record<string, unknown>): boolean =>
+  hasText(output.generationId) || hasText(output.sourceRef) || hasText(output.taskId);
+
+const shouldPersistOutputInProjectWorkspaceSnapshot = (
+  output: Record<string, unknown>
+): boolean => {
+  if (output.taskState === "fail") return false;
+  return (
+    hasProjectRestorableOutputPayload(output) ||
+    hasProjectDurableOutputAuthority(output) ||
+    hasProjectRecoverableRuntimeIdentity(output)
+  );
+};
 
 const filterProjectWorkspaceOutputIds = (
   value: unknown,
@@ -111,21 +139,13 @@ export const createAiStudioProjectWorkspaceSnapshot = <
       ...snapshot,
     } as MinimalAiStudioSessionSnapshot;
     delete baseSnapshot.meta;
-    delete baseSnapshot.agentRuntimes;
     const baseWorkspace = asRecord(baseSnapshot.workspace);
     const normalizedSnapshot = {
       ...baseSnapshot,
       workspace: {
         ...baseWorkspace,
-        prompt: "",
-        standardPrompt: "",
-        pulsePrompt: "",
         editReferenceText: "",
         videoReferenceText: "",
-        selectedTool: "create",
-        expertCreateMode: "standard",
-        activePulsePresetId: null,
-        pulseSessionInstanceId: null,
       },
       outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
       agent: emptyAgentRuntime,
@@ -143,15 +163,8 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     ...snapshot,
     workspace: {
       ...asRecord(snapshot.workspace),
-      prompt: "",
-      standardPrompt: "",
-      pulsePrompt: "",
       editReferenceText: "",
       videoReferenceText: "",
-      selectedTool: "create",
-      expertCreateMode: "standard",
-      activePulsePresetId: null,
-      pulseSessionInstanceId: null,
     },
     outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
     agent: emptyAgentRuntime,

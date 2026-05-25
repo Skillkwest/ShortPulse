@@ -3,8 +3,10 @@
  * Encapsulates media normalization and drop-type detection helpers.
  */
 import { useCallback } from "react";
-import { dedupeMediaFiles, normalizeMediaFile } from "./referenceGridClipboard";
+import { normalizeMediaFile } from "./referenceGridClipboard";
 import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
+import { hasInternalReferenceDragTypeHints } from "../../utils/dragDrop";
+import { hasMediaLibraryDragTypeHints } from "../../logic/mediaLibraryDragPayload";
 
 type UseReferenceGridDropHelpersControllerResult = {
   normalizeMediaFiles: (files: File[]) => File[];
@@ -19,20 +21,28 @@ type UseReferenceGridDropHelpersControllerResult = {
 export const useReferenceGridDropHelpersController =
   (): UseReferenceGridDropHelpersControllerResult => {
     const normalizeMediaFiles = useCallback((files: File[]): File[] => {
-      return dedupeMediaFiles(
-        files
-          .map((file, index) => normalizeMediaFile(file, null, index))
-          .filter((file): file is File => Boolean(file))
-      );
+      return files
+        .map((file, index) => normalizeMediaFile(file, null, index))
+        .filter((file): file is File => Boolean(file));
     }, []);
 
     const resolveCanvasDropMode = useCallback(
       (transfer: DataTransfer | null | undefined): ReferenceGridDropMode => {
         if (!transfer) return "none";
+        if (hasInternalReferenceDragTypeHints(transfer)) return "none";
         const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
-        if (normalizedTypes.includes("text/reference-id")) return "none";
+        if (hasMediaLibraryDragTypeHints(transfer)) return "files";
         if (transfer.files && transfer.files.length > 0) return "files";
         if (normalizedTypes.includes("files")) return "files";
+        if (
+          normalizedTypes.includes("text/reference-url") ||
+          normalizedTypes.includes("text/uri-list") ||
+          normalizedTypes.includes("text/html") ||
+          normalizedTypes.includes("image/url") ||
+          normalizedTypes.includes("application/x-moz-file")
+        ) {
+          return "files";
+        }
         if (
           normalizedTypes.some(
             (type) =>

@@ -2,7 +2,7 @@
  * AI Studio page project/session runtime.
  * Owns project-aware session snapshot patching, agent hydration bridging, and project bootstrap restore wiring.
  */
-import { useCallback, useEffect, useMemo, type MutableRefObject } from "react";
+import { useCallback, useMemo } from "react";
 import {
   createEmptyAiStudioSessionAgentState,
   createEmptyAiStudioSessionSnapshot,
@@ -47,7 +47,6 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  pendingCreateRuntimeAgentHydrationRef: MutableRefObject<CreateRuntimeAgentHydrationPayload | null>;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedStandardAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
@@ -124,7 +123,6 @@ export const useAiStudioPageProjectSessionRuntime = ({
   hydrateStandardFromSessionAgentSnapshot,
   hydrateCanvasSessionState,
   hydrateFromSessionSnapshot,
-  pendingCreateRuntimeAgentHydrationRef,
   persistedAgentRuntime,
   persistedPulseAgentRuntime,
   persistedStandardAgentRuntime,
@@ -199,22 +197,11 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
   const hydrateFromSessionAgentSnapshot = useCallback(
     (payload: CreateRuntimeAgentHydrationPayload) => {
-      pendingCreateRuntimeAgentHydrationRef.current = null;
       resolvedHydrateStandardFromSessionAgentSnapshot?.(payload);
       resolvedHydratePulseFromSessionAgentSnapshot?.(payload);
     },
-    [
-      pendingCreateRuntimeAgentHydrationRef,
-      resolvedHydratePulseFromSessionAgentSnapshot,
-      resolvedHydrateStandardFromSessionAgentSnapshot,
-    ]
+    [resolvedHydratePulseFromSessionAgentSnapshot, resolvedHydrateStandardFromSessionAgentSnapshot]
   );
-
-  useEffect(() => {
-    pendingCreateRuntimeAgentHydrationRef.current = null;
-    void hasActivePulseSession;
-    void pulseWorkflowSession;
-  }, [hasActivePulseSession, pendingCreateRuntimeAgentHydrationRef, pulseWorkflowSession]);
 
   const buildProjectAwareBaseSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>
@@ -291,12 +278,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
         },
       };
     }
-    return {
-      standard: persistedAgentRuntimes.standard,
-      pulsePresetId: null,
-      pulseSessionInstanceId: null,
-      pulse: createEmptyAiStudioSessionAgentState(),
-    };
+    return persistedAgentRuntimes;
   }, [
     activeCreatePulsePresetId,
     expertCreateMode,
@@ -325,6 +307,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
         : {
             kind: "standard" as const,
             agentRuntime: sessionAgentRuntime,
+            agentRuntimes: sessionAgentRuntimes,
           },
     [expertCreateMode, sessionAgentRuntime, sessionAgentRuntimes]
   );

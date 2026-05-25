@@ -7,6 +7,7 @@ import type { AiStudioKlingElement } from "../logic/klingElements";
 import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { useAiStudioGenerationRuntimeControllers } from "./useAiStudioGenerationRuntimeControllers";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
@@ -106,6 +107,9 @@ type UseAiStudioStateRuntimeControllersParams = {
       detailOutputId?: string | null;
     }
   ) => void;
+  getReferenceSelectionStateForCreateMode: (
+    createMode: "standard" | "pulse"
+  ) => ReferenceSelectionAuthorityStateSeed;
   setRuntimeUiStateForCreateMode: (
     createMode: "standard" | "pulse",
     nextState: {
@@ -217,6 +221,7 @@ export const useAiStudioStateRuntimeControllers = ({
   setPulseSessionInstanceId,
   setReferenceImageUrl,
   setReferenceSelectionStateForCreateMode,
+  getReferenceSelectionStateForCreateMode,
   setRuntimeUiStateForCreateMode,
   setSaved,
   setSeedance2InputMode,
@@ -365,6 +370,7 @@ export const useAiStudioStateRuntimeControllers = ({
       setPulseSessionInstanceId,
       setReferenceImageUrl,
       setReferenceSelectionStateForCreateMode,
+      getReferenceSelectionStateForCreateMode,
       setExtraImageUrl,
       setEditReferenceText,
       setVideoReferenceText,

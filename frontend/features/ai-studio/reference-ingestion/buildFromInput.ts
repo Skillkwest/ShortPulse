@@ -268,7 +268,7 @@ export const buildStudioOutputsFromReferenceInput = async (
   context: ReferenceIngestionContext
 ): Promise<ReferenceIngestionResult> => {
   if (input.kind === "files") {
-    const outputs =
+    const result =
       typeof context.nowIso === "function"
         ? await mapUploadsFromFiles(
             input.files,
@@ -289,7 +289,7 @@ export const buildStudioOutputsFromReferenceInput = async (
             context.randomId,
             input.source
           );
-    return { outputs };
+    return result;
   }
   return buildStudioOutputsFromReferenceInputSync(input, context);
 };

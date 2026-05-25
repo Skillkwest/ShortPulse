@@ -67,6 +67,8 @@ export const useExpertEditSystemPresetCatalog = ({
     source: catalog.source,
     degraded: catalog.degraded,
     isAuthoritative: catalog.isAuthoritative,
-    refresh: catalog.refresh,
+    refresh: async () => {
+      await catalog.refresh();
+    },
   };
 };

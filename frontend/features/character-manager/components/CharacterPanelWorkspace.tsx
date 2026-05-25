@@ -54,7 +54,7 @@ const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
 const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.82)";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = CHARACTER_PROFILE_WRAPPER_BACKGROUND;
+const CHARACTER_TEXT_ENTRY_BACKGROUND = "#131518";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
@@ -331,6 +331,7 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   padding: "0 8px",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   background: CHARACTER_TEXT_ENTRY_BACKGROUND,
+  backgroundColor: CHARACTER_TEXT_ENTRY_BACKGROUND,
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",
   fontWeight: 600,

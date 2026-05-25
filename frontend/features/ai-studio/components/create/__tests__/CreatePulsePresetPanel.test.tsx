@@ -6,6 +6,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreatePulsePresetPanel } from "../CreatePulsePresetPanel";
+import { CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS } from "../../../../../lib/model-runtime/createPulsePresetDomain";
 
 class MockDataTransfer implements DataTransfer {
   dropEffect: "none" | "copy" | "link" | "move" = "none";
@@ -109,6 +110,74 @@ describe("CreatePulsePresetPanel", () => {
         })
       );
     });
+  });
+
+  it("starts built-ins from the freshly loaded global catalog", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+    const refreshedDefinitions = [
+      {
+        ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+        label: "Admin Updated Video Prompt Magic",
+        outputMode: "apply_prompt" as const,
+        starterAssistantMessage: "Fresh admin starter.",
+      },
+    ];
+
+    render(
+      <CreatePulsePresetPanel
+        builtInDefinitions={CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS}
+        refreshBuiltInDefinitions={vi.fn(async () => refreshedDefinitions)}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
+
+    await waitFor(() => {
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "image",
+          label: "Admin Updated Video Prompt Magic",
+          outputMode: "apply_prompt",
+          starterAssistantMessage: "Fresh admin starter.",
+        }),
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+        })
+      );
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "image",
+        expect.objectContaining({
+          forceNewSession: true,
+        })
+      );
+    });
+  });
+
+  it("blocks a stale built-in click when the refreshed global catalog no longer contains it", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn();
+
+    render(
+      <CreatePulsePresetPanel
+        builtInDefinitions={CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS}
+        refreshBuiltInDefinitions={vi.fn(async () => [CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1]])}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
+
+    expect(
+      await screen.findByText(
+        "This built-in Pulse is no longer available. Reload the Pulse catalog and try again."
+      )
+    ).toBeInTheDocument();
+    expect(onPresetStart).not.toHaveBeenCalled();
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
   });
 
   it("drops retired built-in saved overrides from the catalog", () => {

@@ -3,6 +3,7 @@
  * Normalizes persisted snapshot payloads into safe in-memory state values.
  */
 import type {
+  AiStudioSessionCreateModeReferenceStatesV1,
   AiStudioSessionOutputV1,
   AiStudioSessionSnapshot,
   AiStudioSessionSnapshotV1,
@@ -257,6 +258,22 @@ const asExtraImageUrls = (value: unknown): [string | null, string | null, string
     sanitizeHydratedMediaUrl(asNullableString(value[1])),
     sanitizeHydratedMediaUrl(asNullableString(value[2])),
   ];
+};
+
+const asCreateModeReferenceState = (value: unknown) => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  return {
+    selectedTool: asToolId(row.selectedTool) ?? "create",
+    showCreateTools: asBoolean(row.showCreateTools),
+    referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(row.referenceImageUrl)),
+    extraImageUrls: asExtraImageUrls(row.extraImageUrls),
+    motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
+      asNullableString(row.motionReferenceVideoUrl)
+    ),
+    useReferenceImageIndicator: asBoolean(row.useReferenceImageIndicator),
+    detailOutputId: asNullableString(row.detailOutputId)?.trim() || null,
+  };
 };
 
 const asKlingVoiceIds = (value: unknown): [string, string] => {
@@ -654,6 +671,7 @@ export type AiStudioSessionHydrationPayload = {
     expertCreateMode: "standard" | "pulse";
     activePulsePresetId: string | null;
     pulseSessionInstanceId: string | null;
+    createModeReferenceStates: AiStudioSessionCreateModeReferenceStatesV1;
     referenceImageUrl: string | null;
     extraImageUrls: [string | null, string | null, string | null];
     editReferenceText: string;
@@ -915,6 +933,45 @@ export const buildAiStudioSessionHydrationPayload = (
     workspaceExpertCreateMode,
     asToolId(workspace.selectedTool)
   );
+  const visibleReferenceImageUrl = sanitizeHydratedMediaUrl(
+    asNullableString(workspace.referenceImageUrl)
+  );
+  const visibleExtraImageUrls = asExtraImageUrls(workspace.extraImageUrls);
+  const visibleMotionReferenceVideoUrl = sanitizeHydratedMediaUrl(
+    asNullableString(workspace.motionReferenceVideoUrl)
+  );
+  const rawCreateModeReferenceStates = (workspace as { createModeReferenceStates?: unknown })
+    .createModeReferenceStates;
+  const hydratedCreateModeReferenceStates: AiStudioSessionCreateModeReferenceStatesV1 = {
+    standard: asCreateModeReferenceState(
+      (rawCreateModeReferenceStates as { standard?: unknown } | undefined)?.standard
+    ) ?? {
+      selectedTool:
+        workspaceExpertCreateMode === "standard" ? resolvedWorkspaceSelectedTool : "create",
+      showCreateTools: false,
+      referenceImageUrl: workspaceExpertCreateMode === "standard" ? visibleReferenceImageUrl : null,
+      extraImageUrls:
+        workspaceExpertCreateMode === "standard" ? visibleExtraImageUrls : [null, null, null],
+      motionReferenceVideoUrl:
+        workspaceExpertCreateMode === "standard" ? visibleMotionReferenceVideoUrl : null,
+      useReferenceImageIndicator: false,
+      detailOutputId: null,
+    },
+    pulse: asCreateModeReferenceState(
+      (rawCreateModeReferenceStates as { pulse?: unknown } | undefined)?.pulse
+    ) ?? {
+      selectedTool:
+        workspaceExpertCreateMode === "pulse" ? resolvedWorkspaceSelectedTool : "create",
+      showCreateTools: false,
+      referenceImageUrl: workspaceExpertCreateMode === "pulse" ? visibleReferenceImageUrl : null,
+      extraImageUrls:
+        workspaceExpertCreateMode === "pulse" ? visibleExtraImageUrls : [null, null, null],
+      motionReferenceVideoUrl:
+        workspaceExpertCreateMode === "pulse" ? visibleMotionReferenceVideoUrl : null,
+      useReferenceImageIndicator: false,
+      detailOutputId: null,
+    },
+  };
   const activeAgentRuntime =
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse
@@ -935,8 +992,9 @@ export const buildAiStudioSessionHydrationPayload = (
       expertCreateMode: workspaceExpertCreateMode,
       activePulsePresetId: resolvedWorkspaceActivePulsePresetId,
       pulseSessionInstanceId: resolvedWorkspacePulseSessionInstanceId,
-      referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
-      extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
+      createModeReferenceStates: hydratedCreateModeReferenceStates,
+      referenceImageUrl: visibleReferenceImageUrl,
+      extraImageUrls: visibleExtraImageUrls,
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
       videoReferenceMode: asVideoReferenceMode(workspace.videoReferenceMode),
@@ -968,9 +1026,7 @@ export const buildAiStudioSessionHydrationPayload = (
       klingVoiceIds: asKlingVoiceIds(workspace.klingVoiceIds),
       klingMultiPrompts,
       klingElements: asKlingElements(workspace.klingElements),
-      motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
-        asNullableString(workspace.motionReferenceVideoUrl)
-      ),
+      motionReferenceVideoUrl: visibleMotionReferenceVideoUrl,
     },
     outputs: {
       active: activeOutputs,

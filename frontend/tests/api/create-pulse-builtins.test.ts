@@ -14,6 +14,10 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
+  isAuthoritativeCreatePulseBuiltInCatalogResolution: (resolution: {
+    source?: string;
+    degraded?: boolean;
+  }) => resolution.source === "control_plane" && resolution.degraded !== true,
   resolveRuntimeCreatePulseBuiltInCatalog: (...args: unknown[]) =>
     resolveRuntimeCreatePulseBuiltInCatalogMock(...args),
 }));
@@ -51,6 +55,7 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({ bypassCache: true });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
@@ -61,7 +66,7 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     });
   });
 
-  it("returns degraded seed fallback metadata when runtime resolution fails soft", async () => {
+  it("fails closed when runtime resolution returns degraded fallback metadata", async () => {
     resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
       builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
       source: "seed",
@@ -74,12 +79,10 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
-      builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
+      error: "Create Pulse built-ins are temporarily unavailable. Reload and try again.",
       source: "seed",
-      updatedAt: null,
-      updatedByEmail: null,
       degraded: true,
     });
   });

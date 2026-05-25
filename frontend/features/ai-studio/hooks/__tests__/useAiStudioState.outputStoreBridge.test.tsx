@@ -112,6 +112,18 @@ vi.mock("../useAiStudioReferenceSelectionState", () => ({
     toggleReferenceIndicator: vi.fn(),
     resolveReferenceInputsForTool: resolveReferenceInputsForToolMock,
     setAuthorityState: vi.fn(),
+    getAuthorityState: vi.fn((authorityKey: string) => {
+      void authorityKey;
+      return {
+        selectedTool: "create",
+        showCreateTools: true,
+        referenceImageUrl: EDIT_REFERENCE_INPUTS.referenceImageUrl,
+        extraImageUrls: EDIT_REFERENCE_INPUTS.extraImageUrls,
+        motionReferenceVideoUrl: null,
+        useReferenceImageIndicator: false,
+        detailOutputId: null,
+      };
+    }),
     isModelModalOpen: false,
     modelModalAnchor: null,
     modelModalContext: null,
@@ -470,7 +482,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
   });
 
-  it("keeps Standard and Pulse prompts isolated while sharing output/reference context", async () => {
+  it("keeps Standard and Pulse prompts isolated while the right rail remains global", async () => {
     const { result } = renderHook(
       () => {
         const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(

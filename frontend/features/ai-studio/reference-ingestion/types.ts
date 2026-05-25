@@ -73,4 +73,5 @@ export type ReferenceIngestionContext = {
 
 export type ReferenceIngestionResult = {
   outputs: StudioOutput[];
+  rejectedFileCount?: number;
 };

@@ -21,22 +21,31 @@ export const CreatePulsePreferenceProvider = ({ children }: CreatePulsePreferenc
   const preference = useCreatePulsePresetPanelPreference({
     builtInDefinitions: builtInCatalog.builtInDefinitions,
   });
+  const refreshBuiltInDefinitions = React.useCallback(async () => {
+    const nextCatalog = await builtInCatalog.refresh();
+    if (!nextCatalog?.isAuthoritative) return null;
+    return nextCatalog.builtInDefinitions;
+  }, [builtInCatalog]);
   const value = React.useMemo<CreatePulsePreferenceRuntimeValue>(
     () => ({
       presetPanelIds: preference.presetPanelIds,
       savedPresets: preference.savedPresets,
       builtInDefinitions: builtInCatalog.builtInDefinitions,
       builtInDefinitionsLoading: builtInCatalog.loading,
+      builtInDefinitionsAuthoritative: builtInCatalog.isAuthoritative,
+      refreshBuiltInDefinitions,
       setPresetPanelIds: preference.setPresetPanelIds,
       setSavedPresets: preference.setSavedPresets,
     }),
     [
       builtInCatalog.builtInDefinitions,
+      builtInCatalog.isAuthoritative,
       builtInCatalog.loading,
       preference.presetPanelIds,
       preference.savedPresets,
       preference.setPresetPanelIds,
       preference.setSavedPresets,
+      refreshBuiltInDefinitions,
     ]
   );
 

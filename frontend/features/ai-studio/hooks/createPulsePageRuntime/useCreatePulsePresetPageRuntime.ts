@@ -68,22 +68,34 @@ export const useCreatePulsePresetPageRuntime = ({
     enabled: shouldLoadPulsePreferences,
     builtInDefinitions: builtInCatalog.builtInDefinitions,
   });
+  const refreshBuiltInDefinitions = useMemo(
+    () => async () => {
+      const nextCatalog = await builtInCatalog.refresh();
+      if (!nextCatalog?.isAuthoritative) return null;
+      return nextCatalog.builtInDefinitions;
+    },
+    [builtInCatalog]
+  );
   const pulsePreferenceRuntime = useMemo<CreatePulsePreferenceRuntimeValue>(
     () => ({
       presetPanelIds: pulsePreference.presetPanelIds,
       savedPresets: pulsePreference.savedPresets,
       builtInDefinitions: builtInCatalog.builtInDefinitions,
       builtInDefinitionsLoading: builtInCatalog.loading,
+      builtInDefinitionsAuthoritative: builtInCatalog.isAuthoritative,
+      refreshBuiltInDefinitions,
       setPresetPanelIds: pulsePreference.setPresetPanelIds,
       setSavedPresets: pulsePreference.setSavedPresets,
     }),
     [
       builtInCatalog.builtInDefinitions,
+      builtInCatalog.isAuthoritative,
       builtInCatalog.loading,
       pulsePreference.presetPanelIds,
       pulsePreference.savedPresets,
       pulsePreference.setPresetPanelIds,
       pulsePreference.setSavedPresets,
+      refreshBuiltInDefinitions,
     ]
   );
   const [activeCreatePulsePresetSnapshotState, setActiveCreatePulsePresetSnapshot] =

@@ -24,7 +24,7 @@ type UseAiStudioSessionReferenceDurabilityParams = {
 type LocalReferenceCandidate = {
   id: string;
   mode: StudioOutput["mode"];
-  previewUrl: string;
+  uploadUrl: string;
   previewPosterUrl: string | null;
   signature: string;
 };
@@ -112,6 +112,15 @@ const resolveCandidateSignature = (output: StudioOutput): string => {
 const resolveAttemptKey = (candidate: LocalReferenceCandidate): string =>
   `${candidate.id}::${candidate.signature}`;
 
+const resolveCandidateUploadUrl = (output: StudioOutput): string | null => {
+  if (output.mode === "image") {
+    const localObjectUrl = output.localObjectUrl?.trim() ?? "";
+    if (localObjectUrl.startsWith("blob:")) return localObjectUrl;
+  }
+  const previewUrl = output.previewUrl?.trim() ?? "";
+  return previewUrl || null;
+};
+
 const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidate | null => {
   if (!output?.id) return null;
   if (output.mode !== "image" && output.mode !== "video" && output.mode !== "audio") return null;
@@ -122,8 +131,8 @@ const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidat
   ) {
     return null;
   }
-  const previewUrl = output.previewUrl?.trim();
-  if (!previewUrl) return null;
+  const uploadUrl = resolveCandidateUploadUrl(output);
+  if (!uploadUrl) return null;
   const previewPosterUrl =
     output.mode === "video" &&
     !asCanonicalStoragePath(output.previewPosterStoragePath) &&
@@ -133,7 +142,7 @@ const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidat
   return {
     id: output.id,
     mode: output.mode,
-    previewUrl,
+    uploadUrl,
     previewPosterUrl,
     signature: resolveCandidateSignature(output),
   };
@@ -224,7 +233,7 @@ export const useAiStudioSessionReferenceDurability = ({
         let uploaded: { url: string; path: string } | null = null;
         let uploadedPoster: { url: string; path: string } | null = null;
         if (candidate.mode === "video") {
-          uploaded = await uploadVideoAssetToStorage(candidate.previewUrl);
+          uploaded = await uploadVideoAssetToStorage(candidate.uploadUrl);
           if (candidate.previewPosterUrl) {
             try {
               uploadedPoster = await uploadImageAssetToStorage(candidate.previewPosterUrl);
@@ -241,9 +250,9 @@ export const useAiStudioSessionReferenceDurability = ({
             }
           }
         } else if (candidate.mode === "audio") {
-          uploaded = await uploadAudioAssetToStorage(candidate.previewUrl);
+          uploaded = await uploadAudioAssetToStorage(candidate.uploadUrl);
         } else {
-          uploaded = await uploadImageAssetToStorage(candidate.previewUrl);
+          uploaded = await uploadImageAssetToStorage(candidate.uploadUrl);
         }
 
         const canonicalPath = asCanonicalStoragePath(uploaded.path);

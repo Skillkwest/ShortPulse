@@ -50,7 +50,10 @@ import {
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
-import { resolveRuntimeCreatePulseBuiltInCatalog } from "../../../lib/server/api/createPulseBuiltInControlPlane";
+import {
+  isAuthoritativeCreatePulseBuiltInCatalogResolution,
+  resolveRuntimeCreatePulseBuiltInCatalog,
+} from "../../../lib/server/api/createPulseBuiltInControlPlane";
 
 const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
 const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
@@ -172,7 +175,19 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       traceId,
     });
   }
-  const runtimePulseBuiltIns = await resolveRuntimeCreatePulseBuiltInCatalog();
+  const runtimePulseBuiltIns = await resolveRuntimeCreatePulseBuiltInCatalog({
+    bypassCache: context.pulse.source === "builtin",
+  });
+  if (
+    context.pulse.source === "builtin" &&
+    !isAuthoritativeCreatePulseBuiltInCatalogResolution(runtimePulseBuiltIns)
+  ) {
+    return sendStudioAgentError(res, 503, {
+      code: "PULSE_PRESET_CATALOG_UNAVAILABLE",
+      message: "Built-in Pulse catalog is unavailable. Reload the Pulse catalog and try again.",
+      traceId,
+    });
+  }
   const runtimeBuiltInPreset = runtimePulseBuiltIns.builtInDefinitions.find(
     (definition) => definition.presetId === context.pulse?.presetId
   );

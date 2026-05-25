@@ -3,7 +3,16 @@
  * Encapsulates drop-mode transitions and global drag cleanup outside the render component.
  */
 import { useEffect, type MutableRefObject } from "react";
-import { extractDroppedPromptText } from "./referenceGridClipboard";
+import { extractDroppedPromptText, getDroppedMediaReference } from "./referenceGridClipboard";
+import {
+  extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
+} from "../../utils/dragDrop";
+import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import type {
+  LibraryMediaReferencePayload,
+  LibraryPromptReferencePayload,
+} from "../referenceGridTypes";
 
 export type ReferenceGridDropMode = "none" | "text" | "files";
 
@@ -21,7 +30,10 @@ type UseReferenceGridDropControllerArgs = {
   normalizeMediaFiles: (files: File[]) => File[];
   buildFileList: (files: File[]) => FileList | null;
   onDropFiles?: (files: FileList) => void;
+  onPasteMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   onPasteTextReference?: (text: string) => void;
+  onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
 };
 
 type UseReferenceGridDropControllerResult = {
@@ -44,7 +56,10 @@ export const useReferenceGridDropController = ({
   normalizeMediaFiles,
   buildFileList,
   onDropFiles,
+  onPasteMediaReference,
   onPasteTextReference,
+  onAddLibraryMediaReference,
+  onAddLibraryPromptReference,
 }: UseReferenceGridDropControllerArgs): UseReferenceGridDropControllerResult => {
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -65,14 +80,37 @@ export const useReferenceGridDropController = ({
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     canvasDragDepthRef.current = 0;
     setCanvasDropModeSafe("none");
+    const transfer = event.dataTransfer;
 
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
-    const internalRefId = event.dataTransfer.getData("text/reference-id");
-    if (internalRefId) {
+    if (
+      hasInternalReferenceDragTypeHints(transfer) ||
+      extractInternalReferenceDragPayload(transfer)?.outputId
+    ) {
       event.preventDefault();
       return;
     }
-    const files = event.dataTransfer.files;
+
+    const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+    if (mediaLibraryPayload?.kind === "libraryMedia" && onAddLibraryMediaReference) {
+      event.preventDefault();
+      onAddLibraryMediaReference(mediaLibraryPayload.payload);
+      return;
+    }
+    if (mediaLibraryPayload?.kind === "libraryPrompt" && onAddLibraryPromptReference) {
+      event.preventDefault();
+      onAddLibraryPromptReference(mediaLibraryPayload.payload);
+      return;
+    }
+
+    const droppedMediaReference = getDroppedMediaReference(transfer);
+    if (droppedMediaReference && onPasteMediaReference) {
+      event.preventDefault();
+      onPasteMediaReference(droppedMediaReference);
+      return;
+    }
+
+    const files = transfer.files;
     if (files && files.length > 0 && onDropFiles) {
       const mediaFiles = normalizeMediaFiles(Array.from(files));
       if (mediaFiles.length === 0) return;
@@ -83,7 +121,7 @@ export const useReferenceGridDropController = ({
       return;
     }
 
-    const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
+    const droppedPromptText = extractDroppedPromptText(transfer);
     if (!droppedPromptText || !onPasteTextReference) return;
     event.preventDefault();
     onPasteTextReference(droppedPromptText);

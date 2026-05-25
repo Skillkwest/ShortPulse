@@ -269,6 +269,11 @@ describe("Admin agent instructions page", () => {
       systemInstructions: "Draft pulse instructions.",
       artifactTarget: "video_prompt",
       starterAssistantMessage: "Upload your image to get the process started :)",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
     });
 
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
@@ -363,6 +368,31 @@ describe("Admin agent instructions page", () => {
     expect(within(secondCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
       "Do Not Publish Yet"
     );
+  });
+
+  it("blocks global Pulse set saves while a new slot is blank or incomplete", async () => {
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
+
+    const globalSaveButton = screen.getByRole("button", { name: "Save Pulse set" });
+    expect(globalSaveButton).toBeDisabled();
+
+    const newSlotCard = screen.getByText("Pulse Slot 4").closest("article");
+    if (!newSlotCard) throw new Error("Expected blank Pulse slot card.");
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Incomplete Pulse" },
+    });
+
+    expect(globalSaveButton).toBeDisabled();
+    expect(
+      fetchWithAuthMock.mock.calls.some(
+        ([target, init]) =>
+          target === "/api/admin/agent-instructions/pulse-builtins" &&
+          (init as { method?: string } | undefined)?.method === "PUT"
+      )
+    ).toBe(false);
   });
 
   it("edits and saves the live style-extraction prompt", async () => {
@@ -539,7 +569,7 @@ describe("Admin agent instructions page", () => {
     expect(within(styleCard).getByText("Seeded local copy")).toBeInTheDocument();
   });
 
-  it("allows Pulse saves to republish fallback content when the catalog read is degraded", async () => {
+  it("blocks Pulse saves when the catalog read is degraded", async () => {
     fetchWithAuthMock.mockImplementation(async (input: string) => {
       if (input === "/api/admin/agent-instructions/standard-system-prompt") {
         return buildStandardPromptResponse();
@@ -575,7 +605,7 @@ describe("Admin agent instructions page", () => {
 
     render(<AdminAgentInstructionsPage />);
     const degradedMessage = await screen.findByText(
-      "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
+      "Live Pulse catalog lookup failed. Showing fallback Pulse content. Reload before saving so the live shared set is not overwritten."
     );
 
     expect(degradedMessage).toBeInTheDocument();
@@ -587,26 +617,14 @@ describe("Admin agent instructions page", () => {
       target: { value: "Global Prompt Director" },
     });
 
-    fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
-
-    await waitFor(() => {
-      expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/agent-instructions/pulse-builtins",
-        expect.objectContaining({
-          method: "PUT",
-        })
-      );
-    });
-    const saveCall = fetchWithAuthMock.mock.calls.find(
-      ([target, init]) =>
-        target === "/api/admin/agent-instructions/pulse-builtins" &&
-        (init as { method?: string } | undefined)?.method === "PUT"
-    );
-    const body = JSON.parse(String((saveCall?.[1] as { body?: string } | undefined)?.body ?? "{}"));
-    expect(body.expectedUpdatedAt).toBeUndefined();
-    expect(body.builtInDefinitions[0]).toMatchObject({
-      label: "Global Prompt Director",
-    });
+    expect(within(pulseCard).getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(
+      fetchWithAuthMock.mock.calls.some(
+        ([target, init]) =>
+          target === "/api/admin/agent-instructions/pulse-builtins" &&
+          (init as { method?: string } | undefined)?.method === "PUT"
+      )
+    ).toBe(false);
   });
 
   it("shows the Pulse save failure instead of hiding it behind a stale load warning", async () => {
@@ -633,10 +651,10 @@ describe("Admin agent instructions page", () => {
           ok: true,
           json: async () => ({
             builtInDefinitions: [CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0]],
-            source: "seed" as const,
-            updatedAt: null,
-            updatedByEmail: null,
-            degraded: true,
+            source: "control_plane" as const,
+            updatedAt: "2026-05-08T17:00:00.000Z",
+            updatedByEmail: "admin@example.com",
+            degraded: false,
           }),
         };
       }
@@ -644,11 +662,11 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
-    const degradedMessage = await screen.findByText(
-      "Live Pulse catalog lookup failed. Showing fallback Pulse content. Saving an edit will attempt to republish the shared built-in set."
+    const liveCatalogMessage = await screen.findByText(
+      /Live global Pulse catalog last updated by admin@example.com/
     );
-    expect(degradedMessage).toBeInTheDocument();
-    const degradedMessageText = degradedMessage.textContent ?? "";
+    expect(liveCatalogMessage).toBeInTheDocument();
+    const liveCatalogMessageText = liveCatalogMessage.textContent ?? "";
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Pulse card.");
@@ -661,7 +679,7 @@ describe("Admin agent instructions page", () => {
     expect(
       await screen.findByText("Failed to save built-in guided workflows.")
     ).toBeInTheDocument();
-    expect(screen.queryByText(degradedMessageText)).not.toBeInTheDocument();
+    expect(screen.queryByText(liveCatalogMessageText)).not.toBeInTheDocument();
     expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
   });
 });

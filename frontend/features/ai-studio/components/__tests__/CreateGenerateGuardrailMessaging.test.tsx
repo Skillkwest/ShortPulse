@@ -43,6 +43,8 @@ describe("Create generate guardrail messaging", () => {
     savedPresets: [],
     builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
     builtInDefinitionsLoading: false,
+    builtInDefinitionsAuthoritative: true,
+    refreshBuiltInDefinitions: vi.fn(async () => CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS),
     setPresetPanelIds: vi.fn(async () => true),
     setSavedPresets: vi.fn(async () => true),
   };

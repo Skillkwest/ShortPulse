@@ -22,7 +22,13 @@ export default function ReportIssuePage() {
   });
 
   const remainingCharacters = ISSUE_REPORT_MESSAGE_MAX_LENGTH - message.length;
-  const routeContext = router.asPath || "/report-issue";
+  const capturedContext = resolveIssueReportSourcePath({
+    currentPath: router.asPath || "/report-issue",
+    sourcePath: router.query.sourcePath,
+    from: router.query.from,
+    referrer: typeof document !== "undefined" ? document.referrer : null,
+    origin: typeof window !== "undefined" ? window.location.origin : null,
+  });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,13 +55,7 @@ export default function ReportIssuePage() {
         },
         body: JSON.stringify({
           message: trimmedMessage,
-          sourcePath: resolveIssueReportSourcePath({
-            currentPath: routeContext,
-            sourcePath: router.query.sourcePath,
-            from: router.query.from,
-            referrer: typeof document !== "undefined" ? document.referrer : null,
-            origin: typeof window !== "undefined" ? window.location.origin : null,
-          }),
+          sourcePath: capturedContext,
         }),
       });
 
@@ -110,8 +110,13 @@ export default function ReportIssuePage() {
                     <strong>{user?.email ?? "Unknown account"}</strong>
                   </div>
                   <div className={styles.metaCard}>
-                    <span className="tiny subdued">Route context</span>
-                    <strong>{routeContext}</strong>
+                    <span className="tiny subdued">Captured context</span>
+                    <strong>
+                      {capturedContext === "/report-issue" ? "Current page" : capturedContext}
+                    </strong>
+                    <span className="tiny subdued">
+                      We attach the ShortPulse route context we can verify for triage.
+                    </span>
                   </div>
                 </div>
 

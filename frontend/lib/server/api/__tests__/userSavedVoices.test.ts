@@ -21,15 +21,19 @@ type OwnedCustomVoiceRow = Record<string, unknown>;
 const buildSupabaseAdminMock = ({
   legacyData = { ai_studio_saved_voices: [] },
   legacyError = null,
+  legacyUpsertError = null,
   ownedData = [],
   ownedError = null,
+  ownedUpsertError = null,
   deleteOwnedData = [],
   deleteOwnedError = null,
 }: {
   legacyData?: LegacySavedVoicesPayload;
   legacyError?: { code?: string; message?: string } | null;
+  legacyUpsertError?: { code?: string; message?: string } | null;
   ownedData?: OwnedCustomVoiceRow[] | null;
   ownedError?: { code?: string; message?: string } | null;
+  ownedUpsertError?: { code?: string; message?: string } | null;
   deleteOwnedData?: Array<{ voice_id: string }> | null;
   deleteOwnedError?: { code?: string; message?: string } | null;
 } = {}) => {
@@ -39,7 +43,7 @@ const buildSupabaseAdminMock = ({
   });
   const legacyEq = vi.fn().mockReturnValue({ maybeSingle });
   const legacySelect = vi.fn().mockReturnValue({ eq: legacyEq });
-  const legacyUpsert = vi.fn().mockResolvedValue({ error: null });
+  const legacyUpsert = vi.fn().mockResolvedValue({ error: legacyUpsertError });
 
   const ownedOrder = vi.fn().mockResolvedValue({
     data: ownedData,
@@ -48,7 +52,7 @@ const buildSupabaseAdminMock = ({
   const ownedProviderEq = vi.fn().mockReturnValue({ order: ownedOrder });
   const ownedUserEq = vi.fn().mockReturnValue({ eq: ownedProviderEq });
   const ownedSelect = vi.fn().mockReturnValue({ eq: ownedUserEq });
-  const ownedUpsert = vi.fn().mockResolvedValue({ error: null });
+  const ownedUpsert = vi.fn().mockResolvedValue({ error: ownedUpsertError });
 
   const ownedDeleteVoiceEq = vi.fn().mockResolvedValue({
     data: deleteOwnedData,
@@ -176,6 +180,53 @@ describe("userSavedVoices", () => {
         name: "Shared Save",
         originKind: "legacy-saved",
         savedSource: "legacy",
+      }),
+    ]);
+  });
+
+  it("ignores migrated ownership rows until they are explicitly repaired", async () => {
+    const { admin } = buildSupabaseAdminMock({
+      legacyData: {
+        ai_studio_saved_voices: [
+          {
+            voiceId: "voice_shared",
+            name: "Shared Save",
+            previewUrl: null,
+            description: "Safe shared bookmark",
+            createdAt: "2026-04-19T12:00:00.000Z",
+            originKind: "provider-default",
+            savedSource: "provider-save",
+            providerDeleteEligible: false,
+          },
+        ],
+      },
+      ownedData: [
+        {
+          user_id: "user-123",
+          provider: "elevenlabs",
+          voice_id: "voice_migrated_custom",
+          display_name: "Migrated Custom",
+          description: "Needs manual review",
+          preview_url: null,
+          sample_storage_path: "user-123/voice-samples/voice_migrated_custom/sample.mp3",
+          origin_kind: "provider-user-created",
+          saved_source: "voice-clone",
+          provider_delete_eligible: true,
+          ownership_provenance: "legacy_migrated",
+          ownership_confidence: "migrated",
+          created_at: "2026-04-20T12:00:00.000Z",
+          updated_at: "2026-04-20T12:00:00.000Z",
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const voices = await listSavedVoicesForUser("user-123");
+
+    expect(voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_shared",
+        name: "Shared Save",
       }),
     ]);
   });
@@ -322,6 +373,60 @@ describe("userSavedVoices", () => {
     expect(ownedPayload.ownership_confidence).toBe("high");
   });
 
+  it("refuses to save custom voices when the authoritative ownership table is unavailable", async () => {
+    const { admin, calls } = buildSupabaseAdminMock({
+      ownedUpsertError: {
+        code: "42P01",
+        message: "relation user_owned_custom_voices does not exist",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const savedVoice = await saveVoiceForUser({
+      userId: "user-123",
+      voice: {
+        voiceId: "voice_new",
+        name: "Ledger Required",
+        previewUrl: "https://cdn.shortpulse.test/ledger-required.mp3",
+        description: "Should fail without the ownership ledger",
+        originKind: "provider-user-created",
+        savedSource: "voice-clone",
+        providerDeleteEligible: true,
+      },
+    });
+
+    expect(savedVoice).toBeNull();
+    expect(calls.ownedUpsert).toHaveBeenCalledTimes(1);
+    expect(calls.legacyUpsert).not.toHaveBeenCalled();
+  });
+
+  it("still saves custom voices when the legacy cache column is unavailable but the ledger write succeeds", async () => {
+    const { admin, calls } = buildSupabaseAdminMock({
+      legacyUpsertError: { code: "42703", message: "column ai_studio_saved_voices does not exist" },
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const savedVoice = await saveVoiceForUser({
+      userId: "user-123",
+      voice: {
+        voiceId: "voice_new",
+        name: "Ledger Only",
+        previewUrl: "https://cdn.shortpulse.test/ledger-only.mp3",
+        description: "Authority succeeds even if the legacy mirror is absent",
+        originKind: "provider-user-created",
+        savedSource: "voice-clone",
+        providerDeleteEligible: true,
+      },
+    });
+
+    expect(savedVoice).toMatchObject({
+      voiceId: "voice_new",
+      name: "Ledger Only",
+    });
+    expect(calls.ownedUpsert).toHaveBeenCalledTimes(1);
+    expect(calls.legacyUpsert).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses to save excluded provider voices", async () => {
     const { admin, calls } = buildSupabaseAdminMock();
     getSupabaseAdminMock.mockReturnValue(admin);
@@ -385,5 +490,23 @@ describe("userSavedVoices", () => {
         name: "Keep",
       }),
     ]);
+  });
+
+  it("still reports success when the authoritative row is deleted but the legacy cache column is unavailable", async () => {
+    const { admin, calls } = buildSupabaseAdminMock({
+      legacyData: { ai_studio_saved_voices: [] },
+      legacyUpsertError: { code: "42703", message: "column ai_studio_saved_voices does not exist" },
+      deleteOwnedData: [{ voice_id: "voice_remove" }],
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const deleted = await deleteSavedVoiceForUser({
+      userId: "user-123",
+      voiceId: "voice_remove",
+    });
+
+    expect(deleted).toBe(true);
+    expect(calls.ownedDelete).toHaveBeenCalledTimes(1);
+    expect(calls.legacyUpsert).toHaveBeenCalledTimes(1);
   });
 });

@@ -252,4 +252,62 @@ describe("useAiStudioShellDndController", () => {
     expect(shellRectSpy).toHaveBeenCalledTimes(2);
     expect(rightRectSpy).toHaveBeenCalledTimes(2);
   });
+
+  it("routes shell fallback text drops into the right-column prompt handler", () => {
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+    shellRef.current.appendChild(rightRef.current);
+    vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 0,
+      width: 400,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(rightRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 200,
+      width: 200,
+      height: 400,
+      x: 200,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const onDropTextReference = vi.fn();
+    const payloadRef: { current: ShellDropPayload } = {
+      current: { kind: "text", text: "dragged chat history prompt" },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "text",
+        resolveDropPayload: () => payloadRef.current,
+        onDropFiles: vi.fn(),
+        onDropTextReference,
+        useRafBackpressure: false,
+      })
+    );
+
+    const dragEvent = createDragEvent(createTransfer(["text/plain"]), {
+      target: shellRef.current,
+      clientX: 250,
+      clientY: 80,
+    });
+
+    act(() => {
+      result.current.handleShellDropCapture(dragEvent);
+    });
+
+    expect(dragEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(dragEvent.stopPropagation).toHaveBeenCalledTimes(1);
+    expect(onDropTextReference).toHaveBeenCalledWith("dragged chat history prompt");
+  });
 });

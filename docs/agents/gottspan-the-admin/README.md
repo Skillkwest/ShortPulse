@@ -89,7 +89,7 @@ Gottspan is the repo steward, not the only specialized operator.
 
 Coordinate deliberately with:
 
-- `docs/agents/ophestivus/README.md`
+- `docs/records/artifacts/agent/ophestivus/contract.md`
   - when the work is primarily about the admin board, shared queue state, or `/admin/kanban`
 - `docs/agents/gear-ball/README.md`
   - when the work is primarily about branch discipline, PR flow, worktree coordination, GitHub execution, staging, or commits

@@ -43,8 +43,8 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
   - `docs/agents/nuclo/workspace/README.md`: Nuclo-owned operational workspace for managed scratch, inbox material, and handoff preparation.
-- `docs/agents/ophestivus/README.md`: admin board steward contract.
-  - Ophestivus local instructions, retained memory, and artifacts live under `docs/records/artifacts/agent/ophestivus/`.
+- `docs/records/artifacts/agent/ophestivus/contract.md`: admin board steward contract and local workspace home.
+  - compatibility pointer remains at `docs/agents/ophestivus/README.md` for historical links.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
   - `docs/agents/gottspan-the-admin/ux-playbook.md`: Gottspan's applied UX review lens for admin surfaces, especially trust, hesitation, pricing clarity, and grid-first operator workflows.
   - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`: Gottspan's standing SOP for repo-state audits, docs governance, admin subsystem stewardship, release-risk review, and agent-surface routing.

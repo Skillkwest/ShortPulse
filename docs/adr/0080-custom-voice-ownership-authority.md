@@ -27,6 +27,8 @@ ShortPulse now treats custom voice ownership as an app-owned server contract:
    final ownership authority.
 5. Create/clone flows must fail closed and roll back provider/sample artifacts when authoritative
    ownership persistence does not succeed.
+6. Only high-confidence or explicitly repaired ownership rows are trusted at runtime; legacy
+   migrated rows must be quarantined for review before they can act as custom-voice authority.
 
 ## Consequences
 
@@ -45,7 +47,9 @@ ShortPulse now treats custom voice ownership as an app-owned server contract:
 
 ## Follow-up
 
-- Backfill authoritative ownership rows for legacy custom voices via
-  `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql`.
+- Backfill legacy ownership candidates via
+  `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql`, then quarantine the
+  legacy-migrated rows with
+  `sql/migrations/130_quarantine_legacy_migrated_custom_voice_ownership.sql`.
 - Quarantine orphaned provider voices with no trusted owner row.
 - Remove legacy ownership fallback once migration/cleanup is complete.

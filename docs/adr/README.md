@@ -94,3 +94,5 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0077-paid-starter-tier-with-hidden-free-default.md`
 - `docs/adr/0078-public-origin-authority-contract.md`
 - `docs/adr/0079-supabase-auth-email-transport-google-workspace-interim.md`
+- `docs/adr/0080-custom-voice-ownership-authority.md`
+- `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`

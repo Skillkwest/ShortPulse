@@ -8,6 +8,7 @@ create temporary table if not exists user_owned_custom_voices_backfill_counts (
     legacy_owned_candidate_count bigint not null,
     missing_backfilled_row_count bigint not null,
     migrated_confidence_row_count bigint not null,
+    disputed_confidence_row_count bigint not null,
     high_confidence_row_count bigint not null
 ) on commit drop;
 
@@ -95,6 +96,7 @@ begin
                 legacy_owned_candidate_count,
                 missing_backfilled_row_count,
                 migrated_confidence_row_count,
+                disputed_confidence_row_count,
                 high_confidence_row_count
             )
             select
@@ -102,6 +104,7 @@ begin
                 (select count(*)::bigint from legacy_owned_candidates),
                 (select count(*)::bigint from missing_backfilled_rows),
                 (select count(*)::bigint from owned_rows where ownership_confidence = 'migrated'),
+                (select count(*)::bigint from owned_rows where ownership_confidence = 'disputed'),
                 (select count(*)::bigint from owned_rows where ownership_confidence = 'high')
         $sql$;
     else
@@ -110,6 +113,7 @@ begin
             legacy_owned_candidate_count,
             missing_backfilled_row_count,
             migrated_confidence_row_count,
+            disputed_confidence_row_count,
             high_confidence_row_count
         )
         select
@@ -117,6 +121,7 @@ begin
             0::bigint as legacy_owned_candidate_count,
             0::bigint as missing_backfilled_row_count,
             count(*) filter (where ownership_confidence = 'migrated')::bigint as migrated_confidence_row_count,
+            count(*) filter (where ownership_confidence = 'disputed')::bigint as disputed_confidence_row_count,
             count(*) filter (where ownership_confidence = 'high')::bigint as high_confidence_row_count
         from public.user_owned_custom_voices
         where provider = 'elevenlabs';
@@ -129,6 +134,7 @@ select
     legacy_owned_candidate_count,
     missing_backfilled_row_count,
     migrated_confidence_row_count,
+    disputed_confidence_row_count,
     high_confidence_row_count
 from user_owned_custom_voices_backfill_counts;
 

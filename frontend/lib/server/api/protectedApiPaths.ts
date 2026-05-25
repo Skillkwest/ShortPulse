@@ -4,6 +4,7 @@
  */
 export const PROTECTED_API_EXACT_PATHS = new Set([
   "/api/projects",
+  "/api/report-issue",
   "/api/upload-audio",
   "/api/upload-video",
   "/api/upload-image",

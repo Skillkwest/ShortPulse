@@ -5,7 +5,7 @@ import {
   redactedMetadataSummary,
   redactedStackLines,
   toEventDetail,
-} from "../../scripts/ophestivus_error_event_detail.mjs";
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_error_event_detail.mjs";
 
 describe("ophestivus error event detail helper", () => {
   it("parses incident ids from compact ticket details", () => {

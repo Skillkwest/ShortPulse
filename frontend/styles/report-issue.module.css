@@ -1,0 +1,111 @@
+.reportShell {
+  display: grid;
+  gap: 18px;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.reportHeader {
+  display: grid;
+  gap: 8px;
+}
+
+.reportTitle {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.reportCard {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(94, 106, 124, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(37, 169, 191, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    rgba(13, 18, 24, 0.92);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
+}
+
+.reportForm {
+  display: grid;
+  gap: 16px;
+}
+
+.reportMetaRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.metaCard {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 106, 124, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.reportField {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.reportField textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(94, 106, 124, 0.28);
+  background: rgba(10, 14, 20, 0.94);
+  color: #f5f7fa;
+  resize: vertical;
+}
+
+.reportField textarea:focus {
+  outline: none;
+  border-color: rgba(37, 169, 191, 0.82);
+  box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.28);
+}
+
+.reportFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.successMessage,
+.errorMessage {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.successMessage {
+  border: 1px solid rgba(88, 193, 132, 0.34);
+  background: rgba(88, 193, 132, 0.1);
+  color: #d7ffe6;
+}
+
+.errorMessage {
+  border: 1px solid rgba(232, 91, 91, 0.34);
+  background: rgba(232, 91, 91, 0.1);
+  color: #ffd6d6;
+}
+
+@media (max-width: 700px) {
+  .reportCard {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .reportFooter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

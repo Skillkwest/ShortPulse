@@ -177,6 +177,31 @@ describe("PromptStep agent actions", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders promptable Standard assistant replies as draggable history bubbles", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled
+        agentMessages={[
+          {
+            id: "assistant-prompt",
+            role: "assistant",
+            content: "A cinematic product photo with crisp blue rim light.",
+            outputPrompt: "A cinematic product photo with crisp blue rim light.",
+            canUseAsPrompt: true,
+          },
+        ]}
+      />
+    );
+
+    const promptBubble = screen
+      .getByText("A cinematic product photo with crisp blue rim light.")
+      .closest(".agent-message");
+
+    expect(promptBubble).toHaveClass("is-draggable");
+    expect(promptBubble).toHaveAttribute("draggable", "true");
+  });
+
   it("marks only usable assistant prompt outputs for prompt-color styling", () => {
     render(
       <PromptStep

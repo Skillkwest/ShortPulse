@@ -10,8 +10,8 @@
 
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { createClient } from "@supabase/supabase-js";
-import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
+import { createClient } from "../../../../../../frontend/node_modules/@supabase/supabase-js/dist/index.mjs";
+import { loadLocalEnv } from "../../../../../../scripts/lib/load_local_env.mjs";
 
 const ACTOR_EMAIL = "ophestivus@local.agent";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

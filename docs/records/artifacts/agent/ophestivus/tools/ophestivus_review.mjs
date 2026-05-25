@@ -12,8 +12,8 @@ import process from "node:process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createClient } from "@supabase/supabase-js";
-import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
+import { createClient } from "../../../../../../frontend/node_modules/@supabase/supabase-js/dist/index.mjs";
+import { loadLocalEnv } from "../../../../../../scripts/lib/load_local_env.mjs";
 import { finalizeRunLogMarkdown } from "./ophestivus_run_log.mjs";
 
 const ACTOR_EMAIL = "ophestivus@local.agent";

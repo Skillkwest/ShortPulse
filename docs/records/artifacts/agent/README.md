@@ -8,7 +8,9 @@ This folder stores non-authoritative retained agent artifacts: memory, reports, 
 
 Each agent artifact area may contain some subset of:
 
+- `AGENTS.md`
 - `README.md`
+- `contract.md`
 - `memory.md`
 - `baseline-kpi.md`
 - `training-history.md`
@@ -42,7 +44,7 @@ Use the folder directly when you need that agent's retained state. This active l
 ## Naming And Status Notes
 
 - `docs/records/artifacts/agent/create-workflow/` is the retained artifact home for the contract directory `docs/agents/Create Workflow/`. The artifact side uses a slugged folder name even though the contract side keeps the display name with a space.
-- `docs/records/artifacts/agent/ophestivus/` is an active retained artifact area for the contract at `docs/agents/ophestivus/README.md`.
+- `docs/records/artifacts/agent/ophestivus/` is the active Ophestivus workspace home and contains the local contract at `docs/records/artifacts/agent/ophestivus/contract.md`.
 - `docs/records/artifacts/agent/phase-5/` is a retained historical rollout namespace, not an active agent contract.
 - `docs/records/artifacts/agent/system-catalog-agent/` is a retained legacy namespace that predates the active `docs/agents/copperknot/` system-catalog stewardship lane.
 

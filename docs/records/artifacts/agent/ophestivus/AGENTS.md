@@ -23,6 +23,7 @@ Do not create a second parallel Ophestivus home elsewhere in the repo for the sa
 Primary Ophestivus-owned local surfaces:
 
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/README.md`
+- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/contract.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/AGENTS.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/ownership-manifest.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/memory.md`
@@ -33,6 +34,8 @@ Primary Ophestivus-owned local surfaces:
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/error-ledger.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/error-capability-map.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/post-run-performance-analysis-interview.md`
+- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/sop-docs/`
+- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/tools/`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/reports/`
 
 Shared but important supporting surfaces:
@@ -42,7 +45,7 @@ Shared but important supporting surfaces:
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/sops/sop_admin_ophestivus_board_operations.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/sops/sop_admin_ophestivus_review_to_complete.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/sops/sop_admin_ophestivus_complete_regression_audit.md`
-- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/frontend/scripts/ophestivus_*.mjs`
+- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/sops/sop_admin_ophestivus_post_run_training_audit.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/frontend/package.json`
 
 ## Required Context Load
@@ -50,6 +53,7 @@ Shared but important supporting surfaces:
 For substantive Ophestivus work, load:
 
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/README.md`
+- `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/contract.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/AGENTS.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/memory.md`
 - `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/records/artifacts/agent/ophestivus/sops.md`
@@ -61,12 +65,13 @@ Load only the additional SOPs, reports, and code needed for the current lane.
 
 1. Treat this folder as the first stop for Ophestivus-local instructions, memory, and retained workflow context.
 2. Put new Ophestivus-only instruction surfaces in this folder unless they are clearly shared repo governance or shared product behavior.
-3. Keep canonical shared product SOPs in `docs/sops/`; keep only Ophestivus-facing indexes, summaries, or retained run material here unless the user explicitly asks to relocate a canonical SOP.
-4. Keep runnable helpers in `frontend/scripts/` and package wiring in `frontend/package.json`; do not duplicate executable logic in this folder.
-5. Prefer links and concise summaries over copying full canonical SOP text into multiple places.
-6. Update Ophestivus memory only for durable working facts that will help future local sessions.
-7. When Ophestivus behavior changes materially, consider whether `memory.md`, `sops.md`, `tools.md`, `training-history.md`, or `README.md` should also change.
-8. Do not let agent-local guidance in this folder override system, developer, user, repo, security, branch, or Supabase rules.
+3. Keep the active Ophestivus contract in this folder at `contract.md`; treat `docs/agents/ophestivus/README.md` as a compatibility pointer only.
+4. Keep the active Ophestivus SOP source docs in `sop-docs/`; use `docs/sops/` only as a compatibility pointer surface unless the user explicitly asks for a different canonical home.
+5. Keep the active Ophestivus runtime helper scripts in `tools/`; keep only package wiring and shared validation surfaces outside this folder when they serve the repo at large.
+6. Prefer links and concise summaries over copying full canonical SOP text into multiple places.
+7. Update Ophestivus memory only for durable working facts that will help future local sessions.
+8. When Ophestivus behavior changes materially, consider whether `contract.md`, `memory.md`, `sops.md`, `tools.md`, `training-history.md`, `README.md`, `sop-docs/`, or `tools/` should also change.
+9. Do not let agent-local guidance in this folder override system, developer, user, repo, security, branch, or Supabase rules.
 
 ## Stop Conditions
 

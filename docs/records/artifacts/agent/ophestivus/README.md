@@ -6,13 +6,16 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 
 - This folder is non-authoritative working memory.
 - This folder is Ophestivus's canonical local working home for agent-specific instructions, retained memory, artifact indexes, and run reports.
-- Canonical SOPs stay in `docs/sops/`.
-- Runnable helper commands stay in `frontend/scripts/` and `frontend/package.json`.
+- Ophestivus-owned SOP source docs live in `sop-docs/`.
+- Ophestivus-owned runtime helper scripts live in `tools/`.
+- Compatibility pointers remain in `docs/sops/`.
+- Frontend command wiring remains in `frontend/package.json`.
 - This folder links and summarizes those assets so Ophestivus can find them quickly.
 - Nothing in this folder overrides system, developer, user, repo, branch, security, or Supabase rules.
 
 ## Contents
 
+- `contract.md`: active Ophestivus contract kept inside the canonical local workspace folder.
 - `AGENTS.md`: folder-scoped Ophestivus working instructions and context-load rules.
 - `ownership-manifest.md`: map of what belongs in Ophestivus local space versus shared repo surfaces.
 - `memory.md`: local retained memory for the Ophestivus working identity and stable repo workflow facts.
@@ -23,15 +26,22 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 - `training-rubric.md`: reusable per-run scoring rubric for judging workflow quality and identifying what to train next.
 - `sops.md`: Ophestivus SOP index and trigger phrases.
 - `tools.md`: Ophestivus helper command inventory.
+- `sop-docs/`: Ophestivus-owned SOP source documents.
+- `tools/`: Ophestivus-owned runtime helper scripts.
 - `training-history.md`: narrative record of how Ophestivus was created, trained, prompted, and improved.
 - `reports/`: local markdown reports for completed SOP runs.
 
 ## Canonical Workflows
 
-- Error intake and resolution: `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
-- Review approval: `docs/sops/sop_admin_ophestivus_review_to_complete.md`
-- Board operations: `docs/sops/sop_admin_ophestivus_board_operations.md`
+- Error intake and resolution: `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md`
+- Review approval: `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_review_to_complete.md`
+- Board operations: `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_board_operations.md`
 - SQL/migration work: `docs/sops/sop_sql_migration_operations.md`
+
+## Local Contract
+
+- Active contract: `docs/records/artifacts/agent/ophestivus/contract.md`
+- Compatibility pointer only: `docs/agents/ophestivus/README.md`
 
 ## Maintenance
 

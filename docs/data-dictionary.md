@@ -746,10 +746,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `saved_source` (text): Ownership/write source (`text-to-voice-create`, `voice-clone`, `provider-save`, `legacy`).
 - `provider_delete_eligible` (boolean): Whether the owned custom voice is allowed to be deleted upstream through ShortPulse.
 - `ownership_provenance` (text): How ownership was established (`text_to_voice_create`, `voice_clone`, `provider_save`, `legacy_migrated`, `admin_repair`).
-- `ownership_confidence` (text): Confidence level for the ownership record (`high`, `migrated`, `disputed`).
+- `ownership_confidence` (text): Confidence level for the ownership record (`high`, `migrated`, `disputed`). Only `high` rows are trusted by runtime custom-voice access; `migrated` and `disputed` rows are review-only until repaired.
 - `created_at` / `updated_at` (timestamptz): Timestamps for first ownership persistence and latest authoritative update.
 - Runtime role: authoritative ledger for custom-provider voice ownership used by the ElevenLabs voice library, generation routes, and destructive voice actions. Shared provider workspace inventory must not override this table.
-- Migration note: `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql` seeds this table from legacy `user_preferences.ai_studio_saved_voices` entries that look like owned custom voices (`provider-user-created`, `text-to-voice-create`, `voice-clone`, or provider-delete-eligible records).
+- Migration note: `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql` seeds this table from legacy `user_preferences.ai_studio_saved_voices` entries that look like owned custom voices (`provider-user-created`, `text-to-voice-create`, `voice-clone`, or provider-delete-eligible records). `sql/migrations/130_quarantine_legacy_migrated_custom_voice_ownership.sql` then moves those legacy-migrated rows into `ownership_confidence = 'disputed'` so they can be reviewed before runtime trusts them.
 
 ### create_pulse_builtin_runtime
 
@@ -772,6 +772,22 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `user_agent` (text, nullable): Browser user-agent captured by the server when acceptance is recorded.
 - Uniqueness: one row per `user_id + agreement_key + agreement_version`, preserving acceptance history across future version bumps.
 - RLS: select/insert allowed only when `user_id = auth.uid()`. Protected-route reads/writes currently flow through authenticated server routes.
+
+### user_issue_reports
+
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, nullable fk -> `auth.users.id`): Authenticated submitter at write time. Uses `on delete set null` so report history can persist after account deletion.
+- `submitter_email` (text): Snapshot of the authenticated account email when the report was filed.
+- `message` (text): User-authored issue description, trimmed and bounded to 4000 chars.
+- `status` (text): Manual admin lifecycle state (`new | reviewing | resolved`).
+- `admin_notes` (text): Operator notes captured during review, default empty string.
+- `source_path` (text, nullable): Route/path context captured from the client at submit time.
+- `user_agent` (text, nullable): Browser user-agent captured by the server.
+- `reviewed_at` (timestamptz, nullable): Last admin review/update timestamp.
+- `reviewed_by_user_id` (uuid, nullable fk -> `auth.users.id`): Admin user id that last updated status or notes.
+- `created_at` / `updated_at` (timestamptz): Canonical creation/update timestamps.
+- Runtime role: canonical signed-in issue-report inbox for `/report-issue` and `/admin/reports`.
+- Access model: RLS enabled with no browser policies; all reads and writes flow through trusted server routes using service-role Supabase access.
 
 ### billing_plans
 

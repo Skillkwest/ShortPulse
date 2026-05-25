@@ -1619,9 +1619,48 @@ describe("useCreateAgentStateCore", () => {
       expect.objectContaining({
         role: "assistant",
         content: "Cinematic portrait of a woman in golden-hour forest light.",
-        outputPrompt: null,
-        canUseAsPrompt: false,
+        outputPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+        canUseAsPrompt: true,
         outcomeClass: "success_prompt",
+      })
+    );
+  });
+
+  it("keeps legacy Standard prompt replies usable when outcome_class is omitted", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Cinematic portrait of a woman in golden-hour forest light.",
+          actions: {
+            applyPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+          },
+          reason_code: "SUCCESS_PROMPT",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "standard" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "make a portrait prompt",
+        payloadText: "make a portrait prompt",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Cinematic portrait of a woman in golden-hour forest light.",
+        outputPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+        canUseAsPrompt: true,
+        reasonCode: "SUCCESS_PROMPT",
       })
     );
   });

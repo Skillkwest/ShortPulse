@@ -5,7 +5,7 @@ import {
   STALE_LOCAL_BUNDLE_NOTE,
   buildCompactTicketReport,
   validateCompactTicketReportEvidence,
-} from "../../scripts/ophestivus_ticket_report.mjs";
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_ticket_report.mjs";
 
 describe("ophestivus ticket report formatter", () => {
   it("leaves room for the review approval note", () => {

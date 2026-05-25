@@ -14,6 +14,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/errors", label: "Errors" },
+  { href: "/admin/reports", label: "Reports" },
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },

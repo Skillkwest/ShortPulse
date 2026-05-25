@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildAppendedDetails, buildNote } from "../../scripts/ophestivus_append_ticket_note.mjs";
-import { DEFAULT_ALLOWED_TARGETS, normalizeStatus } from "../../scripts/ophestivus_move_ticket.mjs";
+import { buildAppendedDetails, buildNote } from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_append_ticket_note.mjs";
+import { DEFAULT_ALLOWED_TARGETS, normalizeStatus } from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_move_ticket.mjs";
 import {
   buildApprovalNote,
   finalizeLocalReport,
   inferResidualRiskFromDetails,
   readReportPathFromDetails,
-} from "../../scripts/ophestivus_review.mjs";
-import { buildRunLogMarkdown, finalizeRunLogMarkdown, slugify } from "../../scripts/ophestivus_run_log.mjs";
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_review.mjs";
+import { buildRunLogMarkdown, finalizeRunLogMarkdown, slugify } from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_run_log.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

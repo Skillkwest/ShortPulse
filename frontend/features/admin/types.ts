@@ -3,6 +3,7 @@
  */
 import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
 import type { AdminModelWorkflowType } from "../../lib/model-runtime/modelWorkflowType";
+import type { IssueReportStatus } from "../../lib/issueReports";
 
 export type AdminUserRow = {
   id: string;
@@ -301,6 +302,28 @@ export type AdminErrorEventsHealth = {
   eventsTableAvailable: boolean;
   degraded: boolean;
   reason: string | null;
+};
+
+export type AdminIssueReportRow = {
+  id: string;
+  userId: string | null;
+  submitterEmail: string;
+  message: string;
+  adminNotes: string;
+  status: IssueReportStatus;
+  sourcePath: string | null;
+  userAgent: string | null;
+  reviewedAt: string | null;
+  reviewedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminIssueReportSummary = {
+  totalCount: number;
+  newCount: number;
+  reviewingCount: number;
+  resolvedCount: number;
 };
 
 export type AdminPagination = {

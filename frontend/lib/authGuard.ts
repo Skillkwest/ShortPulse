@@ -7,6 +7,7 @@ export const PROTECTED_ROUTES = [
   "/performance",
   "/saved-creators",
   "/profile",
+  "/report-issue",
   "/ai-studio",
   "/creator-studio",
   "/admin",

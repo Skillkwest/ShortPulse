@@ -18,10 +18,17 @@ export const resolveStandardCreateAgentTransportSuccess = (
   const actions = normalizeActions(response.actions);
   const rawMessageText = typeof response.message === "string" ? response.message : "";
   const hasRawMessageText = rawMessageText.trim().length > 0;
+  const shouldExposePromptOutput =
+    response.outcome_class === "success_prompt" ||
+    response.reason_code === "SUCCESS_PROMPT" ||
+    (response.outcome_class == null && Boolean(actions?.applyPrompt?.trim()));
+  const promptOutputText = shouldExposePromptOutput
+    ? actions?.applyPrompt?.trim() || (hasRawMessageText ? rawMessageText.trim() : "")
+    : "";
   return {
     actions,
     canonicalPrompt: null,
-    assistantContent: hasRawMessageText ? rawMessageText : "",
-    assistantOutputPrompt: null,
+    assistantContent: hasRawMessageText ? rawMessageText : promptOutputText,
+    assistantOutputPrompt: promptOutputText || null,
   };
 };

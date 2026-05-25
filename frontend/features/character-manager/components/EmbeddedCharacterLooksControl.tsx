@@ -4,8 +4,8 @@ import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPre
 import type { CharacterSheetPresetId } from "../types";
 import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
-const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "var(--color-bg, #0f1115)";
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 1)";
+const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "#0f1115";
+const CHARACTER_TEXT_ENTRY_BACKGROUND = "#15161a";
 const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
 type EmbeddedCharacterLooksControlProps = {
@@ -107,8 +107,8 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   width: "100%",
   borderRadius: "12px 12px 0 0",
   border: "none",
-  background: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "rgba(201, 205, 214, 0.02)",
-  backgroundColor: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "rgba(201, 205, 214, 0.02)",
+  background: CHARACTER_TEXT_ENTRY_BACKGROUND,
+  backgroundColor: CHARACTER_TEXT_ENTRY_BACKGROUND,
   color: isActive ? "#ecfbff" : "rgba(182, 195, 208, 0.92)",
   display: "inline-flex",
   alignItems: "center",
@@ -151,8 +151,8 @@ const TAB_SHELL_STYLE: React.CSSProperties = {
 const buildTabShellStyle = (isActive: boolean): React.CSSProperties => ({
   ...TAB_SHELL_STYLE,
   borderRadius: "12px 12px 0 0",
-  background: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "transparent",
-  backgroundColor: isActive ? CHARACTER_PROFILE_WRAPPER_BACKGROUND : "transparent",
+  background: isActive ? CHARACTER_TEXT_ENTRY_BACKGROUND : "transparent",
+  backgroundColor: isActive ? CHARACTER_TEXT_ENTRY_BACKGROUND : "transparent",
 });
 
 const buildDeleteButtonStyle = (

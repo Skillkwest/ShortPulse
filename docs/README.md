@@ -94,7 +94,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
-- `docs/agents/ophestivus/README.md`
+- `docs/records/artifacts/agent/ophestivus/contract.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
@@ -121,6 +121,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0077-paid-starter-tier-with-hidden-free-default.md`
 - `docs/adr/0078-public-origin-authority-contract.md`
 - `docs/adr/0079-supabase-auth-email-transport-google-workspace-interim.md`
+- `docs/adr/0080-custom-voice-ownership-authority.md`
+- `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`
@@ -207,6 +209,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`
+- `docs/sops/sop_admin_issue_reports_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
 - `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
 - `docs/sops/sop_admin_ophestivus_review_to_complete.md`

@@ -146,6 +146,7 @@ const CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE: React.CSSProperties = {
   display: "block",
   margin: 0,
   color: "#25a9bf",
+  textShadow: "0 1px 4px rgba(0, 0, 0, 0.32)",
   fontFamily:
     '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
   fontSize: "0.84rem",
@@ -986,7 +987,12 @@ export function CharacterPanelWorkspace({
                           }
                           disabled={characterLibraryButtonDisabled}
                         >
-                          <FolderSimple size={28} weight="fill" aria-hidden />
+                          <FolderSimple
+                            size={44}
+                            weight="fill"
+                            aria-hidden
+                            style={{ flex: "0 0 44px" }}
+                          />
                           Characters
                         </button>
                         {isSavingCharacter ? (

@@ -28,6 +28,8 @@ export type SavedAiStudioVoiceSource =
   | "voice-clone"
   | "legacy";
 
+type OwnedCustomVoiceOwnershipConfidence = "high" | "migrated" | "disputed";
+
 const SAVED_VOICES_COLUMN = "ai_studio_saved_voices";
 const OWNED_CUSTOM_VOICES_TABLE = "user_owned_custom_voices";
 const OWNED_CUSTOM_VOICES_SELECT =
@@ -52,6 +54,11 @@ const isSavedVoiceSource = (value: string | null): value is SavedAiStudioVoiceSo
   value === "text-to-voice-create" ||
   value === "voice-clone" ||
   value === "legacy";
+
+const isOwnedCustomVoiceOwnershipConfidence = (
+  value: string | null
+): value is OwnedCustomVoiceOwnershipConfidence =>
+  value === "high" || value === "migrated" || value === "disputed";
 
 const isMissingSavedVoicesPreferenceError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
@@ -150,6 +157,13 @@ const normalizeOwnedCustomVoice = (value: unknown): SavedAiStudioVoice | null =>
   const name = normalizeOptionalString(record.display_name);
   if (!voiceId || !name) return null;
   if (isExcludedElevenLabsVoiceId(voiceId)) return null;
+  const ownershipConfidence = normalizeOptionalString(record.ownership_confidence);
+  if (
+    !isOwnedCustomVoiceOwnershipConfidence(ownershipConfidence) ||
+    ownershipConfidence !== "high"
+  ) {
+    return null;
+  }
 
   return {
     voiceId,
@@ -403,6 +417,7 @@ export const saveVoiceForUser = async ({
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const legacyVoices = await readLegacySavedVoicesForUser(userId);
+    const requiresAuthoritativeOwnership = shouldPersistInOwnedCustomVoices(nextVoice);
     const nextVoices = [
       nextVoice,
       ...legacyVoices.filter(
@@ -410,16 +425,15 @@ export const saveVoiceForUser = async ({
       ),
     ];
 
-    if (shouldPersistInOwnedCustomVoices(nextVoice)) {
+    if (requiresAuthoritativeOwnership) {
       try {
         await upsertOwnedCustomVoiceForUser({
           userId,
           voice: nextVoice,
         });
       } catch (error) {
-        if (!isOwnedCustomVoicesPersistenceUnavailableError(error)) {
-          throw error;
-        }
+        if (isOwnedCustomVoicesPersistenceUnavailableError(error)) return null;
+        throw error;
       }
     }
 
@@ -433,6 +447,12 @@ export const saveVoiceForUser = async ({
     if (error) throw error;
     return nextVoice;
   } catch (error) {
+    if (
+      shouldPersistInOwnedCustomVoices(nextVoice) &&
+      isSavedVoicesPersistenceUnavailableError(error)
+    ) {
+      return nextVoice;
+    }
     if (isSavedVoicesPersistenceUnavailableError(error)) {
       return null;
     }
@@ -456,10 +476,10 @@ export const deleteSavedVoiceForUser = async ({
     return false;
   }
 
+  let deletedOwnedCustomVoice = false;
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const legacyVoices = await readLegacySavedVoicesForUser(userId);
-    let deletedOwnedCustomVoice = false;
     try {
       const { data, error } = await supabaseAdmin
         .from(OWNED_CUSTOM_VOICES_TABLE)
@@ -500,6 +520,9 @@ export const deleteSavedVoiceForUser = async ({
     if (error) throw error;
     return true;
   } catch (error) {
+    if (deletedOwnedCustomVoice && isSavedVoicesPersistenceUnavailableError(error)) {
+      return true;
+    }
     if (isSavedVoicesPersistenceUnavailableError(error)) {
       return false;
     }

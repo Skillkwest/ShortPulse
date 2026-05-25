@@ -4028,6 +4028,21 @@
   margin: 8px 0 12px;
 }
 
+.adminReportsHead,
+.adminReportsRow {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr 1.4fr 2.6fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminReportsHead {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .adminErrorsHead,
 .adminErrorsRow {
   display: grid;
@@ -4085,6 +4100,64 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.reportIdentityCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reportPreviewCell {
+  color: var(--admin-text);
+  text-align: left;
+}
+
+.reportStatusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reportStatusNew {
+  border-color: var(--admin-accent-border);
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent-text);
+}
+
+.reportStatusReviewing {
+  border-color: var(--admin-warning-border-strong);
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning-text);
+}
+
+.reportStatusResolved {
+  border-color: rgba(88, 193, 132, 0.46);
+  background: rgba(88, 193, 132, 0.1);
+  color: #d7ffe6;
+}
+
+.reportNotesInput {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--admin-text-strong);
+  resize: vertical;
+}
+
+.reportNotesInput:focus {
+  outline: none;
+  border-color: var(--admin-focus);
 }
 
 .errorActions {
@@ -4180,6 +4253,11 @@
   .statsWorkspaceTitleRow,
   .adminSectionHead {
     align-items: flex-start;
+  }
+
+  .adminReportsHead,
+  .adminReportsRow {
+    grid-template-columns: 1.2fr 0.9fr minmax(0, 1.2fr) minmax(0, 2fr);
   }
 
   .statsLensGrid {

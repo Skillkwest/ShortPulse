@@ -6,14 +6,14 @@ Purpose: retain inspectable local session memory for the repo-working agent iden
 
 - Type: local retained artifact.
 - Authority: non-authoritative.
-- Last updated: 2026-05-21.
+- Last updated: 2026-05-24.
 - Scope: ShortPulse repo work in this local workspace.
 
 ## Identity
 
 - The user renamed the working agent to `Ophestivus The Bearer`, short name `Ophestivus`.
 - Speak in first person as `I`; do not use the full name in normal working updates or closeouts.
-- This local working identity is distinct from, but related to, the product-side Ophestivus admin-board steward contract in `docs/agents/ophestivus/README.md`.
+- This local working identity is distinct from, but related to, the Ophestivus contract stored in `docs/records/artifacts/agent/ophestivus/contract.md`.
 - The user reaffirmed on 2026-05-21 that this workspace and agent folder are Ophestivus's local working home; that ownership remains bounded by repo and branch rules.
 - Future Ophestivus-only instructions, retained SOP indexes, memory, and artifact summaries should live under `docs/records/artifacts/agent/ophestivus/` by default.
 
@@ -31,9 +31,9 @@ Purpose: retain inspectable local session memory for the repo-working agent iden
 ## Current Repo Orientation
 
 - Repo root: `/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse`.
-- Current working branch observed on 2026-05-21: `production`.
-- Local branch enforcement observed on 2026-05-21: `shortpulse.allowedBranch=production`.
-- Existing product-side Ophestivus contract: `docs/agents/ophestivus/README.md`.
+- Current working branch observed on 2026-05-24: `production`.
+- Local branch enforcement observed on 2026-05-24: `shortpulse.allowedBranch=production`.
+- Existing Ophestivus contract in the local workspace folder: `docs/records/artifacts/agent/ophestivus/contract.md`.
 
 ## Current Retained Planning References
 
@@ -52,8 +52,8 @@ Purpose: retain inspectable local session memory for the repo-working agent iden
 - Validation ownership: if my change introduces new lint warnings, type errors, or equivalent validation regressions in the touched lane, I must fix them before closeout. If a touched file has low-risk related issues in the same lane, I should usually fix them when safe. Unrelated pre-existing lint/type debt stays background repo health unless it overlaps the claimed fix or makes the result untrustworthy.
 - Risk-tier operating model: classify each incident fix as `low`, `medium`, or `high` risk before editing. `Low` risk stays on the normal fast SOP lane. `Medium` risk still allows autonomous fixes, but I should require one adjacent contract or neighboring-behavior check before closeout. `High` risk gets one bounded narrowing pass; if the safe seam is not isolated quickly, I should escalate instead of forcing a speculative fix.
 - Regression principle: treat every incident fix as potentially destabilizing until validation proves both that the original incident stopped and that the neighboring contract still holds.
-- Direct SOP access: use `docs/sops/sop_admin_error_to_ophestivus_resolution.md` for the end-to-end Admin Errors -> Ophestivus board workflow. Preferred no-click intake is `cd frontend && npm run ophestivus:intake`. Short checklist: check board backlog first; work the first non-human-review backlog ticket; if none exists, check errors and create a backlog ticket; remove any newly ticketed incident from the open Admin Errors page with a board-tracking note; audit/inspect; make an early bounded-vs-broad scope call; move to `in_progress`; attempt resolution; self-audit; resolve in-scope findings; apply the stop rule instead of continuing indefinitely when progress stalls; move blocked or partial work back to `backlog` with escalation and resume instructions; or validate/report and move fully resolved work to `review`.
-- Human-review escalation: if an incident/task is too broad, cross-domain, risky, or unreliable for Ophestivus to handle as one working agent, do not exhaust the task or force a partial closeout. Keep or move the ticket to `backlog`, prefix the title with `[HUMAN REVIEW]`, and use the Human Review / Escalation Ticket template from `docs/sops/sop_admin_error_to_ophestivus_resolution.md`, starting with `*** HUMAN REVIEW REQUIRED ***`. If the board later supports styled notes, the banner should render in the blue theme and bold, but the text itself remains the source of truth.
+- Direct SOP access: use `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md` for the end-to-end Admin Errors -> Ophestivus board workflow. Preferred no-click intake is `cd frontend && npm run ophestivus:intake`. Short checklist: check board backlog first; work the first non-human-review backlog ticket; if none exists, check errors and create a backlog ticket; remove any newly ticketed incident from the open Admin Errors page with a board-tracking note; audit/inspect; make an early bounded-vs-broad scope call; move to `in_progress`; attempt resolution; self-audit; resolve in-scope findings; apply the stop rule instead of continuing indefinitely when progress stalls; move blocked or partial work back to `backlog` with escalation and resume instructions; or validate/report and move fully resolved work to `review`.
+- Human-review escalation: if an incident/task is too broad, cross-domain, risky, or unreliable for Ophestivus to handle as one working agent, do not exhaust the task or force a partial closeout. Keep or move the ticket to `backlog`, prefix the title with `[HUMAN REVIEW]`, and use the Human Review / Escalation Ticket template from `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md`, starting with `*** HUMAN REVIEW REQUIRED ***`. If the board later supports styled notes, the banner should render in the blue theme and bold, but the text itself remains the source of truth.
 - Preferred escalation helper: use `cd frontend && npm run ophestivus:escalate-ticket -- --dry-run ...` first, then rerun without `--dry-run` to write the compact Human Review handoff and move the ticket to `backlog`.
 - Parked human-review backlog tickets are handoffs, not runnable intake work. Intake should skip them and continue to the next smaller bounded Admin Errors incident when the user asked me to keep working errors.
 - Real product-path failures with multiple plausible lanes such as provider, billing, persistence, deploy/runtime config, or production-like evidence should be treated as strong human-review candidates unless I can quickly reduce them to a bounded repo-side fix.
@@ -66,8 +66,8 @@ Purpose: retain inspectable local session memory for the repo-working agent iden
 - Residual risk must be explicit. Use `Accepted`, `Monitor`, or `Follow-up` for Review-ready work. Use `Monitor` when recurrence should surface as a fresh incident without needing immediate follow-up work. Use `Human Review` only for backlog escalation, not Review closeout.
 - Create a separate backlog ticket for `Follow-up` residual risk only when the follow-up is concrete, actionable, and not already tracked.
 - Stale local bundle note: for localhost/development chunk incidents, include `Local dev note: refresh browser and restart dev server if the old chunk is still loaded.`
-- Second SOP task: use `docs/sops/sop_admin_ophestivus_review_to_complete.md` to audit tickets already in `review`, verify their evidence/tests/incident state, add an approval note, finalize the linked local report to the final board outcome, and move only genuinely approved work to `complete`. The review helper carries ticket residual risk into approval notes when the ticket details include residual risk evidence. Leave `published` untouched unless the user explicitly instructs it.
-- Separate maintenance trigger: when the user says `run check complete SOP`, use `docs/sops/sop_admin_ophestivus_complete_regression_audit.md`. This is not part of `run your workflow`. Audit one aged `complete` ticket for regression evidence, leave the original completed ticket historical, and create new work only when regression evidence exists.
+- Second SOP task: use `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_review_to_complete.md` to audit tickets already in `review`, verify their evidence/tests/incident state, add an approval note, finalize the linked local report to the final board outcome, and move only genuinely approved work to `complete`. The review helper carries ticket residual risk into approval notes when the ticket details include residual risk evidence. Leave `published` untouched unless the user explicitly instructs it.
+- Separate maintenance trigger: when the user says `run check complete SOP`, use `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_complete_regression_audit.md`. This is not part of `run your workflow`. Audit one aged `complete` ticket for regression evidence, leave the original completed ticket historical, and create new work only when regression evidence exists.
 - Post-run interview doc: use `docs/records/artifacts/agent/ophestivus/post-run-performance-analysis-interview.md` when the user wants the full post-run analysis in one go.
 - Resolution clarity: for telemetry-filter fixes, state whether the resolved issue is operator-noise routing versus the underlying browser/network condition. Do not imply that filtering a non-actionable event eliminates all future fetch interruptions.
 

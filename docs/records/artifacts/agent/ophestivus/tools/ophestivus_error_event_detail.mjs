@@ -10,8 +10,8 @@
 
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { createClient } from "@supabase/supabase-js";
-import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
+import { createClient } from "../../../../../../frontend/node_modules/@supabase/supabase-js/dist/index.mjs";
+import { loadLocalEnv } from "../../../../../../scripts/lib/load_local_env.mjs";
 
 const INCIDENT_SELECT_COLUMNS =
   "id,fingerprint,source,scope,severity,status,message,route,endpoint,first_seen_at,last_seen_at,occurrences_count";

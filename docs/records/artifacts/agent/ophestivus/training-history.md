@@ -182,7 +182,7 @@ great so lets create an sop for what weve done here.
 
 This became the foundation for:
 
-- `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md`
 
 The SOP changed over time:
 
@@ -204,7 +204,7 @@ ok this task of auditing the tickets that are in the review column in the board 
 
 This became:
 
-- `docs/sops/sop_admin_ophestivus_review_to_complete.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_review_to_complete.md`
 
 Key review rules:
 
@@ -238,7 +238,7 @@ lets create a new SOP thats says after you run the grab error SOP and complete i
 
 This became:
 
-- `docs/sops/sop_admin_ophestivus_post_run_training_audit.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_post_run_training_audit.md`
 
 Purpose:
 
@@ -519,20 +519,20 @@ Ophestivus is now trained to behave as a single working agent for Admin Errors i
 
 ## Current Canonical SOPs
 
-- `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
-- `docs/sops/sop_admin_ophestivus_review_to_complete.md`
-- `docs/sops/sop_admin_ophestivus_post_run_training_audit.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_review_to_complete.md`
+- `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_post_run_training_audit.md`
 
 ## Current Helper Inventory
 
-- `frontend/scripts/ophestivus_intake.mjs`
-- `frontend/scripts/ophestivus_error_status.mjs`
-- `frontend/scripts/ophestivus_move_ticket.mjs`
-- `frontend/scripts/ophestivus_append_ticket_note.mjs`
-- `frontend/scripts/ophestivus_complete_error_ticket.mjs`
-- `frontend/scripts/ophestivus_review.mjs`
-- `frontend/scripts/ophestivus_ticket_report.mjs`
-- `frontend/scripts/ophestivus_run_log.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_intake.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_error_status.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_move_ticket.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_append_ticket_note.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_complete_error_ticket.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_review.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_ticket_report.mjs`
+- `docs/records/artifacts/agent/ophestivus/tools/ophestivus_run_log.mjs`
 
 ## Reproducible Training Recipe
 

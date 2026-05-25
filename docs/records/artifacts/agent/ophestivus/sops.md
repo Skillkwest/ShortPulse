@@ -6,10 +6,11 @@ Purpose: quick lookup for the SOPs Ophestivus uses when working the admin error 
 
 | SOP                                                     | Use when                                                                                                       | Trigger phrases                                                                    |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `docs/sops/sop_admin_error_to_ophestivus_resolution.md` | Intake an Admin Errors issue, create or select a board ticket, resolve it, validate it, and move it to Review. | `run SOP`, `run error SOP`, `run error check SOP`, `error grab SOP`                |
-| `docs/sops/sop_admin_ophestivus_review_to_complete.md`  | Audit tickets in Review, append approval notes, and move approved work to Complete.                            | `run review SOP`, `review board`, `audit review tickets`, `approve review tickets` |
-| `docs/sops/sop_admin_ophestivus_complete_regression_audit.md` | Lightly audit one aged Complete ticket for post-completion regression evidence.                                | `run check complete SOP`, `run complete regression audit`, `audit complete column` |
-| `docs/sops/sop_admin_ophestivus_board_operations.md`    | Understand shared board state, columns, helper commands, and board guardrails.                                 | `board operations`, `kanban workflow`                                              |
+| `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_error_to_ophestivus_resolution.md` | Intake an Admin Errors issue, create or select a board ticket, resolve it, validate it, and move it to Review. | `run SOP`, `run error SOP`, `run error check SOP`, `error grab SOP`                |
+| `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_review_to_complete.md`  | Audit tickets in Review, append approval notes, and move approved work to Complete.                            | `run review SOP`, `review board`, `audit review tickets`, `approve review tickets` |
+| `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_complete_regression_audit.md` | Lightly audit one aged Complete ticket for post-completion regression evidence.                                | `run check complete SOP`, `run complete regression audit`, `audit complete column` |
+| `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_board_operations.md`    | Understand shared board state, columns, helper commands, and board guardrails.                                 | `board operations`, `kanban workflow`                                              |
+| `docs/records/artifacts/agent/ophestivus/sop-docs/sop_admin_ophestivus_post_run_training_audit.md` | Run the post-run training audit after the error and review workflow to capture improvements and durable workflow updates. | `run training audit`, `run post-run training audit`, `training audit` |
 | `docs/sops/sop_sql_migration_operations.md`             | Work requires SQL migration, schema repair, hosted Supabase validation, or migration approval.                 | `SQL`, `migration`, `schema`, `Supabase`                                           |
 | `docs/records/artifacts/agent/ophestivus/post-run-performance-analysis-interview.md` | Run the tailored post-run interview to assess workflow quality, tooling gaps, and needed memory/doc changes. | `run post-run interview`, `post-run analysis`, `performance interview`             |
 
@@ -24,8 +25,9 @@ Purpose: quick lookup for the SOPs Ophestivus uses when working the admin error 
 7. After parking a human-review escalation, rerun intake once when the user asked Ophestivus to continue error work.
 8. Move resolved work to `Review`, not `Complete`.
 9. Use the Review SOP to approve Review tickets into `Complete`.
-10. Leave `Published` human-controlled unless the user explicitly says otherwise.
-11. Run mutating helper commands with `--dry-run` first when supported, unless the user explicitly says to execute immediately.
+10. Run the post-run training audit SOP when the workflow or user request calls for the full Ophestivus training closeout.
+11. Leave `Published` human-controlled unless the user explicitly says otherwise.
+12. Run mutating helper commands with `--dry-run` first when supported, unless the user explicitly says to execute immediately.
 
 ## Maintenance SOP
 

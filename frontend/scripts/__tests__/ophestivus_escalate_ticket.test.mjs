@@ -3,7 +3,7 @@ import {
   DETAILS_MAX_LENGTH,
   buildEscalationDetails,
   buildHumanReviewTitle,
-} from "../ophestivus_escalate_ticket.mjs";
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_escalate_ticket.mjs";
 
 describe("ophestivus escalate-ticket helper", () => {
   it("prefixes the issue title with the human-review marker once", () => {

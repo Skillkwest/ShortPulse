@@ -8,7 +8,7 @@ import {
   readBacklogTicket,
   readNextOpenIncident,
   removeIncidentsFromOpenErrors,
-} from "../ophestivus_intake.mjs";
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_intake.mjs";
 
 const makeIncidentRow = (overrides = {}) => ({
   id: "incident-1",

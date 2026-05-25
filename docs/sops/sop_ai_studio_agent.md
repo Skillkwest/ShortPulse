@@ -55,8 +55,8 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
     `creditBalance`: number | null;
     }
 - Response payload:
-  - `message`: Standard returns raw assistant text; Pulse returns the guided runtime message/artifact text for the current step.
-  - `actions` (optional): Pulse may still emit structured actions. Standard pass-through does not rely on `actions.applyPrompt`.
+  - `message`: Standard returns the visible assistant text for the turn; generation-ready Standard successes mirror the reusable prompt text here. Pulse returns the guided runtime message/artifact text for the current step.
+  - `actions` (optional): Standard generation-ready successes emit `actions.applyPrompt` as the reusable prompt artifact. Pulse may also emit structured actions when the active workflow produces a final artifact.
   - `usage`: token accounting when available.
   - additive machine fields (Phase 1 contract): `decision`, `outcome_class`, `reason_code`, `retryable`.
     Canonical field definitions and mapping rules are locked in `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`.
@@ -76,7 +76,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
    - classifies the turn (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`),
    - runs server-authoritative pre-provider safety precheck,
    - executes the guided single-stage Pulse workflow call.
-7. Response returns lane-owned output. Standard is plain assistant text; Pulse may return structured workflow state and/or prompt actions.
+7. Response returns lane-owned output. Standard returns visible assistant text plus a reusable prompt artifact on generation-ready success; Pulse may return structured workflow state and/or prompt actions.
 8. On Apply: the active mode-owned prompt setter updates only that mode's prompt state when the UI explicitly chooses to use a returned prompt. Standard no longer auto-derives prompt continuity from a hidden canonical path.
 9. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
 

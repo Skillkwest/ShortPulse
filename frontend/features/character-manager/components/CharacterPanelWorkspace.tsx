@@ -198,8 +198,6 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  flex: "1 1 auto",
-  minHeight: "100%",
   padding: "10px 16px 2px",
   boxSizing: "border-box",
 };
@@ -649,7 +647,6 @@ export function CharacterPanelWorkspace({
   const editorFieldsWrapperStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE,
-      flex: "1 1 auto",
       alignContent: "start",
       gap: `${responsiveLayout.editorWrapperGapPx}px`,
       padding: `${Math.max(8, responsiveLayout.editorWrapperPaddingTopPx - 2)}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
@@ -661,7 +658,6 @@ export function CharacterPanelWorkspace({
     () => ({
       display: "flex",
       flexDirection: "column",
-      minHeight: "100%",
     }),
     []
   );

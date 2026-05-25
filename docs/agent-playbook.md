@@ -46,6 +46,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 ## Safe defaults for agents
 
 - Prefer existing helpers/components before adding new dependencies.
+- Trace failures to the source and fix the canonical path; do not create workaround, backup, fallback, legacy, or duplicate paths to mask or sidestep the real issue.
 - Keep UI consistent with existing palette/spacing (see `docs/styles-structure.md`).
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
 - Keep documentation contract-driven and no-bloat:
@@ -56,6 +57,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 
 - Do not choose the next task by adjacency alone. Nearby files, similar routes, or matching test patterns are not sufficient justification.
 - Start each new lane with a concrete problem statement: the risk/bug, why it matters, and why this target has better ROI than stopping.
+- If a lane appears to need compatibility, migration scaffolding, or platform-required alternate transport, document the owner, removal condition or durable authority contract, and why the canonical path cannot be fixed directly in that same change.
 - Require route/API tests to cover route-owned behavior or failure handling that shared logic tests do not already protect.
 - Prefer one coherent lane at a time. Finish it, checkpoint it, or explicitly stop it before starting another lane.
 - During the pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, stay on `production` for local work and target GitHub `production` for branch operations.

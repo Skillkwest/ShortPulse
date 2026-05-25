@@ -84,6 +84,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
     - `fal-ai/bytedance/seedream/v5/lite/edit`
     - `fal-ai/nano-banana-2/edit`
     - `fal-ai/nano-banana-pro/edit`
+  - Create model picker lane switches with the same authority:
+    - Character Mode OFF -> `text-image`
+    - Character Mode ON -> `character-image`
   - Toggle remap is paired and deterministic:
     - OFF -> ON maps paired text-to-image models to edit variants (fallback `seedream/edit`).
     - ON -> OFF maps paired edit variants back to text-to-image (fallback `seedream/text-to-image`).

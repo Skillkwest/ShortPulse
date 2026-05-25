@@ -120,6 +120,7 @@ export const useAiStudioOutputSaveRuntime = ({
     ): Promise<PersistOutputSaveResult> => {
       const output = findOutputById(outputId);
       const persistIntent = resolvePersistIntent(options);
+      const showOutputSaveFeedback = persistIntent !== "auto";
       if (!output) {
         return {
           ok: false,
@@ -177,11 +178,13 @@ export const useAiStudioOutputSaveRuntime = ({
           setUiError((current) => (current === priorMessage ? null : current));
           lastLibrarySaveUiErrorRef.current = null;
         };
-        updateOutputById(outputId, (item) => ({
-          ...item,
-          saveState: "saving",
-          saveError: null,
-        }));
+        if (showOutputSaveFeedback) {
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            saveState: "saving",
+            saveError: null,
+          }));
+        }
         try {
           const shortCircuitResult = await resolveShortCircuitSave({
             outputId,
@@ -197,7 +200,9 @@ export const useAiStudioOutputSaveRuntime = ({
 
           const urls = await resolvePersistableOutputUrlsForSave(output, options);
           if (!urls.length) {
-            markOutputSaveFailed(outputId, "No media available to save.");
+            markOutputSaveFailed(outputId, "No media available to save.", {
+              showPill: showOutputSaveFeedback,
+            });
             const uiErrorMessage = shouldSurfaceLibrarySaveUiError({
               message: "No media available to save.",
               intent: persistIntent,
@@ -229,7 +234,9 @@ export const useAiStudioOutputSaveRuntime = ({
               })))
             : null;
           if (generatedOutput && !generationId) {
-            markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+            markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR, {
+              showPill: showOutputSaveFeedback,
+            });
             const uiErrorMessage = shouldSurfaceLibrarySaveUiError({
               message: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
               intent: persistIntent,
@@ -266,7 +273,14 @@ export const useAiStudioOutputSaveRuntime = ({
                 output,
                 savedMediaIds: mediaFileIds,
                 options,
-              })
+              }),
+              showOutputSaveFeedback
+                ? undefined
+                : {
+                    showPill: false,
+                    status: output.status === "saved" ? "saved" : "ready",
+                    timestamp: output.timestamp,
+                  }
             );
             clearResolvedLibrarySaveUiError();
             return {
@@ -280,6 +294,7 @@ export const useAiStudioOutputSaveRuntime = ({
           const failureMessage = resolveLibrarySaveFailureMessage(errors);
           markOutputSaveFailed(outputId, failureMessage, {
             state: resolveOutputSaveFailureState(failureMessage),
+            showPill: showOutputSaveFeedback,
           });
           const uiErrorMessage = resolveLibrarySaveUiErrorMessage(failureMessage);
           const surfacedUiErrorMessage = shouldSurfaceLibrarySaveUiError({

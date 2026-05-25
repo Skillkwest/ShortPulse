@@ -5,15 +5,18 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { AgentContext } from "../../ai-agent/types";
 import { randomId } from "../logic/ids";
+import {
+  uploadMediaFile,
+  type MediaUploadDestinationTab,
+  type MediaUploadRow,
+} from "../logic/mediaLibraryPanelApi";
 import { associateMediaFilesWithProject } from "../logic/mediaLibraryPersistence";
 import { resolveModelLabel } from "../logic/stateParsers";
 import type { StudioMode, StudioOutput } from "../types";
-import {
-  buildStudioOutputsFromReferenceInput,
-  buildStudioOutputsFromReferenceInputSync,
-} from "../reference-ingestion";
+import { buildStudioOutputsFromReferenceInputSync } from "../reference-ingestion";
 import { prepareLibraryMediaIngestionPayload } from "../reference-ingestion/prepareLibraryMediaIngestionPayload";
-import type { LibraryMediaFileType } from "../reference-ingestion/types";
+import type { ReferenceIngestionInput } from "../reference-ingestion/types";
+import { normalizeMediaFile } from "../reference-grid/controllers/referenceGridClipboard";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
@@ -27,24 +30,10 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
-type LibraryMediaReferencePayload = {
-  id: string;
-  url: string;
-  fileType: LibraryMediaFileType;
-  createdAt?: string | null;
-  originFolderId?: string | null;
-  filename?: string | null;
-  promptText?: string | null;
-  source?: string | null;
-  previewStoragePath?: string | null;
-  fullStoragePath?: string | null;
-  previewUrl?: string | null;
-  previewPosterUrl?: string | null;
-  previewPosterStoragePath?: string | null;
-  fullUrl?: string | null;
-  companionArtUrl?: string | null;
-  companionArtStoragePath?: string | null;
-};
+type LibraryMediaReferencePayload = Extract<
+  ReferenceIngestionInput,
+  { kind: "libraryMedia" }
+>["payload"];
 
 type LibraryPromptReferencePayload = {
   id: string;
@@ -57,6 +46,39 @@ type LibraryPromptReferencePayload = {
 type QuickSlotLibraryPlacement = {
   targetId: string | null;
   placement: "before" | "after" | "end";
+};
+
+const resolveUploadDestinationTabForReferenceFile = (
+  file: File
+): MediaUploadDestinationTab | null => {
+  const normalizedType = file.type.trim().toLowerCase();
+  if (normalizedType.startsWith("image/")) return "uploaded_images";
+  if (normalizedType.startsWith("video/")) return "uploaded_videos";
+  if (normalizedType.startsWith("audio/")) return "uploaded_images";
+  return null;
+};
+
+const normalizeReferenceUploadFile = (file: File, index: number): File | null =>
+  normalizeMediaFile(file, null, index);
+
+const toLibraryMediaReferencePayloadFromUpload = (
+  row: MediaUploadRow
+): LibraryMediaReferencePayload => {
+  const fileType =
+    row.file_type === "video" ? "video" : row.file_type === "audio" ? "audio" : ("image" as const);
+  return {
+    id: row.id,
+    url: row.signedUrl,
+    fileType,
+    createdAt: row.created_at,
+    filename: row.filename,
+    promptText: row.filename,
+    source: row.source,
+    previewStoragePath: row.preview_storage_path,
+    fullStoragePath: row.storage_path,
+    previewUrl: row.signedUrl,
+    fullUrl: row.signedUrl,
+  };
 };
 
 type UseAiStudioReferenceIngestionActionsResult = {
@@ -321,38 +343,64 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addOutputsFromFiles = useCallback(
-    async (files: FileList, source: "filePicker" | "drop" = "filePicker") => {
-      try {
-        const result = await buildStudioOutputsFromReferenceInput(
-          {
-            kind: "files",
-            source,
-            files,
-          },
-          {
-            mode,
-            aspect,
-            model,
-            resolveModelLabel,
-            randomId,
-            nowIso: () => new Date().toISOString(),
-          }
+    async (files: FileList) => {
+      const orderedFiles = Array.from(files);
+      const supportedCandidates = orderedFiles
+        .map((file, index) => {
+          const normalizedFile = normalizeReferenceUploadFile(file, index);
+          return {
+            file: normalizedFile,
+            destinationTab: normalizedFile
+              ? resolveUploadDestinationTabForReferenceFile(normalizedFile)
+              : null,
+          };
+        })
+        .filter(
+          (
+            candidate
+          ): candidate is {
+            file: File;
+            destinationTab: MediaUploadDestinationTab;
+          } => candidate.destinationTab !== null
         );
-        if (!result.outputs.length) {
-          if ((result.rejectedFileCount ?? 0) > 0) {
-            setUiError?.("Unable to add those files right now. Please try again.");
+      const rejectedFileCount = Math.max(0, orderedFiles.length - supportedCandidates.length);
+      let importedCount = 0;
+      let firstErrorMessage: string | null = null;
+
+      for (let index = supportedCandidates.length - 1; index >= 0; index -= 1) {
+        const candidate = supportedCandidates[index];
+        if (!candidate) continue;
+        try {
+          const uploaded = await uploadMediaFile({
+            file: candidate.file,
+            destinationTab: candidate.destinationTab,
+          });
+          await insertLibraryMediaReference(toLibraryMediaReferencePayloadFromUpload(uploaded));
+          importedCount += 1;
+        } catch (error) {
+          if (!firstErrorMessage) {
+            firstErrorMessage =
+              error instanceof Error && error.message.trim().length
+                ? error.message.trim()
+                : "Unable to add those files right now. Please try again.";
           }
-          return;
         }
-        setOutputs((prev) => [...result.outputs, ...prev]);
-        if ((result.rejectedFileCount ?? 0) > 0) {
-          setUiError?.("Some files could not be added. The rest were added.");
+      }
+
+      if (importedCount === 0) {
+        if (firstErrorMessage || rejectedFileCount > 0) {
+          setUiError?.(
+            firstErrorMessage ?? "Unable to add those files right now. Please try again."
+          );
         }
-      } catch {
-        setUiError?.("Unable to add those files right now. Please try again.");
+        return;
+      }
+
+      if (firstErrorMessage || rejectedFileCount > 0) {
+        setUiError?.("Some files could not be added. The rest were added.");
       }
     },
-    [aspect, model, mode, setOutputs, setUiError]
+    [insertLibraryMediaReference, setUiError]
   );
 
   const getAgentContext = useCallback(

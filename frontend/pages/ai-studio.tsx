@@ -594,6 +594,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
     isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    resolveInternalReferenceImageDropSource: base.resolveComposerInternalImageDropSource,
     imageResolution: base.imageResolution,
     setImageResolution: base.setImageResolution,
     characterOptions: base.characterOptions,
@@ -680,6 +681,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
     currentCostCredits,
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    resolveInternalReferenceImageDropSource: base.resolveComposerInternalImageDropSource,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
     onCreateCharacter: base.handleOpenCharacterCreate,
@@ -747,8 +749,8 @@ const useAiStudioReferenceExperienceRuntime = ({
     isMediaStorageFull,
   });
   const referenceGridHookProps = useAiStudioReferenceGridProps({
-    outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
-    archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
+    outputs,
+    archivedOutputs,
     activeOutputId,
     topNotice: isMediaStorageFull ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
     curatedReferenceIds,
@@ -830,7 +832,9 @@ const useAiStudioShellRuntime = ({
 }: UseAiStudioShellRuntimeParams) => {
   const {
     closeModelModal,
+    expertCreateMode,
     isModelModalOpen,
+    isCreateCharacterModeEnabled,
     localSessionTitleOverride,
     modelModalContext,
     project,
@@ -846,7 +850,11 @@ const useAiStudioShellRuntime = ({
     setSessionTitleOverrideState,
     setShowCreateTools,
     setUiError,
+    selectedTool,
+    trackUiEvent,
     updateProjectTitle,
+    resolveIsCharacterModeEnabledForTool,
+    resolveSelectedCharacterIdForTool,
   } = base;
   const effectiveProjectName = useMemo(
     () => project?.title ?? localSessionTitleOverride ?? null,
@@ -934,14 +942,51 @@ const useAiStudioShellRuntime = ({
       context: modelModalContext,
       onClose: closeModelModal,
       onSelect: handleSelectModelFromModal,
+      onPresentationResolved: ({ context, suppliedOptionCount, visibleOptionCount }) => {
+        const isCreateTool = selectedTool === "create" || selectedTool === "text";
+        if (!isCreateTool) return;
+        const resolvedExpertCreateMode = expertCreateMode === "pulse" ? "pulse" : "standard";
+        const characterModeEnabled = resolveIsCharacterModeEnabledForTool
+          ? resolveIsCharacterModeEnabledForTool(selectedTool)
+          : isCreateCharacterModeEnabled;
+        const selectedCharacterIdPresent = Boolean(
+          resolveSelectedCharacterIdForTool?.(selectedTool)?.trim()
+        );
+        const payload = {
+          tool: selectedTool,
+          expert_create_mode: resolvedExpertCreateMode,
+          character_mode_enabled: characterModeEnabled,
+          selected_character_id_present: selectedCharacterIdPresent,
+          modal_context: context,
+          supplied_option_count: suppliedOptionCount,
+          visible_option_count: visibleOptionCount,
+        };
+        trackUiEvent("create_model_modal_presented", payload);
+        if (
+          characterModeEnabled &&
+          resolvedExpertCreateMode === "standard" &&
+          context !== "character-image"
+        ) {
+          trackUiEvent("create_model_modal_context_mismatch", payload);
+        }
+        if (visibleOptionCount === 0) {
+          trackUiEvent("create_model_modal_empty_results", payload);
+        }
+      },
     }),
     [
       closeModelModal,
+      expertCreateMode,
       filteredModelOptions,
       handleSelectModelFromModal,
+      isCreateCharacterModeEnabled,
       isModelModalOpen,
       modelModalContext,
       resolveModelPickerCredits,
+      resolveIsCharacterModeEnabledForTool,
+      resolveSelectedCharacterIdForTool,
+      selectedTool,
+      trackUiEvent,
     ]
   );
 

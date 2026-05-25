@@ -480,7 +480,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     );
   });
 
-  it("keeps generic background autosave failures out of the page banner while still reporting telemetry", async () => {
+  it("keeps generic background autosave failures out of the page banner and card state while still reporting telemetry", async () => {
     const outputs = new Map<string, StudioOutput>([
       [
         "out-1",
@@ -521,8 +521,8 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(setUiError).not.toHaveBeenCalled();
     expect(outputs.get("out-1")).toEqual(
       expect.objectContaining({
-        saveState: "failed",
-        saveError: "Signed URL expired.",
+        saveState: undefined,
+        saveError: undefined,
       })
     );
     expect(reportAppErrorMock).toHaveBeenCalledWith(

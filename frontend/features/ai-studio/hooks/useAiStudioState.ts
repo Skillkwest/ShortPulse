@@ -19,12 +19,8 @@ import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionS
 import { useAiStudioOutputPersistenceEffects } from "./useAiStudioOutputPersistenceEffects";
 import { useAiStudioReferenceGridPreviewState } from "./useAiStudioReferenceGridPreviewState";
 import {
-  DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
   getDefaultDurationSecondsForModel,
   IMAGE_RESOLUTION_STORAGE_KEY,
-  REFERENCE_GRID_ACTIVE_LIMIT,
-  REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT,
-  REFERENCE_GRID_FLAG_SOFT_ARCHIVE,
   VIDEO_DURATION_STORAGE_KEY,
   VIDEO_RESOLUTION_STORAGE_KEY,
 } from "./aiStudioStateConfig";
@@ -380,7 +376,6 @@ export const useAiStudioState = ({
     standardPrompt,
   });
   const {
-    archiveOlderOutputs,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
     setOutputs,
@@ -390,19 +385,12 @@ export const useAiStudioState = ({
     clearCuratedReferences,
     resetReferenceGridState,
   } = useAiStudioReferenceGridStateActions({
-    activeOutputId,
     outputsLength: outputs.length,
     setActiveOutputId,
     setOutputsState,
     setArchivedOutputs,
     setReferenceProjectionState,
     pendingFinalizeRemovalIdsRef,
-    config: {
-      softArchiveEnabled: REFERENCE_GRID_FLAG_SOFT_ARCHIVE,
-      activeLimit: REFERENCE_GRID_ACTIVE_LIMIT,
-      archivePreviewKeepCount: REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT,
-      defaultActiveLimit: DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
-    },
   });
   useAiStudioStateEffects({
     promptRef,
@@ -802,7 +790,6 @@ export const useAiStudioState = ({
     clearGenerationOutput,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
-    archiveOlderOutputs,
     uiError,
     setUiError,
     uiNotice,

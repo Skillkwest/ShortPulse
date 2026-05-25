@@ -48,9 +48,9 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 5. Dropped external reference URLs are trust-scoped:
    - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
    - Arbitrary external hosts are blocked from drop ingestion.
-   - Internal AI Studio Reference Grid drags are accepted when payload origin is `ai_studio_reference_grid`.
+   - Internal AI Studio Reference Grid drags are accepted when payload origin is `ai-studio-reference-grid` and the drag is backed by the same-document internal drag session token, or when resolver recovery proves real internal media/storage authority.
    - Internal drops resolve to trusted `mediaId` first when available; URL host allowlist checks apply only to non-internal drops.
-   - If an internal drop has no `mediaId`, Character Manager ingests the trusted internal preview URL directly into Character Manager storage (QuickSwap/Character Sheet) without forcing an AI Studio Media Library save.
+   - If an internal drop has no `mediaId`, Character Manager may ingest the trusted internal preview URL directly into Character Manager storage (QuickSwap/Character Sheet) without forcing an AI Studio Media Library save, but only for session-backed internal drags.
    - Internal payload parse/resolve/fallback failures fail closed (no partial quickswap/sheet mutation).
 6. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.

@@ -60,7 +60,10 @@ sequenceDiagram
 - Standard path: `StandardCreatePropertiesPanel` owns Standard composer rendering.
 - Pulse path: `PulseCreatePropertiesPanel` owns Pulse composer rendering and mounts `PulseCreatePanelView`.
 
-4. Model picker open path is anchored with `anchorId="create-model"` and `context="text-image"` so modal ordering/filtering stays deterministic for Create.
+4. Model picker open path is anchored with `anchorId="create-model"` and uses a Create-lane context resolver so modal ordering/filtering stays deterministic for Create:
+   - Standard Create with Character Mode OFF -> `context="text-image"`
+   - Standard Create with Character Mode ON -> `context="character-image"`
+   - Pulse keeps Character Mode runtime-disabled and does not reuse the Standard Character Mode picker lane
 5. Prompt step always routes through the same `PromptStep` contract. Standard Create no longer exposes a chat-off inline-generate action; generation runs from the surface-owned primary Generate control, and assistant output must be dragged into the composer before it can drive generation.
 6. Character mode and character picker are controlled by `useCreateCharacterModeController`; selection state remains in page-level orchestration.
 7. In Create `Standard` mode, the composer leading slot mounts the shared `StylesControl`; it toggles the right-rail Styles section and uses `AiStudioPageContent` shared state (`isStylesPanelOpen`, `selectedStyleId`) so Create/Edit surfaces stay in sync.

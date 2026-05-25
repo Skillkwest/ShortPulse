@@ -53,6 +53,7 @@ type InternalReferenceSourceResolutionDebugEntry = {
     | "local_object_url"
     | "rendered_hint_url"
     | "compatibility_hint_url"
+    | "preview_url"
     | null;
   loadBlobOutcome: "pending" | "success" | "error" | null;
   error: string | null;
@@ -126,6 +127,8 @@ type ResolveInternalReferenceSourceArgs = {
     options?: PersistOutputSaveOptions
   ) => Promise<PersistOutputSaveResult>;
   resolveSavedMediaIdFromOutput: (output: StudioOutput | null, imageIndex: number) => string | null;
+  allowPersistenceRecovery?: boolean;
+  allowTrustedPreviewFallback?: boolean;
   resolveStoragePathFromMediaId?: (mediaId: string) => Promise<string | null>;
   resolveStoragePathFromGenerationOutput?: (args: {
     generationId: string | null;
@@ -376,16 +379,22 @@ const resolvePersistedFullStoragePath = (
   asCanonicalStoragePath(persisted?.delivery?.previewStoragePath);
 
 const resolvePayloadPreviewStoragePath = (
-  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">
+  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">,
+  options?: { allowPayloadAuthority?: boolean }
 ): string | null =>
-  asCanonicalStoragePath(payload.previewStoragePath) ??
-  asCanonicalStoragePath(payload.fullStoragePath);
+  options?.allowPayloadAuthority === true
+    ? (asCanonicalStoragePath(payload.previewStoragePath) ??
+      asCanonicalStoragePath(payload.fullStoragePath))
+    : null;
 
 const resolvePayloadFullStoragePath = (
-  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">
+  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">,
+  options?: { allowPayloadAuthority?: boolean }
 ): string | null =>
-  asCanonicalStoragePath(payload.fullStoragePath) ??
-  asCanonicalStoragePath(payload.previewStoragePath);
+  options?.allowPayloadAuthority === true
+    ? (asCanonicalStoragePath(payload.fullStoragePath) ??
+      asCanonicalStoragePath(payload.previewStoragePath))
+    : null;
 
 const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 
@@ -425,11 +434,22 @@ export const resolveInternalReferenceSource = async ({
   getOutputById,
   ensureOutputPersisted,
   resolveSavedMediaIdFromOutput,
+  allowPersistenceRecovery = true,
+  allowTrustedPreviewFallback = false,
   resolveStoragePathFromMediaId = defaultResolveStoragePathFromMediaId,
   resolveStoragePathFromGenerationOutput = defaultResolveStoragePathFromGenerationOutput,
 }: ResolveInternalReferenceSourceArgs): Promise<ResolvedInternalReferenceSource | null> => {
   const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
   const resolvedOutputId = resolvePayloadOutputId({ payload });
+  const renderHintUrl = asTrimmedString(payload.referenceRenderUrl) ?? null;
+  const payloadReferenceUrl = asTrimmedString(payload.referenceUrl) ?? null;
+  const sessionBackedPayload = payload.sessionBacked === true;
+  const allowSessionPayloadAuthority = sessionBackedPayload;
+  const allowTrustedPreviewBypass = allowTrustedPreviewFallback && sessionBackedPayload;
+  const allowedPayloadRenderHintUrl = sessionBackedPayload ? renderHintUrl : null;
+  const trustedPreviewHintUrl = allowTrustedPreviewBypass
+    ? (renderHintUrl ?? payloadReferenceUrl)
+    : null;
   const initialOutput = resolvedOutputId ? getOutputById(resolvedOutputId) : null;
   let resolvedOutput = initialOutput?.mode === "image" ? initialOutput : null;
   let resolvedMediaId =
@@ -466,6 +486,8 @@ export const resolveInternalReferenceSource = async ({
   });
 
   if (
+    allowPersistenceRecovery &&
+    !trustedPreviewHintUrl &&
     resolvedOutputId &&
     (!resolvedOutput || !resolvedMediaId || !resolveOutputStoragePath(resolvedOutput))
   ) {
@@ -498,12 +520,16 @@ export const resolveInternalReferenceSource = async ({
   let previewStoragePath =
     resolvePersistedPreviewStoragePath(persistedResult) ??
     (resolvedOutput ? asCanonicalStoragePath(resolvedOutput.previewStoragePath) : null) ??
-    resolvePayloadPreviewStoragePath(payload) ??
+    resolvePayloadPreviewStoragePath(payload, {
+      allowPayloadAuthority: allowSessionPayloadAuthority,
+    }) ??
     null;
   let fullStoragePath =
     resolvePersistedFullStoragePath(persistedResult) ??
     (resolvedOutput ? asCanonicalStoragePath(resolvedOutput.fullStoragePath) : null) ??
-    resolvePayloadFullStoragePath(payload) ??
+    resolvePayloadFullStoragePath(payload, {
+      allowPayloadAuthority: allowSessionPayloadAuthority,
+    }) ??
     previewStoragePath;
   const effectiveMediaKind =
     resolvedOutput?.mode ??
@@ -557,15 +583,17 @@ export const resolveInternalReferenceSource = async ({
       fullStoragePath ||
       asTrimmedString(resolvedOutput?.generationId)
     );
-  const renderHintUrl = asTrimmedString(payload.referenceRenderUrl) ?? null;
   const compatibilityHintUrl =
-    !hasInternalIdentity || missingDurableGeneratedIdentity
+    !hasInternalIdentity || (missingDurableGeneratedIdentity && !allowTrustedPreviewBypass)
       ? null
-      : (asTrimmedString(payload.referenceUrl) ??
-        asTrimmedString(resolvedOutput?.previewUrl) ??
-        null);
+      : allowSessionPayloadAuthority
+        ? (payloadReferenceUrl ?? asTrimmedString(resolvedOutput?.previewUrl) ?? null)
+        : (asTrimmedString(resolvedOutput?.previewUrl) ?? null);
   const previewUrl =
-    asTrimmedString(resolvedOutput?.previewUrl) ?? renderHintUrl ?? compatibilityHintUrl;
+    trustedPreviewHintUrl ??
+    asTrimmedString(resolvedOutput?.previewUrl) ??
+    allowedPayloadRenderHintUrl ??
+    compatibilityHintUrl;
   debugEntry.localObjectUrlPresent = Boolean(localObjectUrl);
   debugEntry.compatibilityHintUrlPresent = Boolean(compatibilityHintUrl);
   debugEntry.previewUrlPresent = Boolean(previewUrl);
@@ -575,7 +603,7 @@ export const resolveInternalReferenceSource = async ({
     resolutionReason ??
     (localObjectUrl
       ? "local_object_url"
-      : renderHintUrl
+      : allowedPayloadRenderHintUrl
         ? "payload_render_url"
         : compatibilityHintUrl
           ? "payload_reference_url"
@@ -613,9 +641,9 @@ export const resolveInternalReferenceSource = async ({
           debugEntry.loadBlobOutcome = "success";
           return blob;
         }
-        if (renderHintUrl) {
+        if (allowedPayloadRenderHintUrl) {
           debugEntry.loadBlobStrategy = "rendered_hint_url";
-          const blob = await downloadBlobFromUrl(renderHintUrl);
+          const blob = await downloadBlobFromUrl(allowedPayloadRenderHintUrl);
           debugEntry.loadBlobOutcome = "success";
           return blob;
         }
@@ -634,10 +662,10 @@ export const resolveInternalReferenceSource = async ({
         debugEntry.loadBlobOutcome = "success";
         return blob;
       }
-      if (renderHintUrl) {
+      if (allowedPayloadRenderHintUrl) {
         debugEntry.loadBlobStrategy = "rendered_hint_url";
         debugEntry.loadBlobOutcome = "pending";
-        const blob = await downloadBlobFromUrl(renderHintUrl);
+        const blob = await downloadBlobFromUrl(allowedPayloadRenderHintUrl);
         debugEntry.loadBlobOutcome = "success";
         return blob;
       }
@@ -645,6 +673,13 @@ export const resolveInternalReferenceSource = async ({
         debugEntry.loadBlobStrategy = "compatibility_hint_url";
         debugEntry.loadBlobOutcome = "pending";
         const blob = await downloadBlobFromUrl(compatibilityHintUrl);
+        debugEntry.loadBlobOutcome = "success";
+        return blob;
+      }
+      if (allowTrustedPreviewBypass && previewUrl) {
+        debugEntry.loadBlobStrategy = "preview_url";
+        debugEntry.loadBlobOutcome = "pending";
+        const blob = await downloadBlobFromUrl(previewUrl);
         debugEntry.loadBlobOutcome = "success";
         return blob;
       }
@@ -660,8 +695,9 @@ export const resolveInternalReferenceSource = async ({
     !previewStoragePath &&
     !fullStoragePath &&
     !localObjectUrl &&
-    !renderHintUrl &&
-    !compatibilityHintUrl
+    !allowedPayloadRenderHintUrl &&
+    !compatibilityHintUrl &&
+    !(allowTrustedPreviewBypass && previewUrl)
   ) {
     debugEntry.returnedNull = true;
     return null;
@@ -686,7 +722,7 @@ export const resolveInternalReferenceSource = async ({
         resolutionReason ??
         (localObjectUrl
           ? "local_object_url"
-          : renderHintUrl
+          : allowedPayloadRenderHintUrl
             ? "payload_render_url"
             : compatibilityHintUrl
               ? "payload_reference_url"

@@ -89,6 +89,36 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("preserves the optimistic createdAt while a matching output is still in flight", () => {
+    const existing = [
+      createOutput({
+        id: "local-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        createdAt: "2026-05-24T12:00:00.000Z",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        createdAt: "2026-05-24T10:00:00.000Z",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-1",
+        createdAt: "2026-05-24T12:00:00.000Z",
+      })
+    );
+  });
+
   it("prepends unseen canonical generated outputs", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

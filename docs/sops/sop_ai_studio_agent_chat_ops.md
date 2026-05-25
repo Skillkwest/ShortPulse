@@ -47,7 +47,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 10. Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance; Standard responses must not include `workflowSession`.
 11. Canonical runtime response is lane-owned:
 
-- Standard resolves to plain assistant `message`.
+- Standard resolves to visible assistant `message` plus `actions.applyPrompt` when the turn yields a reusable prompt artifact.
 - Pulse may return `message`, structured actions, and/or workflow-session updates.
 
 12. UI uses returned prompt text only when a feature explicitly chooses to use it. In Standard Create, assistant prompt bubbles are drag sources only and can be dragged into the composer.
@@ -60,7 +60,7 @@ Prompt ownership rule:
 ## User workflows & expected outcomes
 
 - **Iterate in Chat mode (Create tool):**
-  - Send → Standard returns raw assistant text or Pulse returns guided output. “Generate” only changes when the user drags returned prompt text into the composer.
+  - Send → Standard returns visible assistant text plus a reusable prompt artifact on generation-ready success, or Pulse returns guided output. “Generate” only changes when the user drags returned prompt text into the composer.
   - Assistant bubbles stay action-free; prompt transfer happens by dragging into the composer.
 - **Refine prompt path (Prompt tab):**
   - Uses `/api/ai/studio-agent-standard` with isolated history and `modeHint="text"`.
@@ -76,7 +76,7 @@ Prompt ownership rule:
   - Switching back to `Standard` parks the active hidden Pulse runtime. Returning to `Pulse` restores that parked session when preset/session authority is still valid.
 - **Describe a reference:**
   - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.
-  - Result is raw assistant text that can be dragged into the composer or saved as a prompt card.
+  - Result is visible assistant text with a reusable prompt artifact when generation-ready, so it can be dragged into the composer or saved as a prompt card.
 - **Retired expanded Agent Chat column:**
   - The right-column chat surface is intentionally removed.
   - Prompt-card save/add behavior belongs in the active Create composer or explicit prompt-reference actions, not a global right rail.

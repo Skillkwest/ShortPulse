@@ -7,6 +7,9 @@ const asTrimmedString = (value: string | null | undefined): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const isInFlightTaskState = (value: StudioOutput["taskState"] | null | undefined): boolean =>
+  value === "pending" || value === "running";
+
 const matchesHydratedGeneratedOutput = (
   existing: StudioOutput,
   hydrated: StudioOutput
@@ -44,7 +47,10 @@ const mergeHydratedGeneratedOutput = (
   mode: hydrated.mode,
   aspect: hydrated.aspect ?? existing.aspect,
   model: existing.model?.trim() ? existing.model : hydrated.model,
-  createdAt: hydrated.createdAt ?? existing.createdAt ?? null,
+  createdAt:
+    isInFlightTaskState(existing.taskState) && isInFlightTaskState(hydrated.taskState)
+      ? (existing.createdAt ?? hydrated.createdAt ?? null)
+      : (hydrated.createdAt ?? existing.createdAt ?? null),
   modelId: existing.modelId ?? hydrated.modelId,
   provider: existing.provider ?? hydrated.provider,
   sourceRef: existing.sourceRef ?? hydrated.sourceRef,

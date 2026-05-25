@@ -652,6 +652,7 @@ describe("dragDrop payload extraction", () => {
       referenceUrl: "https://cdn.example.com/out-123.png",
       referenceRenderUrl: "https://cdn.example.com/out-123-render.png",
       sourceSurface: "all-refs",
+      sessionBacked: false,
     });
   });
 
@@ -699,6 +700,7 @@ describe("dragDrop payload extraction", () => {
       referenceUrl: "https://example.com/out-token.png",
       referenceRenderUrl: "https://example.com/out-token.png",
       sourceSurface: "all-refs",
+      sessionBacked: true,
     });
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
@@ -748,6 +750,7 @@ describe("dragDrop payload extraction", () => {
       referenceUrl: "https://example.com/out-text-token.png",
       referenceRenderUrl: "https://example.com/out-text-token.png",
       sourceSurface: "all-refs",
+      sessionBacked: true,
     });
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
@@ -1356,6 +1359,7 @@ describe("dragDrop payload extraction", () => {
     expect(payload?.outputId).toBe("legacy-1");
     expect(payload?.referenceId).toBe("legacy-1");
     expect(payload?.sourceSurface).toBe("curated");
+    expect(payload?.sessionBacked).toBe(false);
   });
 
   it("accepts internal output-id/media-id hints even when origin metadata is absent", () => {
@@ -1370,6 +1374,7 @@ describe("dragDrop payload extraction", () => {
     expect(payload?.origin).toBe(INTERNAL_REFERENCE_DRAG_ORIGIN);
     expect(payload?.outputId).toBe("out-456");
     expect(payload?.mediaId).toBe("media-456");
+    expect(payload?.sessionBacked).toBe(false);
   });
 
   it("accepts relative image-like paths", () => {

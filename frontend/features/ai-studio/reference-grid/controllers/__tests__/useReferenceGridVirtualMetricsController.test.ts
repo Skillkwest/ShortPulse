@@ -67,9 +67,20 @@ type HarnessProps = {
   isWideLayout: boolean;
   outputsLength: number;
   curatedOutputsLength: number;
+  outputIds?: string[];
+  curatedOutputIds?: string[];
 };
 
-const useHarness = ({ isWideLayout, outputsLength, curatedOutputsLength }: HarnessProps) => {
+const createOutputIds = (count: number, prefix: string) =>
+  Array.from({ length: count }, (_, index) => `${prefix}-${index + 1}`);
+
+const useHarness = ({
+  isWideLayout,
+  outputsLength,
+  curatedOutputsLength,
+  outputIds,
+  curatedOutputIds,
+}: HarnessProps) => {
   const [virtualMetrics, setVirtualMetrics] = React.useState({
     scrollTop: 0,
     viewportHeight: 0,
@@ -90,12 +101,22 @@ const useHarness = ({ isWideLayout, outputsLength, curatedOutputsLength }: Harne
   const gridRef = React.useRef<HTMLDivElement | null>(gridNode);
   const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(curatedScrollNode);
   const curatedGridRef = React.useRef<HTMLDivElement | null>(curatedGridNode);
+  const resolvedOutputIds = React.useMemo(
+    () => outputIds ?? createOutputIds(outputsLength, "out"),
+    [outputIds, outputsLength]
+  );
+  const resolvedCuratedOutputIds = React.useMemo(
+    () => curatedOutputIds ?? createOutputIds(curatedOutputsLength, "curated"),
+    [curatedOutputIds, curatedOutputsLength]
+  );
 
   useReferenceGridVirtualMetricsController({
     isCuratedSplitEnabled: false,
     isWideLayout,
     outputsLength,
     curatedOutputsLength,
+    outputIds: resolvedOutputIds,
+    curatedOutputIds: resolvedCuratedOutputIds,
     scrollContainerRef,
     gridRef,
     curatedScrollContainerRef,
@@ -116,6 +137,7 @@ const useHarness = ({ isWideLayout, outputsLength, curatedOutputsLength }: Harne
   return {
     virtualMetrics,
     curatedVirtualMetrics,
+    scrollNode,
     setVirtualMetrics,
   };
 };
@@ -181,7 +203,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
     expect(MockResizeObserver.disconnectCount).toBeGreaterThan(0);
   });
 
-  it("preserves scrollTop when measurement sync reruns for output-count changes", () => {
+  it("re-reads the live scrollTop when measurement sync reruns for output-count changes", () => {
     const { result, rerender } = renderHook(
       ({ isWideLayout, outputsLength, curatedOutputsLength }: HarnessProps) =>
         useHarness({ isWideLayout, outputsLength, curatedOutputsLength }),
@@ -194,13 +216,20 @@ describe("useReferenceGridVirtualMetricsController", () => {
       }
     );
 
-    expect(result.current.virtualMetrics.scrollTop).toBe(0);
+    expect(result.current.virtualMetrics.scrollTop).toBe(12);
 
     act(() => {
       result.current.setVirtualMetrics((prev) => ({
         ...prev,
         scrollTop: 264,
       }));
+    });
+    act(() => {
+      Object.defineProperty(result.current.scrollNode, "scrollTop", {
+        configurable: true,
+        value: 312,
+        writable: true,
+      });
     });
 
     rerender({
@@ -209,6 +238,45 @@ describe("useReferenceGridVirtualMetricsController", () => {
       curatedOutputsLength: 0,
     });
 
-    expect(result.current.virtualMetrics.scrollTop).toBe(264);
+    expect(result.current.virtualMetrics.scrollTop).toBe(312);
+  });
+
+  it("pins prepends to the top when the user is already at the top", () => {
+    const { result, rerender } = renderHook(
+      ({ isWideLayout, outputsLength, curatedOutputsLength, outputIds }: HarnessProps) =>
+        useHarness({ isWideLayout, outputsLength, curatedOutputsLength, outputIds }),
+      {
+        initialProps: {
+          isWideLayout: false,
+          outputsLength: 2,
+          curatedOutputsLength: 0,
+          outputIds: ["out-1", "out-2"],
+        },
+      }
+    );
+
+    act(() => {
+      result.current.setVirtualMetrics((prev) => ({
+        ...prev,
+        scrollTop: 0,
+      }));
+    });
+    act(() => {
+      Object.defineProperty(result.current.scrollNode, "scrollTop", {
+        configurable: true,
+        value: 180,
+        writable: true,
+      });
+    });
+
+    rerender({
+      isWideLayout: false,
+      outputsLength: 3,
+      curatedOutputsLength: 0,
+      outputIds: ["out-new", "out-1", "out-2"],
+    });
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(0);
+    expect(result.current.scrollNode.scrollTop).toBe(0);
   });
 });

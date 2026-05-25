@@ -518,7 +518,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toBeNull();
   });
 
-  it("does not promote unresolved generated character drops from payload URLs alone", async () => {
+  it("opts character resolution into trusted preview fallback without requiring persistence recovery", async () => {
     const output = makeOutput();
     resolveInternalReferenceSourceMock.mockResolvedValueOnce(null);
 
@@ -553,6 +553,12 @@ describe("useAiStudioInternalDropResolvers", () => {
         outputId: "out-1",
         imageIndex: 0,
         previewUrl: null,
+      })
+    );
+    expect(resolveInternalReferenceSourceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowPersistenceRecovery: true,
+        allowTrustedPreviewFallback: true,
       })
     );
   });

@@ -6,6 +6,7 @@ import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
 import type { ModelModalContext } from "../components/ModelModal";
 import type { AiStudioKlingElement } from "../logic/klingElements";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioVideoPanelPropsParams = {
@@ -76,6 +77,7 @@ type UseAiStudioVideoPanelPropsParams = {
   currentCostCredits: number | null;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   onCreateCharacter: () => void;
@@ -143,6 +145,7 @@ export const useAiStudioVideoPanelProps = ({
   currentCostCredits,
   referenceImageWarning,
   resolveOutputPreviewUrl,
+  resolveInternalReferenceImageDropSource,
   isGenerateDisabled,
   generationGuardrail,
   onCreateCharacter,
@@ -209,6 +212,7 @@ export const useAiStudioVideoPanelProps = ({
       guardrailReason: generationGuardrail,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
+      resolveInternalReferenceImageDropSource,
       isGenerateDisabled,
       onCreateCharacter,
       onCreateElement,
@@ -239,6 +243,7 @@ export const useAiStudioVideoPanelProps = ({
       onCreateElement,
       referenceImageUrl,
       referenceImageWarning,
+      resolveInternalReferenceImageDropSource,
       resolveOutputPreviewUrl,
       seedance2InputMode,
       seedance2ReferenceAudioUrls,

@@ -188,6 +188,7 @@ describe("resolveInternalReferenceSource", () => {
         fullStoragePath: "user-1/generated/full.png",
         referenceRenderUrl:
           "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({
@@ -226,6 +227,7 @@ describe("resolveInternalReferenceSource", () => {
         fullStoragePath: "user-1/generations/videos/out-video.mp4",
         referenceRenderUrl: "https://cdn.example.com/out-video-poster.jpg",
         referenceUrl: "https://cdn.example.com/out-video.mp4",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({
@@ -318,6 +320,112 @@ describe("resolveInternalReferenceSource", () => {
     expect(resolved).toBeNull();
   });
 
+  it("allows trusted preview fallback for Character-style generated drops without requiring persistence recovery", async () => {
+    const output = makeImageOutput({
+      mediaSource: "generated",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      generationId: undefined,
+      taskId: "req-generated-preview-fallback",
+      previewUrl: "https://provider.example.com/generated-preview-only.png",
+      resultUrls: [],
+    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: false,
+      mediaFileIds: [],
+      delivery: null,
+      error: "missing",
+    }));
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        referenceRenderUrl:
+          "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+        referenceUrl: "https://payload.example.com/generated-only.png",
+        sessionBacked: true,
+      }),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted,
+      resolveSavedMediaIdFromOutput: () => null,
+      allowPersistenceRecovery: true,
+      allowTrustedPreviewFallback: true,
+    });
+
+    expect(ensureOutputPersisted).not.toHaveBeenCalled();
+    expect(resolved).toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        sourceKind: "generated_output",
+        outputId: "out-1",
+        mediaId: null,
+        preview: {
+          url: "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+        },
+      })
+    );
+    expect(resolved?.provenance.resolutionReason).toBe("payload_render_url");
+  });
+
+  it("still attempts persistence recovery for Character-style drops when no trusted preview hint survives", async () => {
+    const output = makeImageOutput({
+      mediaSource: "generated",
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      generationId: "gen-1",
+      taskId: "req-generated-recovery-fallback",
+      previewUrl: "https://provider.example.com/generated-preview-only.png",
+      resultUrls: ["https://provider.example.com/generated-preview-only.png"],
+    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: ["media-1"],
+      delivery: {
+        previewStoragePath: "user-1/generations/images/out-1-preview.png",
+        fullStoragePath: "user-1/generations/images/out-1-full.png",
+        previewUrl: "https://cdn.example.com/signed/out-1-preview.png",
+        fullUrl: "https://cdn.example.com/signed/out-1-full.png",
+      },
+      error: null,
+    }));
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        referenceUrl: null,
+        referenceRenderUrl: null,
+      }),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted,
+      resolveSavedMediaIdFromOutput: () => null,
+      allowPersistenceRecovery: true,
+      allowTrustedPreviewFallback: true,
+    });
+
+    expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1", { imageIndex: 0 });
+    expect(resolved).toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        mediaId: "media-1",
+        previewStoragePath: "user-1/generations/images/out-1-preview.png",
+        fullStoragePath: "user-1/generations/images/out-1-full.png",
+      })
+    );
+    expect(resolved?.provenance.resolutionReason).toBe("persisted_delivery");
+  });
+
   it("keeps rendered internal preview urls as the final fallback for tracked generated references", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -331,6 +439,7 @@ describe("resolveInternalReferenceSource", () => {
         mediaId: null,
         referenceRenderUrl:
           "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({
@@ -364,12 +473,13 @@ describe("resolveInternalReferenceSource", () => {
     );
   });
 
-  it("keeps compatibility fallback for unresolved media-library-backed references", async () => {
+  it("keeps compatibility fallback for session-backed unresolved media-library-backed references", async () => {
     const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
         outputId: "out-missing",
         mediaId: "media-lookup",
         referenceUrl: "https://cdn.example.com/stale-reference.png",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({
@@ -397,6 +507,37 @@ describe("resolveInternalReferenceSource", () => {
       })
     );
     expect(resolved?.provenance.resolutionReason).toBe("payload_reference_url");
+  });
+
+  it("fails closed for metadata-only payload hints that are not backed by an internal drag session", async () => {
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        outputId: "out-spoofed",
+        mediaId: "media-spoofed",
+        previewStoragePath: "user-1/generated/spoofed-preview.png",
+        fullStoragePath: "user-1/generated/spoofed-full.png",
+        referenceRenderUrl: "https://cdn.example.com/spoofed-render.png",
+        referenceUrl: "https://cdn.example.com/spoofed-reference.png",
+        sessionBacked: false,
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      allowTrustedPreviewFallback: true,
+    });
+
+    expect(resolved).toBeNull();
   });
 
   it("fails closed when only a stale generated reference url is present without internal identity", async () => {

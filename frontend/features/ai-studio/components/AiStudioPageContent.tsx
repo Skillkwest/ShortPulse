@@ -107,6 +107,7 @@ import {
   hasInternalReferenceDragTypeHints,
   type InternalReferenceDragPayload,
 } from "../utils/dragDrop";
+import { doesReferenceGridOwnFileDrop } from "../logic/referenceGridDropOwnership";
 import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
@@ -575,6 +576,11 @@ export type AiStudioPageContentProps = {
     onClose: () => void;
     onSelect: (value: string) => void;
     context?: ModelModalContext | null;
+    onPresentationResolved?: (payload: {
+      context: ModelModalContext | null;
+      suppliedOptionCount: number;
+      visibleOptionCount: number;
+    }) => void;
   };
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
@@ -1147,6 +1153,11 @@ export function AiStudioPageContent({
     const element = getEventTargetElement(target);
     return Boolean(element?.closest(".reference-curated-section"));
   }, []);
+  const shouldReferenceGridOwnFileDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>): boolean =>
+      doesReferenceGridOwnFileDrop(event, rightColumnRef.current),
+    [rightColumnRef]
+  );
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.ui_error_banner",
@@ -1450,12 +1461,8 @@ export function AiStudioPageContent({
     onDropLibraryPromptReference: onAddLibraryPromptReference,
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
+    shouldOwnFileDrop: shouldReferenceGridOwnFileDrop,
     shouldBypassCapture: (event, context) => {
-      // Local desktop files should only be accepted by the concrete drop surfaces
-      // (Reference Grid / Preview), not by the broader shell/right-column overlay.
-      if ((event.dataTransfer.files?.length ?? 0) > 0 || context.payload?.kind === "files") {
-        return true;
-      }
       const payloadKind = context.payload?.kind;
       if (isTargetInsideQuickSlot(event.target)) {
         if (payloadKind === "libraryMedia" || payloadKind === "libraryPrompt") {
@@ -1637,6 +1644,7 @@ export function AiStudioPageContent({
         options={modelModalState.options}
         resolveCreditsForModel={modelModalState.resolveCreditsForModel}
         context={modelModalState.context}
+        onPresentationResolved={modelModalState.onPresentationResolved}
       />
       <DetailModal
         output={detailModalOutput}

@@ -50,7 +50,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
   it("routes file ingestion through mapUploadsFromFiles", async () => {
     const context = createContext();
     const expected = [makeOutput("upload-1")];
-    mapUploadsFromFilesMock.mockResolvedValue(expected);
+    mapUploadsFromFilesMock.mockResolvedValue({ outputs: expected, rejectedFileCount: 0 });
 
     const files = {
       length: 0,
@@ -81,7 +81,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
   it("passes drop source through canonical file ingestion", async () => {
     const context = createContext();
     const expected = [makeOutput("upload-drop-1")];
-    mapUploadsFromFilesMock.mockResolvedValue(expected);
+    mapUploadsFromFilesMock.mockResolvedValue({ outputs: expected, rejectedFileCount: 0 });
 
     const files = {
       length: 0,
@@ -234,6 +234,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.fullStoragePath).toBe("user/full.jpg");
     expect(output?.resultUrls).toEqual(["https://example.com/preview.jpg"]);
     expect(output?.savedMediaIds).toEqual(["media-1"]);
+    expect(output?.saveState).toBe("saved");
   });
 
   it("preserves transcript text for library media outputs", async () => {
@@ -355,6 +356,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.companionArtUrl).toBe("https://example.com/library-audio-cover.webp");
     expect(output?.companionArtStoragePath).toBe("user/library-audio-cover.webp");
     expect(output?.savedMediaIds).toEqual(["media-audio-1"]);
+    expect(output?.saveState).toBe("saved");
   });
 
   it("builds library prompt output with saved state", async () => {

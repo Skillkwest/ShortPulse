@@ -44,6 +44,11 @@ import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessi
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
+const normalizeArchiveReason = (value: unknown): StudioOutput["archiveReason"] => {
+  if (value === "manual" || value === "cleanup") return value;
+  return null;
+};
+
 export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
 export type AiStudioSessionExpertCreateMode = "standard" | "pulse";
 export type AiStudioSessionCreateModeReferenceStateV1 = {
@@ -102,7 +107,7 @@ export type AiStudioSessionOutputV1 = {
   pinned?: boolean;
   hiddenInReferenceGrid?: boolean;
   archivedAt?: string | null;
-  archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
+  archiveReason?: "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
   styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;
@@ -550,7 +555,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     pinned: output.pinned,
     hiddenInReferenceGrid: output.hiddenInReferenceGrid,
     archivedAt: output.archivedAt ?? null,
-    archiveReason: output.archiveReason ?? null,
+    archiveReason: normalizeArchiveReason(output.archiveReason),
     characterContext: output.characterContext,
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,

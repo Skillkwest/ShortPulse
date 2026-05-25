@@ -8,6 +8,7 @@ import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import { isExpertEditImageUrl } from "../components/edit/expertEditLayerSessionUtils";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
 import type { ModelModalContext } from "../components/ModelModal";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
@@ -53,6 +54,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   imageResolution: string;
   setImageResolution: Dispatch<SetStateAction<string>>;
   characterOptions: Array<{ id: string; name: string; profileImageUrl: string | null }>;
@@ -104,6 +106,7 @@ export const useAiStudioEditExpertPanelProps = ({
   isPrimaryStageGenerating,
   referenceImageWarning,
   resolveOutputPreviewUrl,
+  resolveInternalReferenceImageDropSource,
   imageResolution,
   setImageResolution,
   characterOptions,
@@ -176,6 +179,7 @@ export const useAiStudioEditExpertPanelProps = ({
       isPrimaryStageGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
+      resolveInternalReferenceImageDropSource,
       imageResolution,
       onImageResolutionChange: setImageResolution,
       characterOptions,
@@ -220,6 +224,7 @@ export const useAiStudioEditExpertPanelProps = ({
     removeOptimisticGenerationPlaceholder,
     referenceImageUrl,
     referenceImageWarning,
+    resolveInternalReferenceImageDropSource,
     resolveOutputPreviewUrl,
     customPresetOverrides,
     onCustomPresetOverridesChange,

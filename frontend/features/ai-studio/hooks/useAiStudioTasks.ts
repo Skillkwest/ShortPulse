@@ -200,6 +200,10 @@ const resolveSettledStatusFromSaveState = (
   saveState: StudioOutput["saveState"]
 ): StudioOutput["status"] => (saveState === "saved" ? "saved" : "ready");
 
+const hasSavedMediaAuthority = (savedMediaIds: StudioOutput["savedMediaIds"]): boolean =>
+  Array.isArray(savedMediaIds) &&
+  savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0);
+
 const fetchStatusByModelId = async (modelId: string, taskId: string) =>
   fetchQueuedGenerationStatusByModelId(modelId, taskId);
 
@@ -411,11 +415,17 @@ export function useAiStudioTasks({
           previewUrl: visibleGeneration.previewUrl ?? item.previewUrl ?? null,
           resultUrls: nextResultUrls,
         });
+        const nextSaveState: StudioOutput["saveState"] =
+          nextDelivery.previewStoragePath ||
+          nextDelivery.fullStoragePath ||
+          hasSavedMediaAuthority(item.savedMediaIds)
+            ? "saved"
+            : item.saveState;
         return {
           ...item,
           generationId: item.generationId ?? visibleGeneration.generationId ?? item.generationId,
           taskState: "success",
-          status: resolveSettledStatusFromSaveState("saved"),
+          status: resolveSettledStatusFromSaveState(nextSaveState),
           timestamp,
           resultUrls: areStringArraysEqual(item.resultUrls, nextResultUrls)
             ? item.resultUrls
@@ -444,8 +454,8 @@ export function useAiStudioTasks({
               : nextDelivery.fullStoragePath,
           mediaSource: item.mediaSource ?? "generated",
           previewTier: item.mode === "video" ? "preview_loop" : "full",
-          saveState: "saved",
-          saveError: null,
+          saveState: nextSaveState,
+          saveError: nextSaveState === "saved" ? null : (item.saveError ?? null),
           archivedAt: null,
           archiveReason: null,
           errorMessage: null,

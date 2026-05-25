@@ -8,7 +8,7 @@ import {
   serializeExpertEditPresetDragPayload,
   type ExpertEditPresetDragPayload,
 } from "./expertEditPresets";
-import { forgetObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 
 export const writePresetDragTransfer = (
   transfer: DataTransfer,
@@ -72,7 +72,9 @@ export const cloneBlobObjectUrl = async (sourceUrl: string): Promise<string | nu
     const response = await fetch(sourceUrl);
     if (!response.ok) return null;
     const blob = await response.blob();
-    return URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
+    rememberObjectUrlBlob(objectUrl, blob);
+    return objectUrl;
   } catch {
     return null;
   }

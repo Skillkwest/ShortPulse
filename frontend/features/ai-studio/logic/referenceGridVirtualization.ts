@@ -32,6 +32,17 @@ type ResolveReferenceGridMaxColumnsInput = {
   pressureLevel?: number;
 };
 
+type ReferenceGridPrependAnchorInput = {
+  previousOutputIds: readonly string[];
+  nextOutputIds: readonly string[];
+  previousScrollTop: number;
+  measuredScrollTop: number;
+  previousColumnCount: number;
+  nextColumnCount: number;
+  previousRowHeight: number;
+  nextRowHeight: number;
+};
+
 /**
  * Resolves adaptive overscan rows for the current reference-grid density.
  */
@@ -59,6 +70,56 @@ export const resolveReferenceGridMaxColumns = ({
   if (itemCount < 40) return safeRequested;
   const highDensityCap = pressureLevel >= 2 ? 3 : 4;
   return Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.min(safeRequested, highDensityCap));
+};
+
+/**
+ * Preserves the user's viewport anchor when new outputs are prepended ahead of the current window.
+ */
+export const resolveReferenceGridPrependAnchorScrollTop = ({
+  previousOutputIds,
+  nextOutputIds,
+  previousScrollTop,
+  measuredScrollTop,
+  previousColumnCount,
+  nextColumnCount,
+  previousRowHeight,
+  nextRowHeight,
+}: ReferenceGridPrependAnchorInput): number | null => {
+  if (nextOutputIds.length <= previousOutputIds.length || previousOutputIds.length === 0) {
+    return null;
+  }
+
+  const previousFirstOutputId = previousOutputIds[0];
+  if (!previousFirstOutputId) return null;
+  const prependedItemCount = nextOutputIds.indexOf(previousFirstOutputId);
+  if (prependedItemCount <= 0) return null;
+
+  const safePreviousScrollTop = Math.max(0, previousScrollTop);
+  if (safePreviousScrollTop <= 1) {
+    return 0;
+  }
+
+  const safeMeasuredScrollTop = Math.max(0, measuredScrollTop);
+  const safePreviousColumnCount = Math.max(1, Math.floor(previousColumnCount));
+  const safeNextColumnCount = Math.max(1, Math.floor(nextColumnCount));
+  const safePreviousRowHeight = Math.max(1, previousRowHeight);
+  const safeNextRowHeight = Math.max(1, nextRowHeight);
+  const previousRow = Math.floor(safePreviousScrollTop / safePreviousRowHeight);
+  const previousRowOffsetRatio =
+    (safePreviousScrollTop - previousRow * safePreviousRowHeight) / safePreviousRowHeight;
+  const previousFirstVisibleIndex = previousRow * safePreviousColumnCount;
+  const nextFirstVisibleIndex = previousFirstVisibleIndex + prependedItemCount;
+  const nextFirstVisibleRow = Math.floor(nextFirstVisibleIndex / safeNextColumnCount);
+  const anchoredScrollTop =
+    nextFirstVisibleRow * safeNextRowHeight + previousRowOffsetRatio * safeNextRowHeight;
+  const expectedDelta = anchoredScrollTop - safePreviousScrollTop;
+  const measuredDelta = safeMeasuredScrollTop - safePreviousScrollTop;
+
+  if (Math.abs(measuredDelta - expectedDelta) < 1) {
+    return safeMeasuredScrollTop;
+  }
+
+  return anchoredScrollTop;
 };
 
 /**

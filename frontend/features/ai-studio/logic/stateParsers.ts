@@ -534,12 +534,12 @@ export const mapUploadsFromFiles = async (
       const objectUrl = supportsObjectUrl ? URL.createObjectURL(file) : null;
       try {
         const fallbackDataUrl = await (async () => {
-          if (!isImage && objectUrl) return null;
+          if (objectUrl) return null;
           return readFileAsDataUrl(file);
         })();
         // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
         // for deterministic cleanup via URL.revokeObjectURL.
-        const previewBase = isImage ? (fallbackDataUrl ?? objectUrl ?? "") : (objectUrl ?? "");
+        const previewBase = isImage ? (objectUrl ?? fallbackDataUrl ?? "") : (objectUrl ?? "");
         const previewUrl = isVideo
           ? `${previewBase}#video=1`
           : isAudio && objectUrl

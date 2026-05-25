@@ -38,19 +38,12 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const pendingFinalizeRemovalIdsRef = useRef(new Set<string>());
 
       const actions = useAiStudioReferenceGridStateActions({
-        activeOutputId,
         outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
         setArchivedOutputs,
         setReferenceProjectionState,
         pendingFinalizeRemovalIdsRef,
-        config: {
-          softArchiveEnabled: true,
-          activeLimit: 100,
-          archivePreviewKeepCount: 10,
-          defaultActiveLimit: 100,
-        },
       });
 
       return {
@@ -75,5 +68,45 @@ describe("useAiStudioReferenceGridStateActions", () => {
       removedFromAllRefsIds: [],
     });
     expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual(["output-2"]);
+  });
+
+  it("keeps large all-refs collections active instead of soft-archiving by count", () => {
+    const { result } = renderHook(() => {
+      const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+      const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
+      const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([]);
+      const [, setReferenceProjectionState] = useState<ReferenceProjectionState>({
+        quickSlotIds: [],
+        removedFromAllRefsIds: [],
+      });
+      const pendingFinalizeRemovalIdsRef = useRef(new Set<string>());
+
+      const actions = useAiStudioReferenceGridStateActions({
+        outputsLength: outputs.length,
+        setActiveOutputId,
+        setOutputsState,
+        setArchivedOutputs,
+        setReferenceProjectionState,
+        pendingFinalizeRemovalIdsRef,
+      });
+
+      return {
+        activeOutputId,
+        outputs,
+        archivedOutputs,
+        ...actions,
+      };
+    });
+
+    const manyOutputs = Array.from({ length: 525 }, (_, index) =>
+      createOutput(`output-${index + 1}`)
+    );
+
+    act(() => {
+      result.current.setOutputs(manyOutputs);
+    });
+
+    expect(result.current.outputs).toHaveLength(525);
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 });

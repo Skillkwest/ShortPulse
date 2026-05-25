@@ -103,6 +103,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
       );
       expect(result.current.outputs[0]?.previewStoragePath).toBe("user-1/images/ref-data.png");
       expect(result.current.outputs[0]?.fullStoragePath).toBe("user-1/images/ref-data.png");
+      expect(result.current.outputs[0]?.localObjectUrl).toBeNull();
     });
     expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("blob:local-image-upload-1");
   });

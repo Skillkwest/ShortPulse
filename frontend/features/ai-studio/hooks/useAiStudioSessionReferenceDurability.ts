@@ -191,6 +191,7 @@ const patchOutputIfUnchanged = ({
       previewPosterStoragePath: row.mode === "video" ? canonicalPosterPath : null,
       previewStoragePath: nextPreviewStoragePath,
       fullStoragePath: canonicalPath,
+      localObjectUrl: null,
     };
   });
   return { rows: patched, changed };

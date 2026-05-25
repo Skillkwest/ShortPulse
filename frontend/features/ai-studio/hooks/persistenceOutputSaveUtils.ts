@@ -146,6 +146,26 @@ const isLikelyStoragePath = (value: string | null | undefined): boolean => {
   return !/^https?:\/\//i.test(normalized) && !normalized.startsWith("blob:");
 };
 
+const resolveSignedStorageUrlFromOutput = async (output: StudioOutput): Promise<string[]> => {
+  const candidateStoragePaths = uniqueUrls(
+    output.mode === "video"
+      ? [output.fullStoragePath, output.previewStoragePath]
+      : [output.previewStoragePath, output.fullStoragePath]
+  ).filter((value) => isLikelyStoragePath(value));
+
+  for (const storagePath of candidateStoragePaths) {
+    const signedUrl = await getSignedMediaUrl({
+      bucket: "media_library",
+      storagePath,
+    });
+    if (signedUrl) {
+      return uniqueUrls([signedUrl]);
+    }
+  }
+
+  return [];
+};
+
 export const resolvePersistableOutputUrlsForSave = async (
   output: StudioOutput,
   options?: PersistOutputSaveOptions
@@ -173,22 +193,11 @@ export const resolvePersistableOutputUrlsForSave = async (
         // fall through to output state and legacy result URL handling
       }
     }
+  }
 
-    const candidateStoragePaths = uniqueUrls(
-      output.mode === "video"
-        ? [output.fullStoragePath, output.previewStoragePath]
-        : [output.previewStoragePath, output.fullStoragePath]
-    ).filter((value) => isLikelyStoragePath(value));
-
-    for (const storagePath of candidateStoragePaths) {
-      const signedUrl = await getSignedMediaUrl({
-        bucket: "media_library",
-        storagePath,
-      });
-      if (signedUrl) {
-        return uniqueUrls([signedUrl]);
-      }
-    }
+  const signedStorageUrls = await resolveSignedStorageUrlFromOutput(output);
+  if (signedStorageUrls.length) {
+    return signedStorageUrls;
   }
 
   if (output.mode === "image") {

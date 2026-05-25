@@ -3,6 +3,7 @@
  * Centralizes page-scoped drop resolution for character, media-library, styles, and element-profile surfaces.
  */
 import { useCallback } from "react";
+import { rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type {
   PersistOutputSaveOptions,
   PersistOutputSaveResult,
@@ -92,6 +93,8 @@ export const useAiStudioInternalDropResolvers = ({
         getOutputSnapshot,
         ensureOutputPersisted,
         resolveSavedMediaIdFromOutput,
+        allowPersistenceRecovery: true,
+        allowTrustedPreviewFallback: true,
       });
       const outputId = (payload.outputId ?? payload.referenceId ?? "").trim() || null;
       const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
@@ -206,6 +209,7 @@ export const useAiStudioInternalDropResolvers = ({
           const blob = await resolvedSource.loadBlob();
           if (blob instanceof Blob && blob.size > 0) {
             const objectUrl = URL.createObjectURL(blob);
+            rememberObjectUrlBlob(objectUrl, blob);
             return {
               ...resolvedSource,
               preview: {
@@ -223,8 +227,7 @@ export const useAiStudioInternalDropResolvers = ({
       const hasStablePreviewAuthority = Boolean(
         resolvedSource.preparedImageUrl?.trim() ||
         resolvedSource.previewStoragePath?.trim() ||
-        resolvedSource.fullStoragePath?.trim() ||
-        resolvedSource.sourceKind === "local_file"
+        resolvedSource.fullStoragePath?.trim()
       );
 
       return hasStablePreviewAuthority ? resolvedSource : null;

@@ -79,6 +79,7 @@ type ReferenceDragPreviewDataset = {
 
 export type DragDropPayload = {
   imageUrl: string | null;
+  imageFile?: File | null;
   promptText: string | null;
   referenceId?: string | null;
   fromFile?: boolean;
@@ -600,8 +601,10 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   const dimensions = resolveReferenceTransferDimensions(transfer);
 
   if (imageFile) {
+    const objectUrl = URL.createObjectURL(imageFile);
     return {
-      imageUrl: URL.createObjectURL(imageFile),
+      imageUrl: objectUrl,
+      imageFile,
       promptText: null,
       referenceId,
       fromFile: true,

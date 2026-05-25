@@ -63,6 +63,7 @@ type UseAiStudioShellDndControllerParams = {
   }) => void;
   onDropTextReference?: (text: string) => void;
   useRafBackpressure?: boolean;
+  shouldOwnFileDrop?: (event: React.DragEvent<HTMLElement>) => boolean;
   shouldBypassCapture?: (
     event: React.DragEvent<HTMLElement>,
     context: { dropMode?: ShellDropMode; payload?: ShellDropPayload }
@@ -76,6 +77,12 @@ type RightColumnFallbackBounds = {
   right: number;
   top: number;
   bottom: number;
+};
+
+const isPotentialDesktopFileTransfer = (transfer: DataTransfer | null | undefined): boolean => {
+  if (!transfer) return false;
+  if ((transfer.files?.length ?? 0) > 0) return true;
+  return Array.from(transfer.types || []).some((type) => type.toLowerCase() === "files");
 };
 
 /**
@@ -93,6 +100,7 @@ export const useAiStudioShellDndController = ({
   onDropLibraryPromptReference,
   onDropTextReference,
   useRafBackpressure = true,
+  shouldOwnFileDrop,
   shouldBypassCapture,
 }: UseAiStudioShellDndControllerParams) => {
   const dragDepthRef = useRef(0);
@@ -163,6 +171,15 @@ export const useAiStudioShellDndController = ({
     (event) => {
       const nextMode = resolveDropMode(event.dataTransfer);
       if (nextMode === "none") return;
+      if (
+        isPotentialDesktopFileTransfer(event.dataTransfer) &&
+        shouldOwnFileDrop &&
+        !shouldOwnFileDrop(event)
+      ) {
+        dragDepthRef.current = 0;
+        applyDropMode("none");
+        return;
+      }
       if (shouldBypassCapture?.(event, { dropMode: nextMode })) {
         dragDepthRef.current = 0;
         applyDropMode("none");
@@ -173,13 +190,22 @@ export const useAiStudioShellDndController = ({
       dragDepthRef.current += 1;
       applyDropMode(nextMode);
     },
-    [applyDropMode, resolveDropMode, shouldBypassCapture]
+    [applyDropMode, resolveDropMode, shouldBypassCapture, shouldOwnFileDrop]
   );
 
   const handleDragOverCapture: DragEventHandler = useCallback(
     (event) => {
       const nextMode = resolveDropMode(event.dataTransfer);
       if (nextMode === "none") return;
+      if (
+        isPotentialDesktopFileTransfer(event.dataTransfer) &&
+        shouldOwnFileDrop &&
+        !shouldOwnFileDrop(event)
+      ) {
+        dragDepthRef.current = 0;
+        applyDropMode("none");
+        return;
+      }
       if (shouldBypassCapture?.(event, { dropMode: nextMode })) {
         dragDepthRef.current = 0;
         applyDropMode("none");
@@ -189,7 +215,7 @@ export const useAiStudioShellDndController = ({
       event.dataTransfer.dropEffect = "copy";
       applyDropMode(nextMode);
     },
-    [applyDropMode, resolveDropMode, shouldBypassCapture]
+    [applyDropMode, resolveDropMode, shouldBypassCapture, shouldOwnFileDrop]
   );
 
   const handleDragLeaveCapture: DragEventHandler = useCallback(
@@ -216,6 +242,10 @@ export const useAiStudioShellDndController = ({
         return;
       }
       if (payload.kind === "files") {
+        if (shouldOwnFileDrop && !shouldOwnFileDrop(event)) {
+          clearDropState();
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
         onDropFiles(payload.files);
@@ -261,6 +291,7 @@ export const useAiStudioShellDndController = ({
       onDropTextReference,
       resolveDropPayload,
       shouldBypassCapture,
+      shouldOwnFileDrop,
     ]
   );
 

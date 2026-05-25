@@ -31,6 +31,11 @@ If the consumer chooses the raw file lane first, the drag is misclassified as a 
 6. Resolve preview source and model source separately from the same normalized source.
 7. Lock degraded browser cases in characterization tests.
 
+Important trust boundary:
+
+- Treat payload preview URLs, render URLs, and payload storage paths as trusted only when the drag is backed by the same-document internal drag session token, or when downstream resolution recovers real internal media/storage authority.
+- A claimed `text/reference-origin=ai-studio-reference-grid` string by itself is not enough to trust payload URLs or storage hints.
+
 ## Required implementation shape
 
 ### 1. Snapshot first

@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buildAgentMachineOutcome } from "../agentMachineOutcome";
 import {
+  buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
@@ -27,7 +28,12 @@ import {
   isPulseCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
-import { extractStudioAgentCompletionText } from "../studioAgentResponseNormalization";
+import {
+  ensureStudioAgentApplyPromptContract,
+  extractStudioAgentCompletionText,
+  isStudioAgentRefusalResponse,
+  parseStudioAgentJsonWithStatus,
+} from "../studioAgentResponseNormalization";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
@@ -37,7 +43,7 @@ import {
   RequiredRuntimeAgentPromptMissingError,
   RequiredRuntimeAgentPromptUnavailableError,
 } from "../../../lib/server/api/runtimeAgentPromptControlPlane";
-import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
+import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
@@ -121,14 +127,59 @@ const buildStandardOpenAiMessages = ({
     : conversationMessages;
 };
 
-const extractStandardOpenAiResponse = (payload: unknown): string | null => {
+const extractStandardOpenAiResponse = ({
+  payload,
+  fallbackPrompt,
+}: {
+  payload: unknown;
+  fallbackPrompt: string;
+}): {
+  response: AgentResponse;
+  refusal: boolean;
+} | null => {
   if (!payload || typeof payload !== "object") return null;
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
-  const directMessage = extractStudioAgentCompletionText(raw);
-  return typeof directMessage === "string" && directMessage.trim().length > 0
-    ? directMessage.trim()
-    : null;
+  const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: true });
+  if (!parsed) {
+    const directMessage = extractStudioAgentCompletionText(raw);
+    if (typeof directMessage !== "string" || directMessage.trim().length === 0) {
+      return null;
+    }
+    return {
+      response: ensureStudioAgentApplyPromptContract({
+        parsed: {
+          message: directMessage.trim(),
+          actions: undefined,
+        },
+        fallbackPrompt: directMessage.trim(),
+      }),
+      refusal: false,
+    };
+  }
+
+  if (
+    isStudioAgentRefusalResponse({
+      status: parsed.status,
+      response: parsed.response,
+    })
+  ) {
+    return {
+      response: {
+        message: parsed.response.message,
+        actions: undefined,
+      },
+      refusal: true,
+    };
+  }
+
+  return {
+    response: ensureStudioAgentApplyPromptContract({
+      parsed: parsed.response,
+      fallbackPrompt: parsed.response.message || fallbackPrompt,
+    }),
+    refusal: false,
+  };
 };
 
 /**
@@ -299,7 +350,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     }
 
     const directPayload = await directResponse.json();
-    const directResult = extractStandardOpenAiResponse(directPayload);
+    const directResult = extractStandardOpenAiResponse({
+      payload: directPayload,
+      fallbackPrompt: messages[messages.length - 1]?.content?.trim() || "",
+    });
     if (!directResult) {
       emitStudioAgentTurnTelemetry({
         flow,
@@ -324,14 +378,34 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       );
     }
 
+    if (directResult.refusal) {
+      emitStudioAgentTurnTelemetry({
+        flow,
+        path: STANDARD_TELEMETRY_PATH,
+        status: "refuse",
+        model: standardModel,
+        outcomeClass: "refusal_safety",
+        retryUsed: false,
+        reasonCode: "SAFETY_OUTPUT_REFUSAL",
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+        safetyTelemetry: {
+          runtimeScopeKey: "studio-agent-standard",
+        },
+      });
+      return res
+        .status(200)
+        .json(buildStudioAgentSafetyRefusalPayload({ traceId, canonicalPrompt: null }));
+    }
+
     emitStudioAgentTurnTelemetry({
       flow,
       path: STANDARD_TELEMETRY_PATH,
       status: "success",
       model: standardModel,
-      outcomeClass: "success_message",
+      outcomeClass: "success_prompt",
       retryUsed: false,
-      reasonCode: "SUCCESS_MESSAGE",
+      reasonCode: "SUCCESS_PROMPT",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
@@ -339,10 +413,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       },
     });
     return res.status(200).json({
-      message: directResult,
+      ...directResult.response,
       ...buildAgentMachineOutcome({
-        outcomeClass: "success_message",
-        reasonCode: "SUCCESS_MESSAGE",
+        outcomeClass: "success_prompt",
+        reasonCode: "SUCCESS_PROMPT",
       }),
       canonicalPrompt: null,
       traceId,

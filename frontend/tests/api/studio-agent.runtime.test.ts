@@ -260,7 +260,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
-  it("returns a Standard-only response without workflowSession", async () => {
+  it("returns a Standard reusable-prompt response without workflowSession", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -291,11 +291,46 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         message: "Premium product hero prompt",
+        actions: {
+          applyPrompt: "Premium product hero prompt",
+        },
         canonicalPrompt: null,
-        outcome_class: "success_message",
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
+  });
+
+  it("maps Standard provider refusals to the safety refusal contract", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "I cannot help with that request due to safety policy.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_OUTPUT_REFUSAL",
+        canonicalPrompt: null,
+      })
+    );
   });
 
   it("serializes explicit Standard prompt attachments into the latest user turn", async () => {

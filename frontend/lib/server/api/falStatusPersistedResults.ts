@@ -293,6 +293,7 @@ export const readPersistedGenerationStatusContext = async ({
         const deliveryState = areAllOutputsOwned(outputRows)
           ? "canonical_owned"
           : "transient_provider";
+        const saveState = deliveryState === "canonical_owned" ? "saved" : "idle";
         return {
           generationId,
           resultUrls: outputRows.map((row) => row.resultUrl),
@@ -302,7 +303,7 @@ export const readPersistedGenerationStatusContext = async ({
           recoveryPending: false,
           completionState: null,
           queueState: "dispatched",
-          saveState: "saved",
+          saveState,
           saveError: null,
         };
       }

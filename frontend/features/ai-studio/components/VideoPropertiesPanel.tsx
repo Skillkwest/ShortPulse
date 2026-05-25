@@ -43,6 +43,7 @@ import {
 import { insertPromptTokenAtSelection } from "../logic/promptTokenInsertion";
 import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
 import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
@@ -112,6 +113,7 @@ export type VideoPropertiesPanelProps = {
   onPromptTextChange: (value: string) => void;
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   referenceImageWarning?: string | null;
@@ -167,6 +169,7 @@ export function VideoPropertiesPanel({
   onPromptTextChange,
   onRegenerate,
   resolvePreviewUrlById,
+  resolveInternalReferenceImageDropSource,
   costCredits,
   isGenerateDisabled = false,
   referenceImageWarning = null,
@@ -244,6 +247,7 @@ export function VideoPropertiesPanel({
     onPromptTextChange,
     onMotionVideoChange,
     resolvePreviewUrlById,
+    resolveInternalReferenceImageDropSource,
     klingMultiPrompts,
     onKlingMultiPromptsChange,
     klingElements,

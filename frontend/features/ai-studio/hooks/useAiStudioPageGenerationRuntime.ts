@@ -6,10 +6,8 @@ import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import {
   type CharacterModeFallbackCode,
-  hasUsableCharacterModeInjectionBundle,
   type CharacterModeInjectionBundle,
 } from "./useAiStudioCharacterModeController";
-import { shouldDisableGenerateWhileCharacterLoading } from "../logic/createGenerationGuards";
 import { useAiStudioAudioGeneration } from "./useAiStudioAudioGeneration";
 import { useAiStudioGenerationController } from "./useAiStudioGenerationController";
 import { useAiStudioOptimisticDebitReconciliation } from "./useAiStudioOptimisticDebitReconciliation";
@@ -381,9 +379,6 @@ export const useAiStudioPageGenerationRuntime = ({
         })
       : null
     : currentCostCredits;
-
-  void shouldDisableGenerateWhileCharacterLoading;
-  void hasUsableCharacterModeInjectionBundle;
 
   const effectiveGenerationGuardrail = generationGuardrail;
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);

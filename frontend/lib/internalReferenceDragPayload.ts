@@ -60,6 +60,7 @@ export type InternalReferenceDragPayload = {
   sourceSurface: ReferenceDragSourceSurface | null;
   width?: number;
   height?: number;
+  sessionBacked?: boolean;
 };
 
 export type ComposerImageDropPayload = {
@@ -208,7 +209,10 @@ export const extractInternalReferenceDragPayload = (
     getInternalReferenceDragSessionToken(transfer)
   );
   if (sessionPayload) {
-    return sessionPayload;
+    return {
+      ...sessionPayload,
+      sessionBacked: true,
+    };
   }
   const originRaw = transfer.getData(REFERENCE_TRANSFER_ORIGIN_TYPE).trim().toLowerCase();
   const sourceSurface = parseReferenceDragSourceSurface(
@@ -258,6 +262,7 @@ export const extractInternalReferenceDragPayload = (
     referenceUrl,
     ...(referenceRenderUrl ? { referenceRenderUrl } : {}),
     sourceSurface,
+    sessionBacked: false,
   };
 
   if (typeof width === "number") payload.width = width;

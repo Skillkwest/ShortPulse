@@ -107,6 +107,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `outcome_class=success_message` is the expected success class for custom Pulse turns and for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
   - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the default custom Pulse runtime contract.
   - `outcome_class=upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure classes to monitor for Pulse regressions.
+- Standard-specific interpretation:
+  - `outcome_class=success_prompt` is the expected success class for generation-ready Standard turns because the route emits a reusable prompt artifact for drag/reuse flows.
+  - `outcome_class=refusal_safety` should remain the visible refusal contract for Standard provider-output refusals.
+  - A sudden shift of Standard success traffic from `success_prompt` back to `success_message` is a high-signal regression for Create prompt reuse.
 - Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
   - `presetId`
   - `status`

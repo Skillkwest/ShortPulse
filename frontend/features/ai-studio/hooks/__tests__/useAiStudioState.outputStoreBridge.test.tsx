@@ -1002,7 +1002,7 @@ describe("useAiStudioState output store bridge", () => {
     prepareSpy.mockRestore();
   });
 
-  it("supports media-library add -> quick-slot reorder/remove -> archive/restore flow", async () => {
+  it("supports media-library add -> quick-slot reorder/remove while large all-refs collections stay active", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 
     act(() => {
@@ -1065,20 +1065,9 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.archivedOutputs.length).toBeGreaterThan(0);
+      expect(result.current.outputs.length).toBe(522);
     });
-
-    const archivedId = result.current.archivedOutputs[0]?.id;
-    expect(archivedId).toBeTruthy();
-
-    act(() => {
-      result.current.restoreArchivedOutput(archivedId as string);
-    });
-
-    await waitFor(() => {
-      expect(result.current.archivedOutputs.some((item) => item.id === archivedId)).toBe(false);
-    });
-    expect(result.current.outputs.some((item) => item.id === archivedId)).toBe(true);
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
   it("suppresses curated references from all refs when delete is requested", async () => {

@@ -119,6 +119,54 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
 
+  it("waits for local upload references to gain durable storage before autosaving", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    const { rerender } = renderHook(
+      ({ outputs }: { outputs: StudioOutput[] }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
+          outputs,
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          outputs: [
+            createOutput({
+              id: "local-upload-1",
+              mediaSource: "upload",
+              generationId: undefined,
+              previewUrl: "data:image/png;base64,local",
+              localObjectUrl: "blob:local-upload-1",
+              previewStoragePath: null,
+              fullStoragePath: null,
+            }),
+          ],
+        },
+      }
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+
+    rerender({
+      outputs: [
+        createOutput({
+          id: "local-upload-1",
+          mediaSource: "upload",
+          generationId: undefined,
+          previewUrl: "https://signed.shortpulse.test/local-upload-1.png",
+          localObjectUrl: null,
+          previewStoragePath: "user-1/reference/local-upload-1.png",
+          fullStoragePath: "user-1/reference/local-upload-1.png",
+        }),
+      ],
+    });
+
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("local-upload-1", { intent: "auto" });
+  });
+
   it("autosaves restored generated outputs when they still need media-id backfill", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>

@@ -3,6 +3,7 @@ import {
   calculateReferenceGridWindow,
   resolveReferenceGridMaxColumns,
   resolveReferenceGridOverscanRows,
+  resolveReferenceGridPrependAnchorScrollTop,
 } from "../referenceGridVirtualization";
 
 describe("referenceGridVirtualization", () => {
@@ -71,5 +72,35 @@ describe("referenceGridVirtualization", () => {
     expect(window.endIndex).toBeGreaterThan(window.startIndex);
     expect(window.topSpacerHeight).toBeGreaterThanOrEqual(0);
     expect(window.bottomSpacerHeight).toBeGreaterThanOrEqual(0);
+  });
+
+  it("pins prepends to the top when the user is already at the top", () => {
+    expect(
+      resolveReferenceGridPrependAnchorScrollTop({
+        previousOutputIds: ["out-1", "out-2"],
+        nextOutputIds: ["out-new", "out-1", "out-2"],
+        previousScrollTop: 0,
+        measuredScrollTop: 180,
+        previousColumnCount: 2,
+        nextColumnCount: 2,
+        previousRowHeight: 220,
+        nextRowHeight: 220,
+      })
+    ).toBe(0);
+  });
+
+  it("preserves the first visible row when outputs are prepended above the viewport", () => {
+    expect(
+      resolveReferenceGridPrependAnchorScrollTop({
+        previousOutputIds: ["out-1", "out-2", "out-3", "out-4"],
+        nextOutputIds: ["out-new-1", "out-new-2", "out-1", "out-2", "out-3", "out-4"],
+        previousScrollTop: 250,
+        measuredScrollTop: 250,
+        previousColumnCount: 2,
+        nextColumnCount: 2,
+        previousRowHeight: 220,
+        nextRowHeight: 220,
+      })
+    ).toBe(470);
   });
 });

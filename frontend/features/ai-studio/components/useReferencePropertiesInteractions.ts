@@ -2,10 +2,11 @@
  * Interaction hook for AI Studio reference properties UI.
  * Centralizes collapse state, drag/drop handling, and Kling list mutations.
  */
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import {
   extractDragDropPayload,
+  extractInternalReferenceDragPayload,
   extractVideoDragDropPayload,
   isImageDragTransfer,
   isVideoDragTransfer,
@@ -13,6 +14,8 @@ import {
   looksLikeVideoUrl,
 } from "../utils/dragDrop";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 
 export type ReferenceStepKey =
   | "reference"
@@ -38,6 +41,7 @@ type UseReferencePropertiesInteractionsParams = {
   onPromptTextChange: (value: string) => void;
   onMotionVideoChange?: (url: string | null) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   klingMultiPrompts: KlingMultiPrompt[];
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
   klingElements: KlingElement[];
@@ -83,6 +87,7 @@ export const useReferencePropertiesInteractions = ({
   onPromptTextChange,
   onMotionVideoChange,
   resolvePreviewUrlById,
+  resolveInternalReferenceImageDropSource,
   klingMultiPrompts,
   onKlingMultiPromptsChange,
   klingElements,
@@ -93,6 +98,7 @@ export const useReferencePropertiesInteractions = ({
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
   const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
@@ -167,6 +173,69 @@ export const useReferencePropertiesInteractions = ({
     onKlingElementsChange?.(klingElements.filter((item) => item.id !== id));
   };
 
+  const releaseOwnedImageObjectUrl = useCallback((url: string) => {
+    if (!ownedImageObjectUrlsRef.current.has(url)) return;
+    ownedImageObjectUrlsRef.current.delete(url);
+    forgetObjectUrlBlob(url);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const trackOwnedImageObjectUrl = (url: string, blob?: Blob) => {
+    if (!url.startsWith("blob:")) return url;
+    if (blob) {
+      rememberObjectUrlBlob(url, blob);
+    }
+    ownedImageObjectUrlsRef.current.add(url);
+    return url;
+  };
+
+  const stabilizeDroppedImageUrl = async ({
+    imageUrl,
+    fromFile,
+    sourceBlob,
+  }: {
+    imageUrl: string;
+    fromFile: boolean;
+    sourceBlob?: Blob | null;
+  }): Promise<string | null> => {
+    if (!imageUrl.startsWith("blob:")) return imageUrl;
+    if (fromFile) {
+      trackOwnedImageObjectUrl(imageUrl, sourceBlob ?? undefined);
+      return imageUrl;
+    }
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      const clonedUrl = URL.createObjectURL(blob);
+      return trackOwnedImageObjectUrl(clonedUrl, blob);
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const activeBlobUrls = new Set(
+      [referenceImageUrl, ...extraImageUrls].filter(
+        (value): value is string => typeof value === "string" && value.startsWith("blob:")
+      )
+    );
+    Array.from(ownedImageObjectUrlsRef.current).forEach((url) => {
+      if (!activeBlobUrls.has(url)) {
+        releaseOwnedImageObjectUrl(url);
+      }
+    });
+  }, [extraImageUrls, referenceImageUrl, releaseOwnedImageObjectUrl]);
+
+  useEffect(
+    () => () => {
+      Array.from(ownedImageObjectUrlsRef.current).forEach((url) => {
+        releaseOwnedImageObjectUrl(url);
+      });
+    },
+    [releaseOwnedImageObjectUrl]
+  );
+
   const handleFileSelection =
     (setter: (url: string | null) => void) => (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -176,7 +245,7 @@ export const useReferencePropertiesInteractions = ({
         return;
       }
       const url = URL.createObjectURL(file);
-      setter(url);
+      setter(trackOwnedImageObjectUrl(url, file));
       event.target.value = "";
     };
 
@@ -189,16 +258,32 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const handleImageDrop =
-    (setter: (url: string | null) => void) => (event: DragEvent<HTMLDivElement>) => {
+    (setter: (url: string | null) => void) => async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const { imageUrl, fromFile, referenceId, mediaKind } = extractDragDropPayload(
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
       if (mediaKind && mediaKind !== "image") return;
-      let nextUrl = imageUrl;
+      let nextUrl: string | null = null;
+
+      if (internalPayload && resolveInternalReferenceImageDropSource) {
+        const resolvedSource = await resolveInternalReferenceImageDropSource(internalPayload).catch(
+          () => null
+        );
+        nextUrl =
+          resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
+      }
+
+      if (!nextUrl) {
+        nextUrl =
+          (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
+            ? internalPayload.referenceUrl
+            : null) ?? imageUrl;
+      }
 
       if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-        nextUrl = resolvePreviewUrlById(referenceId);
+        nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
       }
 
       if (!nextUrl) return;
@@ -207,7 +292,17 @@ export const useReferencePropertiesInteractions = ({
       const isBlobUrl = nextUrl.startsWith("blob:");
       const canAcceptBlob = fromFile || Boolean(referenceId);
 
-      if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
+      if (!isBlobUrl || canAcceptBlob) {
+        const stableUrl = isBlobUrl
+          ? await stabilizeDroppedImageUrl({
+              imageUrl: nextUrl,
+              fromFile: Boolean(fromFile),
+              sourceBlob: imageFile ?? null,
+            })
+          : nextUrl;
+        if (!stableUrl) return;
+        setter(stableUrl);
+      }
     };
 
   const setExtraDragActiveAt = (index: number, value: boolean) => {

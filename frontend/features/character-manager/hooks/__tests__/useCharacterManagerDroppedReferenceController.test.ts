@@ -119,4 +119,58 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(result.current.pendingDropTarget).toBeNull();
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
+
+  it("ingests trusted internal character drops from preview urls without requiring a media id", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+    } as Response);
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const resolveCharacterDropReference = vi.fn().mockResolvedValue({
+      mediaId: "",
+      previewUrl: "https://cdn.example.com/internal-preview.png",
+      outputId: "out-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs",
+    });
+    const data = new Map<string, string>([
+      ["text/reference-origin", "ai-studio-reference-grid"],
+      ["text/reference-output-id", "out-1"],
+      ["text/reference-image-index", "0"],
+      ["text/reference-source-surface", "all-refs"],
+      ["text/reference-url", "https://cdn.example.com/internal-preview.png"],
+    ]);
+    const transfer = {
+      files: [],
+      items: [],
+      types: Array.from(data.keys()),
+      getData: (type: string) => data.get(type) ?? "",
+    } as unknown as DataTransfer;
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+        resolveCharacterDropReference,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
+    });
+
+    expect(resolveCharacterDropReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: null,
+        referenceUrl: "https://cdn.example.com/internal-preview.png",
+      })
+    );
+    expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(1);
+    const uploadedFile = setCharacterSheetPresetFile.mock.calls[0]?.[1] as File;
+    expect(setCharacterSheetPresetFile.mock.calls[0]?.[0]).toBe("portrait");
+    expect(uploadedFile).toBeInstanceOf(File);
+    expect(uploadedFile.type).toBe("image/png");
+    expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
+  });
 });

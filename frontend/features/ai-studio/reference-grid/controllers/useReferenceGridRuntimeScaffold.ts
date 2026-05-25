@@ -366,6 +366,8 @@ export const useReferenceGridRuntimeScaffold = ({
     isWideLayout,
     outputsLength: allOutputIds.length,
     curatedOutputsLength: curatedOutputIds.length,
+    outputIds: allOutputIds,
+    curatedOutputIds,
     scrollContainerRef,
     gridRef,
     curatedScrollContainerRef,

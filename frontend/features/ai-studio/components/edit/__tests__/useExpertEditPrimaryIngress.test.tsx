@@ -1,8 +1,9 @@
 import React from "react";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useExpertEditPrimaryIngress } from "../useExpertEditPrimaryIngress";
 import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
+import { readRememberedObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -67,6 +68,16 @@ const makeImageDropEvent = (imageUrl: string) =>
   >[0];
 
 describe("useExpertEditPrimaryIngress", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   it("inserts a new layer when adding an image to a single-image edit session", async () => {
     const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
       createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
@@ -80,8 +91,8 @@ describe("useExpertEditPrimaryIngress", () => {
           createLayerFixture("layer-1", "https://example.com/original.png"),
         ]);
         const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
-        const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
-        const [editingLayerValue, setEditingLayerValue] = React.useState("");
+        const [, setEditingLayerIndex] = React.useState<number | null>(null);
+        const [, setEditingLayerValue] = React.useState("");
 
         const ingress = useExpertEditPrimaryIngress({
           layers,
@@ -97,8 +108,6 @@ describe("useExpertEditPrimaryIngress", () => {
         });
 
         return {
-          editingLayerIndex,
-          editingLayerValue,
           ingress,
           layers,
           selectedLayerIndex,
@@ -175,8 +184,8 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayerFixture("layer-1", "https://example.com/original.png"),
       ]);
       const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
-      const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
-      const [editingLayerValue, setEditingLayerValue] = React.useState("");
+      const [, setEditingLayerIndex] = React.useState<number | null>(null);
+      const [, setEditingLayerValue] = React.useState("");
 
       const ingress = useExpertEditPrimaryIngress({
         layers,
@@ -211,5 +220,48 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/original.png");
     expect(result.current.selectedLayerIndex).toBe(0);
     expect(createLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not persist stale blob-backed primary drops when cloning fails", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const event = makeImageDropEvent("blob:stale-primary");
+    global.fetch = vi.fn().mockRejectedValue(new Error("stale blob")) as typeof fetch;
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1", "https://example.com/original.png"),
+      ]);
+      const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        setLayers,
+        setSelectedLayerIndex,
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+      });
+
+      return {
+        ingress,
+        layers,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+    });
+
+    expect(result.current.layers).toHaveLength(1);
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/original.png");
+    expect(createLayer).not.toHaveBeenCalled();
+    expect(readRememberedObjectUrlBlob("blob:stale-primary")).toBeNull();
   });
 });

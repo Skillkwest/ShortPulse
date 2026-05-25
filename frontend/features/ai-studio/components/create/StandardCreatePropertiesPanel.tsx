@@ -19,6 +19,7 @@ import type {
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
 import { StylesControl } from "../StylesControl";
+import { resolveCreateModelModalContext } from "../../logic/createModelModalContext";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
 import { getModelConfig } from "../../logic/modelRegistry";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
@@ -643,7 +644,10 @@ export function StandardCreatePropertiesPanel({
   }, [clearAvatarFailure, selectedCharacterId]);
 
   const handleCreateModelOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-    const context: ModelModalContext | null = "text-image";
+    const context: ModelModalContext | null = resolveCreateModelModalContext({
+      expertCreateMode: "standard",
+      isCharacterModeEnabled: characterModeEnabled,
+    });
     onModelPickerOpen("create-model", event.currentTarget, context);
     onStepActionClick?.("model");
   };

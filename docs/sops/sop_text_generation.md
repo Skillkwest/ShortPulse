@@ -52,13 +52,13 @@ For Create properties panel, model-selector, and submission wiring details, see 
 1. UI sends the request through the Standard Create runtime hook to `/api/ai/studio-agent-standard`.
 2. Refine actions use isolated history so the request behaves like a specialized one-shot refinement, not a full chat continuation.
 3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`, keeping prompt instructions in one canonical source.
-4. The route returns raw assistant text for the refinement turn. Standard Create treats that text as advisory output and does not auto-apply it into the live generation composer.
+4. The route returns visible assistant text plus a reusable prompt artifact for the refinement turn. Standard Create still does not auto-apply it into the live generation composer.
 5. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`). Users move assistant text into that prompt surface explicitly, for example by dragging a returned prompt into the composer.
 
 ## Standard agent workflow
 
 1. The Create chat surface posts through `/api/ai/studio-agent-standard` for Standard mode.
-2. The route uses the Standard-owned OpenAI runtime and returns raw assistant text for the UI chat surface; Standard Create does not rely on hidden `applyPrompt` promotion to mutate the live generation composer.
+2. The route uses the Standard-owned OpenAI runtime and returns visible assistant text for the UI chat surface plus a reusable prompt artifact on generation-ready success; Standard Create still requires explicit UI actions instead of hidden prompt mutation.
 3. Provider and contract failures return explicit error payloads, so Create does not silently continue on synthetic assistant recovery text.
 4. The system prompt is always loaded directly from `frontend/lib/agentPromptsConfig.ts` via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")` to enforce one canonical source; avoid duplicating text in markdown files and keep the config keys aligned with the exported `AgentPromptId` type so the TS compiler can help you find the right entry.
 
@@ -67,7 +67,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 1. Manual describe actions and attachment-driven describe requests route through the active mode-owned studio-agent route. Standard uses `/api/ai/studio-agent-standard`; Pulse uses `/api/ai/studio-agent-pulse`.
 2. The client prepares a safe HTTPS image URL first, then stages it as an image attachment on the request context.
 3. Describe actions also use isolated history so they remain one-shot transforms and do not contaminate the main chat transcript.
-4. The studio-agent route classifies the turn as `IMAGE_ONLY` or `MIXED`, runs retained image safety preflight, and returns raw assistant text.
+4. The studio-agent route classifies the turn as `IMAGE_ONLY` or `MIXED`, runs retained image safety preflight, and returns visible assistant text plus a reusable prompt artifact when the reply is generation-ready.
 5. That text can then be reused explicitly through the Create composer and other prompt surfaces instead of being auto-applied into shared generation state.
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)

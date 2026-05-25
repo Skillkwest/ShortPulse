@@ -1,6 +1,6 @@
 /**
  * Reference-grid state action bundle for AI Studio.
- * Encapsulates archive/restore limits and curated projection actions.
+ * Encapsulates archive/restore and curated projection actions.
  */
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
@@ -15,23 +15,15 @@ import {
 } from "../reference-projections";
 
 type UseAiStudioReferenceGridStateActionsArgs = {
-  activeOutputId: string | null;
   outputsLength: number;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
   pendingFinalizeRemovalIdsRef: MutableRefObject<Set<string>>;
-  config: {
-    softArchiveEnabled: boolean;
-    activeLimit: number;
-    archivePreviewKeepCount: number;
-    defaultActiveLimit: number;
-  };
 };
 
 type UseAiStudioReferenceGridStateActionsResult = {
-  archiveOlderOutputs: (activeRows: StudioOutput[]) => StudioOutput[];
   restoreArchivedOutput: (outputId: string) => void;
   restoreAllArchivedOutputs: () => void;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -46,101 +38,27 @@ type UseAiStudioReferenceGridStateActionsResult = {
   resetReferenceGridState: () => void;
 };
 
-const toIsoNow = () => new Date().toISOString();
-
 export const useAiStudioReferenceGridStateActions = ({
-  activeOutputId,
   outputsLength,
   setActiveOutputId,
   setOutputsState,
   setArchivedOutputs,
   setReferenceProjectionState,
   pendingFinalizeRemovalIdsRef,
-  config,
 }: UseAiStudioReferenceGridStateActionsArgs): UseAiStudioReferenceGridStateActionsResult => {
-  const compactArchivedOutputs = useCallback(
-    (rows: StudioOutput[]): StudioOutput[] => {
-      if (!rows.length) return rows;
-      const keepCount = Math.max(0, config.archivePreviewKeepCount);
-      if (rows.length <= keepCount) return rows;
-      let changed = false;
-      const next = rows.map((item, index) => {
-        if (index < keepCount) return item;
-        if (!item.previewUrl && !item.localObjectUrl) return item;
-        changed = true;
-        return {
-          ...item,
-          previewUrl: undefined,
-          localObjectUrl: null,
-          archiveReason: item.archiveReason ?? "cleanup",
-        };
-      });
-      return changed ? next : rows;
-    },
-    [config.archivePreviewKeepCount]
-  );
-
-  const archiveOlderOutputs = useCallback(
-    (activeRows: StudioOutput[]): StudioOutput[] => {
-      const activeLimit = Number.isFinite(config.activeLimit)
-        ? Math.max(20, config.activeLimit)
-        : config.defaultActiveLimit;
-      if (!config.softArchiveEnabled || activeRows.length <= activeLimit) {
-        return activeRows;
-      }
-      const nextActive: StudioOutput[] = [];
-      const newlyArchived: StudioOutput[] = [];
-      activeRows.forEach((item, index) => {
-        const canArchive =
-          index >= activeLimit &&
-          item.id !== activeOutputId &&
-          !item.pinned &&
-          item.taskState !== "pending" &&
-          item.taskState !== "running";
-        if (!canArchive) {
-          nextActive.push(item);
-          return;
-        }
-        newlyArchived.push({
-          ...item,
-          archivedAt: item.archivedAt ?? toIsoNow(),
-          archiveReason: item.archiveReason ?? "soft_limit",
-        });
-      });
-      if (!newlyArchived.length) return activeRows;
-      setArchivedOutputs((prev) => compactArchivedOutputs([...newlyArchived, ...prev]));
-      logMediaPerf("media.grid.archive.transition", {
-        surface: "reference-grid",
-        archived_count: newlyArchived.length,
-        active_count: nextActive.length,
-      });
-      return nextActive;
-    },
-    [
-      activeOutputId,
-      compactArchivedOutputs,
-      config.activeLimit,
-      config.defaultActiveLimit,
-      config.softArchiveEnabled,
-      setArchivedOutputs,
-    ]
-  );
-
   const restoreArchivedOutput = useCallback(
     (outputId: string) => {
       setArchivedOutputs((prev) => {
         const target = prev.find((item) => item.id === outputId) ?? null;
         if (!target) return prev;
-        setOutputsState((current) =>
-          archiveOlderOutputs([
-            {
-              ...target,
-              archivedAt: null,
-              archiveReason: null,
-            },
-            ...current,
-          ])
-        );
+        setOutputsState((current) => [
+          {
+            ...target,
+            archivedAt: null,
+            archiveReason: null,
+          },
+          ...current,
+        ]);
         setActiveOutputId(target.id);
         logMediaPerf("media.grid.archive.transition", {
           surface: "reference-grid",
@@ -151,7 +69,7 @@ export const useAiStudioReferenceGridStateActions = ({
         return target ? prev.filter((item) => item.id !== outputId) : prev;
       });
     },
-    [archiveOlderOutputs, outputsLength, setActiveOutputId, setArchivedOutputs, setOutputsState]
+    [outputsLength, setActiveOutputId, setArchivedOutputs, setOutputsState]
   );
 
   const restoreAllArchivedOutputs = useCallback(() => {
@@ -161,32 +79,27 @@ export const useAiStudioReferenceGridStateActions = ({
       return [];
     });
     if (!moved.length) return;
-    setOutputsState((prev) =>
-      archiveOlderOutputs([
-        ...moved.map((item) => ({
-          ...item,
-          archivedAt: null,
-          archiveReason: null,
-        })),
-        ...prev,
-      ])
-    );
+    setOutputsState((prev) => [
+      ...moved.map((item) => ({
+        ...item,
+        archivedAt: null,
+        archiveReason: null,
+      })),
+      ...prev,
+    ]);
     logMediaPerf("media.grid.archive.transition", {
       surface: "reference-grid",
       restored_count: moved.length,
       active_count_hint: outputsLength + moved.length,
       archived_count_hint: 0,
     });
-  }, [archiveOlderOutputs, outputsLength, setArchivedOutputs, setOutputsState]);
+  }, [outputsLength, setArchivedOutputs, setOutputsState]);
 
   const setOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
     (nextValue) => {
-      setOutputsState((prev) => {
-        const resolved = typeof nextValue === "function" ? nextValue(prev) : nextValue;
-        return archiveOlderOutputs(resolved);
-      });
+      setOutputsState(nextValue);
     },
-    [archiveOlderOutputs, setOutputsState]
+    [setOutputsState]
   );
 
   const addCuratedReference = useCallback(
@@ -234,7 +147,6 @@ export const useAiStudioReferenceGridStateActions = ({
   }, [clearCuratedReferences, setActiveOutputId, setArchivedOutputs, setOutputsState]);
 
   return {
-    archiveOlderOutputs,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
     setOutputs,

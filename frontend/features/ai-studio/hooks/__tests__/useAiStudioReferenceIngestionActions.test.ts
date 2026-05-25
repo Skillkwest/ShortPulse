@@ -5,9 +5,14 @@ import type { StudioOutput } from "../../types";
 
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const prepareLibraryMediaIngestionPayloadMock = vi.hoisted(() => vi.fn(async (payload) => payload));
+const uploadMediaFileMock = vi.hoisted(() => vi.fn());
 const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadAudioAssetToStorageMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../logic/mediaLibraryPanelApi", () => ({
+  uploadMediaFile: (...args: unknown[]) => uploadMediaFileMock(...args),
+}));
 
 vi.mock("../../logic/mediaLibraryPersistence", () => ({
   associateMediaFilesWithProject: associateMediaFilesWithProjectMock,
@@ -55,10 +60,32 @@ const createParams = (
   ...overrides,
 });
 
+const makeUploadRow = (overrides: Record<string, unknown> = {}) => ({
+  id: "media-reference",
+  filename: "reference.png",
+  storage_path: "user-1/uploads/images/reference.png",
+  preview_storage_path: "user-1/uploads/images/reference.png",
+  file_type: "image",
+  file_size: 123,
+  source: "upload",
+  created_at: "2026-05-25T00:00:00.000Z",
+  signedUrl: "https://signed.test/reference.png",
+  ...overrides,
+});
+
 describe("useAiStudioReferenceIngestionActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prepareLibraryMediaIngestionPayloadMock.mockImplementation(async (payload) => payload);
+    uploadMediaFileMock.mockImplementation(async ({ file }: { file: File }) =>
+      makeUploadRow({
+        id: `media-${file.name}`,
+        filename: file.name,
+        storage_path: `user-1/uploads/images/${file.name}`,
+        preview_storage_path: `user-1/uploads/images/${file.name}`,
+        signedUrl: `https://signed.test/${file.name}`,
+      })
+    );
     uploadImageAssetToStorageMock.mockResolvedValue({
       url: "https://signed.test/reference.png",
       path: "user-1/reference.png",
@@ -233,7 +260,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("inserts project-route file refs immediately and lets background durability handle uploads", async () => {
+  it("imports project-route file refs through the Media Library upload path", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -249,38 +276,84 @@ describe("useAiStudioReferenceIngestionActions", () => {
         yield file;
       },
     } as unknown as FileList;
-    const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:reference-image-1");
-    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
 
-    try {
-      const { result } = renderHook(() =>
-        useAiStudioReferenceIngestionActions(
-          createParams({
-            projectId: "project-1",
-            setOutputs,
-          })
-        )
-      );
-
-      await act(async () => {
-        await result.current.addOutputsFromFiles(files, "filePicker");
-      });
-
-      expect(nextOutputs[0]).toEqual(
-        expect.objectContaining({
-          previewUrl: expect.stringMatching(/^data:image\/png;base64,/),
-          localObjectUrl: "blob:reference-image-1",
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
         })
-      );
-      expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
-      expect(revokeSpy).not.toHaveBeenCalled();
-    } finally {
-      objectUrlSpy.mockRestore();
-      revokeSpy.mockRestore();
-    }
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "filePicker");
+    });
+
+    expect(uploadMediaFileMock).toHaveBeenCalledWith({
+      file,
+      destinationTab: "uploaded_images",
+    });
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      mediaFileIds: ["media-reference.png"],
+    });
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        prompt: "reference.png",
+        previewUrl: "https://signed.test/reference.png",
+        previewStoragePath: "user-1/uploads/images/reference.png",
+        fullStoragePath: "user-1/uploads/images/reference.png",
+        mediaSource: "library",
+        savedMediaIds: ["media-reference.png"],
+        saveState: "saved",
+      })
+    );
+    expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("inserts multiple dropped project-route image refs without blocking on batch durability", async () => {
+  it("normalizes Finder image drops with missing MIME types before upload", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const file = new File(["hello"], "finder-reference.png", { type: "" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
+
+    const uploadedFile = uploadMediaFileMock.mock.calls[0]?.[0]?.file as File;
+    expect(uploadedFile.name).toBe("finder-reference.png");
+    expect(uploadedFile.type).toBe("image/png");
+    expect(uploadMediaFileMock).toHaveBeenCalledWith({
+      file: uploadedFile,
+      destinationTab: "uploaded_images",
+    });
+    expect(nextOutputs[0]?.prompt).toBe("finder-reference.png");
+  });
+
+  it("imports multiple dropped project-route image refs in the original order", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -299,39 +372,32 @@ describe("useAiStudioReferenceIngestionActions", () => {
         yield second;
       },
     } as unknown as FileList;
-    const objectUrlSpy = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValueOnce("blob:reference-image-1")
-      .mockReturnValueOnce("blob:reference-image-2");
 
-    try {
-      const { result } = renderHook(() =>
-        useAiStudioReferenceIngestionActions(
-          createParams({
-            projectId: "project-1",
-            setOutputs,
-          })
-        )
-      );
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
 
-      await act(async () => {
-        await result.current.addOutputsFromFiles(files, "drop");
-      });
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
 
-      expect(nextOutputs).toHaveLength(2);
-      expect(nextOutputs.map((output) => output.prompt)).toEqual([
-        "reference-1.png",
-        "reference-2.png",
-      ]);
-      expect(nextOutputs.every((output) => output.timestamp === "Dropped")).toBe(true);
-      expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
-    } finally {
-      objectUrlSpy.mockRestore();
-    }
+    expect(uploadMediaFileMock).toHaveBeenCalledTimes(2);
+    expect(nextOutputs).toHaveLength(2);
+    expect(nextOutputs.map((output) => output.prompt)).toEqual([
+      "reference-1.png",
+      "reference-2.png",
+    ]);
+    expect(nextOutputs.every((output) => output.timestamp === "Library")).toBe(true);
+    expect(nextOutputs.every((output) => output.mediaSource === "library")).toBe(true);
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
-  it("keeps successful file refs when one dropped image fails to read", async () => {
-    const originalFileReader = FileReader;
+  it("keeps successful file refs when one canonical upload fails", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -351,62 +417,81 @@ describe("useAiStudioReferenceIngestionActions", () => {
         yield brokenFile;
       },
     } as unknown as FileList;
-    const objectUrlSpy = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValueOnce("blob:good-image")
-      .mockReturnValueOnce("blob:broken-image");
-    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
-    Object.defineProperty(globalThis, "FileReader", {
-      configurable: true,
-      value: class MockFileReader {
-        result: string | null = null;
-        onload: (() => void) | null = null;
-        onerror: (() => void) | null = null;
-
-        readAsDataURL(file: File) {
-          if (file.name === "broken.png") {
-            this.onerror?.();
-            return;
-          }
-          this.result = `data:${file.type};base64,good-file`;
-          this.onload?.();
-        }
-      },
+    uploadMediaFileMock.mockImplementation(async ({ file }: { file: File }) => {
+      if (file.name === "broken.png") {
+        throw new Error("Upload failed");
+      }
+      return makeUploadRow({
+        id: "media-good",
+        filename: "good.png",
+        storage_path: "user-1/uploads/images/good.png",
+        preview_storage_path: "user-1/uploads/images/good.png",
+        signedUrl: "https://signed.test/good.png",
+      });
     });
 
-    try {
-      const { result } = renderHook(() =>
-        useAiStudioReferenceIngestionActions(
-          createParams({
-            projectId: "project-1",
-            setOutputs,
-            setUiError,
-          })
-        )
-      );
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+          setUiError,
+        })
+      )
+    );
 
-      await act(async () => {
-        await result.current.addOutputsFromFiles(files, "drop");
-      });
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
 
-      expect(nextOutputs).toHaveLength(1);
-      expect(nextOutputs[0]?.prompt).toBe("good.png");
-      expect(setUiError).toHaveBeenCalledWith(
-        "Some files could not be added. The rest were added."
-      );
-      expect(revokeSpy).toHaveBeenCalledWith("blob:broken-image");
-    } finally {
-      objectUrlSpy.mockRestore();
-      revokeSpy.mockRestore();
-      Object.defineProperty(globalThis, "FileReader", {
-        configurable: true,
-        value: originalFileReader,
-      });
-    }
+    expect(nextOutputs).toHaveLength(1);
+    expect(nextOutputs[0]?.prompt).toBe("good.png");
+    expect(setUiError).toHaveBeenCalledWith("Some files could not be added. The rest were added.");
   });
 
-  it("surfaces a full drop error when every image in the batch fails to read", async () => {
-    const originalFileReader = FileReader;
+  it("keeps valid refs from mixed supported and unsupported desktop drops", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const setUiError = vi.fn();
+    const goodFile = new File(["good"], "good.png", { type: "image/png" });
+    const unsupportedFile = new File(["notes"], "notes.txt", { type: "text/plain" });
+    const files = {
+      0: goodFile,
+      1: unsupportedFile,
+      length: 2,
+      item: (index: number) => [goodFile, unsupportedFile][index] ?? null,
+      [Symbol.iterator]: function* () {
+        yield goodFile;
+        yield unsupportedFile;
+      },
+    } as unknown as FileList;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+          setUiError,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
+
+    expect(uploadMediaFileMock).toHaveBeenCalledTimes(1);
+    expect(nextOutputs).toHaveLength(1);
+    expect(nextOutputs[0]?.prompt).toBe("good.png");
+    expect(setUiError).toHaveBeenCalledWith("Some files could not be added. The rest were added.");
+    expect(setUiError.mock.calls.flat().join(" ")).not.toContain("open reference slot");
+  });
+
+  it("surfaces a full drop error when every upload fails", async () => {
     const setOutputs = vi.fn();
     const setUiError = vi.fn();
     const brokenFile = new File(["broken"], "broken.png", { type: "image/png" });
@@ -418,44 +503,23 @@ describe("useAiStudioReferenceIngestionActions", () => {
         yield brokenFile;
       },
     } as unknown as FileList;
-    const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:broken-image");
-    Object.defineProperty(globalThis, "FileReader", {
-      configurable: true,
-      value: class MockFileReader {
-        onload: (() => void) | null = null;
-        onerror: (() => void) | null = null;
+    uploadMediaFileMock.mockRejectedValue(new Error("Upload failed"));
 
-        readAsDataURL() {
-          this.onerror?.();
-        }
-      },
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+          setUiError,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
     });
 
-    try {
-      const { result } = renderHook(() =>
-        useAiStudioReferenceIngestionActions(
-          createParams({
-            projectId: "project-1",
-            setOutputs,
-            setUiError,
-          })
-        )
-      );
-
-      await act(async () => {
-        await result.current.addOutputsFromFiles(files, "drop");
-      });
-
-      expect(setOutputs).not.toHaveBeenCalled();
-      expect(setUiError).toHaveBeenCalledWith(
-        "Unable to add those files right now. Please try again."
-      );
-    } finally {
-      objectUrlSpy.mockRestore();
-      Object.defineProperty(globalThis, "FileReader", {
-        configurable: true,
-        value: originalFileReader,
-      });
-    }
+    expect(setOutputs).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith("Upload failed");
   });
 });

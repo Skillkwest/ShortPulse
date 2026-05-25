@@ -2,7 +2,7 @@
  * AI Studio media autosave orchestration hook.
  * Observes outputs and triggers autosave policy decisions without relying on DOM load callbacks.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { requestMediaStorageQuotaSummaryRefresh } from "../../billing/useMediaStorageQuotaSummary";
 import {
   canAutoSaveOutput,
@@ -30,6 +30,17 @@ type UseAiStudioMediaAutosaveOrchestratorArgs = {
 
 const hasRenderableMedia = (output: StudioOutput): boolean =>
   Boolean(output.previewUrl) || Boolean(output.resultUrls?.length);
+
+const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
+  const normalized = value?.trim() ?? "";
+  return normalized.startsWith("blob:") || normalized.startsWith("data:");
+};
+
+const isLocalUploadPendingDurability = (output: StudioOutput): boolean => {
+  if (output.mediaSource !== "upload") return false;
+  if (hasStorageAuthority(output)) return false;
+  return isLocalPreviewUrl(output.previewUrl) || isLocalPreviewUrl(output.localObjectUrl);
+};
 
 const inferMediaSource = (output: StudioOutput): MediaAutosaveSource => {
   if (output.mediaSource) return output.mediaSource;
@@ -62,6 +73,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
 }: UseAiStudioMediaAutosaveOrchestratorArgs) => {
   const inFlightOutputIdsRef = useRef<Set<string>>(new Set());
   const attemptCountByOutputIdRef = useRef<Map<string, number>>(new Map());
+  const [retryRevision, setRetryRevision] = useState(0);
 
   useEffect(() => {
     const activeIds = new Set(outputs.map((output) => output.id));
@@ -80,6 +92,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
 
     outputs.forEach((output) => {
       if (inFlightOutputIdsRef.current.has(output.id)) return;
+      if (isLocalUploadPendingDurability(output)) return;
       if (!isMediaStorageFull && output.saveState === "blocked_storage") {
         attemptCountByOutputIdRef.current.delete(output.id);
       }
@@ -94,18 +107,28 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
       if (!decision.allowed) return;
       inFlightOutputIdsRef.current.add(output.id);
       attemptCountByOutputIdRef.current.set(output.id, attemptCount + 1);
+      let shouldRetry = false;
       void saveReferenceToLibrary(output.id, { intent: "auto" })
         .then((result) => {
           if (result.ok) {
             attemptCountByOutputIdRef.current.delete(output.id);
             requestMediaStorageQuotaSummaryRefresh();
+            return;
           }
+          shouldRetry = true;
         })
         .catch(() => {
-          // Failure state is handled by persistence runtime; keep attempt count for bounded retry.
+          shouldRetry = true;
         })
         .finally(() => {
           inFlightOutputIdsRef.current.delete(output.id);
+          if (
+            shouldRetry &&
+            (attemptCountByOutputIdRef.current.get(output.id) ?? 0) <
+              AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT
+          ) {
+            setRetryRevision((current) => current + 1);
+          }
         });
     });
   }, [
@@ -114,6 +137,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
     mediaAutosaveEnabled,
     mediaAutosaveSyncState,
     outputs,
+    retryRevision,
     saveReferenceToLibrary,
   ]);
 };

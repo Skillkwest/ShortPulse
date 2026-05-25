@@ -434,6 +434,41 @@ describe("falStatusPersistedResults", () => {
     expect(outputEqCalls).toContainEqual(["generation_id", "gen-processing-1"]);
   });
 
+  it("keeps transient provider outputs idle in the generation-id fallback branch", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-transient-1",
+        status: "success",
+        metadata: {},
+      },
+    ];
+    persistedOutputRows = [
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/transient-output.mp4",
+        media_file_id: null,
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-transient-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-transient-1",
+      resultUrls: ["https://cdn.shortpulse.test/transient-output.mp4"],
+      status: "success",
+      taskState: "success",
+      deliveryState: "transient_provider",
+      recoveryPending: false,
+      completionState: null,
+      queueState: "dispatched",
+      saveState: "idle",
+      saveError: null,
+    });
+  });
+
   it("builds the completed proxy payload shape", () => {
     expect(
       buildPersistedCompletedPayload({

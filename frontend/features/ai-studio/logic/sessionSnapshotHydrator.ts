@@ -79,6 +79,11 @@ const asNullableString = (value: unknown): string | null => {
   return value;
 };
 
+const normalizeArchiveReason = (value: unknown): StudioOutput["archiveReason"] => {
+  if (value === "manual" || value === "cleanup") return value;
+  return null;
+};
+
 const asIsoTimestampString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -503,7 +508,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
     pinned: output.pinned,
     hiddenInReferenceGrid: output.hiddenInReferenceGrid,
     archivedAt: output.archivedAt ?? null,
-    archiveReason: output.archiveReason ?? null,
+    archiveReason: normalizeArchiveReason(output.archiveReason),
     characterContext: output.characterContext,
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,

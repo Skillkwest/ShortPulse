@@ -486,7 +486,7 @@ describe("useAiStudioTasks", () => {
     expect(output.errorMessage).toBe("Generation abandoned by user.");
   });
 
-  it("reconciles visible generation delivery on recovery recheck polls", async () => {
+  it("reconciles visible generation delivery without inflating transient results into saved media", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({
       status: "done",
     });
@@ -537,6 +537,46 @@ describe("useAiStudioTasks", () => {
     expect(output.generationId).toBe("gen-canonical-1");
     expect(output.previewUrl).toBe("https://cdn.test/canonical-preview.png");
     expect(output.resultUrls).toEqual(["https://cdn.test/canonical-full.png"]);
+    expect(output.saveState).toBeUndefined();
+    expect(output.status).toBe("ready");
+    expect(output.saveError).toBeNull();
+  });
+
+  it("marks reconciled delivery as saved when canonical storage authority is present", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({
+      status: "done",
+    });
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-canonical-owned-1",
+      previewUrl: "https://cdn.test/canonical-owned-preview.png",
+      previewStoragePath: "user-1/generations/images/canonical-owned-preview.png",
+      fullStoragePath: "user-1/generations/images/canonical-owned-full.png",
+      resultUrls: ["https://cdn.test/canonical-owned-full.png"],
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-owned", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(output.taskState).toBe("success");
     expect(output.saveState).toBe("saved");
     expect(output.status).toBe("saved");
     expect(output.saveError).toBeNull();

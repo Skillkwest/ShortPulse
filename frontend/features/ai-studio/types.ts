@@ -110,7 +110,7 @@ export type StudioOutput = {
   pinned?: boolean;
   hiddenInReferenceGrid?: boolean;
   archivedAt?: string | null;
-  archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
+  archiveReason?: "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
   styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;

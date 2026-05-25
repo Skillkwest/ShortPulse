@@ -35,6 +35,7 @@ npm run build
 ## Rules of engagement
 
 - Always apply senior-level engineering best practices (clarity, maintainability, minimal diff, validate changes).
+- Solve issues at the source. Do not create workaround paths, shadow implementations, backup copies, fallback systems that mask failures, legacy variants, or parallel flows as a substitute for tracing the problem and fixing the canonical path. Temporary compatibility, migration scaffolding, or platform-required alternate transport is allowed only when it is explicitly required, documented with an owner and removal condition or durable authority contract, and kept out of the default runtime path unless that contract makes it the canonical path.
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.

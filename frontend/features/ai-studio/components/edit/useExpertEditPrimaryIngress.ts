@@ -1,4 +1,5 @@
 import React from "react";
+import { rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 import {
   extractDragDropPayload,
   isImageDragTransfer,
@@ -217,6 +218,7 @@ export function useExpertEditPrimaryIngress({
         return;
       }
       const objectUrl = URL.createObjectURL(file);
+      rememberObjectUrlBlob(objectUrl, file);
       applyPrimaryImageIngress({ url: objectUrl, ownsImageUrl: true });
       event.target.value = "";
     },
@@ -272,9 +274,8 @@ export function useExpertEditPrimaryIngress({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
-      const { imageUrl, fromFile, referenceId, width, height, mediaKind } = extractDragDropPayload(
-        event.dataTransfer
-      );
+      const { imageUrl, imageFile, fromFile, referenceId, width, height, mediaKind } =
+        extractDragDropPayload(event.dataTransfer);
       void (async () => {
         if (mediaKind && mediaKind !== "image") return;
         let nextUrl = imageUrl;
@@ -288,12 +289,14 @@ export function useExpertEditPrimaryIngress({
         const canAcceptBlob = fromFile || Boolean(referenceId);
         if (isBlobUrl && !canAcceptBlob) return;
         let ownsImageUrl = Boolean(fromFile && isBlobUrl);
+        if (ownsImageUrl && imageFile instanceof Blob) {
+          rememberObjectUrlBlob(nextUrl, imageFile);
+        }
         if (isBlobUrl && !ownsImageUrl) {
           const clonedBlobUrl = await cloneBlobObjectUrl(nextUrl);
-          if (clonedBlobUrl) {
-            nextUrl = clonedBlobUrl;
-            ownsImageUrl = true;
-          }
+          if (!clonedBlobUrl) return;
+          nextUrl = clonedBlobUrl;
+          ownsImageUrl = true;
         }
         applyPrimaryImageIngress({
           url: nextUrl,

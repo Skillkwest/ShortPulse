@@ -495,6 +495,8 @@ Symptoms:
 Checklist:
 
 - Confirm drag payload is internal (`text/reference-origin=ai-studio-reference-grid`) and includes `text/reference-output-id`.
+- Confirm the same-document internal drag session token is present (`application/x-shortpulse-reference-drag-token` or `text/reference-drag-token`) when Character is expected to trust payload preview/render URLs or payload storage paths.
+- Confirm Character intake accepts trusted internal preview/render URLs for session-backed internal drags even when the source card is not yet persisted into Media Library.
 - Confirm style intake keeps same-origin `/_next/image` transfer URLs for internal drops (do not unwrap to upstream host before fetch).
 - Confirm fallback persistence route is available:
   - `POST /api/media/copy-from-url`
@@ -818,13 +820,11 @@ Checklist:
 - If modal or panel grids stutter at higher counts, verify the canonical Media Library runtime is intact:
   - Media Library modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
 - If Reference Grid interactions degrade in long sessions, verify:
-  - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
   - adaptive preview routing is active:
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY` not set to `false`
-  - active grid count stays near the configured cap (`NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT`, default `500`),
   - optional heavy-load long-edge compaction is only enabled when intentionally set (`NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION=true`),
-  - archived restore actions are available and returning cards without freezing the main grid.
+  - visible/buffered card work remains bounded by virtualization and preview budgets rather than by limiting the number of Reference Grid cards.
 - Run the automated gate harness when regressions are suspected:
   - on `/ai-studio` DevTools Console, run:
     `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`

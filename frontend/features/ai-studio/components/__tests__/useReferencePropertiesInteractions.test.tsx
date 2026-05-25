@@ -1,6 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
+import {
+  forgetObjectUrlBlob,
+  readRememberedObjectUrlBlob,
+} from "../../utils/objectUrlBlobRegistry";
 
 const makeInternalReferenceDragEvent = (overrides?: {
   mediaKind?: "image" | "video" | "audio" | "text";
@@ -50,6 +54,24 @@ const createVideoReferenceDropEvent = (referenceId: string) =>
   >[0];
 
 describe("useReferencePropertiesInteractions", () => {
+  const originalCreateObjectUrl = URL.createObjectURL;
+  const originalRevokeObjectUrl = URL.revokeObjectURL;
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    forgetObjectUrlBlob("blob:selected-file");
+    forgetObjectUrlBlob("blob:drag-source");
+    forgetObjectUrlBlob("blob:drag-clone");
+    forgetObjectUrlBlob("blob:stale-drag-source");
+    URL.createObjectURL = originalCreateObjectUrl;
+    URL.revokeObjectURL = originalRevokeObjectUrl;
+    global.fetch = originalFetch;
+  });
+
   it("resolves playable video URLs for motion drops from internal references", async () => {
     const onMotionVideoChange = vi.fn();
     const resolvePreviewUrlById = vi.fn((id: string | null) =>
@@ -145,5 +167,158 @@ describe("useReferencePropertiesInteractions", () => {
     expect(result.current.extraDragActive[1]).toBe(false);
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
     expect(onExtraImageChange).not.toHaveBeenCalled();
+  });
+
+  it("remembers file-selected image blobs for later submission reuse", () => {
+    const onExtraImageChange = vi.fn();
+    URL.createObjectURL = vi.fn(() => "blob:selected-file");
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const file = new File(["secondary-ref"], "secondary.png", { type: "image/png" });
+    const event = {
+      target: {
+        files: [file],
+        value: "secondary.png",
+      },
+    };
+
+    act(() => {
+      result.current.handleFileSelection((url) => onExtraImageChange(0, url))(event as never);
+    });
+
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");
+    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
+  it("clones blob-backed internal image drops so slots own stable object urls", async () => {
+    const onExtraImageChange = vi.fn();
+    const droppedBlob = new Blob(["dragged"], { type: "image/png" });
+    URL.createObjectURL = vi.fn(() => "blob:drag-clone");
+    URL.revokeObjectURL = vi.fn();
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(droppedBlob, { headers: { "Content-Type": "image/png" } })
+      ) as typeof fetch;
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      imageUrl: "blob:drag-source",
+    });
+
+    await act(async () => {
+      await result.current.handleExtraDrop(0)(dropEvent);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("blob:drag-source");
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:drag-clone");
+    const rememberedBlob = readRememberedObjectUrlBlob("blob:drag-clone");
+    expect(rememberedBlob).not.toBeNull();
+    expect(rememberedBlob?.type).toBe("image/png");
+  });
+
+  it("prefers the internal reference resolver over weak preview fallback urls", async () => {
+    const onExtraImageChange = vi.fn();
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/weak-preview.png");
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "source-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: null,
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: null,
+      mediaSource: "generated" as const,
+      preview: { url: "https://example.com/durable-preview.png" },
+      previewStoragePath: "user/images/ref.png",
+      fullStoragePath: "user/images/ref.png",
+      promptText: null,
+      preparedImageUrl: "https://example.com/durable-signed.png",
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        resolvePreviewUrlById,
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      referenceUrl: "blob:temporary-render",
+      imageUrl: "blob:temporary-render",
+    });
+
+    await act(async () => {
+      await result.current.handleExtraDrop(0)(dropEvent);
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "https://example.com/durable-signed.png");
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+  });
+
+  it("does not persist stale blob-backed image drops when cloning fails", async () => {
+    const onExtraImageChange = vi.fn();
+    global.fetch = vi.fn().mockRejectedValue(new Error("stale blob")) as typeof fetch;
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      imageUrl: "blob:stale-drag-source",
+    });
+
+    await act(async () => {
+      await result.current.handleExtraDrop(0)(dropEvent);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("blob:stale-drag-source");
+    expect(onExtraImageChange).not.toHaveBeenCalled();
+    expect(readRememberedObjectUrlBlob("blob:stale-drag-source")).toBeNull();
   });
 });

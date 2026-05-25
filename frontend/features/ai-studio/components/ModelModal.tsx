@@ -53,6 +53,11 @@ type ModelModalProps = {
   options?: ModelOption[];
   resolveCreditsForModel?: (modelId: string) => number | null;
   context?: ModelModalContext | null;
+  onPresentationResolved?: (payload: {
+    context: ModelModalContext | null;
+    suppliedOptionCount: number;
+    visibleOptionCount: number;
+  }) => void;
 };
 
 type ModelFamilyGroup = {
@@ -178,6 +183,7 @@ export function ModelModal({
   options = modelOptions,
   resolveCreditsForModel,
   context,
+  onPresentationResolved,
 }: ModelModalProps) {
   useAiStudioModalActivity("model-modal", isOpen);
   if (!isOpen) {
@@ -191,6 +197,7 @@ export function ModelModal({
       options={options}
       resolveCreditsForModel={resolveCreditsForModel}
       context={context}
+      onPresentationResolved={onPresentationResolved}
     />
   );
 }
@@ -202,6 +209,7 @@ function ModelModalContent({
   options = modelOptions,
   resolveCreditsForModel,
   context,
+  onPresentationResolved,
 }: ModelModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [, setRecentValues] = useState<string[]>(() => {
@@ -254,6 +262,16 @@ function ModelModalContent({
       ),
     [context, contextHiddenModelIds, options]
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    onPresentationResolved?.({
+      context: context ?? null,
+      suppliedOptionCount: options.length,
+      visibleOptionCount: visibleOptions.length,
+    });
+  }, [context, isOpen, onPresentationResolved, options.length, visibleOptions.length]);
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredOptions = useMemo(
     () =>

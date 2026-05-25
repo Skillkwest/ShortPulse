@@ -83,6 +83,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Model chips render in family columns after filtering/sorting so users can scan related lanes together (for example Seedream, Nano Banana, Veo, Kling, and Seedance).
 - Current contexts with explicit ordering:
   - `text-image` (Create): ByteDance -> Google -> Black Forest Labs.
+  - `character-image` (Create Character Mode): ByteDance -> Google -> Black Forest Labs.
   - `reference-image` (Edit): ByteDance -> Google -> Black Forest Labs.
   - `reference-video` (Video standard): Kie AI only.
   - `reference-keyframes`: Google DeepMind -> Kie AI.

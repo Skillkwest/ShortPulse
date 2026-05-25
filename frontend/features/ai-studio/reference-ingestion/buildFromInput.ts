@@ -167,7 +167,7 @@ const buildLibraryMediaOutput = ({
           : "thumb",
     archivedAt: null,
     archiveReason: null,
-    saveState: "idle",
+    saveState: payload.id ? "saved" : "idle",
     saveError: null,
     savedMediaIds: payload.id ? [payload.id] : undefined,
   };

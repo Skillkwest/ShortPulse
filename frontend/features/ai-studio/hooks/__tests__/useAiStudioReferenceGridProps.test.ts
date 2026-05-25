@@ -110,7 +110,7 @@ describe("useAiStudioReferenceGridProps", () => {
       id: "archived-1",
       prompt: "Archived",
       archivedAt: "2026-02-17T00:00:00.000Z",
-      archiveReason: "soft_limit",
+      archiveReason: "cleanup",
     };
     const restoreArchivedOutput = vi.fn();
     const restoreAllArchivedOutputs = vi.fn();

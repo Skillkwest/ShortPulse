@@ -3,13 +3,13 @@
  * Verifies Create workflow prompt/reference injection and stale bundle refresh behavior.
  */
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ModelModal } from "../../features/ai-studio/components/ModelModal";
 import type { StudioOutput } from "../../features/ai-studio/types";
 import { StandardCreatePropertiesPanel } from "../../features/ai-studio/components/create/StandardCreatePropertiesPanel";
 import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
-import { publishCharacterListChanged } from "../../features/character-manager/logic/characterListSyncEvents";
 import { readSupabaseUserId } from "../../lib/supabaseClient";
 import AiStudioPage from "../../pages/ai-studio";
 
@@ -25,7 +25,6 @@ vi.mock("next/router", () => ({
 }));
 
 const {
-  generateOutputMock,
   refreshBalanceMock,
   listCharacterManagerCharactersMock,
   loadCharacterManagerDraftByCharacterIdMock,
@@ -90,6 +89,11 @@ const {
             value: string;
             label: string;
           }>;
+          onPresentationResolved?: (payload: {
+            context: string | null;
+            suppliedOptionCount: number;
+            visibleOptionCount: number;
+          }) => void;
         };
       } | null,
     };
@@ -712,17 +716,6 @@ const createCharacterSnapshot = (
     };
   })() as CharacterManagerDraftSnapshot;
 
-const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioOutput => ({
-  id,
-  prompt: "Prompt",
-  mode: "image",
-  aspect: "9:16",
-  model: "Model",
-  status: "ready",
-  timestamp: "Now",
-  taskState,
-});
-
 const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 describe("ai-studio page character mode model picker", () => {
@@ -789,262 +782,43 @@ describe("ai-studio page character mode model picker", () => {
     expect(aiStudioStateMock.openModelModal).toHaveBeenCalledWith(
       "create-model",
       expect.any(HTMLElement),
-      "text-image"
-    );
-  });
-});
-
-// This page-level harness currently exhausts the Vitest worker heap before test bodies run.
-// Keep the character-mode behavior covered by lower-level hooks while this integration harness
-// is rebuilt to avoid pulling the entire AI Studio workspace graph into one page test.
-describe.skip("ai-studio page character mode submission", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    window.localStorage.clear();
-    nowMs = 1_000_000;
-    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
-    creditsStateMock.balanceCents = 10_000;
-    creditsStateMock.balanceReservedCents = null;
-    creditsStateMock.balanceLoading = false;
-    creditsStateMock.refreshSource = "fallback";
-    aiStudioPageContentCapture.lastProps = null;
-    aiStudioStateMock.outputs = [];
-    readSupabaseUserIdMock.mockResolvedValue("user-1");
-    getSignedMediaUrlsBatchMock.mockImplementation(
-      async ({ storagePaths }: { storagePaths: string[] }) =>
-        new Map(
-          storagePaths.map((path) => [path, `https://signed.test/${encodeURIComponent(path)}`])
-        )
-    );
-    listCharacterManagerCharactersMock.mockResolvedValue([
-      {
-        characterId: "char-1",
-        characterName: "Taylor",
-        profileImageUrl: null,
-      },
-    ]);
-  });
-
-  it("refreshes stale character bundle before Create generate and submits refreshed hidden context", async () => {
-    loadCharacterManagerDraftByCharacterIdMock
-      .mockResolvedValueOnce(
-        createCharacterSnapshot(
-          "Older character description",
-          "https://cdn.test/old.png",
-          "user/chars/old.png"
-        )
-      )
-      .mockResolvedValueOnce(
-        createCharacterSnapshot(
-          "Fresh character description",
-          "https://cdn.test/fresh.png",
-          "user/chars/fresh.png"
-        )
-      );
-
-    render(<AiStudioPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
-    fireEvent.click(screen.getByRole("button", { name: "select-character" }));
-    await waitFor(() =>
-      expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1")
+      "character-image"
     );
 
-    nowMs += 46 * 60 * 1000;
+    const capturedModelModalState = aiStudioPageContentCapture.lastProps?.modelModalState;
+    const openedModalContext = aiStudioStateMock.openModelModal.mock.calls.at(-1)?.[2] ?? null;
+    expect(openedModalContext).toBe("character-image");
 
-    fireEvent.click(screen.getByRole("button", { name: "generate" }));
-
-    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
-    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledTimes(2);
-    expect(generateOutputMock).toHaveBeenCalledWith(
-      "User visible prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
-        submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
-        displayPromptOverride: "User visible prompt",
-        referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
-        characterContextOverride: {
-          applied: true,
-          characterId: "char-1",
-          characterName: "Taylor",
-          characterProfileImageUrl: null,
-        },
-      })
-    );
-    expect(addBreadcrumbMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "character_mode_bundle_refresh_before_submit",
-      })
-    );
-  });
-
-  it("blocks submission when Character Mode is enabled without a selected character", async () => {
-    render(<AiStudioPage />);
-    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
-
-    fireEvent.click(screen.getByRole("button", { name: "generate" }));
-
-    await waitFor(() =>
-      expect(aiStudioStateMock.setUiError).toHaveBeenCalledWith(
-        "Character Mode requires at least one character image before generating."
-      )
-    );
-    expect(generateOutputMock).not.toHaveBeenCalled();
-    expect(addBreadcrumbMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "character_mode_injection_fallback",
-        data: expect.objectContaining({
-          fallback_code: "no_character_selected",
-        }),
-      })
-    );
-    expect(addBreadcrumbMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "character_mode_submit_blocked_no_references",
-        data: expect.objectContaining({
-          fallback_code: "no_character_selected",
-        }),
-      })
-    );
-  });
-
-  it("falls back to existing references when signed URL refresh returns no signed URLs", async () => {
-    getSignedMediaUrlsBatchMock.mockImplementation(async () => new Map());
-    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createCharacterSnapshot(
-        "Character description from manager",
-        "https://cdn.test/original.png",
-        "user/chars/original.png"
-      )
+    render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={capturedModelModalState?.options ?? []}
+        context={openedModalContext}
+      />
     );
 
-    render(<AiStudioPage />);
-    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
-    fireEvent.click(screen.getByRole("button", { name: "select-character" }));
-    await waitFor(() =>
-      expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1")
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "generate" }));
-
-    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
-    expect(aiStudioStateMock.setUiError).not.toHaveBeenCalled();
-    expect(generateOutputMock).toHaveBeenCalledWith(
-      "User visible prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
-        submissionPromptOverride: "Character description from manager\n\nUser visible prompt",
-        displayPromptOverride: "User visible prompt",
-        referenceInputsOverride: ["https://cdn.test/original.png"],
-      })
-    );
-    expect(addBreadcrumbMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "character_mode_bundle_refresh_skipped",
-        data: expect.objectContaining({
-          selected_character_id: "char-1",
-          reason: "fresh_bundle_reuse",
-        }),
-      })
-    );
-    expect(reportAppErrorMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: "telemetry.character_mode",
-        message: "character_mode_reference_refresh_empty",
-      })
-    );
-  });
-
-  it("does not force image resolution while character mode is enabled", async () => {
-    render(<AiStudioPage />);
-
-    await waitFor(() => expect(listCharacterManagerCharactersMock).toHaveBeenCalled());
-    expect(aiStudioStateMock.setImageResolution).not.toHaveBeenCalled();
-  });
-
-  it("updates Create character options after a cross-surface list-change event", async () => {
-    let currentRows: Array<{
-      characterId: string;
-      characterName: string;
-      profileImageUrl: string | null;
-    }> = [
-      {
-        characterId: "char-1",
-        characterName: "Taylor",
-        profileImageUrl: null,
-      },
-    ];
-    listCharacterManagerCharactersMock.mockImplementation(async () => currentRows);
-
-    render(<AiStudioPage />);
-
-    await waitFor(() => expect(readSupabaseUserIdMock).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(
-        aiStudioPageContentCapture.lastProps?.propertiesCreate?.standard?.characterOptions
-      ).toHaveLength(1)
-    );
-    await act(async () => {});
-
-    currentRows = [
-      {
-        characterId: "char-1",
-        characterName: "Taylor",
-        profileImageUrl: null,
-      },
-      {
-        characterId: "char-2",
-        characterName: "Ayla",
-        profileImageUrl: null,
-      },
-    ];
-
-    act(() => {
-      publishCharacterListChanged({
-        userId: "user-1",
-        reason: "create",
-      });
+    expect(screen.getByText("Character Mode")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Seedream 4.5/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nano Banana 2/i })).toBeInTheDocument();
+    capturedModelModalState?.onPresentationResolved?.({
+      context: "character-image",
+      suppliedOptionCount: capturedModelModalState?.options?.length ?? 0,
+      visibleOptionCount: capturedModelModalState?.options?.length ?? 0,
     });
-
-    await waitFor(() =>
-      expect(
-        aiStudioPageContentCapture.lastProps?.propertiesCreate?.standard?.characterOptions
-      ).toHaveLength(2)
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "ui",
+        message: "create_model_modal_presented",
+        data: expect.objectContaining({
+          tool: "create",
+          expert_create_mode: "standard",
+          character_mode_enabled: true,
+          modal_context: "character-image",
+          visible_option_count: expect.any(Number),
+        }),
+      })
     );
-  });
-
-  it("tracks pending holds across pending to running and clears after success", async () => {
-    creditsStateMock.balanceCents = 100;
-    aiStudioStateMock.outputs = [];
-
-    const { rerender } = render(<AiStudioPage />);
-
-    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(100));
-    expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "generate" }));
-    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
-    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
-
-    aiStudioStateMock.outputs = [createOutput("out-1", "pending")];
-    rerender(<AiStudioPage />);
-    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
-    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
-
-    aiStudioStateMock.outputs = [createOutput("out-1", "running")];
-    rerender(<AiStudioPage />);
-    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
-    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
-
-    aiStudioStateMock.outputs = [createOutput("out-1", "success")];
-    rerender(<AiStudioPage />);
-    await waitFor(() =>
-      expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBeNull()
-    );
-    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(100);
   });
 });

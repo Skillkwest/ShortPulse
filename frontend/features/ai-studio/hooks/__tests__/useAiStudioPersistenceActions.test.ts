@@ -189,6 +189,41 @@ describe("resolvePersistableOutputUrlsForSave", () => {
     ]);
   });
 
+  it("prefers signed storage urls for upload saves before stale local object urls", async () => {
+    getSignedMediaUrlMock.mockResolvedValueOnce("https://signed.example.com/upload-full.png");
+    const output = makeOutput({
+      mode: "image",
+      mediaSource: "upload",
+      localObjectUrl: "blob:expired-upload",
+      previewUrl: "blob:expired-preview",
+      previewStoragePath: "user-1/uploads/images/full.png",
+      fullStoragePath: "user-1/uploads/images/full.png",
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
+      "https://signed.example.com/upload-full.png",
+    ]);
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/uploads/images/full.png",
+    });
+  });
+
+  it("falls back to local upload urls when upload storage signing is unavailable", async () => {
+    getSignedMediaUrlMock.mockResolvedValueOnce(null);
+    const output = makeOutput({
+      mode: "image",
+      mediaSource: "upload",
+      localObjectUrl: "blob:local-upload",
+      previewUrl: "blob:preview-upload",
+      previewStoragePath: "user-1/uploads/images/full.png",
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
+      "blob:local-upload",
+    ]);
+  });
+
   it("uses the requested image index when resolving generated image saves", async () => {
     resolvePublishedGenerationOutputStoragePathByIndexMock.mockResolvedValueOnce(
       "user-1/generations/images/full-1.png"

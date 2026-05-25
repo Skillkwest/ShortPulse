@@ -12,6 +12,7 @@ import {
 } from "phosphor-react";
 import type { AspectOption } from "../../types";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
+import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
 import type {
@@ -60,6 +61,7 @@ export type ExpertEditPanelViewProps = {
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;

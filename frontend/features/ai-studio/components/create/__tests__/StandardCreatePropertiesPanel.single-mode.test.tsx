@@ -184,7 +184,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
 
     expect(onModelPickerOpen).toHaveBeenCalledTimes(1);
     expect(onModelPickerOpen.mock.calls[0]?.[0]).toBe("create-model");
-    expect(onModelPickerOpen.mock.calls[0]?.[2]).toBe("text-image");
+    expect(onModelPickerOpen.mock.calls[0]?.[2]).toBe("character-image");
   });
 
   it("renders the character picker modal with shared controls and preserves selection behavior", async () => {

@@ -5,11 +5,13 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from "react";
 import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
+import { resolveReferenceGridPrependAnchorScrollTop } from "../../logic/referenceGridVirtualization";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -23,6 +25,8 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
   isWideLayout: boolean;
   outputsLength: number;
   curatedOutputsLength: number;
+  outputIds: readonly string[];
+  curatedOutputIds: readonly string[];
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
   gridRef: MutableRefObject<HTMLDivElement | null>;
   curatedScrollContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -48,6 +52,8 @@ export const useReferenceGridVirtualMetricsController = ({
   isWideLayout,
   outputsLength,
   curatedOutputsLength,
+  outputIds,
+  curatedOutputIds,
   scrollContainerRef,
   gridRef,
   curatedScrollContainerRef,
@@ -56,16 +62,25 @@ export const useReferenceGridVirtualMetricsController = ({
   setCuratedVirtualMetrics,
   config,
 }: UseReferenceGridVirtualMetricsControllerArgs): void => {
+  const currentOutputIdsRef = useRef<readonly string[]>(outputIds);
+  const currentCuratedOutputIdsRef = useRef<readonly string[]>(curatedOutputIds);
+  const previousOutputIdsRef = useRef<readonly string[]>(outputIds);
+  const previousCuratedOutputIdsRef = useRef<readonly string[]>(curatedOutputIds);
+
   const syncVirtualMetricsForSurface = useCallback(
     ({
       scrollNode,
       gridNode,
       surface,
+      previousOutputIds,
+      nextOutputIds,
       setMetrics,
     }: {
       scrollNode: HTMLDivElement | null;
       gridNode: HTMLDivElement | null;
       surface: "all-refs" | "curated";
+      previousOutputIds: readonly string[];
+      nextOutputIds: readonly string[];
       setMetrics: Dispatch<SetStateAction<VirtualMetricsState>>;
     }) => {
       if (!scrollNode || !gridNode) return;
@@ -97,13 +112,30 @@ export const useReferenceGridVirtualMetricsController = ({
       const cardHeight = cardWidth > 0 ? (cardWidth * 5) / 4 : config.fallbackReferenceRowHeight;
       const rowHeight = Math.max(1, cardHeight + gap);
       setMetrics((prev) => {
+        const anchoredScrollTop =
+          resolveReferenceGridPrependAnchorScrollTop({
+            previousOutputIds,
+            nextOutputIds,
+            previousScrollTop: prev.scrollTop,
+            measuredScrollTop: scrollNode.scrollTop,
+            previousColumnCount: prev.columnCount,
+            nextColumnCount: columnCount,
+            previousRowHeight: prev.rowHeight,
+            nextRowHeight: rowHeight,
+          }) ?? scrollNode.scrollTop;
+        if (Math.abs(scrollNode.scrollTop - anchoredScrollTop) >= 1) {
+          // Keep the DOM scroller aligned with the virtual anchor so the next scroll event does not
+          // immediately yank the window back to an older slice.
+          scrollNode.scrollTop = anchoredScrollTop;
+        }
         const next = {
-          scrollTop: prev.scrollTop,
+          scrollTop: anchoredScrollTop,
           viewportHeight: scrollNode.clientHeight,
           columnCount,
           rowHeight,
         };
         const stable =
+          Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
           Math.abs(prev.viewportHeight - next.viewportHeight) < 1 &&
           prev.columnCount === next.columnCount &&
           Math.abs(prev.rowHeight - next.rowHeight) < 1;
@@ -133,6 +165,8 @@ export const useReferenceGridVirtualMetricsController = ({
       scrollNode: scrollContainerRef.current,
       gridNode: gridRef.current,
       surface: "all-refs",
+      previousOutputIds: previousOutputIdsRef.current,
+      nextOutputIds: currentOutputIdsRef.current,
       setMetrics: setVirtualMetrics,
     });
   }, [gridRef, scrollContainerRef, setVirtualMetrics, syncVirtualMetricsForSurface]);
@@ -143,6 +177,8 @@ export const useReferenceGridVirtualMetricsController = ({
       scrollNode: curatedScrollContainerRef.current,
       gridNode: curatedGridRef.current,
       surface: "curated",
+      previousOutputIds: previousCuratedOutputIdsRef.current,
+      nextOutputIds: currentCuratedOutputIdsRef.current,
       setMetrics: setCuratedVirtualMetrics,
     });
   }, [
@@ -154,10 +190,24 @@ export const useReferenceGridVirtualMetricsController = ({
   ]);
 
   useEffect(() => {
+    currentOutputIdsRef.current = outputIds;
+    currentCuratedOutputIdsRef.current = curatedOutputIds;
+  }, [curatedOutputIds, outputIds]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     syncVirtualMetrics();
     syncCuratedVirtualMetrics();
-  }, [curatedOutputsLength, outputsLength, syncCuratedVirtualMetrics, syncVirtualMetrics]);
+    previousOutputIdsRef.current = outputIds;
+    previousCuratedOutputIdsRef.current = curatedOutputIds;
+  }, [
+    curatedOutputIds,
+    curatedOutputsLength,
+    outputIds,
+    outputsLength,
+    syncCuratedVirtualMetrics,
+    syncVirtualMetrics,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

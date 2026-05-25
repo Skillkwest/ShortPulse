@@ -67,6 +67,7 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
       output: StudioOutput;
       options?: PersistOutputSaveOptions;
     }): Promise<PersistOutputSaveResult | null> => {
+      const showOutputSaveFeedback = options?.intent !== "auto";
       const savedMediaIdsForRequest = resolveSavedMediaIdsForRequest(output, options);
       if (savedMediaIdsForRequest.length) {
         if (projectId) {
@@ -88,7 +89,14 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
             output,
             savedMediaIds: savedMediaIdsForRequest,
             options,
-          })
+          }),
+          showOutputSaveFeedback
+            ? undefined
+            : {
+                showPill: false,
+                status: output.status === "saved" ? "saved" : "ready",
+                timestamp: output.timestamp,
+              }
         );
         return {
           ok: true,
@@ -129,7 +137,17 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
           }
         }
         await new Promise((resolve) => window.setTimeout(resolve, 220));
-        markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+        markOutputSaved(
+          outputId,
+          undefined,
+          showOutputSaveFeedback
+            ? { timestamp: "Saved prompt" }
+            : {
+                showPill: false,
+                status: output.status === "saved" ? "saved" : "ready",
+                timestamp: output.timestamp,
+              }
+        );
         return {
           ok: true,
           mediaFileIds: [],
@@ -145,7 +163,17 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
       });
       if (promptId) {
         updateOutputById(outputId, (item) => ({ ...item, promptId }));
-        markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
+        markOutputSaved(
+          outputId,
+          undefined,
+          showOutputSaveFeedback
+            ? { timestamp: "Saved prompt" }
+            : {
+                showPill: false,
+                status: output.status === "saved" ? "saved" : "ready",
+                timestamp: output.timestamp,
+              }
+        );
         return {
           ok: true,
           mediaFileIds: [],
@@ -155,7 +183,9 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
         };
       }
 
-      markOutputSaveFailed(outputId, "Unable to save prompt.");
+      markOutputSaveFailed(outputId, "Unable to save prompt.", {
+        showPill: showOutputSaveFeedback,
+      });
       return {
         ok: false,
         mediaFileIds: [],

@@ -430,6 +430,7 @@ export function ReferenceGridSections({
                 className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
                   isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
                 }`}
+                data-reference-grid-drop-surface="all-refs"
                 style={
                   showStylesReferenceDivider
                     ? stylesSplit.topSectionStyle
@@ -509,6 +510,7 @@ export function ReferenceGridSections({
                   className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
                     isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
                   }`}
+                  data-reference-grid-drop-surface="all-refs"
                   style={stylesSplit.topSectionStyle}
                 >
                   <div ref={allRefsHeaderRef}>

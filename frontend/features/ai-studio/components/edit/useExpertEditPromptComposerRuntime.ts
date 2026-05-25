@@ -16,6 +16,7 @@ import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
 } from "./expertEditPanelViewContract";
+import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
@@ -29,6 +30,7 @@ type UseExpertEditPromptComposerRuntimeParams = {
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   modelId: string | null;
   modelLabel: string;
   modelLogoSrc?: string;
@@ -66,6 +68,7 @@ export const useExpertEditPromptComposerRuntime = ({
   onExtraImageChange,
   onPromptTextChange,
   resolvePreviewUrlById,
+  resolveInternalReferenceImageDropSource,
   modelId,
   modelLabel,
   modelLogoSrc,
@@ -131,6 +134,7 @@ export const useExpertEditPromptComposerRuntime = ({
     onExtraImageChange,
     onPromptTextChange,
     resolvePreviewUrlById,
+    resolveInternalReferenceImageDropSource,
     klingMultiPrompts: [],
     klingElements: [],
   });

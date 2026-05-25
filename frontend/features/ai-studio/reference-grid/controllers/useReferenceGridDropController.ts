@@ -88,17 +88,20 @@ export const useReferenceGridDropController = ({
       extractInternalReferenceDragPayload(transfer)?.outputId
     ) {
       event.preventDefault();
+      event.stopPropagation();
       return;
     }
 
     const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
     if (mediaLibraryPayload?.kind === "libraryMedia" && onAddLibraryMediaReference) {
       event.preventDefault();
+      event.stopPropagation();
       onAddLibraryMediaReference(mediaLibraryPayload.payload);
       return;
     }
     if (mediaLibraryPayload?.kind === "libraryPrompt" && onAddLibraryPromptReference) {
       event.preventDefault();
+      event.stopPropagation();
       onAddLibraryPromptReference(mediaLibraryPayload.payload);
       return;
     }
@@ -106,6 +109,7 @@ export const useReferenceGridDropController = ({
     const droppedMediaReference = getDroppedMediaReference(transfer);
     if (droppedMediaReference && onPasteMediaReference) {
       event.preventDefault();
+      event.stopPropagation();
       onPasteMediaReference(droppedMediaReference);
       return;
     }
@@ -117,6 +121,7 @@ export const useReferenceGridDropController = ({
       const fileList = buildFileList(mediaFiles);
       if (!fileList) return;
       event.preventDefault();
+      event.stopPropagation();
       onDropFiles(fileList);
       return;
     }
@@ -124,6 +129,7 @@ export const useReferenceGridDropController = ({
     const droppedPromptText = extractDroppedPromptText(transfer);
     if (!droppedPromptText || !onPasteTextReference) return;
     event.preventDefault();
+    event.stopPropagation();
     onPasteTextReference(droppedPromptText);
   };
 

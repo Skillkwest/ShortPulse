@@ -121,7 +121,29 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
   alignItems: "start",
 };
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.82)";
+const CHARACTER_FOLDER_ICON_SIZE_PX = 20;
+const CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND = "#131518";
+const CHARACTER_WORKSPACE_SURFACE_INLINE_STYLE = {
+  background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+  backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+  "--character-panel-card-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+  "--character-panel-wrapper-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+} as React.CSSProperties;
+const CHARACTER_LIBRARY_WORKSPACE_SURFACE_INLINE_STYLE: React.CSSProperties = {
+  background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+  backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+};
+const CHARACTER_FOLDER_ICON_INLINE_STYLE: React.CSSProperties = {
+  flex: `0 0 ${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  width: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  height: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  minWidth: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  minHeight: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  maxWidth: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  maxHeight: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
+  display: "block",
+};
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND;
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
@@ -639,6 +661,8 @@ export function CharacterPanelWorkspace({
       display: "flex",
       flexDirection: "column",
       minHeight: "100%",
+      background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+      backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
     }),
     []
   );
@@ -940,7 +964,7 @@ export function CharacterPanelWorkspace({
   );
 
   return (
-    <div className="character-panel-workspace">
+    <div className="character-panel-workspace" style={CHARACTER_WORKSPACE_SURFACE_INLINE_STYLE}>
       {error ? (
         <div className="character-feedback error" role="status">
           <XCircle size={16} weight="fill" />
@@ -954,7 +978,10 @@ export function CharacterPanelWorkspace({
         {isSavingCharacter ? resolvedCharacterSaveProgressMessage : ""}
       </p>
 
-      <div className="character-panel-library-workspace">
+      <div
+        className="character-panel-library-workspace"
+        style={CHARACTER_LIBRARY_WORKSPACE_SURFACE_INLINE_STYLE}
+      >
         <section className="character-panel-editor-column">
           {loading || isSwitchingCharacter ? (
             <div className="character-panel-editor-column-panel">
@@ -988,10 +1015,10 @@ export function CharacterPanelWorkspace({
                           disabled={characterLibraryButtonDisabled}
                         >
                           <FolderSimple
-                            size={28}
+                            size={CHARACTER_FOLDER_ICON_SIZE_PX}
                             weight="fill"
                             aria-hidden
-                            style={{ flex: "0 0 28px" }}
+                            style={CHARACTER_FOLDER_ICON_INLINE_STYLE}
                           />
                           Characters
                         </button>

@@ -1,6 +1,5 @@
 import React from "react";
 import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel";
-import { useReferenceGridHorizontalSplit } from "../../ai-studio/hooks/useReferenceGridHorizontalSplit";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
@@ -21,10 +20,21 @@ type CharacterPanelSplitHostProps = {
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
 };
 
-const CHARACTER_PANEL_DEFAULT_TOP_RATIO = 0.36;
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
-const CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
 const CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX = 502;
+const CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND = "#131518";
+const CHARACTER_PANEL_SPLIT_HOST_INLINE_STYLE = {
+  "--character-panel-section-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+} as React.CSSProperties;
+const CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE: React.CSSProperties = {
+  flex: "1 1 auto",
+  minHeight: `${CHARACTER_PANEL_MIN_TOP_HEIGHT_PX}px`,
+};
+const CHARACTER_PANEL_DIVIDER_PROPS = {
+  role: "separator" as const,
+  "aria-orientation": "horizontal" as const,
+  "aria-label": "Resize character workspace and media library sections",
+};
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
@@ -37,36 +47,23 @@ export function CharacterPanelSplitHost({
   suppressSelectedCharacterPersistence = false,
   onSelectedCharacterIdChange,
 }: CharacterPanelSplitHostProps) {
-  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const split = useReferenceGridHorizontalSplit({
-    enabled: true,
-    containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
-    defaultTopRatio: CHARACTER_PANEL_DEFAULT_TOP_RATIO,
-    minTopSectionHeightPx: CHARACTER_PANEL_MIN_TOP_HEIGHT_PX,
-    minBottomSectionHeightPx: CHARACTER_PANEL_MIN_BOTTOM_HEIGHT_PX,
-    maxBottomSectionHeightPx: CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX,
-    minTopRatioFloor: 0.32,
-    ariaLabel: "Resize character workspace and media library sections",
-  });
-  const topSectionStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      ...split.topSectionStyle,
-    }),
-    [split.topSectionStyle]
-  );
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      ...split.bottomSectionStyle,
-      flex: `0 0 ${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      flexGrow: 0,
+      flexShrink: 0,
+      flexBasis: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       height: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       minHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+      backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
+      overflow: "hidden",
     }),
-    [split.bottomSectionStyle]
+    []
   );
   return (
-    <div ref={splitContainerRef} className="character-panel-split-host">
-      <div className="character-panel-top-section" style={topSectionStyle}>
+    <div className="character-panel-split-host" style={CHARACTER_PANEL_SPLIT_HOST_INLINE_STYLE}>
+      <div className="character-panel-top-section" style={CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE}>
         <CharacterPanelWorkspace
           resolveCharacterDropReference={resolveCharacterDropReference}
           externalCreateRequestKey={externalCreateRequestKey}
@@ -80,7 +77,7 @@ export function CharacterPanelSplitHost({
 
       <div
         className="reference-grid-horizontal-divider-wrap character-panel-horizontal-divider-wrap"
-        {...split.dividerProps}
+        {...CHARACTER_PANEL_DIVIDER_PROPS}
       >
         <div className="reference-grid-horizontal-divider" />
       </div>

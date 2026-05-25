@@ -171,7 +171,7 @@ describe("CharacterPanelWorkspace", () => {
   });
 
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
-    render(<CharacterPanelWorkspace />);
+    const { container } = render(<CharacterPanelWorkspace />);
 
     expect(screen.queryByRole("heading", { name: "Characters" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Characters Library" })).not.toBeInTheDocument();
@@ -222,8 +222,35 @@ describe("CharacterPanelWorkspace", () => {
     const charactersButton = screen.getByRole("button", { name: "Characters" });
     const charactersIcon = charactersButton.querySelector("svg");
     expect(charactersIcon).not.toBeNull();
-    expect(charactersIcon).toHaveAttribute("width", "28");
-    expect(charactersIcon).toHaveAttribute("height", "28");
+    expect(charactersIcon).toHaveAttribute("width", "20");
+    expect(charactersIcon).toHaveAttribute("height", "20");
+    expect(charactersIcon).toHaveStyle({
+      width: "20px",
+      height: "20px",
+      minWidth: "20px",
+      minHeight: "20px",
+      maxWidth: "20px",
+      maxHeight: "20px",
+      display: "block",
+    });
+    const workspaceRoot = container.querySelector(
+      ".character-panel-workspace"
+    ) as HTMLDivElement | null;
+    expect(workspaceRoot).not.toBeNull();
+    expect(workspaceRoot).toHaveStyle({
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
+    });
+    expect(workspaceRoot?.style.getPropertyValue("--character-panel-card-bg")).toBe("#131518");
+    expect(workspaceRoot?.style.getPropertyValue("--character-panel-wrapper-bg")).toBe("#131518");
+    const libraryWorkspace = container.querySelector(
+      ".character-panel-library-workspace"
+    ) as HTMLDivElement | null;
+    expect(libraryWorkspace).not.toBeNull();
+    expect(libraryWorkspace).toHaveStyle({
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
+    });
   });
 
   it("opens the saved character grid inside the Characters modal", () => {

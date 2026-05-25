@@ -4,7 +4,6 @@ import { CharacterPanelSplitHost } from "../CharacterPanelSplitHost";
 
 const embeddedMediaPanelSpy = vi.fn();
 const workspaceSpy = vi.fn();
-const splitHookSpy = vi.fn();
 
 vi.mock("../../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel", () => ({
   ElementsEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
@@ -17,22 +16,6 @@ vi.mock("../CharacterPanelWorkspace", () => ({
   CharacterPanelWorkspace: (props: Record<string, unknown>) => {
     workspaceSpy(props);
     return <div data-testid="character-top-workspace" />;
-  },
-}));
-
-vi.mock("../../../ai-studio/hooks/useReferenceGridHorizontalSplit", () => ({
-  useReferenceGridHorizontalSplit: (args: Record<string, unknown>) => {
-    splitHookSpy(args);
-    return {
-      topSectionStyle: { flexBasis: "47%" },
-      bottomSectionStyle: { flexBasis: "53%" },
-      dividerProps: {
-        role: "separator",
-        "aria-orientation": "horizontal",
-        "aria-label": "Resize character workspace and media library sections",
-        tabIndex: 0,
-      },
-    };
   },
 }));
 
@@ -60,10 +43,28 @@ describe("CharacterPanelSplitHost", () => {
     ) as HTMLDivElement | null;
     expect(bottomSection).not.toBeNull();
     expect(bottomSection).toHaveStyle({
-      flex: "0 0 502px",
+      flexGrow: "0",
+      flexShrink: "0",
+      flexBasis: "502px",
       height: "502px",
       minHeight: "502px",
       maxHeight: "502px",
+      background: "rgb(19, 21, 24)",
+      backgroundColor: "rgb(19, 21, 24)",
+      overflow: "hidden",
+    });
+    const splitHost = container.querySelector(
+      ".character-panel-split-host"
+    ) as HTMLDivElement | null;
+    expect(splitHost).not.toBeNull();
+    expect(splitHost?.style.getPropertyValue("--character-panel-section-bg")).toBe("#131518");
+    const topSection = container.querySelector(
+      ".character-panel-top-section"
+    ) as HTMLDivElement | null;
+    expect(topSection).not.toBeNull();
+    expect(topSection).toHaveStyle({
+      flex: "1 1 auto",
+      minHeight: "336px",
     });
     expect(embeddedMediaPanelSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -76,15 +77,6 @@ describe("CharacterPanelSplitHost", () => {
     const workspaceProps = workspaceSpy.mock.calls.at(-1)?.[0];
     expect(workspaceProps).toEqual(expect.any(Object));
     expect(workspaceProps).not.toHaveProperty("isEmbeddedMediaLibraryMaximized");
-    const splitHookArgs = splitHookSpy.mock.calls[0]?.[0];
-    expect(splitHookArgs).toEqual(
-      expect.objectContaining({
-        defaultTopRatio: 0.36,
-        minTopSectionHeightPx: 336,
-        minBottomSectionHeightPx: 248,
-        maxBottomSectionHeightPx: 502,
-      })
-    );
   });
 
   it("keeps the embedded media library in assignment mode without click-selection wiring", () => {

@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball split the live tree cleanly into one Holomony docs lane and one compact character-mode runtime lane, focused tests cleared 56 checks, and the final build plus docs checks passed before publish.
-- What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, which cost one avoidable rerun before the real validation signal.
-- Capability decision: on frontend-only runtime lanes, derive ESLint commands directly from the `frontend/` workdir up front so the first validation pass stays clean.
+- Score: `8.5/10`
+- What went right: Gear Ball kept the live tree split into one Holomony baseline-doc lane and one broad AI Studio submission/workspace lane, the focused suite cleared 24 files with 539 passing tests, and the final build plus docs checks passed before publish.
+- What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, the build surfaced one real session-snapshot union type hole, and `ExpertEditPanelView.test.tsx` still emitted its recurring `act(...)` warning noise.
+- Capability decision: on large frontend-only runtime lanes, start from the `frontend/` workdir and do one quick union-access scan around new snapshot helpers before the full build so the first pass catches only real behavioral risk.
 
 ## Previous Run
 
 - `2026-05-25` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/media-ingestion lane, the focused suite cleared 9 files with 89 tests, and the final build plus docs checks passed on the exact pushed tree.
-- What went wrong: the first validation pass still surfaced one avoidable lint warning from an unused import in `ReferenceGridCard.tsx` before the lane could finish.
-- Capability decision: on compact single-lane runs, do one final dead-import scan immediately after the initial formatting sweep so the first validation pass stays fully clean.
+- Score: `8.8/10`
+- What went right: Gear Ball split the live tree cleanly into one Holomony docs lane and one compact character-mode runtime lane, focused tests cleared 56 checks, and the final build plus docs checks passed before publish.
+- What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, which cost one avoidable rerun before the real validation signal.
+- Capability decision: on frontend-only runtime lanes, derive ESLint commands directly from the `frontend/` workdir up front so the first validation pass stays clean.
 
 ## Previous Supervised Synthesis
 

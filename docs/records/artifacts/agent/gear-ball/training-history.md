@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
+- Score: `8.8/10`
+- What went right: Gear Ball kept the live tree collapsed to one compact character-panel lane, the focused UI tests passed cleanly, and the final build cleared on the exact tree that reached `production`.
+- What went wrong: the first pass still paid one tiny formatting cycle on `CharacterPanelSplitHost.test.tsx` before the lane could finish.
+- Capability decision: on compact UI-only lanes, start with a one-file Prettier sweep on the newest changed test file when it was edited alongside structural component changes.
+
+## Previous Run
+
+- `2026-05-25` on `production`
 - Score: `8.9/10`
 - What went right: Gear Ball kept the live tree collapsed to one compact character-panel lane, the focused UI tests passed cleanly, and the final build cleared on the exact tree that reached `production`.
 - What went wrong: the first pass still paid one tiny formatting cycle on `CharacterPanelSplitHost.test.tsx` before the lane could finish.
 - Capability decision: on compact UI-only lanes, run a one-file Prettier sweep on the newest touched test file before the rest of the ladder so the lane stays fully one-pass.
-
-## Previous Run
-
-- `2026-05-24` on `production`
-- Score: `8.7/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent shared-runtime lane, and the focused tests, docs checks, Generate CTA guard, and final build all cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still lost one cycle to a bad repo-relative Prettier invocation, and the new guard script itself needed formatting before the lane could finish.
-- Capability decision: on mixed repo-root plus `frontend/` lanes, derive the first formatting command from the real working directory up front so the validation ladder starts cleanly.
 
 ## Previous Supervised Synthesis
 

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { validateCustomVoiceName } from "../../../../lib/customVoiceName";
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
@@ -76,6 +77,14 @@ export default async function handler(
         error: "Invalid request",
         details:
           "voiceName, voiceDescription, generatedVoiceId, and generatedVoiceToken are required.",
+      });
+    }
+
+    const voiceNameValidationError = validateCustomVoiceName(voiceName);
+    if (voiceNameValidationError) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: voiceNameValidationError,
       });
     }
 

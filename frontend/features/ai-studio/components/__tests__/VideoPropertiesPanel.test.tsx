@@ -151,15 +151,13 @@ vi.mock("../../../../prefabs/agent", () => ({
   AgentGenerateButton: ({
     onClick,
     disabled,
-    isBusy,
     cost,
   }: {
     onClick: () => void;
     disabled?: boolean;
-    isBusy?: boolean;
     cost?: number | string | null;
   }) => (
-    <button type="button" onClick={onClick} disabled={disabled} aria-busy={isBusy}>
+    <button type="button" onClick={onClick} disabled={disabled}>
       Generate {String(cost ?? "")}
     </button>
   ),
@@ -978,7 +976,7 @@ describe("VideoPropertiesPanel", () => {
     expect(promptProps?.agentIsSending).toBe(false);
     expect(promptProps?.agentError).toBeUndefined();
     expect(promptProps?.onAgentEnhanceSend).toBeUndefined();
-    expect(screen.getByRole("button", { name: /generate/i })).toHaveAttribute("aria-busy", "false");
+    expect(screen.getByRole("button", { name: /generate/i })).not.toHaveAttribute("aria-busy");
   });
 
   it("writes Kling element token drag data for attached tiles", () => {

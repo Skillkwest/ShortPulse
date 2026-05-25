@@ -4028,6 +4028,160 @@
   margin: 8px 0 12px;
 }
 
+.adminReportsLead {
+  margin: 6px 0 0;
+  max-width: 720px;
+  color: var(--admin-text-muted);
+  line-height: 1.5;
+}
+
+.adminReportsHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.adminReportsMetaPill,
+.adminReportsSelectionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--admin-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.adminReportsSelectionPill {
+  border-color: var(--admin-accent-border);
+  background: rgba(37, 169, 191, 0.08);
+  color: var(--admin-accent-text);
+}
+
+.adminReportsSummaryGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.4fr) repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.adminReportsHeroCard {
+  display: grid;
+  gap: 10px;
+  border-color: rgba(37, 169, 191, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(37, 169, 191, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
+}
+
+.adminReportsHeroRow {
+  display: grid;
+  grid-template-columns: auto 1px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.adminReportsHeroMetric {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 800;
+  line-height: 0.95;
+  color: var(--admin-text-strong);
+}
+
+.adminReportsHeroLabel {
+  margin: 4px 0 0;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
+.adminReportsHeroDivider {
+  width: 1px;
+  min-height: 66px;
+  background: linear-gradient(
+    180deg,
+    rgba(37, 169, 191, 0),
+    rgba(37, 169, 191, 0.55),
+    rgba(37, 169, 191, 0)
+  );
+}
+
+.adminReportsHeroStack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminReportsToolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.reportFilterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reportFilterSelect {
+  appearance: none;
+  width: 100%;
+  padding: 10px 38px 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--admin-text-muted) 50%),
+    linear-gradient(135deg, var(--admin-text-muted) 50%, transparent 50%), var(--admin-surface-1);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px),
+    0 0;
+  background-size:
+    6px 6px,
+    6px 6px,
+    100% 100%;
+  background-repeat: no-repeat;
+  color: var(--admin-text-strong);
+}
+
+.reportFilterSelect:focus {
+  outline: none;
+  border-color: var(--admin-focus);
+}
+
+.adminReportsTableMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.adminReportsTableMetaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.adminReportsEmptyState {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
 .adminReportsHead,
 .adminReportsRow {
   display: grid;
@@ -4253,6 +4407,27 @@
   .statsWorkspaceTitleRow,
   .adminSectionHead {
     align-items: flex-start;
+  }
+
+  .adminReportsHeaderActions,
+  .adminReportsTableMeta,
+  .adminReportsToolbar {
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-direction: column;
+  }
+
+  .adminReportsSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminReportsHeroRow {
+    grid-template-columns: 1fr;
+  }
+
+  .adminReportsHeroDivider {
+    display: none;
   }
 
   .adminReportsHead,

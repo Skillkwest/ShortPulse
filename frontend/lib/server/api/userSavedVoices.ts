@@ -28,6 +28,11 @@ export type SavedAiStudioVoiceSource =
   | "voice-clone"
   | "legacy";
 
+export type SavedVoicesLoadDiagnostics = {
+  voices: SavedAiStudioVoice[];
+  warning: string | null;
+};
+
 type OwnedCustomVoiceOwnershipConfidence = "high" | "migrated" | "disputed";
 
 const SAVED_VOICES_COLUMN = "ai_studio_saved_voices";
@@ -42,6 +47,8 @@ const normalizeOptionalString = (value: unknown): string | null => {
 };
 
 const SAVED_VOICE_SAMPLE_SIGNED_URL_TTL_SECONDS = 60 * 60;
+const OWNED_CUSTOM_VOICES_UNAVAILABLE_WARNING =
+  "Some saved custom voices may be temporarily unavailable. Please try again.";
 
 const isSavedVoiceOriginKind = (value: string | null): value is SavedAiStudioVoiceOriginKind =>
   value === "provider-default" ||
@@ -255,7 +262,9 @@ const refreshSavedVoiceSampleUrls = async ({
   );
 };
 
-const readLegacySavedVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> => {
+const readLegacySavedVoicesForUser = async (
+  userId: string
+): Promise<{ voices: SavedAiStudioVoice[]; persistenceAvailable: boolean }> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
@@ -277,16 +286,24 @@ const readLegacySavedVoicesForUser = async (userId: string): Promise<SavedAiStud
       if (cleanupError) throw cleanupError;
     }
 
-    return normalizedVoices;
+    return {
+      voices: normalizedVoices,
+      persistenceAvailable: true,
+    };
   } catch (error) {
     if (isSavedVoicesPersistenceUnavailableError(error)) {
-      return [];
+      return {
+        voices: [],
+        persistenceAvailable: false,
+      };
     }
     throw error;
   }
 };
 
-const readOwnedCustomVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> => {
+const readOwnedCustomVoicesForUser = async (
+  userId: string
+): Promise<{ voices: SavedAiStudioVoice[]; persistenceAvailable: boolean }> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
@@ -296,14 +313,20 @@ const readOwnedCustomVoicesForUser = async (userId: string): Promise<SavedAiStud
       .eq("provider", "elevenlabs")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return Array.isArray(data)
-      ? data
-          .map((row) => normalizeOwnedCustomVoice(row))
-          .filter((voice): voice is SavedAiStudioVoice => Boolean(voice))
-      : [];
+    return {
+      voices: Array.isArray(data)
+        ? data
+            .map((row) => normalizeOwnedCustomVoice(row))
+            .filter((voice): voice is SavedAiStudioVoice => Boolean(voice))
+        : [],
+      persistenceAvailable: true,
+    };
   } catch (error) {
     if (isOwnedCustomVoicesPersistenceUnavailableError(error)) {
-      return [];
+      return {
+        voices: [],
+        persistenceAvailable: false,
+      };
     }
     throw error;
   }
@@ -362,20 +385,30 @@ const upsertOwnedCustomVoiceForUser = async ({
   if (error) throw error;
 };
 
-export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> => {
-  const [legacyVoices, ownedCustomVoices] = await Promise.all([
+export const listSavedVoicesForUserWithDiagnostics = async (
+  userId: string
+): Promise<SavedVoicesLoadDiagnostics> => {
+  const [legacyResult, ownedCustomVoiceResult] = await Promise.all([
     readLegacySavedVoicesForUser(userId),
     readOwnedCustomVoicesForUser(userId),
   ]);
   const mergedVoices = mergeSavedVoices({
-    legacyVoices,
-    ownedCustomVoices,
+    legacyVoices: legacyResult.voices,
+    ownedCustomVoices: ownedCustomVoiceResult.voices,
   });
-  return await refreshSavedVoiceSampleUrls({
-    userId,
-    voices: mergedVoices,
-  });
+  return {
+    voices: await refreshSavedVoiceSampleUrls({
+      userId,
+      voices: mergedVoices,
+    }),
+    warning: ownedCustomVoiceResult.persistenceAvailable
+      ? null
+      : OWNED_CUSTOM_VOICES_UNAVAILABLE_WARNING,
+  };
 };
+
+export const listSavedVoicesForUser = async (userId: string): Promise<SavedAiStudioVoice[]> =>
+  (await listSavedVoicesForUserWithDiagnostics(userId)).voices;
 
 export const saveVoiceForUser = async ({
   userId,
@@ -416,11 +449,11 @@ export const saveVoiceForUser = async ({
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const legacyVoices = await readLegacySavedVoicesForUser(userId);
+    const legacyResult = await readLegacySavedVoicesForUser(userId);
     const requiresAuthoritativeOwnership = shouldPersistInOwnedCustomVoices(nextVoice);
     const nextVoices = [
       nextVoice,
-      ...legacyVoices.filter(
+      ...legacyResult.voices.filter(
         (existingVoice) => existingVoice.voiceId.toLowerCase() !== nextVoice.voiceId.toLowerCase()
       ),
     ];
@@ -479,7 +512,7 @@ export const deleteSavedVoiceForUser = async ({
   let deletedOwnedCustomVoice = false;
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const legacyVoices = await readLegacySavedVoicesForUser(userId);
+    const legacyResult = await readLegacySavedVoicesForUser(userId);
     try {
       const { data, error } = await supabaseAdmin
         .from(OWNED_CUSTOM_VOICES_TABLE)
@@ -497,7 +530,7 @@ export const deleteSavedVoiceForUser = async ({
     }
 
     const existingVoices = mergeSavedVoices({
-      legacyVoices,
+      legacyVoices: legacyResult.voices,
       ownedCustomVoices: [],
     });
     const nextVoices = existingVoices.filter(

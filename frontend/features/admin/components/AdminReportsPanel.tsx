@@ -64,6 +64,11 @@ export function AdminReportsPanel({
     () => reports.find((report) => report.id === selectedReportId) ?? null,
     [reports, selectedReportId]
   );
+  const hasActiveFilters = reportStatusFilter !== "all" || reportSearch.trim().length > 0;
+  const hasStoredReports = reportSummary.totalCount > 0;
+  const showingLabel = hasStoredReports
+    ? `Showing ${reports.length} of ${reportSummary.totalCount} reports`
+    : "No reports submitted yet";
 
   return (
     <>
@@ -72,18 +77,56 @@ export function AdminReportsPanel({
           <div>
             <p className={styles.adminSectionEyebrow}>Report Queue</p>
             <h2 className={styles.adminSectionTitle}>Manual issue review</h2>
+            <p className={styles.adminReportsLead}>
+              Signed-in user reports land here with account linkage, so admins can review issues
+              without bouncing between inboxes.
+            </p>
           </div>
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={onRefresh}
-            disabled={reportsLoading}
-          >
-            {reportsLoading ? "Refreshing…" : "Refresh"}
-          </button>
+          <div className={styles.adminReportsHeaderActions}>
+            <span className={styles.adminReportsMetaPill}>{showingLabel}</span>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={onRefresh}
+              disabled={reportsLoading}
+            >
+              {reportsLoading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
 
-        <div className={styles.adminGrid}>
+        <div className={styles.adminReportsSummaryGrid}>
+          <article className={`${styles.adminCard} ${styles.adminReportsHeroCard}`}>
+            <p className={styles.adminLabel}>Queue posture</p>
+            <div className={styles.adminReportsHeroRow}>
+              <div>
+                <p className={styles.adminReportsHeroMetric}>{reportSummary.newCount}</p>
+                <p className={styles.adminReportsHeroLabel}>Need first review</p>
+              </div>
+              <div className={styles.adminReportsHeroDivider} />
+              <div className={styles.adminReportsHeroStack}>
+                <span className={styles.adminReportsMetaPill}>
+                  Reviewing {reportSummary.reviewingCount}
+                </span>
+                <span className={styles.adminReportsMetaPill}>
+                  Resolved {reportSummary.resolvedCount}
+                </span>
+                {selectedReport ? (
+                  <span className={styles.adminReportsSelectionPill}>
+                    Selected {selectedReport.submitterEmail}
+                  </span>
+                ) : (
+                  <span className={styles.adminReportsSelectionPill}>
+                    Select a report to open detail
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="tiny subdued">
+              Use this lane for manual triage, notes, and quick pivots into user-health or trace
+              tooling.
+            </p>
+          </article>
           <article className={styles.adminCard}>
             <p className={styles.adminLabel}>Total reports</p>
             <p className={styles.adminMetric}>{reportSummary.totalCount}</p>
@@ -106,33 +149,60 @@ export function AdminReportsPanel({
           </article>
         </div>
 
-        <div className={styles.filterGrid}>
-          <label className={styles.errorCell}>
-            <span className="tiny subdued">Status</span>
-            <select
-              value={reportStatusFilter}
-              onChange={(event) =>
-                onReportStatusFilterChange(event.target.value as "all" | IssueReportStatus)
-              }
+        <div className={styles.adminReportsToolbar}>
+          <div className={styles.filterGrid}>
+            <label className={styles.reportFilterField}>
+              <span className="tiny subdued">Status</span>
+              <select
+                className={styles.reportFilterSelect}
+                value={reportStatusFilter}
+                onChange={(event) =>
+                  onReportStatusFilterChange(event.target.value as "all" | IssueReportStatus)
+                }
+              >
+                <option value="all">All statuses</option>
+                <option value="new">New</option>
+                <option value="reviewing">Reviewing</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </label>
+            <label className={styles.reportFilterField}>
+              <span className="tiny subdued">Search</span>
+              <input
+                className={styles.searchInput}
+                value={reportSearch}
+                onChange={(event) => onReportSearchChange(event.target.value)}
+                placeholder="Search by email, user id, message, or path"
+              />
+            </label>
+          </div>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => {
+                onReportStatusFilterChange("all");
+                onReportSearchChange("");
+              }}
             >
-              <option value="all">All statuses</option>
-              <option value="new">New</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </label>
-          <label className={styles.errorCell}>
-            <span className="tiny subdued">Search</span>
-            <input
-              className={styles.searchInput}
-              value={reportSearch}
-              onChange={(event) => onReportSearchChange(event.target.value)}
-              placeholder="Search by email, user id, message, or path"
-            />
-          </label>
+              Clear filters
+            </button>
+          ) : null}
         </div>
 
         <div className={styles.adminTableShell}>
+          <div className={styles.adminReportsTableMeta}>
+            <div className={styles.adminReportsTableMetaBlock}>
+              <span className="tiny subdued">Queue view</span>
+              <strong>{showingLabel}</strong>
+            </div>
+            <div className={styles.adminReportsTableMetaBlock}>
+              <span className="tiny subdued">Current filter</span>
+              <strong>
+                {reportStatusFilter === "all" ? "All statuses" : statusLabel(reportStatusFilter)}
+              </strong>
+            </div>
+          </div>
           <div className={styles.adminTableScroller}>
             <div className={styles.adminTable}>
               <div className={styles.adminReportsHead}>
@@ -150,8 +220,19 @@ export function AdminReportsPanel({
                   {reportsError}
                 </div>
               ) : reports.length === 0 ? (
-                <div className={`${styles.adminTableRow} ${styles.adminTableEmptyRow}`}>
-                  No reports match the current filters.
+                <div
+                  className={`${styles.adminTableRow} ${styles.adminTableEmptyRow} ${styles.adminReportsEmptyState}`}
+                >
+                  <strong>
+                    {hasStoredReports
+                      ? "No reports match the current filters."
+                      : "No issue reports yet."}
+                  </strong>
+                  <span className="tiny subdued">
+                    {hasStoredReports
+                      ? "Try widening the filters or clear the search to bring more reports back into view."
+                      : "Once signed-in users submit reports, they will appear here for manual review."}
+                  </span>
                 </div>
               ) : (
                 reports.map((report) => (

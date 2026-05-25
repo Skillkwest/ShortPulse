@@ -46,6 +46,7 @@ type CreatePulsePresetPanelProps = {
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
   isActivationBusy?: boolean;
+  shouldRestartActivePreset?: (presetId: CreatePulsePresetId) => boolean;
 };
 
 /**
@@ -62,6 +63,7 @@ export function CreatePulsePresetPanel({
   onSavedPresetsChange,
   onOpenPresetsLibrary,
   isActivationBusy = false,
+  shouldRestartActivePreset,
 }: CreatePulsePresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
   const toastVisibleTimerRef = React.useRef<number | null>(null);
@@ -189,6 +191,7 @@ export function CreatePulsePresetPanel({
     showPersistentStatus,
     clearStatusMessage,
     isActivationBusy,
+    shouldRestartActivePreset,
   });
 
   const closeMorePresetsSurface = React.useCallback(() => {

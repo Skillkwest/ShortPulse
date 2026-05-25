@@ -55,6 +55,7 @@ type UseCreatePulsePresetRuntimeParams = {
   showPersistentStatus: (message: string, tone?: "info" | "warning") => void;
   clearStatusMessage: () => void;
   isActivationBusy?: boolean;
+  shouldRestartActivePreset?: (presetId: CreatePulsePresetId) => boolean;
 };
 
 /**
@@ -72,6 +73,7 @@ export const useCreatePulsePresetRuntime = ({
   showPersistentStatus,
   clearStatusMessage,
   isActivationBusy = false,
+  shouldRestartActivePreset,
 }: UseCreatePulsePresetRuntimeParams) => {
   const addPresetToPanel = React.useCallback(
     async (presetId: CreatePulsePresetId | null | undefined): Promise<AddPresetToPanelResult> => {
@@ -155,7 +157,9 @@ export const useCreatePulsePresetRuntime = ({
         } satisfies CreatePulsePresetStartResult;
       }
       clearStatusMessage();
-      if (activePresetId === presetId) {
+      const shouldRestartActivePresetClick =
+        activePresetId === presetId && Boolean(shouldRestartActivePreset?.(presetId));
+      if (activePresetId === presetId && !shouldRestartActivePresetClick) {
         return {
           status: "started",
         } satisfies CreatePulsePresetStartResult;
@@ -202,6 +206,7 @@ export const useCreatePulsePresetRuntime = ({
       clearStatusMessage,
       isActivationBusy,
       onPresetStart,
+      shouldRestartActivePreset,
       builtInDefinitions,
       savedPresets,
       setActivePresetId,

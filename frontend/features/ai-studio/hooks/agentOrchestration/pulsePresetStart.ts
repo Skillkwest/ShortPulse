@@ -225,6 +225,22 @@ export const startPulsePreset = async ({
     }
 
     const appliedPrompt = normalizePromptText(actions?.applyPrompt);
+    const responseMessage = normalizePromptText(response.message);
+    const workflowStepPrompt = normalizePromptText(workflowSession?.currentStepPrompt);
+    if (!appliedPrompt && !responseMessage && !workflowStepPrompt) {
+      if (!options?.deferWorkflowSessionCommit && isActivationCurrent()) {
+        setPulseWorkflowSession(null);
+      }
+      trackAgentUiEvent("studio_agent_pulse_start_failed", {
+        preset_id: preset.presetId,
+        reason: "empty_response",
+      });
+      return {
+        status: "failed",
+        reason: "empty_response",
+        message: `Unable to start ${preset.label}. Pulse returned no kickoff response.`,
+      };
+    }
     if (appliedPrompt) {
       setLatestAgentPrompt(appliedPrompt);
       if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse: true })) {

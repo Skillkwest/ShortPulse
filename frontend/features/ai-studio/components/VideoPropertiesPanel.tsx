@@ -1677,7 +1677,6 @@ export function VideoPropertiesPanel({
                         !hasAnyPromptText ||
                         shouldShowKlingReferenceImageWarning
                       }
-                      isBusy={false}
                       cost={costCredits != null ? costCredits : "—"}
                     />
                   </div>

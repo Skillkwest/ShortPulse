@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteSavedVoiceForUser,
   listSavedVoicesForUser,
+  listSavedVoicesForUserWithDiagnostics,
   saveVoiceForUser,
 } from "../userSavedVoices";
 import { EXCLUDED_ELEVENLABS_VOICE_IDS } from "../../elevenlabsVoiceExclusions";
@@ -241,6 +242,37 @@ describe("userSavedVoices", () => {
     getSupabaseAdminMock.mockReturnValue(admin);
 
     await expect(listSavedVoicesForUser("user-123")).resolves.toEqual([]);
+  });
+
+  it("returns a warning when the authoritative ownership ledger is unavailable", async () => {
+    const { admin } = buildSupabaseAdminMock({
+      legacyData: {
+        ai_studio_saved_voices: [
+          {
+            voiceId: "voice_shared",
+            name: "Shared Save",
+            previewUrl: null,
+            description: "Legacy saved voice",
+            createdAt: "2026-04-18T12:00:00.000Z",
+          },
+        ],
+      },
+      ownedData: null,
+      ownedError: { code: "42P01", message: "relation user_owned_custom_voices does not exist" },
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const result = await listSavedVoicesForUserWithDiagnostics("user-123");
+
+    expect(result.voices).toEqual([
+      expect.objectContaining({
+        voiceId: "voice_shared",
+        name: "Shared Save",
+      }),
+    ]);
+    expect(result.warning).toBe(
+      "Some saved custom voices may be temporarily unavailable. Please try again."
+    );
   });
 
   it("does not treat legacy custom voice rows as live ownership when the authority table has no match", async () => {

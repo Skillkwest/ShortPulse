@@ -438,9 +438,6 @@ describe("ExpertEditPanelView", () => {
   it("keeps the inline generate button enabled while edit generation is busy", () => {
     const { container } = renderControlledPromptPanel({
       initialPrompt: "Put her in a bikini",
-      panelProps: {
-        isGenerateBusy: true,
-      },
     });
 
     uploadPrimaryFile(container, "busy-button.png");

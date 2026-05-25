@@ -101,7 +101,6 @@ export function ExpertEditPanelView({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  isGenerateBusy = false,
   guardrailReason = null,
   isPrimaryStageGenerating = false,
   onImageResolutionChange,
@@ -561,7 +560,6 @@ export function ExpertEditPanelView({
     removeOptimisticGenerationPlaceholder,
     notifyGenerationFailure,
   });
-  const resolvedInlineGenerateBusy = isGenerateBusy || isInlineGeneratePending;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const isPrimaryStageBusy =
     isFlattenPending ||
@@ -1096,7 +1094,6 @@ export function ExpertEditPanelView({
     promptTokenInlineError,
     handleInlineGenerate,
     inlineGenerateDisabled,
-    resolvedInlineGenerateBusy,
     costCredits,
     inlineGuardrailReason,
     effectiveSelectorModelId,

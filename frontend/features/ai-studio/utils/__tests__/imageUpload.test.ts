@@ -10,6 +10,14 @@ const maybeTranscodeLocalImageBlobForUploadMock = vi.fn();
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+  isAuthRequiredError: (error: unknown) =>
+    Boolean(error) &&
+    typeof error === "object" &&
+    (error as { code?: unknown }).code === "AUTH_REQUIRED",
+  isAuthSessionTimeoutError: (error: unknown) =>
+    Boolean(error) &&
+    typeof error === "object" &&
+    (error as { code?: unknown }).code === "AUTH_SESSION_TIMEOUT",
 }));
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
@@ -24,6 +32,7 @@ import {
   prepareImageUrlForSubmission,
   uploadImageToStorage,
 } from "../imageUpload";
+import { rememberObjectUrlBlob, forgetObjectUrlBlob } from "../objectUrlBlobRegistry";
 
 const originalFetch = global.fetch;
 
@@ -38,6 +47,7 @@ describe("imageUpload", () => {
     vi.resetAllMocks();
     getSignedMediaUrlMock.mockResolvedValue("https://example.com/signed/refreshed.png");
     maybeTranscodeLocalImageBlobForUploadMock.mockImplementation(async (blob: Blob) => blob);
+    forgetObjectUrlBlob("blob:expert-edit-flattened");
   });
 
   afterEach(() => {
@@ -76,9 +86,31 @@ describe("imageUpload", () => {
     expect(options.headers).toMatchObject({
       "Content-Type": "image/png",
     });
+    expect(options.shortpulseRetryNetworkOnce).toBe(true);
     expect(options.body).toBeTruthy();
     expect((options.body as Blob).constructor?.name).toBe("Blob");
     expect((options.body as Blob).type).toBe("image/png");
+  });
+
+  it("reuses remembered expert edit blobs without re-fetching the object url", async () => {
+    const localUrl = "blob:expert-edit-flattened";
+    const rememberedBlob = new Blob(["flattened"], { type: "image/png" });
+    rememberObjectUrlBlob(localUrl, rememberedBlob);
+    global.fetch = vi.fn() as typeof fetch;
+    fetchWithAuthMock.mockResolvedValue(
+      jsonResponse({
+        url: "https://example.com/signed/reference-flattened.png",
+        path: "user/images/reference-flattened.png",
+        size: rememberedBlob.size,
+      })
+    );
+
+    const signedUrl = await uploadImageToStorage(localUrl);
+
+    expect(signedUrl).toBe("https://example.com/signed/reference-flattened.png");
+    expect(global.fetch).not.toHaveBeenCalled();
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    expect((options.body as Blob).size).toBe(rememberedBlob.size);
   });
 
   it("uploads the transcode result when local preprocessing returns a resized blob", async () => {
@@ -291,6 +323,30 @@ describe("imageUpload", () => {
 
     await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
       "Reference image is too large. ShortPulse accepts reference images up to 25 MB."
+    );
+  });
+
+  it("maps local blob fetch failures to a re-add guidance message", async () => {
+    const localUrl = "blob:missing-reference";
+    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch")) as typeof fetch;
+
+    await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
+      "Local reference image is no longer available. Please re-add it and try again."
+    );
+  });
+
+  it("maps upload route network failures to a clearer message", async () => {
+    const localUrl = "blob:upload-network-fail";
+    const imageBlob = new Blob(["image-data"], { type: "image/png" });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
+      ) as typeof fetch;
+    fetchWithAuthMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
+      "Network request failed while uploading the reference image."
     );
   });
 });

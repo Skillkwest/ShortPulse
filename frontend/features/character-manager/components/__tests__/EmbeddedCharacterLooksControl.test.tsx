@@ -131,11 +131,11 @@ describe("EmbeddedCharacterLooksControl", () => {
     });
   });
 
-  it("uses the name and description entry surface for the active tab", () => {
+  it("uses the restored selected-tab surface for the active tab", () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 
     expect(screen.getByRole("tab", { name: "1" })).toHaveStyle({
-      background: "rgb(21, 22, 26)",
+      background: "rgb(31, 35, 41)",
     });
   });
 

@@ -23,6 +23,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 19. **Do not commit transpiled JS sidecars for frontend source modules.** Under `frontend/features/`, `frontend/lib/`, and `frontend/prefabs/`, `.ts/.tsx` files are the source of truth; generated CommonJS/compiled `.js` siblings should be removed or ignored rather than committed.
 20. **Use the pre-launch production branch deliberately.** During the current pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, `production` is the only active local and GitHub branch for repo work. Keep `git config --local shortpulse.allowedBranch` set to `production`, do not create or promote feature/staging branches, and never push directly to `main`.
 21. **Use canonical active Seedance 2 IDs.** The active Kie Seedance 2 lanes are `kie-ai/seedance-2` and `kie-ai/seedance-2-fast`. Treat those IDs as canonical in code, docs, validation, and support assumptions; do not reintroduce the stale `seedance-2.0` naming or quarantine guidance.
+22. **Generate CTAs stay validation-only.** If a Generate button is active, it must stay visibly ready to click: no in-button busy spinners, no busy labels, no `aria-busy`, and no disabling purely because a generation is already in flight. Show progress on output cards, stage overlays, banners, or other status surfaces instead, and preserve rapid repeat clicks whenever the underlying generate lane supports them.
 
 ## Canonical run commands (always respond with these)
 

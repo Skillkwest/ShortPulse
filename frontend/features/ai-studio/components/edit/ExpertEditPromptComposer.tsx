@@ -36,7 +36,6 @@ type ExpertEditPromptComposerProps = {
   promptTokenInlineError: string | null;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
-  isGenerateBusy?: boolean;
   costCredits?: number | null;
   inlineGuardrailReason?: string | null;
 };
@@ -62,7 +61,6 @@ export function ExpertEditPromptComposer({
   promptTokenInlineError,
   onGenerate,
   inlineGenerateDisabled,
-  isGenerateBusy = false,
   costCredits = null,
   inlineGuardrailReason = null,
 }: ExpertEditPromptComposerProps) {
@@ -191,7 +189,6 @@ export function ExpertEditPromptComposer({
         <AgentGenerateButton
           onClick={onGenerate}
           disabled={inlineGenerateDisabled}
-          isBusy={isGenerateBusy}
           cost={costCredits != null ? costCredits : "—"}
         />
         {inlineGenerateDisabled && inlineGuardrailReason ? (

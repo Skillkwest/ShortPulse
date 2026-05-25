@@ -5,6 +5,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import {
   buildVoiceoverElevenV3RequestConfig,
@@ -2227,15 +2228,15 @@ describe("VoicesPropertiesPanel", () => {
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     });
-    expect(createVoiceButton).toBeDisabled();
-    expect(createVoiceButton).toHaveTextContent("Generating voice...");
+    expect(createVoiceButton).toBeEnabled();
+    expect(createVoiceButton).toHaveTextContent("Generate Voice");
     expect(screen.getByRole("status")).toHaveTextContent("Generating voice previews...");
     expect(screen.getByRole("status")).toHaveTextContent(
       "This can take a few seconds. Please wait while we build your options."
     );
 
     fireEvent.click(createVoiceButton);
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
   });
 
   it("overwrites the prompt text when dropping a prompt into the create-side prompt box", () => {
@@ -2377,6 +2378,41 @@ describe("VoicesPropertiesPanel", () => {
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
+  it("shows api voice-library warnings without falling back to default-only mode", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        warning: "Some saved custom voices may be temporarily unavailable. Please try again.",
+        voices: [
+          {
+            voiceId: "voice-live-1",
+            name: "Darian",
+            previewUrl: null,
+            description: "Warm, grounded storyteller",
+            isFallback: false,
+            librarySection: "default",
+            canRemoveFromLibrary: false,
+            canDeleteFromProvider: false,
+            destructiveAction: "none",
+          },
+        ],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openVoicesLibraryModal();
+    fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
+
+    expect(
+      screen.getByText("Some saved custom voices may be temporarily unavailable. Please try again.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Darian voice" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Showing default voices until live voices are configured.")
+    ).not.toBeInTheDocument();
+  });
+
   it("clears stale shared-browser voice state when a fresh voice load fails", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
@@ -2464,6 +2500,26 @@ describe("VoicesPropertiesPanel", () => {
     });
     await openVoicesLibraryModal();
     expect(screen.queryByRole("button", { name: "Custom Voice voice" })).not.toBeInTheDocument();
+  });
+
+  it("clamps overlong custom voice names to the supported persisted length", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [],
+      }),
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    await openCreateVoiceModal();
+    const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
+
+    fireEvent.change(voiceNameField, {
+      target: { value: "a".repeat(MAX_CUSTOM_VOICE_NAME_CHARACTERS + 25) },
+    });
+
+    expect(voiceNameField).toHaveValue("a".repeat(MAX_CUSTOM_VOICE_NAME_CHARACTERS));
   });
 
   it("submits generation with the live default voice ids when they load", async () => {

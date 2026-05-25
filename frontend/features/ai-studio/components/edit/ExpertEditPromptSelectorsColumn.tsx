@@ -36,7 +36,6 @@ type ExpertEditPromptSelectorsColumnProps = {
   promptTokenInlineError: string | null;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
-  isGenerateBusy?: boolean;
   costCredits?: number | null;
   inlineGuardrailReason?: string | null;
   modelId: string | null;
@@ -76,7 +75,6 @@ export function ExpertEditPromptSelectorsColumn({
   promptTokenInlineError,
   onGenerate,
   inlineGenerateDisabled,
-  isGenerateBusy = false,
   costCredits = null,
   inlineGuardrailReason = null,
   modelId,
@@ -117,7 +115,6 @@ export function ExpertEditPromptSelectorsColumn({
         promptTokenInlineError={promptTokenInlineError}
         onGenerate={onGenerate}
         inlineGenerateDisabled={inlineGenerateDisabled}
-        isGenerateBusy={isGenerateBusy}
         costCredits={costCredits}
         inlineGuardrailReason={inlineGuardrailReason}
       />

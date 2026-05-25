@@ -439,9 +439,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   }}
                   aria-label="Generate"
                 >
-                  <span className="sound-effects-properties-generate-label">
-                    {isGenerating ? "Generating..." : "Generate"}
-                  </span>
+                  <span className="sound-effects-properties-generate-label">Generate</span>
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                     <span className="sound-effects-properties-generate-cost-icon">✦</span>
                     <span className="sound-effects-properties-generate-cost-value">

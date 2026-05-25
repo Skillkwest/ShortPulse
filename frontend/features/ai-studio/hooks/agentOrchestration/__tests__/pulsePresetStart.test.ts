@@ -12,9 +12,14 @@ const resolvedPreset = resolveCreatePulsePresetById(
   [],
   resolveCreatePulseBuiltInPresetDefinitions()
 );
+const videoPromptPreset = resolveCreatePulsePresetById(
+  "image",
+  [],
+  resolveCreatePulseBuiltInPresetDefinitions()
+);
 
-if (!resolvedPreset) {
-  throw new Error("Expected built-in story_builder Pulse preset for tests.");
+if (!resolvedPreset || !videoPromptPreset) {
+  throw new Error("Expected built-in Pulse presets for tests.");
 }
 
 const buildWorkflowSession = (): AgentPulseWorkflowSession => ({
@@ -135,6 +140,54 @@ describe("pulsePresetStart", () => {
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_pulse_start_failed", {
       preset_id: "story_builder",
       reason: "activation_invalidated",
+    });
+  });
+
+  it("fails closed when a kickoff response has no displayable message or workflow prompt", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+
+    const result = await startPulsePreset({
+      preset: videoPromptPreset,
+      options: {
+        deferWorkflowSessionCommit: true,
+        activationIsCurrent: () => true,
+      },
+      agentBootstrapReady: true,
+      agentIsSending: false,
+      agentSessionEnabled: true,
+      agentUiBusyRef: { current: false },
+      latestAgentPrompt: null,
+      lastAssistantMessage: null,
+      selectedTool: "create",
+      pulseSessionInstanceId: null,
+      resolvePulseSessionNamespace: vi.fn(() => "ai-studio:session-1::pulse:image:test"),
+      getAgentContext: vi.fn(() => ({})),
+      notifyBootstrapPending: vi.fn(),
+      sendToAgent: vi.fn(async () => ({
+        response: { message: "   " },
+        actions: undefined,
+        workflowSession: null,
+      })),
+      trackAgentUiEvent,
+      setAgentSessionEnabled: vi.fn(),
+      setAgentAttachmentError: vi.fn(),
+      setAgentUiBusy: vi.fn(),
+      setPulseWorkflowSession,
+      setLatestAgentPrompt: vi.fn(),
+      setSharedPrompt: vi.fn(),
+      setPromptOrigin: vi.fn(),
+    });
+
+    expect(result).toEqual({
+      status: "failed",
+      reason: "empty_response",
+      message: "Unable to start Video Prompt Magic. Pulse returned no kickoff response.",
+    });
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_pulse_start_failed", {
+      preset_id: "image",
+      reason: "empty_response",
     });
   });
 });

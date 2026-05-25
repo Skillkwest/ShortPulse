@@ -164,7 +164,6 @@ export function PulseCreatePropertiesPanel({
           onClick={onGeneratePulseArtifact}
           costCredits={costCredits}
           disabled={isGenerateDisabled}
-          isBusy={isPromptGenerating}
         />
       </div>
     </div>

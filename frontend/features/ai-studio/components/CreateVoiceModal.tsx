@@ -5,6 +5,7 @@
 import React from "react";
 import { CircleNotch, Pause, Play, X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
+import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../lib/customVoiceName";
 
 export type CreateVoiceModalPreview = {
   generatedVoiceId: string;
@@ -102,7 +103,7 @@ export function CreateVoiceModal({
   const isCloneMode = createMode === "clone";
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
   const topRowSaveLabel = isSavingDesignedVoice ? "Saving…" : "Save voice";
-  const generateVoiceLabel = isDesigningVoice ? "Generating voice..." : "Generate Voice";
+  const generateVoiceLabel = "Generate Voice";
 
   return (
     <div className="voices-create-modal-backdrop" {...backdropDismiss}>
@@ -178,6 +179,7 @@ export function CreateVoiceModal({
                   className="voices-properties-input voices-create-modal-input"
                   value={voiceName}
                   onChange={(event) => onVoiceNameChange(event.target.value)}
+                  maxLength={MAX_CUSTOM_VOICE_NAME_CHARACTERS}
                   placeholder="Late-night storyteller"
                   aria-label="Voice name"
                   autoFocus

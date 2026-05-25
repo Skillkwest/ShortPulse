@@ -5,6 +5,7 @@
 import React from "react";
 import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { clampCustomVoiceNameInput } from "../../../lib/customVoiceName";
 import { useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
@@ -417,6 +418,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
   );
+  const handleVoiceNameChange = React.useCallback((nextValue: string) => {
+    setVoiceName(clampCustomVoiceNameInput(nextValue));
+  }, []);
   const [loadedVoiceCueVoiceId, setLoadedVoiceCueVoiceId] = React.useState<string | null>(null);
   const [pendingLoadedVoiceCueVoiceId, setPendingLoadedVoiceCueVoiceId] = React.useState<
     string | null
@@ -497,7 +501,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
-    !isDesigningVoice &&
     !isSavingDesignedVoice;
   const isSaveVoiceEnabled =
     voiceName.trim().length > 0 &&
@@ -2168,7 +2171,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             cloneVoiceError={cloneVoiceError}
             onClose={handleCloseCreatePanel}
             onCreateModeChange={handleCreateVoiceModeChange}
-            onVoiceNameChange={setVoiceName}
+            onVoiceNameChange={handleVoiceNameChange}
             onVoicePromptChange={setVoicePrompt}
             onCloneConsentChange={setIsCloneConsentChecked}
             onVoicePromptDrop={handleVoicePromptDrop}

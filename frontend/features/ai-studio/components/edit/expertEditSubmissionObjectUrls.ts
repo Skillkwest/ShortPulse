@@ -1,3 +1,5 @@
+import { rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
+
 export type ExpertEditSubmissionObjectUrls = {
   flattenedUrl: string | null;
   flattenedMarkupReferenceUrl: string | null;
@@ -12,13 +14,30 @@ export const createExpertEditSubmissionObjectUrls = ({
   flattenedBlob: Blob | null;
   flattenedMarkupReferenceBlob: Blob | null;
   inpaintMaskBlob: Blob | null;
-}): ExpertEditSubmissionObjectUrls => ({
-  flattenedUrl: flattenedBlob ? URL.createObjectURL(flattenedBlob) : null,
-  flattenedMarkupReferenceUrl: flattenedMarkupReferenceBlob
+}): ExpertEditSubmissionObjectUrls => {
+  const flattenedUrl = flattenedBlob ? URL.createObjectURL(flattenedBlob) : null;
+  if (flattenedUrl && flattenedBlob) {
+    rememberObjectUrlBlob(flattenedUrl, flattenedBlob);
+  }
+
+  const flattenedMarkupReferenceUrl = flattenedMarkupReferenceBlob
     ? URL.createObjectURL(flattenedMarkupReferenceBlob)
-    : null,
-  inpaintMaskUrl: inpaintMaskBlob ? URL.createObjectURL(inpaintMaskBlob) : null,
-});
+    : null;
+  if (flattenedMarkupReferenceUrl && flattenedMarkupReferenceBlob) {
+    rememberObjectUrlBlob(flattenedMarkupReferenceUrl, flattenedMarkupReferenceBlob);
+  }
+
+  const inpaintMaskUrl = inpaintMaskBlob ? URL.createObjectURL(inpaintMaskBlob) : null;
+  if (inpaintMaskUrl && inpaintMaskBlob) {
+    rememberObjectUrlBlob(inpaintMaskUrl, inpaintMaskBlob);
+  }
+
+  return {
+    flattenedUrl,
+    flattenedMarkupReferenceUrl,
+    inpaintMaskUrl,
+  };
+};
 
 export const cleanupExpertEditSubmissionObjectUrls = ({
   objectUrls,

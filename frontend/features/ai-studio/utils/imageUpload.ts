@@ -2,10 +2,15 @@
  * Upload utility for local reference images used by generation submit routes.
  * Converts blob/data URLs into short-lived signed HTTPS URLs.
  */
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  fetchWithAuth,
+  isAuthRequiredError,
+  isAuthSessionTimeoutError,
+} from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
+import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 
 type ImageUploadResponse = {
   url: string;
@@ -109,6 +114,49 @@ const emitStage = (
 const asErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   return "Unknown error";
+};
+
+const isGenericNetworkFailure = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const normalized = error.message.trim().toLowerCase();
+  return normalized === "failed to fetch" || normalized === "network request failed";
+};
+
+const normalizeImagePreparationError = ({
+  stage,
+  sourceKind,
+  error,
+}: {
+  stage: PrepareImageStage;
+  sourceKind: PrepareImageSourceKind;
+  error: unknown;
+}): Error => {
+  if (stage === "fetch_local_image") {
+    if (sourceKind === "blob" || sourceKind === "data-url") {
+      return new Error(
+        "Local reference image is no longer available. Please re-add it and try again."
+      );
+    }
+    return new Error("Unable to read the local reference image. Please re-add it and try again.");
+  }
+
+  if (stage === "upload_image_route") {
+    if (isAuthSessionTimeoutError(error)) {
+      return new Error("Session check timed out while uploading the reference image.");
+    }
+    if (isAuthRequiredError(error)) {
+      return new Error("You must be signed in to upload reference images.");
+    }
+    if (isGenericNetworkFailure(error)) {
+      return new Error("Network request failed while uploading the reference image.");
+    }
+  }
+
+  if (stage === "refresh_signed_url" && isGenericNetworkFailure(error)) {
+    return new Error("Unable to refresh the reference image URL. Please re-add the image.");
+  }
+
+  return error instanceof Error ? error : new Error(asErrorMessage(error));
 };
 
 const runAbortableStep = async <T>({
@@ -277,17 +325,47 @@ export const uploadImageAssetToStorage = async (
     }
   }
 
-  const response = await runAbortableStep({
-    stage: "fetch_local_image",
-    timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
-    sourceKind,
-    options,
-    run: async (signal) => await fetch(localUrl, { signal }),
-  });
-  if (!response.ok) {
-    throw new Error(`Unable to read local image input (${response.status}).`);
+  let fetchedBlob: Blob;
+  const rememberedBlob = isBlobUrl(localUrl) ? readRememberedObjectUrlBlob(localUrl) : null;
+  if (rememberedBlob) {
+    const startedAt = Date.now();
+    emitStage(options, {
+      stage: "fetch_local_image",
+      status: "start",
+      sourceKind,
+      elapsedMs: 0,
+      timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+    });
+    fetchedBlob = rememberedBlob;
+    emitStage(options, {
+      stage: "fetch_local_image",
+      status: "success",
+      sourceKind,
+      elapsedMs: Date.now() - startedAt,
+      timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+    });
+  } else {
+    let response: Response;
+    try {
+      response = await runAbortableStep({
+        stage: "fetch_local_image",
+        timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+        sourceKind,
+        options,
+        run: async (signal) => await fetch(localUrl, { signal }),
+      });
+    } catch (error) {
+      throw normalizeImagePreparationError({
+        stage: "fetch_local_image",
+        sourceKind,
+        error,
+      });
+    }
+    if (!response.ok) {
+      throw new Error(`Unable to read local image input (${response.status}).`);
+    }
+    fetchedBlob = await response.blob();
   }
-  const fetchedBlob = await response.blob();
   const normalizedBlob = normalizeUploadBlob(fetchedBlob);
   const shouldTranscodeLocal = needsImageUpload(localUrl);
   const blob = shouldTranscodeLocal
@@ -296,24 +374,34 @@ export const uploadImageAssetToStorage = async (
   const extension = inferExtension(blob.type);
   const filename = `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
-  const uploadResponse = await runAbortableStep({
-    stage: "upload_image_route",
-    timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
-    sourceKind,
-    options,
-    run: async (signal) =>
-      await fetchWithAuth("/api/upload-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": blob.type,
-          "x-shortpulse-upload-filename": filename,
-        },
-        body: blob,
-        signal,
-        shortpulseLogScope: "generation",
-        shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
-      }),
-  });
+  let uploadResponse: Response;
+  try {
+    uploadResponse = await runAbortableStep({
+      stage: "upload_image_route",
+      timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+      sourceKind,
+      options,
+      run: async (signal) =>
+        await fetchWithAuth("/api/upload-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": blob.type,
+            "x-shortpulse-upload-filename": filename,
+          },
+          body: blob,
+          signal,
+          shortpulseLogScope: "generation",
+          shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
+          shortpulseRetryNetworkOnce: true,
+        }),
+    });
+  } catch (error) {
+    throw normalizeImagePreparationError({
+      stage: "upload_image_route",
+      sourceKind,
+      error,
+    });
+  }
 
   if (!uploadResponse.ok) {
     const payload = await uploadResponse.json().catch(() => ({}));

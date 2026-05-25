@@ -262,7 +262,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       "readonly"
     );
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generating...");
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
     expect(screen.getByRole("switch", { name: "Loop sound effect" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "cinematic boom" })).toBeDisabled();
   });

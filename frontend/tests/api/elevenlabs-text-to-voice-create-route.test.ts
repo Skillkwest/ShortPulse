@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/text-to-voice/create";
+import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../lib/customVoiceName";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -189,6 +190,29 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to create voice",
       details: "We couldn't securely save this voice. Please try again.",
+    });
+  });
+
+  it("rejects voice names that exceed the supported persisted length", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "a".repeat(MAX_CUSTOM_VOICE_NAME_CHARACTERS + 1),
+        voiceDescription: "Measured, warm narration with a gentle documentary tone.",
+        generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createElevenLabsDesignedVoiceMock).not.toHaveBeenCalled();
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: `voiceName must be between 1 and ${MAX_CUSTOM_VOICE_NAME_CHARACTERS} characters.`,
     });
   });
 

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
-  listSavedVoicesForUser,
+  listSavedVoicesForUserWithDiagnostics,
   type SavedAiStudioVoice,
 } from "../../../lib/server/api/userSavedVoices";
 import { listElevenLabsVoices } from "../../../lib/server/elevenlabs";
@@ -39,8 +39,11 @@ export default async function handler(
   const user = await requireApiUser(req, res);
   if (!user) return;
   let savedVoices: SavedAiStudioVoice[] = [];
+  let savedVoicesWarning: string | null = null;
   try {
-    savedVoices = await listSavedVoicesForUser(user.id);
+    const savedVoiceResult = await listSavedVoicesForUserWithDiagnostics(user.id);
+    savedVoices = savedVoiceResult.voices;
+    savedVoicesWarning = savedVoiceResult.warning;
   } catch (persistenceError) {
     await logApiRouteException({
       req,
@@ -49,6 +52,7 @@ export default async function handler(
       scope: "generation",
       user,
     });
+    savedVoicesWarning = "Some saved voices are temporarily unavailable. Please try again.";
   }
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
@@ -60,7 +64,11 @@ export default async function handler(
       providerVoices: await listElevenLabsVoices(),
       savedVoices,
     });
-    return res.status(200).json({ voices, source: "api" });
+    return res.status(200).json({
+      voices,
+      source: "api",
+      ...(savedVoicesWarning ? { warning: savedVoicesWarning } : {}),
+    });
   } catch (error) {
     await logApiRouteException({
       req,

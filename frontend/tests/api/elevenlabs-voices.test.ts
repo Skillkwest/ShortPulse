@@ -4,7 +4,7 @@ import { EXCLUDED_ELEVENLABS_VOICE_IDS } from "../../lib/server/elevenlabsVoiceE
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-const listSavedVoicesForUserMock = vi.fn();
+const listSavedVoicesForUserWithDiagnosticsMock = vi.fn();
 const listElevenLabsVoicesMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -16,7 +16,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/userSavedVoices", () => ({
-  listSavedVoicesForUser: (...args: unknown[]) => listSavedVoicesForUserMock(...args),
+  listSavedVoicesForUserWithDiagnostics: (...args: unknown[]) =>
+    listSavedVoicesForUserWithDiagnosticsMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -34,23 +35,30 @@ describe("GET /api/elevenlabs/voices", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
+    listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
+      voices: [],
+      warning: null,
+    });
   });
 
   it("returns merged live and saved voices when available", async () => {
-    listSavedVoicesForUserMock.mockResolvedValue([
-      {
-        voiceId: "custom-1",
-        name: "Custom Voice",
-        previewUrl: "https://example.com/preview.mp3",
-        description: "Saved by user",
-        provider: "elevenlabs",
-        isFallback: false,
-        createdAt: new Date().toISOString(),
-        originKind: "provider-saved",
-        savedSource: "provider-save",
-        providerDeleteEligible: false,
-      },
-    ]);
+    listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
+      voices: [
+        {
+          voiceId: "custom-1",
+          name: "Custom Voice",
+          previewUrl: "https://example.com/preview.mp3",
+          description: "Saved by user",
+          provider: "elevenlabs",
+          isFallback: false,
+          createdAt: new Date().toISOString(),
+          originKind: "provider-saved",
+          savedSource: "provider-save",
+          providerDeleteEligible: false,
+        },
+      ],
+      warning: null,
+    });
     listElevenLabsVoicesMock.mockResolvedValue([
       {
         voiceId: "voice-live-1",
@@ -105,7 +113,6 @@ describe("GET /api/elevenlabs/voices", () => {
   });
 
   it("does not expose unowned provider-created voices to other users", async () => {
-    listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
       {
         voiceId: "voice-created-1",
@@ -138,21 +145,24 @@ describe("GET /api/elevenlabs/voices", () => {
   });
 
   it("keeps the saved sample preview when a matching live provider voice has no preview", async () => {
-    listSavedVoicesForUserMock.mockResolvedValue([
-      {
-        voiceId: "voice-created-1",
-        name: "Created Voice",
-        previewUrl: "https://signed.example.com/created-sample.mp3",
-        description: "Saved sample preview",
-        provider: "elevenlabs",
-        isFallback: false,
-        createdAt: new Date().toISOString(),
-        originKind: "provider-user-created",
-        savedSource: "text-to-voice-create",
-        providerDeleteEligible: true,
-        sampleStoragePath: "user-1/voice-samples/voice-created-1/sample.mp3",
-      },
-    ]);
+    listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
+      voices: [
+        {
+          voiceId: "voice-created-1",
+          name: "Created Voice",
+          previewUrl: "https://signed.example.com/created-sample.mp3",
+          description: "Saved sample preview",
+          provider: "elevenlabs",
+          isFallback: false,
+          createdAt: new Date().toISOString(),
+          originKind: "provider-user-created",
+          savedSource: "text-to-voice-create",
+          providerDeleteEligible: true,
+          sampleStoragePath: "user-1/voice-samples/voice-created-1/sample.mp3",
+        },
+      ],
+      warning: null,
+    });
     listElevenLabsVoicesMock.mockResolvedValue([
       {
         voiceId: "voice-created-1",
@@ -188,7 +198,6 @@ describe("GET /api/elevenlabs/voices", () => {
   });
 
   it("excludes configured provider voices from the voices catalog", async () => {
-    listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
       {
         voiceId: "voice-live-1",
@@ -246,7 +255,6 @@ describe("GET /api/elevenlabs/voices", () => {
 
   it("falls back to the default catalog when the API key is missing", async () => {
     process.env.ELEVENLABS_API_KEY = "";
-    listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockRejectedValue(new Error("should not be called"));
 
     const req = {
@@ -278,7 +286,6 @@ describe("GET /api/elevenlabs/voices", () => {
 
   it("falls back to defaults on live voice lookup failures", async () => {
     process.env.ELEVENLABS_API_KEY = "sk_live_mock";
-    listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockRejectedValue(new Error("provider unavailable"));
 
     const req = {
@@ -305,5 +312,44 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.voices[0]?.librarySection).toBe("default");
     expect(payload.voices[0]?.destructiveAction).toBe("none");
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces an api warning when the saved custom voice ledger is temporarily unavailable", async () => {
+    listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
+      voices: [],
+      warning: "Some saved custom voices may be temporarily unavailable. Please try again.",
+    });
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-live-1",
+        name: "Darian",
+        previewUrl: null,
+        description: "Warm, grounded storyteller",
+        isFallback: false,
+        providerCategory: "premade",
+        providerVoiceType: "default",
+      },
+    ]);
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const payload = res.json.mock.calls[0]?.[0] as {
+      source: "api" | "fallback";
+      warning?: string;
+      voices: Array<{ voiceId: string }>;
+    };
+    expect(payload.source).toBe("api");
+    expect(payload.warning).toBe(
+      "Some saved custom voices may be temporarily unavailable. Please try again."
+    );
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([expect.objectContaining({ voiceId: "voice-live-1" })])
+    );
   });
 });

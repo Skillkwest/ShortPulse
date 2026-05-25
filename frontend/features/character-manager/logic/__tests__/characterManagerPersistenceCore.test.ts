@@ -257,6 +257,108 @@ describe("characterManagerPersistenceCore", () => {
     ]);
   });
 
+  it("prefers the active preset portrait slot for character chip avatars", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
+          "https://signed.example/look-2-portrait-thumb.webp",
+        ],
+      ])
+    );
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "characters") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "char-1",
+                  name: "Hero",
+                  description: "",
+                  status: "draft",
+                  updated_at: "2026-04-25T00:00:00.000Z",
+                  metadata: {
+                    character_sheet_presets_v1: {
+                      active_preset_id: "2",
+                      tab_order: ["1", "2"],
+                      tab_labels: {
+                        "1": "1",
+                        "2": "2",
+                      },
+                      tab_descriptions: {
+                        "1": "",
+                        "2": "",
+                      },
+                      presets: {
+                        "1": {
+                          portrait: {
+                            character_media_id: "media-look-1-portrait",
+                            storage_path: "user-1/characters/char-1/presets/look-1-portrait.png",
+                            preview_storage_path:
+                              "user-1/variants/characters/char-1/presets/look-1-portrait-thumb.webp",
+                          },
+                        },
+                        "2": {
+                          portrait: {
+                            character_media_id: "media-look-2-portrait",
+                            storage_path: "user-1/characters/char-1/presets/look-2-portrait.png",
+                            preview_storage_path:
+                              "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              ]),
+          };
+        }
+        if (table === "character_reference_packs") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "sheet-1",
+                  character_id: "char-1",
+                  status: "ready",
+                  version: 2,
+                },
+              ]),
+          };
+        }
+        if (table === "character_reference_images") {
+          return {
+            select: () => createAwaitableQuery([]),
+          };
+        }
+        throw new Error(`Unexpected table lookup: ${table}`);
+      }),
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+
+    const result = await fetchCharacterManagerList();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        characterId: "char-1",
+        profileImageUrl: "https://signed.example/look-2-portrait-thumb.webp",
+        profileImageCharacterMediaId: "media-look-2-portrait",
+        profileImageStoragePath: "user-1/characters/char-1/presets/look-2-portrait.png",
+        profileImagePreviewStoragePath:
+          "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
+        profileImageTransform: null,
+      }),
+    ]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: [
+        "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
+        "user-1/characters/char-1/presets/look-2-portrait.png",
+      ],
+      surface: "character-grid",
+    });
+  });
+
   it("cleans up the created character row when initial sheet creation fails", async () => {
     const deletedCharacterIds: string[] = [];
     ensureSupabaseQueryClientMock.mockReturnValue({

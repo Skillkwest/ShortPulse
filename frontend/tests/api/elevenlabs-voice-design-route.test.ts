@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/text-to-voice/design";
+import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../lib/customVoiceName";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -81,6 +82,26 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
       ],
       previewText: "Preview sample",
       modelId: "eleven_multilingual_ttv_v2",
+    });
+  });
+
+  it("rejects voice names that exceed the supported persisted length", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "a".repeat(MAX_CUSTOM_VOICE_NAME_CHARACTERS + 1),
+        voiceDescription: "Warm, intimate late-night radio host with crisp diction.",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(designElevenLabsVoiceMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: `voiceName must be between 1 and ${MAX_CUSTOM_VOICE_NAME_CHARACTERS} characters.`,
     });
   });
 });

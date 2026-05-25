@@ -530,6 +530,27 @@ export const getCharacterSheetPresetState = (
   });
 };
 
+const resolveCharacterListAvatarFromPresetState = (
+  metadata: unknown,
+  options?: {
+    legacyCharacterDescription?: string | null;
+  }
+): CharacterSheetPresetMediaReference | null => {
+  const presetState = getCharacterSheetPresetState(metadata, options);
+  if (!presetState) return null;
+  const orderedPresetIds = [
+    presetState.activePresetId,
+    ...presetState.tabOrder.filter((presetId) => presetId !== presetState.activePresetId),
+  ];
+  for (const presetId of orderedPresetIds) {
+    const portraitReference = presetState.presets[presetId]?.portrait ?? null;
+    if (portraitReference?.storagePath?.trim()) {
+      return portraitReference;
+    }
+  }
+  return null;
+};
+
 /**
  * Convert look state to the persisted metadata shape.
  */
@@ -1083,7 +1104,14 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   const profilePathByCharacter = new Map<string, string>();
   const profileMediaIdByCharacter = new Map<string, string>();
   const profileTransformByCharacter = new Map<string, CharacterProfileImageTransform>();
+  const presetAvatarByCharacter = new Map<string, CharacterSheetPresetMediaReference>();
   for (const row of typedCharacterRows) {
+    const presetAvatarReference = resolveCharacterListAvatarFromPresetState(row.metadata, {
+      legacyCharacterDescription: row.description,
+    });
+    if (presetAvatarReference) {
+      presetAvatarByCharacter.set(row.id, presetAvatarReference);
+    }
     const profileMetadata = getCharacterProfileImageMetadata(row.metadata);
     if (profileMetadata.storagePath) {
       profilePathByCharacter.set(row.id, profileMetadata.storagePath);
@@ -1141,8 +1169,12 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   const avatarPreviewPathByCharacter = new Map<string, string>();
   const avatarPreviewPathCandidatesByCharacter = new Map<string, string[]>();
   for (const row of typedCharacterRows) {
+    const presetAvatar = presetAvatarByCharacter.get(row.id) ?? null;
     const preferredPath =
-      profilePathByCharacter.get(row.id) ?? fallbackAvatarPathByCharacter.get(row.id) ?? null;
+      presetAvatar?.storagePath?.trim() ||
+      profilePathByCharacter.get(row.id) ||
+      fallbackAvatarPathByCharacter.get(row.id) ||
+      null;
     if (preferredPath) {
       avatarPathByCharacter.set(row.id, preferredPath);
     }
@@ -1150,11 +1182,15 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     const profileMediaRow = profileMediaId
       ? (profileMediaRowById.get(profileMediaId) ?? null)
       : null;
-    const previewPathCandidates = profileMediaRow
-      ? resolveSignedPreviewCandidatePaths(profileMediaRow, preferredPath ?? "", userId)
-      : preferredPath
-        ? [preferredPath]
-        : [];
+    const previewPathCandidates = presetAvatar
+      ? [presetAvatar.previewStoragePath?.trim(), presetAvatar.storagePath?.trim()].filter(
+          (path): path is string => Boolean(path)
+        )
+      : profileMediaRow
+        ? resolveSignedPreviewCandidatePaths(profileMediaRow, preferredPath ?? "", userId)
+        : preferredPath
+          ? [preferredPath]
+          : [];
     avatarPreviewPathCandidatesByCharacter.set(row.id, previewPathCandidates);
     const previewPath = previewPathCandidates[0] ?? null;
     if (previewPath) {
@@ -1181,11 +1217,12 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
       if (resolvedPreviewStoragePath) {
         avatarPreviewPathByCharacter.set(characterId, resolvedPreviewStoragePath);
       }
+      const presetAvatar = presetAvatarByCharacter.get(characterId) ?? null;
       avatarUrlByCharacter.set(
         characterId,
         resolvedPreviewStoragePath
           ? (signedUrlByStoragePath.get(resolvedPreviewStoragePath) ?? null)
-          : null
+          : (presetAvatar?.previewUrl ?? null)
       );
     }
   }
@@ -1194,16 +1231,20 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     .map((row) => {
       const latestCharacterSheet = latestCharacterSheetByCharacter.get(row.id);
       if (!latestCharacterSheet) return null;
+      const presetAvatar = presetAvatarByCharacter.get(row.id) ?? null;
       const item: CharacterManagerListItem = {
         characterId: row.id,
         characterName: row.name?.trim() || DEFAULT_CHARACTER_NAME,
         characterStatus: row.status,
         characterSheetId: latestCharacterSheet.id,
         profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
-        profileImageCharacterMediaId: profileMediaIdByCharacter.get(row.id) ?? null,
+        profileImageCharacterMediaId:
+          presetAvatar?.characterMediaId ?? profileMediaIdByCharacter.get(row.id) ?? null,
         profileImageStoragePath: avatarPathByCharacter.get(row.id) ?? null,
         profileImagePreviewStoragePath: avatarPreviewPathByCharacter.get(row.id) ?? null,
-        profileImageTransform: profileTransformByCharacter.get(row.id) ?? null,
+        profileImageTransform: presetAvatar
+          ? null
+          : (profileTransformByCharacter.get(row.id) ?? null),
         characterSheetStatus: latestCharacterSheet.status,
         updatedAt: row.updated_at,
       };

@@ -32,7 +32,6 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   promptTokenInlineError: string | null;
   handleInlineGenerate: () => void;
   inlineGenerateDisabled: boolean;
-  resolvedInlineGenerateBusy: boolean;
   costCredits?: number | null;
   inlineGuardrailReason?: string | null;
   effectiveSelectorModelId: string | null;
@@ -102,7 +101,6 @@ export function useExpertEditPanelComposerRuntime({
   promptTokenInlineError,
   handleInlineGenerate,
   inlineGenerateDisabled,
-  resolvedInlineGenerateBusy,
   costCredits = null,
   inlineGuardrailReason = null,
   effectiveSelectorModelId,
@@ -169,7 +167,6 @@ export function useExpertEditPanelComposerRuntime({
       promptTokenInlineError={promptTokenInlineError}
       onGenerate={handleInlineGenerate}
       inlineGenerateDisabled={inlineGenerateDisabled}
-      isGenerateBusy={resolvedInlineGenerateBusy}
       costCredits={costCredits}
       inlineGuardrailReason={inlineGuardrailReason}
       modelId={effectiveSelectorModelId}

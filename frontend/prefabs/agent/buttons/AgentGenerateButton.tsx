@@ -1,30 +1,24 @@
 /**
  * Primary call-to-action prefab for generating outputs with the agent.
- * Shared across prompt panels so cost/label layout stays consistent.
+ * Shared across prompt panels so cost/label layout stays consistent while
+ * keeping Generate availability validation-only rather than in-flight-busy driven.
  */
 import React from "react";
 
 type AgentGenerateButtonProps = {
   onClick: () => void;
   disabled?: boolean;
-  isBusy?: boolean;
   cost: number | string;
 };
 
-export function AgentGenerateButton({
-  onClick,
-  disabled = false,
-  isBusy = false,
-  cost,
-}: AgentGenerateButtonProps) {
+export function AgentGenerateButton({ onClick, disabled = false, cost }: AgentGenerateButtonProps) {
   return (
     <button
       type="button"
-      className={`agent-generate-prefab ${isBusy ? "is-busy" : ""}`.trim()}
+      className="agent-generate-prefab"
       onClick={onClick}
       disabled={disabled}
       aria-label="Generate"
-      aria-busy={isBusy || undefined}
     >
       <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">

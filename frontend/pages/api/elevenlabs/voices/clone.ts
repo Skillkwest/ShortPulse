@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { validateCustomVoiceName } from "../../../../lib/customVoiceName";
 import { assertUserScopedMediaStoragePath } from "../../../../lib/mediaStoragePath";
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
@@ -91,6 +92,14 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid request",
         details: "voiceName and sourceStoragePath are required.",
+      });
+    }
+
+    const voiceNameValidationError = validateCustomVoiceName(voiceName);
+    if (voiceNameValidationError) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: voiceNameValidationError,
       });
     }
 

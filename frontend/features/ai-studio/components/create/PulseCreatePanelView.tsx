@@ -46,6 +46,7 @@ const PulseCreatePanelViewContent = ({
   createModeToggle = null,
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
+  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   isPulseActivationBusy = false,
@@ -72,6 +73,21 @@ const PulseCreatePanelViewContent = ({
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const isPulseSessionLocked = isPulseActivationBusy || isPromptGenerating;
+  const shouldRestartActivePreset = React.useCallback(
+    (presetId: CreatePulsePresetId) =>
+      presetId === activePulsePresetId &&
+      isActivePulseSession &&
+      !hasVisibleAgentMessages &&
+      !pulseWorkflowSession &&
+      !hasPulseLoadingSurface,
+    [
+      activePulsePresetId,
+      hasPulseLoadingSurface,
+      hasVisibleAgentMessages,
+      isActivePulseSession,
+      pulseWorkflowSession,
+    ]
+  );
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
@@ -149,6 +165,7 @@ const PulseCreatePanelViewContent = ({
               savedPresets={savedPulsePresets}
               onSavedPresetsChange={onSavedPulsePresetsChange}
               onOpenPresetsLibrary={onOpenPresetsLibrary}
+              shouldRestartActivePreset={shouldRestartActivePreset}
             />
           </div>
         </div>

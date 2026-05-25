@@ -140,7 +140,7 @@ describe("PulseCreatePropertiesPanel", () => {
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 
-  it("mounts Pulse generate in composer-leading content and keeps guardrail copy separate", () => {
+  it("mounts Pulse generate in composer-leading content without button busy semantics", () => {
     render(
       <PulseCreatePropertiesPanel
         {...baseProps}
@@ -155,7 +155,7 @@ describe("PulseCreatePropertiesPanel", () => {
       within(screen.getByTestId("pulse-leading-content")).getByRole("button", {
         name: "Generate",
       })
-    ).toHaveAttribute("aria-busy", "true");
+    ).not.toHaveAttribute("aria-busy");
     expect(
       within(screen.getByTestId("pulse-middle-content")).getByText(
         "Complete the active Pulse before generating."

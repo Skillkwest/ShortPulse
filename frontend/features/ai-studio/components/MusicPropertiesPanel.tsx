@@ -721,14 +721,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     type="button"
                     className="music-properties-generate-btn"
                     disabled={!isGenerateEnabled}
-                    aria-label={isGenerating ? "Generating music" : "Generate music"}
+                    aria-label="Generate music"
                     onClick={() => {
                       void handleGenerate();
                     }}
                   >
-                    <span className="music-properties-generate-label">
-                      {isGenerating ? "Generating..." : "Generate"}
-                    </span>
+                    <span className="music-properties-generate-label">Generate</span>
                     <span className="music-properties-generate-pill" aria-hidden="true">
                       <span className="music-properties-generate-cost-icon">✦</span>
                       <span className="music-properties-generate-cost-value">

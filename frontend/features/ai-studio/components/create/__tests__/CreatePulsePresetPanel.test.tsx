@@ -468,6 +468,41 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
+  it("restarts kickoff when the active pulse has an empty unrecoverable session", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue({ status: "started" as const });
+
+    render(
+      <CreatePulsePresetPanel
+        activePresetId="image"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+        shouldRestartActivePreset={(presetId) => presetId === "image"}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
+
+    await waitFor(() => {
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({ presetId: "image" }),
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+          allowInterruptCurrentPulse: false,
+        })
+      );
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "image",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
+    });
+  });
+
   it("opens the Pulses surface and saves a custom preset override without hidden workflow metadata", async () => {
     const onSavedPresetsChange = vi.fn();
 

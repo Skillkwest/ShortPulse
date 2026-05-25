@@ -30,4 +30,24 @@ describe("resolvePulseCreateAgentTransportSuccess", () => {
       "Cinematic 16:9 final prompt.\nSummary: keep this exact line."
     );
   });
+
+  it("uses the active workflow step prompt when the kickoff message is empty", () => {
+    const result = resolvePulseCreateAgentTransportSuccess({
+      message: "   ",
+      actions: null,
+      workflowSession: {
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepIndex: 1,
+        currentStepLabel: "Image Gate",
+        currentStepPrompt: "Upload your image to get the process started TEST",
+        collectedInputs: [],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
+    });
+
+    expect(result.assistantContent).toBe("Upload your image to get the process started TEST");
+    expect(result.assistantOutputPrompt).toBeNull();
+  });
 });

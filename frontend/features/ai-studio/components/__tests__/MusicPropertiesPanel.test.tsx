@@ -513,10 +513,8 @@ describe("MusicPropertiesPanel", () => {
       target: { value: "Minimal synth bed with a bright branded tag." },
     });
 
-    expect(screen.getByRole("button", { name: "Generating music" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Generating music" })).toHaveTextContent(
-      "Generating..."
-    );
+    expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate music" })).toHaveTextContent("Generate");
   });
 
   it("keeps inspiration chips interactive while generation is running", () => {
@@ -527,7 +525,7 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Music prompt" })).toHaveValue(
       "Heavy riddim drop with aggressive bass growls, sharp syncopation, stripped-down tension builds, festival-scale energy, and a dark modern sound design focus built for impact."
     );
-    expect(screen.getByRole("button", { name: "Generating music" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
   });
 
   it("keeps the prompt counter in sync locally", () => {

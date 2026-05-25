@@ -222,8 +222,8 @@ describe("CharacterPanelWorkspace", () => {
     const charactersButton = screen.getByRole("button", { name: "Characters" });
     const charactersIcon = charactersButton.querySelector("svg");
     expect(charactersIcon).not.toBeNull();
-    expect(charactersIcon).toHaveAttribute("width", "44");
-    expect(charactersIcon).toHaveAttribute("height", "44");
+    expect(charactersIcon).toHaveAttribute("width", "36");
+    expect(charactersIcon).toHaveAttribute("height", "36");
   });
 
   it("opens the saved character grid inside the Characters modal", () => {

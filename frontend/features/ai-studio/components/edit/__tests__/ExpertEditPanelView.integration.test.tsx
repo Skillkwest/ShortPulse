@@ -126,7 +126,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -188,7 +187,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -238,7 +236,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -308,7 +305,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -377,7 +373,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -437,7 +432,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
@@ -482,7 +476,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        isGenerateBusy={false}
         guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}

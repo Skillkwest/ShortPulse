@@ -756,7 +756,6 @@ export function StandardCreatePropertiesPanel({
             onClick={onGenerate}
             costCredits={costCredits}
             disabled={isGenerateDisabled}
-            isBusy={isPromptGenerating}
           />
         </div>
       </div>

@@ -62,7 +62,6 @@ export type ExpertEditPanelViewProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
-  isGenerateBusy?: boolean;
   guardrailReason?: string | null;
   isPrimaryStageGenerating?: boolean;
   referenceImageWarning?: string | null;

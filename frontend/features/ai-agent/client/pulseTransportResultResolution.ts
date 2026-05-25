@@ -86,11 +86,16 @@ export const resolvePulseCreateAgentTransportSuccess = (
       ? (normalizeExactArtifactText(workflowSession.lastArtifact) ?? "")
       : "";
   const messageText = typeof response.message === "string" ? response.message.trim() : "";
+  const workflowStepPrompt =
+    workflowSession?.status !== "completed"
+      ? (normalizeExactArtifactText(workflowSession?.currentStepPrompt) ?? "")
+      : "";
   return {
     actions,
     workflowSession,
     canonicalPrompt,
-    assistantContent: completedChatReplyArtifact || applyPromptText || messageText,
+    assistantContent:
+      completedChatReplyArtifact || applyPromptText || messageText || workflowStepPrompt,
     assistantOutputPrompt: completedChatReplyArtifact || applyPromptText || null,
   };
 };

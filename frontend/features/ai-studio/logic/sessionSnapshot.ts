@@ -712,14 +712,23 @@ export const buildAiStudioSessionSnapshot = (
     }
   );
   const resolvedExpertCreateMode = resolvedPulseWorkspaceState.expertCreateMode;
-  const resolvedStandardCreatePrompt =
-    input.standardCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? "" : input.prompt);
-  const resolvedPulseCreatePrompt =
-    resolvedExpertCreateMode === "pulse" ? (input.pulseCreatePrompt ?? input.prompt) : "";
   const {
     activePulsePresetId: resolvedActivePulsePresetId,
     pulseSessionInstanceId: resolvedPulseSessionInstanceId,
   } = resolvedPulseWorkspaceState;
+  const shouldPersistPulseWorkspaceState =
+    resolvedExpertCreateMode === "pulse" || resolvedPulseSessionInstanceId !== null;
+  const resolvedStandardCreatePrompt =
+    input.standardCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? "" : input.prompt);
+  const resolvedPulseCreatePrompt = shouldPersistPulseWorkspaceState
+    ? (input.pulseCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? input.prompt : ""))
+    : "";
+  const persistedActivePulsePresetId = shouldPersistPulseWorkspaceState
+    ? resolvedActivePulsePresetId
+    : null;
+  const persistedPulseSessionInstanceId = shouldPersistPulseWorkspaceState
+    ? resolvedPulseSessionInstanceId
+    : null;
   const canvas = input.canvasState
     ? serializeAiStudioSessionCanvasState(input.canvasState)
     : undefined;
@@ -736,7 +745,7 @@ export const buildAiStudioSessionSnapshot = (
   });
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   const hasPulseWorkspaceAuthority =
-    resolvedExpertCreateMode === "pulse" && resolvedActivePulsePresetId !== null;
+    persistedActivePulsePresetId !== null && persistedPulseSessionInstanceId !== null;
   const resolveAuthorizedPulseAgentRuntime = (
     runtime: AiStudioSessionAgentV1
   ): AiStudioSessionAgentV1 =>
@@ -755,13 +764,13 @@ export const buildAiStudioSessionSnapshot = (
           input.agentRuntimes.pulseSessionInstanceId?.trim() || null;
         const hasMatchingPulseRuntimeAuthority =
           hasPulseWorkspaceAuthority &&
-          inputPulsePresetId === resolvedActivePulsePresetId &&
-          inputPulseSessionInstanceId === resolvedPulseSessionInstanceId;
+          inputPulsePresetId === persistedActivePulsePresetId &&
+          inputPulseSessionInstanceId === persistedPulseSessionInstanceId;
         return {
           standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
-          pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
+          pulsePresetId: hasPulseWorkspaceAuthority ? persistedActivePulsePresetId : null,
           pulseSessionInstanceId: hasPulseWorkspaceAuthority
-            ? resolvedPulseSessionInstanceId
+            ? persistedPulseSessionInstanceId
             : null,
           pulse: hasMatchingPulseRuntimeAuthority
             ? resolveAuthorizedPulseAgentRuntime(sanitizeAgentRuntime(input.agentRuntimes.pulse))
@@ -769,12 +778,13 @@ export const buildAiStudioSessionSnapshot = (
         };
       })()
     : {
-        standard: hasPulseWorkspaceAuthority ? emptyAgentRuntime : activeAgentRuntime,
-        pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
-        pulseSessionInstanceId: hasPulseWorkspaceAuthority ? resolvedPulseSessionInstanceId : null,
-        pulse: hasPulseWorkspaceAuthority
-          ? resolveAuthorizedPulseAgentRuntime(activeAgentRuntime)
-          : emptyAgentRuntime,
+        standard: resolvedExpertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
+        pulsePresetId: hasPulseWorkspaceAuthority ? persistedActivePulsePresetId : null,
+        pulseSessionInstanceId: hasPulseWorkspaceAuthority ? persistedPulseSessionInstanceId : null,
+        pulse:
+          hasPulseWorkspaceAuthority && resolvedExpertCreateMode === "pulse"
+            ? resolveAuthorizedPulseAgentRuntime(activeAgentRuntime)
+            : emptyAgentRuntime,
       };
 
   const basePayload = {
@@ -792,8 +802,8 @@ export const buildAiStudioSessionSnapshot = (
       selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
       selectedCharacterLookId: sanitizeSelectedCharacterId(input.selectedCharacterLookId),
       expertCreateMode: resolvedExpertCreateMode,
-      activePulsePresetId: resolvedActivePulsePresetId,
-      pulseSessionInstanceId: resolvedPulseSessionInstanceId,
+      activePulsePresetId: persistedActivePulsePresetId,
+      pulseSessionInstanceId: persistedPulseSessionInstanceId,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
       extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
       editReferenceText: input.editReferenceText,

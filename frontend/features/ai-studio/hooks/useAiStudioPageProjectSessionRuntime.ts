@@ -20,10 +20,7 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 import { isCreateCharacterModeModel } from "../logic/createCharacterModeModelMapping";
 import { resolveCreateWorkflowStartupModel } from "../logic/modelSelectionPolicy";
 import { getModelConfig } from "../logic/pricing";
-import {
-  shouldApplySessionAgentHydrationToRuntime,
-  type CreateRuntimeAgentHydrationPayload,
-} from "../createRuntime/sessionAgentHydrationBoundary";
+import { type CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioPageSessionPersistence } from "./useAiStudioPageSessionPersistence";
 
 type UseAiStudioPageProjectSessionRuntimeParams = {
@@ -44,18 +41,25 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   getExpertEditSessionState: () => ExpertEditSessionState | null;
   hasActivePulseSession: boolean;
   hydrateActiveFromSessionAgentSnapshot: (payload: CreateRuntimeAgentHydrationPayload) => void;
+  hydratePulseFromSessionAgentSnapshot?: (payload: CreateRuntimeAgentHydrationPayload) => void;
+  hydrateStandardFromSessionAgentSnapshot?: (payload: CreateRuntimeAgentHydrationPayload) => void;
   hydrateCanvasSessionState: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   pendingCreateRuntimeAgentHydrationRef: MutableRefObject<CreateRuntimeAgentHydrationPayload | null>;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
+  persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
+  persistedStandardAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
   projectId: string | null;
   projectRouteRequested: boolean;
+  pulseSessionInstanceId?: string | null;
   pulseWorkflowSession:
     | CreatePageAgentRuntime["persistedAgentRuntime"]["pulseWorkflowSession"]
     | null;
   resetActiveProjectAgentConversation: () => void;
+  resetPulseProjectAgentConversation?: () => void;
+  resetStandardProjectAgentConversation?: () => void;
   sessionPersistenceTitleOverride: string | null;
   setCreateSelectedCharacterId: (value: string) => void;
   setCreateSelectedCharacterLookId: (value: string) => void;
@@ -116,14 +120,21 @@ export const useAiStudioPageProjectSessionRuntime = ({
   getExpertEditSessionState,
   hasActivePulseSession,
   hydrateActiveFromSessionAgentSnapshot,
+  hydratePulseFromSessionAgentSnapshot,
+  hydrateStandardFromSessionAgentSnapshot,
   hydrateCanvasSessionState,
   hydrateFromSessionSnapshot,
   pendingCreateRuntimeAgentHydrationRef,
   persistedAgentRuntime,
+  persistedPulseAgentRuntime,
+  persistedStandardAgentRuntime,
   projectId,
   projectRouteRequested,
+  pulseSessionInstanceId = null,
   pulseWorkflowSession,
   resetActiveProjectAgentConversation,
+  resetPulseProjectAgentConversation,
+  resetStandardProjectAgentConversation,
   sessionPersistenceTitleOverride,
   setCreateSelectedCharacterId,
   setCreateSelectedCharacterLookId,
@@ -136,57 +147,74 @@ export const useAiStudioPageProjectSessionRuntime = ({
   setVoiceDesignPromptDraft,
   setVoiceScriptDraft,
 }: UseAiStudioPageProjectSessionRuntimeParams) => {
+  const fallbackHydrateStandardFromSessionAgentSnapshot =
+    activeCreateAgentKind === "standard" ? hydrateActiveFromSessionAgentSnapshot : undefined;
+  const fallbackHydratePulseFromSessionAgentSnapshot =
+    activeCreateAgentKind === "pulse" ? hydrateActiveFromSessionAgentSnapshot : undefined;
+  const resolvedHydrateStandardFromSessionAgentSnapshot =
+    hydrateStandardFromSessionAgentSnapshot ?? fallbackHydrateStandardFromSessionAgentSnapshot;
+  const resolvedHydratePulseFromSessionAgentSnapshot =
+    hydratePulseFromSessionAgentSnapshot ?? fallbackHydratePulseFromSessionAgentSnapshot;
+  const resolvedResetStandardProjectAgentConversation =
+    resetStandardProjectAgentConversation ??
+    (activeCreateAgentKind === "standard" ? resetActiveProjectAgentConversation : undefined);
+  const resolvedResetPulseProjectAgentConversation =
+    resetPulseProjectAgentConversation ??
+    (activeCreateAgentKind === "pulse" ? resetActiveProjectAgentConversation : undefined);
+  const resolvedPersistedStandardAgentRuntime =
+    persistedStandardAgentRuntime ??
+    (activeCreateAgentKind === "standard"
+      ? persistedAgentRuntime
+      : createEmptyAiStudioSessionAgentState());
+  const resolvedPersistedPulseAgentRuntime =
+    persistedPulseAgentRuntime ??
+    (activeCreateAgentKind === "pulse"
+      ? persistedAgentRuntime
+      : createEmptyAiStudioSessionAgentState());
+  const hasStoredPulseRuntime =
+    Boolean(activeCreatePulsePresetId) && Boolean(pulseSessionInstanceId);
+
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
-    () =>
-      activeCreateAgentKind === "pulse"
-        ? {
-            standard: createEmptyAiStudioSessionAgentState(),
-            pulsePresetId: activeCreatePulsePresetId,
-            pulseSessionInstanceId: null,
-            pulse: persistedAgentRuntime,
-          }
-        : {
-            standard: persistedAgentRuntime,
-            pulsePresetId: null,
-            pulseSessionInstanceId: null,
-            pulse: createEmptyAiStudioSessionAgentState(),
-          },
-    [activeCreateAgentKind, activeCreatePulsePresetId, persistedAgentRuntime]
+    () => ({
+      standard: resolvedPersistedStandardAgentRuntime,
+      pulsePresetId: hasStoredPulseRuntime ? activeCreatePulsePresetId : null,
+      pulseSessionInstanceId: hasStoredPulseRuntime ? pulseSessionInstanceId : null,
+      pulse: hasStoredPulseRuntime
+        ? resolvedPersistedPulseAgentRuntime
+        : createEmptyAiStudioSessionAgentState(),
+    }),
+    [
+      activeCreatePulsePresetId,
+      hasStoredPulseRuntime,
+      pulseSessionInstanceId,
+      resolvedPersistedPulseAgentRuntime,
+      resolvedPersistedStandardAgentRuntime,
+    ]
   );
 
   const resetProjectAgentConversation = useCallback(() => {
-    resetActiveProjectAgentConversation();
-  }, [resetActiveProjectAgentConversation]);
+    resolvedResetStandardProjectAgentConversation?.();
+    resolvedResetPulseProjectAgentConversation?.();
+  }, [resolvedResetPulseProjectAgentConversation, resolvedResetStandardProjectAgentConversation]);
 
   const hydrateFromSessionAgentSnapshot = useCallback(
     (payload: CreateRuntimeAgentHydrationPayload) => {
-      if (!shouldApplySessionAgentHydrationToRuntime(payload, activeCreateAgentKind)) {
-        pendingCreateRuntimeAgentHydrationRef.current = payload;
-        return;
-      }
       pendingCreateRuntimeAgentHydrationRef.current = null;
-      hydrateActiveFromSessionAgentSnapshot(payload);
+      resolvedHydrateStandardFromSessionAgentSnapshot?.(payload);
+      resolvedHydratePulseFromSessionAgentSnapshot?.(payload);
     },
     [
-      activeCreateAgentKind,
-      hydrateActiveFromSessionAgentSnapshot,
       pendingCreateRuntimeAgentHydrationRef,
+      resolvedHydratePulseFromSessionAgentSnapshot,
+      resolvedHydrateStandardFromSessionAgentSnapshot,
     ]
   );
 
   useEffect(() => {
-    const pendingPayload = pendingCreateRuntimeAgentHydrationRef.current;
-    if (!pendingPayload) return;
-    if (!shouldApplySessionAgentHydrationToRuntime(pendingPayload, activeCreateAgentKind)) {
-      return;
-    }
     pendingCreateRuntimeAgentHydrationRef.current = null;
-    hydrateActiveFromSessionAgentSnapshot(pendingPayload);
-  }, [
-    activeCreateAgentKind,
-    hydrateActiveFromSessionAgentSnapshot,
-    pendingCreateRuntimeAgentHydrationRef,
-  ]);
+    void hasActivePulseSession;
+    void pulseWorkflowSession;
+  }, [hasActivePulseSession, pendingCreateRuntimeAgentHydrationRef, pulseWorkflowSession]);
 
   const buildProjectAwareBaseSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>

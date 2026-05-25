@@ -402,7 +402,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
   });
 
-  it("clears Pulse prompt state when switching back to Standard mode", () => {
+  it("keeps Pulse prompt state when switching back to Standard mode", () => {
     const clearPulsePrompt = vi.fn();
     const handleExpertCreateModeChange = vi.fn();
     const { result } = renderHook(() =>
@@ -416,7 +416,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
       result.current.handleExpertCreateModeChangeForPage("standard");
     });
 
-    expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
+    expect(clearPulsePrompt).not.toHaveBeenCalled();
     expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
   });
 

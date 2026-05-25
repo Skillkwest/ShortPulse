@@ -22,6 +22,7 @@ type BuildPageSessionSnapshotArgs = {
 type StandardCreatePersistenceRuntime = {
   kind: "standard";
   agentRuntime: AiStudioSessionAgentV1;
+  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
 };
 
 type PulseCreatePersistenceRuntime = {
@@ -80,7 +81,7 @@ export const useAiStudioPageSessionPersistence = ({
       buildBaseSessionSnapshot({
         sessionId: activeSessionId,
         agentRuntime: createPersistenceRuntime.agentRuntime,
-        ...(createPersistenceRuntime.kind === "pulse"
+        ...(createPersistenceRuntime.agentRuntimes
           ? { agentRuntimes: createPersistenceRuntime.agentRuntimes }
           : {}),
       }),

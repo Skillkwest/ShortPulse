@@ -53,7 +53,8 @@ const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = "#141519";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.82)";
+const CHARACTER_TEXT_ENTRY_BACKGROUND = CHARACTER_PROFILE_WRAPPER_BACKGROUND;
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
@@ -122,17 +123,6 @@ const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   alignItems: "start",
 };
 const CHARACTER_FOLDER_ICON_SIZE_PX = 20;
-const CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND = "#131518";
-const CHARACTER_WORKSPACE_SURFACE_INLINE_STYLE = {
-  background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-  backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-  "--character-panel-card-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-  "--character-panel-wrapper-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-} as React.CSSProperties;
-const CHARACTER_LIBRARY_WORKSPACE_SURFACE_INLINE_STYLE: React.CSSProperties = {
-  background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-  backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-};
 const CHARACTER_FOLDER_ICON_INLINE_STYLE: React.CSSProperties = {
   flex: `0 0 ${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
   width: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
@@ -143,7 +133,12 @@ const CHARACTER_FOLDER_ICON_INLINE_STYLE: React.CSSProperties = {
   maxHeight: `${CHARACTER_FOLDER_ICON_SIZE_PX}px`,
   display: "block",
 };
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND;
+const CHARACTER_BUTTON_LABEL_INLINE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  lineHeight: 1,
+  minHeight: "20px",
+};
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "2px",
@@ -278,13 +273,14 @@ const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
   fontSize: "0.74rem",
   gap: "4px",
 };
+const CHARACTER_TOP_ACTION_BUTTON_SIDE_PX = 42;
 const CHARACTER_SAVE_ICON_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  width: "42px",
-  minWidth: "42px",
-  maxWidth: "42px",
-  height: "42px",
-  minHeight: "42px",
-  maxHeight: "42px",
+  width: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  minWidth: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  maxWidth: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  height: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  minHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  maxHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
   padding: 0,
   borderRadius: "12px",
 };
@@ -507,6 +503,7 @@ export function CharacterPanelWorkspace({
       padding: "0 24px",
       borderRadius: "12px",
       fontSize: "0.98rem",
+      lineHeight: 1,
     }),
     []
   );
@@ -561,6 +558,9 @@ export function CharacterPanelWorkspace({
       ...secondaryActionButtonStyle,
       width: "fit-content",
       minWidth: "fit-content",
+      height: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+      minHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
+      maxHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
       flex: "0 0 auto",
     }),
     [secondaryActionButtonStyle]
@@ -661,8 +661,6 @@ export function CharacterPanelWorkspace({
       display: "flex",
       flexDirection: "column",
       minHeight: "100%",
-      background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-      backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
     }),
     []
   );
@@ -964,7 +962,7 @@ export function CharacterPanelWorkspace({
   );
 
   return (
-    <div className="character-panel-workspace" style={CHARACTER_WORKSPACE_SURFACE_INLINE_STYLE}>
+    <div className="character-panel-workspace">
       {error ? (
         <div className="character-feedback error" role="status">
           <XCircle size={16} weight="fill" />
@@ -978,10 +976,7 @@ export function CharacterPanelWorkspace({
         {isSavingCharacter ? resolvedCharacterSaveProgressMessage : ""}
       </p>
 
-      <div
-        className="character-panel-library-workspace"
-        style={CHARACTER_LIBRARY_WORKSPACE_SURFACE_INLINE_STYLE}
-      >
+      <div className="character-panel-library-workspace">
         <section className="character-panel-editor-column">
           {loading || isSwitchingCharacter ? (
             <div className="character-panel-editor-column-panel">
@@ -1020,8 +1015,10 @@ export function CharacterPanelWorkspace({
                             aria-hidden
                             style={CHARACTER_FOLDER_ICON_INLINE_STYLE}
                           />
-                          Characters
+                          <span style={CHARACTER_BUTTON_LABEL_INLINE_STYLE}>Characters</span>
                         </button>
+                      </div>
+                      <div style={topRowSecondaryActionsStyle}>
                         {isSavingCharacter ? (
                           <span
                             id="character-save-progress-status"
@@ -1067,8 +1064,6 @@ export function CharacterPanelWorkspace({
                         >
                           <FloppyDisk size={20} weight="fill" aria-hidden />
                         </button>
-                      </div>
-                      <div style={topRowSecondaryActionsStyle}>
                         <button
                           type="button"
                           className="character-panel-action-btn character-panel-action-btn--picker-accent"

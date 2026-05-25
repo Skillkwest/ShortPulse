@@ -418,7 +418,6 @@ export const useStandardCreateAgentRuntime = ({
       workspace,
       agentRuntimes,
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
-      if (workspace.expertCreateMode !== "standard") return;
       const standardRuntime = agentRuntimes.standard;
       const restoredComposerState = resolveRestoredStandardComposerPrompt({
         workspacePrompt: workspace.standardPrompt,

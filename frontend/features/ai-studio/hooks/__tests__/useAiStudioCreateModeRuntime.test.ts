@@ -36,7 +36,7 @@ describe("useAiStudioCreateModeRuntime", () => {
     expect(result.current.pulseWorkflowSession).toBeNull();
   });
 
-  it("clears Pulse runtime when switching back to standard mode through the UI handler", () => {
+  it("preserves the hidden Pulse runtime when switching back to standard mode through the UI handler", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({
@@ -52,12 +52,12 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.expertCreateMode).toBe("standard");
-    expect(result.current.activeCreatePulsePresetId).toBeNull();
-    expect(result.current.pulseSessionInstanceId).toBeNull();
-    expect(result.current.pulseWorkflowSession).toBeNull();
+    expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
+    expect(result.current.pulseSessionInstanceId).toBe(TEST_PULSE_SESSION_ID);
+    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
   });
 
-  it("re-enters Pulse mode without restoring the prior hidden runtime after Standard", () => {
+  it("re-enters Pulse mode with the prior hidden runtime after Standard", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({
@@ -77,9 +77,9 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.expertCreateMode).toBe("pulse");
-    expect(result.current.activeCreatePulsePresetId).toBeNull();
-    expect(result.current.pulseSessionInstanceId).toBeNull();
-    expect(result.current.pulseWorkflowSession).toBeNull();
+    expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
+    expect(result.current.pulseSessionInstanceId).toBe(TEST_PULSE_SESSION_ID);
+    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
   });
 
   it("clears stale workflow state when the active Pulse changes through the UI handler", () => {

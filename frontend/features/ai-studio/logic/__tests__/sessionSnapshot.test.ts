@@ -944,7 +944,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.pulsePrompt).toBe("Pulse artifact prompt");
   });
 
-  it("hard-drops inactive Pulse runtime state from Standard snapshots", () => {
+  it("preserves authorized hidden Pulse runtime state on Standard snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       mode: "image",
@@ -955,7 +955,8 @@ describe("sessionSnapshot", () => {
       model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       aspect: "9:16",
       expertCreateMode: "standard",
-      activePulsePresetId: null,
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-story",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -1018,17 +1019,36 @@ describe("sessionSnapshot", () => {
     });
 
     expect(snapshot.workspace.expertCreateMode).toBe("standard");
-    expect(snapshot.workspace.pulsePrompt).toBe("");
-    expect(snapshot.agentRuntimes?.pulsePresetId).toBeNull();
-    expect(snapshot.agentRuntimes?.pulse).toEqual({
-      messages: [],
+    expect(snapshot.workspace.activePulsePresetId).toBe("story_builder");
+    expect(snapshot.workspace.pulseSessionInstanceId).toBe("pulse-session-story");
+    expect(snapshot.workspace.pulsePrompt).toBe("stale Pulse artifact");
+    expect(snapshot.agentRuntimes?.pulsePresetId).toBe("story_builder");
+    expect(snapshot.agentRuntimes?.pulseSessionInstanceId).toBe("pulse-session-story");
+    expect(snapshot.agentRuntimes?.standard).toEqual({
+      messages: [{ id: "standard-1", role: "assistant", content: "Standard prompt" }],
       input: "",
-      latestAgentPrompt: null,
-      promptOrigin: "manual",
-      chatModeEnabled: false,
+      latestAgentPrompt: "Standard prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
       pulseWorkflowSession: null,
     });
-    expect(snapshot.agentRuntimes?.pulseSessionInstanceId).toBeNull();
+    expect(snapshot.agentRuntimes?.pulse).toEqual({
+      messages: [{ id: "pulse-1", role: "assistant", content: "Pulse-only text" }],
+      input: "Pulse draft",
+      latestAgentPrompt: "Pulse artifact",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 2,
+        currentStepLabel: "Final",
+        currentStepPrompt: null,
+        collectedInputs: ["Pulse-only input"],
+        lastArtifact: "Pulse artifact",
+        finalArtifactSource: "chat_reply",
+      },
+    });
   });
 
   it("hard-drops Pulse runtime state when the runtime preset does not match workspace authority", () => {

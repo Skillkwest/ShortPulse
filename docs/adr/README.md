@@ -96,3 +96,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0079-supabase-auth-email-transport-google-workspace-interim.md`
 - `docs/adr/0080-custom-voice-ownership-authority.md`
 - `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`
+- `docs/adr/0082-create-pulse-standard-mode-runtime-parking.md`

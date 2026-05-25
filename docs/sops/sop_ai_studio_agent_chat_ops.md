@@ -73,7 +73,7 @@ Prompt ownership rule:
   - Pulse bootstrap sends use the Pulse hook and route so Standard transcript or canonical state does not bleed into the first hidden Pulse turn.
   - Retired `prompt_editor` / `activate_only` / `apply_prompt` Pulse metadata is discarded from saved custom state; custom runtime keeps only the minimal saved-instructions contract.
   - Built-in guided workflows auto-start on click and may ask structured follow-up questions before emitting a final artifact.
-  - Switching back to `Standard` clears the active hidden Pulse runtime. Returning to `Pulse` starts with no active Pulse until the user starts one.
+  - Switching back to `Standard` parks the active hidden Pulse runtime. Returning to `Pulse` restores that parked session when preset/session authority is still valid.
 - **Describe a reference:**
   - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.
   - Result is raw assistant text that can be dragged into the composer or saved as a prompt card.

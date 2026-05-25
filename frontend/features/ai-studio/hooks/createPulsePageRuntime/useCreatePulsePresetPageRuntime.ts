@@ -111,15 +111,9 @@ export const useCreatePulsePresetPageRuntime = ({
 
   const handleExpertCreateModeChangeForPage = useCallback(
     (nextMode: "standard" | "pulse") => {
-      if (nextMode === "standard") {
-        invalidatePulseActivation();
-        setActiveCreatePulsePresetSnapshot(null);
-        setPendingCreatePulsePresetSnapshot(null);
-        clearPulsePrompt();
-      }
       handleExpertCreateModeChange(nextMode);
     },
-    [clearPulsePrompt, handleExpertCreateModeChange, invalidatePulseActivation]
+    [handleExpertCreateModeChange]
   );
 
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(

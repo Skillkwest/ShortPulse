@@ -11,6 +11,7 @@ export type PulseWorkspaceState = {
 export type PulseRuntimeState = PulseWorkspaceState & {
   isPulseCreateMode: boolean;
   hasSelectedPulsePreset: boolean;
+  hasStoredPulseSession: boolean;
   hasActivePulseSession: boolean;
 };
 
@@ -46,13 +47,13 @@ export const resolvePulseRuntimeState = ({
   pulseSessionInstanceId?: unknown;
 }): PulseRuntimeState => {
   const isPulseCreateMode = expertCreateMode === "pulse";
-  const resolvedActivePulsePresetId = isPulseCreateMode
-    ? normalizePulsePresetId(activePulsePresetId)
-    : null;
+  const resolvedActivePulsePresetId = normalizePulsePresetId(activePulsePresetId);
   const resolvedPulseSessionInstanceId =
-    isPulseCreateMode && resolvedActivePulsePresetId
+    resolvedActivePulsePresetId !== null
       ? normalizePulseSessionInstanceId(pulseSessionInstanceId)
       : null;
+  const hasStoredPulseSession =
+    resolvedActivePulsePresetId !== null && resolvedPulseSessionInstanceId !== null;
 
   return {
     expertCreateMode,
@@ -60,8 +61,8 @@ export const resolvePulseRuntimeState = ({
     activePulsePresetId: resolvedActivePulsePresetId,
     pulseSessionInstanceId: resolvedPulseSessionInstanceId,
     hasSelectedPulsePreset: resolvedActivePulsePresetId !== null,
-    hasActivePulseSession:
-      resolvedActivePulsePresetId !== null && resolvedPulseSessionInstanceId !== null,
+    hasStoredPulseSession,
+    hasActivePulseSession: isPulseCreateMode && hasStoredPulseSession,
   };
 };
 
@@ -83,9 +84,11 @@ export const resolveHydratedPulseRuntimeState = ({
     activePulsePresetId: workspaceActivePulsePresetId,
     pulseSessionInstanceId: workspacePulseSessionInstanceId,
   });
+  const shouldPreserveWorkspacePulseRuntime =
+    normalizedWorkspacePulseState.isPulseCreateMode ||
+    normalizedWorkspacePulseState.pulseSessionInstanceId !== null;
   const restoredPulseSessionInstanceId =
-    !normalizedWorkspacePulseState.isPulseCreateMode ||
-    !normalizedWorkspacePulseState.activePulsePresetId
+    !shouldPreserveWorkspacePulseRuntime || !normalizedWorkspacePulseState.activePulsePresetId
       ? normalizedWorkspacePulseState.pulseSessionInstanceId
       : normalizedWorkspacePulseState.pulseSessionInstanceId ||
         buildRestoredPulseSessionInstanceId({
@@ -96,7 +99,9 @@ export const resolveHydratedPulseRuntimeState = ({
 
   return resolvePulseRuntimeState({
     expertCreateMode,
-    activePulsePresetId: normalizedWorkspacePulseState.activePulsePresetId,
+    activePulsePresetId: shouldPreserveWorkspacePulseRuntime
+      ? normalizedWorkspacePulseState.activePulsePresetId
+      : null,
     pulseSessionInstanceId: restoredPulseSessionInstanceId,
   });
 };

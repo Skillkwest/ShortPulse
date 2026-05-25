@@ -171,7 +171,7 @@ describe("CharacterPanelWorkspace", () => {
   });
 
   it("renders the new library/profile layout without QuickSwap shell copy", () => {
-    const { container } = render(<CharacterPanelWorkspace />);
+    render(<CharacterPanelWorkspace />);
 
     expect(screen.queryByRole("heading", { name: "Characters" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Characters Library" })).not.toBeInTheDocument();
@@ -233,23 +233,16 @@ describe("CharacterPanelWorkspace", () => {
       maxHeight: "20px",
       display: "block",
     });
-    const workspaceRoot = container.querySelector(
-      ".character-panel-workspace"
-    ) as HTMLDivElement | null;
-    expect(workspaceRoot).not.toBeNull();
-    expect(workspaceRoot).toHaveStyle({
-      background: "rgb(19, 21, 24)",
-      backgroundColor: "rgb(19, 21, 24)",
+    expect(screen.getByDisplayValue("Taylor")).toHaveStyle({
+      background: "rgba(31, 35, 41, 0.82)",
+      backgroundColor: "rgba(31, 35, 41, 0.82)",
     });
-    expect(workspaceRoot?.style.getPropertyValue("--character-panel-card-bg")).toBe("#131518");
-    expect(workspaceRoot?.style.getPropertyValue("--character-panel-wrapper-bg")).toBe("#131518");
-    const libraryWorkspace = container.querySelector(
-      ".character-panel-library-workspace"
-    ) as HTMLDivElement | null;
-    expect(libraryWorkspace).not.toBeNull();
-    expect(libraryWorkspace).toHaveStyle({
-      background: "rgb(19, 21, 24)",
-      backgroundColor: "rgb(19, 21, 24)",
+    expect(screen.getByRole("textbox", { name: "Description:" })).toHaveStyle({
+      background: "rgba(31, 35, 41, 0.82)",
+      backgroundColor: "rgba(31, 35, 41, 0.82)",
+    });
+    expect(screen.getByText("Portrait")).toHaveStyle({
+      background: "rgba(31, 35, 41, 0.82)",
     });
   });
 

@@ -77,7 +77,7 @@ behave like guided workflow tools.
 6. Standard and Pulse do not implicitly share transcript history, attachments, workflow session state, hidden runtime context, or optional memory.
 7. Switching from one Pulse to another starts a fresh Pulse session by default.
 8. Deactivating a Pulse clears the current Pulse runtime and leaves Pulse mode open with no active Pulse.
-9. Switching `Pulse -> Standard` clears the active hidden Pulse runtime. Switching back to `Pulse` shows no active Pulse until the user starts one.
+9. Switching `Pulse -> Standard` parks the active hidden Pulse runtime. Switching back to `Pulse` restores that parked session when preset/session authority is still valid.
 10. Any active submission path used while Pulse is active must obey the same Pulse runtime contract or be disabled.
 11. Switching from one active Pulse to another is transactional: the previous
     Pulse must remain intact, or be fully restored, until the new Pulse kickoff
@@ -235,8 +235,8 @@ Lifecycle rules:
 - `failed_retryable` is a status overlay, not a destructive state reset.
 - `deactivated` is user-initiated only. Provider failures, schema repair failures,
   and kickoff timeouts must not silently become deactivation.
-- Switching `Pulse -> Standard` is the only mode switch that intentionally clears
-  the active Pulse runtime without preserving a Pulse fallback.
+- Switching `Pulse -> Standard` hides the active Pulse runtime without clearing
+  its authoritative parked session state.
 
 ## Runtime and state ownership
 
@@ -387,7 +387,7 @@ Future Pulse changes should preserve these rules:
 - Switch from one Pulse to another and confirm the session starts fresh.
 - Switch from one Pulse to another with a simulated kickoff timeout/failure and
   confirm the previous Pulse remains usable.
-- Switch `Pulse -> Standard -> Pulse` and confirm the prior hidden Pulse runtime is cleared and no Pulse transcript appears in Standard mode.
+- Switch `Pulse -> Standard -> Pulse` and confirm the prior hidden Pulse runtime is restored on return while no Pulse transcript appears in Standard mode.
 - Deactivate the active Pulse and confirm:
   - active Pulse ownership clears,
   - workflow session state clears,
@@ -433,7 +433,7 @@ Minimum eval scenarios before major Pulse runtime changes:
 - Retry after simulated timeout, transport failure, and schema repair failure.
 - Switch active Pulses with both successful and failed kickoff outcomes.
 - Switch `Pulse -> Standard -> Pulse` and verify no hidden Pulse runtime leaks
-  into Standard or silently restores on return.
+  into Standard while the parked Pulse session restores on return.
 
 ## Related source-of-truth docs
 

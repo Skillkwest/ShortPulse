@@ -1033,6 +1033,8 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
     <AiStudioPageRuntimeBody
       base={base}
       createPulsePageRuntime={createPulsePageRuntime}
+      standardCreateAgentRuntime={standardCreateAgentRuntime}
+      pulseCreateAgentRuntime={pulseCreateAgentRuntime}
       activeCreateAgentRuntime={activeCreateAgentRuntime}
     />
   );
@@ -1041,10 +1043,14 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
 const AiStudioPageRuntimeBody = ({
   base,
   createPulsePageRuntime,
+  standardCreateAgentRuntime,
+  pulseCreateAgentRuntime,
   activeCreateAgentRuntime,
 }: {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
+  standardCreateAgentRuntime: ReturnType<typeof useStandardCreateAgentRuntime>;
+  pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
   const {
@@ -1187,10 +1193,10 @@ const AiStudioPageRuntimeBody = ({
     resetProjectAgentConversation: resetActiveProjectAgentConversation,
     hydrateFromSessionAgentSnapshot: hydrateActiveFromSessionAgentSnapshot,
   } = activeCreateAgentRuntime;
-  const pulseCreateAgentRuntime =
+  const visiblePulseCreateAgentRuntime =
     activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
-  const handlePulsePresetStart = pulseCreateAgentRuntime?.handlePulsePresetStart;
-  const handlePulsePresetRestartRuntime = pulseCreateAgentRuntime?.handlePulsePresetRestart;
+  const handlePulsePresetStart = visiblePulseCreateAgentRuntime?.handlePulsePresetStart;
+  const handlePulsePresetRestartRuntime = visiblePulseCreateAgentRuntime?.handlePulsePresetRestart;
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);
@@ -1287,14 +1293,22 @@ const AiStudioPageRuntimeBody = ({
     getExpertEditSessionState,
     hasActivePulseSession,
     hydrateActiveFromSessionAgentSnapshot,
+    hydratePulseFromSessionAgentSnapshot: pulseCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
+    hydrateStandardFromSessionAgentSnapshot:
+      standardCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
     pendingCreateRuntimeAgentHydrationRef: base.pendingCreateRuntimeAgentHydrationRef,
     persistedAgentRuntime,
+    persistedPulseAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,
+    persistedStandardAgentRuntime: standardCreateAgentRuntime.persistedAgentRuntime,
     projectId,
     projectRouteRequested,
+    pulseSessionInstanceId: base.pulseSessionInstanceId,
     pulseWorkflowSession,
     resetActiveProjectAgentConversation,
+    resetPulseProjectAgentConversation: pulseCreateAgentRuntime.resetProjectAgentConversation,
+    resetStandardProjectAgentConversation: standardCreateAgentRuntime.resetProjectAgentConversation,
     sessionPersistenceTitleOverride,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,

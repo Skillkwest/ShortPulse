@@ -500,13 +500,13 @@ export const usePulseCreateAgentRuntime = ({
       workspace,
       agentRuntimes,
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
-      if (workspace.expertCreateMode !== "pulse") return;
       const workspacePresetId = workspace.activePulsePresetId ?? null;
       const runtimePresetId = agentRuntimes.pulsePresetId ?? null;
       const hasAuthorizedPulseRuntime =
         Boolean(workspacePresetId) &&
         Boolean(workspace.pulseSessionInstanceId) &&
-        runtimePresetId === workspacePresetId;
+        runtimePresetId === workspacePresetId &&
+        agentRuntimes.pulseSessionInstanceId === workspace.pulseSessionInstanceId;
       const pulseRuntime: AiStudioSessionHydrationPayload["agentRuntimes"]["pulse"] =
         hasAuthorizedPulseRuntime
           ? agentRuntimes.pulse

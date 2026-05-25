@@ -851,10 +851,6 @@ export const buildAiStudioSessionHydrationPayload = (
     (workspace as { standardPrompt?: unknown }).standardPrompt,
     workspaceExpertCreateMode === "pulse" ? "" : legacyWorkspacePrompt
   );
-  const workspacePulsePrompt =
-    workspaceExpertCreateMode === "pulse"
-      ? asString((workspace as { pulsePrompt?: unknown }).pulsePrompt, legacyWorkspacePrompt)
-      : "";
   const normalizedWorkspacePulseState = resolvePulseRuntimeState({
     expertCreateMode: workspaceExpertCreateMode,
     activePulsePresetId: (workspace as { activePulsePresetId?: unknown }).activePulsePresetId,
@@ -863,9 +859,18 @@ export const buildAiStudioSessionHydrationPayload = (
   });
   const workspaceActivePulsePresetId = normalizedWorkspacePulseState.activePulsePresetId;
   const workspacePulseSessionInstanceId = normalizedWorkspacePulseState.pulseSessionInstanceId;
+  const shouldHydrateHiddenPulseWorkspaceState =
+    workspaceExpertCreateMode === "pulse" || workspacePulseSessionInstanceId !== null;
+  const workspacePulsePrompt = shouldHydrateHiddenPulseWorkspaceState
+    ? asString(
+        (workspace as { pulsePrompt?: unknown }).pulsePrompt,
+        workspaceExpertCreateMode === "pulse" ? legacyWorkspacePrompt : ""
+      )
+    : "";
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
-  const hydratedPulsePresetId =
-    workspaceExpertCreateMode === "pulse" ? workspaceActivePulsePresetId : null;
+  const hydratedPulsePresetId = shouldHydrateHiddenPulseWorkspaceState
+    ? workspaceActivePulsePresetId
+    : null;
   const persistedPulsePresetId = asNullableString(agentRuntimes?.pulsePresetId)?.trim() || null;
   const persistedPulseSessionInstanceId =
     asNullableString(agentRuntimes?.pulseSessionInstanceId)?.trim() || null;

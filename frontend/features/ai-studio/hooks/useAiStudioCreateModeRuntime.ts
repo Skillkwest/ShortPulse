@@ -56,7 +56,7 @@ export const useAiStudioCreateModeRuntime = ({
   );
   const [pulseWorkflowSessionState, setPulseWorkflowSessionState] =
     useState<AgentPulseWorkflowSession | null>(
-      initialPulseRuntimeState.hasActivePulseSession ? initialPulseWorkflowSession : null
+      initialPulseRuntimeState.hasStoredPulseSession ? initialPulseWorkflowSession : null
     );
 
   const setExpertCreateMode: Dispatch<SetStateAction<AiStudioExpertCreateMode>> = useCallback(
@@ -124,15 +124,9 @@ export const useAiStudioCreateModeRuntime = ({
     };
   }, [activeCreatePulsePresetIdState]);
 
-  const handleExpertCreateModeChange = useCallback(
-    (nextMode: AiStudioExpertCreateMode) => {
-      setExpertCreateModeState((current) => (current === nextMode ? current : nextMode));
-      if (nextMode === "standard") {
-        clearPulseRuntime();
-      }
-    },
-    [clearPulseRuntime]
-  );
+  const handleExpertCreateModeChange = useCallback((nextMode: AiStudioExpertCreateMode) => {
+    setExpertCreateModeState((current) => (current === nextMode ? current : nextMode));
+  }, []);
 
   const handleActiveCreatePulsePresetIdChange = useCallback(
     (nextPresetId: CreatePulsePresetId | null, options?: AiStudioPulsePresetChangeOptions) => {

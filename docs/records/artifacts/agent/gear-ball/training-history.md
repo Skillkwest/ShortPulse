@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.5/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio runtime/governance lane, the focused suites plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still paid a broad formatting-only cleanup across 18 files before the lane could finish.
-- Capability decision: on large mixed runtime/docs lanes, do one manifest-wide Prettier sweep before the main ladder so the first validation pass speaks only to real failures.
+- Score: `8.4/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/admin governance lane, the focused suites plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
+- What went wrong: the first pass still paid a broad formatting-only cleanup across 18 files, and the Reference Grid suite still emitted recurring `act(...)` warning noise during the focused test pass.
+- Capability decision: on very large mixed runtime/docs lanes, run a manifest-wide Prettier sweep before the main ladder and keep a standing plan to retire repeated noisy test warnings that hide signal.
 
 ## Previous Run
 
 - `2026-05-25` on `production`
-- Score: `8.7/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio runtime lane, focused tests plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still paid two cheap cleanup cycles because five runtime files needed Prettier and one workspace test still had an unused `container` binding.
-- Capability decision: on larger mixed docs-plus-runtime lanes, do one up-front Prettier sweep on touched runtime files and scan changed tests for dead locals before starting the main ladder.
+- Score: `8.5/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio runtime/governance lane, the focused suites plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
+- What went wrong: the first pass still paid a broad formatting-only cleanup across 18 files before the lane could finish.
+- Capability decision: on large mixed runtime/docs lanes, do one manifest-wide Prettier sweep before the main ladder so the first validation pass speaks only to real failures.
 
 ## Previous Supervised Synthesis
 

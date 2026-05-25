@@ -590,7 +590,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     addSessionMediaReference: base.addPastedMediaReference,
     currentCostCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
-    isGenerateBusy: base.editIsGenerating,
     generationGuardrail: effectiveGenerationGuardrail,
     isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,
     referenceImageWarning,

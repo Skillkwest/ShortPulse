@@ -194,6 +194,36 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 
+  it("prefers the replay display prompt over compiled submission prompt text", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          prompt: "Apply Figure 1 styling.\n\nReference map:\n- Figure 1 = primary base image.",
+          generationReplay: {
+            version: 1,
+            mode: "image",
+            submitTool: "edit",
+            modelId: "fal-ai/nano-banana-2/edit",
+            displayPrompt: "Apply @img1 styling.",
+            submissionPrompt:
+              "Apply Figure 1 styling.\n\nReference map:\n- Figure 1 = primary base image.",
+            aspect: "9:16",
+            imageResolution: "1K",
+            referenceInputs: ["https://cdn.test/base.png", "https://cdn.test/ref.png"],
+            capturedAt: "2026-05-25T20:38:10.000Z",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByDisplayValue("Apply @img1 styling.")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/Reference map:/)).not.toBeInTheDocument();
+  });
+
   it("does not close when prompt text selection overextends to the backdrop", () => {
     const onClose = vi.fn();
     render(

@@ -63,7 +63,8 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
    - Character Mode resolves ordered references from the chosen Create look first (`portrait`, `close_up`, `front_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - AI Studio Create look selection is local to that generation workflow and does not mutate `character_sheet_presets_v1.active_preset_id`.
-   - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
+   - Missing description is non-blocking when usable look refs still exist, but missing character image refs remain submit-blocking for Character Mode Create because the generation lane is image-to-image only.
+   - When storage authority is known, Character Mode must hand Character Sheet refs to AI Studio as canonical internal media refs so replay/reroll and submit do not depend on durable signed URLs.
 8. Character Library responsiveness contract:
    - `0-50` characters: full-list smooth rendering target.
    - `51-100` characters: progressive rendering mode (`show 50` by default, `+25` expansion steps, optional `show all`).

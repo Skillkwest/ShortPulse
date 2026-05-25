@@ -75,7 +75,10 @@ const mergeHydratedGeneratedOutput = (
   previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
   fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
   mediaSource: "generated",
-  hiddenInReferenceGrid: hydrated.hiddenInReferenceGrid ?? existing.hiddenInReferenceGrid,
+  hiddenInReferenceGrid:
+    existing.hiddenInReferenceGrid === true
+      ? true
+      : (hydrated.hiddenInReferenceGrid ?? existing.hiddenInReferenceGrid),
   previewTier: hydrated.previewTier ?? existing.previewTier,
   archivedAt: hydrated.taskState === "success" ? null : (existing.archivedAt ?? null),
   archiveReason: hydrated.taskState === "success" ? null : (existing.archiveReason ?? null),

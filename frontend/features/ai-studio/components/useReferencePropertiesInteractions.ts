@@ -16,6 +16,10 @@ import {
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import {
+  createInternalMediaRefFromResolvedSource,
+  registerInternalMediaRefForUrl,
+} from "../logic/referenceInputInternalMediaRegistry";
 
 export type ReferenceStepKey =
   | "reference"
@@ -266,11 +270,15 @@ export const useReferencePropertiesInteractions = ({
       );
       if (mediaKind && mediaKind !== "image") return;
       let nextUrl: string | null = null;
+      let resolvedInternalMediaRef = null;
 
       if (internalPayload && resolveInternalReferenceImageDropSource) {
         const resolvedSource = await resolveInternalReferenceImageDropSource(internalPayload).catch(
           () => null
         );
+        resolvedInternalMediaRef = resolvedSource
+          ? createInternalMediaRefFromResolvedSource(resolvedSource)
+          : null;
         nextUrl =
           resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
       }
@@ -301,6 +309,7 @@ export const useReferencePropertiesInteractions = ({
             })
           : nextUrl;
         if (!stableUrl) return;
+        registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
         setter(stableUrl);
       }
     };

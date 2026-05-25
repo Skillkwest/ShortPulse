@@ -8,6 +8,10 @@ import type {
   AiStudioSessionSnapshot,
   AiStudioSessionSnapshotV1,
 } from "./sessionSnapshot";
+import {
+  normalizeInternalMediaRefList,
+  type InternalMediaRef,
+} from "../../../lib/media/internalMediaRefs";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { getModelConfig } from "../../../lib/model-runtime/modelRegistry";
 import type {
@@ -273,6 +277,10 @@ const asCreateModeReferenceState = (value: unknown) => {
     showCreateTools: asBoolean(row.showCreateTools),
     referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(row.referenceImageUrl)),
     extraImageUrls: asExtraImageUrls(row.extraImageUrls),
+    referenceImageInternalMediaRefs: normalizeInternalMediaRefList(
+      row.referenceImageInternalMediaRefs,
+      4
+    ),
     motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
       asNullableString(row.motionReferenceVideoUrl)
     ),
@@ -676,9 +684,10 @@ export type AiStudioSessionHydrationPayload = {
     expertCreateMode: "standard" | "pulse";
     activePulsePresetId: string | null;
     pulseSessionInstanceId: string | null;
-    createModeReferenceStates: AiStudioSessionCreateModeReferenceStatesV1;
+    createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
     referenceImageUrl: string | null;
     extraImageUrls: [string | null, string | null, string | null];
+    referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
     editReferenceText: string;
     videoReferenceText: string;
     videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -957,6 +966,14 @@ export const buildAiStudioSessionHydrationPayload = (
       referenceImageUrl: workspaceExpertCreateMode === "standard" ? visibleReferenceImageUrl : null,
       extraImageUrls:
         workspaceExpertCreateMode === "standard" ? visibleExtraImageUrls : [null, null, null],
+      referenceImageInternalMediaRefs:
+        workspaceExpertCreateMode === "standard"
+          ? normalizeInternalMediaRefList(
+              (workspace as { referenceImageInternalMediaRefs?: unknown })
+                .referenceImageInternalMediaRefs,
+              4
+            )
+          : [],
       motionReferenceVideoUrl:
         workspaceExpertCreateMode === "standard" ? visibleMotionReferenceVideoUrl : null,
       useReferenceImageIndicator: false,
@@ -971,6 +988,14 @@ export const buildAiStudioSessionHydrationPayload = (
       referenceImageUrl: workspaceExpertCreateMode === "pulse" ? visibleReferenceImageUrl : null,
       extraImageUrls:
         workspaceExpertCreateMode === "pulse" ? visibleExtraImageUrls : [null, null, null],
+      referenceImageInternalMediaRefs:
+        workspaceExpertCreateMode === "pulse"
+          ? normalizeInternalMediaRefList(
+              (workspace as { referenceImageInternalMediaRefs?: unknown })
+                .referenceImageInternalMediaRefs,
+              4
+            )
+          : [],
       motionReferenceVideoUrl:
         workspaceExpertCreateMode === "pulse" ? visibleMotionReferenceVideoUrl : null,
       useReferenceImageIndicator: false,
@@ -1000,6 +1025,11 @@ export const buildAiStudioSessionHydrationPayload = (
       createModeReferenceStates: hydratedCreateModeReferenceStates,
       referenceImageUrl: visibleReferenceImageUrl,
       extraImageUrls: visibleExtraImageUrls,
+      referenceImageInternalMediaRefs: normalizeInternalMediaRefList(
+        (workspace as { referenceImageInternalMediaRefs?: unknown })
+          .referenceImageInternalMediaRefs,
+        4
+      ),
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
       videoReferenceMode: asVideoReferenceMode(workspace.videoReferenceMode),

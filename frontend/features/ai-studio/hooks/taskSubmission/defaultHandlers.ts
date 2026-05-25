@@ -43,6 +43,7 @@ type DefaultHandlerContext = {
   aspect: string;
   requestedResolution?: string;
   preparedImageInputs: string[];
+  internalMediaRefs?: ImageSubmissionArgs["internalMediaRefs"];
   falReferencePayload: ImageSubmissionArgs["falReferencePayload"];
   inpaintOverride?: ImageSubmissionArgs["inpaintOverride"];
   completeGenerationImmediately?: ImageSubmissionArgs["completeGenerationImmediately"];
@@ -76,6 +77,19 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration(requestId, pollingProvider, undefined, response);
 };
 
+const hasInternalMediaRefs = (
+  refs: ImageSubmissionArgs["internalMediaRefs"] | undefined
+): boolean => Boolean(refs?.some((ref) => Boolean(ref)));
+
+const hasInternalEditMediaRefs = (
+  inpaintOverride: ImageSubmissionArgs["inpaintOverride"] | undefined
+): boolean =>
+  Boolean(
+    inpaintOverride?.baseImageInternalMediaRef ||
+    inpaintOverride?.maskInternalMediaRef ||
+    inpaintOverride?.referenceImageInternalMediaRef
+  );
+
 const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
   {
     key: "openai-gpt-image-2",
@@ -86,6 +100,7 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
       aspect,
       requestedResolution,
       preparedImageInputs,
+      internalMediaRefs,
       inpaintOverride,
       shortpulseSubmitPayload,
       completeGenerationImmediately,
@@ -102,7 +117,7 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
         : preparedImageInputs.slice(0, 8);
       const maskImageUrl = inpaintOverride?.maskInput?.trim();
       const response =
-        openAiReferenceImages.length > 0 || maskImageUrl
+        openAiReferenceImages.length > 0 || maskImageUrl || hasInternalMediaRefs(internalMediaRefs)
           ? await submitOpenAiGptImage2Edit({
               prompt: cleanedPrompt,
               size,
@@ -266,6 +281,7 @@ export const handleDefaultModelSubmission = async ({
   preparedImageInputs,
   falReferencePayload,
   generationReplay,
+  internalMediaRefs,
   characterContext,
   styleContext,
   shortpulseContext,
@@ -275,6 +291,18 @@ export const handleDefaultModelSubmission = async ({
 }: ImageSubmissionArgs): Promise<void> => {
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(hasInternalMediaRefs(internalMediaRefs)
+      ? { shortpulse_internal_media_refs: internalMediaRefs }
+      : {}),
+    ...(hasInternalEditMediaRefs(inpaintOverride)
+      ? {
+          shortpulse_internal_edit_media_refs: {
+            base_image: inpaintOverride?.baseImageInternalMediaRef ?? null,
+            mask_image: inpaintOverride?.maskInternalMediaRef ?? null,
+            reference_image: inpaintOverride?.referenceImageInternalMediaRef ?? null,
+          },
+        }
+      : {}),
     ...(characterContext ? { character_context: characterContext } : {}),
     ...(styleContext ? { style_context: styleContext } : {}),
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
@@ -291,6 +319,7 @@ export const handleDefaultModelSubmission = async ({
     aspect,
     requestedResolution,
     preparedImageInputs,
+    internalMediaRefs,
     falReferencePayload,
     inpaintOverride,
     completeGenerationImmediately,

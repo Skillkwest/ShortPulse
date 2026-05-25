@@ -16,7 +16,7 @@ That behavior made project reopen feel like session replay instead of project re
 
 ## Decision
 
-1. Projects persist authored workspace state and project-owned restore content, not conversational runtime state.
+1. Projects persist authored workspace state and project-owned restore content, not full conversational runtime replay state.
 2. Project workspace save/load continues to reuse the shared AI Studio snapshot envelope as a compatibility parser boundary, but project persistence must sanitize that envelope before write and fail closed on restore.
 3. Project workspace snapshots must not persist:
    - `agent.messages`
@@ -25,11 +25,12 @@ That behavior made project reopen feel like session replay instead of project re
    - `promptOrigin`
    - `chatModeEnabled`
    - `pulseWorkflowSession`
-   - split `agentRuntimes`
-4. Current shipped project workspace snapshots also reset project shell mode back to the Standard/Create baseline on save and restore. They do not persist:
-   - `workspace.expertCreateMode`
-   - `workspace.activePulsePresetId`
-   - `workspace.pulseSessionInstanceId`
+   - the Standard lane inside `agentRuntimes`
+   - Pulse runtime transcript/message history
+4. Project workspace snapshots may preserve the parked Pulse lane only when all of the following are true:
+   - `workspace.activePulsePresetId` is authoritative
+   - `workspace.pulseSessionInstanceId` is authoritative
+   - `agentRuntimes.pulsePresetId` and `agentRuntimes.pulseSessionInstanceId` match that workspace authority
 5. Opening or switching a project must reset project-visible agent conversation continuity instead of hydrating it from project workspace state.
 6. Plain non-project `/ai-studio` session persistence may continue using the legacy session snapshot path until later migration work retires or narrows it.
 
@@ -37,11 +38,12 @@ That behavior made project reopen feel like session replay instead of project re
 
 - Positive:
   - Project reopen now restores workspace content without replaying prior chat history or Pulse step progress.
-  - Project reopen now returns to the Standard/Create shell instead of reopening inside an old Pulse shell state.
+  - Project-visible conversation state is still reset on project open even when an authorized hidden Pulse lane is preserved.
   - Existing project rows fail closed because restore ignores legacy conversational fields after sanitization.
-  - The project persistence contract becomes easier to reason about: persist outputs of conversation, not the conversation itself.
+  - The project persistence contract becomes easier to reason about: persist outputs of conversation plus authorized hidden Pulse parking, not full conversation replay.
 - Negative:
-  - Project reopen no longer resumes in-progress Pulse workflows, Pulse shell selection, or draft chat input.
+  - Project reopen still does not restore the visible Standard conversation lane or transcript history.
+  - The hidden Pulse lane now has a narrower but non-zero persistence contract when preset/session authority is valid.
   - Project persistence now depends on an explicit sanitized projection of the shared session snapshot envelope.
   - Legacy non-project session persistence still carries the broader conversational runtime until a later cleanup lane addresses it.
 

@@ -587,7 +587,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     removeOptimisticGenerationPlaceholder: base.removeOptimisticGenerationPlaceholder,
     notifyGenerationFailure: base.notifyGenerationFailure,
     onEditSubmitIntentChange: base.setEditSubmitIntent,
-    addSessionMediaReference: base.addPastedMediaReference,
     currentCostCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,

@@ -47,7 +47,6 @@ type UseAiStudioEditExpertPanelPropsParams = {
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
-  addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
@@ -99,7 +98,6 @@ export const useAiStudioEditExpertPanelProps = ({
   removeOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
   onEditSubmitIntentChange,
-  addSessionMediaReference,
   currentCostCredits,
   isGenerateDisabled,
   generationGuardrail,
@@ -172,7 +170,6 @@ export const useAiStudioEditExpertPanelProps = ({
             ? { referenceInputsMode: options.referenceInputsMode }
             : {}),
         })) as ExpertEditRegenerateWithReferenceInputsHandler,
-      onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled,
       guardrailReason: generationGuardrail,
@@ -235,7 +232,6 @@ export const useAiStudioEditExpertPanelProps = ({
     selectedCharacterId,
     selectedPresetIds,
     setAspect,
-    addSessionMediaReference,
     setExtraImageUrl,
     setImageResolution,
     setIsCharacterModeEnabled,

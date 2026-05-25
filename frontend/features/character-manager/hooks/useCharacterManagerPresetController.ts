@@ -37,6 +37,7 @@ type UseCharacterManagerPresetControllerParams = {
   clearMessages: () => void;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setIsSavingCharacterSheetPreset: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsDeletingCharacterSheetPreset: React.Dispatch<React.SetStateAction<boolean>>;
   activeCharacterSheetPresetIdRef: React.MutableRefObject<CharacterSheetPresetId>;
   activeCharacterSheetPresetRequestRef: React.MutableRefObject<number>;
   characterSheetPresetsRef: React.MutableRefObject<CharacterSheetPresetState["presets"]>;
@@ -93,6 +94,7 @@ export const useCharacterManagerPresetController = ({
   clearMessages,
   setError,
   setIsSavingCharacterSheetPreset,
+  setIsDeletingCharacterSheetPreset,
   activeCharacterSheetPresetIdRef,
   activeCharacterSheetPresetRequestRef,
   characterSheetPresetsRef,
@@ -195,6 +197,44 @@ export const useCharacterManagerPresetController = ({
       setCharacterSheetPresetLabels,
       setCharacterSheetPresets,
       setVisibleCharacterSheetPresetIds,
+      visibleCharacterSheetPresetIdsRef,
+    ]
+  );
+
+  const applyPersistedPresetAssignmentsState = React.useCallback(
+    ({
+      presetId,
+      persistedState,
+      fallbackAssignments,
+    }: {
+      presetId: CharacterSheetPresetId;
+      persistedState: PersistedPresetState;
+      fallbackAssignments: CharacterSheetPresetAssignments;
+    }) => {
+      if (!visibleCharacterSheetPresetIdsRef.current.includes(presetId)) {
+        return;
+      }
+      const persistedAssignments =
+        persistedState.presets[presetId] ??
+        fallbackAssignments ??
+        createEmptyCharacterSheetPresetAssignments();
+      const mergedPresets = {
+        ...characterSheetPresetsRef.current,
+        [presetId]: persistedAssignments,
+      };
+      setCharacterSheetPresets(mergedPresets);
+      characterSheetPresetsRef.current = mergedPresets;
+
+      const currentActivePresetId = activeCharacterSheetPresetIdRef.current;
+      setCharacterSheetPresetAssignments(
+        mergedPresets[currentActivePresetId] ?? createEmptyCharacterSheetPresetAssignments()
+      );
+    },
+    [
+      activeCharacterSheetPresetIdRef,
+      characterSheetPresetsRef,
+      setCharacterSheetPresetAssignments,
+      setCharacterSheetPresets,
       visibleCharacterSheetPresetIdsRef,
     ]
   );
@@ -423,7 +463,11 @@ export const useCharacterManagerPresetController = ({
         if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
           return true;
         }
-        applyPersistedPresetState({ persistedState });
+        applyPersistedPresetAssignmentsState({
+          presetId: activePresetId,
+          persistedState,
+          fallbackAssignments: normalizedAssignments,
+        });
         publishCharacterRefresh();
         return true;
       } catch (nextError) {
@@ -447,7 +491,7 @@ export const useCharacterManagerPresetController = ({
     },
     [
       activeCharacterSheetPresetIdRef,
-      applyPersistedPresetState,
+      applyPersistedPresetAssignmentsState,
       characterId,
       characterSheetPresetAssignmentsRequestRef,
       characterSheetPresetsRef,
@@ -695,6 +739,7 @@ export const useCharacterManagerPresetController = ({
       const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
       characterSheetPresetTabOrderRequestRef.current = requestId;
       setIsSavingCharacterSheetPreset(true);
+      setIsDeletingCharacterSheetPreset(true);
       try {
         const persistedState = await deleteCharacterManagerCharacterSheetPreset({
           characterId,
@@ -730,6 +775,7 @@ export const useCharacterManagerPresetController = ({
         if (characterSheetPresetTabOrderRequestRef.current === requestId) {
           setIsSavingCharacterSheetPreset(false);
         }
+        setIsDeletingCharacterSheetPreset(false);
       }
     },
     [
@@ -747,6 +793,7 @@ export const useCharacterManagerPresetController = ({
       setCharacterSheetPresetDescriptions,
       setCharacterSheetPresetLabels,
       setCharacterSheetPresets,
+      setIsDeletingCharacterSheetPreset,
       setError,
       setIsSavingCharacterSheetPreset,
       setVisibleCharacterSheetPresetIds,

@@ -10,6 +10,11 @@ const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
+const readInternalMediaRefsFromPayloadMock = vi.fn();
+const readInternalEditMediaRefsFromPayloadMock = vi.fn();
+const resolveSignedUrlsForInternalMediaRefsMock = vi.fn();
+const resolveSignedUrlsForInternalEditMediaRefsMock = vi.fn();
+const filterExternalUrlsFromInternalRefsMock = vi.fn();
 
 const { TestProviderSubmitValidationError } = vi.hoisted(() => {
   class TestProviderSubmitValidationError extends Error {
@@ -77,6 +82,19 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
 vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
   requestGenerationControlPlaneWake: (...args: unknown[]) =>
     requestGenerationControlPlaneWakeMock(...args),
+}));
+
+vi.mock("../../lib/server/api/internalMediaRefResolution", () => ({
+  readInternalMediaRefsFromPayload: (...args: unknown[]) =>
+    readInternalMediaRefsFromPayloadMock(...args),
+  readInternalEditMediaRefsFromPayload: (...args: unknown[]) =>
+    readInternalEditMediaRefsFromPayloadMock(...args),
+  resolveSignedUrlsForInternalMediaRefs: (...args: unknown[]) =>
+    resolveSignedUrlsForInternalMediaRefsMock(...args),
+  resolveSignedUrlsForInternalEditMediaRefs: (...args: unknown[]) =>
+    resolveSignedUrlsForInternalEditMediaRefsMock(...args),
+  filterExternalUrlsFromInternalRefs: (...args: unknown[]) =>
+    filterExternalUrlsFromInternalRefsMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -153,6 +171,23 @@ describe("createFalSubmitHandler", () => {
       app_metadata: {},
       user_metadata: {},
     });
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([]);
+    readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
+      baseImageRef: null,
+      maskRef: null,
+      referenceImageRef: null,
+    });
+    resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([]);
+    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageUrl: null,
+      maskUrl: null,
+      referenceImageUrl: null,
+    });
+    filterExternalUrlsFromInternalRefsMock.mockImplementation((urls: unknown[]) =>
+      urls.filter(
+        (url): url is string => typeof url === "string" && !url.includes("stale.internal")
+      )
+    );
   });
 
   afterEach(() => {
@@ -258,6 +293,118 @@ describe("createFalSubmitHandler", () => {
       expect.objectContaining({
         request_id: "req-direct-1",
         generationId: expect.any(String),
+      })
+    );
+  });
+
+  it("replaces stale internal image refs with fresh signed urls before direct submit", async () => {
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/base.png",
+      },
+    ]);
+    resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([
+      "https://fresh.internal/base.png",
+    ]);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2/edit",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
+      routeLabel: "Fal Nano Banana 2 Edit",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        image_urls: ["https://stale.internal/base.png", "https://external.example/ref.png"],
+        shortpulse_internal_media_refs: [{ version: 1 }],
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/nano-banana-2-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          image_urls: ["https://fresh.internal/base.png", "https://external.example/ref.png"],
+        }),
+      })
+    );
+  });
+
+  it("overwrites inpaint image fields from canonical internal edit refs before direct submit", async () => {
+    readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
+      baseImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/base.png",
+      },
+      maskRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/mask.png",
+      },
+      referenceImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/ref.png",
+      },
+    });
+    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageUrl: "https://fresh.internal/base.png",
+      maskUrl: "https://fresh.internal/mask.png",
+      referenceImageUrl: "https://fresh.internal/ref.png",
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/flux-kontext-lora/inpaint",
+      submitUrl: "https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint",
+      routeLabel: "Fal Flux Kontext Inpaint",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "fix this",
+        image_url: "https://stale.internal/base.png",
+        mask_url: "https://stale.internal/mask.png",
+        reference_image_url: "https://stale.internal/ref.png",
+        shortpulse_internal_edit_media_refs: {
+          base_image: {},
+          mask_image: {},
+          reference_image: {},
+        },
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/flux-kontext-inpaint-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          image_url: "https://fresh.internal/base.png",
+          mask_url: "https://fresh.internal/mask.png",
+          reference_image_url: "https://fresh.internal/ref.png",
+        }),
       })
     );
   });
@@ -428,7 +575,7 @@ describe("createFalSubmitHandler", () => {
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith({
       error: "Submit accepted without task id",
-      detail: { code: 200, msg: "Submit accepted without task id", data: {} },
+      detail: "Submit accepted without task id",
     });
   });
 
@@ -463,7 +610,7 @@ describe("createFalSubmitHandler", () => {
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith({
       error: "Provider submit response missing request id.",
-      detail: { code: 200, msg: "success", data: {} },
+      detail: "success",
     });
   });
 

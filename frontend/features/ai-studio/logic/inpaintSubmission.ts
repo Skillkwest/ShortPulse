@@ -2,6 +2,7 @@
  * Inpaint submission override contract propagated from Expert Edit UI to submit handlers.
  */
 import { FAL_NANO_BANANA_PRO_EDIT_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { analyzeExpertEditPromptTokens } from "./expertEditPromptReferences";
 
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
@@ -57,6 +58,9 @@ export type InpaintSubmissionOverride = {
   baseImageInput: string;
   maskInput: string;
   referenceImageInput?: string | null;
+  baseImageInternalMediaRef?: InternalMediaRef | null;
+  maskInternalMediaRef?: InternalMediaRef | null;
+  referenceImageInternalMediaRef?: InternalMediaRef | null;
   outputFormat?: "png" | "jpeg";
   imageWidth?: number | null;
   imageHeight?: number | null;

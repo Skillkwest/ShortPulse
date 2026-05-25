@@ -1,4 +1,5 @@
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { StudioOutput, ToolId } from "../types";
 
 export type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -11,6 +12,7 @@ export type CharacterModeSubmissionOverrides<TFallbackCode extends string> = {
   submissionPromptOverride: string;
   displayPromptOverride: string;
   referenceInputsOverride: string[];
+  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   notice: string | null;
   fallbackCode: TFallbackCode | null;

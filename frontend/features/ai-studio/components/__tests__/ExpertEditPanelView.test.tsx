@@ -387,7 +387,6 @@ describe("ExpertEditPanelView", () => {
     onRegenerateWithReferenceInputs: vi.fn(async (referenceInputs: string[]) => {
       void referenceInputs;
     }),
-    onAddSessionMediaReference: vi.fn(),
     resolvePreviewUrlById: vi.fn(() => null),
     costCredits: 5,
     isGenerateDisabled: false,
@@ -6816,15 +6815,13 @@ describe("ExpertEditPanelView", () => {
     expect(composedImageUrls[2]).toContain("layer-3.png");
   });
 
-  it("accepts repeated inline generate clicks before stage flattening completes", async () => {
+  it("suppresses repeated inline generate clicks before stage flattening completes", async () => {
     const flattenResolvers: Array<(value: Blob) => void> = [];
     const createPendingFlatten = () =>
       new Promise<Blob>((resolve) => {
         flattenResolvers.push(resolve);
       });
-    composePrimaryStageLayersToBlobMock
-      .mockImplementationOnce(createPendingFlatten)
-      .mockImplementationOnce(createPendingFlatten);
+    composePrimaryStageLayersToBlobMock.mockImplementationOnce(createPendingFlatten);
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => undefined);
@@ -6848,15 +6845,16 @@ describe("ExpertEditPanelView", () => {
 
     expect(generateButton).toBeEnabled();
     await waitFor(() => {
-      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(2);
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
     });
+    expect(flattenResolvers).toHaveLength(1);
 
-    act(() => {
+    await act(async () => {
       flattenResolvers.splice(0).forEach((resolve, index) => {
         resolve(new Blob([`flattened-stage-${index}`], { type: "image/png" }));
       });
+      await Promise.resolve();
     });
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(0);
   });
 
   it("promotes the sole remaining populated layer to layer 1 after clearing foundation", () => {
@@ -6930,11 +6928,8 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: /remove primary image/i })).not.toBeInTheDocument();
   });
 
-  it("manual flatten collapses to layer 1 and emits a session media reference", async () => {
-    const onAddSessionMediaReference = vi.fn();
-    const { container } = render(
-      <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
-    );
+  it("manual flatten collapses to layer 1 without adding a reference-grid copy", async () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
     uploadPrimaryFile(container, "layer-1.png");
     uploadPrimaryFile(container, "layer-2.png");
@@ -6948,11 +6943,6 @@ describe("ExpertEditPanelView", () => {
     expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
-    expect(onAddSessionMediaReference).toHaveBeenCalledTimes(1);
-    expect(onAddSessionMediaReference).toHaveBeenCalledWith({
-      url: expect.stringMatching(/^blob:flatten-/),
-      mimeType: "image/png",
-    });
   });
 
   it("shows flatten pending feedback while manual flatten is in progress", async () => {
@@ -6988,22 +6978,13 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: /flatten layers/i })).not.toBeDisabled();
   });
 
-  it("manual flatten forwards selected frame ratio to stage flatten and exports to reference grid", async () => {
-    const onAddSessionMediaReference = vi.fn();
-    const { container, rerender } = render(
-      <ExpertEditPanelView {...baseProps} onAddSessionMediaReference={onAddSessionMediaReference} />
-    );
+  it("manual flatten forwards selected frame ratio to stage flatten without adding a reference-grid copy", async () => {
+    const { container, rerender } = render(<ExpertEditPanelView {...baseProps} />);
 
     uploadPrimaryFile(container, "layer-1.png");
     uploadPrimaryFile(container, "layer-2.png");
 
-    rerender(
-      <ExpertEditPanelView
-        {...baseProps}
-        aspect="16:9"
-        onAddSessionMediaReference={onAddSessionMediaReference}
-      />
-    );
+    rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
@@ -7024,11 +7005,6 @@ describe("ExpertEditPanelView", () => {
     } | null;
     expect(flattenOptions?.mimeType).toBe("image/png");
     expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(16 / 9, 4);
-    expect(onAddSessionMediaReference).toHaveBeenCalledTimes(1);
-    expect(onAddSessionMediaReference).toHaveBeenCalledWith({
-      url: expect.stringMatching(/^blob:flatten-/),
-      mimeType: "image/png",
-    });
   });
 
   it("manual flatten forwards frozen layer transforms to stage flatten helper", async () => {

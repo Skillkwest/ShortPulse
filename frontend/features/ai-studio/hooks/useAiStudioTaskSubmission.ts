@@ -6,6 +6,10 @@ import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
+import {
+  dedupeInternalMediaRefs,
+  type InternalMediaRef,
+} from "../../../lib/media/internalMediaRefs";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -22,6 +26,7 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromInputs,
 } from "../logic/referenceInputs";
+import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import { DeadlineExceededError } from "../logic/withDeadline";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
@@ -64,6 +69,8 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
+const hasUsableInternalMediaRefs = (refs: Array<InternalMediaRef | null | undefined>): boolean =>
+  refs.some((ref) => Boolean(ref));
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
@@ -236,7 +243,15 @@ export const useAiStudioTaskSubmission = ({
               lane: resolvedVideoLane,
             })
           : requestedModel;
-      const hasReferenceImages = imageInputs && imageInputs.length > 0;
+      const internalMediaRefs = dedupeInternalMediaRefs(
+        [
+          ...(options?.internalMediaRefsOverride ?? []),
+          ...resolveInternalMediaRefsForUrls(imageInputs, 8),
+        ],
+        8
+      );
+      const hasReferenceImages =
+        (imageInputs && imageInputs.length > 0) || hasUsableInternalMediaRefs(internalMediaRefs);
       const isEditWorkflow = normalizedTool === "image";
       const finalModelConfig = finalModel ? getModelConfig(finalModel) : null;
       const requiresImageToImageReferences = isEditWorkflow
@@ -372,7 +387,8 @@ export const useAiStudioTaskSubmission = ({
         if (
           !options?.inpaintOverride &&
           (isEditWorkflow || requiresImageToImageReferences) &&
-          preparedImageInputs.length === 0
+          preparedImageInputs.length === 0 &&
+          !hasUsableInternalMediaRefs(internalMediaRefs)
         ) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
@@ -419,6 +435,7 @@ export const useAiStudioTaskSubmission = ({
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
               referenceInputs: preparedImageInputs.slice(0, 8),
+              internalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
             });
@@ -444,7 +461,10 @@ export const useAiStudioTaskSubmission = ({
           selected_character_id: options?.characterContextOverride?.characterId ?? null,
           has_style: Boolean(options?.styleContextOverride?.applied),
           style_id: options?.styleContextOverride?.styleId ?? null,
-          reference_count: preparedImageInputs.length,
+          reference_count: Math.max(
+            preparedImageInputs.length,
+            internalMediaRefs.filter((ref) => Boolean(ref)).length
+          ),
           pricing_display_source: "shared_adapter",
           pricing_policy_ready: true,
           displayed_billed_credits: displayedBilledCredits,
@@ -574,6 +594,7 @@ export const useAiStudioTaskSubmission = ({
             preparedImageInputs,
             modelConfig,
             generationReplay,
+            internalMediaRefs,
             characterContext: options?.characterContextOverride,
             styleContext: options?.styleContextOverride,
             shortpulseContext,

@@ -31,6 +31,7 @@ The remaining problem was a stale product contract, not an unavoidable technical
 3. Hidden Pulse runtime state may persist through workspace snapshots while `Standard` is visible, but only when both are true:
    1. a valid Pulse preset id exists,
    2. a valid Pulse session id exists.
+      Project persistence may slim that hidden runtime by dropping transcript/message history and the Standard lane while keeping the authoritative parked Pulse lane metadata needed for restore.
 4. Orphaned Pulse metadata must still fail closed. If `Standard` has a stale Pulse preset id without session authority, the hidden Pulse runtime is discarded during snapshot build/hydration.
 5. `Standard` still must not render, submit, or leak hidden Pulse transcript/input/workflow state into Standard UI or Standard API payloads.
 6. Explicit destructive actions remain destructive:

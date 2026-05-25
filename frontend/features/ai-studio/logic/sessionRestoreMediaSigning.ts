@@ -3,7 +3,13 @@
  * Resolves signed preview URLs for storage-backed outputs and patches rows safely.
  */
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import {
+  normalizeInternalMediaRefList,
+  resolveInternalMediaRefStoragePath,
+  type InternalMediaRef,
+} from "../../../lib/media/internalMediaRefs";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
 import {
   normalizeVideoPosterStoragePathCandidate,
@@ -21,9 +27,27 @@ export type SessionOutputSigningFingerprint = {
 };
 
 export type SessionOutputSigningFingerprintById = Record<string, SessionOutputSigningFingerprint>;
+export type SessionRecoveredStorageAuthority = {
+  previewPosterStoragePath: string | null;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+};
+export type SessionRecoveredStorageAuthorityByOutputId = Record<
+  string,
+  SessionRecoveredStorageAuthority
+>;
 
 type ApplySessionRestoreSignedUrlsOptions = {
   baselineById?: SessionOutputSigningFingerprintById;
+  recoveredAuthorityById?: SessionRecoveredStorageAuthorityByOutputId;
+};
+
+type MediaStoragePathRow = {
+  id?: unknown;
+  preview_storage_path?: unknown;
+  storage_path?: unknown;
+  poster_variant_path?: unknown;
+  thumb_variant_path?: unknown;
 };
 
 const toNormalizedNullableString = (value: string | null | undefined): string | null => {
@@ -34,6 +58,40 @@ const toNormalizedNullableString = (value: string | null | undefined): string | 
 
 const toCanonicalStoragePath = (value: string | null | undefined): string | null =>
   asCanonicalStoragePath(value ?? null);
+
+const resolveSavedMediaId = (output: Pick<StudioOutput, "savedMediaIds">): string | null => {
+  const savedMediaIds = Array.isArray(output.savedMediaIds) ? output.savedMediaIds : [];
+  for (const candidate of savedMediaIds) {
+    const normalized = toNormalizedNullableString(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
+const resolveRecoveredStorageAuthorityFromMediaRow = (
+  row: MediaStoragePathRow | null | undefined
+): SessionRecoveredStorageAuthority => {
+  const explicitPreviewStoragePath = toCanonicalStoragePath(
+    typeof row?.preview_storage_path === "string" ? row.preview_storage_path : null
+  );
+  const previewPosterStoragePath =
+    normalizeVideoPosterStoragePathCandidate(
+      typeof row?.poster_variant_path === "string" ? row.poster_variant_path : null
+    ) ??
+    normalizeVideoPosterStoragePathCandidate(
+      typeof row?.thumb_variant_path === "string" ? row.thumb_variant_path : null
+    );
+  const fullStoragePath =
+    toCanonicalStoragePath(typeof row?.storage_path === "string" ? row.storage_path : null) ??
+    explicitPreviewStoragePath ??
+    null;
+
+  return {
+    previewPosterStoragePath,
+    previewStoragePath: explicitPreviewStoragePath ?? fullStoragePath,
+    fullStoragePath,
+  };
+};
 
 const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigningFingerprint => ({
   previewUrl: toNormalizedNullableString(output.previewUrl),
@@ -90,6 +148,118 @@ const areStringArraysEqual = (
   return left.every((value, index) => value === right[index]);
 };
 
+const resolveSessionRestoreRecoveredStorageAuthority = async (
+  outputs: StudioOutput[]
+): Promise<SessionRecoveredStorageAuthorityByOutputId> => {
+  const candidateEntries = outputs
+    .map((output) => {
+      if (
+        toCanonicalStoragePath(output.previewStoragePath) ||
+        toCanonicalStoragePath(output.fullStoragePath)
+      ) {
+        return null;
+      }
+      const savedMediaId = resolveSavedMediaId(output);
+      if (!savedMediaId) return null;
+      return {
+        outputId: output.id,
+        savedMediaId,
+      };
+    })
+    .filter(
+      (
+        value
+      ): value is {
+        outputId: string;
+        savedMediaId: string;
+      } => Boolean(value)
+    );
+  if (!candidateEntries.length) return {};
+
+  const mediaIds = Array.from(new Set(candidateEntries.map((entry) => entry.savedMediaId)));
+  let data: MediaStoragePathRow[] | null = null;
+  try {
+    const supabase = ensureSupabaseQueryClient();
+    const response = await supabase
+      .from("media_files")
+      .select("id, preview_storage_path, storage_path, poster_variant_path, thumb_variant_path")
+      .in("id", mediaIds);
+    if (response.error) return {};
+    data = Array.isArray(response.data) ? (response.data as MediaStoragePathRow[]) : [];
+  } catch {
+    return {};
+  }
+
+  const authorityByMediaId = new Map<string, SessionRecoveredStorageAuthority>();
+  (data ?? []).forEach((row) => {
+    const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
+    if (!mediaId) return;
+    authorityByMediaId.set(mediaId, resolveRecoveredStorageAuthorityFromMediaRow(row));
+  });
+
+  const recoveredAuthorityByOutputId: SessionRecoveredStorageAuthorityByOutputId = {};
+  candidateEntries.forEach(({ outputId, savedMediaId }) => {
+    const recoveredAuthority = authorityByMediaId.get(savedMediaId);
+    if (!recoveredAuthority) return;
+    if (
+      !recoveredAuthority.previewStoragePath &&
+      !recoveredAuthority.fullStoragePath &&
+      !recoveredAuthority.previewPosterStoragePath
+    ) {
+      return;
+    }
+    recoveredAuthorityByOutputId[outputId] = recoveredAuthority;
+  });
+
+  return recoveredAuthorityByOutputId;
+};
+
+const resolveSessionRestoreSigningOutputs = (
+  outputs: StudioOutput[],
+  recoveredAuthorityByOutputId: SessionRecoveredStorageAuthorityByOutputId
+): StudioOutput[] =>
+  outputs.map((output) => {
+    const recoveredAuthority = recoveredAuthorityByOutputId[output.id];
+    if (!recoveredAuthority) return output;
+    return {
+      ...output,
+      previewPosterStoragePath:
+        normalizeVideoPosterStoragePathCandidate(output.previewPosterStoragePath) ??
+        recoveredAuthority.previewPosterStoragePath,
+      previewStoragePath:
+        toCanonicalStoragePath(output.previewStoragePath) ?? recoveredAuthority.previewStoragePath,
+      fullStoragePath:
+        toCanonicalStoragePath(output.fullStoragePath) ?? recoveredAuthority.fullStoragePath,
+    };
+  });
+
+export const resolveSessionRestoreReferenceSignedUrls = async (
+  refs: Array<InternalMediaRef | null | undefined>
+): Promise<Array<string | null>> => {
+  const normalizedRefs = normalizeInternalMediaRefList(refs, 8);
+  const storagePaths = Array.from(
+    new Set(
+      normalizedRefs
+        .map((ref) => resolveInternalMediaRefStoragePath(ref))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (!storagePaths.length) {
+    return normalizedRefs.map(() => null);
+  }
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: "media_library",
+    storagePaths,
+    surface: "reference-grid",
+    queryMode: "default",
+  });
+  return normalizedRefs.map((ref) => {
+    const storagePath = resolveInternalMediaRefStoragePath(ref);
+    if (!storagePath) return null;
+    return signedByPath.get(storagePath) ?? null;
+  });
+};
+
 /**
  * Builds a signing fingerprint map keyed by output id for stale-apply guards.
  */
@@ -132,20 +302,35 @@ export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): stri
   return [...pathSet];
 };
 
+export const resolveSessionRestoreSignedMediaAuthority = async (
+  outputs: StudioOutput[]
+): Promise<{
+  signedByPath: Map<string, string | null>;
+  recoveredAuthorityByOutputId: SessionRecoveredStorageAuthorityByOutputId;
+}> => {
+  const recoveredAuthorityByOutputId =
+    await resolveSessionRestoreRecoveredStorageAuthority(outputs);
+  const signingOutputs = resolveSessionRestoreSigningOutputs(outputs, recoveredAuthorityByOutputId);
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: "media_library",
+    storagePaths: collectSessionRestoreSigningPaths(signingOutputs),
+    surface: "reference-grid",
+    queryMode: "default",
+  });
+  return {
+    signedByPath,
+    recoveredAuthorityByOutputId,
+  };
+};
+
 /**
  * Resolves signed URLs for a set of restored outputs.
  */
 export const resolveSessionRestoreSignedUrls = async (
   outputs: StudioOutput[]
 ): Promise<Map<string, string | null>> => {
-  const storagePaths = collectSessionRestoreSigningPaths(outputs);
-  if (!storagePaths.length) return new Map<string, string | null>();
-  return getSignedMediaUrlsBatch({
-    bucket: "media_library",
-    storagePaths,
-    surface: "reference-grid",
-    queryMode: "default",
-  });
+  const { signedByPath } = await resolveSessionRestoreSignedMediaAuthority(outputs);
+  return signedByPath;
 };
 
 /**
@@ -164,21 +349,32 @@ export const applySessionRestoreSignedUrls = (
       return output;
     }
 
+    const recoveredAuthority = options?.recoveredAuthorityById?.[output.id];
     const previewPosterStoragePath =
       output.mode === "video"
         ? resolveVideoPosterStoragePath({
-            previewPosterStoragePath: currentFingerprint.previewPosterStoragePath,
-            previewStoragePath: currentFingerprint.previewStoragePath,
-            fullStoragePath: currentFingerprint.fullStoragePath,
+            previewPosterStoragePath:
+              currentFingerprint.previewPosterStoragePath ??
+              recoveredAuthority?.previewPosterStoragePath ??
+              null,
+            previewStoragePath:
+              currentFingerprint.previewStoragePath ??
+              recoveredAuthority?.previewStoragePath ??
+              null,
+            fullStoragePath:
+              currentFingerprint.fullStoragePath ?? recoveredAuthority?.fullStoragePath ?? null,
           })
         : null;
     const previewStoragePath = resolveSessionVideoPrimaryStoragePath({
       mode: output.mode,
-      previewStoragePath: currentFingerprint.previewStoragePath,
-      fullStoragePath: currentFingerprint.fullStoragePath,
+      previewStoragePath:
+        currentFingerprint.previewStoragePath ?? recoveredAuthority?.previewStoragePath ?? null,
+      fullStoragePath:
+        currentFingerprint.fullStoragePath ?? recoveredAuthority?.fullStoragePath ?? null,
     });
     const companionArtStoragePath = currentFingerprint.companionArtStoragePath;
-    const fullStoragePath = currentFingerprint.fullStoragePath;
+    const fullStoragePath =
+      currentFingerprint.fullStoragePath ?? recoveredAuthority?.fullStoragePath ?? null;
     const signedPreviewUrl =
       (previewStoragePath ? signedByPath.get(previewStoragePath) : null) ??
       (fullStoragePath ? signedByPath.get(fullStoragePath) : null) ??
@@ -199,7 +395,6 @@ export const applySessionRestoreSignedUrls = (
           ...(output.resultUrls ?? []).filter((url) => url !== primarySignedResultUrl),
         ]
       : output.resultUrls;
-    if (!signedPreviewUrl && !signedPreviewPosterUrl && !primarySignedResultUrl) return output;
 
     if (
       currentFingerprint.previewUrl === signedPreviewUrl &&

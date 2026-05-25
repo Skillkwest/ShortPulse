@@ -318,6 +318,63 @@ describe("useAiStudioSessionAutosave", () => {
     );
   });
 
+  it("retries one failed persistence attempt and then pauses repeated failures for the same snapshot", async () => {
+    const persistSnapshot = vi.fn().mockRejectedValue(new Error("workspace down"));
+    const onPersistError = vi.fn();
+    const snapshot = createSnapshot();
+
+    renderHook(() =>
+      useAiStudioSessionAutosave({
+        sessionId: snapshot.sessionId,
+        snapshot,
+        enabled: true,
+        persistSnapshot,
+        maxPersistRetries: 1,
+        onPersistError,
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(onPersistError).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Error),
+      expect.objectContaining({
+        reason: "persist_failed",
+        attempt: 1,
+        maxAttempts: 2,
+        willRetry: true,
+        remainingRetries: 1,
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(onPersistError).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Error),
+      expect.objectContaining({
+        reason: "persist_failed",
+        attempt: 2,
+        maxAttempts: 2,
+        willRetry: false,
+        remainingRetries: 0,
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+  });
+
   it("persists when only the resolved title changes", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();

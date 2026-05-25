@@ -17,6 +17,7 @@ import {
   attachMediaFileToGenerationOutput,
   persistGenerationOutputRecords,
 } from "./api/generationOutputs";
+import { resolveGenerationPromptFromPayload } from "./api/generationPayloadMetadata";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
@@ -402,6 +403,10 @@ export const persistGeneratedImageAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
+  const displayPrompt = resolveGenerationPromptFromPayload("openai-image", {
+    prompt: promptText,
+    generation_replay: generationReplay,
+  });
   const abandonment = await readGenerationAbandonmentContext({
     userId,
     sourceRef: resolvedRequestId,
@@ -589,7 +594,7 @@ export const persistGeneratedImageAsset = async ({
       status: "success",
       taskState: "success",
       queueState: "dispatched",
-      displayPrompt: promptText,
+      displayPrompt,
       modelId,
       previewUrl: signedResult.data.signedUrl,
       previewStoragePath: storagePath,

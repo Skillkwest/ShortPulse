@@ -20,6 +20,10 @@ export type AiStudioSessionAutosaveError = {
   snapshotBytes?: number;
   maxSnapshotBytes: number;
   keepalive?: boolean;
+  attempt?: number;
+  maxAttempts?: number;
+  willRetry?: boolean;
+  remainingRetries?: number;
 };
 
 type UseAiStudioSessionAutosaveArgs = {
@@ -30,6 +34,7 @@ type UseAiStudioSessionAutosaveArgs = {
   debounceMs?: number;
   maxDirtyMs?: number;
   maxSnapshotBytes?: number;
+  maxPersistRetries?: number;
   resolveSnapshotTitle?: (snapshot: AiStudioSessionSnapshot) => string | null;
   onPersistError?: (error: Error, details: AiStudioSessionAutosaveError) => void;
 };
@@ -46,6 +51,7 @@ type SnapshotPersistIdentity = Pick<PendingSnapshotState, "sessionId" | "hash" |
 
 const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
+const DEFAULT_MAX_PERSIST_RETRIES = 1;
 
 const utf8ByteLength = (value: string): number => {
   if (typeof TextEncoder !== "undefined") {
@@ -86,12 +92,14 @@ export const useAiStudioSessionAutosave = ({
   debounceMs = DEFAULT_DEBOUNCE_MS,
   maxDirtyMs = DEFAULT_MAX_DIRTY_MS,
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  maxPersistRetries = DEFAULT_MAX_PERSIST_RETRIES,
   resolveSnapshotTitle = () => null,
   onPersistError,
 }: UseAiStudioSessionAutosaveArgs): void => {
   const pendingRef = useRef<PendingSnapshotState | null>(null);
   const inFlightRef = useRef<SnapshotPersistIdentity | null>(null);
   const lastSavedRef = useRef<SnapshotPersistIdentity | null>(null);
+  const lastPersistFailureRef = useRef<(SnapshotPersistIdentity & { count: number }) | null>(null);
   const lastSizeErrorRef = useRef<Pick<SnapshotPersistIdentity, "sessionId" | "hash"> | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -133,13 +141,30 @@ export const useAiStudioSessionAutosave = ({
               title: pending.title,
             })
           );
+          lastPersistFailureRef.current = null;
           lastSavedRef.current = {
             sessionId: pending.sessionId,
             hash: pending.hash,
             title: pending.title,
           };
         } catch (error) {
-          pendingRef.current = pending;
+          const previousFailureCount =
+            lastPersistFailureRef.current?.sessionId === pending.sessionId &&
+            lastPersistFailureRef.current?.hash === pending.hash &&
+            lastPersistFailureRef.current?.title === pending.title
+              ? lastPersistFailureRef.current.count
+              : 0;
+          const nextFailureCount = previousFailureCount + 1;
+          const willRetry = nextFailureCount <= maxPersistRetries;
+          lastPersistFailureRef.current = {
+            sessionId: pending.sessionId,
+            hash: pending.hash,
+            title: pending.title,
+            count: nextFailureCount,
+          };
+          if (willRetry) {
+            pendingRef.current = pending;
+          }
           reportPersistError(
             error instanceof Error ? error : new Error("Session snapshot persistence failed."),
             {
@@ -148,11 +173,17 @@ export const useAiStudioSessionAutosave = ({
               snapshotBytes: pending.snapshotBytes,
               maxSnapshotBytes: maxSnapshotBytes,
               keepalive: options?.keepalive === true,
+              attempt: nextFailureCount,
+              maxAttempts: maxPersistRetries + 1,
+              willRetry,
+              remainingRetries: willRetry ? maxPersistRetries - nextFailureCount + 1 : 0,
             }
           );
-          debounceTimerRef.current = globalThis.setTimeout(() => {
-            void flush();
-          }, debounceMs);
+          if (willRetry) {
+            debounceTimerRef.current = globalThis.setTimeout(() => {
+              void flush();
+            }, debounceMs);
+          }
         } finally {
           if (
             inFlightRef.current?.sessionId === pending.sessionId &&
@@ -165,7 +196,14 @@ export const useAiStudioSessionAutosave = ({
       };
       return flush();
     },
-    [clearTimers, debounceMs, maxSnapshotBytes, persistSnapshot, reportPersistError]
+    [
+      clearTimers,
+      debounceMs,
+      maxPersistRetries,
+      maxSnapshotBytes,
+      persistSnapshot,
+      reportPersistError,
+    ]
   );
 
   const serializedSnapshot = useMemo(() => {
@@ -189,6 +227,24 @@ export const useAiStudioSessionAutosave = ({
 
   useEffect(() => {
     if (!enabled || !sessionId || !snapshot || !serializedSnapshot) return;
+
+    if (
+      lastPersistFailureRef.current &&
+      (lastPersistFailureRef.current.sessionId !== sessionId ||
+        lastPersistFailureRef.current.hash !== serializedSnapshot.hash ||
+        lastPersistFailureRef.current.title !== serializedSnapshot.title)
+    ) {
+      lastPersistFailureRef.current = null;
+    }
+
+    if (
+      lastPersistFailureRef.current?.sessionId === sessionId &&
+      lastPersistFailureRef.current?.hash === serializedSnapshot.hash &&
+      lastPersistFailureRef.current?.title === serializedSnapshot.title &&
+      lastPersistFailureRef.current.count > maxPersistRetries
+    ) {
+      return;
+    }
 
     if (!serializedSnapshot.hash) {
       reportPersistError(new Error("Session snapshot could not be serialized."), {
@@ -273,6 +329,7 @@ export const useAiStudioSessionAutosave = ({
     enabled,
     flushPending,
     maxDirtyMs,
+    maxPersistRetries,
     maxSnapshotBytes,
     reportPersistError,
     serializedSnapshot,

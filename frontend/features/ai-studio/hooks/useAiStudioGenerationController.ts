@@ -319,6 +319,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+        ...(characterModeOverrides?.internalMediaRefsOverride
+          ? { internalMediaRefsOverride: characterModeOverrides.internalMediaRefsOverride }
+          : {}),
         suppressStyle: options?.suppressStyle,
         suppressCharacter: options?.suppressCharacter,
         ignoreGenerationGuardrail: options?.ignoreGenerationGuardrail,
@@ -491,6 +494,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         displayPromptOverride: resolvedDisplayPromptOverride,
         referenceInputsOverride:
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
+        ...(characterModeOverrides?.internalMediaRefsOverride
+          ? { internalMediaRefsOverride: characterModeOverrides.internalMediaRefsOverride }
+          : {}),
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
         suppressStyle: options?.suppressStyle,

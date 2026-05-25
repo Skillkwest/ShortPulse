@@ -173,4 +173,75 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(uploadedFile.type).toBe("image/png");
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
+
+  it("prefers degraded internal reference hints over synthetic browser files", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+    } as Response);
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const syntheticFile = new File(["ghost"], "ghost.txt", { type: "text/plain" });
+    const data = new Map<string, string>([
+      ["text/reference-origin", "ai-studio-reference-grid"],
+      ["image/url", "data:image/png;base64,aW1hZ2UtYnl0ZXM="],
+    ]);
+    const transfer = {
+      files: [syntheticFile],
+      items: [],
+      types: ["Files", ...Array.from(data.keys())],
+      getData: (type: string) => data.get(type) ?? "",
+    } as unknown as DataTransfer;
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
+    });
+
+    expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(1);
+    const uploadedFile = setCharacterSheetPresetFile.mock.calls[0]?.[1] as File;
+    expect(setCharacterSheetPresetFile.mock.calls[0]?.[0]).toBe("portrait");
+    expect(uploadedFile).toBeInstanceOf(File);
+    expect(uploadedFile.type).toBe("image/png");
+    expect(uploadedFile).not.toBe(syntheticFile);
+    expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for degraded internal drags instead of uploading synthetic files", async () => {
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const syntheticFile = new File(["ghost"], "ghost.txt", { type: "text/plain" });
+    const data = new Map<string, string>([["text/reference-origin", "ai-studio-reference-grid"]]);
+    const transfer = {
+      files: [syntheticFile],
+      items: [],
+      types: ["Files", ...Array.from(data.keys())],
+      getData: (type: string) => data.get(type) ?? "",
+    } as unknown as DataTransfer;
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
+    });
+
+    expect(setCharacterSheetPresetFile).not.toHaveBeenCalled();
+    expect(vi.mocked(reportAppError)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "character_sheet_drop_reference_blocked_by_trust_policy",
+        metadata: expect.objectContaining({
+          target: "character_sheet",
+          drop_zone_key: "portrait",
+          internal_hint_present: true,
+        }),
+      })
+    );
+  });
 });

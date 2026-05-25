@@ -4,6 +4,7 @@
  */
 import { fetchWithAuth } from "./authenticatedFetch";
 import { readGenerationAdmissionErrorMessage } from "./generationAdmissionErrors";
+import type { InternalMediaRef } from "./media/internalMediaRefs";
 import type {
   OpenAiImage2InputFidelity,
   OpenAiImage2Quality,
@@ -19,6 +20,12 @@ type OpenAiImageSharedRequest = {
   character_context?: Record<string, unknown>;
   style_context?: Record<string, unknown>;
   shortpulse_context?: Record<string, unknown>;
+  shortpulse_internal_media_refs?: Array<InternalMediaRef | null>;
+  shortpulse_internal_edit_media_refs?: {
+    base_image?: InternalMediaRef | null;
+    mask_image?: InternalMediaRef | null;
+    reference_image?: InternalMediaRef | null;
+  };
 };
 
 export type OpenAiImageSubmitRequest = OpenAiImageSharedRequest;

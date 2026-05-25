@@ -387,10 +387,13 @@ function DetailModalContent({
     loadedPreviewAspect && outputId && loadedPreviewAspect.outputId === outputId
       ? loadedPreviewAspect.ratio
       : outputAspectRatio;
+  const displayPromptText =
+    output?.generationReplay?.displayPrompt?.trim() ||
+    output?.previewText?.trim() ||
+    output?.prompt ||
+    "";
   const draftPrompt =
-    outputId && output
-      ? (draftPromptsById[outputId] ?? output.prompt ?? "")
-      : (output?.prompt ?? "");
+    outputId && output ? (draftPromptsById[outputId] ?? displayPromptText) : displayPromptText;
   const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
@@ -415,7 +418,7 @@ function DetailModalContent({
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();
-  const hasPromptEdits = trimmedPrompt !== (output?.prompt ?? "").trim();
+  const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
   const canSave = useMemo(
     () => Boolean(trimmedPrompt) && (Boolean(onSavePrompt) || (isPromptEditable && hasPromptEdits)),
     [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt]
@@ -631,7 +634,7 @@ function DetailModalContent({
     }
   })();
 
-  const outputPrompt = output?.prompt?.trim() ?? null;
+  const outputPrompt = displayPromptText.trim() || null;
   const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
   const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
@@ -1140,7 +1143,7 @@ function DetailModalContent({
                         <img
                           className="art-hero-image"
                           src={displayPreviewUrl}
-                          alt={output.prompt}
+                          alt={displayPromptText}
                           style={imageStyle}
                           draggable={false}
                           onDragStart={(event) => event.preventDefault()}
@@ -1153,7 +1156,7 @@ function DetailModalContent({
                     )
                   ) : (
                     <div className="art-text-placeholder">
-                      <p>{output.previewText ?? output.prompt}</p>
+                      <p>{displayPromptText}</p>
                     </div>
                   )}
                 </div>

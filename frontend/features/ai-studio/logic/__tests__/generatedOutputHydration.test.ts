@@ -119,6 +119,36 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("preserves local reference-grid suppression until canonical hydration catches up", () => {
+    const existing = [
+      createOutput({
+        id: "local-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        mediaSource: "generated",
+        hiddenInReferenceGrid: true,
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        mediaSource: "generated",
+        hiddenInReferenceGrid: false,
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-1",
+        hiddenInReferenceGrid: true,
+      })
+    );
+  });
+
   it("prepends unseen canonical generated outputs", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

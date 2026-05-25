@@ -462,4 +462,27 @@ describe("projects routes", () => {
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
+
+  it("returns a structured 500 when project workspace auth resolution throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth bootstrap failed"));
+    const req = { method: "PUT", query: { projectId: "project-1" }, body: {} };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-workspace-save",
+      user: null,
+      metadata: {
+        source: "api.projects.workspace.save",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to save project workspace",
+      details: "auth bootstrap failed",
+    });
+  });
 });

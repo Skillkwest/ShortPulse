@@ -3,7 +3,11 @@
  * Keeps placeholder creation and replay snapshot attachment out of the main submit hook.
  */
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
-import { buildGenerationReplayConfigV1 } from "../../logic/generationReplay";
+import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
+import {
+  buildGenerationReplayConfigV1,
+  buildGenerationReplayConfigV2,
+} from "../../logic/generationReplay";
 import type {
   GenerationReplayConfig,
   StudioMode,
@@ -36,6 +40,7 @@ type BuildSubmissionReplaySnapshotParams = {
   aspect: string;
   imageResolution: string | null;
   referenceInputs: string[];
+  internalMediaRefs?: Array<InternalMediaRef | null>;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
 };
@@ -104,10 +109,26 @@ export const buildSubmissionReplaySnapshot = ({
   aspect,
   imageResolution,
   referenceInputs,
+  internalMediaRefs = [],
   characterContext,
   styleContext,
-}: BuildSubmissionReplaySnapshotParams) =>
-  buildGenerationReplayConfigV1({
+}: BuildSubmissionReplaySnapshotParams) => {
+  const hasUsableInternalMediaRefs = internalMediaRefs.some((ref) => Boolean(ref));
+  if (!hasUsableInternalMediaRefs) {
+    return buildGenerationReplayConfigV1({
+      mode,
+      submitTool,
+      modelId,
+      displayPrompt,
+      submissionPrompt,
+      aspect,
+      imageResolution,
+      referenceInputs,
+      characterContext,
+      styleContext,
+    });
+  }
+  return buildGenerationReplayConfigV2({
     mode,
     submitTool,
     modelId,
@@ -116,9 +137,11 @@ export const buildSubmissionReplaySnapshot = ({
     aspect,
     imageResolution,
     referenceInputs,
+    internalMediaRefs,
     characterContext,
     styleContext,
   });
+};
 
 export const attachGenerationReplayToOutput = ({
   id,

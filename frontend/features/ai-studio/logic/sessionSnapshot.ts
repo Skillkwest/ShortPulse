@@ -37,7 +37,9 @@ import {
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
 import { createAiStudioProjectWorkspaceSnapshot as createProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
+import { resolveInternalMediaRefsForUrls } from "./referenceInputInternalMediaRegistry";
 import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
@@ -56,6 +58,7 @@ export type AiStudioSessionCreateModeReferenceStateV1 = {
   showCreateTools?: boolean;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
+  referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator?: boolean;
   detailOutputId?: string | null;
@@ -156,6 +159,7 @@ export type AiStudioSessionWorkspaceV1 = {
   createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
+  referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -236,10 +240,12 @@ export type AiStudioSessionSnapshotV2 = {
 export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessionSnapshotV2;
 export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
+  | "without_parked_pulse_runtime"
   | "without_expert_edit"
   | "without_canvas"
   | "without_canvas_and_expert_edit"
   | "without_archived_outputs"
+  | "without_archived_outputs_and_parked_pulse_runtime"
   | "without_archived_outputs_and_expert_edit"
   | "without_archived_outputs_and_canvas"
   | "without_archived_outputs_and_canvas_and_expert_edit";
@@ -384,6 +390,11 @@ const sanitizeWorkspaceExtraImageUrls = (
   sanitizeWorkspaceMediaUrl(values[2]),
 ];
 
+const sanitizeWorkspaceInternalMediaRefs = (
+  primary: string | null,
+  extras: [string | null, string | null, string | null]
+): Array<InternalMediaRef | null> => resolveInternalMediaRefsForUrls([primary, ...extras], 4);
+
 const sanitizeCreateModeReferenceState = (
   value: AiStudioSessionCreateModeReferenceStateV1
 ): AiStudioSessionCreateModeReferenceStateV1 => ({
@@ -391,6 +402,10 @@ const sanitizeCreateModeReferenceState = (
   showCreateTools: value.showCreateTools ?? false,
   referenceImageUrl: sanitizeWorkspaceMediaUrl(value.referenceImageUrl),
   extraImageUrls: sanitizeWorkspaceExtraImageUrls(value.extraImageUrls),
+  referenceImageInternalMediaRefs: sanitizeWorkspaceInternalMediaRefs(
+    value.referenceImageUrl,
+    value.extraImageUrls
+  ),
   motionReferenceVideoUrl: sanitizeWorkspaceMediaUrl(value.motionReferenceVideoUrl),
   useReferenceImageIndicator: value.useReferenceImageIndicator ?? false,
   detailOutputId: typeof value.detailOutputId === "string" ? value.detailOutputId : null,
@@ -863,6 +878,10 @@ export const buildAiStudioSessionSnapshot = (
       createModeReferenceStates: persistedCreateModeReferenceStates,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
       extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
+      referenceImageInternalMediaRefs: sanitizeWorkspaceInternalMediaRefs(
+        input.referenceImageUrl,
+        input.extraImageUrls
+      ),
       editReferenceText: input.editReferenceText,
       videoReferenceText: input.videoReferenceText,
       videoReferenceMode: input.videoReferenceMode,
@@ -1057,6 +1076,36 @@ const stripExpertEditFromSnapshot = (
   return rebuildV2SnapshotMeta(baseSnapshot);
 };
 
+const stripParkedPulseRuntimeFromSnapshot = (
+  snapshot: AiStudioSessionSnapshotV2
+): AiStudioSessionSnapshotV2 => {
+  const expertCreateMode = snapshot.workspace?.expertCreateMode;
+  const hasParkedPulseRuntime =
+    expertCreateMode !== "pulse" &&
+    (snapshot.workspace?.activePulsePresetId ?? null) !== null &&
+    (snapshot.workspace?.pulseSessionInstanceId ?? null) !== null;
+  if (!hasParkedPulseRuntime) {
+    return snapshot;
+  }
+
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+  return rebuildV2SnapshotMeta({
+    ...baseSnapshot,
+    workspace: {
+      ...baseSnapshot.workspace,
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+    },
+    agentRuntimes: {
+      standard: createEmptyAiStudioSessionAgentState(),
+      pulsePresetId: null,
+      pulseSessionInstanceId: null,
+      pulse: createEmptyAiStudioSessionAgentState(),
+    },
+  });
+};
+
 export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   snapshot: AiStudioSessionSnapshot
 ): Array<{
@@ -1069,10 +1118,14 @@ export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   }> = [{ kind: "full", snapshot }];
   if (snapshot.schemaVersion >= 2) {
     const v2Snapshot = snapshot as AiStudioSessionSnapshotV2;
+    const withoutParkedPulseRuntime = stripParkedPulseRuntimeFromSnapshot(v2Snapshot);
     const withoutExpertEdit = stripExpertEditFromSnapshot(v2Snapshot);
     const withoutCanvas = stripCanvasFromSnapshot(v2Snapshot);
     const withoutCanvasAndExpertEdit = stripExpertEditFromSnapshot(withoutCanvas);
     const withoutArchivedOutputs = stripArchivedOutputsFromSnapshot(v2Snapshot);
+    const withoutArchivedOutputsAndParkedPulseRuntime = stripParkedPulseRuntimeFromSnapshot(
+      withoutArchivedOutputs as AiStudioSessionSnapshotV2
+    );
     const withoutArchivedOutputsAndExpertEdit = stripExpertEditFromSnapshot(
       withoutArchivedOutputs as AiStudioSessionSnapshotV2
     );
@@ -1083,10 +1136,15 @@ export const createAiStudioProjectWorkspaceAutosaveCandidates = (
       withoutArchivedOutputsAndCanvas
     );
     candidates.push(
+      { kind: "without_parked_pulse_runtime", snapshot: withoutParkedPulseRuntime },
       { kind: "without_expert_edit", snapshot: withoutExpertEdit },
       { kind: "without_canvas", snapshot: withoutCanvas },
       { kind: "without_canvas_and_expert_edit", snapshot: withoutCanvasAndExpertEdit },
       { kind: "without_archived_outputs", snapshot: withoutArchivedOutputs },
+      {
+        kind: "without_archived_outputs_and_parked_pulse_runtime",
+        snapshot: withoutArchivedOutputsAndParkedPulseRuntime,
+      },
       {
         kind: "without_archived_outputs_and_expert_edit",
         snapshot: withoutArchivedOutputsAndExpertEdit,

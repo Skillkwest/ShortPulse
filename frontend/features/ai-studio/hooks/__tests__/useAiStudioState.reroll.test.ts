@@ -33,7 +33,10 @@ vi.mock("../useAiStudioReferenceSelectionState", () => ({
     setExtraImageUrl: vi.fn(),
     clearReferenceImages: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
-    resolveReferenceInputsForTool: vi.fn(() => []),
+    resolveReferenceInputsForTool: vi.fn(() => ({
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+    })),
     isModelModalOpen: false,
     modelModalAnchor: null,
     modelModalContext: null,
@@ -215,6 +218,54 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
         data: expect.objectContaining({
           reason: "local_reference",
         }),
+      })
+    );
+  });
+
+  it("replays canonical internal refs for reroll v2 payloads", () => {
+    findOutputByIdMock.mockReturnValue(
+      makeGeneratedImageOutput("out-reroll-v2", {
+        generationReplay: {
+          version: 2,
+          mode: "image",
+          submitTool: "edit",
+          modelId: "fal-ai/nano-banana/edit",
+          displayPrompt: "Visible prompt",
+          submissionPrompt: "Submission prompt with durable refs",
+          aspect: "1:1",
+          imageResolution: "model_default",
+          referenceInputs: [],
+          internalMediaRefs: [
+            {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user-1/library/ref-a.png",
+            },
+          ],
+          capturedAt: "2026-02-26T00:00:00.000Z",
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useAiStudioState());
+
+    act(() => {
+      result.current.rerollOutputFromReplay("out-reroll-v2");
+    });
+
+    expect(submitTaskMock).toHaveBeenCalledWith(
+      "Submission prompt with durable refs",
+      [],
+      expect.objectContaining({
+        internalMediaRefsOverride: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/library/ref-a.png",
+          },
+        ],
       })
     );
   });

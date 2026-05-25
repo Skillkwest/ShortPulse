@@ -372,6 +372,7 @@ export function CharacterPanelWorkspace({
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingCharacterSheetPreset,
+    isDeletingCharacterSheetPreset,
     setCharacterName,
     setCharacterDescription,
     setActiveCharacterSheetPreset,
@@ -428,7 +429,15 @@ export function CharacterPanelWorkspace({
     isCreatingCharacter ||
     isSavingCharacter ||
     isDeletingCharacter ||
+    isDeletingCharacterSheetPreset ||
     isSavingCharacterSheetPreset;
+  const looksControlDisabled =
+    loading ||
+    isSwitchingCharacter ||
+    isCreatingCharacter ||
+    isSavingCharacter ||
+    isDeletingCharacter ||
+    isDeletingCharacterSheetPreset;
   const characterLibraryButtonDisabled =
     loading || isSwitchingCharacter || isCreatingCharacter || isDeletingCharacter;
   const characterLibrarySelectionDisabled = pageBusy;
@@ -1125,21 +1134,24 @@ export function CharacterPanelWorkspace({
                                 activePresetId={activeCharacterSheetPresetId}
                                 presetLabels={characterSheetPresetLabels}
                                 onSelectPreset={(presetId) => {
+                                  if (looksControlDisabled || isSavingCharacterSheetPreset) return;
                                   void setActiveCharacterSheetPreset(presetId);
                                 }}
                                 onAddPreset={() => {
+                                  if (looksControlDisabled || isSavingCharacterSheetPreset) return;
                                   void addCharacterSheetPreset();
                                 }}
                                 onRenamePreset={(presetId, nextLabel) => {
+                                  if (looksControlDisabled || isSavingCharacterSheetPreset) return;
                                   void renameCharacterSheetPreset(presetId, nextLabel);
                                 }}
                                 onDeletePreset={(presetId) => {
-                                  if (pageBusy || isSavingCharacterSheetPreset) return;
+                                  if (looksControlDisabled) return;
                                   clearMessages();
                                   setDeleteTargetCharacterSheetPresetId(presetId);
                                 }}
                                 panelId="character-panel-preset-panel"
-                                disabled={pageBusy}
+                                disabled={looksControlDisabled}
                                 headerContent={
                                   <div style={CHARACTER_TOP_FIELD_LABEL_INLINE_STYLE}>
                                     <p style={CHARACTER_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>
@@ -1469,9 +1481,9 @@ export function CharacterPanelWorkspace({
             </p>
           }
           confirmLabel="Delete"
-          confirmBusyLabel={isSavingCharacterSheetPreset ? "Deleting..." : undefined}
-          confirmDisabled={isSavingCharacterSheetPreset}
-          cancelDisabled={isSavingCharacterSheetPreset}
+          confirmBusyLabel={isDeletingCharacterSheetPreset ? "Deleting..." : undefined}
+          confirmDisabled={isDeletingCharacterSheetPreset}
+          cancelDisabled={isDeletingCharacterSheetPreset}
           onCancel={() => setDeleteTargetCharacterSheetPresetId(null)}
           onConfirm={() => {
             void confirmDeleteCharacterSheetPreset();

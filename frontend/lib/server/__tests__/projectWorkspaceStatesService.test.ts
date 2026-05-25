@@ -507,9 +507,8 @@ describe("projectWorkspaceStatesService", () => {
         sessionId: "session-1",
         updatedAt: "2026-04-23T01:00:00.000Z",
         workspace: {
-          prompt: "",
-          standardPrompt: "",
-          pulsePrompt: "",
+          prompt: "Legacy prompt",
+          standardPrompt: "Legacy prompt",
           editReferenceText: "",
           videoReferenceText: "",
         },
@@ -622,7 +621,7 @@ describe("projectWorkspaceStatesService", () => {
     const firstWorkspaceUpsertArg = (
       workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
     ).at(0)?.[0];
-    expect("agentRuntimes" in (firstWorkspaceUpsertArg?.snapshot ?? {})).toBe(false);
+    expect(firstWorkspaceUpsertArg?.snapshot?.agentRuntimes).toBeDefined();
   });
 
   it("removes failed outputs from project workspace snapshots before saving", async () => {
@@ -808,6 +807,8 @@ describe("projectWorkspaceStatesService", () => {
                   generationId: "generation-1",
                   previewUrl: "https://expired.example.com/old.png",
                   resultUrls: ["https://expired.example.com/old.png"],
+                  previewStoragePath: "user-1/generated/out-1-preview.png",
+                  fullStoragePath: "user-1/generated/out-1-full.png",
                 },
               ],
               archived: [],
@@ -829,8 +830,6 @@ describe("projectWorkspaceStatesService", () => {
               expect.objectContaining({
                 id: "out-1",
                 generationId: "generation-1",
-                previewUrl: "https://expired.example.com/old.png",
-                resultUrls: ["https://expired.example.com/old.png"],
               }),
             ],
           },
@@ -846,12 +845,28 @@ describe("projectWorkspaceStatesService", () => {
             expect.objectContaining({
               id: "out-1",
               generationId: "generation-1",
-              previewUrl: "https://expired.example.com/old.png",
-              resultUrls: ["https://expired.example.com/old.png"],
             }),
           ],
         },
       });
+      expect(
+        (
+          ((
+            firstWorkspaceUpsertArg?.snapshot?.outputs as {
+              active?: Array<Record<string, unknown>>;
+            }
+          )?.active ?? []) as Array<Record<string, unknown>>
+        )[0]
+      ).not.toHaveProperty("previewUrl");
+      expect(
+        (
+          ((
+            firstWorkspaceUpsertArg?.snapshot?.outputs as {
+              active?: Array<Record<string, unknown>>;
+            }
+          )?.active ?? []) as Array<Record<string, unknown>>
+        )[0]
+      ).not.toHaveProperty("resultUrls");
       expect(warnSpy).toHaveBeenCalledWith(
         "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
         expect.objectContaining({
@@ -1169,7 +1184,7 @@ describe("projectWorkspaceStatesService", () => {
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
-    expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
+    expect(result?.snapshot.agentRuntimes).toBeDefined();
   });
 
   it("removes failed legacy snapshot rows and prunes dependent ids on workspace read", async () => {
@@ -1263,8 +1278,6 @@ describe("projectWorkspaceStatesService", () => {
               {
                 id: "out-1",
                 generationId: "generation-1",
-                previewUrl: "https://expired.example.com/old.png",
-                resultUrls: ["https://expired.example.com/old.png"],
               },
             ],
             archived: [],
@@ -1274,7 +1287,7 @@ describe("projectWorkspaceStatesService", () => {
       expect(result?.snapshot.outputs).not.toMatchObject({
         active: [expect.objectContaining({ id: "out-2" })],
       });
-      expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
+      expect(result?.snapshot.agentRuntimes).toBeDefined();
       expect(warnSpy).toHaveBeenCalledWith(
         "[project-workspace] read enrichment failed; returning sanitized snapshot",
         expect.objectContaining({
@@ -1282,6 +1295,18 @@ describe("projectWorkspaceStatesService", () => {
           error: "projection unavailable",
         })
       );
+      expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+        source: "telemetry.ai_studio.project_workspace.read_enrichment_fallback",
+        message:
+          "Project workspace read enrichment fell back to the sanitized snapshot after an enrichment failure.",
+        userId: "user-1",
+        statusCode: 200,
+        metadata: {
+          project_id: "project-1",
+          fallback_stage: "read_enrichment",
+          error: "projection unavailable",
+        },
+      });
     } finally {
       warnSpy.mockRestore();
     }

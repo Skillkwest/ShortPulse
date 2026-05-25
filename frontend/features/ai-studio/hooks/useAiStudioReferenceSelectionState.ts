@@ -4,12 +4,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { ToolId } from "../types";
 import {
   isCreateModeAuthoritySwitch,
   isPulseCreateAuthorityKey,
   normalizeSelectedToolForAuthorityKey,
 } from "../logic/pulseToolInvariant";
+import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -21,8 +23,10 @@ type ReferenceSelectionAuthorityState = {
   showCreateTools: boolean;
   imageReferenceImageUrl: string | null;
   imageExtraImageUrls: [string | null, string | null, string | null];
+  imageReferenceImageInternalMediaRefs: Array<InternalMediaRef | null>;
   videoReferenceImageUrl: string | null;
   videoExtraImageUrls: [string | null, string | null, string | null];
+  videoReferenceImageInternalMediaRefs: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator: boolean;
   detailOutputId: string | null;
@@ -33,6 +37,7 @@ export type ReferenceSelectionAuthorityStateSeed = {
   showCreateTools?: boolean;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
+  referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator?: boolean;
   detailOutputId?: string | null;
@@ -43,8 +48,10 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
   showCreateTools: false,
   imageReferenceImageUrl: null,
   imageExtraImageUrls: [null, null, null],
+  imageReferenceImageInternalMediaRefs: [],
   videoReferenceImageUrl: null,
   videoExtraImageUrls: [null, null, null],
+  videoReferenceImageInternalMediaRefs: [],
   motionReferenceVideoUrl: null,
   useReferenceImageIndicator: false,
   detailOutputId: null,
@@ -55,18 +62,24 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
   showCreateTools = false,
   referenceImageUrl,
   extraImageUrls,
+  referenceImageInternalMediaRefs,
   motionReferenceVideoUrl,
   useReferenceImageIndicator = false,
   detailOutputId = null,
 }: ReferenceSelectionAuthorityStateSeed): ReferenceSelectionAuthorityState => {
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
+  const resolvedInternalMediaRefs =
+    referenceImageInternalMediaRefs ??
+    resolveInternalMediaRefsForUrls([referenceImageUrl, ...extraImageUrls], 4);
   return {
     selectedTool,
     showCreateTools,
     imageReferenceImageUrl: isVideoReferenceTool ? null : referenceImageUrl,
     imageExtraImageUrls: isVideoReferenceTool ? [null, null, null] : extraImageUrls,
+    imageReferenceImageInternalMediaRefs: isVideoReferenceTool ? [] : resolvedInternalMediaRefs,
     videoReferenceImageUrl: isVideoReferenceTool ? referenceImageUrl : null,
     videoExtraImageUrls: isVideoReferenceTool ? extraImageUrls : [null, null, null],
+    videoReferenceImageInternalMediaRefs: isVideoReferenceTool ? resolvedInternalMediaRefs : [],
     motionReferenceVideoUrl,
     useReferenceImageIndicator,
     detailOutputId,
@@ -102,13 +115,23 @@ export const useAiStudioReferenceSelectionState = ({
   useEffect(() => {
     if (activeAuthorityKeyRef.current === authorityKey) return;
     const previousAuthorityKey = activeAuthorityKeyRef.current;
+    const currentImageInternalMediaRefs = resolveInternalMediaRefsForUrls(
+      [imageReferenceImageUrl, ...imageExtraImageUrls],
+      4
+    );
+    const currentVideoInternalMediaRefs = resolveInternalMediaRefsForUrls(
+      [videoReferenceImageUrl, ...videoExtraImageUrls],
+      4
+    );
     stateByAuthorityKeyRef.current[previousAuthorityKey] = {
       selectedTool: normalizeSelectedToolForAuthorityKey(previousAuthorityKey, selectedTool),
       showCreateTools,
       imageReferenceImageUrl,
       imageExtraImageUrls,
+      imageReferenceImageInternalMediaRefs: currentImageInternalMediaRefs,
       videoReferenceImageUrl,
       videoExtraImageUrls,
+      videoReferenceImageInternalMediaRefs: currentVideoInternalMediaRefs,
       motionReferenceVideoUrl,
       useReferenceImageIndicator,
       detailOutputId,
@@ -265,11 +288,16 @@ export const useAiStudioReferenceSelectionState = ({
   const getAuthorityState = useCallback(
     (targetAuthorityKey: string): ReferenceSelectionAuthorityStateSeed => {
       if (activeAuthorityKeyRef.current === targetAuthorityKey) {
+        const activeReferenceInternalMediaRefs =
+          selectedTool === "video" || selectedTool === "kling"
+            ? resolveInternalMediaRefsForUrls([videoReferenceImageUrl, ...videoExtraImageUrls], 4)
+            : resolveInternalMediaRefsForUrls([imageReferenceImageUrl, ...imageExtraImageUrls], 4);
         return {
           selectedTool: normalizeSelectedToolForAuthorityKey(targetAuthorityKey, selectedTool),
           showCreateTools,
           referenceImageUrl,
           extraImageUrls,
+          referenceImageInternalMediaRefs: activeReferenceInternalMediaRefs,
           motionReferenceVideoUrl,
           useReferenceImageIndicator,
           detailOutputId,
@@ -287,16 +315,19 @@ export const useAiStudioReferenceSelectionState = ({
           ? {
               referenceImageUrl: restoredState.videoReferenceImageUrl,
               extraImageUrls: restoredState.videoExtraImageUrls,
+              referenceImageInternalMediaRefs: restoredState.videoReferenceImageInternalMediaRefs,
             }
           : {
               referenceImageUrl: restoredState.imageReferenceImageUrl,
               extraImageUrls: restoredState.imageExtraImageUrls,
+              referenceImageInternalMediaRefs: restoredState.imageReferenceImageInternalMediaRefs,
             };
       return {
         selectedTool: normalizedSelectedTool,
         showCreateTools: restoredState.showCreateTools,
         referenceImageUrl: restoredReferenceInputs.referenceImageUrl,
         extraImageUrls: restoredReferenceInputs.extraImageUrls,
+        referenceImageInternalMediaRefs: restoredReferenceInputs.referenceImageInternalMediaRefs,
         motionReferenceVideoUrl: restoredState.motionReferenceVideoUrl,
         useReferenceImageIndicator: restoredState.useReferenceImageIndicator,
         detailOutputId: restoredState.detailOutputId,
@@ -305,11 +336,15 @@ export const useAiStudioReferenceSelectionState = ({
     [
       detailOutputId,
       extraImageUrls,
+      imageExtraImageUrls,
+      imageReferenceImageUrl,
       motionReferenceVideoUrl,
       referenceImageUrl,
       selectedTool,
       showCreateTools,
       useReferenceImageIndicator,
+      videoExtraImageUrls,
+      videoReferenceImageUrl,
     ]
   );
 

@@ -51,8 +51,25 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
     expertCreateMode: "standard",
     activePulsePresetId: null,
     pulseSessionInstanceId: null,
+    createModeReferenceStates: {
+      standard: {
+        selectedTool: "create",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        referenceImageInternalMediaRefs: [],
+        motionReferenceVideoUrl: null,
+      },
+      pulse: {
+        selectedTool: "create",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        referenceImageInternalMediaRefs: [],
+        motionReferenceVideoUrl: null,
+      },
+    },
     referenceImageUrl: null,
     extraImageUrls: [null, null, null],
+    referenceImageInternalMediaRefs: [],
     editReferenceText: "",
     videoReferenceText: "",
     videoReferenceMode: "standard",
@@ -215,6 +232,13 @@ describe("useAiStudioSessionSnapshotController", () => {
         setPulseSessionInstanceId: vi.fn(),
         setReferenceImageUrl: vi.fn(),
         setReferenceSelectionStateForCreateMode: vi.fn(),
+        getReferenceSelectionStateForCreateMode: vi.fn(() => ({
+          selectedTool: "create" as const,
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+          referenceImageInternalMediaRefs: [],
+          motionReferenceVideoUrl: null,
+        })),
         setExtraImageUrl: vi.fn(),
         setEditReferenceText: vi.fn(),
         setVideoReferenceText: vi.fn(),
@@ -281,6 +305,16 @@ describe("useAiStudioSessionSnapshotController", () => {
         pulseSessionInstanceId: "pulse-session-1",
         referenceImageUrl: "https://example.com/edit-ref.png",
         extraImageUrls: ["https://example.com/edit-extra.png", null, null],
+        createModeReferenceStates: {
+          ...payload.workspace.createModeReferenceStates,
+          pulse: {
+            selectedTool: "edit",
+            referenceImageUrl: "https://example.com/edit-ref.png",
+            extraImageUrls: ["https://example.com/edit-extra.png", null, null],
+            referenceImageInternalMediaRefs: [],
+            motionReferenceVideoUrl: null,
+          },
+        },
       },
     });
 
@@ -337,6 +371,13 @@ describe("useAiStudioSessionSnapshotController", () => {
         setPulseSessionInstanceId: vi.fn(),
         setReferenceImageUrl: vi.fn(),
         setReferenceSelectionStateForCreateMode,
+        getReferenceSelectionStateForCreateMode: vi.fn(() => ({
+          selectedTool: "create" as const,
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+          referenceImageInternalMediaRefs: [],
+          motionReferenceVideoUrl: null,
+        })),
         setExtraImageUrl: vi.fn(),
         setEditReferenceText: vi.fn(),
         setVideoReferenceText: vi.fn(),
@@ -377,6 +418,7 @@ describe("useAiStudioSessionSnapshotController", () => {
       selectedTool: "edit",
       referenceImageUrl: "https://example.com/edit-ref.png",
       extraImageUrls: ["https://example.com/edit-extra.png", null, null],
+      referenceImageInternalMediaRefs: [],
       motionReferenceVideoUrl: null,
     });
     expect(setReferenceSelectionStateForCreateMode.mock.invocationCallOrder[0]).toBeLessThan(

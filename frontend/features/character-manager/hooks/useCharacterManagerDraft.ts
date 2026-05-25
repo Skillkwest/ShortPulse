@@ -66,6 +66,7 @@ type UseCharacterManagerDraftResult = {
   isSwitchingCharacter: boolean;
   isSavingProfileImage: boolean;
   isSavingCharacterSheetPreset: boolean;
+  isDeletingCharacterSheetPreset: boolean;
   hasUnsavedCharacterDraft: boolean;
   setCharacterName: (value: string) => void;
   setCharacterDescription: (value: string) => void;
@@ -195,6 +196,7 @@ export const useCharacterManagerDraft = ({
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [isSavingProfileImage, setIsSavingProfileImage] = useState(false);
   const [isSavingCharacterSheetPreset, setIsSavingCharacterSheetPreset] = useState(false);
+  const [isDeletingCharacterSheetPreset, setIsDeletingCharacterSheetPreset] = useState(false);
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
 
   const suppressNextNamePersistRef = useRef(false);
@@ -527,6 +529,7 @@ export const useCharacterManagerDraft = ({
     clearMessages,
     setError,
     setIsSavingCharacterSheetPreset,
+    setIsDeletingCharacterSheetPreset,
     activeCharacterSheetPresetIdRef,
     activeCharacterSheetPresetRequestRef,
     characterSheetPresetsRef,
@@ -998,6 +1001,7 @@ export const useCharacterManagerDraft = ({
     isSwitchingCharacter,
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
+    isDeletingCharacterSheetPreset,
     hasUnsavedCharacterDraft: !characterId,
     setCharacterName,
     setCharacterDescription,

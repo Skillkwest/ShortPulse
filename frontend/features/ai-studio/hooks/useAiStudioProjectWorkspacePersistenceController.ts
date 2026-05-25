@@ -54,11 +54,13 @@ const resolveProjectPersistenceWarningMessage = ({
   snapshotBytes,
   maxSnapshotBytes,
   error,
+  willRetry,
 }: {
   reason: "snapshot_too_large" | "snapshot_serialize_failed" | "persist_failed";
   snapshotBytes?: number;
   maxSnapshotBytes: number;
   error: Error;
+  willRetry?: boolean;
 }): string => {
   switch (reason) {
     case "snapshot_too_large": {
@@ -73,6 +75,9 @@ const resolveProjectPersistenceWarningMessage = ({
       return "Project autosave skipped because workspace serialization failed.";
     case "persist_failed":
     default:
+      if (willRetry === false) {
+        return `Project autosave paused after repeated failures: ${error.message}`;
+      }
       return `Project autosave is retrying in the background: ${error.message}`;
   }
 };
@@ -82,6 +87,77 @@ const utf8ByteLength = (value: string): number => {
     return new TextEncoder().encode(value).byteLength;
   }
   return value.length;
+};
+
+const measureSerializedBytes = (value: unknown): number | null => {
+  try {
+    return utf8ByteLength(JSON.stringify(value));
+  } catch {
+    return null;
+  }
+};
+
+type ProjectSnapshotByteBreakdown = {
+  totalBytes: number | null;
+  workspaceBytes: number | null;
+  outputsActiveBytes: number | null;
+  outputsArchivedBytes: number | null;
+  standardRuntimeBytes: number | null;
+  pulseRuntimeBytes: number | null;
+  canvasBytes: number | null;
+  expertEditBytes: number | null;
+};
+
+const resolveProjectSnapshotByteBreakdown = (
+  snapshot: AiStudioSessionSnapshot | null
+): ProjectSnapshotByteBreakdown => {
+  if (!snapshot) {
+    return {
+      totalBytes: null,
+      workspaceBytes: null,
+      outputsActiveBytes: null,
+      outputsArchivedBytes: null,
+      standardRuntimeBytes: null,
+      pulseRuntimeBytes: null,
+      canvasBytes: null,
+      expertEditBytes: null,
+    };
+  }
+
+  return {
+    totalBytes: measureSerializedBytes(snapshot),
+    workspaceBytes: measureSerializedBytes(snapshot.workspace ?? null),
+    outputsActiveBytes: measureSerializedBytes(snapshot.outputs?.active ?? []),
+    outputsArchivedBytes: measureSerializedBytes(snapshot.outputs?.archived ?? []),
+    standardRuntimeBytes: measureSerializedBytes(
+      "agentRuntimes" in snapshot
+        ? ((
+            snapshot as AiStudioSessionSnapshot & {
+              agentRuntimes?: { standard?: unknown; pulse?: unknown } | null;
+            }
+          ).agentRuntimes?.standard ?? null)
+        : null
+    ),
+    pulseRuntimeBytes: measureSerializedBytes(
+      "agentRuntimes" in snapshot
+        ? ((
+            snapshot as AiStudioSessionSnapshot & {
+              agentRuntimes?: { standard?: unknown; pulse?: unknown } | null;
+            }
+          ).agentRuntimes?.pulse ?? null)
+        : null
+    ),
+    canvasBytes: measureSerializedBytes(
+      "canvas" in snapshot
+        ? (snapshot as AiStudioSessionSnapshot & { canvas?: unknown }).canvas
+        : null
+    ),
+    expertEditBytes: measureSerializedBytes(
+      "expertEdit" in snapshot
+        ? (snapshot as AiStudioSessionSnapshot & { expertEdit?: unknown }).expertEdit
+        : null
+    ),
+  };
 };
 
 const collectProjectSnapshotOutputIds = (snapshot: AiStudioSessionSnapshot): string[] => {
@@ -106,6 +182,9 @@ const areStringListsEqual = (left: readonly string[], right: readonly string[]):
 const resolveReducedWorkspaceNotice = (
   fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
 ): string => {
+  if (fallbackKind.includes("parked_pulse_runtime")) {
+    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Hidden Pulse state may need to be restarted.";
+  }
   if (fallbackKind.includes("archived_outputs")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore.";
   }
@@ -190,6 +269,22 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         : baseSessionSnapshot,
     [baseSessionSnapshot, patchSessionSnapshot]
   );
+  const snapshotByteBreakdownCacheRef = useRef<WeakMap<object, ProjectSnapshotByteBreakdown>>(
+    new WeakMap()
+  );
+  const resolveCachedSnapshotByteBreakdown = useCallback(
+    (snapshot: AiStudioSessionSnapshot | null): ProjectSnapshotByteBreakdown => {
+      if (!snapshot) {
+        return resolveProjectSnapshotByteBreakdown(null);
+      }
+      const cached = snapshotByteBreakdownCacheRef.current.get(snapshot as object);
+      if (cached) return cached;
+      const measured = resolveProjectSnapshotByteBreakdown(snapshot);
+      snapshotByteBreakdownCacheRef.current.set(snapshot as object, measured);
+      return measured;
+    },
+    []
+  );
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
   const autosaveSnapshotSelection = (() => {
@@ -239,6 +334,24 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     ].join("|");
     if (reducedSnapshotNoticeKeyRef.current === noticeKey) return;
     reducedSnapshotNoticeKeyRef.current = noticeKey;
+    const fullSnapshotByteBreakdown = resolveCachedSnapshotByteBreakdown(sessionSnapshot);
+    const reducedSnapshotByteBreakdown = resolveCachedSnapshotByteBreakdown(
+      autosaveSnapshotSelection.snapshot
+    );
+    addBreadcrumb({
+      type: "ui",
+      level: "info",
+      message: "ai_studio_project_workspace_snapshot_reduced_for_size",
+      data: {
+        project_id: projectId,
+        fallback_kind: autosaveSnapshotSelection.fallbackKind,
+        snapshot_updated_at: sessionSnapshot?.updatedAt ?? null,
+        full_snapshot_bytes: fullSnapshotByteBreakdown.totalBytes,
+        reduced_snapshot_bytes: reducedSnapshotByteBreakdown.totalBytes,
+        full_snapshot_breakdown: fullSnapshotByteBreakdown,
+        reduced_snapshot_breakdown: reducedSnapshotByteBreakdown,
+      },
+    });
     onPersistenceWarning?.(
       resolveReducedWorkspaceNotice(
         autosaveSnapshotSelection.fallbackKind as Exclude<
@@ -251,7 +364,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     autosaveSnapshotSelection.fallbackKind,
     onPersistenceWarning,
     projectId,
+    resolveCachedSnapshotByteBreakdown,
+    autosaveSnapshotSelection.snapshot,
     sessionSnapshot?.updatedAt,
+    sessionSnapshot,
   ]);
 
   const handleProjectBootstrapSettled = useCallback(
@@ -381,16 +497,50 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   const handleProjectPersistError = useCallback(
     (error: Error, details: AiStudioSessionAutosaveError) => {
+      if (
+        projectId &&
+        (details.reason === "snapshot_too_large" || details.reason === "persist_failed")
+      ) {
+        const fullSnapshotByteBreakdown = resolveCachedSnapshotByteBreakdown(sessionSnapshot);
+        const selectedSnapshotByteBreakdown = resolveCachedSnapshotByteBreakdown(
+          autosaveSnapshotSelection.snapshot
+        );
+        addBreadcrumb({
+          type: "ui",
+          level: details.reason === "snapshot_too_large" ? "warn" : "info",
+          message: "ai_studio_project_workspace_autosave_measurement",
+          data: {
+            project_id: projectId,
+            reason: details.reason,
+            keepalive: details.keepalive === true,
+            snapshot_bytes: details.snapshotBytes ?? selectedSnapshotByteBreakdown.totalBytes,
+            max_snapshot_bytes: details.maxSnapshotBytes,
+            fallback_kind: autosaveSnapshotSelection.fallbackKind,
+            full_snapshot_breakdown: fullSnapshotByteBreakdown,
+            selected_snapshot_breakdown: selectedSnapshotByteBreakdown,
+            will_retry: details.willRetry ?? null,
+            attempt: details.attempt ?? null,
+          },
+        });
+      }
       onPersistenceWarning?.(
         resolveProjectPersistenceWarningMessage({
           reason: details.reason,
           snapshotBytes: details.snapshotBytes,
           maxSnapshotBytes: details.maxSnapshotBytes,
           error,
+          willRetry: details.willRetry,
         })
       );
     },
-    [onPersistenceWarning]
+    [
+      autosaveSnapshotSelection.fallbackKind,
+      autosaveSnapshotSelection.snapshot,
+      onPersistenceWarning,
+      projectId,
+      resolveCachedSnapshotByteBreakdown,
+      sessionSnapshot,
+    ]
   );
   const activeBootstrapError =
     bootstrapError?.projectId === projectId && bootstrapError.revision === projectRuntimeRevision

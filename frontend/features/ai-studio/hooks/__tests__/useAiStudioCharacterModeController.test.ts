@@ -615,6 +615,14 @@ describe("useAiStudioCharacterModeController", () => {
       "https://example.com/user-primary.png",
       "https://example.com/char.png",
     ]);
+    expect(overrides?.internalMediaRefsOverride).toEqual([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user/chars/char.png",
+      },
+    ]);
     expect(overrides?.submissionPromptOverride).toContain("Character base");
   });
 
@@ -660,9 +668,14 @@ describe("useAiStudioCharacterModeController", () => {
         characterProfileImageUrl: "https://example.com/e.png",
       })
     );
-    expect(overrides?.referenceInputsOverride).toEqual([
-      "https://example.com/user-edit-ref.png",
-      "https://example.com/edit.png",
+    expect(overrides?.referenceInputsOverride).toEqual(["https://example.com/user-edit-ref.png"]);
+    expect(overrides?.internalMediaRefsOverride).toEqual([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user/chars/edit.png",
+      },
     ]);
   });
 

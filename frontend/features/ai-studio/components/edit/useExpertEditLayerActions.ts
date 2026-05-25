@@ -26,7 +26,6 @@ type UseExpertEditLayerActionsParams = {
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   clearLayerEditing: () => void;
-  onAddSessionMediaReference?: ExpertEditPanelViewProps["onAddSessionMediaReference"];
   onRegenerateWithReferenceInputs?: ExpertEditPanelViewProps["onRegenerateWithReferenceInputs"];
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   resolveStageFlattenSnapshot: () => {
@@ -46,7 +45,6 @@ export function useExpertEditLayerActions({
   setLayers,
   setSelectedLayerIndex,
   clearLayerEditing,
-  onAddSessionMediaReference,
   onRegenerateWithReferenceInputs,
   showStatusToast,
   resolveStageFlattenSnapshot,
@@ -100,9 +98,6 @@ export function useExpertEditLayerActions({
         camera: flattenSnapshot.camera,
       });
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
-      const flattenedReferenceUrl = onAddSessionMediaReference
-        ? URL.createObjectURL(exportBlob)
-        : null;
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
         layers[0] ??
@@ -119,12 +114,6 @@ export function useExpertEditLayerActions({
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
       clearLayerEditing();
-      if (flattenedReferenceUrl) {
-        onAddSessionMediaReference?.({
-          url: flattenedReferenceUrl,
-          mimeType: exportBlob.type || "image/png",
-        });
-      }
     } catch {
       showStatusToast("Unable to flatten layers.");
     } finally {
@@ -137,7 +126,6 @@ export function useExpertEditLayerActions({
     isFlattenPending,
     layerIdCounterRef,
     layers,
-    onAddSessionMediaReference,
     populatedLayerCount,
     resolveStageFlattenSnapshot,
     setLayers,

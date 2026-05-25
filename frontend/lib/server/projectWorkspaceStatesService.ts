@@ -585,6 +585,18 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       projectId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
+    void writeAppErrorLog({
+      source: "telemetry.ai_studio.project_workspace.read_enrichment_fallback",
+      message:
+        "Project workspace read enrichment fell back to the sanitized snapshot after an enrichment failure.",
+      userId,
+      statusCode: 200,
+      metadata: {
+        project_id: projectId,
+        fallback_stage: "read_enrichment",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    }).catch(() => undefined);
     return fallbackSnapshot;
   }
 };

@@ -9,6 +9,7 @@ import {
   resolveSubmissionHandlerRoute,
 } from "../taskSubmissionHandlers";
 import type { FalSubmitResponse } from "../../../../lib/falClient";
+import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type { Provider } from "../../logic/stateParsers";
@@ -31,6 +32,7 @@ export type DispatchSubmissionByRouteParams = {
   requestedResolution?: string;
   requestedAudio: boolean;
   preparedImageInputs: string[];
+  internalMediaRefs?: Array<InternalMediaRef | null>;
   modelConfig: SubmissionModelConfig;
   generationReplay?: Record<string, unknown> | null;
   characterContext?: StudioOutput["characterContext"];
@@ -79,6 +81,7 @@ const submissionRouteAdapters: Record<
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
+    internalMediaRefs,
     modelConfig,
     notifyGenerationFailure,
     updateOutputById,
@@ -112,6 +115,7 @@ const submissionRouteAdapters: Record<
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      internalMediaRefs,
       modelConfig,
       notifyGenerationFailure,
       updateOutputById,
@@ -147,6 +151,7 @@ const submissionRouteAdapters: Record<
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
+    internalMediaRefs,
     modelConfig,
     generationReplay,
     characterContext,
@@ -170,6 +175,7 @@ const submissionRouteAdapters: Record<
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      internalMediaRefs,
       modelConfig,
       notifyGenerationFailure,
       updateOutputById,
@@ -198,6 +204,7 @@ const submissionRouteAdapters: Record<
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
+    internalMediaRefs,
     modelConfig,
     generationReplay,
     characterContext,
@@ -220,6 +227,7 @@ const submissionRouteAdapters: Record<
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      internalMediaRefs,
       modelConfig,
       notifyGenerationFailure,
       updateOutputById,
@@ -246,6 +254,7 @@ export const dispatchSubmissionByRoute = async ({
   requestedResolution,
   requestedAudio,
   preparedImageInputs,
+  internalMediaRefs,
   modelConfig,
   generationReplay,
   characterContext,
@@ -294,6 +303,7 @@ export const dispatchSubmissionByRoute = async ({
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
+    internalMediaRefs,
     modelConfig,
     generationReplay,
     characterContext,

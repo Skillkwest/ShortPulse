@@ -27,13 +27,16 @@ import {
 import {
   applySessionRestoreSignedUrls,
   buildSessionOutputSigningFingerprintById,
-  resolveSessionRestoreSignedUrls,
+  resolveSessionRestoreReferenceSignedUrls,
+  resolveSessionRestoreSignedMediaAuthority,
 } from "../logic/sessionRestoreMediaSigning";
+import { registerInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import type { PulseWorkspaceState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 
 const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
   const hasResultMedia =
@@ -52,6 +55,27 @@ const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
 
 const SESSION_RESTORE_SIGN_RETRY_DELAY_MS = 1500;
 const SESSION_RESTORE_SIGN_MAX_ATTEMPTS = 2;
+
+const resolveReferenceUrlsFromInternalMediaRefs = async (
+  primaryUrl: string | null,
+  extraUrls: [string | null, string | null, string | null],
+  refs: unknown
+): Promise<{
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
+}> => {
+  const signedUrls = await resolveSessionRestoreReferenceSignedUrls(
+    Array.isArray(refs) ? refs : []
+  );
+  return {
+    referenceImageUrl: primaryUrl ?? signedUrls[0] ?? null,
+    extraImageUrls: [
+      extraUrls[0] ?? signedUrls[1] ?? null,
+      extraUrls[1] ?? signedUrls[2] ?? null,
+      extraUrls[2] ?? signedUrls[3] ?? null,
+    ],
+  };
+};
 
 type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
@@ -104,15 +128,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setReferenceImageUrl: (value: string | null) => void;
   setReferenceSelectionStateForCreateMode: (
     createMode: "standard" | "pulse",
-    nextState: {
-      selectedTool: ToolId | null;
-      showCreateTools?: boolean;
-      referenceImageUrl: string | null;
-      extraImageUrls: [string | null, string | null, string | null];
-      motionReferenceVideoUrl: string | null;
-      useReferenceImageIndicator?: boolean;
-      detailOutputId?: string | null;
-    }
+    nextState: ReferenceSelectionAuthorityStateSeed
   ) => void;
   getReferenceSelectionStateForCreateMode: (
     createMode: "standard" | "pulse"
@@ -272,6 +288,10 @@ export const useAiStudioSessionSnapshotController = ({
           workspace.expertCreateMode === "standard" ? workspace.referenceImageUrl : null,
         extraImageUrls:
           workspace.expertCreateMode === "standard" ? workspace.extraImageUrls : [null, null, null],
+        referenceImageInternalMediaRefs:
+          workspace.expertCreateMode === "standard"
+            ? (workspace.referenceImageInternalMediaRefs ?? [])
+            : [],
         motionReferenceVideoUrl:
           workspace.expertCreateMode === "standard" ? workspace.motionReferenceVideoUrl : null,
       };
@@ -281,6 +301,10 @@ export const useAiStudioSessionSnapshotController = ({
           workspace.expertCreateMode === "pulse" ? workspace.referenceImageUrl : null,
         extraImageUrls:
           workspace.expertCreateMode === "pulse" ? workspace.extraImageUrls : [null, null, null],
+        referenceImageInternalMediaRefs:
+          workspace.expertCreateMode === "pulse"
+            ? (workspace.referenceImageInternalMediaRefs ?? [])
+            : [],
         motionReferenceVideoUrl:
           workspace.expertCreateMode === "pulse" ? workspace.motionReferenceVideoUrl : null,
       };
@@ -340,6 +364,24 @@ export const useAiStudioSessionSnapshotController = ({
       setKlingMultiPrompts(workspace.klingMultiPrompts);
       setKlingElements(workspace.klingElements);
       setMotionReferenceVideoUrl(workspace.motionReferenceVideoUrl);
+      registerInternalMediaRefsForUrls(
+        [workspace.referenceImageUrl, ...workspace.extraImageUrls],
+        workspace.referenceImageInternalMediaRefs ?? []
+      );
+      registerInternalMediaRefsForUrls(
+        [
+          standardReferenceSelectionState.referenceImageUrl,
+          ...standardReferenceSelectionState.extraImageUrls,
+        ],
+        standardReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+      );
+      registerInternalMediaRefsForUrls(
+        [
+          pulseReferenceSelectionState.referenceImageUrl,
+          ...pulseReferenceSelectionState.extraImageUrls,
+        ],
+        pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+      );
 
       const restoredReferenceProjectionState = {
         quickSlotIds: outputPayload.curatedReferenceIds,
@@ -365,22 +407,73 @@ export const useAiStudioSessionSnapshotController = ({
       const activeBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.active);
       const archivedBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.archived);
       const hydrationOutputs = [...outputPayload.active, ...outputPayload.archived];
+      void Promise.all([
+        resolveReferenceUrlsFromInternalMediaRefs(
+          workspace.referenceImageUrl,
+          workspace.extraImageUrls,
+          workspace.referenceImageInternalMediaRefs ?? []
+        ),
+        resolveReferenceUrlsFromInternalMediaRefs(
+          standardReferenceSelectionState.referenceImageUrl,
+          standardReferenceSelectionState.extraImageUrls,
+          standardReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+        ),
+        resolveReferenceUrlsFromInternalMediaRefs(
+          pulseReferenceSelectionState.referenceImageUrl,
+          pulseReferenceSelectionState.extraImageUrls,
+          pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+        ),
+      ])
+        .then(([restoredWorkspaceRefs, restoredStandardRefs, restoredPulseRefs]) => {
+          if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+          registerInternalMediaRefsForUrls(
+            [restoredWorkspaceRefs.referenceImageUrl, ...restoredWorkspaceRefs.extraImageUrls],
+            workspace.referenceImageInternalMediaRefs ?? []
+          );
+          registerInternalMediaRefsForUrls(
+            [restoredStandardRefs.referenceImageUrl, ...restoredStandardRefs.extraImageUrls],
+            standardReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+          );
+          registerInternalMediaRefsForUrls(
+            [restoredPulseRefs.referenceImageUrl, ...restoredPulseRefs.extraImageUrls],
+            pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+          );
+          setReferenceSelectionStateForCreateMode("standard", {
+            ...standardReferenceSelectionState,
+            referenceImageUrl: restoredStandardRefs.referenceImageUrl,
+            extraImageUrls: restoredStandardRefs.extraImageUrls,
+          });
+          setReferenceSelectionStateForCreateMode("pulse", {
+            ...pulseReferenceSelectionState,
+            referenceImageUrl: restoredPulseRefs.referenceImageUrl,
+            extraImageUrls: restoredPulseRefs.extraImageUrls,
+          });
+          setReferenceImageUrl(restoredWorkspaceRefs.referenceImageUrl);
+          restoredWorkspaceRefs.extraImageUrls.forEach((url, index) => {
+            setExtraImageUrl(index, url);
+          });
+        })
+        .catch(() => undefined);
       const attemptRestoreSigning = (attemptIndex: number) => {
-        void resolveSessionRestoreSignedUrls(hydrationOutputs)
-          .then((signedByPath) => {
+        void resolveSessionRestoreSignedMediaAuthority(hydrationOutputs)
+          .then(({ signedByPath, recoveredAuthorityByOutputId }) => {
             if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
             restoreSigningRetryTimerRef.current = null;
-            if (signedByPath.size === 0) return;
+            if (signedByPath.size === 0 && Object.keys(recoveredAuthorityByOutputId).length === 0) {
+              return;
+            }
 
             setOutputsState((rows) => {
               const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
                 baselineById: activeBaselineById,
+                recoveredAuthorityById: recoveredAuthorityByOutputId,
               });
               return patched.changed ? patched.outputs : rows;
             });
             setArchivedOutputs((rows) => {
               const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
                 baselineById: archivedBaselineById,
+                recoveredAuthorityById: recoveredAuthorityByOutputId,
               });
               return patched.changed ? patched.outputs : rows;
             });

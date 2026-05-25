@@ -2,6 +2,8 @@
  * Types for the AI Studio feature surface.
  * Keeps mode, aspect, prompt, and output structures shared between components.
  */
+import type { InternalMediaRef } from "../../lib/media/internalMediaRefs";
+
 export type StudioMode = "text" | "image" | "video" | "audio";
 
 export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
@@ -54,7 +56,25 @@ export type GenerationReplayConfigV1 = {
   capturedAt: string;
 };
 
-export type GenerationReplayConfig = GenerationReplayConfigV1;
+export type GenerationReplayConfigV2 = {
+  version: 2;
+  mode: "image";
+  submitTool: GenerationReplaySubmitTool;
+  modelId: string;
+  displayPrompt: string;
+  submissionPrompt: string;
+  aspect: string;
+  imageResolution: string | null;
+  // Only truly external or already-provider-safe references remain here.
+  referenceInputs: string[];
+  // App-owned references persist canonically so reroll can mint fresh provider URLs later.
+  internalMediaRefs: Array<InternalMediaRef | null>;
+  characterContext?: StudioOutputCharacterContext;
+  styleContext?: StudioOutputStyleContext;
+  capturedAt: string;
+};
+
+export type GenerationReplayConfig = GenerationReplayConfigV1 | GenerationReplayConfigV2;
 
 export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clipboard" | "prompt";
 

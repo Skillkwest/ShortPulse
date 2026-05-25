@@ -37,6 +37,11 @@ import {
   readPersistedSelectedCharacterId,
 } from "../../logic/selectedCharacterPersistence";
 import { validateCharacterReferenceFile } from "../../logic/referenceValidation";
+import type {
+  CharacterSheetPresetDescriptionMap,
+  CharacterSheetPresetId,
+  CharacterSheetPresetState,
+} from "../../types";
 
 vi.mock("../../../../lib/supabaseClient", async () => {
   const { createSupabaseClientModuleMock } =
@@ -1424,6 +1429,106 @@ describe("useCharacterManagerDraft", () => {
     expect(result.current.characterDescription).toBe("Primary description");
     expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
       "https://signed.example/preset-1.png"
+    );
+  });
+
+  it("keeps a newer look delete intact when an older upload save resolves with stale tab state", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    const uploadedPortrait = createPresetMedia(
+      "uploaded-portrait",
+      "https://signed.example/uploaded-portrait.png"
+    );
+    const uploadAsset = createDeferred<typeof uploadedPortrait>();
+    const saveAssignments = createDeferred<{
+      activePresetId: CharacterSheetPresetId;
+      tabOrder: CharacterSheetPresetState["tabOrder"];
+      tabLabels: CharacterSheetPresetState["tabLabels"];
+      tabDescriptions: CharacterSheetPresetDescriptionMap;
+      presets: CharacterSheetPresetState["presets"];
+    }>();
+
+    saveCharacterManagerCharacterSheetPresetAssetMock.mockImplementation(
+      () => uploadAsset.promise as never
+    );
+    saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockImplementation(
+      () => saveAssignments.promise as never
+    );
+    deleteCharacterManagerCharacterSheetPresetMock.mockResolvedValue({
+      activePresetId: "1",
+      tabOrder: ["1", "3"],
+      tabLabels: snapshot.characterSheetPresetLabels,
+      tabDescriptions: {
+        ...snapshot.characterSheetPresetDescriptions,
+        "2": "",
+      },
+      presets: {
+        ...snapshot.characterSheetPresets,
+        "2": createDefaultCharacterSheetPresetState().presets["2"],
+      },
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "2", "3"]);
+    });
+
+    const file = new File(["portrait"], "portrait.png", { type: "image/png" });
+    let uploadPromise: Promise<boolean> | null = null;
+
+    await act(async () => {
+      uploadPromise = result.current.setCharacterSheetPresetFile("portrait", file);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSavingCharacterSheetPreset).toBe(true);
+    });
+
+    await act(async () => {
+      const ok = await result.current.deleteCharacterSheetPreset("2");
+      expect(ok).toBe(true);
+    });
+
+    expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "3"]);
+
+    await act(async () => {
+      uploadAsset.resolve(uploadedPortrait);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+        characterId: "char-1",
+        presetId: "1",
+        assignments: expect.objectContaining({
+          portrait: uploadedPortrait,
+        }),
+      });
+    });
+
+    await act(async () => {
+      saveAssignments.resolve({
+        activePresetId: "1",
+        tabOrder: ["1", "2", "3"],
+        tabLabels: snapshot.characterSheetPresetLabels,
+        tabDescriptions: snapshot.characterSheetPresetDescriptions,
+        presets: {
+          ...snapshot.characterSheetPresets,
+          "1": {
+            ...snapshot.characterSheetPresets["1"],
+            portrait: uploadedPortrait,
+          },
+        },
+      });
+      await uploadPromise!;
+    });
+
+    expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "3"]);
+    expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
+      "https://signed.example/uploaded-portrait.png"
     );
   });
 });

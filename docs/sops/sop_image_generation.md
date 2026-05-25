@@ -99,7 +99,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - If active preset zones are empty, the client falls back to legacy `character_sheet_assignments` slot mapping.
   - Character draft is refreshed before each Create/Text submit so preset switches and zone updates are applied immediately.
   - The Create picker look override is AI Studio-local and does not write back to Character Manager active-look metadata.
-  - Resolved URLs are deduped and capped by provider limits.
+  - App-owned Character Sheet refs must hand off as canonical internal media refs whenever storage authority is known; replay/reroll must persist that canonical identity instead of durable signed URLs.
+  - Provider-facing signed URLs for app-owned character refs are minted at submit time by the image/edit submit boundary. Raw URL refs remain only for truly external references or URL-only fallback cases.
+  - URL-based reference lists are still deduped and capped by provider limits for the external/fallback portion of the submit payload.
   - Selected character id is persisted in browser local storage and restored on reload so Character Mode defaults to the user's latest explicit selection when available.
 - Submission invariants:
   - Character Mode ON requires at least one Character Sheet image reference.
@@ -107,8 +109,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - A second safety-net invariant in task submission also blocks any selected image-to-image model when references are missing.
   - Pre-submit stages are deadline-bound:
     - Character bundle refresh deadline: 10s.
-    - Reference URL preparation deadline: dynamic by work units and local upload count (`base 14s + 12s per extra work unit + 14s per local blob/data input`, capped at 120s).
-    - Reference preparation runs as abortable stage steps (`fetch_local_image`, `upload_image_route`, `refresh_signed_url`) under the shared pre-submit deadline budget.
+    - Reference preparation deadline: dynamic by work units and local upload count (`base 14s + 12s per extra work unit + 14s per local blob/data input`, capped at 120s).
+    - Reference preparation runs as abortable stage steps (`fetch_local_image`, `upload_image_route`, `refresh_signed_url`) under the shared pre-submit deadline budget, but canonical app-owned refs should prefer submit-time server resolution instead of client-side URL refresh.
     - On deadline expiry, generation fails fast with: `"Preparation timed out before generation started. Please retry."`
   - Submit-start invariant:
     - UI placeholder is only allowed to remain loading if provider submit produces a real `request_id` and polling starts.
@@ -164,7 +166,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   5. Inpaint editing can paint anywhere inside the primary drop zone (including outside the visible image bounds).
   6. Inpaint submit exports the visible image-area mask window (`imageRect`) and applies the same stage camera transform as base-image flatten so FLUX Fill mask pixels remain aligned under zoom/pan framing.
   7. `Remove Background` submits the currently selected layer image only, routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy, and debits 1 credit per run.
-  8. Generate submit flattening (regular + inpaint base image) and manual `Flatten Layers` both use the same stage-camera flatten contract: aspect-aware output dimensions, transparent uncovered pixels, current layer transforms/z-order, and current stage camera framing (`zoom`, `pan`).
+  8. Generate submit flattening (regular + inpaint base image) and manual `Flatten Layers` both use the same stage-camera flatten contract: aspect-aware output dimensions, transparent uncovered pixels, current layer transforms/z-order, and current stage camera framing (`zoom`, `pan`). Manual `Flatten Layers` updates the Expert Edit canvas/layer stack only and must not add a new Reference Grid item.
   9. Layer stack uses a permanent foundation `layer 1` (clearable, never removable), all non-foundation layers are content-backed only, and primary image ingress inserts a new populated layer above the selected layer while preserving panel-top = visual-top z-order.
      9a. Keyboard delete mirrors the visible delete affordance: when a layer is selected and focus is not inside an editable field, pressing `Delete` (and macOS `Backspace`) removes that selected layer through the same layer-stack rules.
      9b. The full Expert Edit properties body sits inside one primary wrapper surface so the preset rail, stage, layers rail, and lower controls remain visually contained by the same background shell used by Create.

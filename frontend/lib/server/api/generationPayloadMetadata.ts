@@ -17,6 +17,15 @@ const asNumber = (value: unknown): number | null => {
   return null;
 };
 
+const asObject = (value: unknown): JsonObject | null =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : null;
+
+const resolveGenerationReplayDisplayPrompt = (payload: JsonObject): string | null => {
+  const generationReplay =
+    asObject(payload.generation_replay) ?? asObject(payload.generationReplay);
+  return asString(generationReplay?.displayPrompt);
+};
+
 export const readGenerationDurationSeconds = (payload: JsonObject): number | null => {
   const durationSeconds = asNumber(payload.duration_seconds);
   if (durationSeconds !== null) return Math.max(1, Math.round(durationSeconds));
@@ -54,6 +63,9 @@ export const resolveGenerationPromptFromPayload = (
   routeLabel: string,
   payload: JsonObject
 ): string =>
+  resolveGenerationReplayDisplayPrompt(payload) ??
+  asString(payload.display_prompt) ??
+  asString(payload.displayPrompt) ??
   asString(payload.prompt) ??
   asString(payload.input) ??
   asString(payload.description) ??

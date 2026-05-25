@@ -24,6 +24,55 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const trimProjectWorkspaceRuntimeMessages = (value: unknown): Record<string, unknown> => {
+  const runtime = asRecord(value);
+  return {
+    ...runtime,
+    messages: [],
+  };
+};
+
+const trimProjectWorkspaceAgentRuntimes = (
+  value: unknown,
+  workspace: Record<string, unknown>
+): Record<string, unknown> => {
+  const runtimes = asRecord(value);
+  const emptyRuntime = createEmptyAiStudioSessionAgentState();
+  const workspacePulsePresetId =
+    typeof workspace.activePulsePresetId === "string" &&
+    workspace.activePulsePresetId.trim().length > 0
+      ? workspace.activePulsePresetId.trim()
+      : null;
+  const workspacePulseSessionInstanceId =
+    typeof workspace.pulseSessionInstanceId === "string" &&
+    workspace.pulseSessionInstanceId.trim().length > 0
+      ? workspace.pulseSessionInstanceId.trim()
+      : null;
+  const runtimePulsePresetId =
+    typeof runtimes.pulsePresetId === "string" && runtimes.pulsePresetId.trim().length > 0
+      ? runtimes.pulsePresetId.trim()
+      : null;
+  const runtimePulseSessionInstanceId =
+    typeof runtimes.pulseSessionInstanceId === "string" &&
+    runtimes.pulseSessionInstanceId.trim().length > 0
+      ? runtimes.pulseSessionInstanceId.trim()
+      : null;
+  const hasAuthorizedPulseRuntime =
+    workspacePulsePresetId !== null &&
+    workspacePulseSessionInstanceId !== null &&
+    runtimePulsePresetId === workspacePulsePresetId &&
+    runtimePulseSessionInstanceId === workspacePulseSessionInstanceId;
+
+  return {
+    standard: emptyRuntime,
+    pulsePresetId: hasAuthorizedPulseRuntime ? workspacePulsePresetId : null,
+    pulseSessionInstanceId: hasAuthorizedPulseRuntime ? workspacePulseSessionInstanceId : null,
+    pulse: hasAuthorizedPulseRuntime
+      ? trimProjectWorkspaceRuntimeMessages(runtimes.pulse)
+      : emptyRuntime,
+  };
+};
+
 const hasText = (value: unknown): boolean => typeof value === "string" && value.trim().length > 0;
 
 const hasStringEntries = (value: unknown): boolean =>
@@ -41,8 +90,51 @@ const hasProjectDurableOutputAuthority = (output: Record<string, unknown>): bool
   hasText(output.fullStoragePath) ||
   hasStringEntries(output.savedMediaIds);
 
+const hasProjectPersistedOutputPreviewAuthority = (output: Record<string, unknown>): boolean =>
+  hasText(output.previewPosterStoragePath) ||
+  hasText(output.previewStoragePath) ||
+  hasText(output.fullStoragePath) ||
+  hasText(output.companionArtStoragePath);
+
 const hasProjectRecoverableRuntimeIdentity = (output: Record<string, unknown>): boolean =>
   hasText(output.generationId) || hasText(output.sourceRef) || hasText(output.taskId);
+
+const isInFlightProjectOutput = (output: Record<string, unknown>): boolean => {
+  const taskState =
+    typeof output.taskState === "string" ? output.taskState.trim().toLowerCase() : "";
+  return taskState === "pending" || taskState === "running";
+};
+
+const shouldTrimGeneratedOutputPayload = (output: Record<string, unknown>): boolean =>
+  hasText(output.generationId) && !isInFlightProjectOutput(output);
+
+const trimGeneratedProjectWorkspaceOutput = (
+  output: Record<string, unknown>
+): Record<string, unknown> => {
+  if (!shouldTrimGeneratedOutputPayload(output)) return output;
+
+  const trimmedOutput = {
+    ...output,
+  };
+
+  delete trimmedOutput.prompt;
+  delete trimmedOutput.transcriptText;
+  delete trimmedOutput.errorMessage;
+  delete trimmedOutput.errorMessageShort;
+  delete trimmedOutput.errorDetail;
+  delete trimmedOutput.generationReplay;
+  delete trimmedOutput.characterContext;
+  delete trimmedOutput.styleContext;
+
+  if (hasProjectPersistedOutputPreviewAuthority(output)) {
+    delete trimmedOutput.resultUrls;
+    delete trimmedOutput.previewUrl;
+    delete trimmedOutput.previewPosterUrl;
+    delete trimmedOutput.companionArtUrl;
+  }
+
+  return trimmedOutput;
+};
 
 const shouldPersistOutputInProjectWorkspaceSnapshot = (
   output: Record<string, unknown>
@@ -77,11 +169,15 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
   )
     .map((output) => asRecord(output))
     .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
+  const normalizedActiveOutputs = persistedActiveOutputs.map(trimGeneratedProjectWorkspaceOutput);
+  const normalizedArchivedOutputs = persistedArchivedOutputs.map(
+    trimGeneratedProjectWorkspaceOutput
+  );
   const persistedOutputIds = new Set<string>([
-    ...persistedActiveOutputs
+    ...normalizedActiveOutputs
       .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
       .filter((id) => id.length > 0),
-    ...persistedArchivedOutputs
+    ...normalizedArchivedOutputs
       .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
       .filter((id) => id.length > 0),
   ]);
@@ -94,8 +190,8 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
 
   return {
     ...outputsRecord,
-    active: persistedActiveOutputs,
-    archived: persistedArchivedOutputs,
+    active: normalizedActiveOutputs,
+    archived: normalizedArchivedOutputs,
     activeOutputId,
     curatedReferenceIds: filterProjectWorkspaceOutputIds(
       outputsRecord.curatedReferenceIds,
@@ -149,6 +245,7 @@ export const createAiStudioProjectWorkspaceSnapshot = <
       },
       outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
       agent: emptyAgentRuntime,
+      agentRuntimes: trimProjectWorkspaceAgentRuntimes(baseSnapshot.agentRuntimes, baseWorkspace),
     };
     return {
       ...normalizedSnapshot,

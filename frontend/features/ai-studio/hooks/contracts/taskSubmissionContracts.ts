@@ -1,4 +1,5 @@
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { StudioMode, StudioOutput, ToolId } from "../../types";
 
 export type AiStudioTaskSubmitOptions = {
@@ -6,6 +7,7 @@ export type AiStudioTaskSubmitOptions = {
   selectedToolOverride?: ToolId | null;
   displayPromptOverride?: string | null;
   displayedBilledCredits?: number | null;
+  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   styleContextOverride?: StudioOutput["styleContext"];
   outputIdOverride?: string;
@@ -20,6 +22,7 @@ export type AiStudioImageRerollSubmitOptions = {
   modeOverride: "image";
   selectedToolOverride: ToolId | null;
   displayPromptOverride: string;
+  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   modelIdOverride: string;
   aspectOverride: string;

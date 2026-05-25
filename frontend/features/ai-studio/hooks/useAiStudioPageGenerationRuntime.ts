@@ -23,6 +23,7 @@ import {
   resolvePulseArtifactCostOverrideCredits,
   resolvePulseArtifactGenerationRoute,
 } from "./pulseCreateRuntime/usePulseCreatePrimarySubmit";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type OptimisticDebitEntry = {
@@ -41,6 +42,7 @@ type CharacterModeSubmissionOverrides = {
   submissionPromptOverride: string;
   displayPromptOverride: string;
   referenceInputsOverride: string[];
+  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   notice: string | null;
   fallbackCode: CharacterModeFallbackCode | null;

@@ -713,7 +713,15 @@ describe("useAiStudioGenerationController", () => {
     const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
       submissionPromptOverride: "character merged prompt",
       displayPromptOverride: "character display prompt",
-      referenceInputsOverride: ["https://example.com/char-ref.png"],
+      referenceInputsOverride: [],
+      internalMediaRefsOverride: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/chars/char-ref.png",
+        },
+      ],
       notice: null,
       fallbackCode: null,
       characterReferenceCount: 1,
@@ -739,7 +747,15 @@ describe("useAiStudioGenerationController", () => {
       expect.objectContaining({
         displayPromptOverride: "raw @img1 prompt",
         submissionPromptOverride: "character merged prompt",
-        referenceInputsOverride: ["https://example.com/char-ref.png"],
+        referenceInputsOverride: [],
+        internalMediaRefsOverride: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user/chars/char-ref.png",
+          },
+        ],
       })
     );
   });
@@ -1217,7 +1233,15 @@ describe("useAiStudioGenerationController", () => {
     const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
       submissionPromptOverride: "character + prompt",
       displayPromptOverride: "user prompt",
-      referenceInputsOverride: ["https://example.com/fresh-char-ref.png"],
+      referenceInputsOverride: [],
+      internalMediaRefsOverride: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/chars/fresh-char-ref.png",
+        },
+      ],
       notice: null,
       fallbackCode: null,
       characterReferenceCount: 1,
@@ -1246,7 +1270,15 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledWith(
       "user prompt",
       expect.objectContaining({
-        referenceInputsOverride: ["https://example.com/fresh-char-ref.png"],
+        referenceInputsOverride: [],
+        internalMediaRefsOverride: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user/chars/fresh-char-ref.png",
+          },
+        ],
       })
     );
   });

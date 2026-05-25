@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { StudioOutput, type ToolId } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
@@ -271,6 +272,7 @@ export const useAiStudioState = ({
         showCreateTools?: boolean;
         referenceImageUrl: string | null;
         extraImageUrls: [string | null, string | null, string | null];
+        referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
         motionReferenceVideoUrl: string | null;
         useReferenceImageIndicator?: boolean;
         detailOutputId?: string | null;
@@ -599,6 +601,8 @@ export const useAiStudioState = ({
     abandonTaskOutput,
     findOutputById,
     forceDeleteOutput,
+    setActiveOutputId,
+    updateOutputById,
   });
 
   const {

@@ -2,6 +2,7 @@
  * Shared types for AI Studio task submission handlers.
  */
 import type { FalSubmitResponse } from "../../../../lib/falClient";
+import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { getModelConfig } from "../../logic/pricing";
@@ -40,6 +41,7 @@ export type BaseSubmissionArgs = {
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   generationReplay?: Record<string, unknown> | null;
+  internalMediaRefs?: Array<InternalMediaRef | null>;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
   shortpulseContext?: Record<string, unknown>;

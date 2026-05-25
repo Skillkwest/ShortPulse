@@ -154,7 +154,15 @@ describe("useAiStudioPageGenerationRuntime", () => {
     const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
       submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
       displayPromptOverride: "User visible prompt",
-      referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
+      referenceInputsOverride: [],
+      internalMediaRefsOverride: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/chars/fresh.png",
+        },
+      ],
       characterContextOverride: {
         applied: true,
         characterId: "char-1",
@@ -210,7 +218,15 @@ describe("useAiStudioPageGenerationRuntime", () => {
         modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
         submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
         displayPromptOverride: "User visible prompt",
-        referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
+        referenceInputsOverride: [],
+        internalMediaRefsOverride: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user/chars/fresh.png",
+          },
+        ],
         displayedBilledCredits: 2,
         characterContextOverride: expect.objectContaining({
           characterId: "char-1",

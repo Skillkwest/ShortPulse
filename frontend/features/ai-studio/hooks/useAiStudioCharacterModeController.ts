@@ -7,6 +7,11 @@ import {
   loadCharacterManagerDraftByCharacterId,
   type CharacterManagerDraftSnapshot,
 } from "../../character-manager/logic/characterManagerPersistence";
+import {
+  createInternalMediaRef,
+  dedupeInternalMediaRefs,
+  type InternalMediaRef,
+} from "../../../lib/media/internalMediaRefs";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import {
@@ -67,6 +72,22 @@ const createCharacterReferenceRefreshError = (
   message: string = CHARACTER_REFERENCE_REFRESH_ERROR_MESSAGE
 ): Error => new Error(message);
 
+const hasUsableInternalMediaRefs = (refs: Array<InternalMediaRef | null | undefined>): boolean =>
+  refs.some((ref) => Boolean(ref));
+
+const resolveCharacterModeInternalMediaRefs = (
+  bundle: CharacterModeInjectionBundle | null | undefined
+): Array<InternalMediaRef | null> =>
+  dedupeInternalMediaRefs(
+    (bundle?.sheetReferenceStoragePaths ?? []).map((storagePath) =>
+      createInternalMediaRef({
+        bucket: MEDIA_BUCKET,
+        storagePath,
+      })
+    ),
+    8
+  );
+
 export type CharacterModeInjectionBundle = {
   characterId: string;
   characterDescription: string;
@@ -96,6 +117,7 @@ type CharacterModeSubmissionOverrides = {
   submissionPromptOverride: string;
   displayPromptOverride: string;
   referenceInputsOverride: string[];
+  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   notice: string | null;
   fallbackCode: CharacterModeFallbackCode | null;
@@ -378,7 +400,10 @@ export const useAiStudioCharacterModeController = ({
 
       const effectiveBundle = bundleOverride === undefined ? bundle : bundleOverride;
       const characterDescription = effectiveBundle?.characterDescription ?? "";
-      const characterReferences = effectiveBundle?.sheetReferenceUrls ?? [];
+      const characterInternalMediaRefs = resolveCharacterModeInternalMediaRefs(effectiveBundle);
+      const characterReferences = hasUsableInternalMediaRefs(characterInternalMediaRefs)
+        ? []
+        : (effectiveBundle?.sheetReferenceUrls ?? []);
       const submissionPrompt = composeCharacterModePrompt({
         characterDescription,
         userPrompt,
@@ -388,9 +413,11 @@ export const useAiStudioCharacterModeController = ({
         characterReferences
       );
       const hasCharacterDescription = Boolean(characterDescription.trim());
+      const hasCharacterReferences =
+        referenceInputs.length > 0 || hasUsableInternalMediaRefs(characterInternalMediaRefs);
       const selectedCharacterOption =
         characterOptions.find((option) => option.id === selectedId) ?? null;
-      const hasCharacterInjection = hasCharacterDescription || referenceInputs.length > 0;
+      const hasCharacterInjection = hasCharacterDescription || hasCharacterReferences;
       const characterContextOverride = hasCharacterInjection
         ? {
             applied: true,
@@ -418,14 +445,14 @@ export const useAiStudioCharacterModeController = ({
         notice =
           "Selected character context could not be loaded. Generated without character injection.";
         fallbackCode = "bundle_unavailable";
-      } else if (!hasCharacterDescription && referenceInputs.length === 0) {
+      } else if (!hasCharacterDescription && !hasCharacterReferences) {
         notice =
           "Selected character has no description or look references. Generated without character injection.";
         fallbackCode = "no_description_or_references";
       } else if (!hasCharacterDescription) {
         notice = "Selected character has no description. Generated using look references only.";
         fallbackCode = "no_description";
-      } else if (referenceInputs.length === 0) {
+      } else if (!hasCharacterReferences) {
         notice = "Selected character has no look references. Generated using description only.";
         fallbackCode = "no_references";
       }
@@ -434,10 +461,14 @@ export const useAiStudioCharacterModeController = ({
         submissionPromptOverride: submissionPrompt || userPrompt,
         displayPromptOverride: userPrompt,
         referenceInputsOverride: referenceInputs,
+        ...(hasUsableInternalMediaRefs(characterInternalMediaRefs)
+          ? { internalMediaRefsOverride: characterInternalMediaRefs }
+          : {}),
         characterContextOverride,
         notice,
         fallbackCode,
-        characterReferenceCount: referenceInputs.length,
+        characterReferenceCount:
+          referenceInputs.length + characterInternalMediaRefs.filter(Boolean).length,
         hasCharacterDescription,
       };
     },

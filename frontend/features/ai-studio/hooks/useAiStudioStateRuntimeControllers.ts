@@ -97,15 +97,7 @@ type UseAiStudioStateRuntimeControllersParams = {
   setReferenceImageUrl: (value: string | null) => void;
   setReferenceSelectionStateForCreateMode: (
     createMode: "standard" | "pulse",
-    nextState: {
-      selectedTool: ToolId | null;
-      showCreateTools?: boolean;
-      referenceImageUrl: string | null;
-      extraImageUrls: [string | null, string | null, string | null];
-      motionReferenceVideoUrl: string | null;
-      useReferenceImageIndicator?: boolean;
-      detailOutputId?: string | null;
-    }
+    nextState: ReferenceSelectionAuthorityStateSeed
   ) => void;
   getReferenceSelectionStateForCreateMode: (
     createMode: "standard" | "pulse"

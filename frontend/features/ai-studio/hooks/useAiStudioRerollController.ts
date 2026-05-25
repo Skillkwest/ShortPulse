@@ -4,7 +4,11 @@
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
+import {
+  canRerollOutput,
+  isGenerationReplayConfigV1,
+  isGenerationReplayConfigV2,
+} from "../logic/generationReplay";
 import type { AiStudioImageRerollSubmitOptions } from "./contracts/taskSubmissionContracts";
 import type { StudioOutput } from "../types";
 
@@ -48,7 +52,7 @@ export const useAiStudioRerollController = ({
       }
 
       const replay = output.generationReplay;
-      if (!isGenerationReplayConfigV1(replay)) {
+      if (!isGenerationReplayConfigV1(replay) && !isGenerationReplayConfigV2(replay)) {
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -100,6 +104,9 @@ export const useAiStudioRerollController = ({
         modelIdOverride: replay.modelId,
         aspectOverride: replay.aspect,
         imageResolutionOverride: replay.imageResolution ?? "model_default",
+        ...(isGenerationReplayConfigV2(replay)
+          ? { internalMediaRefsOverride: replay.internalMediaRefs }
+          : {}),
         ...(replay.styleContext ? { styleContextOverride: replay.styleContext } : {}),
       });
     },

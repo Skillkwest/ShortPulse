@@ -12,6 +12,11 @@ const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const readGenerationAbandonmentContextMock = vi.fn();
 const editOpenAiImageMock = vi.fn();
 const persistGeneratedImageAssetMock = vi.fn();
+const readInternalMediaRefsFromPayloadMock = vi.fn();
+const readInternalEditMediaRefsFromPayloadMock = vi.fn();
+const resolveSignedUrlsForInternalMediaRefsMock = vi.fn();
+const resolveSignedUrlsForInternalEditMediaRefsMock = vi.fn();
+const filterExternalUrlsFromInternalRefsMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -30,6 +35,19 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 vi.mock("../../lib/server/api/generationAbandonment", () => ({
   readGenerationAbandonmentContext: (...args: unknown[]) =>
     readGenerationAbandonmentContextMock(...args),
+}));
+
+vi.mock("../../lib/server/api/internalMediaRefResolution", () => ({
+  readInternalMediaRefsFromPayload: (...args: unknown[]) =>
+    readInternalMediaRefsFromPayloadMock(...args),
+  readInternalEditMediaRefsFromPayload: (...args: unknown[]) =>
+    readInternalEditMediaRefsFromPayloadMock(...args),
+  resolveSignedUrlsForInternalMediaRefs: (...args: unknown[]) =>
+    resolveSignedUrlsForInternalMediaRefsMock(...args),
+  resolveSignedUrlsForInternalEditMediaRefs: (...args: unknown[]) =>
+    resolveSignedUrlsForInternalEditMediaRefsMock(...args),
+  filterExternalUrlsFromInternalRefs: (...args: unknown[]) =>
+    filterExternalUrlsFromInternalRefsMock(...args),
 }));
 
 vi.mock("../../lib/server/openaiImageGeneration", () => ({
@@ -80,6 +98,23 @@ describe("POST /api/openai/image-edit", () => {
       abandoned: false,
       noRefund: false,
     });
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([]);
+    readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
+      baseImageRef: null,
+      maskRef: null,
+      referenceImageRef: null,
+    });
+    resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([]);
+    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageUrl: null,
+      maskUrl: null,
+      referenceImageUrl: null,
+    });
+    filterExternalUrlsFromInternalRefsMock.mockImplementation((urls: unknown[]) =>
+      urls.filter(
+        (url): url is string => typeof url === "string" && !url.includes("stale.internal")
+      )
+    );
   });
 
   it("rejects invalid payloads", async () => {
@@ -272,6 +307,79 @@ describe("POST /api/openai/image-edit", () => {
         modelId: "gpt-image-2",
         savedMediaIds: ["media-image-edit-1"],
       },
+    });
+  });
+
+  it("replaces stale internal edit refs with fresh signed urls before provider edit", async () => {
+    editOpenAiImageMock.mockResolvedValue({
+      buffer: Buffer.from("image-data"),
+      contentType: "image/png",
+      providerRequestId: "provider-image-edit-1",
+      revisedPrompt: null,
+      usage: null,
+    });
+    persistGeneratedImageAssetMock.mockResolvedValue({
+      generationId: "gen-image-edit-1",
+      mediaFileId: "media-image-edit-1",
+      requestId: "billing-source-image-edit-1",
+      storagePath: "user-1/generations/images/gen-image-edit-1/portrait.png",
+      signedUrl: "https://signed.example/generated-image-edit.png",
+      outputRowId: "output-image-edit-1",
+    });
+    readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
+      baseImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/base.png",
+      },
+      maskRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/mask.png",
+      },
+      referenceImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/ref.png",
+      },
+    });
+    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageUrl: "https://fresh.internal/base.png",
+      maskUrl: "https://fresh.internal/mask.png",
+      referenceImageUrl: "https://fresh.internal/ref.png",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait edit",
+        size: "1024x1024",
+        quality: "medium",
+        images: [
+          { image_url: "https://stale.internal/base.png" },
+          { image_url: "https://stale.internal/ref.png" },
+        ],
+        mask: { image_url: "https://stale.internal/mask.png" },
+        shortpulse_internal_edit_media_refs: {
+          base_image: {},
+          mask_image: {},
+          reference_image: {},
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(editOpenAiImageMock).toHaveBeenCalledWith({
+      prompt: "cinematic portrait edit",
+      size: "1024x1024",
+      quality: "medium",
+      images: ["https://fresh.internal/base.png", "https://fresh.internal/ref.png"],
+      maskUrl: "https://fresh.internal/mask.png",
     });
   });
 

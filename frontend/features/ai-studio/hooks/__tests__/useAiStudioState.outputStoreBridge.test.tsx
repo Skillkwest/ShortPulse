@@ -15,6 +15,7 @@ const mockFindOutputById = vi.fn<(id: string) => StudioOutput | null>(() => null
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
+const mockAbandonTaskOutput = vi.fn();
 const listVisibleGeneratedOutputsMock = vi.fn(
   async (options?: unknown): Promise<StudioOutput[]> => {
     void options;
@@ -182,6 +183,7 @@ vi.mock("../useAiStudioTaskOrchestration", () => ({
     submitTask: vi.fn(),
     onReferenceOutputMediaLoaded: vi.fn(),
     retryOutputStatus: vi.fn(),
+    abandonTaskOutput: mockAbandonTaskOutput,
   }),
 }));
 
@@ -218,6 +220,7 @@ describe("useAiStudioState output store bridge", () => {
     listVisibleGeneratedOutputsMock.mockClear();
     resolveVisibleGenerationReconcileMock.mockClear();
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
+    mockAbandonTaskOutput.mockClear();
     resolveVideoPosterRepairsForOutputsMock.mockClear();
     resolveVideoPosterRepairsForOutputsMock.mockResolvedValue(new Map());
     mockUpdateOutputById.mockClear();
@@ -1166,6 +1169,80 @@ describe("useAiStudioState output store bridge", () => {
     await waitFor(() => {
       expect(result.current.curatedReferenceIds).toEqual([]);
       expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith(failedGenerated.id);
+    });
+  });
+
+  it("persists successful generated output removal through abandonment", async () => {
+    const generatedOutput = makeOutput("out-generated", {
+      taskState: "success",
+      mediaSource: "generated",
+      generationId: "gen-success-1",
+      taskId: "req-success-1",
+      previewUrl: "https://cdn.test/generated.png",
+      resultUrls: ["https://cdn.test/generated.png"],
+    });
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([generatedOutput]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs.map((item) => item.id)).toEqual([generatedOutput.id]);
+    });
+
+    act(() => {
+      result.current.deleteOutput(generatedOutput.id);
+    });
+
+    expect(abandonGenerationOutputMock).toHaveBeenCalledWith({
+      output: expect.objectContaining({
+        id: generatedOutput.id,
+        generationId: generatedOutput.generationId,
+        taskId: generatedOutput.taskId,
+      }),
+    });
+    expect(mockUpdateOutputById).toHaveBeenCalledWith(generatedOutput.id, expect.any(Function));
+    await waitFor(() => {
+      expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith(generatedOutput.id);
+    });
+  });
+
+  it("persists generated clear actions before final local removal", async () => {
+    const generatedOutput = makeOutput("out-generated-clear", {
+      taskState: "running",
+      mediaSource: "generated",
+      generationId: "gen-clear-1",
+      taskId: "req-clear-1",
+      previewUrl: "https://cdn.test/generated-clear.png",
+      resultUrls: ["https://cdn.test/generated-clear.png"],
+    });
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([generatedOutput]);
+      result.current.setActiveOutputId(generatedOutput.id);
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeOutputId).toBe(generatedOutput.id);
+    });
+
+    act(() => {
+      result.current.clearGenerationOutput(generatedOutput.id);
+    });
+
+    expect(abandonGenerationOutputMock).toHaveBeenCalledWith({
+      output: expect.objectContaining({
+        id: generatedOutput.id,
+        generationId: generatedOutput.generationId,
+        taskId: generatedOutput.taskId,
+      }),
+    });
+    expect(mockUpdateOutputById).toHaveBeenCalledWith(generatedOutput.id, expect.any(Function));
+    expect(result.current.activeOutputId).toBeNull();
+    await waitFor(() => {
+      expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith(generatedOutput.id);
     });
   });
 });

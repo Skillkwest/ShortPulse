@@ -109,7 +109,7 @@ describe("useExpertEditInlineGenerate", () => {
     revokeExpertEditSubmissionObjectUrlsMock.mockReturnValue(undefined);
   });
 
-  it("allows duplicate inline generate clicks while submissions are already in flight", async () => {
+  it("suppresses duplicate inline generate clicks while a submission is already in flight", async () => {
     const exportResolvers: Array<(value: MockExportResult) => void> = [];
     exportExpertEditStageArtifactsMock.mockImplementation(
       () =>
@@ -117,10 +117,7 @@ describe("useExpertEditInlineGenerate", () => {
           exportResolvers.push(resolve);
         })
     );
-    const insertOptimisticGenerationPlaceholder = vi
-      .fn()
-      .mockReturnValueOnce("out-optimistic-1")
-      .mockReturnValueOnce("out-optimistic-2");
+    const insertOptimisticGenerationPlaceholder = vi.fn().mockReturnValue("out-optimistic-1");
     const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
 
     const { result } = renderHook(() =>
@@ -137,7 +134,7 @@ describe("useExpertEditInlineGenerate", () => {
       result.current.handleInlineGenerate();
     });
 
-    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(2);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(true);
     });
@@ -150,18 +147,10 @@ describe("useExpertEditInlineGenerate", () => {
         reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
         flattenedDimensions: null,
       });
-      exportResolvers[1]?.({
-        flattenedBlob: null,
-        flattenedMarkupReferenceBlob: null,
-        inpaintMaskBlob: null,
-        reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
-        flattenedDimensions: null,
-      });
     });
 
     await waitFor(() => {
-      expect(onRegenerateWithReferenceInputs).toHaveBeenNthCalledWith(
-        1,
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
         ["https://cdn.test/reusable-primary.png"],
         expect.objectContaining({
           outputIdOverride: "out-optimistic-1",
@@ -170,19 +159,9 @@ describe("useExpertEditInlineGenerate", () => {
       );
     });
     await waitFor(() => {
-      expect(onRegenerateWithReferenceInputs).toHaveBeenNthCalledWith(
-        2,
-        ["https://cdn.test/reusable-primary.png"],
-        expect.objectContaining({
-          outputIdOverride: "out-optimistic-2",
-          referenceInputsMode: "replace",
-        })
-      );
-    });
-    await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(false);
     });
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(2);
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         editSubmitIntent: "standard",

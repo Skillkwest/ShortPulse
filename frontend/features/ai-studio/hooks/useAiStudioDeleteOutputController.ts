@@ -30,13 +30,8 @@ type UseAiStudioDeleteOutputControllerParams = {
   pendingFinalizeRemovalIdsRef: MutableRefObject<Set<string>>;
 };
 
-const shouldPersistFailedGeneratedRemoval = (output: StudioOutput | null): output is StudioOutput =>
-  Boolean(
-    output &&
-    output.taskState === "fail" &&
-    output.mediaSource === "generated" &&
-    canAbandonGenerationOutput(output)
-  );
+const shouldPersistGeneratedRemoval = (output: StudioOutput | null): output is StudioOutput =>
+  Boolean(output && output.mediaSource === "generated" && canAbandonGenerationOutput(output));
 
 /**
  * Returns AI Studio delete helpers that honor reference-grid suppression semantics.
@@ -55,7 +50,7 @@ export const useAiStudioDeleteOutputController = ({
       const outputId = id.trim();
       if (!outputId) return;
       const output = findOutputById(outputId);
-      if (shouldPersistFailedGeneratedRemoval(output)) {
+      if (shouldPersistGeneratedRemoval(output)) {
         updateOutputById(outputId, (item) =>
           item.hiddenInReferenceGrid === true ? item : { ...item, hiddenInReferenceGrid: true }
         );
@@ -67,7 +62,7 @@ export const useAiStudioDeleteOutputController = ({
             deleteOutputFromLifecycle(outputId);
           })
           .catch((error) => {
-            console.warn("[ai-studio] failed to persist failed-output removal", error);
+            console.warn("[ai-studio] failed to persist generated-output removal", error);
           });
         return;
       }

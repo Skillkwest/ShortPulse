@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAiStudioSessionSnapshot,
   createAiStudioProjectWorkspaceSnapshot,
+  createAiStudioProjectWorkspaceAutosaveCandidates,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotExpertEdit,
   patchAiStudioSessionSnapshotWorkspace,
@@ -11,6 +12,7 @@ import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator
 import type { StudioOutput } from "../../types";
 import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
+import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../chatModeDefaults";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -200,6 +202,93 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("persists canonical internal refs for signed workspace reference URLs", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A portrait",
+      model: "fal-ai/nano-banana",
+      aspect: "1:1",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl:
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/a.png?token=stub.invalid.token",
+      extraImageUrls: [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/b.png?token=stub.invalid.token",
+        null,
+        null,
+      ],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      pulseWorkflowSession: null,
+      canvasState: undefined,
+      expertEditSessionState: undefined,
+    });
+
+    expect(snapshot.workspace.referenceImageInternalMediaRefs).toEqual([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/a.png",
+      },
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/b.png",
+      },
+      null,
+      null,
+    ]);
+    expect(
+      snapshot.workspace.createModeReferenceStates?.standard?.referenceImageInternalMediaRefs
+    ).toEqual([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/a.png",
+      },
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/b.png",
+      },
+      null,
+      null,
+    ]);
+  });
+
   it("persists direct-request failure metadata when durable output payload exists", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
@@ -340,8 +429,8 @@ describe("sessionSnapshot", () => {
         promptOrigin: "manual",
         chatModeEnabled: true,
         pulseWorkflowSession: null,
-        canvasState: null,
-        expertEditSessionState: null,
+        canvasState: undefined,
+        expertEditSessionState: undefined,
       })
     );
 
@@ -1227,6 +1316,7 @@ describe("sessionSnapshot", () => {
       aspect: "9:16",
       expertCreateMode: "pulse",
       activePulsePresetId: "multi_shot",
+      pulseSessionInstanceId: "pulse-session-1",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -1277,7 +1367,7 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.workspace.standardPrompt).toBe("");
     expect(projectSnapshot.workspace.pulsePrompt).toBe("A cinematic portrait");
     expect(projectSnapshot.workspace.activePulsePresetId).toBe("multi_shot");
-    expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();
+    expect(projectSnapshot.workspace.pulseSessionInstanceId).toBe("pulse-session-1");
     expect(projectSnapshot.agent).toEqual({
       messages: [],
       input: "",
@@ -1286,9 +1376,24 @@ describe("sessionSnapshot", () => {
       chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
-    expect(projectSnapshot.agentRuntimes).toEqual(snapshot.agentRuntimes);
     expect(projectSnapshot.schemaVersion).toBe(2);
     if (projectSnapshot.schemaVersion === 2) {
+      expect(projectSnapshot.agentRuntimes).toEqual({
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "multi_shot",
+        pulseSessionInstanceId: "pulse-session-1",
+        pulse: {
+          ...snapshot.agentRuntimes?.pulse,
+          messages: [],
+        },
+      });
       expect(projectSnapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
     }
   });
@@ -1347,6 +1452,111 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.workspace.editReferenceText).toBe("");
     expect(projectSnapshot.workspace.videoReferenceText).toBe("");
     expect(projectSnapshot.agent.input).toBe("");
+  });
+
+  it("offers a reduced autosave candidate that drops only parked Pulse runtime", () => {
+    const snapshot = createAiStudioProjectWorkspaceSnapshot(
+      buildAiStudioSessionSnapshot({
+        sessionId: "project-parked-pulse-runtime-candidate",
+        updatedAt: "2026-03-02T12:00:00.000Z",
+        mode: "image",
+        selectedTool: "create",
+        prompt: "Standard workspace prompt",
+        standardCreatePrompt: "Standard workspace prompt",
+        pulseCreatePrompt: "Pulse hidden prompt",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        aspect: "9:16",
+        expertCreateMode: "standard",
+        activePulsePresetId: "multi_shot",
+        pulseSessionInstanceId: "pulse-session-1",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [],
+        archivedOutputs: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: "multi_shot",
+          pulseSessionInstanceId: "pulse-session-1",
+          pulse: {
+            messages: [{ id: "pulse-msg-1", role: "assistant", content: "Hidden Pulse reply" }],
+            input: "long hidden pulse draft",
+            latestAgentPrompt: "Hidden Pulse reply",
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: {
+              presetId: "multi_shot",
+              status: "awaiting_input",
+              currentStepIndex: 2,
+              currentStepLabel: "Action",
+              currentStepPrompt: "What happens next?",
+              collectedInputs: ["Close-up"],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          },
+        },
+      })
+    );
+
+    const reducedCandidate = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot).find(
+      (candidate) => candidate.kind === "without_parked_pulse_runtime"
+    );
+
+    expect(reducedCandidate?.snapshot.workspace.activePulsePresetId).toBeNull();
+    expect(reducedCandidate?.snapshot.workspace.pulseSessionInstanceId).toBeNull();
+    expect(reducedCandidate?.snapshot.agentRuntimes).toEqual({
+      standard: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+        pulseWorkflowSession: null,
+      },
+      pulsePresetId: null,
+      pulseSessionInstanceId: null,
+      pulse: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+        pulseWorkflowSession: null,
+      },
+    });
+    expect(reducedCandidate?.snapshot.workspace.pulsePrompt).toBe("Pulse hidden prompt");
   });
 
   it("removes failed outputs from project workspace snapshots and prunes dependent ids", () => {
@@ -1502,6 +1712,147 @@ describe("sessionSnapshot", () => {
       "out-generated-pending",
     ]);
     expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual(["out-generated-pending"]);
+  });
+
+  it("trims duplicated settled generated-output payload from project workspace snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-generated-trim-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-generated-ready",
+          mediaSource: "generated",
+          generationId: "gen-generated-ready",
+          taskId: "task-generated-ready",
+          taskState: "success",
+          prompt: "x".repeat(20_000),
+          transcriptText: "y".repeat(20_000),
+          previewUrl: "https://cdn.example.com/generated-ready.png",
+          resultUrls: ["https://cdn.example.com/generated-ready.png"],
+          previewStoragePath: "user-1/generated/generated-ready-preview.png",
+          fullStoragePath: "user-1/generated/generated-ready-full.png",
+          generationReplay: { mode: "image", modelId: "seedream-v4.5" },
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-generated-ready",
+      curatedReferenceIds: ["out-generated-ready"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
+
+    expect(outputRow).toMatchObject({
+      id: "out-generated-ready",
+      generationId: "gen-generated-ready",
+      taskId: "task-generated-ready",
+      taskState: "success",
+    });
+    expect(outputRow).not.toHaveProperty("prompt");
+    expect(outputRow).not.toHaveProperty("transcriptText");
+    expect(outputRow).not.toHaveProperty("previewUrl");
+    expect(outputRow).not.toHaveProperty("resultUrls");
+    expect(outputRow).not.toHaveProperty("generationReplay");
+  });
+
+  it("keeps generated preview fallback URLs in project snapshots until durable preview storage exists", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-generated-preview-fallback-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-generated-preview-fallback",
+          mediaSource: "generated",
+          generationId: "gen-generated-preview-fallback",
+          taskId: "task-generated-preview-fallback",
+          taskState: "success",
+          prompt: "x".repeat(20_000),
+          transcriptText: "y".repeat(20_000),
+          previewUrl: "https://cdn.example.com/generated-preview-fallback.png",
+          resultUrls: ["https://cdn.example.com/generated-preview-fallback.png"],
+          generationReplay: { mode: "image", modelId: "seedream-v4.5" },
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-generated-preview-fallback",
+      curatedReferenceIds: ["out-generated-preview-fallback"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
+
+    expect(outputRow).not.toHaveProperty("prompt");
+    expect(outputRow).not.toHaveProperty("transcriptText");
+    expect(outputRow).toMatchObject({
+      previewUrl: "https://cdn.example.com/generated-preview-fallback.png",
+      resultUrls: ["https://cdn.example.com/generated-preview-fallback.png"],
+    });
   });
 
   it("patches workspace-selected character state and recomputes snapshot metadata", () => {

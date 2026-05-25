@@ -5,6 +5,7 @@
 import { reportAppError } from "../../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import { DeadlineExceededError, withAbortableDeadline } from "../../logic/withDeadline";
 import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../../utils/imageUpload";
 import { resolvePrepareReferenceTimeoutBudget } from "./preflightTimeout";
@@ -39,6 +40,10 @@ export const prepareSubmissionReferenceInputs = async ({
   inpaintOverride = null,
   timeoutMessage,
 }: PrepareSubmissionReferenceInputsParams): Promise<PrepareSubmissionReferenceInputsResult> => {
+  const resolvePreparedInternalMediaRef = (
+    preparedUrl: string | null | undefined,
+    originalUrl: string | null | undefined
+  ) => resolveInternalMediaRefForUrl(preparedUrl) ?? resolveInternalMediaRefForUrl(originalUrl);
   const shouldPrepareStandardReferences = !inpaintOverride;
   const preflightTimeoutBudget = resolvePrepareReferenceTimeoutBudget({
     imageInputs,
@@ -138,6 +143,18 @@ export const prepareSubmissionReferenceInputs = async ({
             baseImageInput: preparedBaseImageInput ?? "",
             maskInput: preparedMaskInput ?? "",
             referenceImageInput: preparedReferenceImageInput,
+            baseImageInternalMediaRef: resolvePreparedInternalMediaRef(
+              preparedBaseImageInput,
+              inpaintOverride.baseImageInput
+            ),
+            maskInternalMediaRef: resolvePreparedInternalMediaRef(
+              preparedMaskInput,
+              inpaintOverride.maskInput
+            ),
+            referenceImageInternalMediaRef: resolvePreparedInternalMediaRef(
+              preparedReferenceImageInput,
+              inpaintOverride.referenceImageInput
+            ),
             outputFormat: inpaintOverride.outputFormat,
             imageWidth: inpaintOverride.imageWidth ?? null,
             imageHeight: inpaintOverride.imageHeight ?? null,

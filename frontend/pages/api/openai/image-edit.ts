@@ -18,6 +18,13 @@ import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
 } from "../../../lib/server/api/generationBilling";
+import {
+  filterExternalUrlsFromInternalRefs,
+  readInternalEditMediaRefsFromPayload,
+  readInternalMediaRefsFromPayload,
+  resolveSignedUrlsForInternalEditMediaRefs,
+  resolveSignedUrlsForInternalMediaRefs,
+} from "../../../lib/server/api/internalMediaRefResolution";
 import { readGenerationAbandonmentContext } from "../../../lib/server/api/generationAbandonment";
 import {
   editOpenAiImage,
@@ -36,6 +43,8 @@ type ImageEditRequestBody = {
   character_context?: unknown;
   style_context?: unknown;
   shortpulse_context?: unknown;
+  shortpulse_internal_media_refs?: unknown;
+  shortpulse_internal_edit_media_refs?: unknown;
 };
 
 type ImageEditSuccessResponse = {
@@ -110,6 +119,18 @@ const normalizeImageSources = (value: unknown): string[] | null => {
   return imageUrls;
 };
 
+const dedupeImageSources = (sources: Array<string | null | undefined>, limit = 8): string[] => {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  sources.forEach((source) => {
+    const normalized = normalizeRequiredString(source);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    deduped.push(normalized);
+  });
+  return deduped.slice(0, limit);
+};
+
 const normalizeOptionalMaskUrl = (value: unknown): string | null | undefined => {
   if (value == null) return undefined;
   const record = asRecord(value);
@@ -134,7 +155,7 @@ export default async function handler(
     const prompt = normalizeRequiredString(body.prompt);
     const size = normalizeSize(body.size);
     const quality = normalizeQuality(body.quality);
-    const images = normalizeImageSources(body.images);
+    const directImages = normalizeImageSources(body.images) ?? [];
     const inputFidelity = normalizeInputFidelity(body.input_fidelity);
     const maskUrl = normalizeOptionalMaskUrl(body.mask);
     const hasMaskPayload = body.mask != null;
@@ -143,8 +164,39 @@ export default async function handler(
     const characterContext = asRecord(body.character_context) ?? {};
     const styleContext = asRecord(body.style_context) ?? {};
     const shortpulseContext = asRecord(body.shortpulse_context) ?? {};
+    const internalMediaRefs = readInternalMediaRefsFromPayload(body.shortpulse_internal_media_refs);
+    const internalEditMediaRefs = readInternalEditMediaRefsFromPayload(
+      body.shortpulse_internal_edit_media_refs
+    );
+    const internalImages = await resolveSignedUrlsForInternalMediaRefs({
+      refs: internalMediaRefs,
+      userId: user.id,
+    });
+    const internalEditSignedUrls = await resolveSignedUrlsForInternalEditMediaRefs({
+      refs: internalEditMediaRefs,
+      userId: user.id,
+    });
+    const externalDirectImages = filterExternalUrlsFromInternalRefs(directImages, [
+      ...internalMediaRefs,
+      internalEditMediaRefs.baseImageRef,
+      internalEditMediaRefs.referenceImageRef,
+    ]);
+    const images = dedupeImageSources([
+      internalEditSignedUrls.baseImageUrl,
+      internalEditSignedUrls.referenceImageUrl,
+      ...internalImages,
+      ...externalDirectImages,
+    ]);
+    const resolvedMaskUrl = internalEditSignedUrls.maskUrl ?? maskUrl;
 
-    if (!prompt || !size || !quality || !images || !inputFidelity || (hasMaskPayload && !maskUrl)) {
+    if (
+      !prompt ||
+      !size ||
+      !quality ||
+      images.length < 1 ||
+      !inputFidelity ||
+      (hasMaskPayload && !resolvedMaskUrl)
+    ) {
       return res.status(400).json({
         error: "Invalid request",
         details:
@@ -163,7 +215,7 @@ export default async function handler(
         n: 1,
         images: images.map((imageUrl) => ({ image_url: imageUrl })),
         input_fidelity: inputFidelity,
-        ...(maskUrl ? { mask: { image_url: maskUrl } } : {}),
+        ...(resolvedMaskUrl ? { mask: { image_url: resolvedMaskUrl } } : {}),
       },
       reason: "openai-gpt-image-2 edit",
     });
@@ -174,7 +226,7 @@ export default async function handler(
       size,
       quality,
       images,
-      maskUrl,
+      maskUrl: resolvedMaskUrl,
     });
     const providerRequestId = edited.providerRequestId ?? `openai:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
@@ -184,7 +236,7 @@ export default async function handler(
       requested_quality: quality,
       input_image_count: images.length,
       input_fidelity: inputFidelity,
-      mask_present: Boolean(maskUrl),
+      mask_present: Boolean(resolvedMaskUrl),
     });
     if (!submitLink.ok) {
       throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
@@ -215,7 +267,7 @@ export default async function handler(
         openai_operation: "edit",
         input_image_count: images.length,
         input_fidelity: inputFidelity,
-        mask_present: Boolean(maskUrl),
+        mask_present: Boolean(resolvedMaskUrl),
         provider_usage: edited.usage,
       },
     });

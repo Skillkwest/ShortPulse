@@ -2008,6 +2008,111 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationReplay).toBeUndefined();
   });
 
+  it("captures canonical internal refs in replay when submit receives durable overrides without URL refs", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Hidden character context + Visible user prompt.", [], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        displayPromptOverride: "Visible user prompt.",
+        internalMediaRefsOverride: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/chars/ref-a.png",
+          },
+        ],
+        characterContextOverride: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Nova",
+        },
+      });
+    });
+
+    expect(outputs[0]?.generationReplay).toEqual(
+      expect.objectContaining({
+        version: 2,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Visible user prompt.",
+        submissionPrompt: "Hidden character context + Visible user prompt.",
+        aspect: "9:16",
+        imageResolution: "auto_2K",
+        referenceInputs: [],
+        internalMediaRefs: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/chars/ref-a.png",
+          },
+        ],
+        characterContext: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Nova",
+        },
+      })
+    );
+  });
+
   it("applies aspect and image resolution overrides during image submission", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

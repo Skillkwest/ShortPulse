@@ -3,6 +3,7 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
   type InternalReferenceDragPayload,
   type ReferenceDragSourceSurface,
 } from "../../../lib/internalReferenceDragPayload";
@@ -441,6 +442,7 @@ export const useCharacterManagerDroppedReferenceController = ({
   const handleCharacterSheetReferenceDrop = useCallback(
     async (zoneKey: CharacterSheetDropZoneKey, transfer: DataTransfer) => {
       const internalReference = extractInternalReferenceDragPayload(transfer);
+      const hasInternalHintTypes = hasInternalReferenceDragTypeHints(transfer);
       if (internalReference && resolveCharacterDropReference) {
         setPendingDropTarget({
           target: "character_sheet",
@@ -506,6 +508,35 @@ export const useCharacterManagerDroppedReferenceController = ({
         return;
       }
 
+      const droppedReference = resolveDroppedImageReference(transfer);
+      if (hasInternalHintTypes) {
+        if (droppedReference) {
+          await withCharacterSheetDropPending(zoneKey, async () => {
+            await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
+          });
+          return;
+        }
+        logCharacterDropBreadcrumb("character_drop_rejected", {
+          target: "character_sheet",
+          zone_key: zoneKey,
+          reason: "degraded_internal_drag_missing_resolvable_reference",
+          transfer_types: Array.from(transfer.types ?? []),
+        });
+        void reportAppError({
+          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+          scope: "app",
+          severity: "low",
+          message: "character_sheet_drop_reference_blocked_by_trust_policy",
+          metadata: {
+            target: "character_sheet",
+            drop_zone_key: zoneKey,
+            transfer_types: Array.from(transfer.types ?? []),
+            internal_hint_present: true,
+          },
+        });
+        return;
+      }
+
       const droppedFile = extractDroppedFiles(transfer)[0] ?? null;
       if (droppedFile) {
         await withCharacterSheetDropPending(zoneKey, async () => {
@@ -514,7 +545,6 @@ export const useCharacterManagerDroppedReferenceController = ({
         return;
       }
 
-      const droppedReference = resolveDroppedImageReference(transfer);
       if (!droppedReference) {
         void reportAppError({
           source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
@@ -525,6 +555,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             target: "character_sheet",
             drop_zone_key: zoneKey,
             transfer_types: Array.from(transfer.types ?? []),
+            internal_hint_present: false,
           },
         });
         return;

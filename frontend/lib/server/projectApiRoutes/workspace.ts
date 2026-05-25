@@ -52,24 +52,39 @@ const toOptionalSchemaVersion = (value: unknown): number | undefined => {
   return value;
 };
 
+const resolveWorkspaceRouteLabel = (
+  method: NextApiRequest["method"]
+): "projects-workspace-save" | "projects-workspace-read" | "projects-workspace-delete" => {
+  if (method === "PUT") return "projects-workspace-save";
+  if (method === "DELETE") return "projects-workspace-delete";
+  return "projects-workspace-read";
+};
+
+const resolveWorkspaceErrorMessage = (method: NextApiRequest["method"]): string => {
+  if (method === "PUT") return "Failed to save project workspace";
+  if (method === "DELETE") return "Failed to reset project workspace";
+  return "Failed to load project workspace";
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ProjectWorkspaceSuccessResponse | ProjectWorkspaceErrorResponse>
 ) {
-  if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {
-    res.setHeader("Allow", "GET, PUT, DELETE");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const user = await requireApiUser(req, res);
-  if (!user) return;
-
-  const projectId = parseProjectId(req.query.projectId);
-  if (!projectId) {
-    return res.status(400).json({ error: "Invalid project id" });
-  }
-
+  let user: Awaited<ReturnType<typeof requireApiUser>> | null = null;
   try {
+    if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {
+      res.setHeader("Allow", "GET, PUT, DELETE");
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    user = await requireApiUser(req, res);
+    if (!user) return;
+
+    const projectId = parseProjectId(req.query.projectId);
+    if (!projectId) {
+      return res.status(400).json({ error: "Invalid project id" });
+    }
+
     const requestBody = req.method === "PUT" ? toRequestBody(req.body) : null;
     const project = await getProjectForUser({
       userId: user.id,
@@ -113,6 +128,7 @@ export default async function handler(
       ...(workspace?.saveOutcome ? { saveOutcome: workspace.saveOutcome } : {}),
     });
   } catch (error) {
+    if (res.headersSent || res.writableEnded) return;
     if (error instanceof InvalidProjectWorkspaceSnapshotError) {
       return res.status(400).json({
         error: "Invalid project workspace snapshot",
@@ -122,7 +138,7 @@ export default async function handler(
     await logApiRouteException({
       req,
       error,
-      routeLabel: req.method === "PUT" ? "projects-workspace-save" : "projects-workspace-read",
+      routeLabel: resolveWorkspaceRouteLabel(req.method),
       user,
       metadata: {
         source:
@@ -134,12 +150,7 @@ export default async function handler(
       },
     });
     return res.status(500).json({
-      error:
-        req.method === "PUT"
-          ? "Failed to save project workspace"
-          : req.method === "DELETE"
-            ? "Failed to reset project workspace"
-            : "Failed to load project workspace",
+      error: resolveWorkspaceErrorMessage(req.method),
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

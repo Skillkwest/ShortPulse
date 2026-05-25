@@ -39,6 +39,7 @@ type ImageHandlerContext = {
   aspect: string;
   requestedResolution?: string;
   preparedImageInputs: string[];
+  internalMediaRefs?: ImageSubmissionArgs["internalMediaRefs"];
   notifyGenerationFailure: ImageSubmissionArgs["notifyGenerationFailure"];
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
   inpaintOverride?: ImageSubmissionArgs["inpaintOverride"];
@@ -71,6 +72,19 @@ const handoffSubmitResponse = ({
   const requestId = typeof response.request_id === "string" ? response.request_id : undefined;
   startPollingWithGeneration(requestId, pollingProvider, undefined, response);
 };
+
+const hasInternalMediaRefs = (
+  refs: ImageSubmissionArgs["internalMediaRefs"] | undefined
+): boolean => Boolean(refs?.some((ref) => Boolean(ref)));
+
+const hasInternalEditMediaRefs = (
+  inpaintOverride: ImageSubmissionArgs["inpaintOverride"] | undefined
+): boolean =>
+  Boolean(
+    inpaintOverride?.baseImageInternalMediaRef ||
+    inpaintOverride?.maskInternalMediaRef ||
+    inpaintOverride?.referenceImageInternalMediaRef
+  );
 
 const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
   {
@@ -174,10 +188,11 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       aspect,
       requestedResolution,
       preparedImageInputs,
+      internalMediaRefs,
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
-      if (!preparedImageInputs.length) {
+      if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(id, "Nano Banana Pro Edit requires at least one reference image.");
         return { handled: true };
       }
@@ -206,10 +221,11 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       aspect,
       requestedResolution,
       preparedImageInputs,
+      internalMediaRefs,
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
-      if (!preparedImageInputs.length) {
+      if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(id, "Nano Banana 2 Edit requires at least one reference image.");
         return { handled: true };
       }
@@ -239,10 +255,11 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       aspect,
       requestedResolution,
       preparedImageInputs,
+      internalMediaRefs,
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
-      if (!preparedImageInputs.length) {
+      if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(id, "Seedream 4.5 Edit requires at least one reference image.");
         return { handled: true };
       }
@@ -272,10 +289,11 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       aspect,
       requestedResolution,
       preparedImageInputs,
+      internalMediaRefs,
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
-      if (!preparedImageInputs.length) {
+      if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(id, "Seedream 5 Lite Edit requires at least one reference image.");
         return { handled: true };
       }
@@ -338,6 +356,7 @@ export const handleImageModelSubmission = async ({
   preparedImageInputs,
   notifyGenerationFailure,
   generationReplay,
+  internalMediaRefs,
   characterContext,
   styleContext,
   shortpulseContext,
@@ -354,6 +373,18 @@ export const handleImageModelSubmission = async ({
       : shortpulseContext;
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(hasInternalMediaRefs(internalMediaRefs)
+      ? { shortpulse_internal_media_refs: internalMediaRefs }
+      : {}),
+    ...(hasInternalEditMediaRefs(inpaintOverride)
+      ? {
+          shortpulse_internal_edit_media_refs: {
+            base_image: inpaintOverride?.baseImageInternalMediaRef ?? null,
+            mask_image: inpaintOverride?.maskInternalMediaRef ?? null,
+            reference_image: inpaintOverride?.referenceImageInternalMediaRef ?? null,
+          },
+        }
+      : {}),
     ...(characterContext ? { character_context: characterContext } : {}),
     ...(styleContext ? { style_context: styleContext } : {}),
     ...(shortpulseContextWithInpaintDimensions
@@ -369,6 +400,7 @@ export const handleImageModelSubmission = async ({
     aspect,
     requestedResolution,
     preparedImageInputs,
+    internalMediaRefs,
     notifyGenerationFailure,
     startPollingWithGeneration,
     inpaintOverride,

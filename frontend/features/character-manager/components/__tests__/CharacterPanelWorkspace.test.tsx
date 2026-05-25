@@ -14,6 +14,7 @@ const setCharacterSheetPresetFileMock = vi.fn();
 const setErrorMessageMock = vi.fn();
 const handleCharacterSheetCardClickMock = vi.fn();
 const clearCharacterSheetAssignmentMock = vi.fn();
+const deleteCharacterSheetPresetMock = vi.fn();
 
 const createDraftState = () => ({
   characters: [
@@ -53,6 +54,7 @@ const createDraftState = () => ({
   isDeletingCharacter: false,
   isSwitchingCharacter: false,
   isSavingCharacterSheetPreset: false,
+  isDeletingCharacterSheetPreset: false,
   hasUnsavedCharacterDraft: false,
   setCharacterName: () => undefined,
   setCharacterDescription: () => undefined,
@@ -60,7 +62,7 @@ const createDraftState = () => ({
   saveCharacterSheetPresetAssignments: async () => true,
   addCharacterSheetPreset: async () => true,
   renameCharacterSheetPreset: async () => true,
-  deleteCharacterSheetPreset: async () => true,
+  deleteCharacterSheetPreset: deleteCharacterSheetPresetMock,
   setCharacterSheetPresetFile: setCharacterSheetPresetFileMock,
   createCharacter: async () => undefined,
   saveCharacter: async () => true,
@@ -125,6 +127,9 @@ vi.mock("../../../../components/ConfirmationModal", () => ({
     title,
     body,
     confirmLabel,
+    confirmBusyLabel,
+    confirmDisabled,
+    cancelDisabled,
     onConfirm,
     onCancel,
     children,
@@ -132,6 +137,9 @@ vi.mock("../../../../components/ConfirmationModal", () => ({
     title?: ReactNode;
     body?: ReactNode;
     confirmLabel?: string;
+    confirmBusyLabel?: string;
+    confirmDisabled?: boolean;
+    cancelDisabled?: boolean;
     onConfirm?: () => void;
     onCancel?: () => void;
     children?: ReactNode;
@@ -141,11 +149,11 @@ vi.mock("../../../../components/ConfirmationModal", () => ({
       {body ? <div>{body}</div> : null}
       {children}
       {confirmLabel ? (
-        <button type="button" onClick={onConfirm}>
-          {confirmLabel}
+        <button type="button" onClick={onConfirm} disabled={confirmDisabled}>
+          {confirmDisabled && confirmBusyLabel ? confirmBusyLabel : confirmLabel}
         </button>
       ) : null}
-      <button type="button" onClick={onCancel}>
+      <button type="button" onClick={onCancel} disabled={cancelDisabled}>
         Cancel
       </button>
     </div>
@@ -164,6 +172,8 @@ describe("CharacterPanelWorkspace", () => {
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
     clearCharacterSheetAssignmentMock.mockReset();
+    deleteCharacterSheetPresetMock.mockReset();
+    deleteCharacterSheetPresetMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -296,6 +306,48 @@ describe("CharacterPanelWorkspace", () => {
     expect(confirmationDialog).toBeInTheDocument();
     expect(confirmationDialog).toHaveTextContent("Taylor");
     expect(confirmationDialog).toHaveTextContent("removed permanently");
+  });
+
+  it("keeps look deletion actionable while another look image upload is still in flight", async () => {
+    let resolveUploadPromise!: (value: boolean) => void;
+    const uploadPromise = new Promise<boolean>((resolve) => {
+      resolveUploadPromise = resolve;
+    });
+    setCharacterSheetPresetFileMock.mockImplementation(() => uploadPromise);
+
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 11,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    const lookTwoTab = screen.getByRole("tab", { name: "2" });
+    fireEvent.mouseEnter(lookTwoTab.parentElement as HTMLElement);
+    fireEvent.click(await screen.findByRole("button", { name: "Delete look 2" }));
+
+    const confirmationDialog = screen.getByRole("dialog", { name: 'Delete look "2"?' });
+    const confirmButton = within(confirmationDialog).getByRole("button", { name: "Delete" });
+    expect(confirmButton).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(confirmButton);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(deleteCharacterSheetPresetMock).toHaveBeenCalledWith("2");
+
+    resolveUploadPromise(true);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: 'Delete look "2"?' })).not.toBeInTheDocument();
+    });
   });
 
   it("opens the direct slot picker when an empty reference slot is clicked", () => {

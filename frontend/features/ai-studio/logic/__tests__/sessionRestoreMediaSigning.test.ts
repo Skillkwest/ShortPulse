@@ -1,16 +1,28 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   applySessionRestoreSignedUrls,
   buildSessionOutputSigningFingerprintById,
   collectSessionRestoreSigningPaths,
+  resolveSessionRestoreSignedMediaAuthority,
   resolveSessionRestoreSignedUrls,
 } from "../sessionRestoreMediaSigning";
 
 const getSignedMediaUrlsBatchMock = vi.fn();
+const mediaFilesQueryMock = vi.fn();
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
+}));
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: () => ({
+    from: () => ({
+      select: () => ({
+        in: (...args: unknown[]) => mediaFilesQueryMock(...args),
+      }),
+    }),
+  }),
 }));
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -25,6 +37,11 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
 });
 
 describe("sessionRestoreMediaSigning", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mediaFilesQueryMock.mockResolvedValue({ data: [], error: null });
+  });
+
   it("collects unique canonical signing paths", () => {
     const paths = collectSessionRestoreSigningPaths([
       createOutput({
@@ -237,5 +254,51 @@ describe("sessionRestoreMediaSigning", () => {
 
     expect(result.changed).toBe(false);
     expect(result.outputs[0]?.previewUrl).toBe("blob:local-newer");
+  });
+
+  it("recovers stripped storage authority from saved media ids during session restore", async () => {
+    const rows = [
+      createOutput({
+        id: "library-1",
+        mode: "image",
+        mediaSource: "library",
+        previewUrl: "https://stale.example.com/library.png",
+        resultUrls: ["https://stale.example.com/library.png"],
+        savedMediaIds: ["media-1"],
+        saveState: "saved",
+      }),
+    ];
+    mediaFilesQueryMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "media-1",
+          preview_storage_path: null,
+          storage_path: "user-1/images/library.png",
+          poster_variant_path: null,
+          thumb_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValueOnce(
+      new Map([["user-1/images/library.png", "https://signed/library.png"]])
+    );
+
+    const { signedByPath, recoveredAuthorityByOutputId } =
+      await resolveSessionRestoreSignedMediaAuthority(rows);
+    const result = applySessionRestoreSignedUrls(rows, signedByPath, {
+      recoveredAuthorityById: recoveredAuthorityByOutputId,
+    });
+
+    expect(mediaFilesQueryMock).toHaveBeenCalledWith("id", ["media-1"]);
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: "https://signed/library.png",
+        previewStoragePath: "user-1/images/library.png",
+        fullStoragePath: "user-1/images/library.png",
+        resultUrls: ["https://signed/library.png", "https://stale.example.com/library.png"],
+      })
+    );
   });
 });

@@ -115,6 +115,49 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.useReferenceImageIndicator).toBe(false);
   });
 
+  it("retains canonical internal refs across create-mode authority switches", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:standard" },
+      }
+    );
+
+    act(() => {
+      result.current.setReferenceImageUrl(
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/a.png?token=stub.invalid.token"
+      );
+      result.current.setExtraImageUrl(
+        0,
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/b.png?token=stub.invalid.token"
+      );
+    });
+
+    rerender({ authorityKey: "session:test:create:pulse" });
+
+    expect(result.current.getAuthorityState("session:test:create:standard")).toEqual(
+      expect.objectContaining({
+        referenceImageInternalMediaRefs: [
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/references/a.png",
+          },
+          {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/references/b.png",
+          },
+          null,
+          null,
+        ],
+      })
+    );
+  });
+
   it("preserves an off-Create tool when returning to Pulse authority", () => {
     const { result, rerender } = renderHook(
       ({ authorityKey }: { authorityKey: string }) =>

@@ -5,6 +5,13 @@ import { randomUUID } from "crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
+import {
+  filterExternalUrlsFromInternalRefs,
+  readInternalEditMediaRefsFromPayload,
+  readInternalMediaRefsFromPayload,
+  resolveSignedUrlsForInternalEditMediaRefs,
+  resolveSignedUrlsForInternalMediaRefs,
+} from "./internalMediaRefResolution";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
@@ -33,6 +40,7 @@ import {
 } from "../providerIntegration/submitProviderDispatcher";
 import { readProviderContentPolicyMessage } from "../providerIntegration/statusProviderPayload";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
+import type { InternalMediaRef } from "../../media/internalMediaRefs";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -140,6 +148,25 @@ const asProviderString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const asTrimmedStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => asProviderString(item))
+    .filter((item): item is string => Boolean(item));
+};
+
+const dedupeStrings = (values: Array<string | null | undefined>, limit = 10): string[] => {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  values.forEach((value) => {
+    const normalized = asProviderString(value);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    deduped.push(normalized);
+  });
+  return deduped.slice(0, limit);
+};
+
 const asJsonObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -183,6 +210,78 @@ const resolveInlineSubmitTargets = ({
   return [];
 };
 
+const resolveModelSupportsPayloadField = ({
+  modelId,
+  field,
+}: {
+  modelId: string;
+  field: string;
+}): boolean => {
+  const spec = getModelPayloadValidationSpec(modelId);
+  if (!spec) return false;
+  if (spec.allowedTopLevelFields?.includes(field)) return true;
+  if ((spec.requiredStringFields ?? []).includes(field)) return true;
+  if ((spec.requiredAnyOfStringFields ?? []).includes(field)) return true;
+  if ((spec.requiredAnyOfStringArrayFields ?? []).includes(field)) return true;
+  return (spec.requiredStringArrayFields ?? []).some((requirement) => requirement.field === field);
+};
+
+const mergeInternalImagePayloadUrls = ({
+  modelId,
+  payload,
+  internalMediaRefs,
+  signedUrls,
+}: {
+  modelId: string;
+  payload: Record<string, unknown>;
+  internalMediaRefs: Array<InternalMediaRef | null | undefined>;
+  signedUrls: string[];
+}): Record<string, unknown> => {
+  if (!signedUrls.length) return payload;
+  const nextPayload = { ...payload };
+  const externalImageUrl =
+    filterExternalUrlsFromInternalRefs(
+      [asProviderString(payload.image_url)],
+      internalMediaRefs
+    )[0] ?? null;
+  const externalImageUrls = filterExternalUrlsFromInternalRefs(
+    asTrimmedStringArray(payload.image_urls),
+    internalMediaRefs
+  );
+  const mergedImageUrls = dedupeStrings([...signedUrls, ...externalImageUrls], 10);
+  const supportsImageUrls = resolveModelSupportsPayloadField({ modelId, field: "image_urls" });
+  const supportsImageUrl = resolveModelSupportsPayloadField({ modelId, field: "image_url" });
+  if (supportsImageUrls && (mergedImageUrls.length > 0 || Array.isArray(payload.image_urls))) {
+    nextPayload.image_urls = mergedImageUrls;
+  }
+  if (
+    supportsImageUrl &&
+    (mergedImageUrls[0] ||
+      externalImageUrl ||
+      Object.prototype.hasOwnProperty.call(payload, "image_url"))
+  ) {
+    nextPayload.image_url = mergedImageUrls[0] ?? externalImageUrl;
+  }
+  return nextPayload;
+};
+
+const applyInternalEditPayloadUrls = ({
+  payload,
+  baseImageUrl,
+  maskUrl,
+  referenceImageUrl,
+}: {
+  payload: Record<string, unknown>;
+  baseImageUrl: string | null;
+  maskUrl: string | null;
+  referenceImageUrl: string | null;
+}): Record<string, unknown> => ({
+  ...payload,
+  ...(baseImageUrl ? { image_url: baseImageUrl } : {}),
+  ...(maskUrl ? { mask_url: maskUrl } : {}),
+  ...(referenceImageUrl ? { reference_image_url: referenceImageUrl } : {}),
+});
+
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
@@ -205,7 +304,8 @@ export const createFalSubmitHandler = ({
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
-    if (!(await requireApiUser(req, res))) {
+    const user = await requireApiUser(req, res);
+    if (!user) {
       return;
     }
 
@@ -231,12 +331,16 @@ export const createFalSubmitHandler = ({
       character_context: rawCharacterContext,
       style_context: rawStyleContext,
       shortpulse_context: rawShortpulseContext,
+      shortpulse_internal_media_refs: rawInternalMediaRefs,
+      shortpulse_internal_edit_media_refs: rawInternalEditMediaRefs,
       ...rawPayloadWithoutContext
     } = rawPayload;
     const generationReplayContext = asJsonObject(rawGenerationReplay);
     const characterContext = asJsonObject(rawCharacterContext);
     const styleContext = asJsonObject(rawStyleContext);
     const shortpulseContext = asJsonObject(rawShortpulseContext);
+    const internalMediaRefs = readInternalMediaRefsFromPayload(rawInternalMediaRefs, 8);
+    const internalEditMediaRefs = readInternalEditMediaRefsFromPayload(rawInternalEditMediaRefs);
     let payload = rawPayloadWithoutContext;
     const runtimeFlags = readFalRuntimeFlags();
     const generationPrecheckEnabled =
@@ -249,6 +353,35 @@ export const createFalSubmitHandler = ({
       profileId: safetyProfile.profileId,
     });
     const generationMode = resolveGenerationModeFromPayload(modelId, payload);
+    if (generationMode === "image" && internalMediaRefs.some((ref) => Boolean(ref))) {
+      const signedUrls = await resolveSignedUrlsForInternalMediaRefs({
+        refs: internalMediaRefs,
+        userId: user.id,
+      });
+      payload = mergeInternalImagePayloadUrls({
+        modelId,
+        payload,
+        internalMediaRefs,
+        signedUrls,
+      });
+    }
+    if (
+      generationMode === "image" &&
+      (internalEditMediaRefs.baseImageRef ||
+        internalEditMediaRefs.maskRef ||
+        internalEditMediaRefs.referenceImageRef)
+    ) {
+      const signedEditUrls = await resolveSignedUrlsForInternalEditMediaRefs({
+        refs: internalEditMediaRefs,
+        userId: user.id,
+      });
+      payload = applyInternalEditPayloadUrls({
+        payload,
+        baseImageUrl: signedEditUrls.baseImageUrl,
+        maskUrl: signedEditUrls.maskUrl,
+        referenceImageUrl: signedEditUrls.referenceImageUrl,
+      });
+    }
     const promptForPolicy = resolveGenerationPromptFromPayload(routeLabel, payload);
     const promptPrecheck = runStudioAgentSafetyInputPrecheck({
       enabled: generationPrecheckEnabled,

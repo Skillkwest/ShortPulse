@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept the live tree collapsed to one compact character-panel lane, the focused UI tests passed cleanly, and the final build cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still paid one tiny formatting cycle on `CharacterPanelSplitHost.test.tsx` before the lane could finish.
-- Capability decision: on compact UI-only lanes, start with a one-file Prettier sweep on the newest changed test file when it was edited alongside structural component changes.
+- Score: `8.7/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio runtime lane, focused tests plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
+- What went wrong: the first pass still paid two cheap cleanup cycles because five runtime files needed Prettier and one workspace test still had an unused `container` binding.
+- Capability decision: on larger mixed docs-plus-runtime lanes, do one up-front Prettier sweep on touched runtime files and scan changed tests for dead locals before starting the main ladder.
 
 ## Previous Run
 
 - `2026-05-25` on `production`
-- Score: `8.9/10`
+- Score: `8.8/10`
 - What went right: Gear Ball kept the live tree collapsed to one compact character-panel lane, the focused UI tests passed cleanly, and the final build cleared on the exact tree that reached `production`.
 - What went wrong: the first pass still paid one tiny formatting cycle on `CharacterPanelSplitHost.test.tsx` before the lane could finish.
-- Capability decision: on compact UI-only lanes, run a one-file Prettier sweep on the newest touched test file before the rest of the ladder so the lane stays fully one-pass.
+- Capability decision: on compact UI-only lanes, start with a one-file Prettier sweep on the newest changed test file when it was edited alongside structural component changes.
 
 ## Previous Supervised Synthesis
 

@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-24` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept a wide AI Studio prompt-controls/custom-voice/object-URL tree collapsed to one coherent lane, validated it with the direct manual ladder, and landed the product commit on the exact tree that passed build and focused tests.
-- What went wrong: I initially let the score-loop writeback fall out of the commit path and had to catch that only after the main tree was already clean.
-- Capability decision: after every main product commit, immediately verify whether the score-loop files changed this turn and commit them before moving on to the push step.
+- Score: `8.7/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent shared-runtime lane, and the focused tests, docs checks, Generate CTA guard, and final build all cleared on the exact tree that reached `production`.
+- What went wrong: the first pass still lost one cycle to a bad repo-relative Prettier invocation, and the new guard script itself needed formatting before the lane could finish.
+- Capability decision: on mixed repo-root plus `frontend/` lanes, derive the first formatting command from the real working directory up front so the validation ladder starts cleanly.
 
 ## Previous Run
 
 - `2026-05-24` on `production`
 - Score: `8.8/10`
-- What went right: Gear Ball kept a wide issue-reports/Ophestivus/custom-voice tree collapsed to one coherent lane, validated the important seams with 17 focused test files, and finished with passing build plus docs checks on the exact pushed tree.
-- What went wrong: the first pass still paid a small formatting cycle because three new admin-report files only needed Prettier before the direct ladder could go fully green.
-- Capability decision: on medium-size mixed UI/docs/tooling lanes, run a tiny Prettier sweep on brand-new files before the rest of the ladder so the direct pass stays one-shot clean.
+- What went right: Gear Ball kept a wide AI Studio prompt-controls/custom-voice/object-URL tree collapsed to one coherent lane, validated it with the direct manual ladder, and landed the product commit on the exact tree that passed build and focused tests.
+- What went wrong: I initially let the score-loop writeback fall out of the commit path and had to catch that only after the main tree was already clean.
+- Capability decision: after every main product commit, immediately verify whether the score-loop files changed this turn and commit them before moving on to the push step.
 
 ## Previous Supervised Synthesis
 

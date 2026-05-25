@@ -640,6 +640,61 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("reloads the active character bundle when a Character Manager refresh event is published", async () => {
+    window.localStorage.setItem(
+      "shortpulse.character_manager.selected_character_id.v2:user-1",
+      "char-1"
+    );
+    const setCharacterModeInjectionBundle = vi.fn();
+    listCharacterManagerCharactersMock.mockResolvedValue([createCharacterListItem()] as Awaited<
+      ReturnType<typeof listCharacterManagerCharacters>
+    >);
+    loadCharacterManagerDraftByCharacterIdMock
+      .mockResolvedValueOnce(createSnapshotWithLookReferences())
+      .mockResolvedValueOnce({
+        ...createSnapshotWithLookReferences(),
+        characterDescription: "Refreshed description",
+        characterSheetPresetDescriptions: {
+          ...createSnapshotWithLookReferences().characterSheetPresetDescriptions,
+          "1": "Refreshed description",
+        },
+      } as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+
+    renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          setCharacterModeInjectionBundle: asDispatch(setCharacterModeInjectionBundle),
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          characterId: "char-1",
+          characterDescription: "Hero description",
+        })
+      );
+    });
+
+    act(() => {
+      publishCharacterListChanged({
+        userId: "user-1",
+        reason: "refresh",
+      });
+    });
+
+    await waitFor(() => {
+      expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenLastCalledWith("char-1");
+      expect(setCharacterModeInjectionBundle).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          characterId: "char-1",
+          characterDescription: "Refreshed description",
+        })
+      );
+    });
+  });
+
   it("keeps existing options when a refresh fails", async () => {
     listCharacterManagerCharactersMock.mockResolvedValueOnce([
       {

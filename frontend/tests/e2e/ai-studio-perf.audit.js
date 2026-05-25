@@ -7,6 +7,7 @@
 const { chromium } = require("playwright");
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3100";
+const AI_STUDIO_AUDIT_PATH = "/ai-studio?perfAuditRuntime=1";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 
@@ -66,7 +67,7 @@ async function main() {
   };
 
   try {
-    await page.goto(`${BASE_URL}/auth?next=/ai-studio`, {
+    await page.goto(`${BASE_URL}/auth?next=${encodeURIComponent(AI_STUDIO_AUDIT_PATH)}`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });
@@ -85,7 +86,7 @@ async function main() {
 
     result.auth.reachedProtectedRoute = true;
 
-    await page.goto(`${BASE_URL}/ai-studio`, {
+    await page.goto(`${BASE_URL}${AI_STUDIO_AUDIT_PATH}`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });

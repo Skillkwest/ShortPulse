@@ -1035,6 +1035,10 @@ describe("useCharacterManagerDraft", () => {
     expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
       "https://signed.example/preset-2.png"
     );
+    expect(publishCharacterListChangedMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "refresh",
+    });
     expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
   });
 
@@ -1109,6 +1113,10 @@ describe("useCharacterManagerDraft", () => {
       characterId: "char-1",
       presetId: "1",
       description: "Updated description",
+    });
+    expect(publishCharacterListChangedMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "refresh",
     });
   });
 
@@ -1364,6 +1372,10 @@ describe("useCharacterManagerDraft", () => {
       file,
       validationStatus: "pass",
       validationNotes,
+    });
+    expect(publishCharacterListChangedMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "refresh",
     });
   });
 

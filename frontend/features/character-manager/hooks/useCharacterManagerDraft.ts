@@ -539,6 +539,7 @@ export const useCharacterManagerDraft = ({
     characterSheetPresetAssignmentsRequestRef,
     characterSheetPresetTabOrderRequestRef,
     characterSheetPresetTabLabelRequestRef,
+    selectedCharacterStorageScopeRef,
     setActiveCharacterSheetPresetIdState,
     setCharacterSheetPresets,
     setVisibleCharacterSheetPresetIds,
@@ -660,6 +661,7 @@ export const useCharacterManagerDraft = ({
   const flushPendingCharacterDescriptionsPersist = useCallback(async () => {
     if (!characterId) return true;
 
+    let persistedDescription = false;
     for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
       const nextDescription = (characterSheetPresetDescriptionsRef.current[presetId] ?? "").slice(
         0,
@@ -691,6 +693,7 @@ export const useCharacterManagerDraft = ({
           ...lastPersistedDescriptionMapRef.current,
           [presetId]: nextDescription,
         };
+        persistedDescription = true;
       } catch (nextError) {
         if (descriptionPersistRequestRef.current[presetId] !== requestId) {
           return false;
@@ -700,8 +703,20 @@ export const useCharacterManagerDraft = ({
       }
     }
 
+    if (persistedDescription) {
+      publishCharacterListChanged({
+        userId: selectedCharacterStorageScopeRef.current,
+        reason: "refresh",
+      });
+    }
+
     return true;
-  }, [characterId, characterSheetPresetDescriptionsRef, setError]);
+  }, [
+    characterId,
+    characterSheetPresetDescriptionsRef,
+    selectedCharacterStorageScopeRef,
+    setError,
+  ]);
 
   const saveCharacter = useCallback(async () => {
     if (characterId) {

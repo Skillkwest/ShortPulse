@@ -19,6 +19,8 @@ import type { StudioOutput, ToolId } from "../types";
 const MEDIA_BUCKET = "media_library";
 const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 const TELEMETRY_FALLBACK_CODES: CharacterModeFallbackCode[] = ["bundle_unavailable"];
+const CHARACTER_REFERENCE_REFRESH_ERROR_MESSAGE =
+  "Unable to refresh character references. Reopen the character or try again.";
 
 /**
  * Returns true when the currently loaded bundle matches the selected character.
@@ -60,6 +62,10 @@ const isCharacterUnavailableError = (error: unknown): boolean => {
     normalized.includes("character not found")
   );
 };
+
+const createCharacterReferenceRefreshError = (
+  message: string = CHARACTER_REFERENCE_REFRESH_ERROR_MESSAGE
+): Error => new Error(message);
 
 export type CharacterModeInjectionBundle = {
   characterId: string;
@@ -262,11 +268,7 @@ export const useAiStudioCharacterModeController = ({
         };
         trackCharacterModeEvent("character_mode_reference_refresh_empty", refreshEmptyData);
         logCharacterModeTelemetry("character_mode_reference_refresh_empty", refreshEmptyData);
-        return {
-          ...bundle,
-          sheetReferenceUrls: fallbackUrls,
-          loadedAtMs: Date.now(),
-        };
+        throw createCharacterReferenceRefreshError();
       }
       return {
         ...bundle,
@@ -348,10 +350,7 @@ export const useAiStudioCharacterModeController = ({
           setBundle(null);
           return null;
         }
-        if (currentBundle?.characterId === selectedId) {
-          return currentBundle;
-        }
-        return null;
+        throw createCharacterReferenceRefreshError();
       } finally {
         setBundleLoading(false);
       }

@@ -8,6 +8,7 @@
 const { chromium } = require("playwright");
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3100";
+const AI_STUDIO_AUDIT_PATH = "/ai-studio?perfAuditRuntime=1";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 const BLOCKED_URL = "https://capture.invalid/c1-blocked-style.jpg";
@@ -127,63 +128,69 @@ async function runScenario(page, scenarioName, seedItem) {
   page.on("response", onResponse);
 
   try {
-    await page.evaluate(({ item }) => {
-      globalThis.__shortpulseAiStudioPerf.seedReferenceGridItems([item]);
-    }, { item: seedItem });
+    await page.evaluate(
+      ({ item }) => {
+        globalThis.__shortpulseAiStudioPerf.seedReferenceGridItems([item]);
+      },
+      { item: seedItem }
+    );
 
     await ensureAiStudioPanels(page);
 
-    const packet = await page.evaluate(({ transferKeys }) => {
-      const doc = globalThis.document;
-      const HTMLElementCtor = globalThis.HTMLElement;
-      const DataTransferCtor = globalThis.DataTransfer;
-      const DragEventCtor = globalThis.DragEvent;
-      const card = doc.querySelector(".reference-card");
-      const stylesPanel = doc.querySelector("[aria-label='Styles library']");
-      if (!(card instanceof HTMLElementCtor) || !(stylesPanel instanceof HTMLElementCtor)) {
-        throw new Error("Required style-drop surfaces are not present.");
-      }
+    const packet = await page.evaluate(
+      ({ transferKeys }) => {
+        const doc = globalThis.document;
+        const HTMLElementCtor = globalThis.HTMLElement;
+        const DataTransferCtor = globalThis.DataTransfer;
+        const DragEventCtor = globalThis.DragEvent;
+        const card = doc.querySelector(".reference-card");
+        const stylesPanel = doc.querySelector("[aria-label='Styles library']");
+        if (!(card instanceof HTMLElementCtor) || !(stylesPanel instanceof HTMLElementCtor)) {
+          throw new Error("Required style-drop surfaces are not present.");
+        }
 
-      const transfer = new DataTransferCtor();
-      const dragStartEvent = new DragEventCtor("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer: transfer,
-      });
-      card.dispatchEvent(dragStartEvent);
-
-      const payload = {};
-      for (const key of transferKeys) {
-        payload[key] = transfer.getData(key);
-      }
-
-      stylesPanel.dispatchEvent(
-        new DragEventCtor("dragenter", {
+        const transfer = new DataTransferCtor();
+        const dragStartEvent = new DragEventCtor("dragstart", {
           bubbles: true,
           cancelable: true,
           dataTransfer: transfer,
-        })
-      );
-      stylesPanel.dispatchEvent(
-        new DragEventCtor("dragover", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer,
-        })
-      );
-      stylesPanel.dispatchEvent(
-        new DragEventCtor("drop", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer,
-        })
-      );
+        });
+        card.dispatchEvent(dragStartEvent);
 
-      return {
-        transferTypes: Array.from(transfer.types || []),
-        payload,
-      };
-    }, { transferKeys: TRANSFER_KEYS });
+        const payload = {};
+        for (const key of transferKeys) {
+          payload[key] = transfer.getData(key);
+        }
+
+        stylesPanel.dispatchEvent(
+          new DragEventCtor("dragenter", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          })
+        );
+        stylesPanel.dispatchEvent(
+          new DragEventCtor("dragover", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          })
+        );
+        stylesPanel.dispatchEvent(
+          new DragEventCtor("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          })
+        );
+
+        return {
+          transferTypes: Array.from(transfer.types || []),
+          payload,
+        };
+      },
+      { transferKeys: TRANSFER_KEYS }
+    );
 
     await page.waitForTimeout(5_000);
 
@@ -275,7 +282,7 @@ async function main() {
   };
 
   try {
-    await page.goto(`${BASE_URL}/auth?next=/ai-studio`, {
+    await page.goto(`${BASE_URL}/auth?next=${encodeURIComponent(AI_STUDIO_AUDIT_PATH)}`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });
@@ -294,7 +301,7 @@ async function main() {
 
     result.auth.reachedProtectedRoute = true;
 
-    await page.goto(`${BASE_URL}/ai-studio`, {
+    await page.goto(`${BASE_URL}${AI_STUDIO_AUDIT_PATH}`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });

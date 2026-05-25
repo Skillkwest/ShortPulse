@@ -75,6 +75,7 @@ export const useAiStudioCharacterModeLifecycle = ({
   const inFlightCharacterSnapshotLoadsRef = useRef<
     Map<string, Promise<CharacterManagerDraftSnapshot>>
   >(new Map());
+  const characterBundleLoadRequestIdRef = useRef(0);
   const pendingRefreshRequestedRef = useRef(false);
   const refreshRequestIdRef = useRef(0);
   const previousSelectedToolRef = useRef<ToolId | null>(selectedTool);
@@ -191,6 +192,51 @@ export const useAiStudioCharacterModeLifecycle = ({
     },
     [characterOptionsById]
   );
+  const reloadCharacterModeInjectionBundle = useCallback(
+    async (
+      characterId: string,
+      {
+        characterLookId = selectedCharacterLookId,
+        forceRefresh = false,
+      }: {
+        characterLookId?: string | null;
+        forceRefresh?: boolean;
+      } = {}
+    ): Promise<void> => {
+      const normalizedCharacterId = characterId.trim();
+      if (!normalizedCharacterId) {
+        characterBundleLoadRequestIdRef.current += 1;
+        setCharacterModeInjectionBundle(null);
+        setIsCharacterBundleLoading(false);
+        return;
+      }
+
+      const requestId = characterBundleLoadRequestIdRef.current + 1;
+      characterBundleLoadRequestIdRef.current = requestId;
+      setIsCharacterBundleLoading(true);
+      setCharacterModeInjectionBundle(null);
+      try {
+        const snapshot = await loadCharacterSnapshot(normalizedCharacterId, { forceRefresh });
+        if (!isMountedRef.current || characterBundleLoadRequestIdRef.current !== requestId) return;
+        setCharacterModeInjectionBundle(
+          buildCharacterModeInjectionBundleFromSnapshot(snapshot, characterLookId)
+        );
+      } catch {
+        if (!isMountedRef.current || characterBundleLoadRequestIdRef.current !== requestId) return;
+        setCharacterModeInjectionBundle(null);
+      } finally {
+        if (isMountedRef.current && characterBundleLoadRequestIdRef.current === requestId) {
+          setIsCharacterBundleLoading(false);
+        }
+      }
+    },
+    [
+      loadCharacterSnapshot,
+      selectedCharacterLookId,
+      setCharacterModeInjectionBundle,
+      setIsCharacterBundleLoading,
+    ]
+  );
 
   useEffect(() => {
     let active = true;
@@ -273,13 +319,22 @@ export const useAiStudioCharacterModeLifecycle = ({
         void refreshCharacterOptions().catch(() => {
           // Cross-surface sync is best-effort and should not block local interactions.
         });
+        if (selectedCharacterId.trim().length === 0) return;
+        void reloadCharacterModeInjectionBundle(selectedCharacterId, {
+          forceRefresh: true,
+        });
       },
       {
         userId: selectedCharacterStorageScope,
       }
     );
     return unsubscribe;
-  }, [refreshCharacterOptions, selectedCharacterStorageScope]);
+  }, [
+    refreshCharacterOptions,
+    reloadCharacterModeInjectionBundle,
+    selectedCharacterId,
+    selectedCharacterStorageScope,
+  ]);
 
   useEffect(() => {
     const previousTool = previousSelectedToolRef.current;
@@ -322,40 +377,19 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [projectId, projectRouteRequested, selectedCharacterStorageScope]);
 
   useEffect(() => {
-    let active = true;
     if (!selectedCharacterId) {
+      characterBundleLoadRequestIdRef.current += 1;
       setCharacterModeInjectionBundle(null);
       setIsCharacterBundleLoading(false);
-      return () => {
-        active = false;
-      };
+      return () => {};
     }
 
-    setIsCharacterBundleLoading(true);
-    setCharacterModeInjectionBundle(null);
-    void loadCharacterSnapshot(selectedCharacterId)
-      .then((snapshot) => {
-        if (!active) return;
-        setCharacterModeInjectionBundle(
-          buildCharacterModeInjectionBundleFromSnapshot(snapshot, selectedCharacterLookId)
-        );
-      })
-      .catch(() => {
-        if (!active) return;
-        setCharacterModeInjectionBundle(null);
-      })
-      .finally(() => {
-        if (!active) return;
-        setIsCharacterBundleLoading(false);
-      });
+    void reloadCharacterModeInjectionBundle(selectedCharacterId);
 
-    return () => {
-      active = false;
-    };
+    return () => {};
   }, [
-    loadCharacterSnapshot,
+    reloadCharacterModeInjectionBundle,
     selectedCharacterId,
-    selectedCharacterLookId,
     setCharacterModeInjectionBundle,
     setIsCharacterBundleLoading,
   ]);

@@ -11,6 +11,7 @@ import {
   saveCharacterManagerCharacterSheetPresetTabLabel,
   saveCharacterManagerCharacterSheetPresetTabOrder,
 } from "../logic/characterManagerPersistence";
+import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
 import {
   getNextCharacterSheetPresetId,
   mergeCharacterSheetPresetTabDescriptions,
@@ -50,6 +51,7 @@ type UseCharacterManagerPresetControllerParams = {
   characterSheetPresetAssignmentsRequestRef: React.MutableRefObject<number>;
   characterSheetPresetTabOrderRequestRef: React.MutableRefObject<number>;
   characterSheetPresetTabLabelRequestRef: React.MutableRefObject<number>;
+  selectedCharacterStorageScopeRef: React.MutableRefObject<string | null>;
   setActiveCharacterSheetPresetIdState: React.Dispatch<
     React.SetStateAction<CharacterSheetPresetId>
   >;
@@ -103,6 +105,7 @@ export const useCharacterManagerPresetController = ({
   characterSheetPresetAssignmentsRequestRef,
   characterSheetPresetTabOrderRequestRef,
   characterSheetPresetTabLabelRequestRef,
+  selectedCharacterStorageScopeRef,
   setActiveCharacterSheetPresetIdState,
   setCharacterSheetPresets,
   setVisibleCharacterSheetPresetIds,
@@ -112,6 +115,13 @@ export const useCharacterManagerPresetController = ({
   setCharacterDescriptionState,
   toErrorMessage,
 }: UseCharacterManagerPresetControllerParams): UseCharacterManagerPresetControllerResult => {
+  const publishCharacterRefresh = React.useCallback(() => {
+    publishCharacterListChanged({
+      userId: selectedCharacterStorageScopeRef.current,
+      reason: "refresh",
+    });
+  }, [selectedCharacterStorageScopeRef]);
+
   const mergePersistedTabDescriptions = React.useCallback(
     (
       persistedDescriptions: CharacterSheetPresetDescriptionMap
@@ -238,6 +248,7 @@ export const useCharacterManagerPresetController = ({
             setCharacterDescriptionState(
               mergedDescriptions[activeCharacterSheetPresetIdRef.current] ?? ""
             );
+            publishCharacterRefresh();
           })
           .catch((nextError) => {
             if (descriptionPersistRequestRef.current[presetId] !== requestId) {
@@ -275,6 +286,7 @@ export const useCharacterManagerPresetController = ({
       setVisibleCharacterSheetPresetIds,
       toErrorMessage,
       visibleCharacterSheetPresetIdsRef,
+      publishCharacterRefresh,
     ]
   );
 
@@ -344,6 +356,7 @@ export const useCharacterManagerPresetController = ({
           persistedState,
           preserveLocalPresetReferences: true,
         });
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         if (activeCharacterSheetPresetRequestRef.current !== requestId) {
@@ -375,6 +388,7 @@ export const useCharacterManagerPresetController = ({
       setError,
       setIsSavingCharacterSheetPreset,
       toErrorMessage,
+      publishCharacterRefresh,
     ]
   );
 
@@ -410,6 +424,7 @@ export const useCharacterManagerPresetController = ({
           return true;
         }
         applyPersistedPresetState({ persistedState });
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
@@ -442,6 +457,7 @@ export const useCharacterManagerPresetController = ({
       setError,
       setIsSavingCharacterSheetPreset,
       toErrorMessage,
+      publishCharacterRefresh,
     ]
   );
 
@@ -498,6 +514,7 @@ export const useCharacterManagerPresetController = ({
         return true;
       }
       applyPersistedPresetState({ persistedState });
+      publishCharacterRefresh();
       return true;
     } catch (nextError) {
       if (characterSheetPresetTabOrderRequestRef.current !== requestId) {
@@ -539,6 +556,7 @@ export const useCharacterManagerPresetController = ({
     setVisibleCharacterSheetPresetIds,
     toErrorMessage,
     visibleCharacterSheetPresetIdsRef,
+    publishCharacterRefresh,
   ]);
 
   const renameCharacterSheetPreset = React.useCallback(
@@ -576,6 +594,7 @@ export const useCharacterManagerPresetController = ({
           return true;
         }
         applyPersistedPresetState({ persistedState });
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         if (characterSheetPresetTabLabelRequestRef.current !== requestId) {
@@ -602,6 +621,7 @@ export const useCharacterManagerPresetController = ({
       setIsSavingCharacterSheetPreset,
       toErrorMessage,
       visibleCharacterSheetPresetIdsRef,
+      publishCharacterRefresh,
     ]
   );
 
@@ -686,6 +706,7 @@ export const useCharacterManagerPresetController = ({
           return true;
         }
         applyPersistedPresetState({ persistedState });
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         if (characterSheetPresetTabOrderRequestRef.current !== requestId) {
@@ -731,6 +752,7 @@ export const useCharacterManagerPresetController = ({
       setVisibleCharacterSheetPresetIds,
       toErrorMessage,
       visibleCharacterSheetPresetIdsRef,
+      publishCharacterRefresh,
     ]
   );
 

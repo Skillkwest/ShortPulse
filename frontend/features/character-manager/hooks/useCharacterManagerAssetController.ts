@@ -128,6 +128,12 @@ export const useCharacterManagerAssetController = ({
     Partial<Record<CharacterSheetPresetId, Partial<Record<CharacterSheetDropZoneKey, File>>>>
   >({});
   const stagedSlotFilesRef = React.useRef<Partial<Record<CharacterReferenceSlotKey, File>>>({});
+  const publishCharacterRefresh = React.useCallback(() => {
+    publishCharacterListChanged({
+      userId: selectedCharacterStorageScopeRef.current,
+      reason: "refresh",
+    });
+  }, [selectedCharacterStorageScopeRef]);
   const revokeObjectUrl = React.useCallback((value: string | null | undefined) => {
     if (!value?.startsWith("blob:")) return;
     try {
@@ -357,6 +363,7 @@ export const useCharacterManagerAssetController = ({
         }
         setCharacterSheetAssignments(persistedAssignments);
         characterSheetAssignmentsRef.current = persistedAssignments;
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         if (characterSheetAssignmentsRequestRef.current !== requestId) {
@@ -373,6 +380,7 @@ export const useCharacterManagerAssetController = ({
       characterSheetAssignmentsRef,
       characterSheetAssignmentsRequestRef,
       clearMessages,
+      publishCharacterRefresh,
       setCharacterSheetAssignments,
       setError,
       toErrorMessage,
@@ -514,6 +522,7 @@ export const useCharacterManagerAssetController = ({
           ...item,
           updatedAt: new Date().toISOString(),
         }));
+        publishCharacterRefresh();
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save this shot."));
@@ -528,6 +537,7 @@ export const useCharacterManagerAssetController = ({
       clearMessages,
       markSlotBusy,
       patchCharacterListItem,
+      publishCharacterRefresh,
       revokeObjectUrl,
       setError,
       setSlots,
@@ -573,6 +583,7 @@ export const useCharacterManagerAssetController = ({
             updatedAt: new Date().toISOString(),
           }));
         }
+        publishCharacterRefresh();
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to remove this shot."));
       } finally {
@@ -585,6 +596,7 @@ export const useCharacterManagerAssetController = ({
       clearMessages,
       markSlotBusy,
       patchCharacterListItem,
+      publishCharacterRefresh,
       revokeObjectUrl,
       setError,
       setSlots,

@@ -371,7 +371,7 @@ describe("useAiStudioCharacterModeController", () => {
     expect(loadCharacterSnapshot).toHaveBeenCalledWith("char-1", { forceRefresh: true });
   });
 
-  it("reuses existing reference URLs when forced signing returns no usable URLs", async () => {
+  it("blocks submit-time reuse when forced signing returns no usable URLs", async () => {
     const trackCharacterModeEvent = vi.fn();
     const setCharacterModeInjectionBundle = vi.fn();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
@@ -399,22 +399,10 @@ describe("useAiStudioCharacterModeController", () => {
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
-    const refreshed =
-      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
-
-    expect(refreshed).toEqual(
-      expect.objectContaining({
-        characterId: "char-1",
-        characterDescription: "Base description",
-        sheetReferenceUrls: ["https://example.com/ref-stale-db.png"],
-      })
-    );
-    expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
-      expect.objectContaining({
-        characterId: "char-1",
-        sheetReferenceUrls: ["https://example.com/ref-stale-db.png"],
-      })
-    );
+    await expect(
+      result.current.refreshCharacterModeInjectionBundleForSubmission("create")
+    ).rejects.toThrow("Unable to refresh character references. Reopen the character or try again.");
+    expect(setCharacterModeInjectionBundle).not.toHaveBeenCalled();
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_reference_refresh_empty",
       expect.objectContaining({
@@ -437,7 +425,7 @@ describe("useAiStudioCharacterModeController", () => {
     );
   });
 
-  it("reuses current bundle when submit-time snapshot refresh fails", async () => {
+  it("blocks submit-time reuse when snapshot refresh fails", async () => {
     const trackCharacterModeEvent = vi.fn();
     const currentBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -455,10 +443,9 @@ describe("useAiStudioCharacterModeController", () => {
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
-    const refreshed =
-      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
-
-    expect(refreshed).toEqual(currentBundle);
+    await expect(
+      result.current.refreshCharacterModeInjectionBundleForSubmission("create")
+    ).rejects.toThrow("Unable to refresh character references. Reopen the character or try again.");
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_bundle_refresh_failed",
       expect.objectContaining({

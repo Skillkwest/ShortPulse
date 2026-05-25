@@ -33,10 +33,10 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-25` on `production`
-- Score: `8.4/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio/admin governance lane, the focused suites plus docs checks passed, and the final build cleared on the exact tree that reached `production`.
-- What went wrong: the first pass still paid a broad formatting-only cleanup across 18 files, and the Reference Grid suite still emitted recurring `act(...)` warning noise during the focused test pass.
-- Capability decision: on very large mixed runtime/docs lanes, run a manifest-wide Prettier sweep before the main ladder and keep a standing plan to retire repeated noisy test warnings that hide signal.
+- Score: `8.1/10`
+- What went right: Gear Ball still kept the live tree collapsed to one coherent AI Studio/admin governance lane, the focused suites plus docs checks passed, and the final build cleared before publish.
+- What went wrong: the first pass paid a broad formatting-only cleanup across 18 files, the Reference Grid suite still emitted recurring `act(...)` warning noise, and the ADR index tail surfaced after the first score-loop writeback so convergence needed one more correction step.
+- Capability decision: on very large mixed runtime/docs lanes, run a manifest-wide Prettier sweep before the main ladder and re-check doc index tails before writing the score loop so the run closes in one shot.
 
 ## Previous Run
 

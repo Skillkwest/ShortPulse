@@ -124,6 +124,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0080-custom-voice-ownership-authority.md`
 - `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`
 - `docs/adr/0082-create-pulse-standard-mode-runtime-parking.md`
+- `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`
@@ -340,6 +341,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 - `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
 - `docs/adr/0073-create-pulse-built-in-control-plane.md`
+- `docs/adr/0083-create-mode-global-right-rail-authority.md`
 
 ## Archive
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/music";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -38,6 +39,7 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -46,6 +48,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/music", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     chargeGenerationRequestMock.mockResolvedValue({
@@ -256,6 +259,64 @@ describe("POST /api/elevenlabs/music", () => {
       output: expect.objectContaining({
         durationMs: 30000,
       }),
+    });
+  });
+
+  it("rate limits repeated music generations for the same authenticated user", async () => {
+    generateElevenLabsMusicMock.mockResolvedValue({
+      buffer: Buffer.from("music"),
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-music-rate-limit",
+    });
+    persistGeneratedAudioAssetMock.mockResolvedValue({
+      generationId: "gen-music-rate-limit",
+      mediaFileId: "media-music-rate-limit",
+      requestId: "billing-source-music-1",
+      storagePath: "user-1/generations/audio/gen-music-rate-limit/song.mp3",
+      signedUrl: "https://signed.example/song-rate-limit.mp3",
+      outputRowId: "out-music-rate-limit",
+    });
+
+    for (let index = 0; index < 6; index += 1) {
+      const req = {
+        method: "POST",
+        body: {
+          text: `Night-drive synth anthem ${index}`,
+          durationSeconds: null,
+          bpm: 112,
+          mode: "instrumental",
+          structure: "loop",
+          energyPercent: 58,
+          outputFormat: "mp3_44100_128",
+        },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: {
+        text: "Blocked request",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

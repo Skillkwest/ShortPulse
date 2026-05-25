@@ -100,7 +100,6 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to stage voice changer source",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

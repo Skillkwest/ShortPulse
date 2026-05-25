@@ -4,6 +4,7 @@ import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingP
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -65,6 +66,11 @@ const MAX_BPM = 180;
 const MAX_TEXT_LENGTH = 2000;
 const ALLOWED_OUTPUT_FORMATS = new Set(["mp3_44100_128", "wav_48000"]);
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_MUSIC_MODEL_ID]);
+const ELEVENLABS_MUSIC_RATE_LIMIT = {
+  keyPrefix: "elevenlabs-music",
+  maxRequests: 6,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -117,6 +123,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ELEVENLABS_MUSIC_RATE_LIMIT,
+      keyPrefix: `${ELEVENLABS_MUSIC_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {

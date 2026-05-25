@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/sound-effects";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -38,6 +39,7 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -46,6 +48,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/sound-effects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     chargeGenerationRequestMock.mockResolvedValue({
@@ -249,6 +252,61 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         modelId: "eleven_text_to_sound_v2",
         characterCost: 100,
       },
+    });
+  });
+
+  it("rate limits repeated sound-effects generations for the same authenticated user", async () => {
+    generateElevenLabsSoundEffectMock.mockResolvedValue({
+      buffer: Buffer.from("sfx"),
+      characterCost: 100,
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-sfx-rate-limit",
+    });
+    persistGeneratedAudioAssetMock.mockResolvedValue({
+      generationId: "gen-sfx-rate-limit",
+      mediaFileId: "media-sfx-rate-limit",
+      requestId: "billing-source-sfx-1",
+      storagePath: "user-1/generations/audio/gen-sfx-rate-limit/effect.mp3",
+      signedUrl: "https://signed.example/effect-rate-limit.mp3",
+      outputRowId: "out-sfx-rate-limit",
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      const req = {
+        method: "POST",
+        body: {
+          text: `Huge downlift boom ${index}`,
+          durationSeconds: null,
+          loop: false,
+          outputFormat: "mp3_44100_128",
+          modelId: "eleven_text_to_sound_v2",
+        },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await handler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: {
+        text: "Blocked request",
+        durationSeconds: null,
+        loop: false,
+        outputFormat: "mp3_44100_128",
+        modelId: "eleven_text_to_sound_v2",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await handler(blockedReq as never, blockedRes as never);
+
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

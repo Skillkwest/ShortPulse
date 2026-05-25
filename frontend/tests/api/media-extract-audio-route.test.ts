@@ -226,4 +226,36 @@ describe("POST /api/media/extract-audio", () => {
     expect(extractAudioTrackMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
+
+  it("returns a sanitized 500 when extraction storage fails unexpectedly", async () => {
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(async () => ({ error: { message: "storage write exploded" } })),
+          createSignedUrl: vi.fn(async () => ({
+            data: { signedUrl: "https://signed.example/extracted-source.wav" },
+            error: null,
+          })),
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceName: "clip.mp4",
+        sourceOrigin: "local",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: "user-1/voice-changer/source-video/clip.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to extract audio",
+    });
+  });
 });

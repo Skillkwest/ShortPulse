@@ -4,6 +4,7 @@ import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingP
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -60,6 +61,11 @@ const DEFAULT_PROMPT_INFLUENCE = 0.3;
 const MIN_DURATION_SECONDS = 0.5;
 const MAX_DURATION_SECONDS = 30;
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_SOUND_EFFECTS_MODEL_ID]);
+const ELEVENLABS_SOUND_EFFECTS_RATE_LIMIT = {
+  keyPrefix: "elevenlabs-sound-effects",
+  maxRequests: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -88,6 +94,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ELEVENLABS_SOUND_EFFECTS_RATE_LIMIT,
+      keyPrefix: `${ELEVENLABS_SOUND_EFFECTS_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {

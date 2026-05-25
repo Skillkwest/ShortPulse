@@ -137,4 +137,23 @@ describe("POST /api/media/stage-voice-clone-source", () => {
       details: "Voice clone source file is not a supported audio format.",
     });
   });
+
+  it("returns a sanitized 500 when staging fails unexpectedly", async () => {
+    storageUploadMock.mockRejectedValueOnce(new Error("bucket write exploded"));
+    const req = createRawRequest({
+      body: Buffer.from("fake-audio"),
+      headers: {
+        "content-type": "audio/mpeg",
+        "x-shortpulse-upload-filename": "sample.mp3",
+      },
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to stage voice clone source",
+    });
+  });
 });

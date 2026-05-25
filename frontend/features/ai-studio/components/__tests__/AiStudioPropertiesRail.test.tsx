@@ -63,4 +63,21 @@ describe("AiStudioPropertiesRail", () => {
     expect(container.querySelector(".ai-properties--panel-enter")).not.toBeNull();
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeNull();
   });
+
+  it("bypasses the inherited shell max-height for the character rail inline", () => {
+    render(
+      <AiStudioPropertiesRail
+        selectedTool="character"
+        leftColumnRef={{ current: null }}
+        panelKey="character"
+        panelContent={<div>character panel</div>}
+      />
+    );
+
+    expect(screen.getByText("character panel").parentElement).toHaveStyle({
+      minHeight: "calc(var(--ai-shell-column-max-height) + 5px)",
+      height: "calc(var(--ai-shell-column-max-height) + 5px)",
+      maxHeight: "calc(var(--ai-shell-column-max-height) + 5px)",
+    });
+  });
 });

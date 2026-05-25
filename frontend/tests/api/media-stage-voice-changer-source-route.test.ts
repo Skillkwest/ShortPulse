@@ -5,6 +5,8 @@ import handler from "../../pages/api/media/stage-voice-changer-source";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const areCompatibleMimeTypesMock = vi.fn();
+const detectAudioMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
 const storageUploadMock = vi.fn();
 const storageCreateSignedUrlMock = vi.fn();
@@ -24,6 +26,8 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../lib/server/uploadSignature", () => ({
+  areCompatibleMimeTypes: (...args: unknown[]) => areCompatibleMimeTypesMock(...args),
+  detectAudioMimeType: (...args: unknown[]) => detectAudioMimeTypeMock(...args),
   detectVideoMimeType: (...args: unknown[]) => detectVideoMimeTypeMock(...args),
 }));
 
@@ -49,6 +53,10 @@ describe("POST /api/media/stage-voice-changer-source", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    areCompatibleMimeTypesMock.mockImplementation((declaredMimeType, detectedMimeType) => {
+      return declaredMimeType === detectedMimeType;
+    });
+    detectAudioMimeTypeMock.mockReturnValue("audio/mpeg");
     detectVideoMimeTypeMock.mockReturnValue("video/mp4");
     storageUploadMock.mockResolvedValue({ error: null });
     storageCreateSignedUrlMock.mockResolvedValue({
@@ -136,6 +144,26 @@ describe("POST /api/media/stage-voice-changer-source", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
       details: "Voice changer source videos must be 40 MB or smaller. Trim the clip and try again.",
+    });
+  });
+
+  it("returns a sanitized 500 when staging fails unexpectedly", async () => {
+    storageUploadMock.mockRejectedValueOnce(new Error("bucket write exploded"));
+    const req = createRawRequest({
+      body: Buffer.from("fake-video"),
+      headers: {
+        "content-type": "video/mp4",
+        "x-shortpulse-upload-filename": "clip.mp4",
+        "x-shortpulse-voice-changer-kind": "video",
+      },
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to stage voice changer source",
     });
   });
 });

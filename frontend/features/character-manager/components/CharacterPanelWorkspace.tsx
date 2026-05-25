@@ -988,10 +988,10 @@ export function CharacterPanelWorkspace({
                           disabled={characterLibraryButtonDisabled}
                         >
                           <FolderSimple
-                            size={36}
+                            size={32}
                             weight="fill"
                             aria-hidden
-                            style={{ flex: "0 0 36px" }}
+                            style={{ flex: "0 0 32px" }}
                           />
                           Characters
                         </button>

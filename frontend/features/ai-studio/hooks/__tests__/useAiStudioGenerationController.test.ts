@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { StudioOutput } from "../../types";
+import { CHARACTER_MODE_MISSING_REFERENCES_ERROR } from "../../logic/generationStartPolicy";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -344,13 +345,13 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt");
     });
 
-    expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalledWith("Character context unavailable");
-    expect(setOptimisticDebitEntries).toHaveBeenCalled();
-    expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+    expect(setUiError).toHaveBeenCalledWith("Character context unavailable");
+    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("does not wait on unresolved preflight refresh before generating", async () => {
+  it("times out unresolved preflight refresh before generating", async () => {
     vi.useFakeTimers();
     try {
       const setUiError = vi.fn();
@@ -374,18 +375,27 @@ describe("useAiStudioGenerationController", () => {
       });
       const { result } = renderHook(() => useAiStudioGenerationController(params));
 
+      let generatePromise!: ReturnType<typeof result.current.handleGenerate>;
       await act(async () => {
-        await result.current.handleGenerate("prompt");
+        generatePromise = result.current.handleGenerate("prompt");
+        await Promise.resolve();
       });
 
-      expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
-      expect(setUiError).not.toHaveBeenCalledWith(
+      let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+        generateResult = await generatePromise;
+      });
+
+      expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+      expect(setUiError).toHaveBeenCalledWith(
         "Preparation timed out before generation started. Please retry."
       );
-      expect(generateOutput).toHaveBeenCalledTimes(1);
+      expect(generateOutput).not.toHaveBeenCalled();
+      expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
       expect(trackCharacterModeEvent).toHaveBeenCalledWith(
-        "generation_preflight_bypassed",
-        expect.objectContaining({ trigger: "generate" })
+        "generation_preflight_timeout",
+        expect.objectContaining({ trigger: "generate", reason_code: "PREFLIGHT_TIMEOUT" })
       );
     } finally {
       vi.useRealTimers();
@@ -966,7 +976,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("allows create character-mode generate when no character references are available", async () => {
+  it("blocks create character-mode generate when no character references are available", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -991,15 +1001,18 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalled();
-    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",
-      expect.anything()
+      expect.objectContaining({
+        fallback_code: "no_references",
+        character_reference_count: 0,
+      })
     );
   });
 
-  it("allows create character-mode generate when the selected bundle cannot be loaded", async () => {
+  it("blocks create character-mode generate when the selected bundle cannot be loaded", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -1026,15 +1039,20 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).toHaveBeenCalled();
+    expect(generateOutput).not.toHaveBeenCalled();
     expect(trackCharacterModeFallback).toHaveBeenCalledWith(
       expect.objectContaining({ fallbackCode: "bundle_unavailable" }),
       "create"
     );
-    expect(setUiError).not.toHaveBeenCalled();
-    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
+    expect(setUiError).toHaveBeenCalledWith(
+      "Selected character context could not be loaded. Please reselect the character and retry."
+    );
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_submit_blocked_fallback",
-      expect.anything()
+      expect.objectContaining({
+        fallback_code: "bundle_unavailable",
+        character_reference_count: 0,
+      })
     );
   });
 
@@ -1080,7 +1098,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("allows create character-mode generate when no character is selected", async () => {
+  it("blocks create character-mode generate when no character is selected", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -1105,11 +1123,14 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("user prompt");
     });
 
-    expect(generateOutput).toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalled();
-    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
-      "character_mode_submit_blocked_fallback",
-      expect.anything()
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_blocked_no_references",
+      expect.objectContaining({
+        fallback_code: "no_character_selected",
+        character_reference_count: 0,
+      })
     );
   });
 
@@ -1187,6 +1208,46 @@ describe("useAiStudioGenerationController", () => {
         "https://example.com/extra-1.png",
         "https://example.com/extra-2.png",
       ]
+    );
+  });
+
+  it("passes the refreshed character bundle into create override resolution before submit", async () => {
+    const refreshedBundle = { characterId: "char-1", referenceCount: 1 };
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => refreshedBundle);
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "character + prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: ["https://example.com/fresh-char-ref.png"],
+      notice: null,
+      fallbackCode: null,
+      characterReferenceCount: 1,
+      hasCharacterDescription: true,
+    }));
+    const generateOutput = vi.fn();
+    const params = createParams({
+      isCharacterModeEnabled: true,
+      refreshCharacterModeInjectionBundleForSubmission,
+      resolveCharacterModeSubmissionOverrides,
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("create");
+    expect(resolveCharacterModeSubmissionOverrides).toHaveBeenCalledWith(
+      "user prompt",
+      "create",
+      refreshedBundle,
+      []
+    );
+    expect(generateOutput).toHaveBeenCalledWith(
+      "user prompt",
+      expect.objectContaining({
+        referenceInputsOverride: ["https://example.com/fresh-char-ref.png"],
+      })
     );
   });
 });

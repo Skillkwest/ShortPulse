@@ -63,7 +63,7 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  padding: 4px 12px 10px;
+  padding: 2px 12px 10px;
   background: var(--character-panel-wrapper-bg);
 }
 
@@ -114,7 +114,7 @@
   display: flex;
   align-items: center;
   padding-top: 0;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .character-panel-profile-fields-row {
@@ -385,7 +385,7 @@
   gap: 1px;
   width: fit-content;
   min-width: 0;
-  padding-top: 10px;
+  padding-top: 6px;
 }
 
 .character-panel-workspace .character-sheet-preset-tab-rail,

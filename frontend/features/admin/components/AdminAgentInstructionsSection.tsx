@@ -1105,7 +1105,7 @@ export function AdminAgentInstructionsSection() {
   );
 
   return (
-    <section className={`${styles.adminSection} ${styles.adminAgentInstructionsSection}`}>
+    <>
       <div className={styles.agentInstructionWorkspace}>
         <article
           className={`${styles.agentInstructionCard} ${styles.agentInstructionStandardCard}`}
@@ -1871,6 +1871,6 @@ export function AdminAgentInstructionsSection() {
           </div>
         </div>
       ) : null}
-    </section>
+    </>
   );
 }

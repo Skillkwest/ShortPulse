@@ -1659,8 +1659,8 @@
 
 .edit-expert-stage-overlay-ui {
   position: absolute;
-  top: 16px;
-  right: 6px;
+  top: 0;
+  right: 0;
   z-index: 1005;
   pointer-events: auto;
 }
@@ -1838,7 +1838,7 @@
   width: min(70%, 360px);
   margin: 0;
   color: rgba(201, 205, 214, 0.52);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.45;
   letter-spacing: 0.01em;
   text-align: center;

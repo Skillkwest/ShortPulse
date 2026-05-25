@@ -310,4 +310,43 @@ describe("useAiStudioShellDndController", () => {
     expect(dragEvent.stopPropagation).toHaveBeenCalledTimes(1);
     expect(onDropTextReference).toHaveBeenCalledWith("dragged chat history prompt");
   });
+
+  it("lets local file drags bypass shell-wide capture so only inner drop surfaces handle them", () => {
+    const onDropFiles = vi.fn();
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "media",
+        resolveDropPayload: () => ({
+          kind: "files",
+          files: createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })])
+            .files,
+        }),
+        onDropFiles,
+        useRafBackpressure: false,
+        shouldBypassCapture: (event, context) =>
+          (event.dataTransfer.files?.length ?? 0) > 0 || context.payload?.kind === "files",
+      })
+    );
+
+    const transfer = createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })]);
+    const dragEvent = createDragEvent(transfer);
+
+    act(() => {
+      result.current.handleDragOverCapture(dragEvent);
+    });
+
+    expect(result.current.dropMode).toBe("none");
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleDropCapture(dragEvent);
+    });
+
+    expect(onDropFiles).not.toHaveBeenCalled();
+  });
 });

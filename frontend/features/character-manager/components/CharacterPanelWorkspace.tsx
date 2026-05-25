@@ -81,7 +81,7 @@ const CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: "10px",
+  gap: "8px",
   flexWrap: "wrap",
   width: "100%",
   minWidth: 0,
@@ -89,7 +89,7 @@ const CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: "10px",
+  gap: "8px",
   flexWrap: "wrap",
 };
 const CHARACTER_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
@@ -111,7 +111,7 @@ const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "flex-end",
-  gap: "10px",
+  gap: "8px",
   flex: "1 1 0",
   minWidth: 0,
   marginLeft: "auto",
@@ -141,9 +141,9 @@ const CHARACTER_BUTTON_LABEL_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "2px",
-  marginTop: "6px",
-  padding: "14px 8px 3px",
+  gap: "1px",
+  marginTop: "2px",
+  padding: "12px 8px 3px",
   borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
@@ -152,7 +152,7 @@ const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
-  gap: "6px",
+  gap: "4px",
   alignContent: "start",
   minWidth: 0,
 };
@@ -200,7 +200,7 @@ const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
   flexDirection: "column",
   flex: "1 1 auto",
   minHeight: "100%",
-  padding: "14px 16px 2px",
+  padding: "10px 16px 2px",
   boxSizing: "border-box",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
@@ -212,7 +212,7 @@ const CHARACTER_TOP_SCROLL_INNER_STYLE: React.CSSProperties = {
   flex: "1 1 auto",
   minHeight: 0,
   flexDirection: "column",
-  gap: "8px",
+  gap: "6px",
   overflowY: "auto",
   overflowX: "hidden",
   overscrollBehaviorY: "contain",
@@ -267,13 +267,13 @@ const CHARACTER_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   boxShadow: "0 0 0 1px rgba(255, 92, 115, 0.12)",
 };
 const CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
-  minWidth: "92px",
-  minHeight: "32px",
-  padding: "0 10px",
-  fontSize: "0.74rem",
+  minWidth: "84px",
+  minHeight: "30px",
+  padding: "0 8px",
+  fontSize: "0.72rem",
   gap: "4px",
 };
-const CHARACTER_TOP_ACTION_BUTTON_SIDE_PX = 42;
+const CHARACTER_TOP_ACTION_BUTTON_SIDE_PX = 38;
 const CHARACTER_SAVE_ICON_BUTTON_INLINE_STYLE: React.CSSProperties = {
   width: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
   minWidth: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
@@ -495,15 +495,15 @@ export function CharacterPanelWorkspace({
     () => ({
       ...CHARACTER_BUTTON_INLINE_STYLE,
       boxSizing: "border-box",
-      width: "144px",
-      minWidth: "144px",
-      maxWidth: "144px",
-      height: "42px",
-      minHeight: "42px",
-      maxHeight: "42px",
-      padding: "0 24px",
-      borderRadius: "12px",
-      fontSize: "0.98rem",
+      width: "134px",
+      minWidth: "134px",
+      maxWidth: "134px",
+      height: "38px",
+      minHeight: "38px",
+      maxHeight: "38px",
+      padding: "0 18px",
+      borderRadius: "11px",
+      fontSize: "0.92rem",
       lineHeight: 1,
     }),
     []
@@ -512,7 +512,7 @@ export function CharacterPanelWorkspace({
   const topRowActionsStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE,
-      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+      gap: `${Math.max(6, responsiveLayout.topFieldGroupGapPx + 1)}px`,
     }),
     [responsiveLayout.topFieldGroupGapPx]
   );
@@ -520,7 +520,7 @@ export function CharacterPanelWorkspace({
   const topRowPrimaryActionsStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE,
-      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+      gap: `${Math.max(6, responsiveLayout.topFieldGroupGapPx + 1)}px`,
     }),
     [responsiveLayout.topFieldGroupGapPx]
   );
@@ -528,7 +528,7 @@ export function CharacterPanelWorkspace({
   const topRowSecondaryActionsStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE,
-      gap: `${Math.max(8, responsiveLayout.topFieldGroupGapPx + 2)}px`,
+      gap: `${Math.max(6, responsiveLayout.topFieldGroupGapPx + 1)}px`,
     }),
     [responsiveLayout.topFieldGroupGapPx]
   );
@@ -537,10 +537,10 @@ export function CharacterPanelWorkspace({
     () => ({
       ...actionButtonStyle,
       ...CHARACTER_SECONDARY_ACTION_BUTTON_INLINE_STYLE,
-      minWidth: `${Math.max(92, responsiveLayout.actionButtonMinWidthPx - 52)}px`,
-      minHeight: `${Math.max(32, responsiveLayout.actionButtonMinHeightPx - 10)}px`,
-      padding: `0 ${Math.max(10, responsiveLayout.actionButtonHorizontalPaddingPx - 8)}px`,
-      fontSize: "0.74rem",
+      minWidth: `${Math.max(84, responsiveLayout.actionButtonMinWidthPx - 58)}px`,
+      minHeight: `${Math.max(30, responsiveLayout.actionButtonMinHeightPx - 12)}px`,
+      padding: `0 ${Math.max(8, responsiveLayout.actionButtonHorizontalPaddingPx - 10)}px`,
+      fontSize: "0.72rem",
       gap: "4px",
     }),
     [actionButtonStyle, responsiveLayout]
@@ -652,7 +652,7 @@ export function CharacterPanelWorkspace({
       flex: "1 1 auto",
       alignContent: "start",
       gap: `${responsiveLayout.editorWrapperGapPx}px`,
-      padding: `${responsiveLayout.editorWrapperPaddingTopPx}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
+      padding: `${Math.max(8, responsiveLayout.editorWrapperPaddingTopPx - 2)}px ${responsiveLayout.editorWrapperPaddingXpx}px ${responsiveLayout.editorWrapperPaddingBottomPx}px`,
     }),
     [responsiveLayout]
   );
@@ -686,7 +686,7 @@ export function CharacterPanelWorkspace({
   const topScrollInnerStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_SCROLL_INNER_STYLE,
-      gap: `${responsiveLayout.contentGapPx}px`,
+      gap: `${Math.max(4, responsiveLayout.contentGapPx - 2)}px`,
     }),
     [responsiveLayout]
   );
@@ -694,7 +694,7 @@ export function CharacterPanelWorkspace({
   const topSectionContentStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_SECTION_CONTENT_STYLE,
-      padding: `${responsiveLayout.contentPaddingTopPx}px ${responsiveLayout.contentPaddingXpx}px ${responsiveLayout.contentPaddingBottomPx}px`,
+      padding: `${Math.max(6, responsiveLayout.contentPaddingTopPx - 4)}px ${responsiveLayout.contentPaddingXpx}px ${Math.max(1, responsiveLayout.contentPaddingBottomPx - 1)}px`,
     }),
     [responsiveLayout]
   );

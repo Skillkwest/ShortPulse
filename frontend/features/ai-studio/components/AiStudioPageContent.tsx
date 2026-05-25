@@ -663,9 +663,7 @@ export function AiStudioPageContent({
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
-  const referenceGridFileAccept = isPrimaryCharacterTool(selectedTool)
-    ? "image/*"
-    : "image/*,video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga";
+  const referenceGridFileAccept = "image/*,video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showCreatePropertiesPanel = propertiesPanelKind === "create";
   const showExpertEditPanel = propertiesPanelKind === "edit";
@@ -1453,6 +1451,11 @@ export function AiStudioPageContent({
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldBypassCapture: (event, context) => {
+      // Local desktop files should only be accepted by the concrete drop surfaces
+      // (Reference Grid / Preview), not by the broader shell/right-column overlay.
+      if ((event.dataTransfer.files?.length ?? 0) > 0 || context.payload?.kind === "files") {
+        return true;
+      }
       const payloadKind = context.payload?.kind;
       if (isTargetInsideQuickSlot(event.target)) {
         if (payloadKind === "libraryMedia" || payloadKind === "libraryPrompt") {

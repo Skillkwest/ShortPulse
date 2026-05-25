@@ -26,6 +26,7 @@ type AdminPageHeaderProps = {
   description: string;
   userEmail: string | null | undefined;
   currentPath: string;
+  renderBareNav?: boolean;
 };
 
 /**
@@ -36,7 +37,32 @@ export function AdminPageHeader({
   description,
   userEmail,
   currentPath,
+  renderBareNav = false,
 }: AdminPageHeaderProps) {
+  const navContent = (
+    <>
+      <p className={styles.adminNavLabel}>Jump to</p>
+      <nav
+        className={`${styles.adminNavRow} ${renderBareNav ? styles.adminNavRowBare : ""}`}
+        aria-label="Admin pages"
+      >
+        {ADMIN_NAV_ITEMS.map((item) => {
+          const active = item.href === currentPath;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ""}`}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
+  );
+
   return (
     <>
       <header className={styles.adminHeader}>
@@ -51,24 +77,7 @@ export function AdminPageHeader({
         </div>
       </header>
 
-      <div className={styles.adminNavShell}>
-        <p className={styles.adminNavLabel}>Jump to</p>
-        <nav className={styles.adminNavRow} aria-label="Admin pages">
-          {ADMIN_NAV_ITEMS.map((item) => {
-            const active = item.href === currentPath;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ""}`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+      {renderBareNav ? navContent : <div className={styles.adminNavShell}>{navContent}</div>}
     </>
   );
 }

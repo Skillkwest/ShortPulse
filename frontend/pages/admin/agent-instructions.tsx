@@ -31,6 +31,7 @@ export default function AdminAgentInstructionsPage() {
       pageDescription="Review the shared Standard prompt, Style Extraction prompt, Edit system preset catalog, and Create Pulse built-ins."
       userEmail={user?.email}
       currentPath="/admin/agent-instructions"
+      renderBareNav
       mainClassName={styles.adminAgentInstructionsPage}
     >
       <AdminAgentInstructionsSection />

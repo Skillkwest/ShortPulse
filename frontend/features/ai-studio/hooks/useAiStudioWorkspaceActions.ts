@@ -6,7 +6,6 @@ import { useCallback, type ChangeEvent, type Dispatch, type SetStateAction } fro
 import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
-import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { normalizeToolId } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
@@ -46,7 +45,7 @@ export const useAiStudioWorkspaceActions = ({
   openModelModal,
   closeModelModal,
   setModel,
-  addCharacterReferences,
+  addCharacterReferences: _addCharacterReferences,
   addOutputsFromFiles,
   setActiveOutputId,
 }: UseAiStudioWorkspaceActionsParams) => {
@@ -129,13 +128,9 @@ export const useAiStudioWorkspaceActions = ({
 
   const handleReferenceGridFiles = useCallback(
     (files: FileList) => {
-      if (isPrimaryCharacterTool(selectedTool)) {
-        addCharacterReferences(files);
-      } else {
-        addOutputsFromFiles(files, "drop");
-      }
+      addOutputsFromFiles(files, "drop");
     },
-    [addCharacterReferences, addOutputsFromFiles, selectedTool]
+    [addOutputsFromFiles]
   );
 
   const handleSelectOutput = useCallback(

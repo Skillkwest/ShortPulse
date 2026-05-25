@@ -18,6 +18,7 @@ type AdminRouteShellProps = {
   pageDescription: string;
   userEmail: string | null | undefined;
   currentPath: string;
+  renderBareNav?: boolean;
   mainClassName?: string;
   children: ReactNode;
 };
@@ -77,6 +78,7 @@ export function AdminRouteShell({
   pageDescription,
   userEmail,
   currentPath,
+  renderBareNav = false,
   mainClassName,
   children,
 }: AdminRouteShellProps) {
@@ -164,6 +166,7 @@ export function AdminRouteShell({
           description={pageDescription}
           userEmail={userEmail}
           currentPath={currentPath}
+          renderBareNav={renderBareNav}
         />
         {children}
       </main>

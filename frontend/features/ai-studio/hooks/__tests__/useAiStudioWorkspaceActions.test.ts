@@ -161,14 +161,16 @@ describe("useAiStudioWorkspaceActions", () => {
     act(() => {
       result.current.handleReferenceGridFiles(createFileList());
     });
-    expect(addCharacterReferences).toHaveBeenCalledTimes(1);
+    expect(addCharacterReferences).not.toHaveBeenCalled();
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(4);
+    expect(addOutputsFromFiles).toHaveBeenLastCalledWith(expect.any(Object), "drop");
 
     rerender({ selectedTool: "create" });
     const droppedFiles = createFileList();
     act(() => {
       result.current.handleReferenceGridFiles(droppedFiles);
     });
-    expect(addOutputsFromFiles).toHaveBeenCalledTimes(4);
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(5);
     expect(addOutputsFromFiles).toHaveBeenLastCalledWith(droppedFiles, "drop");
   });
 });

@@ -34,17 +34,17 @@ Canonical detailed surfaces:
 
 - `2026-05-24` on `production`
 - Score: `8.8/10`
-- What went right: Gear Ball kept a wide issue-reports/Ophestivus/custom-voice tree collapsed to one coherent lane, validated the important seams with 17 focused test files, and finished with passing build plus docs checks on the exact pushed tree.
-- What went wrong: the first pass still paid a small formatting cycle because three new admin-report files only needed Prettier before the direct ladder could go fully green.
-- Capability decision: on medium-size mixed UI/docs/tooling lanes, run a tiny Prettier sweep on brand-new files before the rest of the ladder so the direct pass stays one-shot clean.
+- What went right: Gear Ball kept a wide AI Studio prompt-controls/custom-voice/object-URL tree collapsed to one coherent lane, validated it with the direct manual ladder, and landed the product commit on the exact tree that passed build and focused tests.
+- What went wrong: I initially let the score-loop writeback fall out of the commit path and had to catch that only after the main tree was already clean.
+- Capability decision: after every main product commit, immediately verify whether the score-loop files changed this turn and commit them before moving on to the push step.
 
 ## Previous Run
 
 - `2026-05-24` on `production`
-- Score: `8.9/10`
-- What went right: Gear Ball kept the tree collapsed to one shared voice/admin lane, validated the critical seams with a focused 6-file suite, and finished with passing build plus docs checks on the exact pushed tree.
-- What went wrong: the first pass still lost a cheap cycle because two touched files only needed Prettier before the rest of the ladder could speak cleanly.
-- Capability decision: on compact shared-runtime lanes, start with a tiny Prettier sweep on obviously touched new/edited files so the rest of the ladder can stay one-pass clean.
+- Score: `8.8/10`
+- What went right: Gear Ball kept a wide issue-reports/Ophestivus/custom-voice tree collapsed to one coherent lane, validated the important seams with 17 focused test files, and finished with passing build plus docs checks on the exact pushed tree.
+- What went wrong: the first pass still paid a small formatting cycle because three new admin-report files only needed Prettier before the direct ladder could go fully green.
+- Capability decision: on medium-size mixed UI/docs/tooling lanes, run a tiny Prettier sweep on brand-new files before the rest of the ladder so the direct pass stays one-shot clean.
 
 ## Previous Supervised Synthesis
 

@@ -17,6 +17,7 @@ import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosavePreference";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
+import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
 type JsonObject = Record<string, unknown>;
@@ -225,16 +226,7 @@ const logBestEffortPublicationFailure = async ({
 };
 
 const stringifyDetail = (value: unknown, fallback: string): string => {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.length > 0) return trimmed;
-  }
-  if (value == null) return fallback;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+  return normalizeCustomerFacingProviderError(value, fallback);
 };
 
 const buildUnsettledBillingError = (note: string): string =>

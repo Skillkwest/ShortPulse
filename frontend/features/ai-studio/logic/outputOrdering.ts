@@ -24,15 +24,18 @@ export const sortStudioOutputsByCreatedAtDesc = <T extends Pick<StudioOutput, "c
     createdAtMs: parseCreatedAtMs(row.createdAt),
   }));
 
-  // Preserve legacy mixed snapshots until every active row has a durable createdAt.
-  if (indexedRows.some((entry) => entry.createdAtMs === null)) {
-    return indexedRows.map(({ row }) => row);
-  }
-
   return indexedRows
     .sort((left, right) => {
-      if (left.createdAtMs !== right.createdAtMs) {
-        return (right.createdAtMs as number) - (left.createdAtMs as number);
+      const leftCreatedAtMs = left.createdAtMs;
+      const rightCreatedAtMs = right.createdAtMs;
+      const leftHasCreatedAt = typeof leftCreatedAtMs === "number";
+      const rightHasCreatedAt = typeof rightCreatedAtMs === "number";
+
+      if (leftHasCreatedAt && rightHasCreatedAt && leftCreatedAtMs !== rightCreatedAtMs) {
+        return rightCreatedAtMs - leftCreatedAtMs;
+      }
+      if (leftHasCreatedAt !== rightHasCreatedAt) {
+        return leftHasCreatedAt ? -1 : 1;
       }
       return left.index - right.index;
     })

@@ -185,6 +185,23 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("Generation failed", { selector: ".fail-subtitle" })).toBeNull();
   });
 
+  it("normalizes raw JSON validation detail before rendering the failure subtitle", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            errorMessage: "Invalid request",
+            errorMessageShort: "Generation failed",
+            errorDetail: '{"detail":[{"loc":["prompt"],"msg":"Field required","type":"missing"}]}',
+          }),
+        })}
+      />
+    );
+
+    expect(screen.getByText("Prompt is required.")).toBeInTheDocument();
+    expect(screen.queryByText('{"detail"', { exact: false })).toBeNull();
+  });
+
   it("renders a loading spinner overlay when the card is loading", () => {
     const { container } = render(
       <ReferenceGridCard

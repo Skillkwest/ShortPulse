@@ -24,7 +24,7 @@ describe("outputOrdering", () => {
     expect(ordered.map((output) => output.id)).toEqual(["newest", "middle", "oldest"]);
   });
 
-  it("preserves existing order for mixed legacy outputs until every row is upgraded", () => {
+  it("keeps valid createdAt rows newest-first and pushes legacy rows after them", () => {
     const ordered = sortStudioOutputsByCreatedAtDesc([
       createOutput("legacy-upload"),
       createOutput("new-generated", { createdAt: "2026-05-24T12:00:00.000Z" }),
@@ -33,10 +33,10 @@ describe("outputOrdering", () => {
     ]);
 
     expect(ordered.map((output) => output.id)).toEqual([
-      "legacy-upload",
       "new-generated",
-      "legacy-library",
       "older-generated",
+      "legacy-upload",
+      "legacy-library",
     ]);
   });
 });

@@ -550,7 +550,7 @@
 .agent-message.agent-assistant.agent-message--prompt-output p,
 .agent-message.agent-assistant.agent-message--prompt-output .tiny,
 .agent-message.agent-assistant.agent-message--prompt-output .agent-message-edit-input {
-  color: var(--agent-output-prompt-text, #57d4ff) !important;
+  color: var(--agent-output-prompt-text, #25a9bf) !important;
 }
 
 .agent-message.agent-assistant.is-draggable {

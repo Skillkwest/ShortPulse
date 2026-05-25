@@ -313,6 +313,47 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
+  it("uses Reference Grid insertion time for local file uploads instead of the media row created_at", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-25T15:30:00.000Z"));
+
+    try {
+      let nextOutputs: StudioOutput[] = [];
+      const setOutputs = vi.fn(
+        (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+          nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+        }
+      );
+      const file = new File(["hello"], "reference.png", { type: "image/png" });
+      const files = {
+        0: file,
+        length: 1,
+        item: (index: number) => (index === 0 ? file : null),
+        [Symbol.iterator]: function* () {
+          yield file;
+        },
+      } as unknown as FileList;
+
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      await act(async () => {
+        await result.current.addOutputsFromFiles(files, "filePicker");
+      });
+
+      expect(nextOutputs[0]?.createdAt).toBe("2026-05-25T15:30:00.000Z");
+      expect(nextOutputs[0]?.createdAt).not.toBe("2026-05-25T00:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("normalizes Finder image drops with missing MIME types before upload", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(

@@ -5,6 +5,7 @@
 import { startTransition, useCallback, useEffect, useRef } from "react";
 import { fetchQueuedGenerationStatusByModelId } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { extractCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
 import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
@@ -162,16 +163,7 @@ const resolveProjectionFailureMessage = (
 };
 
 const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length ? trimmed : null;
-  }
-  if (value == null) return null;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+  return extractCustomerFacingProviderError(value);
 };
 
 const normalizeLifecycleQueueState = (

@@ -89,6 +89,21 @@ describe("referenceGridVirtualization", () => {
     ).toBe(0);
   });
 
+  it("pins prepends to the top when the live DOM is at top but cached scroll metrics lag", () => {
+    expect(
+      resolveReferenceGridPrependAnchorScrollTop({
+        previousOutputIds: ["out-1", "out-2", "out-3"],
+        nextOutputIds: ["out-new", "out-1", "out-2", "out-3"],
+        previousScrollTop: 120,
+        measuredScrollTop: 0,
+        previousColumnCount: 3,
+        nextColumnCount: 3,
+        previousRowHeight: 220,
+        nextRowHeight: 220,
+      })
+    ).toBe(0);
+  });
+
   it("preserves the first visible row when outputs are prepended above the viewport", () => {
     expect(
       resolveReferenceGridPrependAnchorScrollTop({

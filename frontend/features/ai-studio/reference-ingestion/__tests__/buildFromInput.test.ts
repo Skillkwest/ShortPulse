@@ -207,7 +207,10 @@ describe("buildStudioOutputsFromReferenceInput", () => {
   });
 
   it("builds library media output with generation source semantics", async () => {
-    const context = createContext();
+    const context: ReferenceIngestionContext = {
+      ...createContext(),
+      nowIso: () => "2026-05-25T12:34:56.000Z",
+    };
     const result = await buildStudioOutputsFromReferenceInput(
       {
         kind: "libraryMedia",
@@ -218,6 +221,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
           fileType: "image",
           filename: "Reference A",
           source: "ai_studio",
+          createdAt: "2026-05-01T00:00:00.000Z",
           previewStoragePath: "user/preview.jpg",
           fullStoragePath: "user/full.jpg",
         },
@@ -230,11 +234,42 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.id).toBe("library-id-1");
     expect(output?.timestamp).toBe("Generation");
     expect(output?.mediaSource).toBe("generated");
+    expect(output?.createdAt).toBe("2026-05-25T12:34:56.000Z");
     expect(output?.previewStoragePath).toBe("user/preview.jpg");
     expect(output?.fullStoragePath).toBe("user/full.jpg");
     expect(output?.resultUrls).toEqual(["https://example.com/preview.jpg"]);
     expect(output?.savedMediaIds).toEqual(["media-1"]);
     expect(output?.saveState).toBe("saved");
+  });
+
+  it("stamps library prompt references with the grid insertion time", async () => {
+    const context: ReferenceIngestionContext = {
+      ...createContext(),
+      nowIso: () => "2026-05-25T12:34:56.000Z",
+    };
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryPrompt",
+        source: "mediaLibrary",
+        payload: {
+          id: "prompt-1",
+          promptText: "  moody studio portrait  ",
+          createdAt: "2026-05-01T00:00:00.000Z",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    expect(result.outputs[0]).toEqual(
+      expect.objectContaining({
+        id: "prompt-library-id-1",
+        prompt: "moody studio portrait",
+        timestamp: "Library",
+        createdAt: "2026-05-25T12:34:56.000Z",
+        mediaSource: "prompt",
+      })
+    );
   });
 
   it("preserves transcript text for library media outputs", async () => {

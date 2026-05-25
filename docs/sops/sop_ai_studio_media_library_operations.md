@@ -103,6 +103,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 3. Drag interactions must show a visible drag ghost image for tactile feedback.
 4. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
 5. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
+6. Any media or prompt added into the Reference Grid from Media Library or local upload paths must use the moment it appears in the Reference Grid as its ordering timestamp, so the newest grid additions render first regardless of the source row's original `created_at`.
 
 ### 6) Right-click behaviors
 

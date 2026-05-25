@@ -95,11 +95,17 @@ export const resolveReferenceGridPrependAnchorScrollTop = ({
   if (prependedItemCount <= 0) return null;
 
   const safePreviousScrollTop = Math.max(0, previousScrollTop);
+  const safeMeasuredScrollTop = Math.max(0, measuredScrollTop);
+  // Trust the live DOM scroll position when the browser is already at the top.
+  // Cached virtualization metrics can lag within the first row and would otherwise
+  // incorrectly preserve a stale offset after prepending a new output.
+  if (safeMeasuredScrollTop <= 1) {
+    return 0;
+  }
   if (safePreviousScrollTop <= 1) {
     return 0;
   }
 
-  const safeMeasuredScrollTop = Math.max(0, measuredScrollTop);
   const safePreviousColumnCount = Math.max(1, Math.floor(previousColumnCount));
   const safeNextColumnCount = Math.max(1, Math.floor(nextColumnCount));
   const safePreviousRowHeight = Math.max(1, previousRowHeight);

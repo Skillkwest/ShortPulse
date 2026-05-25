@@ -139,6 +139,7 @@ const buildLibraryMediaOutput = ({
   const companionArtStoragePath =
     payload.fileType === "audio" ? asCanonicalStoragePath(payload.companionArtStoragePath) : null;
   const resultUrls = fullUrl ? [fullUrl] : undefined;
+  const referenceGridCreatedAt = resolveNowIso(context);
 
   return {
     id,
@@ -147,7 +148,9 @@ const buildLibraryMediaOutput = ({
     mode: payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image",
     aspect: context.aspect,
     model: displayModelLabel,
-    createdAt: payload.createdAt ?? resolveNowIso(context),
+    // Reference Grid ordering is based on when an item enters the grid, not when
+    // the backing Media Library row or generation was originally created.
+    createdAt: referenceGridCreatedAt,
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
     previewUrl,
@@ -245,7 +248,9 @@ export const buildStudioOutputsFromReferenceInputSync = (
           buildPromptReferenceOutput({
             id: `prompt-library-${context.randomId()}`,
             promptText: cleanedPrompt,
-            createdAt: input.payload.createdAt ?? resolveNowIso(context),
+            // Prompt references follow the same right-rail ordering contract as media:
+            // newest grid additions appear first regardless of original library save time.
+            createdAt: resolveNowIso(context),
             timestamp: "Library",
             context,
             status: "saved",

@@ -13,6 +13,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_MESSAGE,
 } from "../../explicitContentFailure";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
+import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { shouldEmitRecoveryBackpressureTelemetry } from "./generationAdmission/recoveryBackpressure";
@@ -549,7 +550,10 @@ export const createFalSubmitHandler = ({
               force: Boolean(contentPolicyMessage),
             });
             const userFacingMessage = explicitContentFailure?.errorMessage ?? upstreamMessage;
-            const userFacingDetail = explicitContentFailure?.errorDetail ?? submitResult.data;
+            const userFacingDetail = normalizeCustomerFacingProviderError(
+              explicitContentFailure?.errorDetail ?? submitResult.data,
+              userFacingMessage
+            );
             const failureStatus =
               submitResult.response.ok && !submitResult.providerRequestId
                 ? 502

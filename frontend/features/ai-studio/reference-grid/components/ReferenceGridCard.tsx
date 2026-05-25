@@ -17,7 +17,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../lib/explicitContentFailure";
-import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
+import { normalizeCustomerFacingProviderError } from "../../../../lib/customerFacingProviderText";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
@@ -38,11 +38,11 @@ const resolveReferenceFailureSubtitle = (item: StudioOutput): string | null => {
   const detail = item.errorDetail?.trim() ?? "";
   const message = item.errorMessage?.trim() ?? "";
   if (shortMessage && !GENERIC_FAILURE_MESSAGES.has(normalizeFailureCopy(shortMessage))) {
-    return sanitizeCustomerFacingProviderText(shortMessage);
+    return normalizeCustomerFacingProviderError(shortMessage, shortMessage);
   }
-  if (detail) return sanitizeCustomerFacingProviderText(detail);
-  if (shortMessage) return sanitizeCustomerFacingProviderText(shortMessage);
-  if (message) return sanitizeCustomerFacingProviderText(message);
+  if (detail) return normalizeCustomerFacingProviderError(detail, detail);
+  if (shortMessage) return normalizeCustomerFacingProviderError(shortMessage, shortMessage);
+  if (message) return normalizeCustomerFacingProviderError(message, message);
   return null;
 };
 

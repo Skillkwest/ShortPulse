@@ -925,7 +925,7 @@ describe("directGenerationSettlement", () => {
         savedMediaIds: [],
         errorMessage: "Provider rejected request",
         errorMessageShort: "Provider rejected request",
-        errorDetail: JSON.stringify({ reason: "bad_input" }),
+        errorDetail: "bad input",
       })
     );
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(

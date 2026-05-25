@@ -221,13 +221,20 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
   {
     key: "nano-banana-2-text",
     matches: (modelId) => modelId === FAL_NANO_BANANA_2_MODEL_ID,
-    submit: async ({ cleanedPrompt, aspect, requestedResolution, shortpulseSubmitPayload }) => {
+    submit: async ({
+      cleanedPrompt,
+      aspect,
+      requestedResolution,
+      falReferencePayload,
+      shortpulseSubmitPayload,
+    }) => {
       const response = await submitQueuedGenerationByModelId(FAL_NANO_BANANA_2_MODEL_ID, {
         prompt: cleanedPrompt,
         num_images: 1,
         aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
         output_format: "png",
         resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
+        ...falReferencePayload,
         ...shortpulseSubmitPayload,
       });
       return {

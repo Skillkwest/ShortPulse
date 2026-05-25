@@ -9,7 +9,10 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   isExplicitContentFailureMessage,
 } from "../../../lib/explicitContentFailure";
-import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
+import {
+  normalizeCustomerFacingProviderError,
+  sanitizeCustomerFacingProviderText,
+} from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
@@ -387,6 +390,12 @@ const AiStudioAlertBanner = ({
 const normalizeAlertText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
+const GENERIC_GENERATION_FAILURE_LABELS = new Set([
+  "generation failed",
+  "invalid request",
+  "request failed",
+]);
+
 export const groupVisibleFailuresForAlertStack = (
   visibleFailures: FailureCard[]
 ): GroupedFailureCard[] => {
@@ -397,10 +406,13 @@ export const groupVisibleFailuresForAlertStack = (
       isExplicitContentFailureMessage(item.errorDetail) ||
       isExplicitContentFailureMessage(item.errorMessage) ||
       isExplicitContentFailureMessage(item.errorMessageShort);
+    const normalizedShortFailure = normalizeAlertText(item.errorMessageShort);
     const rawFailureMessage = isExplicitContentFailure
       ? EXPLICIT_CONTENT_FAILURE_DETAIL
-      : (item.errorMessageShort ?? item.errorDetail ?? item.errorMessage ?? "Generation failed");
-    const failureMessage = sanitizeCustomerFacingProviderText(
+      : normalizedShortFailure && !GENERIC_GENERATION_FAILURE_LABELS.has(normalizedShortFailure)
+        ? item.errorMessageShort
+        : (item.errorDetail ?? item.errorMessage ?? item.errorMessageShort ?? "Generation failed");
+    const failureMessage = normalizeCustomerFacingProviderError(
       rawFailureMessage,
       "Generation failed"
     );
@@ -439,7 +451,10 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
         item.model || item.modelId,
         "Generation"
       );
-      const detail = item.errorDetail ?? item.errorMessage ?? "";
+      const detail = normalizeCustomerFacingProviderError(
+        item.errorDetail ?? item.errorMessage ?? "",
+        ""
+      );
       const normalizedDetail = normalizeAlertText(detail);
       if (!normalizedDetail) return false;
       const normalizedModelLabel = normalizeAlertText(modelLabel);
@@ -450,7 +465,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     });
   const effectiveUiError = suppressUiErrorForFailureStack
     ? null
-    : sanitizeCustomerFacingProviderText(uiError, "");
+    : normalizeCustomerFacingProviderError(uiError, "");
   const groupedFailures = groupVisibleFailuresForAlertStack(visibleFailures);
 
   return (

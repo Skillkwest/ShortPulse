@@ -60,4 +60,27 @@ describe("groupVisibleFailuresForAlertStack", () => {
     expect(grouped[0]?.count).toBe(1);
     expect(grouped[1]?.count).toBe(1);
   });
+
+  it("normalizes raw JSON validation detail before grouping failure alerts", () => {
+    const grouped = groupVisibleFailuresForAlertStack([
+      {
+        id: "out-1",
+        model: "Seedream 4.5 Edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "first",
+        errorMessage: "Invalid request",
+        errorMessageShort: "Generation failed",
+        errorDetail: '{"detail":[{"loc":["prompt"],"msg":"Field required","type":"missing"}]}',
+      },
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        ids: ["out-1"],
+        modelLabel: "Seedream 4.5 Edit",
+        failureMessage: "Prompt is required.",
+        count: 1,
+      },
+    ]);
+  });
 });

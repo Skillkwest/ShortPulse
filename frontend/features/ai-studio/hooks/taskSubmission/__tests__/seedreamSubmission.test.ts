@@ -398,4 +398,24 @@ describe("Seedream submission payloads", () => {
     expect(completeGenerationImmediately).toHaveBeenCalledOnce();
     expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });
+
+  it("preserves reference payloads for Nano Banana 2 text submissions", async () => {
+    const args = makeArgs({
+      finalModel: FAL_NANO_BANANA_2_MODEL_ID,
+      modelConfig: getModelConfig(FAL_NANO_BANANA_2_MODEL_ID),
+      falReferencePayload: {
+        image_url: "https://cdn.test/character-primary.png",
+        image_urls: ["https://cdn.test/character-primary.png", "https://cdn.test/look-2.png"],
+      },
+    });
+
+    await handleDefaultModelSubmission(args);
+
+    expect(submitFalNanoBanana2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://cdn.test/character-primary.png",
+        image_urls: ["https://cdn.test/character-primary.png", "https://cdn.test/look-2.png"],
+      })
+    );
+  });
 });

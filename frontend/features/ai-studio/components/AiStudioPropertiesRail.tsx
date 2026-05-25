@@ -6,8 +6,6 @@ import React from "react";
 import type { ToolId } from "../types";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
-const CHARACTER_PROPERTIES_RAIL_HEIGHT_BYPASS_PX = 5;
-
 type AiStudioPropertiesRailProps = {
   selectedTool: ToolId | null;
   leftColumnRef: React.RefObject<HTMLElement>;
@@ -28,9 +26,10 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
   const inlineStyle =
     selectedTool === "character"
       ? {
-          minHeight: `calc(var(--ai-shell-column-max-height) + ${CHARACTER_PROPERTIES_RAIL_HEIGHT_BYPASS_PX}px)`,
-          height: `calc(var(--ai-shell-column-max-height) + ${CHARACTER_PROPERTIES_RAIL_HEIGHT_BYPASS_PX}px)`,
-          maxHeight: `calc(var(--ai-shell-column-max-height) + ${CHARACTER_PROPERTIES_RAIL_HEIGHT_BYPASS_PX}px)`,
+          minHeight: 0,
+          height: "auto",
+          maxHeight: "none",
+          overflow: "visible",
         }
       : undefined;
 

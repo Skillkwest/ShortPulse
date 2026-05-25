@@ -53,7 +53,7 @@ const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = "#15161a";
+const CHARACTER_TEXT_ENTRY_BACKGROUND = "#141519";
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
@@ -988,10 +988,10 @@ export function CharacterPanelWorkspace({
                           disabled={characterLibraryButtonDisabled}
                         >
                           <FolderSimple
-                            size={32}
+                            size={28}
                             weight="fill"
                             aria-hidden
-                            style={{ flex: "0 0 32px" }}
+                            style={{ flex: "0 0 28px" }}
                           />
                           Characters
                         </button>

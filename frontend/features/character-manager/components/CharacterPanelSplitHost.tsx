@@ -57,6 +57,9 @@ export function CharacterPanelSplitHost({
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...split.bottomSectionStyle,
+      flex: `0 0 ${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      height: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      minHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
     }),
     [split.bottomSectionStyle]

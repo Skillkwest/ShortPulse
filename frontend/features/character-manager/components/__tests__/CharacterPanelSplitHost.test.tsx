@@ -55,7 +55,16 @@ describe("CharacterPanelSplitHost", () => {
       })
     ).toBeInTheDocument();
     expect(container.querySelector(".character-panel-top-section")).not.toBeNull();
-    expect(container.querySelector(".character-panel-bottom-section")).not.toBeNull();
+    const bottomSection = container.querySelector(
+      ".character-panel-bottom-section"
+    ) as HTMLDivElement | null;
+    expect(bottomSection).not.toBeNull();
+    expect(bottomSection).toHaveStyle({
+      flex: "0 0 502px",
+      height: "502px",
+      minHeight: "502px",
+      maxHeight: "502px",
+    });
     expect(embeddedMediaPanelSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         fixedVisualAspectRatio: null,

@@ -75,9 +75,10 @@ describe("AiStudioPropertiesRail", () => {
     );
 
     expect(screen.getByText("character panel").parentElement).toHaveStyle({
-      minHeight: "calc(var(--ai-shell-column-max-height) + 5px)",
-      height: "calc(var(--ai-shell-column-max-height) + 5px)",
-      maxHeight: "calc(var(--ai-shell-column-max-height) + 5px)",
+      minHeight: "0",
+      height: "auto",
+      maxHeight: "none",
+      overflow: "visible",
     });
   });
 });

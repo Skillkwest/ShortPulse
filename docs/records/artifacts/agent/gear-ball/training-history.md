@@ -115,3 +115,5 @@ Canonical detailed surfaces:
 - After the final push-ready check, require one more explicit answer before the run is truly done: "what went right, what went wrong, and what single change would raise the next score?"
 - On shared-runtime UI lanes, do one cheap scan for dead callback dependencies and single-file formatting drift before the first preflight; that class of small cleanup is still a repeat cost center on otherwise healthy runs.
 - When one product behavior change already spans UI, tests, and a small docs update, keep it as one lane unless a different validation ladder is truly required.
+- When a lane introduces a new shared-history, modal keyboard-routing, or session-restore seam, include the owning hook tests in the first manifest instead of waiting for the broad component suite to expose the contract drift.
+- Treat the final build as the last required source of truth before score-loop closeout; if build-only type holes surface in presentation components, fix them before drafting the report so the score reflects the true converged tree rather than the last test-green snapshot.

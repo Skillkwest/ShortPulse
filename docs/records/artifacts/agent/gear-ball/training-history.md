@@ -32,19 +32,19 @@ Canonical detailed surfaces:
 
 ## Latest Run
 
+- `2026-05-26` on `production`
+- Score: `8.4/10`
+- What went right: Gear Ball kept the live tree collapsed to one governance lane plus one broad AI Studio/runtime lane, the docs checks plus shared-runtime preflight plus Generate CTA contract plus final build all passed, and the final tree converged cleanly before the score writeback.
+- What went wrong: the first product pass paid a large formatting sweep, four lint warnings surfaced after that, and the DetailModal preview-lock contract regressed once before the lane fully cleared.
+- Capability decision: on very large shared-runtime lanes, run a manifest-wide formatting sweep plus a tiny extracted-runtime/effect lint scan before the main preflight so the first pass catches only real behavioral regressions.
+
+## Previous Run
+
 - `2026-05-25` on `production`
 - Score: `8.5/10`
 - What went right: Gear Ball kept the live tree split into one Holomony baseline-doc lane and one broad AI Studio submission/workspace lane, the focused suite cleared 24 files with 539 passing tests, and the final build plus docs checks passed before publish.
 - What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, the build surfaced one real session-snapshot union type hole, and `ExpertEditPanelView.test.tsx` still emitted its recurring `act(...)` warning noise.
 - Capability decision: on large frontend-only runtime lanes, start from the `frontend/` workdir and do one quick union-access scan around new snapshot helpers before the full build so the first pass catches only real behavioral risk.
-
-## Previous Run
-
-- `2026-05-25` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball split the live tree cleanly into one Holomony docs lane and one compact character-mode runtime lane, focused tests cleared 56 checks, and the final build plus docs checks passed before publish.
-- What went wrong: the first product-lane ESLint pass used the repo root instead of `frontend/`, which cost one avoidable rerun before the real validation signal.
-- Capability decision: on frontend-only runtime lanes, derive ESLint commands directly from the `frontend/` workdir up front so the first validation pass stays clean.
 
 ## Previous Supervised Synthesis
 

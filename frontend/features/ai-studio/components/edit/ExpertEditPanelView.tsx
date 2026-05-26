@@ -21,6 +21,7 @@ import { useExpertEditPromptComposerRuntime } from "./useExpertEditPromptCompose
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditMarkupControlsRuntime } from "./useExpertEditMarkupControlsRuntime";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
+import { useExpertEditPanelHistory } from "./useExpertEditPanelHistory";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditPanelStageInteractions } from "./useExpertEditPanelStageInteractions";
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
@@ -68,6 +69,7 @@ import {
   layerHasImage,
   resolveInitialExpertEditSessionState,
   resolveMarkupStrokeIdCounterFromStrokes,
+  type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
 import { isClientPointInsideElementBounds } from "./expertEditInteractionUtils";
@@ -134,6 +136,8 @@ export function ExpertEditPanelView({
   const inpaintCollapseTimerRef = React.useRef<number | null>(null);
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const stageContextMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const panelRootRef = React.useRef<HTMLDivElement | null>(null);
+  const suppressNextPrimaryPublishUrlRef = React.useRef<string | null>(null);
   const markupPanPointerSessionRef = React.useRef<MarkupPanPointerSession>(
     createIdleMarkupPanPointerSession()
   );
@@ -203,6 +207,24 @@ export function ExpertEditPanelView({
     transientObjectUrlRevokeMs: TRANSIENT_OBJECT_URL_REVOKE_MS,
     revokeObjectUrlSafe,
   });
+  const queuePanelHistoryBaselineFromCurrentRef = React.useRef<() => void>(() => {});
+  const beginPanelHistoryGestureRef = React.useRef<() => void>(() => {});
+  const beginPanelHistoryGestureForLayersRef = React.useRef<
+    (nextLayers: ExpertEditLayer[]) => void
+  >(() => {});
+  const finalizePanelHistoryGestureRef = React.useRef<() => void>(() => {});
+  const queuePanelHistoryBaselineFromCurrent = React.useCallback(() => {
+    queuePanelHistoryBaselineFromCurrentRef.current();
+  }, []);
+  const beginPanelHistoryGesture = React.useCallback(() => {
+    beginPanelHistoryGestureRef.current();
+  }, []);
+  const beginPanelHistoryGestureForLayers = React.useCallback((nextLayers: ExpertEditLayer[]) => {
+    beginPanelHistoryGestureForLayersRef.current(nextLayers);
+  }, []);
+  const finalizePanelHistoryGesture = React.useCallback(() => {
+    finalizePanelHistoryGestureRef.current();
+  }, []);
   const {
     beginLayerRename,
     clearLayerEditing,
@@ -213,6 +235,7 @@ export function ExpertEditPanelView({
     editingLayerIndex,
     editingLayerValue,
     foundationLayerId,
+    setFoundationLayerId,
     handleCommitLayerRename,
     handleDeleteLayer,
     handleDeleteSelectedLayer,
@@ -230,6 +253,8 @@ export function ExpertEditPanelView({
     hasPrimaryCompositePreview,
     hostPrimaryImageUrl,
     layerIdCounterRef,
+    layerIdCounter,
+    setLayerIdCounter,
     layers,
     populatedLayerCount,
     primaryDragActive,
@@ -247,6 +272,7 @@ export function ExpertEditPanelView({
     isMorePresetsSurfaceOpen,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
+    queuePanelHistoryBaselineFromCurrent,
   });
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
@@ -442,6 +468,51 @@ export function ExpertEditPanelView({
     onAutoToolAttempt: () => showStatusToast("Auto select is coming soon."),
     onPaintAttemptWithoutImage: () => showStatusToast("Select a layer image before drawing."),
   });
+  const {
+    canUndoPanelHistoryAction,
+    canRedoPanelHistoryAction,
+    buildPanelHistorySnapshot,
+    beginPanelHistoryGesture: beginPanelHistorySnapshotGesture,
+    clearPanelHistoryEphemera,
+    finalizePanelHistoryGesture: finalizePanelHistorySnapshotGesture,
+    queuePanelHistoryBaselineFromCurrent: queuePanelHistoryBaselineSnapshotFromCurrent,
+    rebasePanelHistoryLayerImage,
+    handleUndoPanelHistoryAction,
+    handleRedoPanelHistoryAction,
+  } = useExpertEditPanelHistory({
+    historyLimit: TRANSFORM_HISTORY_LIMIT,
+    foundationLayerId,
+    selectedLayerIndex,
+    layerIdCounter,
+    layerIdCounterRef,
+    layers,
+    markupStrokes,
+    inpaintSnapshot: captureInpaintMaskSnapshot(),
+    setFoundationLayerId,
+    setLayerIdCounter,
+    setSelectedLayerIndex,
+    setLayers,
+    setMarkupStrokes,
+    restoreInpaintMaskSnapshot,
+    clearLayerEditing,
+  });
+  React.useLayoutEffect(() => {
+    queuePanelHistoryBaselineFromCurrentRef.current = queuePanelHistoryBaselineSnapshotFromCurrent;
+    beginPanelHistoryGestureRef.current = beginPanelHistorySnapshotGesture;
+    beginPanelHistoryGestureForLayersRef.current = (nextLayers) => {
+      beginPanelHistorySnapshotGesture(
+        buildPanelHistorySnapshot({
+          layersOverride: nextLayers,
+        })
+      );
+    };
+    finalizePanelHistoryGestureRef.current = finalizePanelHistorySnapshotGesture;
+  }, [
+    beginPanelHistorySnapshotGesture,
+    buildPanelHistorySnapshot,
+    finalizePanelHistorySnapshotGesture,
+    queuePanelHistoryBaselineSnapshotFromCurrent,
+  ]);
 
   const shouldShowInpaintBrushReticle =
     isInpaintToolSelected &&
@@ -510,8 +581,10 @@ export function ExpertEditPanelView({
     setLayers,
     setSelectedLayerIndex,
     clearLayerEditing,
+    queuePanelHistoryBaselineFromCurrent,
     onRegenerateWithReferenceInputs,
     showStatusToast,
+    suppressNextPrimaryPublishUrlRef,
     resolveStageFlattenSnapshot,
   });
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
@@ -696,7 +769,6 @@ export function ExpertEditPanelView({
     layers,
     setLayers,
     selectedLayer,
-    selectedLayerImageUrl,
     selectedLayerHasRenderableImage,
     hasPrimaryCompositePreview,
     isMoveToolSelected,
@@ -716,6 +788,9 @@ export function ExpertEditPanelView({
     resolveLayerImageAspectRatio,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
     showStatusToast,
+    beginPanelHistoryGestureForLayers,
+    finalizePanelHistoryGesture,
+    queuePanelHistoryBaselineFromCurrent,
     transformHistoryState,
     setTransformHistoryState,
     resetStageViewport,
@@ -730,15 +805,15 @@ export function ExpertEditPanelView({
     beginMarkupGestureHistory,
     finalizeMarkupGestureHistory,
     clearMarkupStrokesWithHistory,
-    canUndoGeneralAction,
-    canRedoGeneralAction,
-    handleUndoGeneralAction,
-    handleRedoGeneralAction,
+    canUndoGeneralAction: canUndoStageGeneralAction,
+    canRedoGeneralAction: canRedoStageGeneralAction,
+    handleUndoGeneralAction: handleUndoStageGeneralAction,
+    handleRedoGeneralAction: handleRedoStageGeneralAction,
     handleResetGeneralAction,
     isMoveTransformCentered,
     isStageViewportAtRest,
     isGeneralResetDisabled,
-    clearHistoryEphemera,
+    clearHistoryEphemera: clearStageHistoryEphemera,
   } = useExpertEditStageHistory({
     initialMarkupHistoryState: initialSessionState.markupHistory,
     initialInpaintHistoryState: initialSessionState.inpaintHistory,
@@ -757,6 +832,9 @@ export function ExpertEditPanelView({
     clearSelectedLayerMask,
     invertSelectedLayerMask,
     clearAllInpaintMasks,
+    beginPanelHistoryGesture,
+    finalizePanelHistoryGesture,
+    queuePanelHistoryBaselineFromCurrent,
     isInpaintToolSelected,
     isMarkupToolSelected,
     queuePendingHistoryApplyEntry,
@@ -764,6 +842,26 @@ export function ExpertEditPanelView({
     setTransformHistoryState,
     commitTransformHistoryTransition,
   });
+  const canUndoGeneralAction = canUndoStageGeneralAction || canUndoPanelHistoryAction;
+  const canRedoGeneralAction = canRedoStageGeneralAction || canRedoPanelHistoryAction;
+  const handleUndoGeneralAction = React.useCallback(() => {
+    if (canUndoStageGeneralAction) {
+      handleUndoStageGeneralAction();
+      return;
+    }
+    handleUndoPanelHistoryAction();
+  }, [canUndoStageGeneralAction, handleUndoPanelHistoryAction, handleUndoStageGeneralAction]);
+  const handleRedoGeneralAction = React.useCallback(() => {
+    if (canRedoStageGeneralAction) {
+      handleRedoStageGeneralAction();
+      return;
+    }
+    handleRedoPanelHistoryAction();
+  }, [canRedoStageGeneralAction, handleRedoPanelHistoryAction, handleRedoStageGeneralAction]);
+  const clearHistoryEphemera = React.useCallback(() => {
+    clearStageHistoryEphemera();
+    clearPanelHistoryEphemera();
+  }, [clearPanelHistoryEphemera, clearStageHistoryEphemera]);
 
   const {
     stageContextMenuState,
@@ -911,6 +1009,7 @@ export function ExpertEditPanelView({
   }, [onStylesPanelToggle]);
 
   const { handleInpaintCollapseToggle } = useExpertEditStageLifecycle({
+    panelRootRef,
     isMoveToolSelected,
     clearTransformPointerSession,
     isMarkupExpandSelected,
@@ -1251,8 +1350,10 @@ export function ExpertEditPanelView({
     hostPrimaryImageUrl,
     removeBackgroundPendingLayerId,
     layerIdCounterRef,
+    suppressNextPrimaryPublishUrlRef,
     removeBackgroundPendingSourceUrlRef,
     setLayers,
+    rebasePanelHistoryLayerImage,
     clearRemoveBackgroundPending,
     onPrimaryImageChange,
     onSessionStateChange,
@@ -1261,6 +1362,7 @@ export function ExpertEditPanelView({
 
   return (
     <div
+      ref={panelRootRef}
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
       }`.trim()}

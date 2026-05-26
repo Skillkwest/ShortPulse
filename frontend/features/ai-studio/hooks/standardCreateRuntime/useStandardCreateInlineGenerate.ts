@@ -5,6 +5,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import type { StudioMode, ToolId } from "../../types";
+import { useAiStudioCreateSubmitSingleFlight } from "../useAiStudioCreateSubmitSingleFlight";
 
 type GenerateStandardCreateOutput = (
   promptOverride?: string | null,
@@ -36,8 +37,8 @@ export const useStandardCreateInlineGenerate = ({
   promptReferenceGenerateCostCredits,
   handleGenerate,
   setPromptOrigin,
-}: UseStandardCreateInlineGenerateParams) =>
-  useCallback(() => {
+}: UseStandardCreateInlineGenerateParams) => {
+  const handleInlineGenerate = useCallback(() => {
     if (!enabled) return;
     const rawPrompt = resolveChatOffCreatePrompt({
       agentInput,
@@ -45,7 +46,7 @@ export const useStandardCreateInlineGenerate = ({
       allowSharedPromptFallback: true,
     });
     if (rawPrompt) setPromptOrigin("manual");
-    void handleGenerate(rawPrompt ?? "", {
+    return handleGenerate(rawPrompt ?? "", {
       modeOverride: "image",
       toolOverride: "create",
       costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
@@ -59,3 +60,6 @@ export const useStandardCreateInlineGenerate = ({
     promptReferenceGenerateCostCredits,
     setPromptOrigin,
   ]);
+
+  return useAiStudioCreateSubmitSingleFlight(handleInlineGenerate);
+};

@@ -28,8 +28,13 @@ const createLayer = (
 describe("useExpertEditPrimarySessionSync", () => {
   it("preserves raw tiny single-image transforms during remove-background host sync", async () => {
     const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
     const previousPrimaryPropRef = { current: "https://example.com/original.png" };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = {
+      current: "https://example.com/original.png" as string | null,
+    };
 
     const { result } = renderHook(() => {
       const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
@@ -45,6 +50,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       ]);
 
       useExpertEditPrimarySessionSync({
+        layers,
         selectedLayerIndex: 0,
         referenceImageUrl: "https://example.com/updated.png",
         hostPrimaryImageUrl: null,
@@ -52,7 +58,10 @@ describe("useExpertEditPrimarySessionSync", () => {
         foundationLayerId: "layer-1",
         lastDispatchedPrimaryRef,
         previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
         setLayers,
+        rebasePanelHistoryLayerImage,
         onPrimaryImageChange,
       });
 
@@ -70,12 +79,23 @@ describe("useExpertEditPrimarySessionSync", () => {
       scale: 0.2,
       rotationDeg: 12,
     });
+    expect(rebasePanelHistoryLayerImage).toHaveBeenCalledWith({
+      layerId: "layer-1",
+      previousImageUrl: "https://example.com/original.png",
+      nextImageUrl: "https://example.com/updated.png",
+      ownsImageUrl: false,
+    });
   });
 
   it("preserves tiny transforms for multi-layer remove-background reconciliation", async () => {
     const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
     const previousPrimaryPropRef = { current: "https://example.com/base.png" };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = {
+      current: "https://example.com/base.png" as string | null,
+    };
     const tinyTransform = {
       translateXRatio: 0.05,
       translateYRatio: 0.02,
@@ -95,6 +115,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       ]);
 
       useExpertEditPrimarySessionSync({
+        layers,
         selectedLayerIndex: 0,
         referenceImageUrl: "https://example.com/base-updated.png",
         hostPrimaryImageUrl: null,
@@ -102,7 +123,10 @@ describe("useExpertEditPrimarySessionSync", () => {
         foundationLayerId: "layer-1",
         lastDispatchedPrimaryRef,
         previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
         setLayers,
+        rebasePanelHistoryLayerImage,
         onPrimaryImageChange,
       });
 
@@ -115,12 +139,21 @@ describe("useExpertEditPrimarySessionSync", () => {
 
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
     expect(result.current.layers[0]?.transform).toEqual(tinyTransform);
+    expect(rebasePanelHistoryLayerImage).toHaveBeenCalledWith({
+      layerId: "layer-1",
+      previousImageUrl: "https://example.com/base.png",
+      nextImageUrl: "https://example.com/base-updated.png",
+      ownsImageUrl: false,
+    });
   });
 
   it("targets the foundation layer instead of the selected overlay during host sync", async () => {
     const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
     const previousPrimaryPropRef = { current: "https://example.com/base.png" };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = { current: null as string | null };
 
     const { result } = renderHook(() => {
       const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
@@ -133,6 +166,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       ]);
 
       useExpertEditPrimarySessionSync({
+        layers,
         selectedLayerIndex: 1,
         referenceImageUrl: "https://example.com/base-updated.png",
         hostPrimaryImageUrl: null,
@@ -140,7 +174,10 @@ describe("useExpertEditPrimarySessionSync", () => {
         foundationLayerId: "layer-1",
         lastDispatchedPrimaryRef,
         previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
         setLayers,
+        rebasePanelHistoryLayerImage,
         onPrimaryImageChange,
       });
 
@@ -153,12 +190,16 @@ describe("useExpertEditPrimarySessionSync", () => {
 
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
     expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/overlay.png");
+    expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 
   it("clears the foundation image when host image authority becomes non-image", async () => {
     const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
     const previousPrimaryPropRef = { current: "https://example.com/base.png" };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = { current: null as string | null };
 
     const { result } = renderHook(() => {
       const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
@@ -168,6 +209,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       ]);
 
       useExpertEditPrimarySessionSync({
+        layers,
         selectedLayerIndex: 0,
         referenceImageUrl: "https://example.com/reference-audio.mp3",
         hostPrimaryImageUrl: null,
@@ -175,7 +217,10 @@ describe("useExpertEditPrimarySessionSync", () => {
         foundationLayerId: "layer-1",
         lastDispatchedPrimaryRef,
         previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
         setLayers,
+        rebasePanelHistoryLayerImage,
         onPrimaryImageChange,
       });
 
@@ -188,12 +233,16 @@ describe("useExpertEditPrimarySessionSync", () => {
 
     expect(result.current.layers[0]?.imageUrl).toBeNull();
     expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+    expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 
   it("clears a stale foundation image on the initial sync pass when no host image exists", async () => {
     const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
     const previousPrimaryPropRef = { current: null as string | null };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = { current: null as string | null };
 
     const { result } = renderHook(() => {
       const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
@@ -209,6 +258,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       ]);
 
       useExpertEditPrimarySessionSync({
+        layers,
         selectedLayerIndex: 0,
         referenceImageUrl: null,
         hostPrimaryImageUrl: null,
@@ -216,7 +266,10 @@ describe("useExpertEditPrimarySessionSync", () => {
         foundationLayerId: "layer-1",
         lastDispatchedPrimaryRef,
         previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
         setLayers,
+        rebasePanelHistoryLayerImage,
         onPrimaryImageChange,
       });
 
@@ -229,5 +282,53 @@ describe("useExpertEditPrimarySessionSync", () => {
 
     expect(result.current.layers[0]?.imageUrl).toBeNull();
     expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+    expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
+  });
+
+  it("suppresses the next host publish when manual flatten marks the primary as panel-local only", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
+    const lastDispatchedPrimaryRef = { current: "https://example.com/base.png" as string | null };
+    const previousPrimaryPropRef = { current: "https://example.com/base.png" as string | null };
+    const suppressNextPrimaryPublishUrlRef = {
+      current: "blob:flattened-primary" as string | null,
+    };
+    const removeBackgroundPendingSourceUrlRef = { current: null as string | null };
+
+    renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayer("layer-1", {
+          imageUrl: "blob:flattened-primary",
+          transform: defaultLayerTransform(),
+        }),
+      ]);
+
+      useExpertEditPrimarySessionSync({
+        layers,
+        selectedLayerIndex: 0,
+        referenceImageUrl: "https://example.com/base.png",
+        hostPrimaryImageUrl: "blob:flattened-primary",
+        removeBackgroundPendingLayerId: null,
+        foundationLayerId: "layer-1",
+        lastDispatchedPrimaryRef,
+        previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
+        setLayers,
+        rebasePanelHistoryLayerImage,
+        onPrimaryImageChange,
+      });
+
+      return { layers };
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
+    expect(suppressNextPrimaryPublishUrlRef.current).toBeNull();
+    expect(lastDispatchedPrimaryRef.current).toBe("https://example.com/base.png");
+    expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 });

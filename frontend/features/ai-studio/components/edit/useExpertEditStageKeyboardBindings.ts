@@ -7,6 +7,7 @@ import {
 } from "./expertEditInteractionUtils";
 
 type UseExpertEditStageKeyboardBindingsArgs = {
+  panelRootRef: React.RefObject<HTMLElement | null>;
   isMarkupExpandSelected: boolean;
   isMorePresetsSurfaceOpen: boolean;
   setIsMarkupPanSpacePressed: React.Dispatch<React.SetStateAction<boolean>>;
@@ -17,6 +18,7 @@ type UseExpertEditStageKeyboardBindingsArgs = {
 };
 
 export function useExpertEditStageKeyboardBindings({
+  panelRootRef,
   isMarkupExpandSelected,
   isMorePresetsSurfaceOpen,
   setIsMarkupPanSpacePressed,
@@ -69,11 +71,20 @@ export function useExpertEditStageKeyboardBindings({
   }, [isMarkupExpandSelected, isMorePresetsSurfaceOpen, setIsMarkupPanSpacePressed]);
 
   React.useEffect(() => {
-    if (!isMarkupExpandSelected || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
     const handleHistoryHotkey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (event.altKey) return;
+      const panelRoot = panelRootRef.current;
+      const eventTarget = event.target;
+      const activeElement = document.activeElement;
+      const isInsidePanel =
+        isMarkupExpandSelected ||
+        (!!panelRoot &&
+          ((eventTarget instanceof Node && panelRoot.contains(eventTarget)) ||
+            (activeElement instanceof Node && panelRoot.contains(activeElement))));
+      if (!isInsidePanel) return;
       if (isKeyboardEventFromEditableTarget(event)) return;
       const hasModifier = event.metaKey || event.ctrlKey;
       if (!hasModifier) return;
@@ -100,6 +111,6 @@ export function useExpertEditStageKeyboardBindings({
     canUndoGeneralAction,
     handleRedoGeneralAction,
     handleUndoGeneralAction,
-    isMarkupExpandSelected,
+    panelRootRef,
   ]);
 }

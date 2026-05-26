@@ -39,6 +39,8 @@ type UseExpertEditTransformSessionParams = {
     interactionRect: DOMRect,
     currentTarget: HTMLDivElement
   ) => { offsetX: number; offsetY: number };
+  beginPanelHistoryGestureForLayers: (layers: ExpertEditLayer[]) => void;
+  finalizePanelHistoryGesture: () => void;
   commitTransformHistoryTransition: (
     nextEntry: TransformHistoryEntry,
     baselineEntry?: TransformHistoryEntry | null
@@ -63,6 +65,8 @@ export const useExpertEditTransformSession = ({
   viewportOffsetXRatio,
   viewportOffsetYRatio,
   resolveViewportOffsetPixels,
+  beginPanelHistoryGestureForLayers,
+  finalizePanelHistoryGesture,
   commitTransformHistoryTransition,
   showStatusToast,
   transformHistoryState,
@@ -100,6 +104,8 @@ export const useExpertEditTransformSession = ({
     resolveViewportOffsetPixels,
     transformPointerSessionRef,
     transformGestureBaselineRef,
+    beginPanelHistoryGestureForLayers,
+    finalizePanelHistoryGesture,
     setLayers,
     setActiveTransformDragMode,
     setIsTransformPointerDragging,
@@ -175,7 +181,6 @@ export const useExpertEditTransformSession = ({
     [
       resolveRenderableLayerTransform,
       selectedLayer,
-      selectedLayerInteractionTransform,
       selectedLayerImageAspectRatio,
       shouldShowSelectedLayerTransformOverlay,
     ]

@@ -36,7 +36,8 @@ type UseCharacterManagerPresetControllerParams = {
   characterId: string | null;
   clearMessages: () => void;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
-  setIsSavingCharacterSheetPreset: React.Dispatch<React.SetStateAction<boolean>>;
+  beginCharacterSheetPresetMutation: () => void;
+  endCharacterSheetPresetMutation: () => void;
   setIsDeletingCharacterSheetPreset: React.Dispatch<React.SetStateAction<boolean>>;
   activeCharacterSheetPresetIdRef: React.MutableRefObject<CharacterSheetPresetId>;
   activeCharacterSheetPresetRequestRef: React.MutableRefObject<number>;
@@ -81,6 +82,10 @@ type UseCharacterManagerPresetControllerResult = {
   saveCharacterSheetPresetAssignments: (
     assignments: CharacterSheetPresetAssignments
   ) => Promise<boolean>;
+  saveCharacterSheetPresetAssignmentsForPreset: (
+    presetId: CharacterSheetPresetId,
+    assignments: CharacterSheetPresetAssignments
+  ) => Promise<boolean>;
   addCharacterSheetPreset: () => Promise<boolean>;
   renameCharacterSheetPreset: (
     presetId: CharacterSheetPresetId,
@@ -93,7 +98,8 @@ export const useCharacterManagerPresetController = ({
   characterId,
   clearMessages,
   setError,
-  setIsSavingCharacterSheetPreset,
+  beginCharacterSheetPresetMutation,
+  endCharacterSheetPresetMutation,
   setIsDeletingCharacterSheetPreset,
   activeCharacterSheetPresetIdRef,
   activeCharacterSheetPresetRequestRef,
@@ -383,7 +389,7 @@ export const useCharacterManagerPresetController = ({
       setCharacterDescriptionState(nextDescription);
       const requestId = activeCharacterSheetPresetRequestRef.current + 1;
       activeCharacterSheetPresetRequestRef.current = requestId;
-      setIsSavingCharacterSheetPreset(true);
+      beginCharacterSheetPresetMutation();
       try {
         const persistedState = await saveCharacterManagerActiveCharacterSheetPreset({
           characterId,
@@ -409,62 +415,62 @@ export const useCharacterManagerPresetController = ({
         setError(toErrorMessage(nextError, "Failed to switch character look."));
         return false;
       } finally {
-        if (activeCharacterSheetPresetRequestRef.current === requestId) {
-          setIsSavingCharacterSheetPreset(false);
-        }
+        endCharacterSheetPresetMutation();
       }
     },
     [
       activeCharacterSheetPresetIdRef,
       activeCharacterSheetPresetRequestRef,
       applyPersistedPresetState,
+      beginCharacterSheetPresetMutation,
       characterId,
       characterSheetPresetDescriptionsRef,
       characterSheetPresetsRef,
       clearMessages,
+      endCharacterSheetPresetMutation,
       setActiveCharacterSheetPresetIdState,
       setCharacterDescriptionState,
       setCharacterSheetPresetAssignments,
       setError,
-      setIsSavingCharacterSheetPreset,
       toErrorMessage,
       publishCharacterRefresh,
     ]
   );
 
-  const saveCharacterSheetPresetAssignments = React.useCallback(
-    async (assignments: CharacterSheetPresetAssignments) => {
+  const saveCharacterSheetPresetAssignmentsForPreset = React.useCallback(
+    async (presetId: CharacterSheetPresetId, assignments: CharacterSheetPresetAssignments) => {
       clearMessages();
-      const activePresetId = activeCharacterSheetPresetIdRef.current;
       const previousPresets = characterSheetPresetsRef.current;
       const previousAssignments =
-        previousPresets[activePresetId] ?? createEmptyCharacterSheetPresetAssignments();
+        previousPresets[presetId] ?? createEmptyCharacterSheetPresetAssignments();
       const normalizedAssignments = { ...assignments };
       const optimisticPresets = {
         ...previousPresets,
-        [activePresetId]: normalizedAssignments,
+        [presetId]: normalizedAssignments,
       };
       setCharacterSheetPresets(optimisticPresets);
       characterSheetPresetsRef.current = optimisticPresets;
-      setCharacterSheetPresetAssignments(normalizedAssignments);
+      if (activeCharacterSheetPresetIdRef.current === presetId) {
+        setCharacterSheetPresetAssignments(normalizedAssignments);
+      }
       if (!characterId) {
         return true;
       }
 
       const requestId = characterSheetPresetAssignmentsRequestRef.current + 1;
       characterSheetPresetAssignmentsRequestRef.current = requestId;
-      setIsSavingCharacterSheetPreset(true);
+      beginCharacterSheetPresetMutation();
       try {
         const persistedState = await saveCharacterManagerCharacterSheetPresetAssignments({
           characterId,
-          presetId: activePresetId,
+          presetId,
           assignments: normalizedAssignments,
         });
         if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
           return true;
         }
         applyPersistedPresetAssignmentsState({
-          presetId: activePresetId,
+          presetId,
           persistedState,
           fallbackAssignments: normalizedAssignments,
         });
@@ -476,33 +482,43 @@ export const useCharacterManagerPresetController = ({
         }
         const revertedPresets = {
           ...previousPresets,
-          [activePresetId]: previousAssignments,
+          [presetId]: previousAssignments,
         };
         setCharacterSheetPresets(revertedPresets);
         characterSheetPresetsRef.current = revertedPresets;
-        setCharacterSheetPresetAssignments(previousAssignments);
+        if (activeCharacterSheetPresetIdRef.current === presetId) {
+          setCharacterSheetPresetAssignments(previousAssignments);
+        }
         setError(toErrorMessage(nextError, "Failed to save character look."));
         return false;
       } finally {
-        if (characterSheetPresetAssignmentsRequestRef.current === requestId) {
-          setIsSavingCharacterSheetPreset(false);
-        }
+        endCharacterSheetPresetMutation();
       }
     },
     [
       activeCharacterSheetPresetIdRef,
       applyPersistedPresetAssignmentsState,
+      beginCharacterSheetPresetMutation,
       characterId,
       characterSheetPresetAssignmentsRequestRef,
       characterSheetPresetsRef,
       clearMessages,
+      endCharacterSheetPresetMutation,
       setCharacterSheetPresetAssignments,
       setCharacterSheetPresets,
       setError,
-      setIsSavingCharacterSheetPreset,
       toErrorMessage,
       publishCharacterRefresh,
     ]
+  );
+
+  const saveCharacterSheetPresetAssignments = React.useCallback(
+    async (assignments: CharacterSheetPresetAssignments) =>
+      saveCharacterSheetPresetAssignmentsForPreset(
+        activeCharacterSheetPresetIdRef.current,
+        assignments
+      ),
+    [activeCharacterSheetPresetIdRef, saveCharacterSheetPresetAssignmentsForPreset]
   );
 
   const addCharacterSheetPreset = React.useCallback(async () => {
@@ -547,7 +563,7 @@ export const useCharacterManagerPresetController = ({
 
     const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
     characterSheetPresetTabOrderRequestRef.current = requestId;
-    setIsSavingCharacterSheetPreset(true);
+    beginCharacterSheetPresetMutation();
     try {
       const persistedState = await saveCharacterManagerCharacterSheetPresetTabOrder({
         characterId,
@@ -577,26 +593,25 @@ export const useCharacterManagerPresetController = ({
       setError(toErrorMessage(nextError, "Failed to add character look."));
       return false;
     } finally {
-      if (characterSheetPresetTabOrderRequestRef.current === requestId) {
-        setIsSavingCharacterSheetPreset(false);
-      }
+      endCharacterSheetPresetMutation();
     }
   }, [
     activeCharacterSheetPresetIdRef,
     applyPersistedPresetState,
+    beginCharacterSheetPresetMutation,
     characterId,
     characterSheetPresetDescriptionsRef,
     characterSheetPresetLabelsRef,
     characterSheetPresetTabOrderRequestRef,
     characterSheetPresetsRef,
     clearMessages,
+    endCharacterSheetPresetMutation,
     setActiveCharacterSheetPresetIdState,
     setCharacterDescriptionState,
     setCharacterSheetPresetAssignments,
     setCharacterSheetPresetDescriptions,
     setCharacterSheetPresetLabels,
     setError,
-    setIsSavingCharacterSheetPreset,
     setVisibleCharacterSheetPresetIds,
     toErrorMessage,
     visibleCharacterSheetPresetIdsRef,
@@ -627,7 +642,7 @@ export const useCharacterManagerPresetController = ({
 
       const requestId = characterSheetPresetTabLabelRequestRef.current + 1;
       characterSheetPresetTabLabelRequestRef.current = requestId;
-      setIsSavingCharacterSheetPreset(true);
+      beginCharacterSheetPresetMutation();
       try {
         const persistedState = await saveCharacterManagerCharacterSheetPresetTabLabel({
           characterId,
@@ -649,20 +664,19 @@ export const useCharacterManagerPresetController = ({
         setError(toErrorMessage(nextError, "Failed to rename look."));
         return false;
       } finally {
-        if (characterSheetPresetTabLabelRequestRef.current === requestId) {
-          setIsSavingCharacterSheetPreset(false);
-        }
+        endCharacterSheetPresetMutation();
       }
     },
     [
       applyPersistedPresetState,
+      beginCharacterSheetPresetMutation,
       characterId,
       characterSheetPresetLabelsRef,
       characterSheetPresetTabLabelRequestRef,
       clearMessages,
+      endCharacterSheetPresetMutation,
       setCharacterSheetPresetLabels,
       setError,
-      setIsSavingCharacterSheetPreset,
       toErrorMessage,
       visibleCharacterSheetPresetIdsRef,
       publishCharacterRefresh,
@@ -738,7 +752,7 @@ export const useCharacterManagerPresetController = ({
 
       const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
       characterSheetPresetTabOrderRequestRef.current = requestId;
-      setIsSavingCharacterSheetPreset(true);
+      beginCharacterSheetPresetMutation();
       setIsDeletingCharacterSheetPreset(true);
       try {
         const persistedState = await deleteCharacterManagerCharacterSheetPreset({
@@ -772,21 +786,21 @@ export const useCharacterManagerPresetController = ({
         setError(toErrorMessage(nextError, "Failed to delete look."));
         return false;
       } finally {
-        if (characterSheetPresetTabOrderRequestRef.current === requestId) {
-          setIsSavingCharacterSheetPreset(false);
-        }
+        endCharacterSheetPresetMutation();
         setIsDeletingCharacterSheetPreset(false);
       }
     },
     [
       activeCharacterSheetPresetIdRef,
       applyPersistedPresetState,
+      beginCharacterSheetPresetMutation,
       characterId,
       characterSheetPresetDescriptionsRef,
       characterSheetPresetLabelsRef,
       characterSheetPresetTabOrderRequestRef,
       characterSheetPresetsRef,
       clearMessages,
+      endCharacterSheetPresetMutation,
       setActiveCharacterSheetPresetIdState,
       setCharacterDescriptionState,
       setCharacterSheetPresetAssignments,
@@ -795,7 +809,6 @@ export const useCharacterManagerPresetController = ({
       setCharacterSheetPresets,
       setIsDeletingCharacterSheetPreset,
       setError,
-      setIsSavingCharacterSheetPreset,
       setVisibleCharacterSheetPresetIds,
       toErrorMessage,
       visibleCharacterSheetPresetIdsRef,
@@ -807,6 +820,7 @@ export const useCharacterManagerPresetController = ({
     setCharacterDescription,
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
+    saveCharacterSheetPresetAssignmentsForPreset,
     addCharacterSheetPreset,
     renameCharacterSheetPreset,
     deleteCharacterSheetPreset,

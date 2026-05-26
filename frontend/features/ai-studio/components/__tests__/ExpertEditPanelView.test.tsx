@@ -6571,7 +6571,7 @@ describe("ExpertEditPanelView", () => {
 
       expect(resolvePreviewUrlById).toHaveBeenCalledWith("out-1");
       expect(fetchMock).toHaveBeenCalledWith("blob:reference-grid-source");
-      expect(onPrimaryImageChange).toHaveBeenCalledWith(expect.stringMatching(/^blob:flatten-/));
+      expect(onPrimaryImageChange).not.toHaveBeenCalled();
       const layerFrame = document.querySelector(
         ".edit-expert-primary-layer-frame"
       ) as HTMLDivElement;
@@ -6586,7 +6586,10 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("keeps the add-layer button hidden while primary uploads can still create layers", () => {
-    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    const onPrimaryImageChange = vi.fn();
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />
+    );
 
     expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
@@ -6595,10 +6598,32 @@ describe("ExpertEditPanelView", () => {
     uploadPrimaryFile(container, "added-layer-1.png");
     expect(screen.getByRole("button", { name: "layer 1" })).toHaveClass("is-selected");
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+    expect(onPrimaryImageChange).toHaveBeenCalledTimes(1);
+    expect(onPrimaryImageChange).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^blob:file-added-layer-1\.png-\d+$/)
+    );
+    onPrimaryImageChange.mockClear();
 
     uploadPrimaryFile(container, "added-layer-2.png");
     expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "layer 2" })).toHaveClass("is-selected");
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps layer selection panel-local without republishing shared primary authority", () => {
+    const onPrimaryImageChange = vi.fn();
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    uploadPrimaryFile(container, "layer-2.png");
+    onPrimaryImageChange.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "layer 2" }));
+
+    expect(screen.getByRole("button", { name: "layer 2" })).toHaveClass("is-selected");
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
   });
 
   it("inserts a new image layer above the selected layer", () => {
@@ -6929,11 +6954,15 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("manual flatten collapses to layer 1 without adding a reference-grid copy", async () => {
-    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    const onPrimaryImageChange = vi.fn();
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />
+    );
 
     uploadPrimaryFile(container, "layer-1.png");
     uploadPrimaryFile(container, "layer-2.png");
     expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    onPrimaryImageChange.mockClear();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /flatten/i }));
@@ -6943,6 +6972,7 @@ describe("ExpertEditPanelView", () => {
     expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
   });
 
   it("shows flatten pending feedback while manual flatten is in progress", async () => {

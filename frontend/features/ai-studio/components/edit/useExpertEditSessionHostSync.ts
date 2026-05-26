@@ -17,8 +17,15 @@ type UseExpertEditSessionHostSyncArgs = {
   foundationLayerId: string | null;
   lastDispatchedPrimaryRef: React.MutableRefObject<string | null>;
   previousPrimaryPropRef: React.MutableRefObject<string | null>;
+  suppressNextPrimaryPublishUrlRef: React.MutableRefObject<string | null>;
   removeBackgroundPendingSourceUrlRef: React.MutableRefObject<string | null>;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
+  rebasePanelHistoryLayerImage: (args: {
+    layerId: string;
+    previousImageUrl: string | null;
+    nextImageUrl: string | null;
+    ownsImageUrl: boolean;
+  }) => void;
   clearRemoveBackgroundPending: () => void;
   onPrimaryImageChange: (url: string | null) => void;
   revokeObjectUrlSafe: (url: string) => void;
@@ -34,8 +41,10 @@ export function useExpertEditSessionHostSync({
   foundationLayerId,
   lastDispatchedPrimaryRef,
   previousPrimaryPropRef,
+  suppressNextPrimaryPublishUrlRef,
   removeBackgroundPendingSourceUrlRef,
   setLayers,
+  rebasePanelHistoryLayerImage,
   clearRemoveBackgroundPending,
   onPrimaryImageChange,
   revokeObjectUrlSafe,
@@ -48,7 +57,11 @@ export function useExpertEditSessionHostSync({
     foundationLayerId,
     lastDispatchedPrimaryRef,
     previousPrimaryPropRef,
+    suppressNextPrimaryPublishUrlRef,
+    removeBackgroundPendingSourceUrlRef,
+    layers,
     setLayers,
+    rebasePanelHistoryLayerImage,
     onPrimaryImageChange,
   });
 

@@ -717,6 +717,7 @@ const useAiStudioReferenceExperienceRuntime = ({
     editReferenceText,
     findOutputById,
     handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotDroppedFiles,
     handleQuickSlotLibraryPromptDrop,
     onReferenceOutputMediaLoaded,
     outputs,
@@ -779,10 +780,12 @@ const useAiStudioReferenceExperienceRuntime = ({
     () => ({
       ...referenceGridHookProps,
       railCanvasProps,
+      onAddDroppedFilesToQuickSlot: handleQuickSlotDroppedFiles,
       onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
       onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
     }),
     [
+      handleQuickSlotDroppedFiles,
       handleQuickSlotLibraryMediaDrop,
       handleQuickSlotLibraryPromptDrop,
       railCanvasProps,

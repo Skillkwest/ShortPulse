@@ -1,4 +1,5 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
 import type { MediaListCursor } from "../../media-library/logic/mediaListApi";
 import { isTransientMediaLibraryNetworkError } from "./mediaLibraryErrorText";
 
@@ -101,6 +102,87 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 
 const asString = (value: unknown): string => {
   return typeof value === "string" ? value.trim() : "";
+};
+
+const IMAGE_UPLOAD_MAX_MB = 25;
+const VIDEO_UPLOAD_MAX_MB = 100;
+const AUDIO_UPLOAD_MAX_MB = 100;
+
+const isImageFile = (file: File): boolean => file.type.trim().toLowerCase().startsWith("image/");
+
+const normalizeUploadFileForApi = async (file: File): Promise<File> => {
+  if (!isImageFile(file)) return file;
+  const transcodedBlob = await maybeTranscodeLocalImageBlobForUpload(file);
+  if (transcodedBlob === file) return file;
+  return new File([transcodedBlob], file.name, {
+    type: transcodedBlob.type || file.type,
+    lastModified: file.lastModified,
+  });
+};
+
+const resolveUploadTooLargeMessage = (file: File): string => {
+  const normalizedType = file.type.trim().toLowerCase();
+  if (normalizedType.startsWith("image/")) {
+    return `Image file is too large. ShortPulse accepts images up to ${IMAGE_UPLOAD_MAX_MB} MB.`;
+  }
+  if (normalizedType.startsWith("video/")) {
+    return `Video file is too large. ShortPulse accepts videos up to ${VIDEO_UPLOAD_MAX_MB} MB.`;
+  }
+  if (normalizedType.startsWith("audio/")) {
+    return `Audio file is too large. ShortPulse accepts audio files up to ${AUDIO_UPLOAD_MAX_MB} MB.`;
+  }
+  return "Selected file is too large for upload.";
+};
+
+const readUploadErrorResponse = async (
+  response: Response
+): Promise<{
+  payload: MediaUploadResponse | null;
+  rawText: string;
+}> => {
+  const rawText = await response.text().catch(() => "");
+  if (!rawText.trim()) {
+    return {
+      payload: null,
+      rawText: "",
+    };
+  }
+  try {
+    return {
+      payload: JSON.parse(rawText) as MediaUploadResponse,
+      rawText,
+    };
+  } catch {
+    return {
+      payload: null,
+      rawText,
+    };
+  }
+};
+
+const resolveUploadErrorMessage = ({
+  response,
+  file,
+  payload,
+  rawText,
+}: {
+  response: Response;
+  file: File;
+  payload: MediaUploadResponse | null;
+  rawText: string;
+}): string => {
+  const details = asString(payload?.details);
+  if (details) return details;
+  const error = asString(payload?.error);
+  if (error) return error;
+  if (response.status === 413) {
+    return resolveUploadTooLargeMessage(file);
+  }
+  const trimmedRawText = rawText.trim();
+  if (trimmedRawText && !trimmedRawText.startsWith("<")) {
+    return trimmedRawText;
+  }
+  return "Unable to upload media.";
 };
 
 const toNonNegativeInteger = (value: unknown): number => {
@@ -597,8 +679,9 @@ export const uploadMediaFile = async ({
   file: File;
   destinationTab: MediaUploadDestinationTab;
 }): Promise<MediaUploadRow> => {
+  const normalizedFile = await normalizeUploadFileForApi(file);
   const body = new FormData();
-  body.append("file", file);
+  body.append("file", normalizedFile);
   body.append("destinationTab", destinationTab);
 
   const response = await fetchWithAuth("/api/media/upload", {
@@ -607,10 +690,15 @@ export const uploadMediaFile = async ({
     shortpulseLogScope: "app",
   });
 
-  const payload = (await response.json().catch(() => null)) as MediaUploadResponse | null;
+  const { payload, rawText } = await readUploadErrorResponse(response);
   if (!response.ok) {
     throw new Error(
-      asString(payload?.details) || asString(payload?.error) || "Unable to upload media."
+      resolveUploadErrorMessage({
+        response,
+        file: normalizedFile,
+        payload,
+        rawText,
+      })
     );
   }
 

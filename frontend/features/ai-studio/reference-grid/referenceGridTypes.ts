@@ -60,6 +60,13 @@ export type ReferenceGridProps = {
       placement: "before" | "after" | "end";
     }
   ) => Promise<string | null>;
+  onAddDroppedFilesToQuickSlot?: (
+    files: FileList,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => Promise<string[]>;
   onAddLibraryPromptReferenceToQuickSlot?: (
     payload: LibraryPromptReferencePayload,
     options?: {

@@ -23,7 +23,6 @@ type UseExpertEditStageTransformRuntimeParams = {
   layers: ExpertEditLayer[];
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   selectedLayer: ExpertEditLayer | null;
-  selectedLayerImageUrl: string | null;
   selectedLayerHasRenderableImage: boolean;
   hasPrimaryCompositePreview: boolean;
   isMoveToolSelected: boolean;
@@ -46,6 +45,9 @@ type UseExpertEditStageTransformRuntimeParams = {
     currentTarget: HTMLDivElement
   ) => { offsetX: number; offsetY: number };
   showStatusToast: (message: string) => void;
+  beginPanelHistoryGestureForLayers: (layers: ExpertEditLayer[]) => void;
+  finalizePanelHistoryGesture: () => void;
+  queuePanelHistoryBaselineFromCurrent: () => void;
   transformHistoryState: TransformHistoryState;
   setTransformHistoryState: React.Dispatch<React.SetStateAction<TransformHistoryState>>;
   resetStageViewport: () => void;
@@ -55,7 +57,6 @@ export const useExpertEditStageTransformRuntime = ({
   layers,
   setLayers,
   selectedLayer,
-  selectedLayerImageUrl,
   selectedLayerHasRenderableImage,
   hasPrimaryCompositePreview,
   isMoveToolSelected,
@@ -75,6 +76,9 @@ export const useExpertEditStageTransformRuntime = ({
   resolveLayerImageAspectRatio,
   resolveViewportOffsetPixels,
   showStatusToast,
+  beginPanelHistoryGestureForLayers,
+  finalizePanelHistoryGesture,
+  queuePanelHistoryBaselineFromCurrent,
   transformHistoryState,
   setTransformHistoryState,
   resetStageViewport,
@@ -153,6 +157,8 @@ export const useExpertEditStageTransformRuntime = ({
     viewportOffsetXRatio: stageViewport.offsetXRatio,
     viewportOffsetYRatio: stageViewport.offsetYRatio,
     resolveViewportOffsetPixels,
+    beginPanelHistoryGestureForLayers,
+    finalizePanelHistoryGesture,
     commitTransformHistoryTransition,
     showStatusToast,
     transformHistoryState,
@@ -250,6 +256,7 @@ export const useExpertEditStageTransformRuntime = ({
   ]);
 
   const handleRecenterMoveAction = React.useCallback(() => {
+    queuePanelHistoryBaselineFromCurrent();
     if (selectedLayer) {
       const nextLayers = layers.map((layer) =>
         layer.id === selectedLayer.id
@@ -267,7 +274,14 @@ export const useExpertEditStageTransformRuntime = ({
       }
     }
     resetStageViewport();
-  }, [commitTransformHistoryTransition, layers, resetStageViewport, selectedLayer, setLayers]);
+  }, [
+    commitTransformHistoryTransition,
+    layers,
+    queuePanelHistoryBaselineFromCurrent,
+    resetStageViewport,
+    selectedLayer,
+    setLayers,
+  ]);
 
   return {
     activeStageRenderScale,

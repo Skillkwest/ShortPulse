@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioSessionAutosave } from "../useAiStudioSessionAutosave";
+import { prepareAiStudioSessionAutosaveSnapshot } from "../../logic/sessionAutosaveSerialization";
 import type {
   AiStudioSessionSnapshotV1,
   AiStudioSessionSnapshotV2,
@@ -281,6 +282,39 @@ describe("useAiStudioSessionAutosave", () => {
       await Promise.resolve();
     });
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a prepared autosave snapshot when one is supplied", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshotV2();
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(snapshot, {
+      title: "Prepared Project",
+    });
+    const resolveSnapshotTitle = vi.fn(() => "Should not be used");
+
+    renderHook(() =>
+      useAiStudioSessionAutosave({
+        sessionId: snapshot.sessionId,
+        snapshot,
+        enabled: true,
+        persistSnapshot,
+        resolveSnapshotTitle,
+        preparedSnapshot,
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(resolveSnapshotTitle).not.toHaveBeenCalled();
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        title: "Prepared Project",
+      })
+    );
   });
 
   it("reports oversize snapshots and skips persistence", async () => {

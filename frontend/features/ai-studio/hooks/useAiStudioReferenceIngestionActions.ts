@@ -48,6 +48,16 @@ type QuickSlotLibraryPlacement = {
   placement: "before" | "after" | "end";
 };
 
+type IngestedReferenceMediaResult = {
+  outputId: string;
+  payload: LibraryMediaReferencePayload;
+  output: StudioOutput;
+};
+
+type IngestedReferenceFileResult = IngestedReferenceMediaResult & {
+  file: File;
+};
+
 const resolveUploadDestinationTabForReferenceFile = (
   file: File
 ): MediaUploadDestinationTab | null => {
@@ -95,6 +105,10 @@ type UseAiStudioReferenceIngestionActionsResult = {
     payload: LibraryPromptReferencePayload,
     placement?: QuickSlotLibraryPlacement
   ) => string | null;
+  ingestReferenceFiles: (
+    files: FileList | File[],
+    source?: "filePicker" | "drop"
+  ) => Promise<IngestedReferenceFileResult[]>;
   addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => Promise<void>;
   getAgentContext: (options?: {
     lastAssistantMessage?: string | null;
@@ -171,7 +185,7 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const insertLibraryMediaReference = useCallback(
-    async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
+    async (payload: LibraryMediaReferencePayload): Promise<IngestedReferenceMediaResult | null> => {
       const outputId = `library-${randomId()}`;
       const optimisticOutput = buildLibraryMediaOutputWithId(payload, outputId);
       if (!optimisticOutput) {
@@ -192,34 +206,43 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       }
 
+      let resolvedPayload = payload;
+      let resolvedOutput = optimisticOutput;
       try {
         const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
         const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
-        if (!refreshedOutput) return outputId;
-        updateOutputById(outputId, (item) => ({
-          ...item,
-          prompt: refreshedOutput.prompt,
-          model: refreshedOutput.model,
-          status: refreshedOutput.status,
-          timestamp: refreshedOutput.timestamp,
-          resultUrls: refreshedOutput.resultUrls,
-          previewUrl: refreshedOutput.previewUrl,
-          previewPosterUrl: refreshedOutput.previewPosterUrl,
-          previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
-          companionArtUrl: refreshedOutput.companionArtUrl,
-          companionArtStoragePath: refreshedOutput.companionArtStoragePath,
-          previewStoragePath: refreshedOutput.previewStoragePath,
-          fullStoragePath: refreshedOutput.fullStoragePath,
-          mediaSource: refreshedOutput.mediaSource,
-          previewTier: refreshedOutput.previewTier,
-          savedMediaIds: refreshedOutput.savedMediaIds,
-        }));
+        resolvedPayload = preparedPayload;
+        if (refreshedOutput) {
+          resolvedOutput = refreshedOutput;
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            prompt: refreshedOutput.prompt,
+            model: refreshedOutput.model,
+            status: refreshedOutput.status,
+            timestamp: refreshedOutput.timestamp,
+            resultUrls: refreshedOutput.resultUrls,
+            previewUrl: refreshedOutput.previewUrl,
+            previewPosterUrl: refreshedOutput.previewPosterUrl,
+            previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
+            companionArtUrl: refreshedOutput.companionArtUrl,
+            companionArtStoragePath: refreshedOutput.companionArtStoragePath,
+            previewStoragePath: refreshedOutput.previewStoragePath,
+            fullStoragePath: refreshedOutput.fullStoragePath,
+            mediaSource: refreshedOutput.mediaSource,
+            previewTier: refreshedOutput.previewTier,
+            savedMediaIds: refreshedOutput.savedMediaIds,
+          }));
+        }
       } catch {
         // Keep the optimistic card visible. The current drag payload already contains
         // a renderable preview candidate for right-rail insertion.
       }
 
-      return outputId;
+      return {
+        outputId,
+        payload: resolvedPayload,
+        output: resolvedOutput,
+      };
     },
     [
       buildLibraryMediaOutputWithId,
@@ -330,7 +353,8 @@ export const useAiStudioReferenceIngestionActions = ({
 
   const addLibraryMediaReferenceToQuickSlot = useCallback(
     async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
-      return await insertLibraryMediaReference(payload);
+      const inserted = await insertLibraryMediaReference(payload);
+      return inserted?.outputId ?? null;
     },
     [insertLibraryMediaReference]
   );
@@ -342,8 +366,8 @@ export const useAiStudioReferenceIngestionActions = ({
     [insertLibraryPromptReference]
   );
 
-  const addOutputsFromFiles = useCallback(
-    async (files: FileList) => {
+  const ingestReferenceFiles = useCallback(
+    async (files: FileList | File[]): Promise<IngestedReferenceFileResult[]> => {
       const orderedFiles = Array.from(files);
       const supportedCandidates = orderedFiles
         .map((file, index) => {
@@ -366,6 +390,7 @@ export const useAiStudioReferenceIngestionActions = ({
       const rejectedFileCount = Math.max(0, orderedFiles.length - supportedCandidates.length);
       let importedCount = 0;
       let firstErrorMessage: string | null = null;
+      const insertedResults: IngestedReferenceFileResult[] = [];
 
       for (let index = supportedCandidates.length - 1; index >= 0; index -= 1) {
         const candidate = supportedCandidates[index];
@@ -375,7 +400,15 @@ export const useAiStudioReferenceIngestionActions = ({
             file: candidate.file,
             destinationTab: candidate.destinationTab,
           });
-          await insertLibraryMediaReference(toLibraryMediaReferencePayloadFromUpload(uploaded));
+          const inserted = await insertLibraryMediaReference(
+            toLibraryMediaReferencePayloadFromUpload(uploaded)
+          );
+          if (inserted) {
+            insertedResults.unshift({
+              ...inserted,
+              file: candidate.file,
+            });
+          }
           importedCount += 1;
         } catch (error) {
           if (!firstErrorMessage) {
@@ -393,14 +426,22 @@ export const useAiStudioReferenceIngestionActions = ({
             firstErrorMessage ?? "Unable to add those files right now. Please try again."
           );
         }
-        return;
+        return [];
       }
 
       if (firstErrorMessage || rejectedFileCount > 0) {
         setUiError?.("Some files could not be added. The rest were added.");
       }
+      return insertedResults;
     },
     [insertLibraryMediaReference, setUiError]
+  );
+
+  const addOutputsFromFiles = useCallback(
+    async (files: FileList) => {
+      await ingestReferenceFiles(files);
+    },
+    [ingestReferenceFiles]
   );
 
   const getAgentContext = useCallback(
@@ -433,6 +474,7 @@ export const useAiStudioReferenceIngestionActions = ({
     addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,
     addLibraryPromptReferenceToQuickSlot,
+    ingestReferenceFiles,
     addOutputsFromFiles,
     getAgentContext,
   };

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExpertEditPanelView } from "../ExpertEditPanelView";
@@ -163,6 +163,68 @@ describe("ExpertEditPanelView interaction flow", () => {
     });
     expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+  });
+
+  it("preserves prompt-box undo ownership instead of undoing panel history", async () => {
+    render(
+      <ExpertEditPanelView
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/original.png"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const frameStack = screen.getByTestId("edit-expert-primary-canvas-frame-stack");
+    fireEvent.drop(frameStack, {
+      dataTransfer: makeImageDropDataTransfer("https://example.com/added.png"),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    });
+
+    const promptInput = screen.getByRole("textbox");
+    act(() => {
+      promptInput.focus();
+    });
+    act(() => {
+      fireEvent.keyDown(promptInput, {
+        key: "z",
+        metaKey: true,
+      });
+    });
+
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
   });
 
   it("moves keyboard focus onto the inline stage when the canvas is pressed", async () => {

@@ -131,6 +131,17 @@ export const useMediaLibraryPanelSelectionController = ({
     [currentUserIdRef, refreshSignedUrl, signStoragePath]
   );
 
+  const resolvePreviewModalFullUrl = React.useCallback(
+    async (file: MediaFileRow): Promise<string | null> => {
+      const storagePath = file.storage_path?.trim() ?? "";
+      if (!storagePath) return null;
+      const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
+      const normalized = (signedUrl ?? "").trim();
+      return normalized || null;
+    },
+    [signStoragePath]
+  );
+
   const closePreviewModal = React.useCallback(() => {
     previewResolveTokenRef.current += 1;
     setPreviewModalFile(null);
@@ -144,29 +155,37 @@ export const useMediaLibraryPanelSelectionController = ({
       if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
+      const immediatePreviewUrl = (file.signedUrl ?? "").trim() || null;
       setPreviewModalFile(file);
-      setPreviewModalUrl((file.signedUrl ?? "").trim() || null);
+      setPreviewModalUrl(immediatePreviewUrl);
       setPreviewModalLoading(true);
       setPreviewModalError(null);
-      void resolvePreviewModalUrl(file)
-        .then((resolvedUrl) => {
+      // Open quickly on the current browse preview when available, then promote
+      // the focused modal render to the signed original asset once it resolves.
+      void (async () => {
+        try {
+          const [resolvedFullUrl, resolvedPreviewUrl] = await Promise.all([
+            resolvePreviewModalFullUrl(file).catch(() => null),
+            (immediatePreviewUrl
+              ? Promise.resolve(immediatePreviewUrl)
+              : resolvePreviewModalUrl(file)
+            ).catch(() => null),
+          ]);
           if (previewResolveTokenRef.current !== nextToken) return;
+          const resolvedUrl = resolvedFullUrl ?? resolvedPreviewUrl ?? null;
           if (resolvedUrl) {
             setPreviewModalUrl(resolvedUrl);
             return;
           }
           setPreviewModalError("Failed to load preview.");
-        })
-        .catch(() => {
-          if (previewResolveTokenRef.current !== nextToken) return;
-          setPreviewModalError("Failed to load preview.");
-        })
-        .finally(() => {
-          if (previewResolveTokenRef.current !== nextToken) return;
-          setPreviewModalLoading(false);
-        });
+        } finally {
+          if (previewResolveTokenRef.current === nextToken) {
+            setPreviewModalLoading(false);
+          }
+        }
+      })();
     },
-    [activeFolderId, resolvePreviewModalUrl]
+    [activeFolderId, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
   );
 
   const handleMediaCardContextMenu = React.useCallback(

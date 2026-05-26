@@ -50,6 +50,19 @@ export type StudioShellScenario = {
   interaction: { maxInputStallMs: number };
 };
 
+export type ProjectWorkspaceAutosaveTypingScenario = {
+  field: "standardPrompt" | "editReferenceText" | "videoReferenceText";
+  commit: { samples: number; p95Ms: number | null };
+  autosave: {
+    baseSnapshotBuildsP95: number | null;
+    baseSnapshotBuildMsP95: number | null;
+    sessionSnapshotComposeCountP95: number | null;
+    sessionSnapshotComposeMsP95: number | null;
+    candidateSelectionCountP95: number | null;
+    candidateSelectionMsP95: number | null;
+  };
+};
+
 export const evaluateReferenceGridAuditGates = (
   scenarios: ReferenceGridScenario[],
   thresholds: {
@@ -222,6 +235,110 @@ export const evaluateStudioShellAuditGates = (
       typeof s60.nonGridRerendersPerOutputStatusTick.propertiesP95 === "number"
         ? undefined
         : "No output status tick samples captured for properties.",
+  });
+
+  return gates;
+};
+
+export const evaluateProjectWorkspaceAutosaveTypingAuditGates = (
+  scenarios: ProjectWorkspaceAutosaveTypingScenario[],
+  thresholds: {
+    standardPromptCommitP95Ms: number;
+    standardPromptBaseSnapshotBuildsP95: number;
+    standardPromptSessionSnapshotComposeCountP95: number;
+    standardPromptCandidateSelectionCountP95: number;
+    draftCommitP95Ms: number;
+    draftBaseSnapshotBuildsP95: number;
+    draftSessionSnapshotComposeCountP95: number;
+    draftCandidateSelectionCountP95: number;
+  }
+): PerfGate[] => {
+  const scenarioByField = new Map(scenarios.map((scenario) => [scenario.field, scenario]));
+  const gates: PerfGate[] = [];
+  const standardPrompt = scenarioByField.get("standardPrompt") ?? null;
+  const editReferenceText = scenarioByField.get("editReferenceText") ?? null;
+  const videoReferenceText = scenarioByField.get("videoReferenceText") ?? null;
+
+  if (!standardPrompt || !editReferenceText || !videoReferenceText) {
+    gates.push({
+      name: "project_workspace_autosave_typing_scenarios_exist",
+      pass: false,
+      actual: null,
+      expected: "standardPrompt, editReferenceText, and videoReferenceText scenarios must run.",
+    });
+    return gates;
+  }
+
+  gates.push({
+    name: "project_standard_prompt_commit_p95_ms",
+    pass:
+      typeof standardPrompt.commit.p95Ms === "number" &&
+      standardPrompt.commit.p95Ms <= thresholds.standardPromptCommitP95Ms,
+    actual: standardPrompt.commit.p95Ms,
+    expected: `<= ${thresholds.standardPromptCommitP95Ms}`,
+  });
+  gates.push({
+    name: "project_standard_prompt_base_snapshot_builds_p95",
+    pass:
+      typeof standardPrompt.autosave.baseSnapshotBuildsP95 === "number" &&
+      standardPrompt.autosave.baseSnapshotBuildsP95 <=
+        thresholds.standardPromptBaseSnapshotBuildsP95,
+    actual: standardPrompt.autosave.baseSnapshotBuildsP95,
+    expected: `<= ${thresholds.standardPromptBaseSnapshotBuildsP95}`,
+  });
+  gates.push({
+    name: "project_standard_prompt_session_snapshot_compose_count_p95",
+    pass:
+      typeof standardPrompt.autosave.sessionSnapshotComposeCountP95 === "number" &&
+      standardPrompt.autosave.sessionSnapshotComposeCountP95 <=
+        thresholds.standardPromptSessionSnapshotComposeCountP95,
+    actual: standardPrompt.autosave.sessionSnapshotComposeCountP95,
+    expected: `<= ${thresholds.standardPromptSessionSnapshotComposeCountP95}`,
+  });
+  gates.push({
+    name: "project_standard_prompt_candidate_selection_count_p95",
+    pass:
+      typeof standardPrompt.autosave.candidateSelectionCountP95 === "number" &&
+      standardPrompt.autosave.candidateSelectionCountP95 <=
+        thresholds.standardPromptCandidateSelectionCountP95,
+    actual: standardPrompt.autosave.candidateSelectionCountP95,
+    expected: `<= ${thresholds.standardPromptCandidateSelectionCountP95}`,
+  });
+
+  [editReferenceText, videoReferenceText].forEach((scenario) => {
+    gates.push({
+      name: `project_${scenario.field}_commit_p95_ms`,
+      pass:
+        typeof scenario.commit.p95Ms === "number" &&
+        scenario.commit.p95Ms <= thresholds.draftCommitP95Ms,
+      actual: scenario.commit.p95Ms,
+      expected: `<= ${thresholds.draftCommitP95Ms}`,
+    });
+    gates.push({
+      name: `project_${scenario.field}_base_snapshot_builds_p95`,
+      pass:
+        typeof scenario.autosave.baseSnapshotBuildsP95 === "number" &&
+        scenario.autosave.baseSnapshotBuildsP95 <= thresholds.draftBaseSnapshotBuildsP95,
+      actual: scenario.autosave.baseSnapshotBuildsP95,
+      expected: `<= ${thresholds.draftBaseSnapshotBuildsP95}`,
+    });
+    gates.push({
+      name: `project_${scenario.field}_session_snapshot_compose_count_p95`,
+      pass:
+        typeof scenario.autosave.sessionSnapshotComposeCountP95 === "number" &&
+        scenario.autosave.sessionSnapshotComposeCountP95 <=
+          thresholds.draftSessionSnapshotComposeCountP95,
+      actual: scenario.autosave.sessionSnapshotComposeCountP95,
+      expected: `<= ${thresholds.draftSessionSnapshotComposeCountP95}`,
+    });
+    gates.push({
+      name: `project_${scenario.field}_candidate_selection_count_p95`,
+      pass:
+        typeof scenario.autosave.candidateSelectionCountP95 === "number" &&
+        scenario.autosave.candidateSelectionCountP95 <= thresholds.draftCandidateSelectionCountP95,
+      actual: scenario.autosave.candidateSelectionCountP95,
+      expected: `<= ${thresholds.draftCandidateSelectionCountP95}`,
+    });
   });
 
   return gates;

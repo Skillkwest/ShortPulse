@@ -61,6 +61,7 @@ export function MediaLibraryPanelPreviewModal({
   const isVideo = isVideoFile(file.file_type);
   const isAudio = isAudioFile(file.file_type);
   const title = (file.filename ?? "").trim() || "Media preview";
+  const canRenderMedia = Boolean(previewUrl);
 
   return (
     <AiStudioModalLayer>
@@ -90,14 +91,14 @@ export function MediaLibraryPanelPreviewModal({
           </header>
 
           <div className="media-library-panel-preview-body">
-            {isLoading ? <p className="tiny subdued">Loading preview…</p> : null}
-            {!isLoading && !previewUrl ? (
+            {isLoading && !canRenderMedia ? <p className="tiny subdued">Loading preview…</p> : null}
+            {!isLoading && !canRenderMedia ? (
               <p className="tiny subdued">{error || "Preview unavailable."}</p>
             ) : null}
-            {!isLoading && previewUrl && isVideo ? (
+            {canRenderMedia && isVideo ? (
               <video
                 className="media-library-panel-preview-media"
-                src={previewUrl}
+                src={previewUrl ?? undefined}
                 ref={videoRef}
                 controls
                 autoPlay
@@ -109,10 +110,10 @@ export function MediaLibraryPanelPreviewModal({
                 onVolumeChange={videoPlayback.handleVolumeChange}
               />
             ) : null}
-            {!isLoading && previewUrl && isAudio ? (
+            {canRenderMedia && isAudio ? (
               <audio
                 className="media-library-panel-preview-media"
-                src={previewUrl}
+                src={previewUrl ?? undefined}
                 ref={audioRef}
                 controls
                 autoPlay
@@ -123,11 +124,15 @@ export function MediaLibraryPanelPreviewModal({
                 onVolumeChange={audioPlayback.handleVolumeChange}
               />
             ) : null}
-            {!isLoading && previewUrl && !isVideo && !isAudio ? (
+            {canRenderMedia && !isVideo && !isAudio ? (
               <>
                 {/* Signed URLs are generated dynamically at runtime. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="media-library-panel-preview-media" src={previewUrl} alt={title} />
+                <img
+                  className="media-library-panel-preview-media"
+                  src={previewUrl ?? undefined}
+                  alt={title}
+                />
               </>
             ) : null}
           </div>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateReferenceGridAuditGates,
+  evaluateProjectWorkspaceAutosaveTypingAuditGates,
   evaluateStudioShellAuditGates,
+  type ProjectWorkspaceAutosaveTypingScenario,
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../perfAuditGates";
@@ -24,6 +26,17 @@ const SHELL_THRESHOLDS = {
   longTaskP95Ms: 120,
   maxInputStallMs: 1000,
   nonGridRerendersPerOutputStatusTick: 3,
+};
+
+const PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS = {
+  standardPromptCommitP95Ms: 45,
+  standardPromptBaseSnapshotBuildsP95: 1,
+  standardPromptSessionSnapshotComposeCountP95: 1,
+  standardPromptCandidateSelectionCountP95: 1,
+  draftCommitP95Ms: 30,
+  draftBaseSnapshotBuildsP95: 0,
+  draftSessionSnapshotComposeCountP95: 0,
+  draftCandidateSelectionCountP95: 0,
 };
 
 describe("perfAuditGates", () => {
@@ -181,5 +194,104 @@ describe("perfAuditGates", () => {
     expect(longTask40?.pass).toBe(true);
     expect(longTask60?.pass).toBe(true);
     expect(longTask40?.note).toContain("No long tasks observed");
+  });
+
+  it("passes project autosave typing gates when drafts trigger no project snapshot churn", () => {
+    const scenarios: ProjectWorkspaceAutosaveTypingScenario[] = [
+      {
+        field: "standardPrompt",
+        commit: { samples: 12, p95Ms: 28 },
+        autosave: {
+          baseSnapshotBuildsP95: 1,
+          baseSnapshotBuildMsP95: 7,
+          sessionSnapshotComposeCountP95: 1,
+          sessionSnapshotComposeMsP95: 4,
+          candidateSelectionCountP95: 1,
+          candidateSelectionMsP95: 3,
+        },
+      },
+      {
+        field: "editReferenceText",
+        commit: { samples: 12, p95Ms: 18 },
+        autosave: {
+          baseSnapshotBuildsP95: 0,
+          baseSnapshotBuildMsP95: 0,
+          sessionSnapshotComposeCountP95: 0,
+          sessionSnapshotComposeMsP95: 0,
+          candidateSelectionCountP95: 0,
+          candidateSelectionMsP95: 0,
+        },
+      },
+      {
+        field: "videoReferenceText",
+        commit: { samples: 12, p95Ms: 20 },
+        autosave: {
+          baseSnapshotBuildsP95: 0,
+          baseSnapshotBuildMsP95: 0,
+          sessionSnapshotComposeCountP95: 0,
+          sessionSnapshotComposeMsP95: 0,
+          candidateSelectionCountP95: 0,
+          candidateSelectionMsP95: 0,
+        },
+      },
+    ];
+
+    const gates = evaluateProjectWorkspaceAutosaveTypingAuditGates(
+      scenarios,
+      PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS
+    );
+
+    expect(gates.every((gate) => gate.pass)).toBe(true);
+  });
+
+  it("fails project autosave typing gates when draft edits still rebuild project snapshots", () => {
+    const scenarios: ProjectWorkspaceAutosaveTypingScenario[] = [
+      {
+        field: "standardPrompt",
+        commit: { samples: 12, p95Ms: 28 },
+        autosave: {
+          baseSnapshotBuildsP95: 1,
+          baseSnapshotBuildMsP95: 7,
+          sessionSnapshotComposeCountP95: 1,
+          sessionSnapshotComposeMsP95: 4,
+          candidateSelectionCountP95: 1,
+          candidateSelectionMsP95: 3,
+        },
+      },
+      {
+        field: "editReferenceText",
+        commit: { samples: 12, p95Ms: 18 },
+        autosave: {
+          baseSnapshotBuildsP95: 1,
+          baseSnapshotBuildMsP95: 5,
+          sessionSnapshotComposeCountP95: 1,
+          sessionSnapshotComposeMsP95: 3,
+          candidateSelectionCountP95: 1,
+          candidateSelectionMsP95: 2,
+        },
+      },
+      {
+        field: "videoReferenceText",
+        commit: { samples: 12, p95Ms: 20 },
+        autosave: {
+          baseSnapshotBuildsP95: 0,
+          baseSnapshotBuildMsP95: 0,
+          sessionSnapshotComposeCountP95: 0,
+          sessionSnapshotComposeMsP95: 0,
+          candidateSelectionCountP95: 0,
+          candidateSelectionMsP95: 0,
+        },
+      },
+    ];
+
+    const gates = evaluateProjectWorkspaceAutosaveTypingAuditGates(
+      scenarios,
+      PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS
+    );
+    const draftBuildGate = gates.find(
+      (gate) => gate.name === "project_editReferenceText_base_snapshot_builds_p95"
+    );
+
+    expect(draftBuildGate?.pass).toBe(false);
   });
 });

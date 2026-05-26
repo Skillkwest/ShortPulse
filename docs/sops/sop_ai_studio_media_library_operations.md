@@ -100,10 +100,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Reference Grid,
    - Quick Slot Inventory,
    - Canvas surfaces.
-3. Drag interactions must show a visible drag ghost image for tactile feedback.
-4. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
-5. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
-6. Any media or prompt added into the Reference Grid from Media Library or local upload paths must use the moment it appears in the Reference Grid as its ordering timestamp, so the newest grid additions render first regardless of the source row's original `created_at`.
+3. Users can drop desktop image files directly into `Canvas` and `Quick Slot Inventory`. Those drops must proxy through the canonical Reference Grid ingest path first: the asset is created in Reference Grid, then immediately projected onto the surface that owned the drop.
+4. Drag interactions must show a visible drag ghost image for tactile feedback.
+5. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
+6. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
+7. Any media or prompt added into the Reference Grid from Media Library or local upload paths must use the moment it appears in the Reference Grid as its ordering timestamp, so the newest grid additions render first regardless of the source row's original `created_at`.
 
 ### 6) Right-click behaviors
 
@@ -196,7 +197,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
 6. Cross-surface ingest in the canonical AI Studio shell:
    - Status: Aligned.
-   - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly.
+   - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly. Desktop image drops into Quick Slot Inventory and Canvas are also surface-owned and must proxy through canonical Reference Grid ingestion before projecting onto the owning surface.
 7. Panel bulk media actions:
    - Status: Aligned.
    - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens preview-only modal behavior.

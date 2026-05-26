@@ -21,6 +21,7 @@ type UseExpertEditDocumentStateParams = {
   isMorePresetsSurfaceOpen: boolean;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  queuePanelHistoryBaselineFromCurrent: () => void;
 };
 
 type CreateLayerArgs = {
@@ -37,8 +38,10 @@ export function useExpertEditDocumentState({
   isMorePresetsSurfaceOpen,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
+  queuePanelHistoryBaselineFromCurrent,
 }: UseExpertEditDocumentStateParams) {
   const layerIdCounterRef = React.useRef(initialLayerState.layerIdCounter);
+  const [layerIdCounter, setLayerIdCounter] = React.useState(initialLayerState.layerIdCounter);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
     ...initialLayerState.layers,
   ]);
@@ -57,15 +60,21 @@ export function useExpertEditDocumentState({
       opacity = LAYER_OPACITY_DEFAULT,
       isAutoNamed = true,
       ownsImageUrl = false,
-    }: CreateLayerArgs): ExpertEditLayer => ({
-      id: `layer-${layerIdCounterRef.current++}`,
-      name: name ?? formatLayerName(indexOneBased),
-      imageUrl: imageUrl ?? null,
-      opacity: clampLayerOpacity(opacity),
-      isAutoNamed,
-      ownsImageUrl,
-      transform: defaultLayerTransform(),
-    }),
+    }: CreateLayerArgs): ExpertEditLayer => {
+      const nextIdCounter = layerIdCounterRef.current + 1;
+      const nextLayer: ExpertEditLayer = {
+        id: `layer-${layerIdCounterRef.current}`,
+        name: name ?? formatLayerName(indexOneBased),
+        imageUrl: imageUrl ?? null,
+        opacity: clampLayerOpacity(opacity),
+        isAutoNamed,
+        ownsImageUrl,
+        transform: defaultLayerTransform(),
+      };
+      layerIdCounterRef.current = nextIdCounter;
+      setLayerIdCounter(nextIdCounter);
+      return nextLayer;
+    },
     []
   );
 
@@ -100,6 +109,7 @@ export function useExpertEditDocumentState({
     layers,
     foundationLayerId,
     resolvedSelectedLayerIndex,
+    queuePanelHistoryBaselineFromCurrent,
     setLayers,
     setSelectedLayerIndex,
   });
@@ -116,11 +126,15 @@ export function useExpertEditDocumentState({
     });
   const selectedLayerHasRenderableImage = hasRenderableLayerImage(selectedLayer);
 
-  const hostPrimaryImageUrl = React.useMemo(
-    () =>
-      selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
-    [layers, selectedLayerImageUrl]
-  );
+  const hostPrimaryImageUrl = React.useMemo(() => {
+    const foundationLayer = foundationLayerId
+      ? (layers.find((layer) => layer.id === foundationLayerId) ?? null)
+      : null;
+    return isExpertEditImageUrl(foundationLayer?.imageUrl) &&
+      typeof foundationLayer?.imageUrl === "string"
+      ? foundationLayer.imageUrl.trim()
+      : null;
+  }, [foundationLayerId, layers]);
 
   const {
     primaryDragActive,
@@ -136,6 +150,7 @@ export function useExpertEditDocumentState({
     foundationLayerId,
     isMorePresetsSurfaceOpen,
     createLayer,
+    queuePanelHistoryBaselineFromCurrent,
     setLayers,
     setSelectedLayerIndex,
     setEditingLayerIndex,
@@ -148,6 +163,7 @@ export function useExpertEditDocumentState({
   const handleRemoveSelectedLayerImage = React.useCallback(() => {
     const selectedLayerId = selectedLayer?.id ?? null;
     if (!selectedLayerId) return;
+    queuePanelHistoryBaselineFromCurrent();
     setLayers((previousLayers) =>
       resolveLayersAfterContextMenuRemoveImage({
         layers: previousLayers,
@@ -155,7 +171,7 @@ export function useExpertEditDocumentState({
         foundationLayerId,
       })
     );
-  }, [foundationLayerId, selectedLayer?.id]);
+  }, [foundationLayerId, queuePanelHistoryBaselineFromCurrent, selectedLayer?.id]);
 
   React.useEffect(() => {
     if (layers.length <= 0) {
@@ -191,6 +207,7 @@ export function useExpertEditDocumentState({
     editingLayerIndex,
     editingLayerValue,
     foundationLayerId,
+    setFoundationLayerId,
     handleCommitLayerRename,
     handleDeleteLayer,
     handleDeleteSelectedLayer,
@@ -208,6 +225,8 @@ export function useExpertEditDocumentState({
     hasPrimaryCompositePreview,
     hostPrimaryImageUrl,
     layerIdCounterRef,
+    layerIdCounter,
+    setLayerIdCounter,
     layers,
     populatedLayerCount,
     primaryDragActive,

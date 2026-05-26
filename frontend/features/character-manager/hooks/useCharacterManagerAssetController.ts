@@ -48,10 +48,15 @@ type UseCharacterManagerAssetControllerParams = {
   setCharacterSheetAssignments: React.Dispatch<React.SetStateAction<CharacterSheetAssignments>>;
   characterSheetAssignmentsRef: React.MutableRefObject<CharacterSheetAssignments>;
   characterSheetAssignmentsRequestRef: React.MutableRefObject<number>;
-  setIsSavingCharacterSheetPreset: React.Dispatch<React.SetStateAction<boolean>>;
+  beginCharacterSheetPresetMutation: () => void;
+  endCharacterSheetPresetMutation: () => void;
   activeCharacterSheetPresetIdRef: React.MutableRefObject<CharacterSheetPresetId>;
   characterSheetPresetsRef: React.MutableRefObject<CharacterSheetPresetState["presets"]>;
   saveCharacterSheetPresetAssignments: (
+    assignments: CharacterSheetPresetAssignments
+  ) => Promise<boolean>;
+  saveCharacterSheetPresetAssignmentsForPreset: (
+    presetId: CharacterSheetPresetId,
     assignments: CharacterSheetPresetAssignments
   ) => Promise<boolean>;
   markSlotBusy: (slotKey: CharacterReferenceSlotKey, busy: boolean) => void;
@@ -113,10 +118,12 @@ export const useCharacterManagerAssetController = ({
   setCharacterSheetAssignments,
   characterSheetAssignmentsRef,
   characterSheetAssignmentsRequestRef,
-  setIsSavingCharacterSheetPreset,
+  beginCharacterSheetPresetMutation,
+  endCharacterSheetPresetMutation,
   activeCharacterSheetPresetIdRef,
   characterSheetPresetsRef,
   saveCharacterSheetPresetAssignments,
+  saveCharacterSheetPresetAssignmentsForPreset,
   markSlotBusy,
   slotsRef,
   setSlots,
@@ -422,37 +429,39 @@ export const useCharacterManagerAssetController = ({
         });
       }
 
-      setIsSavingCharacterSheetPreset(true);
+      const targetPresetId = activeCharacterSheetPresetIdRef.current;
+      beginCharacterSheetPresetMutation();
       try {
         const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
           characterId,
           file,
         });
-        const activePresetId = activeCharacterSheetPresetIdRef.current;
         const currentAssignments =
-          characterSheetPresetsRef.current[activePresetId] ??
+          characterSheetPresetsRef.current[targetPresetId] ??
           createEmptyCharacterSheetPresetAssignments();
         const nextAssignments = {
           ...currentAssignments,
           [zoneKey]: uploadedAsset,
         };
-        return await saveCharacterSheetPresetAssignments(nextAssignments);
+        return await saveCharacterSheetPresetAssignmentsForPreset(targetPresetId, nextAssignments);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to upload character look image."));
         return false;
       } finally {
-        setIsSavingCharacterSheetPreset(false);
+        endCharacterSheetPresetMutation();
       }
     },
     [
       activeCharacterSheetPresetIdRef,
+      beginCharacterSheetPresetMutation,
       characterId,
       characterSheetPresetsRef,
       clearMessages,
+      endCharacterSheetPresetMutation,
       revokeObjectUrl,
       saveCharacterSheetPresetAssignments,
+      saveCharacterSheetPresetAssignmentsForPreset,
       setError,
-      setIsSavingCharacterSheetPreset,
       toErrorMessage,
     ]
   );

@@ -438,6 +438,43 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
+  it("returns inserted file refs in the original drop order for downstream placement", async () => {
+    const first = new File(["one"], "reference-1.png", { type: "image/png" });
+    const second = new File(["two"], "reference-2.png", { type: "image/png" });
+    const files = {
+      0: first,
+      1: second,
+      length: 2,
+      item: (index: number) => [first, second][index] ?? null,
+      [Symbol.iterator]: function* () {
+        yield first;
+        yield second;
+      },
+    } as unknown as FileList;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+        })
+      )
+    );
+
+    let insertedResults: Awaited<ReturnType<typeof result.current.ingestReferenceFiles>> = [];
+    await act(async () => {
+      insertedResults = await result.current.ingestReferenceFiles(files, "drop");
+    });
+
+    expect(insertedResults.map((entry) => entry.file.name)).toEqual([
+      "reference-1.png",
+      "reference-2.png",
+    ]);
+    expect(insertedResults.map((entry) => entry.payload.filename)).toEqual([
+      "reference-1.png",
+      "reference-2.png",
+    ]);
+  });
+
   it("keeps successful file refs when one canonical upload fails", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(

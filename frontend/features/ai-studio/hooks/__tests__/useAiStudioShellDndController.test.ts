@@ -462,4 +462,172 @@ describe("useAiStudioShellDndController", () => {
     expect(dragEvent.preventDefault).not.toHaveBeenCalled();
     expect(dragEvent.stopPropagation).not.toHaveBeenCalled();
   });
+
+  it("does not claim local file drops that target Quick Slot Inventory", () => {
+    const onDropFiles = vi.fn();
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+    const quickSlotSurface = document.createElement("div");
+    quickSlotSurface.className = "reference-curated-section";
+    const allRefsSurface = document.createElement("div");
+    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    rightRef.current.appendChild(quickSlotSurface);
+    rightRef.current.appendChild(allRefsSurface);
+    shellRef.current.appendChild(rightRef.current);
+    vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 0,
+      width: 400,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(rightRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 200,
+      width: 200,
+      height: 400,
+      x: 200,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(allRefsSurface, "getBoundingClientRect").mockReturnValue({
+      top: 180,
+      right: 390,
+      bottom: 360,
+      left: 220,
+      width: 170,
+      height: 180,
+      x: 220,
+      y: 180,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "media",
+        resolveDropPayload: () => ({
+          kind: "files",
+          files: createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })])
+            .files,
+        }),
+        onDropFiles,
+        useRafBackpressure: false,
+        shouldOwnFileDrop: (event) => doesReferenceGridOwnFileDrop(event, rightRef.current),
+      })
+    );
+
+    const transfer = createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })]);
+    const dragEvent = createDragEvent(transfer, {
+      target: quickSlotSurface,
+      clientX: 250,
+      clientY: 80,
+    });
+
+    act(() => {
+      result.current.handleDragOverCapture(dragEvent);
+    });
+
+    expect(result.current.dropMode).toBe("none");
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleDropCapture(dragEvent);
+    });
+
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
+    expect(dragEvent.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it("does not claim local file drops that target Canvas surfaces", () => {
+    const onDropFiles = vi.fn();
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+    const canvasSurface = document.createElement("div");
+    canvasSurface.setAttribute("data-testid", "canvas-surface");
+    const allRefsSurface = document.createElement("div");
+    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    rightRef.current.appendChild(canvasSurface);
+    rightRef.current.appendChild(allRefsSurface);
+    shellRef.current.appendChild(rightRef.current);
+    vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 0,
+      width: 400,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(rightRef.current, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      right: 400,
+      bottom: 400,
+      left: 200,
+      width: 200,
+      height: 400,
+      x: 200,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(allRefsSurface, "getBoundingClientRect").mockReturnValue({
+      top: 180,
+      right: 390,
+      bottom: 360,
+      left: 220,
+      width: 170,
+      height: 180,
+      x: 220,
+      y: 180,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "media",
+        resolveDropPayload: () => ({
+          kind: "files",
+          files: createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })])
+            .files,
+        }),
+        onDropFiles,
+        useRafBackpressure: false,
+        shouldOwnFileDrop: (event) => doesReferenceGridOwnFileDrop(event, rightRef.current),
+      })
+    );
+
+    const transfer = createTransfer(["Files"], [new File(["x"], "ref.png", { type: "image/png" })]);
+    const dragEvent = createDragEvent(transfer, {
+      target: canvasSurface,
+      clientX: 250,
+      clientY: 80,
+    });
+
+    act(() => {
+      result.current.handleDragOverCapture(dragEvent);
+    });
+
+    expect(result.current.dropMode).toBe("none");
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleDropCapture(dragEvent);
+    });
+
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
+    expect(dragEvent.stopPropagation).not.toHaveBeenCalled();
+  });
 });

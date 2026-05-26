@@ -43,6 +43,8 @@ type UseExpertEditTransformControllerParams = {
   };
   transformPointerSessionRef: React.MutableRefObject<TransformPointerSession>;
   transformGestureBaselineRef: React.MutableRefObject<TransformHistoryEntry | null>;
+  beginPanelHistoryGestureForLayers: (layers: ExpertEditLayer[]) => void;
+  finalizePanelHistoryGesture: () => void;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   setActiveTransformDragMode: React.Dispatch<
     React.SetStateAction<TransformPointerSession["dragMode"]>
@@ -90,6 +92,8 @@ export const useExpertEditTransformController = ({
   resolveViewportOffsetPixels,
   transformPointerSessionRef,
   transformGestureBaselineRef,
+  beginPanelHistoryGestureForLayers,
+  finalizePanelHistoryGesture,
   setLayers,
   setActiveTransformDragMode,
   setIsTransformPointerDragging,
@@ -118,10 +122,12 @@ export const useExpertEditTransformController = ({
       if (!baselineEntry) return;
       const nextEntry = buildTransformHistoryEntry(layers);
       commitTransformHistoryTransition(nextEntry, baselineEntry);
+      finalizePanelHistoryGesture();
     },
     [
       clearTransformPointerSession,
       commitTransformHistoryTransition,
+      finalizePanelHistoryGesture,
       layers,
       transformGestureBaselineRef,
       transformPointerSessionRef,
@@ -179,6 +185,7 @@ export const useExpertEditTransformController = ({
       if (interactionLayers !== layers) {
         setLayers(interactionLayers);
       }
+      beginPanelHistoryGestureForLayers(interactionLayers);
       transformGestureBaselineRef.current = buildTransformHistoryEntry(interactionLayers);
       transformPointerSessionRef.current = createTransformPointerSession({
         pointerId: event.pointerId,
@@ -195,6 +202,7 @@ export const useExpertEditTransformController = ({
       setIsTransformPointerDragging(true);
     },
     [
+      beginPanelHistoryGestureForLayers,
       layers,
       sceneZoomScale,
       selectedLayer,

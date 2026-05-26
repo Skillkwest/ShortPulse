@@ -18,6 +18,7 @@ type UseExpertEditLayerInteractionRuntimeParams = {
   layers: ExpertEditLayer[];
   foundationLayerId: string | null;
   resolvedSelectedLayerIndex: number;
+  queuePanelHistoryBaselineFromCurrent: () => void;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
 };
@@ -26,6 +27,7 @@ export function useExpertEditLayerInteractionRuntime({
   layers,
   foundationLayerId,
   resolvedSelectedLayerIndex,
+  queuePanelHistoryBaselineFromCurrent,
   setLayers,
   setSelectedLayerIndex,
 }: UseExpertEditLayerInteractionRuntimeParams) {
@@ -50,6 +52,7 @@ export function useExpertEditLayerInteractionRuntime({
         editingLayerIndex,
       });
       if (!nextLayerState) return;
+      queuePanelHistoryBaselineFromCurrent();
       setLayers(nextLayerState.nextLayers);
       if (nextLayerState.nextSelectedLayerIndex !== undefined) {
         setSelectedLayerIndex(nextLayerState.nextSelectedLayerIndex);
@@ -61,7 +64,14 @@ export function useExpertEditLayerInteractionRuntime({
       setDragOverLayerIndex(null);
       setDraggingLayerIndex(null);
     },
-    [editingLayerIndex, layers, resolvedSelectedLayerIndex, setLayers, setSelectedLayerIndex]
+    [
+      editingLayerIndex,
+      layers,
+      queuePanelHistoryBaselineFromCurrent,
+      resolvedSelectedLayerIndex,
+      setLayers,
+      setSelectedLayerIndex,
+    ]
   );
 
   const handleLayerDragStart = React.useCallback(
@@ -128,6 +138,7 @@ export function useExpertEditLayerInteractionRuntime({
         editingLayerIndex,
       });
       if (!nextLayerState) return;
+      queuePanelHistoryBaselineFromCurrent();
       setLayers(nextLayerState.normalizedLayers);
       clearLayerEditing();
       setEditingLayerIndex(nextLayerState.nextEditingLayerIndex);
@@ -138,6 +149,7 @@ export function useExpertEditLayerInteractionRuntime({
       editingLayerIndex,
       foundationLayerId,
       layers,
+      queuePanelHistoryBaselineFromCurrent,
       resolvedSelectedLayerIndex,
       setLayers,
       setSelectedLayerIndex,
@@ -197,11 +209,12 @@ export function useExpertEditLayerInteractionRuntime({
               }
             : layer
         );
+        queuePanelHistoryBaselineFromCurrent();
         setLayers(nextLayers);
       }
       clearLayerEditing();
     },
-    [clearLayerEditing, editingLayerValue, layers, setLayers]
+    [clearLayerEditing, editingLayerValue, layers, queuePanelHistoryBaselineFromCurrent, setLayers]
   );
 
   const beginLayerRename = React.useCallback((index: number, value: string) => {

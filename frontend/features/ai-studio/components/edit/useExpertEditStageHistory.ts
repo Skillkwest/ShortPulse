@@ -41,6 +41,9 @@ type UseExpertEditStageHistoryArgs = {
   clearSelectedLayerMask: () => void;
   invertSelectedLayerMask: () => void;
   clearAllInpaintMasks: () => void;
+  beginPanelHistoryGesture: () => void;
+  finalizePanelHistoryGesture: () => void;
+  queuePanelHistoryBaselineFromCurrent: () => void;
   isInpaintToolSelected: boolean;
   isMarkupToolSelected: boolean;
   queuePendingHistoryApplyEntry: (entry: TransformHistoryEntry | null) => void;
@@ -70,6 +73,9 @@ export function useExpertEditStageHistory({
   clearSelectedLayerMask,
   invertSelectedLayerMask,
   clearAllInpaintMasks,
+  beginPanelHistoryGesture = () => {},
+  finalizePanelHistoryGesture = () => {},
+  queuePanelHistoryBaselineFromCurrent = () => {},
   isInpaintToolSelected,
   isMarkupToolSelected,
   queuePendingHistoryApplyEntry,
@@ -98,6 +104,9 @@ export function useExpertEditStageHistory({
     clearSelectedLayerMask,
     invertSelectedLayerMask,
     clearAllInpaintMasks,
+    beginPanelHistoryGesture,
+    finalizePanelHistoryGesture,
+    queuePanelHistoryBaselineFromCurrent,
   });
 
   const {
@@ -115,6 +124,9 @@ export function useExpertEditStageHistory({
     markupStrokes,
     setMarkupStrokes,
     hasPrimaryCompositePreview,
+    beginPanelHistoryGesture,
+    finalizePanelHistoryGesture,
+    queuePanelHistoryBaselineFromCurrent,
   });
 
   const {
@@ -202,6 +214,7 @@ export function useExpertEditStageHistory({
   ]);
 
   const handleResetGeneralAction = React.useCallback(() => {
+    queuePanelHistoryBaselineFromCurrent();
     resetAllMoveToolTransforms();
     resetStageViewport();
     clearAllInpaintMasksWithHistory();
@@ -209,6 +222,7 @@ export function useExpertEditStageHistory({
   }, [
     clearAllInpaintMasksWithHistory,
     clearMarkupStrokesWithHistory,
+    queuePanelHistoryBaselineFromCurrent,
     resetAllMoveToolTransforms,
     resetStageViewport,
   ]);

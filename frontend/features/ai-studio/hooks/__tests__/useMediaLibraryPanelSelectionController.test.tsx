@@ -9,8 +9,11 @@ vi.mock("../../../media-library/logic/mediaPreviewResolver", () => ({
 }));
 
 describe("useMediaLibraryPanelSelectionController", () => {
-  it("uses the resolved selection URL for preview modal state", async () => {
-    resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/full.png");
+  it("opens on the current preview url and promotes to the signed original url when available", async () => {
+    resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/fallback.png");
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/original.png" ? "https://signed.example.com/full.png" : null
+    );
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelSelectionController({
@@ -18,7 +21,7 @@ describe("useMediaLibraryPanelSelectionController", () => {
         currentUserIdRef: { current: "user-1" },
         onSelectMedia: vi.fn(),
         refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
-        signStoragePath: vi.fn(async () => null),
+        signStoragePath,
       })
     );
 
@@ -45,9 +48,13 @@ describe("useMediaLibraryPanelSelectionController", () => {
       expect(result.current.previewModalUrl).toBe("https://signed.example.com/full.png");
       expect(result.current.previewModalLoading).toBe(false);
     });
+    expect(signStoragePath).toHaveBeenCalledWith("user-1/media/original.png", {
+      forceRefresh: true,
+    });
   });
 
   it("records an error when preview modal resolution fails", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
     resolveSignedSelectionUrlMock.mockRejectedValueOnce(new Error("boom"));
 
     const { result } = renderHook(() =>
@@ -66,7 +73,7 @@ describe("useMediaLibraryPanelSelectionController", () => {
         filename: "first.png",
         file_type: "image/png",
         storage_path: "user-1/media/original.png",
-        signedUrl: "https://signed.example.com/preview.png",
+        signedUrl: null,
         metadata: null,
         source: "upload",
       });

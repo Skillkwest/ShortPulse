@@ -26,8 +26,10 @@ type UseExpertEditLayerActionsParams = {
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   clearLayerEditing: () => void;
+  queuePanelHistoryBaselineFromCurrent: () => void;
   onRegenerateWithReferenceInputs?: ExpertEditPanelViewProps["onRegenerateWithReferenceInputs"];
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
+  suppressNextPrimaryPublishUrlRef: React.MutableRefObject<string | null>;
   resolveStageFlattenSnapshot: () => {
     outputAspectRatio: number;
     camera?: StageFlattenCameraTransformInput | null;
@@ -45,8 +47,10 @@ export function useExpertEditLayerActions({
   setLayers,
   setSelectedLayerIndex,
   clearLayerEditing,
+  queuePanelHistoryBaselineFromCurrent,
   onRegenerateWithReferenceInputs,
   showStatusToast,
+  suppressNextPrimaryPublishUrlRef,
   resolveStageFlattenSnapshot,
 }: UseExpertEditLayerActionsParams) {
   const [isFlattenPending, setIsFlattenPending] = React.useState(false);
@@ -111,6 +115,8 @@ export function useExpertEditLayerActions({
         ownsImageUrl: true,
         transform: defaultLayerTransform(),
       };
+      suppressNextPrimaryPublishUrlRef.current = flattenedLayerUrl;
+      queuePanelHistoryBaselineFromCurrent();
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
       clearLayerEditing();
@@ -127,10 +133,12 @@ export function useExpertEditLayerActions({
     layerIdCounterRef,
     layers,
     populatedLayerCount,
+    queuePanelHistoryBaselineFromCurrent,
     resolveStageFlattenSnapshot,
     setLayers,
     setSelectedLayerIndex,
     showStatusToast,
+    suppressNextPrimaryPublishUrlRef,
   ]);
 
   const handleRemoveBackground = React.useCallback(() => {

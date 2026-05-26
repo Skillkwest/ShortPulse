@@ -80,6 +80,40 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByTestId("prompt-step")).toBeInTheDocument();
   });
 
+  it("collapses the Standard empty-state shell once the composer has a draft", () => {
+    render(
+      <StandardCreatePanelView
+        promptStepProps={
+          {
+            agentInput: "A detailed cinematic prompt draft",
+          } as PromptStepProps
+        }
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No Characters"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        shouldShowImageResolutionCard={false}
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+      />
+    );
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+  });
+
   it("does not show the removed active Pulse status UI in Pulse mode", () => {
     render(
       <PulseCreatePanelView
@@ -141,6 +175,23 @@ describe("Create generate guardrail messaging", () => {
 
     expect(screen.queryByRole("button", { name: "Restart pulse" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
+  });
+
+  it("collapses the Pulse empty-state shell once the composer has a draft", () => {
+    render(
+      <PulseCreatePanelView
+        promptStepProps={
+          {
+            agentInput: "A guided Pulse draft",
+          } as unknown as PromptStepProps
+        }
+        isPromptGenerating={false}
+        activePulsePresetId="story_builder"
+        pulsePreferenceRuntime={pulsePreferenceRuntime}
+      />
+    );
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 
   it("locks deactivate while a Pulse artifact is generating", () => {

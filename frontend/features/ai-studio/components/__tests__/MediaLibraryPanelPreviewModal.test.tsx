@@ -68,4 +68,30 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     expect(pauseSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("renders an available image preview while the focused asset is still loading", () => {
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        file={imageFile}
+        previewUrl="https://cdn.example.com/thumb-portrait.png"
+        isLoading
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText("portrait.png") as HTMLImageElement;
+    expect(image).toBeInTheDocument();
+    expect(image.getAttribute("src")).toBe("https://cdn.example.com/thumb-portrait.png");
+    expect(screen.queryByText("Loading preview…")).not.toBeInTheDocument();
+  });
 });

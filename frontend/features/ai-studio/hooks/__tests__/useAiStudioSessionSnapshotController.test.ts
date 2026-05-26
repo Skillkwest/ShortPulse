@@ -426,4 +426,209 @@ describe("useAiStudioSessionSnapshotController", () => {
     );
     expect(setSelectedTool).toHaveBeenCalledWith("edit");
   });
+
+  it("keeps the snapshot builder stable across project-nonpersistent draft edits while reading latest values", () => {
+    const stableExtraImageUrls = [null, null, null] as [
+      string | null,
+      string | null,
+      string | null,
+    ];
+    const stableVoiceIds = ["", ""] as [string, string];
+    const stablePulseWorkspaceState = { expertCreateMode: "standard" } as never;
+    const stableEmptyStringList: string[] = [];
+    const stableEmptyOutputs: StudioOutput[] = [];
+    const stableEmptyKlingMultiPrompts: Array<{ id: string; prompt: string; duration: number }> =
+      [];
+    const stableEmptyKlingElements: never[] = [];
+    const stableSetMode = vi.fn();
+    const stableSetSelectedTool = vi.fn();
+    const stableSetStandardCreatePrompt = vi.fn();
+    const stableSetPulseCreatePrompt = vi.fn();
+    const stableSetModel = vi.fn();
+    const stableSetAspect = vi.fn();
+    const stableSetExpertCreateMode = vi.fn();
+    const stableSetActivePulsePresetId = vi.fn();
+    const stableSetPulseSessionInstanceId = vi.fn();
+    const stableSetReferenceImageUrl = vi.fn();
+    const stableSetReferenceSelectionStateForCreateMode = vi.fn();
+    const stableSetExtraImageUrl = vi.fn();
+    const stableSetEditReferenceText = vi.fn();
+    const stableSetVideoReferenceText = vi.fn();
+    const stableSetVideoReferenceMode = vi.fn();
+    const stableSetVideoDurationSeconds = vi.fn();
+    const stableSetVideoResolution = vi.fn();
+    const stableSetImageResolution = vi.fn();
+    const stableSetVideoGenerateAudio = vi.fn();
+    const stableSetVideoCameraFixed = vi.fn();
+    const stableSetVideoAutoFix = vi.fn();
+    const stableSetKlingNegativePrompt = vi.fn();
+    const stableSetKlingCfgScale = vi.fn();
+    const stableSetKlingWorkflowMode = vi.fn();
+    const stableSetSeedance2InputMode = vi.fn();
+    const stableSetSeedance2ReferenceImageUrls = vi.fn();
+    const stableSetSeedance2ReferenceVideoUrls = vi.fn();
+    const stableSetSeedance2ReferenceAudioUrls = vi.fn();
+    const stableSetSeedance2ReturnLastFrame = vi.fn();
+    const stableSetSeedance2WebSearch = vi.fn();
+    const stableSetKlingShotType = vi.fn();
+    const stableSetKlingVoiceIds = vi.fn();
+    const stableSetKlingMultiPrompts = vi.fn();
+    const stableSetKlingElements = vi.fn();
+    const stableSetMotionReferenceVideoUrl = vi.fn();
+    const stableSetOutputCollectionsForCreateMode = vi.fn();
+    const stableSetOutputsState = vi.fn();
+    const stableSetArchivedOutputs = vi.fn();
+    const stableSetRuntimeUiStateForCreateMode = vi.fn();
+    const getReferenceSelectionStateForCreateMode = vi.fn(() => ({
+      selectedTool: "create" as const,
+      referenceImageUrl: null,
+      extraImageUrls: stableExtraImageUrls,
+      referenceImageInternalMediaRefs: [],
+      motionReferenceVideoUrl: null,
+    }));
+
+    const { result, rerender } = renderHook(
+      ({
+        editReferenceText,
+        videoReferenceText,
+      }: {
+        editReferenceText: string;
+        videoReferenceText: string;
+      }) =>
+        useAiStudioSessionSnapshotController({
+          mode: "image",
+          selectedTool: "create",
+          standardCreatePrompt: "A cinematic portrait",
+          pulseCreatePrompt: "",
+          model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          aspect: "1:1",
+          pulseWorkspaceState: stablePulseWorkspaceState,
+          referenceImageUrl: null,
+          extraImageUrls: stableExtraImageUrls,
+          editReferenceText,
+          videoReferenceText,
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          imageResolution: "model_default",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          seedance2InputMode: "text",
+          seedance2ReferenceImageUrls: stableEmptyStringList,
+          seedance2ReferenceVideoUrls: stableEmptyStringList,
+          seedance2ReferenceAudioUrls: stableEmptyStringList,
+          seedance2ReturnLastFrame: false,
+          seedance2WebSearch: false,
+          klingShotType: "customize",
+          klingVoiceIds: stableVoiceIds,
+          klingMultiPrompts: stableEmptyKlingMultiPrompts,
+          klingElements: stableEmptyKlingElements,
+          motionReferenceVideoUrl: null,
+          outputs: stableEmptyOutputs,
+          archivedOutputs: stableEmptyOutputs,
+          activeOutputId: null,
+          curatedReferenceIds: stableEmptyStringList,
+          removedFromAllRefsIds: stableEmptyStringList,
+          sessionHydrationSigningRevisionRef: { current: 0 },
+          setMode: stableSetMode,
+          setSelectedTool: stableSetSelectedTool,
+          setStandardCreatePrompt: stableSetStandardCreatePrompt,
+          setPulseCreatePrompt: stableSetPulseCreatePrompt,
+          setModel: stableSetModel,
+          setAspect: stableSetAspect,
+          setExpertCreateMode: stableSetExpertCreateMode,
+          setActivePulsePresetId: stableSetActivePulsePresetId,
+          setPulseSessionInstanceId: stableSetPulseSessionInstanceId,
+          setReferenceImageUrl: stableSetReferenceImageUrl,
+          setReferenceSelectionStateForCreateMode: stableSetReferenceSelectionStateForCreateMode,
+          getReferenceSelectionStateForCreateMode,
+          setExtraImageUrl: stableSetExtraImageUrl,
+          setEditReferenceText: stableSetEditReferenceText,
+          setVideoReferenceText: stableSetVideoReferenceText,
+          setVideoReferenceMode: stableSetVideoReferenceMode,
+          setVideoDurationSeconds: stableSetVideoDurationSeconds,
+          setVideoResolution: stableSetVideoResolution,
+          setImageResolution: stableSetImageResolution,
+          setVideoGenerateAudio: stableSetVideoGenerateAudio,
+          setVideoCameraFixed: stableSetVideoCameraFixed,
+          setVideoAutoFix: stableSetVideoAutoFix,
+          setKlingNegativePrompt: stableSetKlingNegativePrompt,
+          setKlingCfgScale: stableSetKlingCfgScale,
+          setKlingWorkflowMode: stableSetKlingWorkflowMode,
+          setSeedance2InputMode: stableSetSeedance2InputMode,
+          setSeedance2ReferenceImageUrls: stableSetSeedance2ReferenceImageUrls,
+          setSeedance2ReferenceVideoUrls: stableSetSeedance2ReferenceVideoUrls,
+          setSeedance2ReferenceAudioUrls: stableSetSeedance2ReferenceAudioUrls,
+          setSeedance2ReturnLastFrame: stableSetSeedance2ReturnLastFrame,
+          setSeedance2WebSearch: stableSetSeedance2WebSearch,
+          setKlingShotType: stableSetKlingShotType,
+          setKlingVoiceIds: stableSetKlingVoiceIds,
+          setKlingMultiPrompts: stableSetKlingMultiPrompts,
+          setKlingElements: stableSetKlingElements,
+          setMotionReferenceVideoUrl: stableSetMotionReferenceVideoUrl,
+          setOutputCollectionsForCreateMode: stableSetOutputCollectionsForCreateMode,
+          setOutputsState: stableSetOutputsState,
+          setArchivedOutputs: stableSetArchivedOutputs,
+          setRuntimeUiStateForCreateMode: stableSetRuntimeUiStateForCreateMode,
+        }),
+      {
+        initialProps: {
+          editReferenceText: "Make the skyline teal.",
+          videoReferenceText: "Arc around the subject.",
+        },
+      }
+    );
+
+    const initialBuilder = result.current.buildSessionSnapshot;
+
+    rerender({
+      editReferenceText: "Make the skyline teal with warm gold rim light.",
+      videoReferenceText: "Arc around the subject with a slow push in.",
+    });
+
+    expect(result.current.buildSessionSnapshot).toBe(initialBuilder);
+
+    const snapshot = result.current.buildSessionSnapshot({
+      sessionId: "session-1",
+      agentRuntime: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: null,
+        pulseSessionInstanceId: null,
+        pulse: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(snapshot.workspace.editReferenceText).toBe(
+      "Make the skyline teal with warm gold rim light."
+    );
+    expect(snapshot.workspace.videoReferenceText).toBe(
+      "Arc around the subject with a slow push in."
+    );
+  });
 });

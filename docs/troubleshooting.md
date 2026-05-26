@@ -47,13 +47,16 @@ Checklist:
 
 - AI Studio now auto-resizes local/blob/data reference images before upload when possible.
 - Treat this as a reference-image upload size limit, not a model/reference token error.
-- Confirm the reference image is under the 25 MB upload cap used by `POST /api/upload-image`.
+- The Reference Grid `Add files` lane and AI Studio Media Library upload lane now use the canonical `POST /api/media/upload` path.
+- Legacy generation-submit image preflight still uses `POST /api/upload-image` for local/blob/data reference conversion before provider submit.
+- Confirm the reference image is under the 25 MB image upload cap enforced by the canonical upload service.
 - If the image came from a browser capture, preview export, or Trello attachment, re-export it at a smaller size or compress it before retrying.
+- If the UI only shows `Unable to upload media.`, capture the failing upload response because that usually means the request was rejected before the app could return its normal structured JSON error.
 
 Mitigation:
 
 - Re-upload a smaller reference image and retry the generation.
-- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the `upload-image` route.
+- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake, `upload-image` for legacy local reference preflight).
 
 ## Admin runtime/API error handoff workflow
 

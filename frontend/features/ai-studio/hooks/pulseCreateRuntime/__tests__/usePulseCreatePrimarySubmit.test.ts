@@ -52,6 +52,49 @@ describe("usePulseCreatePrimarySubmit", () => {
     expect(setUiNotice).not.toHaveBeenCalled();
   });
 
+  it("suppresses overlapping Pulse artifact generate clicks until the first submit settles", async () => {
+    let resolveFirstSubmit!: () => void;
+    const firstSubmitSettled = new Promise<void>((resolve) => {
+      resolveFirstSubmit = resolve;
+    });
+    const handleGenerate = vi.fn(() => firstSubmitSettled);
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePulseCreatePrimarySubmit({
+        hasActivePulseSession: true,
+        isPulseStartupPending: false,
+        pulseKind: "guided_workflow",
+        pulseWorkflowSession: createCompletedWorkflowSession("Completed Pulse artifact"),
+        latestAgentPrompt: null,
+        artifactTarget: "image_prompt",
+        promptReferenceGenerateCostCredits: 12,
+        currentCostCredits: 20,
+        handleGenerate,
+        setUiNotice,
+      })
+    );
+
+    act(() => {
+      result.current.handlePulseCreatePrimarySubmit();
+      result.current.handlePulseCreatePrimarySubmit();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledTimes(1);
+    expect(setUiNotice).not.toHaveBeenCalled();
+
+    resolveFirstSubmit();
+    await act(async () => {
+      await firstSubmitSettled;
+    });
+
+    act(() => {
+      result.current.handlePulseCreatePrimarySubmit();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledTimes(2);
+  });
+
   it("routes completed apply-prompt Pulse artifacts to video generation", () => {
     const handleGenerate = vi.fn();
     const setUiNotice = vi.fn();

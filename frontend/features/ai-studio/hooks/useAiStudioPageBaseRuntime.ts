@@ -255,6 +255,7 @@ export const useAiStudioPageBaseRuntime = () => {
     ensureOutputPersisted,
     saveReferenceToLibrary,
     savePromptToLibrary,
+    ingestReferenceFiles,
     addOutputsFromFiles,
     buildSessionSnapshot,
     addLibraryMediaReference,
@@ -326,6 +327,7 @@ export const useAiStudioPageBaseRuntime = () => {
   });
   const {
     canvasSessionState,
+    handleQuickSlotDroppedFiles,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,
@@ -337,8 +339,10 @@ export const useAiStudioPageBaseRuntime = () => {
     addLibraryPromptReferenceToQuickSlot,
     addPastedPromptReference,
     getOutputById,
+    ingestReferenceFiles,
     reorderCuratedReference,
     setActiveOutputId,
+    setUiError,
   });
   const {
     inFlightOutputIds,
@@ -372,7 +376,14 @@ export const useAiStudioPageBaseRuntime = () => {
     model,
     getOutputSnapshot,
     resetReferenceGridState,
+    projectRouteRequested,
+    standardCreatePrompt: standardPrompt,
+    editReferenceText,
+    videoReferenceText,
     setActiveOutputId,
+    setStandardCreatePrompt,
+    setEditReferenceText,
+    setVideoReferenceText,
     setOutputs,
   });
 
@@ -437,6 +448,7 @@ export const useAiStudioPageBaseRuntime = () => {
     addCuratedReference,
     addLibraryMediaReference,
     addLibraryPromptReference,
+    ingestReferenceFiles,
     addOutputsFromFiles,
     addPastedMediaReference,
     addPastedPromptReference,
@@ -488,6 +500,7 @@ export const useAiStudioPageBaseRuntime = () => {
     handleOpenElementCreate,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
+    handleQuickSlotDroppedFiles,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
     imageExtraImageUrls,

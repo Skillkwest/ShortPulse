@@ -266,6 +266,8 @@ export const useAiStudioSessionSnapshotController = ({
   const restoreSigningRetryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const activeCreatePrompt =
     pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt;
+  const editReferenceTextRef = useRef(editReferenceText);
+  const videoReferenceTextRef = useRef(videoReferenceText);
 
   useEffect(
     () => () => {
@@ -276,6 +278,14 @@ export const useAiStudioSessionSnapshotController = ({
     },
     []
   );
+
+  useEffect(() => {
+    editReferenceTextRef.current = editReferenceText;
+  }, [editReferenceText]);
+
+  useEffect(() => {
+    videoReferenceTextRef.current = videoReferenceText;
+  }, [videoReferenceText]);
 
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
@@ -583,8 +593,8 @@ export const useAiStudioSessionSnapshotController = ({
         } satisfies AiStudioSessionCreateModeReferenceStatesV1,
         referenceImageUrl,
         extraImageUrls,
-        editReferenceText,
-        videoReferenceText,
+        editReferenceText: editReferenceTextRef.current,
+        videoReferenceText: videoReferenceTextRef.current,
         videoReferenceMode,
         videoDurationSeconds,
         videoResolution,
@@ -625,7 +635,6 @@ export const useAiStudioSessionSnapshotController = ({
       archivedOutputs,
       aspect,
       curatedReferenceIds,
-      editReferenceText,
       extraImageUrls,
       imageResolution,
       klingCfgScale,
@@ -658,7 +667,6 @@ export const useAiStudioSessionSnapshotController = ({
       videoDurationSeconds,
       videoGenerateAudio,
       videoReferenceMode,
-      videoReferenceText,
       videoResolution,
     ]
   );

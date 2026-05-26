@@ -2,6 +2,7 @@ import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react"
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { CreatePulseArtifactTarget } from "../../components/create/createPulsePresets";
 import type { StudioMode, ToolId } from "../../types";
+import { useAiStudioCreateSubmitSingleFlight } from "../useAiStudioCreateSubmitSingleFlight";
 
 type GeneratePulseArtifact = (
   promptOverride?: string | null,
@@ -183,7 +184,7 @@ export const usePulseCreatePrimarySubmit = ({
       );
       return;
     }
-    void handleGenerate(pulseCompletedArtifactPrompt, {
+    return handleGenerate(pulseCompletedArtifactPrompt, {
       modeOverride: pulseArtifactGenerationRoute?.modeOverride,
       toolOverride: pulseArtifactGenerationRoute?.toolOverride,
       costOverrideCredits: pulseArtifactCostOverrideCredits,
@@ -203,10 +204,14 @@ export const usePulseCreatePrimarySubmit = ({
     unsupportedArtifactTargetGuardrail,
   ]);
 
+  const handlePulseCreatePrimarySubmitSingleFlight = useAiStudioCreateSubmitSingleFlight(
+    handlePulseCreatePrimarySubmit
+  );
+
   return {
     pulseCompletedArtifactPrompt,
     pulseArtifactGenerateGuardrail,
     pulseArtifactGenerateDisabled,
-    handlePulseCreatePrimarySubmit,
+    handlePulseCreatePrimarySubmit: handlePulseCreatePrimarySubmitSingleFlight,
   };
 };

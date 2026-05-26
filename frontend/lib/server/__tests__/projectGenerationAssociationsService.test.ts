@@ -594,6 +594,70 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
+  it("preserves snapshot generated outputs when project association repair has not completed yet", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-repair-pending",
+              generationId: "generation-repair-pending",
+              savedMediaIds: ["media-1"],
+              previewStoragePath: "user-1/generated/repair-pending.png",
+              fullStoragePath: "user-1/generated/repair-pending.png",
+              saveState: "saved",
+              status: "saved",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "generated-repair-pending",
+          generationId: "generation-repair-pending",
+          savedMediaIds: ["media-1"],
+          previewStoragePath: "user-1/generated/repair-pending.png",
+          fullStoragePath: "user-1/generated/repair-pending.png",
+          saveState: "saved",
+          status: "saved",
+        }),
+      ],
+    });
+  });
+
   it("preserves existing mixed legacy ordering until every restored row has a durable createdAt", async () => {
     const associationBuilder = createAwaitableSelectBuilder({
       data: [{ generation_id: "gen-newer" }, { generation_id: "gen-older" }],
@@ -703,6 +767,77 @@ describe("associateGenerationWithProjectForUser", () => {
     ]);
     expect(outputs.active[1]?.createdAt).toBe("2026-04-18T16:20:00.000Z");
     expect(outputs.active[2]?.createdAt).toBe("2026-04-18T16:30:00.000Z");
+  });
+
+  it("preserves the last recoverable snapshot payload when a project generation projection row is missing", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          started_at: "2026-04-18T16:30:00.000Z",
+          created_at: "2026-04-18T16:30:00.000Z",
+          updated_at: "2026-04-18T16:30:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              previewUrl: "https://cdn.example.com/generated.png",
+              resultUrls: ["https://cdn.example.com/generated.png"],
+              savedMediaIds: ["media-1"],
+              previewStoragePath: "user-1/generated/generated.png",
+              fullStoragePath: "user-1/generated/generated.png",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "generated-1",
+          generationId: "generation-1",
+          previewUrl: "https://cdn.example.com/generated.png",
+          resultUrls: ["https://cdn.example.com/generated.png"],
+          savedMediaIds: ["media-1"],
+          previewStoragePath: "user-1/generated/generated.png",
+          fullStoragePath: "user-1/generated/generated.png",
+        }),
+      ],
+    });
   });
 
   it("appends newly associated generated rows after legacy rows when mixed restore cannot sort yet", async () => {
@@ -942,6 +1077,131 @@ describe("associateGenerationWithProjectForUser", () => {
               savedMediaIds: ["media-1"],
               saveState: "saved",
               status: "saved",
+            }),
+          ],
+        }),
+      })
+    );
+  });
+
+  it("hydrates project-route generated image delivery from published media rows", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-image-published-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-published-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-published-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-published-1",
+          request_id: "req-image-published-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated image with durable media",
+          preview_url: "https://fal.test/generated-image-published.png",
+          result_urls: ["https://fal.test/generated-image-published.png"],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          preview_storage_path: null,
+          full_storage_path: null,
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-published-1",
+          owned_media_file_id: "media-image-published-1",
+          preview_storage_path: null,
+          full_storage_path: null,
+          created_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-image-published-1",
+          storage_path: "user-1/generations/images/media-image-published-1.png",
+          preview_storage_path: null,
+          file_type: "image/png",
+          poster_variant_path: null,
+          thumb_variant_path: "user-1/variants/images/media-image-published-1/thumb_720.webp",
+          preview_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+    generationPublicationsSelectMock.mockReturnValue(publicationBuilder);
+    mediaOwnershipSelectMock.mockImplementation((columns: string) => {
+      if (
+        columns ===
+        "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      ) {
+        return mediaBuilder as typeof ownedMediaSelectBuilder;
+      }
+      throw new Error(`Unexpected media_files fields: ${columns}`);
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-image-published-1",
+              generationId: "generation-image-published-1",
+              previewUrl: "https://expired.example/generated-image-published.png",
+              resultUrls: ["https://expired.example/generated-image-published.png"],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated-image-published-1",
+              previewStoragePath: "user-1/variants/images/media-image-published-1/thumb_720.webp",
+              fullStoragePath: "user-1/generations/images/media-image-published-1.png",
             }),
           ],
         }),

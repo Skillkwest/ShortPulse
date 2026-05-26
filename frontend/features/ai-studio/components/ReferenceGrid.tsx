@@ -91,6 +91,7 @@ function ReferenceGridComponent({
   onAddCuratedReference,
   onRemoveCuratedReference,
   onReorderCuratedReference,
+  onAddDroppedFilesToQuickSlot,
   onAddLibraryMediaReferenceToQuickSlot,
   onAddLibraryPromptReferenceToQuickSlot,
   onRestoreArchivedOutput,
@@ -438,6 +439,7 @@ function ReferenceGridComponent({
     onAddCuratedReference,
     onReorderCuratedReference,
     onSelectOutput,
+    onAddDroppedFilesToQuickSlot,
     onAddLibraryMediaReferenceToQuickSlot,
     onAddLibraryPromptReferenceToQuickSlot,
   });

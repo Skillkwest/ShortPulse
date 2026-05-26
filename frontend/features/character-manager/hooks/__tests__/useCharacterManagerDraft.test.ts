@@ -1492,6 +1492,7 @@ describe("useCharacterManagerDraft", () => {
       expect(ok).toBe(true);
     });
 
+    expect(result.current.isSavingCharacterSheetPreset).toBe(true);
     expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "3"]);
 
     await act(async () => {
@@ -1530,5 +1531,80 @@ describe("useCharacterManagerDraft", () => {
     expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
       "https://signed.example/uploaded-portrait.png"
     );
+  });
+
+  it("keeps an in-flight upload pinned to its starting look even if the active look changes", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    const uploadedPortrait = createPresetMedia(
+      "uploaded-pinned",
+      "https://signed.example/uploaded-pinned.png"
+    );
+    const uploadAsset = createDeferred<typeof uploadedPortrait>();
+
+    saveCharacterManagerCharacterSheetPresetAssetMock.mockImplementation(
+      () => uploadAsset.promise as never
+    );
+    saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockResolvedValue({
+      activePresetId: "3",
+      tabOrder: ["1", "2", "3"],
+      tabLabels: snapshot.characterSheetPresetLabels,
+      tabDescriptions: snapshot.characterSheetPresetDescriptions,
+      presets: {
+        ...snapshot.characterSheetPresets,
+        "1": {
+          ...snapshot.characterSheetPresets["1"],
+          portrait: uploadedPortrait,
+        },
+      },
+    } as never);
+    saveCharacterManagerActiveCharacterSheetPresetMock.mockResolvedValue({
+      activePresetId: "3",
+      tabOrder: ["1", "2", "3"],
+      tabLabels: snapshot.characterSheetPresetLabels,
+      tabDescriptions: snapshot.characterSheetPresetDescriptions,
+      presets: snapshot.characterSheetPresets,
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.activeCharacterSheetPresetId).toBe("1");
+    });
+
+    let uploadPromise: Promise<boolean> | null = null;
+    await act(async () => {
+      uploadPromise = result.current.setCharacterSheetPresetFile(
+        "portrait",
+        new File(["portrait"], "portrait.png", { type: "image/png" })
+      );
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSavingCharacterSheetPreset).toBe(true);
+    });
+
+    await act(async () => {
+      const ok = await result.current.setActiveCharacterSheetPreset("3");
+      expect(ok).toBe(true);
+    });
+
+    expect(result.current.activeCharacterSheetPresetId).toBe("3");
+
+    await act(async () => {
+      uploadAsset.resolve(uploadedPortrait);
+      await uploadPromise!;
+    });
+
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+      characterId: "char-1",
+      presetId: "1",
+      assignments: expect.objectContaining({
+        portrait: uploadedPortrait,
+      }),
+    });
+    expect(result.current.activeCharacterSheetPresetId).toBe("3");
   });
 });

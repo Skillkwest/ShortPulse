@@ -17,6 +17,9 @@ type UseExpertEditInpaintHistoryArgs = {
   clearSelectedLayerMask: () => void;
   invertSelectedLayerMask: () => void;
   clearAllInpaintMasks: () => void;
+  beginPanelHistoryGesture: () => void;
+  finalizePanelHistoryGesture: () => void;
+  queuePanelHistoryBaselineFromCurrent: () => void;
 };
 
 /**
@@ -31,6 +34,9 @@ export function useExpertEditInpaintHistory({
   clearSelectedLayerMask,
   invertSelectedLayerMask,
   clearAllInpaintMasks,
+  beginPanelHistoryGesture,
+  finalizePanelHistoryGesture,
+  queuePanelHistoryBaselineFromCurrent,
 }: UseExpertEditInpaintHistoryArgs) {
   const inpaintGestureBaselineRef = React.useRef<InpaintMaskSnapshot | null>(null);
   const pendingInpaintHistoryApplyRef = React.useRef<InpaintMaskSnapshot | null>(null);
@@ -90,8 +96,9 @@ export function useExpertEditInpaintHistory({
   );
 
   const beginInpaintGestureHistory = React.useCallback(() => {
+    beginPanelHistoryGesture();
     inpaintGestureBaselineRef.current = captureInpaintMaskSnapshot();
-  }, [captureInpaintMaskSnapshot]);
+  }, [beginPanelHistoryGesture, captureInpaintMaskSnapshot]);
 
   const finalizeInpaintGestureHistory = React.useCallback(() => {
     const baselineEntry = inpaintGestureBaselineRef.current;
@@ -99,28 +106,47 @@ export function useExpertEditInpaintHistory({
     inpaintGestureBaselineRef.current = null;
     const nextEntry = captureInpaintMaskSnapshot();
     commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition]);
+    finalizePanelHistoryGesture();
+  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition, finalizePanelHistoryGesture]);
 
   const clearInpaintSelectionWithHistory = React.useCallback(() => {
     const baselineEntry = captureInpaintMaskSnapshot();
+    queuePanelHistoryBaselineFromCurrent();
     clearSelectedLayerMask();
     const nextEntry = captureInpaintMaskSnapshot();
     commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearSelectedLayerMask, commitInpaintHistoryTransition]);
+  }, [
+    captureInpaintMaskSnapshot,
+    clearSelectedLayerMask,
+    commitInpaintHistoryTransition,
+    queuePanelHistoryBaselineFromCurrent,
+  ]);
 
   const invertInpaintSelectionWithHistory = React.useCallback(() => {
     const baselineEntry = captureInpaintMaskSnapshot();
+    queuePanelHistoryBaselineFromCurrent();
     invertSelectedLayerMask();
     const nextEntry = captureInpaintMaskSnapshot();
     commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition, invertSelectedLayerMask]);
+  }, [
+    captureInpaintMaskSnapshot,
+    commitInpaintHistoryTransition,
+    invertSelectedLayerMask,
+    queuePanelHistoryBaselineFromCurrent,
+  ]);
 
   const clearAllInpaintMasksWithHistory = React.useCallback(() => {
     const baselineEntry = captureInpaintMaskSnapshot();
+    queuePanelHistoryBaselineFromCurrent();
     clearAllInpaintMasks();
     const nextEntry = captureInpaintMaskSnapshot();
     commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearAllInpaintMasks, commitInpaintHistoryTransition]);
+  }, [
+    captureInpaintMaskSnapshot,
+    clearAllInpaintMasks,
+    commitInpaintHistoryTransition,
+    queuePanelHistoryBaselineFromCurrent,
+  ]);
 
   const handleUndoInpaintAction = React.useCallback(() => {
     setInpaintHistoryState((previousHistory) => {

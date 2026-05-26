@@ -238,4 +238,45 @@ describe("useStandardCreatePrimarySubmit", () => {
       })
     );
   });
+
+  it("suppresses overlapping Standard create submits until the first submit settles", async () => {
+    let resolveFirstSubmit!: () => void;
+    const firstSubmitSettled = new Promise<void>((resolve) => {
+      resolveFirstSubmit = resolve;
+    });
+    const handleGenerate = vi.fn(() => firstSubmitSettled);
+    const setSharedPrompt = vi.fn();
+
+    const { result } = renderHook(() =>
+      useStandardCreatePrimarySubmit({
+        selectedTool: "create",
+        chatModeEnabled: true,
+        agentInput: "visible composer prompt",
+        prompt: "fallback prompt",
+        createGenerateCostCredits: 7,
+        handleGenerate,
+        handleProviderPrimarySubmit: vi.fn(),
+        setSharedPrompt,
+      })
+    );
+
+    act(() => {
+      result.current();
+      result.current();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledTimes(1);
+    expect(setSharedPrompt).toHaveBeenCalledTimes(1);
+
+    resolveFirstSubmit();
+    await act(async () => {
+      await firstSubmitSettled;
+    });
+
+    act(() => {
+      result.current();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledTimes(2);
+  });
 });

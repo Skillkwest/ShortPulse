@@ -17,6 +17,9 @@ type UseExpertEditMarkupHistoryArgs = {
   markupStrokes: MarkupStroke[];
   setMarkupStrokes: React.Dispatch<React.SetStateAction<MarkupStroke[]>>;
   hasPrimaryCompositePreview: boolean;
+  beginPanelHistoryGesture: () => void;
+  finalizePanelHistoryGesture: () => void;
+  queuePanelHistoryBaselineFromCurrent: () => void;
 };
 
 /**
@@ -27,6 +30,9 @@ export function useExpertEditMarkupHistory({
   markupStrokes,
   setMarkupStrokes,
   hasPrimaryCompositePreview,
+  beginPanelHistoryGesture,
+  finalizePanelHistoryGesture,
+  queuePanelHistoryBaselineFromCurrent,
 }: UseExpertEditMarkupHistoryArgs) {
   const markupGestureBaselineRef = React.useRef<MarkupStroke[] | null>(null);
   const pendingMarkupHistoryApplyRef = React.useRef<MarkupStroke[] | null>(null);
@@ -75,8 +81,9 @@ export function useExpertEditMarkupHistory({
 
   const beginMarkupGestureHistory = React.useCallback(() => {
     if (markupGestureBaselineRef.current) return;
+    beginPanelHistoryGesture();
     markupGestureBaselineRef.current = cloneMarkupStrokesSnapshot(markupStrokes);
-  }, [markupStrokes]);
+  }, [beginPanelHistoryGesture, markupStrokes]);
 
   const finalizeMarkupGestureHistory = React.useCallback(() => {
     const baselineEntry = markupGestureBaselineRef.current;
@@ -85,19 +92,26 @@ export function useExpertEditMarkupHistory({
     const commit = () => {
       const nextEntry = cloneMarkupStrokesSnapshot(markupStrokes);
       commitMarkupHistoryTransition(nextEntry, baselineEntry);
+      finalizePanelHistoryGesture();
     };
     if (typeof window === "undefined") {
       commit();
       return;
     }
     window.requestAnimationFrame(commit);
-  }, [commitMarkupHistoryTransition, markupStrokes]);
+  }, [commitMarkupHistoryTransition, finalizePanelHistoryGesture, markupStrokes]);
 
   const clearMarkupStrokesWithHistory = React.useCallback(() => {
     const baselineEntry = cloneMarkupStrokesSnapshot(markupStrokes);
+    queuePanelHistoryBaselineFromCurrent();
     setMarkupStrokes([]);
     commitMarkupHistoryTransition([], baselineEntry);
-  }, [commitMarkupHistoryTransition, markupStrokes, setMarkupStrokes]);
+  }, [
+    commitMarkupHistoryTransition,
+    markupStrokes,
+    queuePanelHistoryBaselineFromCurrent,
+    setMarkupStrokes,
+  ]);
 
   const handleUndoMarkupAction = React.useCallback(() => {
     setMarkupHistoryState((previousHistory) => {

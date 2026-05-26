@@ -10,6 +10,7 @@ import { useExpertEditStageCleanup } from "./useExpertEditStageCleanup";
 import { useExpertEditStageKeyboardBindings } from "./useExpertEditStageKeyboardBindings";
 
 type UseExpertEditStageLifecycleArgs = {
+  panelRootRef: React.RefObject<HTMLElement | null>;
   isMoveToolSelected: boolean;
   clearTransformPointerSession: () => void;
   isMarkupExpandSelected: boolean;
@@ -38,6 +39,7 @@ type UseExpertEditStageLifecycleArgs = {
 };
 
 export function useExpertEditStageLifecycle({
+  panelRootRef,
   isMoveToolSelected,
   clearTransformPointerSession,
   isMarkupExpandSelected,
@@ -65,6 +67,7 @@ export function useExpertEditStageLifecycle({
   setIsInpaintCollapsing,
 }: UseExpertEditStageLifecycleArgs) {
   useExpertEditStageKeyboardBindings({
+    panelRootRef,
     isMarkupExpandSelected,
     isMorePresetsSurfaceOpen,
     setIsMarkupPanSpacePressed,

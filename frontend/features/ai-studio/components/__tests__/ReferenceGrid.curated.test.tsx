@@ -63,6 +63,23 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
+const makeFileList = (files: File[]): FileList =>
+  ({
+    ...files,
+    length: files.length,
+    item: (index: number) => files[index] ?? null,
+    [Symbol.iterator]: function* () {
+      yield* files;
+    },
+  }) as unknown as FileList;
+
+const makeFileTransfer = (files: File[]): DataTransfer =>
+  ({
+    files: makeFileList(files),
+    types: ["Files"],
+    getData: () => "",
+  }) as unknown as DataTransfer;
+
 const makeLibraryMediaTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
   makeTransfer({
     "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
@@ -1351,6 +1368,81 @@ describe("ReferenceGrid curated split", () => {
       {
         targetId: null,
         placement: "end",
+      }
+    );
+  });
+
+  it("adds dropped image files directly into quick slots", () => {
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const imageFile = new File(["img"], "quick-slot-drop.png", { type: "image/png" });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddDroppedFilesToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeFileTransfer([imageFile]),
+    });
+
+    expect(onAddDroppedFilesToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        0: imageFile,
+        length: 1,
+      }),
+      {
+        targetId: null,
+        placement: "end",
+      }
+    );
+  });
+
+  it("routes dropped image files to targeted quick-slot card placement", () => {
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1", "file-out-2"]);
+    const imageFile = new File(["img"], "quick-slot-before.png", { type: "image/png" });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+          onAddDroppedFilesToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const targetCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(targetCard).toBeTruthy();
+    Object.defineProperty(targetCard, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 100,
+        right: 100,
+        bottom: 100,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.drop(targetCard, {
+      clientY: 10,
+      dataTransfer: makeFileTransfer([imageFile]),
+    });
+
+    expect(onAddDroppedFilesToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        0: imageFile,
+        length: 1,
+      }),
+      {
+        targetId: "out-1",
+        placement: "after",
       }
     );
   });

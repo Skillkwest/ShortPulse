@@ -27,6 +27,7 @@ import {
   resolveVoiceChangerOutputRemoteUrl,
   resolveVoiceChangerOutputStoragePath,
 } from "../logic/voiceChangerReferenceSource";
+import { isImageFile } from "../logic/mediaLibraryModalModel";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
@@ -34,10 +35,22 @@ import type {
 import type { StudioOutput } from "../types";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 
+const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|webp)$/i;
+const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
+
 type QuickSlotDropOptions = {
   targetId: string | null;
   placement: "before" | "after" | "end";
 };
+
+type DirectDroppedImageFiles = {
+  imageFiles: File[];
+  rejectedFileCount: number;
+};
+
+type IngestedReferenceFileResult = Awaited<
+  ReturnType<NonNullable<UseAiStudioPageMediaReferenceRuntimeParams["ingestReferenceFiles"]>>
+>[number];
 
 type UseAiStudioPageMediaReferenceRuntimeParams = {
   addCuratedReference: (outputId: string) => void;
@@ -51,12 +64,24 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
   ) => string | null;
   addPastedPromptReference: (text: string) => void;
   getOutputById: (outputId: string) => StudioOutput | null;
+  ingestReferenceFiles: (
+    files: FileList | File[],
+    source?: "filePicker" | "drop"
+  ) => Promise<
+    {
+      outputId: string;
+      payload: LibraryMediaReferencePayload;
+      output: StudioOutput;
+      file: File;
+    }[]
+  >;
   reorderCuratedReference: (
     outputId: string,
     targetId: string | null,
     placement: "before" | "after" | "end"
   ) => void;
   setActiveOutputId: (outputId: string | null) => void;
+  setUiError?: (message: string | null) => void;
 };
 
 /**
@@ -68,9 +93,69 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   addLibraryPromptReferenceToQuickSlot,
   addPastedPromptReference,
   getOutputById,
+  ingestReferenceFiles,
   reorderCuratedReference,
   setActiveOutputId,
+  setUiError,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
+  const resolveDirectDroppedImageFiles = useCallback(
+    (files: FileList | File[]): DirectDroppedImageFiles => {
+      const droppedFiles = Array.from(files);
+      const imageFiles = droppedFiles.filter((file) => {
+        if (isImageFile(file.type)) return true;
+        return !file.type && IMAGE_FILE_EXTENSION_PATTERN.test(file.name);
+      });
+      return {
+        imageFiles,
+        rejectedFileCount: Math.max(0, droppedFiles.length - imageFiles.length),
+      };
+    },
+    []
+  );
+
+  const ensureDroppedImageFiles = useCallback(
+    (files: FileList | File[]): DirectDroppedImageFiles => {
+      const directDrop = resolveDirectDroppedImageFiles(files);
+      if (directDrop.imageFiles.length > 0) return directDrop;
+      setUiError?.("Drop image files here.");
+      return directDrop;
+    },
+    [resolveDirectDroppedImageFiles, setUiError]
+  );
+
+  const projectOutputIdsToQuickSlot = useCallback(
+    (insertedResults: IngestedReferenceFileResult[], options: QuickSlotDropOptions): string[] => {
+      const outputIds = insertedResults.map((result) => result.outputId).filter(Boolean);
+      if (outputIds.length === 0) return [];
+
+      if (options.placement === "end" || !options.targetId) {
+        outputIds.forEach((outputId) => {
+          addCuratedReference(outputId);
+        });
+        return outputIds;
+      }
+
+      if (options.placement === "after") {
+        let anchorId = options.targetId;
+        outputIds.forEach((outputId) => {
+          addCuratedReference(outputId);
+          reorderCuratedReference(outputId, anchorId, "after");
+          anchorId = outputId;
+        });
+        return outputIds;
+      }
+
+      let anchorId = options.targetId;
+      [...outputIds].reverse().forEach((outputId) => {
+        addCuratedReference(outputId);
+        reorderCuratedReference(outputId, anchorId, "before");
+        anchorId = outputId;
+      });
+      return outputIds;
+    },
+    [addCuratedReference, reorderCuratedReference]
+  );
+
   const handleQuickSlotLibraryMediaDrop = useCallback(
     async (payload: LibraryMediaReferencePayload, options?: QuickSlotDropOptions) => {
       const insertedId = await addLibraryMediaReferenceToQuickSlot(payload, options);
@@ -87,6 +172,33 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       addLibraryMediaReferenceToQuickSlot,
       reorderCuratedReference,
       setActiveOutputId,
+    ]
+  );
+
+  const handleQuickSlotDroppedFiles = useCallback(
+    async (files: FileList, options?: QuickSlotDropOptions) => {
+      const { imageFiles, rejectedFileCount } = ensureDroppedImageFiles(files);
+      if (imageFiles.length === 0) return [];
+      const insertedResults = await ingestReferenceFiles(imageFiles, "drop");
+      if (rejectedFileCount > 0 && insertedResults.length > 0) {
+        setUiError?.(SURFACE_DIRECT_DROP_PARTIAL_MESSAGE);
+      }
+      const insertedOutputIds = projectOutputIdsToQuickSlot(insertedResults, {
+        targetId: options?.targetId ?? null,
+        placement: options?.placement ?? "end",
+      });
+      const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
+      if (activeOutputId) {
+        setActiveOutputId(activeOutputId);
+      }
+      return insertedOutputIds;
+    },
+    [
+      ensureDroppedImageFiles,
+      ingestReferenceFiles,
+      projectOutputIdsToQuickSlot,
+      setActiveOutputId,
+      setUiError,
     ]
   );
 
@@ -294,6 +406,43 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     [addLibraryMediaReferenceToQuickSlot, addLibraryPromptReferenceToQuickSlot]
   );
 
+  const resolveCanvasDropFiles = useCallback(
+    async (files: FileList): Promise<CanvasDropResolution[] | null> => {
+      const { imageFiles, rejectedFileCount } = ensureDroppedImageFiles(files);
+      if (imageFiles.length === 0) return null;
+      const insertedResults = await ingestReferenceFiles(imageFiles, "drop");
+      if (rejectedFileCount > 0 && insertedResults.length > 0) {
+        setUiError?.(SURFACE_DIRECT_DROP_PARTIAL_MESSAGE);
+      }
+      const resolvedItems = insertedResults.flatMap((result) => {
+        if (result.output.mode !== "image") return [];
+        const sourceUrl = result.output.resultUrls?.[0] ?? result.output.previewUrl ?? null;
+        if (!sourceUrl) return [];
+        return [
+          {
+            kind: "image" as const,
+            outputId: result.outputId,
+            mediaId: resolveSavedMediaIdFromOutput(result.output, 0),
+            src: sourceUrl,
+            alt: (
+              result.output.prompt ||
+              result.output.previewText ||
+              result.payload.filename ||
+              result.file.name ||
+              "Canvas media"
+            ).trim(),
+          },
+        ];
+      });
+      if (resolvedItems.length === 0) {
+        setUiError?.("Unable to place those images on the canvas right now.");
+        return null;
+      }
+      return resolvedItems;
+    },
+    [ensureDroppedImageFiles, ingestReferenceFiles, setUiError]
+  );
+
   const {
     railCanvasProps,
     sessionState: canvasSessionState,
@@ -301,6 +450,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDropFiles,
     onPinTextReference: addPastedPromptReference,
   });
 
@@ -335,6 +485,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
   return {
     canvasSessionState,
+    handleQuickSlotDroppedFiles,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,

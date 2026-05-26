@@ -6,7 +6,9 @@ import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   evaluateReferenceGridAuditGates,
+  evaluateProjectWorkspaceAutosaveTypingAuditGates,
   evaluateStudioShellAuditGates,
+  type ProjectWorkspaceAutosaveTypingScenario,
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../logic/perfAuditGates";
@@ -14,6 +16,11 @@ import {
   getAiStudioShellSectionRenderCounters,
   resetAiStudioShellSectionRenderCounters,
 } from "../logic/shellRenderCounters";
+import {
+  getProjectWorkspaceAutosavePerfCounters,
+  resetProjectWorkspaceAutosavePerfCounters,
+  type ProjectWorkspaceAutosavePerfCounters,
+} from "../logic/projectWorkspaceAutosavePerf";
 import type { StudioOutput } from "../types";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -141,6 +148,19 @@ type AiStudioPerfWindow = Window & {
         note?: string;
       }>;
     }>;
+    runProjectWorkspaceAutosaveTypingAudit: (options?: { samples?: number }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      projectRouteRequested: boolean;
+      scenarios: ProjectWorkspaceAutosaveTypingScenario[];
+      gates: Array<{
+        name: string;
+        pass: boolean;
+        actual: number | null;
+        expected: string;
+        note?: string;
+      }>;
+    }>;
   };
 };
 
@@ -165,7 +185,14 @@ type UseAiStudioPerfAuditRuntimeParams = {
   model: string | null;
   getOutputSnapshot: () => PerfOutputSnapshot;
   resetReferenceGridState: () => void;
+  projectRouteRequested: boolean;
+  standardCreatePrompt: string;
+  editReferenceText: string;
+  videoReferenceText: string;
   setActiveOutputId: (outputId: string | null) => void;
+  setStandardCreatePrompt: (value: string) => void;
+  setEditReferenceText: (value: string) => void;
+  setVideoReferenceText: (value: string) => void;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
 };
 
@@ -180,7 +207,14 @@ export function useAiStudioPerfAuditRuntime({
   model,
   getOutputSnapshot,
   resetReferenceGridState,
+  projectRouteRequested,
+  standardCreatePrompt,
+  editReferenceText,
+  videoReferenceText,
   setActiveOutputId,
+  setStandardCreatePrompt,
+  setEditReferenceText,
+  setVideoReferenceText,
   setOutputs,
 }: UseAiStudioPerfAuditRuntimeParams): void {
   useEffect(() => {
@@ -221,6 +255,16 @@ export function useAiStudioPerfAuditRuntime({
       maxInputStallMs: 1000,
       nonGridRerendersPerOutputStatusTick: 3,
     };
+    const PROJECT_WORKSPACE_AUTOSAVE_TYPING_GATES = {
+      standardPromptCommitP95Ms: 45,
+      standardPromptBaseSnapshotBuildsP95: 1,
+      standardPromptSessionSnapshotComposeCountP95: 1,
+      standardPromptCandidateSelectionCountP95: 1,
+      draftCommitP95Ms: 30,
+      draftBaseSnapshotBuildsP95: 0,
+      draftSessionSnapshotComposeCountP95: 0,
+      draftCandidateSelectionCountP95: 0,
+    };
     const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
     const nextFrame = () =>
       new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -241,6 +285,18 @@ export function useAiStudioPerfAuditRuntime({
       if (typeof runtimePerformance.memory?.usedJSHeapSize !== "number") return null;
       return Math.round((runtimePerformance.memory.usedJSHeapSize / (1024 * 1024)) * 100) / 100;
     };
+    const diffAutosaveCounters = (
+      before: ProjectWorkspaceAutosavePerfCounters,
+      after: ProjectWorkspaceAutosavePerfCounters
+    ): ProjectWorkspaceAutosavePerfCounters => ({
+      baseSnapshotBuildCount: after.baseSnapshotBuildCount - before.baseSnapshotBuildCount,
+      baseSnapshotBuildMs: after.baseSnapshotBuildMs - before.baseSnapshotBuildMs,
+      sessionSnapshotComposeCount:
+        after.sessionSnapshotComposeCount - before.sessionSnapshotComposeCount,
+      sessionSnapshotComposeMs: after.sessionSnapshotComposeMs - before.sessionSnapshotComposeMs,
+      candidateSelectionCount: after.candidateSelectionCount - before.candidateSelectionCount,
+      candidateSelectionMs: after.candidateSelectionMs - before.candidateSelectionMs,
+    });
     const createPerfOutputs = (count: number): StudioOutput[] => {
       const safeCount = Math.max(0, Math.floor(count));
       const runId = Date.now();
@@ -708,6 +764,64 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
+    const runProjectWorkspaceAutosaveTypingScenario = async ({
+      field,
+      currentValue,
+      setValue,
+      sampleCount,
+    }: {
+      field: "standardPrompt" | "editReferenceText" | "videoReferenceText";
+      currentValue: string;
+      setValue: (value: string) => void;
+      sampleCount: number;
+    }): Promise<ProjectWorkspaceAutosaveTypingScenario> => {
+      const commitLatenciesMs: number[] = [];
+      const baseSnapshotBuilds: number[] = [];
+      const baseSnapshotBuildMs: number[] = [];
+      const sessionSnapshotComposeCounts: number[] = [];
+      const sessionSnapshotComposeMs: number[] = [];
+      const candidateSelectionCounts: number[] = [];
+      const candidateSelectionMs: number[] = [];
+
+      resetProjectWorkspaceAutosavePerfCounters();
+
+      for (let index = 0; index < sampleCount; index += 1) {
+        const before = getProjectWorkspaceAutosavePerfCounters();
+        const startedAt = performance.now();
+        setValue(`[perf-audit:${field}:${index}]`);
+        await afterTwoFrames();
+        commitLatenciesMs.push(performance.now() - startedAt);
+        const after = getProjectWorkspaceAutosavePerfCounters();
+        const diff = diffAutosaveCounters(before, after);
+        baseSnapshotBuilds.push(diff.baseSnapshotBuildCount);
+        baseSnapshotBuildMs.push(diff.baseSnapshotBuildMs);
+        sessionSnapshotComposeCounts.push(diff.sessionSnapshotComposeCount);
+        sessionSnapshotComposeMs.push(diff.sessionSnapshotComposeMs);
+        candidateSelectionCounts.push(diff.candidateSelectionCount);
+        candidateSelectionMs.push(diff.candidateSelectionMs);
+        await sleep(18);
+      }
+
+      setValue(currentValue);
+      await afterTwoFrames();
+
+      return {
+        field,
+        commit: {
+          samples: commitLatenciesMs.length,
+          p95Ms: p95(commitLatenciesMs),
+        },
+        autosave: {
+          baseSnapshotBuildsP95: p95(baseSnapshotBuilds),
+          baseSnapshotBuildMsP95: p95(baseSnapshotBuildMs),
+          sessionSnapshotComposeCountP95: p95(sessionSnapshotComposeCounts),
+          sessionSnapshotComposeMsP95: p95(sessionSnapshotComposeMs),
+          candidateSelectionCountP95: p95(candidateSelectionCounts),
+          candidateSelectionMsP95: p95(candidateSelectionMs),
+        },
+      };
+    };
+
     perfWindow.__shortpulseAiStudioPerf = {
       seedReferenceGrid: (count: number) => {
         const nextOutputs = createPerfOutputs(count);
@@ -822,6 +936,62 @@ export function useAiStudioPerfAuditRuntime({
         console.log("[shortpulse][studio-shell-audit]", result);
         return result;
       },
+      runProjectWorkspaceAutosaveTypingAudit: async (options) => {
+        if (!projectRouteRequested) {
+          return {
+            ok: false,
+            generatedAt: new Date().toISOString(),
+            projectRouteRequested,
+            scenarios: [],
+            gates: [
+              {
+                name: "project_route_required",
+                pass: false,
+                actual: null,
+                expected: "Open a project route before running the project autosave typing audit.",
+              },
+            ],
+          };
+        }
+
+        const sampleCount = Math.max(1, Math.floor(options?.samples ?? 12));
+
+        const scenarios = await Promise.all([
+          runProjectWorkspaceAutosaveTypingScenario({
+            field: "standardPrompt",
+            currentValue: standardCreatePrompt,
+            setValue: setStandardCreatePrompt,
+            sampleCount,
+          }),
+          runProjectWorkspaceAutosaveTypingScenario({
+            field: "editReferenceText",
+            currentValue: editReferenceText,
+            setValue: setEditReferenceText,
+            sampleCount,
+          }),
+          runProjectWorkspaceAutosaveTypingScenario({
+            field: "videoReferenceText",
+            currentValue: videoReferenceText,
+            setValue: setVideoReferenceText,
+            sampleCount,
+          }),
+        ]);
+
+        const gates = evaluateProjectWorkspaceAutosaveTypingAuditGates(
+          scenarios,
+          PROJECT_WORKSPACE_AUTOSAVE_TYPING_GATES
+        );
+        const result = {
+          ok: gates.every((gate) => gate.pass),
+          generatedAt: new Date().toISOString(),
+          projectRouteRequested,
+          scenarios,
+          gates,
+        };
+        console.table(gates);
+        console.log("[shortpulse][project-workspace-autosave-typing-audit]", result);
+        return result;
+      },
     };
 
     return () => {
@@ -836,7 +1006,14 @@ export function useAiStudioPerfAuditRuntime({
     getOutputSnapshot,
     model,
     resetReferenceGridState,
+    projectRouteRequested,
+    standardCreatePrompt,
+    editReferenceText,
+    videoReferenceText,
     setActiveOutputId,
+    setStandardCreatePrompt,
+    setEditReferenceText,
+    setVideoReferenceText,
     setOutputs,
   ]);
 }

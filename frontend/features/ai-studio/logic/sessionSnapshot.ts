@@ -1167,9 +1167,15 @@ export const createAiStudioProjectWorkspaceAutosaveCandidates = (
 
   const seen = new Set<string>();
   return candidates.filter((candidate) => {
-    const serialized = JSON.stringify(candidate.snapshot);
-    if (seen.has(serialized)) return false;
-    seen.add(serialized);
+    const candidateChecksum =
+      candidate.snapshot.schemaVersion >= 2
+        ? ((candidate.snapshot as AiStudioSessionSnapshotV2).meta?.checksum ?? null)
+        : null;
+    const dedupeKey = candidateChecksum
+      ? `checksum:${candidateChecksum}`
+      : `json:${JSON.stringify(candidate.snapshot)}`;
+    if (seen.has(dedupeKey)) return false;
+    seen.add(dedupeKey);
     return true;
   });
 };

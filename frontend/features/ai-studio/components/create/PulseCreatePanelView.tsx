@@ -46,7 +46,6 @@ const PulseCreatePanelViewContent = ({
   createModeToggle = null,
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
-  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   isPulseActivationBusy = false,
@@ -66,9 +65,15 @@ const PulseCreatePanelViewContent = ({
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  const hasDraftedComposerInput = (promptStepProps.agentInput?.trim().length ?? 0) > 0;
+  const hasComposerAttachments = (promptStepProps.stagedAttachments?.length ?? 0) > 0;
   const pulseLoadingState = promptStepProps.pulseLoadingState ?? null;
   const hasPulseLoadingSurface = pulseLoadingState != null;
-  const isNoHistoryShell = !hasVisibleAgentMessages;
+  const isNoHistoryShell =
+    !hasVisibleAgentMessages &&
+    !hasDraftedComposerInput &&
+    !hasComposerAttachments &&
+    agentInputVisualRowCount <= 1;
   const shouldShowPulseStartupShell =
     isNoHistoryShell && pulseLoadingState?.phase === "starting_pulse";
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;

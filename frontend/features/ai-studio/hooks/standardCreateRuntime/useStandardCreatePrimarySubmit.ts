@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { StudioMode, ToolId } from "../../types";
+import { useAiStudioCreateSubmitSingleFlight } from "../useAiStudioCreateSubmitSingleFlight";
 
 type GenerateStandardCreateOutput = (
   promptOverride?: string | null,
@@ -39,8 +40,8 @@ export const useStandardCreatePrimarySubmit = ({
   handleGenerate,
   handleProviderPrimarySubmit,
   setSharedPrompt = () => undefined,
-}: UseStandardCreatePrimarySubmitParams) =>
-  useCallback(() => {
+}: UseStandardCreatePrimarySubmitParams) => {
+  const handlePrimarySubmit = useCallback(() => {
     if (!enabled) return;
     if (isStandardCreateTextTool(selectedTool)) {
       const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();
@@ -48,14 +49,13 @@ export const useStandardCreatePrimarySubmit = ({
       if (chatModeEnabled) {
         setSharedPrompt(visibleComposerPrompt);
       }
-      void handleGenerate(visibleComposerPrompt, {
+      return handleGenerate(visibleComposerPrompt, {
         modeOverride: "image",
         toolOverride: "create",
         costOverrideCredits: createGenerateCostCredits,
       });
-      return;
     }
-    handleProviderPrimarySubmit();
+    return handleProviderPrimarySubmit();
   }, [
     agentInput,
     chatModeEnabled,
@@ -67,3 +67,6 @@ export const useStandardCreatePrimarySubmit = ({
     selectedTool,
     setSharedPrompt,
   ]);
+
+  return useAiStudioCreateSubmitSingleFlight(handlePrimarySubmit);
+};

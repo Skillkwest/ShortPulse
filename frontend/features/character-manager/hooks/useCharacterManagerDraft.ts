@@ -198,6 +198,7 @@ export const useCharacterManagerDraft = ({
   const [isSavingCharacterSheetPreset, setIsSavingCharacterSheetPreset] = useState(false);
   const [isDeletingCharacterSheetPreset, setIsDeletingCharacterSheetPreset] = useState(false);
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
+  const characterSheetPresetMutationCountRef = useRef(0);
 
   const suppressNextNamePersistRef = useRef(false);
   const characterIdRef = useRef<string | null>(null);
@@ -254,6 +255,19 @@ export const useCharacterManagerDraft = ({
 
   const clearMessages = useCallback(() => {
     setError(null);
+  }, []);
+
+  const beginCharacterSheetPresetMutation = useCallback(() => {
+    characterSheetPresetMutationCountRef.current += 1;
+    setIsSavingCharacterSheetPreset(true);
+  }, []);
+
+  const endCharacterSheetPresetMutation = useCallback(() => {
+    characterSheetPresetMutationCountRef.current = Math.max(
+      0,
+      characterSheetPresetMutationCountRef.current - 1
+    );
+    setIsSavingCharacterSheetPreset(characterSheetPresetMutationCountRef.current > 0);
   }, []);
 
   const clearSaveProgressEscalationTimer = useCallback(() => {
@@ -521,6 +535,7 @@ export const useCharacterManagerDraft = ({
     setCharacterDescription,
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
+    saveCharacterSheetPresetAssignmentsForPreset,
     addCharacterSheetPreset,
     renameCharacterSheetPreset,
     deleteCharacterSheetPreset,
@@ -528,7 +543,8 @@ export const useCharacterManagerDraft = ({
     characterId,
     clearMessages,
     setError,
-    setIsSavingCharacterSheetPreset,
+    beginCharacterSheetPresetMutation,
+    endCharacterSheetPresetMutation,
     setIsDeletingCharacterSheetPreset,
     activeCharacterSheetPresetIdRef,
     activeCharacterSheetPresetRequestRef,
@@ -579,10 +595,12 @@ export const useCharacterManagerDraft = ({
     setCharacterSheetAssignments,
     characterSheetAssignmentsRef,
     characterSheetAssignmentsRequestRef,
-    setIsSavingCharacterSheetPreset,
+    beginCharacterSheetPresetMutation,
+    endCharacterSheetPresetMutation,
     activeCharacterSheetPresetIdRef,
     characterSheetPresetsRef,
     saveCharacterSheetPresetAssignments,
+    saveCharacterSheetPresetAssignmentsForPreset,
     markSlotBusy,
     slotsRef,
     setSlots,

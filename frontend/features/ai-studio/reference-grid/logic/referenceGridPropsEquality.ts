@@ -142,6 +142,9 @@ export const areReferenceGridPropsEqual = (
   ) {
     return false;
   }
+  if (previous.onAddDroppedFilesToQuickSlot !== next.onAddDroppedFilesToQuickSlot) {
+    return false;
+  }
   if (
     previous.onAddLibraryPromptReferenceToQuickSlot !== next.onAddLibraryPromptReferenceToQuickSlot
   ) {

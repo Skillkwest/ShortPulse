@@ -536,6 +536,7 @@ const resolveDeliveryFromMediaRows = ({
   const mediaStoragePath = asTrimmedString(mediaRow?.storage_path);
   const mediaPreviewStoragePath = asTrimmedString(mediaRow?.preview_storage_path);
   const mediaPreviewVariantPath = asTrimmedString(mediaRow?.preview_variant_path);
+  const mediaThumbVariantPath = asTrimmedString(mediaRow?.thumb_variant_path);
   const publicationPreviewStoragePath = asTrimmedString(publicationRow?.preview_storage_path);
   const publicationFullStoragePath = asTrimmedString(publicationRow?.full_storage_path);
   const fullStoragePath = publicationFullStoragePath ?? mediaStoragePath ?? null;
@@ -543,11 +544,30 @@ const resolveDeliveryFromMediaRows = ({
     fileType.startsWith("video") ||
     isLikelyVideoPath(fullStoragePath) ||
     isLikelyVideoPath(mediaStoragePath);
-  if (!isVideo) return null;
+  const isImage =
+    fileType.startsWith("image") ||
+    isLikelyImagePath(fullStoragePath) ||
+    isLikelyImagePath(mediaStoragePath);
+  if (!isVideo && !isImage) return null;
+
+  if (isImage) {
+    const previewStoragePath =
+      publicationPreviewStoragePath ??
+      mediaPreviewStoragePath ??
+      mediaPreviewVariantPath ??
+      mediaThumbVariantPath ??
+      fullStoragePath;
+    if (!previewStoragePath && !fullStoragePath) return null;
+    return {
+      previewPosterStoragePath: null,
+      previewStoragePath,
+      fullStoragePath,
+    };
+  }
 
   const previewPosterStoragePath =
     asTrimmedString(mediaRow?.poster_variant_path) ??
-    asTrimmedString(mediaRow?.thumb_variant_path) ??
+    mediaThumbVariantPath ??
     resolveVideoPosterStoragePath({
       previewStoragePath: publicationPreviewStoragePath,
       fullStoragePath,
@@ -581,18 +601,18 @@ const buildProjectGenerationMediaDeliveryByGenerationId = async ({
   userId: string;
   projectionByGenerationId: Map<string, ProjectGenerationProjectionRow>;
 }): Promise<Map<string, ProjectGenerationMediaDelivery>> => {
-  const videoProjectionEntries = [...projectionByGenerationId.entries()].filter(
-    ([, projection]) => resolveSnapshotOutputMode(projection) === "video"
+  const mediaBackedProjectionEntries = [...projectionByGenerationId.entries()].filter(
+    ([, projection]) => resolveSnapshotOutputMode(projection) !== "audio"
   );
-  if (!videoProjectionEntries.length) return new Map();
+  if (!mediaBackedProjectionEntries.length) return new Map();
 
-  const generationIds = videoProjectionEntries.map(([generationId]) => generationId);
+  const generationIds = mediaBackedProjectionEntries.map(([generationId]) => generationId);
   const publicationByGenerationId = await readPublishedGenerationRowsByGenerationId({
     userId,
     generationIds,
   });
   const mediaFileIds = new Set<string>();
-  videoProjectionEntries.forEach(([, projection]) => {
+  mediaBackedProjectionEntries.forEach(([, projection]) => {
     asTrimmedStringArray(projection.saved_media_ids).forEach((id) => mediaFileIds.add(id));
   });
   publicationByGenerationId.forEach((publication) => {
@@ -605,7 +625,7 @@ const buildProjectGenerationMediaDeliveryByGenerationId = async ({
   });
 
   const deliveryByGenerationId = new Map<string, ProjectGenerationMediaDelivery>();
-  videoProjectionEntries.forEach(([generationId, projection]) => {
+  mediaBackedProjectionEntries.forEach(([generationId, projection]) => {
     const publicationRow = publicationByGenerationId.get(generationId) ?? null;
     const publicationMediaId = asTrimmedString(publicationRow?.owned_media_file_id);
     const savedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
@@ -1068,27 +1088,14 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         const normalizedRow = asRecord(row);
         const generationId = asTrimmedString(normalizedRow.generationId);
         if (generationId && !associatedSnapshotGenerationIds.has(generationId)) {
-          changed = true;
-          return null;
+          return normalizedRow;
         }
         if (!generationId) {
           return row;
         }
         const projection = projectionByGenerationId.get(generationId);
         if (!projection) {
-          changed = true;
-          return {
-            ...normalizedRow,
-            resultUrls: [],
-            previewUrl: null,
-            previewPosterUrl: null,
-            previewPosterStoragePath: null,
-            companionArtUrl: null,
-            companionArtStoragePath: null,
-            companionArtStatus: null,
-            previewStoragePath: null,
-            fullStoragePath: null,
-          };
+          return normalizedRow;
         }
         if (!shouldRetainProjectionSnapshotRow(projection)) {
           changed = true;

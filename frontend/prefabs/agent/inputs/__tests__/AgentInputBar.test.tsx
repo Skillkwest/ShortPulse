@@ -91,6 +91,90 @@ describe("AgentInputBar", () => {
     }
   });
 
+  it("caps Create composer height against the available properties-panel space", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 900,
+    });
+    rectSpy.mockImplementation(function () {
+      if (this instanceof HTMLTextAreaElement) {
+        return {
+          x: 0,
+          y: 420,
+          top: 420,
+          bottom: 456,
+          left: 0,
+          right: 400,
+          width: 400,
+          height: 36,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if ((this as HTMLElement).classList?.contains("create-composer-right-panel-inner")) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          bottom: 580,
+          left: 0,
+          right: 420,
+          width: 420,
+          height: 580,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        bottom: 720,
+        left: 0,
+        right: 1280,
+        width: 1280,
+        height: 720,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      render(
+        <div className="ai-properties">
+          <div className="create-composer-panel">
+            <div className="create-composer-right-panel-inner">
+              <AgentInputBar
+                value="Long composer draft"
+                onChange={() => undefined}
+                maxHeightPx={520}
+              />
+            </div>
+          </div>
+        </div>
+      );
+
+      expect(screen.getByRole("textbox")).toHaveStyle({
+        height: "128px",
+        overflowY: "auto",
+      });
+    } finally {
+      rectSpy.mockRestore();
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
+      }
+    }
+  });
+
   it("collapses to min height on blur and re-expands on focus when collapse mode is enabled", async () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(

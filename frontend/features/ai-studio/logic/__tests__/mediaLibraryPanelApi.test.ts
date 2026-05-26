@@ -5,17 +5,31 @@ import {
   getMediaFolderCanvasState,
   listMediaFolders,
   saveMediaFolderCanvasState,
+  uploadMediaFile,
 } from "../mediaLibraryPanelApi";
 
-const fetchWithAuthMock = vi.fn();
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const maybeTranscodeLocalImageBlobForUploadMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+vi.mock("../../../../lib/adaptive-media", () => ({
+  maybeTranscodeLocalImageBlobForUpload: (...args: unknown[]) =>
+    maybeTranscodeLocalImageBlobForUploadMock(...args),
+}));
+
+const jsonResponse = (payload: unknown, status = 200): Response =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
 describe("mediaLibraryPanelApi transient retry hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    maybeTranscodeLocalImageBlobForUploadMock.mockImplementation(async (blob: Blob) => blob);
   });
 
   it("retries transient network failures for membership-batch calls", async () => {
@@ -267,5 +281,68 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
         body: expect.stringContaining('"folderId":"folder-1"'),
       })
     );
+  });
+});
+
+describe("mediaLibraryPanelApi.uploadMediaFile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    maybeTranscodeLocalImageBlobForUploadMock.mockImplementation(async (blob: Blob) => blob);
+  });
+
+  it("preprocesses local image uploads before posting to the media upload API", async () => {
+    const sourceFile = new File(["raw-image"], "large-reference.png", {
+      type: "image/png",
+      lastModified: 123,
+    });
+    const transcodedBlob = new Blob(["smaller-image"], { type: "image/webp" });
+    maybeTranscodeLocalImageBlobForUploadMock.mockResolvedValueOnce(transcodedBlob);
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        file: {
+          id: "media-1",
+          filename: "large-reference.png",
+          storage_path: "user-1/uploads/images/large-reference.webp",
+          preview_storage_path: "user-1/uploads/images/large-reference.webp",
+          file_type: "image",
+          file_size: transcodedBlob.size,
+          source: "upload",
+          created_at: "2026-05-25T00:00:00.000Z",
+          signedUrl: "https://signed.test/large-reference.webp",
+        },
+      })
+    );
+
+    await uploadMediaFile({
+      file: sourceFile,
+      destinationTab: "uploaded_images",
+    });
+
+    expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledWith(sourceFile);
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, { body: FormData }];
+    const uploadedFile = options.body.get("file");
+    expect(uploadedFile).toBeInstanceOf(File);
+    expect((uploadedFile as File).name).toBe("large-reference.png");
+    expect((uploadedFile as File).type).toBe("image/webp");
+    expect(options.body.get("destinationTab")).toBe("uploaded_images");
+  });
+
+  it("maps non-json 413 upload failures to a precise size-limit message", async () => {
+    const sourceFile = new File(["raw-image"], "oversized-reference.png", {
+      type: "image/png",
+    });
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response("<html><body>413 payload too large</body></html>", {
+        status: 413,
+        headers: { "Content-Type": "text/html" },
+      })
+    );
+
+    await expect(
+      uploadMediaFile({
+        file: sourceFile,
+        destinationTab: "uploaded_images",
+      })
+    ).rejects.toThrow("Image file is too large. ShortPulse accepts images up to 25 MB.");
   });
 });

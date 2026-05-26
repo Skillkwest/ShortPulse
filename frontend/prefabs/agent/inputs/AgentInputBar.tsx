@@ -33,6 +33,7 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
     }: AgentInputBarProps,
     forwardedRef
   ) {
+    const CREATE_COMPOSER_PANEL_BOUNDARY_INSET_PX = 32;
     const localRef = useRef<HTMLTextAreaElement | null>(null);
     const resizeRafRef = useRef<number | null>(null);
     const [isFocused, setIsFocused] = React.useState(false);
@@ -48,6 +49,10 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       const paddingTopPx = Number.parseFloat(computedStyle.paddingTop) || 0;
       const paddingBottomPx = Number.parseFloat(computedStyle.paddingBottom) || 0;
       const renderedHeightPx = textarea.getBoundingClientRect().height;
+      const isInsideCreateComposer = Boolean(textarea.closest(".create-composer-panel"));
+      const createComposerBoundary = textarea.closest(
+        ".create-composer-right-panel-inner, .ai-properties"
+      ) as HTMLElement | null;
 
       // Reset the explicit height before measuring so wider layouts can shrink the textarea.
       textarea.style.height = "0px";
@@ -77,9 +82,21 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
         return;
       }
 
-      const nextHeightPx = Math.min(measuredScrollHeightPx, maxHeightPx);
+      const createComposerAvailableHeightPx = isInsideCreateComposer
+        ? Math.max(
+            computedMinHeightPx,
+            (createComposerBoundary?.getBoundingClientRect().bottom ?? window.innerHeight) -
+              textarea.getBoundingClientRect().top -
+              CREATE_COMPOSER_PANEL_BOUNDARY_INSET_PX
+          )
+        : maxHeightPx;
+      const resolvedMaxHeightPx = Math.max(
+        computedMinHeightPx,
+        Math.min(maxHeightPx, createComposerAvailableHeightPx)
+      );
+      const nextHeightPx = Math.min(measuredScrollHeightPx, resolvedMaxHeightPx);
       applyHeight(nextHeightPx);
-      textarea.style.overflowY = measuredScrollHeightPx > maxHeightPx ? "auto" : "hidden";
+      textarea.style.overflowY = measuredScrollHeightPx > resolvedMaxHeightPx ? "auto" : "hidden";
     }, [collapseToMinHeightWhenBlurred, isFocused, maxHeightPx, onVisualRowCountChange, value]);
 
     const scheduleResizeToFit = useCallback(() => {

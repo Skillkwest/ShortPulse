@@ -22,8 +22,15 @@ type UseExpertEditSessionBridgeArgs = {
   hostPrimaryImageUrl: string | null;
   removeBackgroundPendingLayerId: string | null;
   layerIdCounterRef: React.MutableRefObject<number>;
+  suppressNextPrimaryPublishUrlRef: React.MutableRefObject<string | null>;
   removeBackgroundPendingSourceUrlRef: React.MutableRefObject<string | null>;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
+  rebasePanelHistoryLayerImage: (args: {
+    layerId: string;
+    previousImageUrl: string | null;
+    nextImageUrl: string | null;
+    ownsImageUrl: boolean;
+  }) => void;
   clearRemoveBackgroundPending: () => void;
   onPrimaryImageChange: (url: string | null) => void;
   onSessionStateChange?: (nextState: ExpertEditSessionState) => void;
@@ -41,8 +48,10 @@ export function useExpertEditSessionBridge({
   hostPrimaryImageUrl,
   removeBackgroundPendingLayerId,
   layerIdCounterRef,
+  suppressNextPrimaryPublishUrlRef,
   removeBackgroundPendingSourceUrlRef,
   setLayers,
+  rebasePanelHistoryLayerImage,
   clearRemoveBackgroundPending,
   onPrimaryImageChange,
   onSessionStateChange,
@@ -82,8 +91,10 @@ export function useExpertEditSessionBridge({
     foundationLayerId,
     lastDispatchedPrimaryRef,
     previousPrimaryPropRef,
+    suppressNextPrimaryPublishUrlRef,
     removeBackgroundPendingSourceUrlRef,
     setLayers,
+    rebasePanelHistoryLayerImage,
     clearRemoveBackgroundPending,
     onPrimaryImageChange,
     revokeObjectUrlSafe,

@@ -73,7 +73,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("allows repeated create generate submissions without client-side locking", async () => {
+  it("leaves create submit locking to the higher-level create entry hooks", async () => {
     const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => null);
     const generateOutput = vi.fn();
     const params = createParams({

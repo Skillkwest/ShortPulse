@@ -5,6 +5,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import { AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES } from "../logic/sessionSnapshotCanvas";
+import {
+  prepareAiStudioSessionAutosaveSnapshot,
+  type PreparedAiStudioSessionAutosaveSnapshot,
+} from "../logic/sessionAutosaveSerialization";
 
 type PersistSnapshotFn = (
   sessionId: string,
@@ -36,6 +40,7 @@ type UseAiStudioSessionAutosaveArgs = {
   maxSnapshotBytes?: number;
   maxPersistRetries?: number;
   resolveSnapshotTitle?: (snapshot: AiStudioSessionSnapshot) => string | null;
+  preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot | null;
   onPersistError?: (error: Error, details: AiStudioSessionAutosaveError) => void;
 };
 
@@ -53,34 +58,6 @@ const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
 const DEFAULT_MAX_PERSIST_RETRIES = 1;
 
-const utf8ByteLength = (value: string): number => {
-  if (typeof TextEncoder !== "undefined") {
-    return new TextEncoder().encode(value).byteLength;
-  }
-  return value.length;
-};
-
-const stripVolatileSnapshotFields = (
-  snapshot: AiStudioSessionSnapshot
-): Record<string, unknown> => {
-  const normalizedSnapshot = { ...snapshot } as Record<string, unknown>;
-  delete normalizedSnapshot.updatedAt;
-
-  const metaValue = normalizedSnapshot.meta;
-  if (metaValue && typeof metaValue === "object" && !Array.isArray(metaValue)) {
-    const normalizedMeta = { ...(metaValue as Record<string, unknown>) };
-    delete normalizedMeta.generatedAt;
-    delete normalizedMeta.checksum;
-    if (Object.keys(normalizedMeta).length > 0) {
-      normalizedSnapshot.meta = normalizedMeta;
-    } else {
-      delete normalizedSnapshot.meta;
-    }
-  }
-
-  return normalizedSnapshot;
-};
-
 /**
  * Persists `snapshot` for the active workspace identity in debounced autosave mode.
  */
@@ -94,6 +71,7 @@ export const useAiStudioSessionAutosave = ({
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
   maxPersistRetries = DEFAULT_MAX_PERSIST_RETRIES,
   resolveSnapshotTitle = () => null,
+  preparedSnapshot = null,
   onPersistError,
 }: UseAiStudioSessionAutosaveArgs): void => {
   const pendingRef = useRef<PendingSnapshotState | null>(null);
@@ -208,22 +186,13 @@ export const useAiStudioSessionAutosave = ({
 
   const serializedSnapshot = useMemo(() => {
     if (!snapshot) return null;
-    try {
-      const json = JSON.stringify(snapshot);
-      const semanticJson = JSON.stringify(stripVolatileSnapshotFields(snapshot));
-      return {
-        hash: semanticJson,
-        bytes: utf8ByteLength(json),
-        title: resolveSnapshotTitle(snapshot),
-      };
-    } catch {
-      return {
-        hash: null,
-        bytes: Number.POSITIVE_INFINITY,
-        title: resolveSnapshotTitle(snapshot),
-      };
+    if (preparedSnapshot) {
+      return preparedSnapshot;
     }
-  }, [resolveSnapshotTitle, snapshot]);
+    return prepareAiStudioSessionAutosaveSnapshot(snapshot, {
+      title: resolveSnapshotTitle(snapshot),
+    });
+  }, [preparedSnapshot, resolveSnapshotTitle, snapshot]);
 
   useEffect(() => {
     if (!enabled || !sessionId || !snapshot || !serializedSnapshot) return;

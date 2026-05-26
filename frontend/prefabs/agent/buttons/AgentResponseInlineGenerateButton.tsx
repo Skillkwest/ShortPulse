@@ -1,7 +1,7 @@
 /**
  * Reusable small generate button used in agent response bubbles and expert chat-off inline generate.
  * Keeps the compact response-style CTA markup consistent across surfaces while
- * preserving rapid re-click behavior whenever validation keeps the CTA active.
+ * leaving duplicate-click suppression to the owning generation lane.
  */
 import React, { useMemo } from "react";
 

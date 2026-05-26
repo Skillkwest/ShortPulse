@@ -26,6 +26,12 @@ import {
   AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
   type AiStudioSessionCanvasState,
 } from "../logic/sessionSnapshotCanvas";
+import {
+  prepareAiStudioSessionAutosaveSnapshot,
+  utf8ByteLength,
+  type PreparedAiStudioSessionAutosaveSnapshot,
+} from "../logic/sessionAutosaveSerialization";
+import { recordProjectWorkspaceAutosavePerf } from "../logic/projectWorkspaceAutosavePerf";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -80,13 +86,6 @@ const resolveProjectPersistenceWarningMessage = ({
       }
       return `Project autosave is retrying in the background: ${error.message}`;
   }
-};
-
-const utf8ByteLength = (value: string): number => {
-  if (typeof TextEncoder !== "undefined") {
-    return new TextEncoder().encode(value).byteLength;
-  }
-  return value.length;
 };
 
 const measureSerializedBytes = (value: unknown): number | null => {
@@ -197,6 +196,11 @@ const resolveReducedWorkspaceNotice = (
 const resolveProjectRepairPendingNotice = (): string =>
   "Project autosave saved the workspace, but project asset repair is pending. Recent outputs may not fully restore until the next successful save.";
 
+const resolvePerfNow = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+
 /**
  * Returns project-owned persistence wiring for AI Studio page orchestration.
  */
@@ -255,20 +259,24 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionRestoreCandidate.status === "ready" &&
     bootstrappedProject?.projectId === projectId &&
     bootstrappedProject.revision === projectRuntimeRevision;
-  const baseSessionSnapshot = useMemo(
-    () =>
-      sessionId && projectBootstrapReady
-        ? createAiStudioProjectWorkspaceSnapshot(buildBaseSessionSnapshot(sessionId))
-        : null,
-    [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]
-  );
-  const sessionSnapshot = useMemo(
-    () =>
-      baseSessionSnapshot && patchSessionSnapshot
-        ? patchSessionSnapshot(baseSessionSnapshot)
-        : baseSessionSnapshot,
-    [baseSessionSnapshot, patchSessionSnapshot]
-  );
+  const baseSessionSnapshot = useMemo(() => {
+    if (!sessionId || !projectBootstrapReady) return null;
+    const startedAt = resolvePerfNow();
+    const nextSnapshot = createAiStudioProjectWorkspaceSnapshot(
+      buildBaseSessionSnapshot(sessionId)
+    );
+    recordProjectWorkspaceAutosavePerf("baseSnapshotBuild", resolvePerfNow() - startedAt);
+    return nextSnapshot;
+  }, [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]);
+  const sessionSnapshot = useMemo(() => {
+    if (!baseSessionSnapshot) return baseSessionSnapshot;
+    const startedAt = resolvePerfNow();
+    const nextSnapshot = patchSessionSnapshot
+      ? patchSessionSnapshot(baseSessionSnapshot)
+      : baseSessionSnapshot;
+    recordProjectWorkspaceAutosavePerf("sessionSnapshotCompose", resolvePerfNow() - startedAt);
+    return nextSnapshot;
+  }, [baseSessionSnapshot, patchSessionSnapshot]);
   const snapshotByteBreakdownCacheRef = useRef<WeakMap<object, ProjectSnapshotByteBreakdown>>(
     new WeakMap()
   );
@@ -287,31 +295,47 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   );
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
-  const autosaveSnapshotSelection = (() => {
+  const autosaveSnapshotSelection = useMemo(() => {
+    const startedAt = resolvePerfNow();
     if (!sessionSnapshot) {
-      return {
+      const emptySelection = {
         snapshot: null as AiStudioSessionSnapshot | null,
         fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+        preparedSnapshot: null as PreparedAiStudioSessionAutosaveSnapshot | null,
       };
+      recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
+      return emptySelection;
     }
     for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
       try {
-        const bytes = utf8ByteLength(JSON.stringify(candidate.snapshot));
+        const serializedJson = JSON.stringify(candidate.snapshot);
+        const bytes = utf8ByteLength(serializedJson);
         if (bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES) {
-          return {
+          const resolvedSelection = {
             snapshot: candidate.snapshot,
             fallbackKind: candidate.kind,
+            preparedSnapshot: prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
+              serializedJson,
+              title: null,
+            }),
           };
+          recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
+          return resolvedSelection;
         }
       } catch {
         // try the next candidate
       }
     }
-    return {
+    const fallbackSelection = {
       snapshot: sessionSnapshot,
       fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+      preparedSnapshot: prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
+        title: null,
+      }),
     };
-  })();
+    recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
+    return fallbackSelection;
+  }, [sessionSnapshot]);
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {
@@ -553,6 +577,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     enabled: projectBootstrapReady && !activeBootstrapError,
     persistSnapshot: writeProjectWorkspaceSnapshot,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
+    preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,
     onPersistError: handleProjectPersistError,
   });
 

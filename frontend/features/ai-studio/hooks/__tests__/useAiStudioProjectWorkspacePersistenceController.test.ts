@@ -7,6 +7,7 @@ import { useAiStudioSessionAutosave } from "../useAiStudioSessionAutosave";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   type AiStudioSessionSnapshot,
+  type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { resetAiStudioOutputStore } from "../aiStudioOutputStore";
@@ -246,6 +247,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
     expect(lastWriteShadowArgs?.snapshot).toEqual(createAiStudioProjectWorkspaceSnapshot(snapshot));
+    expect(lastWriteShadowArgs?.preparedSnapshot).toEqual(
+      expect.objectContaining({
+        title: null,
+        bytes: expect.any(Number),
+        hash: expect.any(String),
+      })
+    );
     expect(lastWriteShadowArgs?.snapshot?.workspace.editReferenceText).toBe("");
     expect(lastWriteShadowArgs?.snapshot?.workspace.videoReferenceText).toBe("");
     expect(buildSessionSnapshot).toHaveBeenCalledWith("session-1");
@@ -748,20 +756,21 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
   });
 
   it("falls back to a reduced snapshot that drops only hidden Pulse runtime parking", () => {
+    const baseSnapshot = createSnapshot() as AiStudioSessionSnapshotV2;
     const snapshot = {
-      ...createSnapshot(),
+      ...baseSnapshot,
       workspace: {
-        ...createSnapshot().workspace,
+        ...baseSnapshot.workspace,
         expertCreateMode: "standard",
         activePulsePresetId: "preset-1",
         pulseSessionInstanceId: "pulse-session-1",
       },
       agentRuntimes: {
-        ...createSnapshot().agentRuntimes,
+        ...baseSnapshot.agentRuntimes!,
         pulsePresetId: "preset-1",
         pulseSessionInstanceId: "pulse-session-1",
         pulse: {
-          ...createSnapshot().agentRuntimes?.pulse,
+          ...baseSnapshot.agentRuntimes!.pulse,
           input: "x".repeat(940_000),
         },
       },
@@ -789,11 +798,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     rerender();
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    const autosaveSnapshot = autosaveArgs?.snapshot as AiStudioSessionSnapshotV2 | null | undefined;
     expect(autosaveArgs?.enabled).toBe(true);
-    expect(autosaveArgs?.snapshot?.workspace.activePulsePresetId).toBeNull();
-    expect(autosaveArgs?.snapshot?.workspace.pulseSessionInstanceId).toBeNull();
-    expect(autosaveArgs?.snapshot?.agentRuntimes?.pulsePresetId).toBeNull();
-    expect(autosaveArgs?.snapshot?.agentRuntimes?.pulseSessionInstanceId).toBeNull();
+    expect(autosaveSnapshot?.workspace.activePulsePresetId).toBeNull();
+    expect(autosaveSnapshot?.workspace.pulseSessionInstanceId).toBeNull();
+    expect(autosaveSnapshot?.agentRuntimes?.pulsePresetId).toBeNull();
+    expect(autosaveSnapshot?.agentRuntimes?.pulseSessionInstanceId).toBeNull();
     expect(onPersistenceWarning).toHaveBeenCalledWith(
       "Project autosave saved a reduced workspace snapshot to stay within size limits. Hidden Pulse state may need to be restarted."
     );

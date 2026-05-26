@@ -32,6 +32,7 @@ type UseExpertEditPrimaryIngressArgs = {
   foundationLayerId: string | null;
   isMorePresetsSurfaceOpen: boolean;
   createLayer: CreateLayer;
+  queuePanelHistoryBaselineFromCurrent: () => void;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setEditingLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
@@ -51,6 +52,7 @@ export function useExpertEditPrimaryIngress({
   foundationLayerId,
   isMorePresetsSurfaceOpen,
   createLayer,
+  queuePanelHistoryBaselineFromCurrent,
   setLayers,
   setSelectedLayerIndex,
   setEditingLayerIndex,
@@ -133,6 +135,7 @@ export function useExpertEditPrimaryIngress({
           opacity: LAYER_OPACITY_DEFAULT,
           transform: defaultLayerTransform(),
         };
+        queuePanelHistoryBaselineFromCurrent();
         setLayers(nextLayers);
         if (seededDimensions) {
           seedLayerImageDimensions?.(foundationLayer.id, candidateUrl, seededDimensions);
@@ -156,6 +159,7 @@ export function useExpertEditPrimaryIngress({
           layers: nextLayers,
           foundationLayerId: currentFoundationLayerId,
         });
+        queuePanelHistoryBaselineFromCurrent();
         setLayers(normalizedLayers);
         if (seededDimensions) {
           seedLayerImageDimensions?.(targetLayer.id, candidateUrl, seededDimensions);
@@ -189,6 +193,7 @@ export function useExpertEditPrimaryIngress({
         ],
         foundationLayerId: currentFoundationLayerId,
       });
+      queuePanelHistoryBaselineFromCurrent();
       setLayers(nextLayers);
       if (seededDimensions) {
         seedLayerImageDimensions?.(insertedLayer.id, candidateUrl, seededDimensions);
@@ -200,6 +205,7 @@ export function useExpertEditPrimaryIngress({
     },
     [
       createLayer,
+      queuePanelHistoryBaselineFromCurrent,
       revokeObjectUrlSafe,
       seedLayerImageDimensions,
       setEditingLayerIndex,

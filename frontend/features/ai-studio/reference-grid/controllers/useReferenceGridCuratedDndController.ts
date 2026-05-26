@@ -102,6 +102,9 @@ const hasDroppedFiles = (transfer: DataTransfer): boolean => {
   return getNormalizedTransferTypes(transfer).includes("files");
 };
 
+const hasQuickSlotStructuredDropHints = (transfer: DataTransfer): boolean =>
+  hasInternalReferenceDrag(transfer) || hasMediaLibraryDragTypeHints(transfer);
+
 /**
  * Returns curated-surface drag/drop and keyboard reorder handlers.
  */
@@ -172,14 +175,6 @@ export const useReferenceGridCuratedDndController = ({
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
       setCuratedDropActiveSafe(false);
-      if (
-        handleQuickSlotFileDrop(event.dataTransfer, {
-          targetId: null,
-          placement: "end",
-        })
-      ) {
-        return;
-      }
       const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
       if (
         mediaLibraryPayload &&
@@ -190,20 +185,32 @@ export const useReferenceGridCuratedDndController = ({
       ) {
         return;
       }
-      const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
-      if (!referenceId) return;
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      if (sourceSurface === "all-refs") {
-        if (curatedReferenceIds.includes(referenceId)) {
+      if (hasInternalReferenceDrag(event.dataTransfer)) {
+        const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
+        if (!referenceId) return;
+        const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+        if (sourceSurface === "all-refs") {
+          if (curatedReferenceIds.includes(referenceId)) {
+            onSelectOutput(referenceId);
+            return;
+          }
+          onAddCuratedReference?.(referenceId);
           onSelectOutput(referenceId);
           return;
         }
-        onAddCuratedReference?.(referenceId);
+        onReorderCuratedReference?.(referenceId, null, "end");
         onSelectOutput(referenceId);
         return;
       }
-      onReorderCuratedReference?.(referenceId, null, "end");
-      onSelectOutput(referenceId);
+      if (
+        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
+        handleQuickSlotFileDrop(event.dataTransfer, {
+          targetId: null,
+          placement: "end",
+        })
+      ) {
+        return;
+      }
     },
     [
       curatedDragDepthRef,
@@ -235,19 +242,22 @@ export const useReferenceGridCuratedDndController = ({
         setCuratedDropActiveSafe(false);
         return;
       }
-      if (hasFilePayload) {
-        event.dataTransfer.dropEffect = "copy";
-        setCuratedDropActiveSafe(true);
-        return;
-      }
       if (hasLibraryPayloadHint) {
         event.dataTransfer.dropEffect = "copy";
         setCuratedDropActiveSafe(true);
         return;
       }
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
-      setCuratedDropActiveSafe(true);
+      if (hasInternalReferenceDrag(event.dataTransfer)) {
+        const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+        event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
+        setCuratedDropActiveSafe(true);
+        return;
+      }
+      if (hasFilePayload) {
+        event.dataTransfer.dropEffect = "copy";
+        setCuratedDropActiveSafe(true);
+        return;
+      }
     },
     [isCuratedSplitEnabled, onAddDroppedFilesToQuickSlot, setCuratedDropActiveSafe]
   );
@@ -295,14 +305,6 @@ export const useReferenceGridCuratedDndController = ({
       const rect = event.currentTarget.getBoundingClientRect();
       const placement: "before" | "after" =
         event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-      if (
-        handleQuickSlotFileDrop(event.dataTransfer, {
-          targetId: target.id,
-          placement,
-        })
-      ) {
-        return;
-      }
       const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
       if (mediaLibraryPayload) {
         handleLibraryQuickSlotDrop(mediaLibraryPayload, {
@@ -311,20 +313,32 @@ export const useReferenceGridCuratedDndController = ({
         });
         return;
       }
-      const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
-      if (!referenceId) return;
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      if (sourceSurface === "all-refs") {
-        if (curatedReferenceIds.includes(referenceId)) {
+      if (hasInternalReferenceDrag(event.dataTransfer)) {
+        const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
+        if (!referenceId) return;
+        const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+        if (sourceSurface === "all-refs") {
+          if (curatedReferenceIds.includes(referenceId)) {
+            onSelectOutput(referenceId);
+            return;
+          }
+          onAddCuratedReference?.(referenceId);
           onSelectOutput(referenceId);
           return;
         }
-        onAddCuratedReference?.(referenceId);
+        onReorderCuratedReference?.(referenceId, target.id, placement);
         onSelectOutput(referenceId);
         return;
       }
-      onReorderCuratedReference?.(referenceId, target.id, placement);
-      onSelectOutput(referenceId);
+      if (
+        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
+        handleQuickSlotFileDrop(event.dataTransfer, {
+          targetId: target.id,
+          placement,
+        })
+      ) {
+        return;
+      }
     },
     [
       curatedDragDepthRef,

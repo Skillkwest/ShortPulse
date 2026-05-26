@@ -95,7 +95,7 @@ sequenceDiagram
 - `useAiStudioWorkflowSettings` reads `aiStudioWorkflowSettingsByTool.v1`.
 - Create startup model uses `resolveCreateWorkflowStartupModel` precedence.
 - Edit startup model uses `resolveEditWorkflowStartupModel` precedence.
-- Aspect ratio now follows one shared AI Studio session preference across Create, Edit, and Video surfaces instead of restoring a separate per-workflow aspect value.
+- Live workflow tab switches now restore workflow-local model and aspect selections from the lightweight workflow-settings hook. Browser session persistence for that hook remains limited to non-project routes, while project routes keep the same restore behavior only for the active in-session project authority.
 
 6. Guard effects:
 

@@ -166,7 +166,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
-  it("restores saved create video workflow settings from session storage without overwriting the shared aspect", async () => {
+  it("restores saved create video workflow settings from session storage", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
@@ -368,10 +368,10 @@ describe("useAiStudioWorkflowSettings", () => {
       })
     );
 
-    const { result } = renderHook(() => useHarness("create", "session-1", "project-1"));
+    const { result } = renderHook(() => useHarness("create", "session-1", "project-1", true));
 
-    await waitFor(() => expect(result.current.mode).toBe("text"));
-    expect(result.current.model).toBeNull();
+    await waitFor(() => expect(result.current.mode).toBe("image"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
     expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).toContain('"video"');
   });
 
@@ -454,7 +454,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
   });
 
-  it("uses the shared aspect when edit is the active workflow", async () => {
+  it("restores the saved edit aspect when edit is the active workflow", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
@@ -668,7 +668,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/nano-banana-2");
   });
 
-  it("keeps aspect synchronized across create, edit, and video workflow switches", async () => {
+  it("restores workflow-local aspects across create, edit, and video workflow switches", async () => {
     window.sessionStorage.clear();
     const { result } = renderHook(() => useHarness("create"));
 
@@ -682,14 +682,14 @@ describe("useAiStudioWorkflowSettings", () => {
     });
 
     await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
-    expect(result.current.aspect).toBe("16:9");
+    expect(result.current.aspect).toBe("9:16");
 
     act(() => {
       result.current.setSelectedTool("video");
     });
 
     await waitFor(() => expect(result.current.selectedTool).toBe("video"));
-    expect(result.current.aspect).toBe("16:9");
+    expect(result.current.aspect).toBe("9:16");
 
     act(() => {
       result.current.setSelectedTool("create");
@@ -697,6 +697,32 @@ describe("useAiStudioWorkflowSettings", () => {
 
     await waitFor(() => expect(result.current.selectedTool).toBe("create"));
     expect(result.current.aspect).toBe("16:9");
+  });
+
+  it("restores edit model and aspect on project routes when switching away and back", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("edit", "session-1", "project-1", true));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+    await waitFor(() => expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit"));
+
+    act(() => {
+      result.current.setModelState("fal-ai/nano-banana-2/edit");
+      result.current.setAspect("4:5");
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    await waitFor(() => expect(result.current.model).toBeNull());
+
+    act(() => {
+      result.current.setSelectedTool("edit");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+    expect(result.current.model).toBe("fal-ai/nano-banana-2/edit");
+    expect(result.current.aspect).toBe("4:5");
+    expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).toBeNull();
   });
 
   it("resets custom Kling multi-shot state when the active video model changes away from Kling", async () => {

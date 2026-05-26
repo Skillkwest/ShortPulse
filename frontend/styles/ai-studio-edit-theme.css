@@ -3,6 +3,7 @@
  * Locks the canonical edit accent aliases before broader style migration.
  */
 .ai-studio-page[data-selected-tool="edit"],
+.ai-studio-page[data-selected-tool="image"],
 .edit-properties-panel {
   --edit-accent: var(--color-amber, #f5b942);
   --edit-accent-start: #f5b754;
@@ -61,7 +62,13 @@
 .ai-studio-page[data-selected-tool="edit"]
   .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider-pill,
+.ai-studio-page[data-selected-tool="image"]
+  .reference-grid-horizontal-divider-wrap:hover
+  .reference-grid-horizontal-divider-pill,
 .ai-studio-page[data-selected-tool="edit"]
+  .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider-pill,
+.ai-studio-page[data-selected-tool="image"]
   .reference-grid-horizontal-divider-wrap:focus-visible
   .reference-grid-horizontal-divider-pill {
   color: var(--edit-accent-highlight);
@@ -69,7 +76,8 @@
   background: var(--edit-accent-surface-tint);
 }
 
-.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible {
+.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="image"] .ai-shell-divider:focus-visible {
   outline: 2px solid var(--edit-accent-border-emphasis);
 }
 

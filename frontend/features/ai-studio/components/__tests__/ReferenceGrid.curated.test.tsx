@@ -80,6 +80,17 @@ const makeFileTransfer = (files: File[]): DataTransfer =>
     getData: () => "",
   }) as unknown as DataTransfer;
 
+const makeMixedTransfer = (
+  files: File[],
+  data: Record<string, string>,
+  typeOverrides?: string[]
+): DataTransfer =>
+  ({
+    files: makeFileList(files),
+    types: typeOverrides ?? ["Files", ...Object.keys(data)],
+    getData: (type: string) => data[type] ?? "",
+  }) as unknown as DataTransfer;
+
 const makeLibraryMediaTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
   makeTransfer({
     "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
@@ -1401,6 +1412,36 @@ describe("ReferenceGrid curated split", () => {
     );
   });
 
+  it("prefers internal reference drops over synthetic browser files in quick slots", () => {
+    const onAddCuratedReference = vi.fn();
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const onSelectOutput = vi.fn();
+    const syntheticBrowserFile = new File(["img"], "DraggedImage.png", { type: "image/png" });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddCuratedReference,
+          onAddDroppedFilesToQuickSlot,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeMixedTransfer([syntheticBrowserFile], {
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-id": "out-2",
+        "text/reference-source-surface": "all-refs",
+      }),
+    });
+
+    expect(onAddCuratedReference).toHaveBeenCalledWith("out-2");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+    expect(onAddDroppedFilesToQuickSlot).not.toHaveBeenCalled();
+  });
+
   it("routes dropped image files to targeted quick-slot card placement", () => {
     const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1", "file-out-2"]);
     const imageFile = new File(["img"], "quick-slot-before.png", { type: "image/png" });
@@ -1445,6 +1486,112 @@ describe("ReferenceGrid curated split", () => {
         placement: "after",
       }
     );
+  });
+
+  it("prefers degraded internal quick-slot reorders over synthetic browser files", () => {
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const onReorderCuratedReference = vi.fn();
+    const onSelectOutput = vi.fn();
+    const syntheticBrowserFile = new File(["img"], "DraggedImage.png", { type: "image/png" });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1", "out-2"],
+          onAddDroppedFilesToQuickSlot,
+          onReorderCuratedReference,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const targetCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(targetCard).toBeTruthy();
+    Object.defineProperty(targetCard, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 100,
+        right: 100,
+        bottom: 100,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.drop(targetCard, {
+      clientY: 10,
+      dataTransfer: makeMixedTransfer([syntheticBrowserFile], {
+        "text/reference-output-id": "out-2",
+        "text/reference-source-surface": "curated",
+      }),
+    });
+
+    expect(onReorderCuratedReference).toHaveBeenCalledWith("out-2", "out-1", "after");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+    expect(onAddDroppedFilesToQuickSlot).not.toHaveBeenCalled();
+  });
+
+  it("prefers media-library quick-slot drops over synthetic browser files", async () => {
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const onAddLibraryMediaReferenceToQuickSlot = vi.fn(async () => "library-out-1");
+    const onSelectOutput = vi.fn();
+    const syntheticBrowserFile = new File(["img"], "DraggedImage.png", { type: "image/png" });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddDroppedFilesToQuickSlot,
+          onAddLibraryMediaReferenceToQuickSlot,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.drop(curatedSection, {
+        dataTransfer: makeMixedTransfer(
+          [syntheticBrowserFile],
+          {
+            "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+            "text/shortpulse-media-library-kind": "libraryMedia",
+            "text/shortpulse-media-library-id": "media-drop-1",
+            "text/shortpulse-media-library-file-type": "image",
+            "text/reference-url": "https://cdn.example.com/library-drop-1.png",
+            "text/shortpulse-media-library-filename": "library-drop-1.png",
+            "text/prompt": "Library media prompt",
+          },
+          [
+            "Files",
+            "text/shortpulse-media-library-marker",
+            "text/shortpulse-media-library-kind",
+            "text/shortpulse-media-library-id",
+            "text/shortpulse-media-library-file-type",
+            "text/reference-url",
+            "text/shortpulse-media-library-filename",
+            "text/prompt",
+          ]
+        ),
+      });
+      await Promise.resolve();
+    });
+
+    expect(onAddLibraryMediaReferenceToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-drop-1",
+        url: "https://cdn.example.com/library-drop-1.png",
+        fileType: "image",
+      }),
+      {
+        targetId: null,
+        placement: "end",
+      }
+    );
+    expect(onSelectOutput).toHaveBeenCalledWith("library-out-1");
+    expect(onAddDroppedFilesToQuickSlot).not.toHaveBeenCalled();
   });
 
   it("activates quick-slot drag state from media-library type hints without reading payload data", () => {

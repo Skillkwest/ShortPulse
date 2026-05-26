@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
-import { AI_SHELL_LEFT_MIN_PX, AI_SHELL_RIGHT_EXPERT_EDIT_MIN_PX } from "../../logic/shellResize";
+import { AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX, AI_SHELL_LEFT_MIN_PX } from "../../logic/shellResize";
 
 describe("useAiStudioShellResize", () => {
   afterEach(() => {
@@ -85,18 +85,25 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
-  it("publishes a caller-provided right-column minimum into the shell style", async () => {
+  it("honors a caller-provided left-column minimum when collapsing on a reset key", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1400,
     });
 
-    const { result } = renderHook(() =>
-      useAiStudioShellResize({
-        enabled: true,
-        minRightWidthPx: AI_SHELL_RIGHT_EXPERT_EDIT_MIN_PX,
-      })
+    const { result, rerender } = renderHook(
+      ({ minWidthResetKey }: { minWidthResetKey: string | null }) =>
+        useAiStudioShellResize({
+          enabled: true,
+          minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+          minWidthResetKey,
+        }),
+      {
+        initialProps: {
+          minWidthResetKey: null as string | null,
+        },
+      }
     );
 
     const shellNode = {
@@ -107,10 +114,10 @@ describe("useAiStudioShellResize", () => {
       result.current.shellRef.current = shellNode;
     });
 
+    rerender({ minWidthResetKey: "project-1" });
+
     await waitFor(() => {
-      expect(result.current.shellStyle).toMatchObject({
-        "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_EXPERT_EDIT_MIN_PX}px`,
-      });
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX);
     });
 
     Object.defineProperty(window, "innerWidth", {

@@ -213,7 +213,7 @@ Behavior:
 2. The current workspace storage contract reuses the AI Studio session snapshot envelope as a temporary migration schema boundary, but project persistence sanitizes the project payload before write and ignores legacy conversational fields on restore.
 3. Unsent Standard Create composer drafts, unsent Edit composer drafts, unsent Video composer drafts, and unsent Sound workflow text drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
 4. Project routes do not use the legacy remote `sid` session snapshot API as their primary durable authority.
-5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage; project reopen resets conversational runtime instead of restoring it from project workspace state.
+5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage, but they still keep lightweight in-session workflow restore keyed to the active verified project so workflow tab switches do not leak settings across projects. Project reopen still resets conversational runtime instead of restoring it from project workspace state.
 6. Project workspace writes now reset the project shell back to the shipped Standard/Create baseline and do not preserve Pulse shell selection or Pulse session instance ids.
 7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
 8. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.

@@ -85,13 +85,36 @@ For `character-panel-media-assignment`, load:
 12. Holomony keeps full operating scope across approved media surfaces and shared supporting runtime/tooling when the task is real Holomony work.
 13. For maintenance and hygiene tasks in agent folders, work only inside Holomony's own folder unless the user explicitly changes that scope.
 14. Do not perform maintenance or hygiene work in another agent's folder for another agent unless the user explicitly rewrites that boundary.
-15. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
+15. When a bug sits near shared AI Studio behavior, treat the protected behaviors as first-class scope boundaries, not as implementation details.
+16. Before changing shared media/modal/stage/Edit paths, explicitly identify:
+
+- the visible symptom,
+- the owning source path,
+- the non-regression contract,
+- and the smallest canonical fix worth shipping.
+
+17. Do not widen a narrow bug-fix lane into redesign, abstraction cleanup, or generic performance work unless the user explicitly approves that scope expansion.
+18. Optimize for cost-of-change discipline:
+
+- prefer small canonical fixes,
+- preserve working interactions,
+- and stop once the ROI-positive bug lane is complete.
+
+19. Before asking the user to approve a sensitive shared-surface lane, make the lane approval-ready:
+
+- name the exact broken behavior,
+- name the exact owning path,
+- name the protected behaviors that will not be touched,
+- and state why continuing is better ROI than stopping.
+  If that case is still fuzzy, re-audit before asking for approval.
+
+20. When the user asks a trust, validity, or governance question about Holomony's tools or decisions, answer like an engineering review:
 
 - direct verdict first,
 - separate `tool validity`, `evidence freshness`, and `coverage completeness`,
 - and avoid blended status summaries that hide which layer is actually weak.
 
-16. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
+21. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
 
 ## Deliverable Rules
 

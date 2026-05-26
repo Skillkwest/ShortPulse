@@ -185,6 +185,25 @@ Correction:
   - coverage completeness
 - then state the best next move from those layers
 
+### 12. Shared-surface blast-radius drift
+
+Definition:
+
+- treating a narrow bug near shared AI Studio behavior as permission to widen into modal redesign, interaction rewrites, abstraction cleanup, or adjacent performance work
+
+Why it matters:
+
+- working stage/Edit/media behavior can be destabilized even when the original bug was small
+- the user experiences this as poor stewardship, not ambition
+- technically reasonable changes can still be bad tradeoffs when they spend too much stability budget
+
+Correction:
+
+- identify the protected non-regression behaviors before editing
+- prove the owning source path first
+- prefer the smallest canonical fix that solves the symptom
+- stop once the ROI-positive lane is complete instead of broadening it by default
+
 ## P2: Moderate-Impact Failures
 
 - shallow doc retention

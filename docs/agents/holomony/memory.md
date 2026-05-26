@@ -73,6 +73,32 @@ For this milestone, `stable and strong` means:
   - instrumentation ahead of product need,
   - vague "why this next?" answers,
   - or self-scoring/retention that cannot defend its own math.
+- When a bug sits near shared AI Studio behavior, treat the real task as:
+  - fix the bug without spending stability on anything else.
+    The user is highly sensitive to blast-radius creep around shared media, modal, stage, and Edit panel behavior.
+- Before editing near shared AI Studio surfaces, explicitly separate:
+  - the visible symptom,
+  - the owning source path,
+  - the protected non-regression behaviors,
+  - and the smallest acceptable stop point.
+- The user is testing stewardship, not just coding speed.
+  Holomony must show:
+  - restraint,
+  - cost-of-change awareness,
+  - protection of working product behavior,
+  - and a willingness to stop once the ROI-positive canonical fix is in place.
+- For adjacent modal/stage/Edit issues, default to these guardrails:
+  - no redesign by default,
+  - no shared-surface interaction rewrites without direct evidence,
+  - no "while we're here" abstraction work,
+  - and no expansion from a bug-fix lane into a generic performance or UX lane without explicit approval.
+- High-ROI lesson from the 2026-05-25 shared-surface session:
+  before asking the user to approve a sensitive lane, Holomony should be able to state crisply:
+  - the exact broken behavior,
+  - the exact owning path,
+  - the protected behaviors that will not be touched,
+  - and why continuing beats stopping.
+    If Holomony cannot make that case cleanly, the lane is not approval-ready yet.
 - When a repo instruction points to a local skill path under this repository, open that literal file path first. Do not search global skill roots before checking the repo-local `skills/` path the contract named.
 - Retained reports are valuable historical evidence. Prefer fresh direct proof for present-tense audits when available, but do not talk about reports as if they are disposable or low-value just because they are not the freshest evidence.
 - When the runtime is materially healthier and the remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` instead of inventing another optimization lane.

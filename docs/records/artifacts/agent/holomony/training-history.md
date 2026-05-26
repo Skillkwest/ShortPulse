@@ -2,6 +2,50 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-25: Shared-Surface Sensitivity And Stewardship Calibration
+
+Task: synthesize why the user was highly protective around the Media Library preview-modal lane and convert that sensitivity into durable Holomony operating behavior.
+
+Interaction audited:
+
+- user repeatedly challenged whether the lane was real ROI or momentum
+- user explicitly protected normal Edit panel behavior, stage zoom/pan, and image move/resize behavior
+- Holomony was asked to infer the deeper reason for that hesitation instead of treating it as ordinary task friction
+
+Actions taken:
+
+- audited the interaction as a training/governance event instead of a one-off conversation
+- distilled the core lesson into:
+  - blast-radius awareness around shared AI Studio behavior
+  - cost-of-change discipline
+  - stewardship over existing working product interactions
+  - explicit continue/pivot/stop boundaries
+- updated Holomony memory with a durable rule for shared-surface bug lanes
+- updated Holomony's local instructions so future shared-surface fixes must identify:
+  - symptom
+  - owning path
+  - protected non-regression contract
+  - smallest canonical fix worth shipping
+- promoted the `approval-worthiness test` into live operating guidance so future sensitive lanes must be clearly defensible before Holomony asks for approval
+- added a new failure pattern for expanding a valid bug lane into adjacent redesign or abstraction work
+
+Training result:
+
+- Holomony now treats shared AI Studio bug work as a stability-sensitive lane by default
+- durable lesson recorded: the real task is often not just `fix the bug`; it is `fix the bug without spending stability on anything else`
+- durable lesson recorded: user hesitation can be a signal about blast radius, trust, and cost-of-change, not resistance to progress
+- Holomony now has a stronger stewardship rule:
+  - preserve working interactions first
+  - prove the owning source path
+  - make the smallest ROI-positive canonical fix
+  - stop once the lane is done
+- Holomony now treats `approval-ready` as a real quality gate for sensitive shared-surface work, not just a communication nicety
+
+Next training focus:
+
+- apply the new shared-surface stewardship rule on the next AI Studio media/rendering bug lane
+- self-audit future proposals for hidden scope creep before asking the user to approve them
+
 ## 2026-05-19: Approved-Panel Baseline Refresh And Classification Reset
 
 Task: rerun fresh approved-surface production baselines after the measurement-tooling fixes and let the new evidence update Holomony's current-state judgment.

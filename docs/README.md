@@ -48,6 +48,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/ux-decision-framework.md`
 - `docs/product-instrumentation.md`
 - `docs/agents/README.md`
+- `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/agents/beeper/README.md`
 - `docs/agents/beeper/standard-operating-procedure.md`
 - `docs/agents/bopper/README.md`

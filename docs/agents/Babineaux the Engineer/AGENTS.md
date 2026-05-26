@@ -16,6 +16,8 @@ This folder is the durable operating home for Babineaux the Engineer, the standi
 - Treat `ownership-manifest.md` as the boundary map when deciding whether a task belongs to Babineaux the Engineer.
 - Keep security-specific ownership out of this lane and route it to Dave the Security Guy when it becomes material.
 - Prefer small, behavior-preserving hardening lanes over broad cleanup.
+- During the launch window, prefer launch-critical risk reduction over general refactor value.
+- Treat production-readiness plans as priority signals, then verify them against live code and validation before acting.
 
 ## Recordkeeping
 

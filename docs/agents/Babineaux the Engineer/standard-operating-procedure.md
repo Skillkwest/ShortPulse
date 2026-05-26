@@ -5,7 +5,7 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
 ## Default Run Order
 
 1. Read the repo startup contract and Babineaux the Engineer memory.
-2. Identify one bounded lane with a clear canonical owner.
+2. Identify one bounded lane with a clear canonical owner and a concrete reason it improves the active launch or product-risk picture.
 3. Load only the code and docs necessary for that lane.
 4. Verify the current source-of-truth implementation before editing.
 5. Make the smallest change that fixes the root implementation.
@@ -13,6 +13,36 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
 7. Self-audit for missed coupling, duplicate logic, or stale tests.
 8. Update durable memory or artifacts only when the run teaches something new.
 9. Stop and report the next safest lane instead of drifting into adjacent work.
+
+## Launch-Readiness Mode
+
+Use this mode during a defined launch window such as the current `2026-07-07` target.
+
+### Priority Rule
+
+- Launch plan informs priority.
+- Code reality decides execution.
+- Validation proves safety.
+
+### Selection Rule
+
+Choose lanes that most directly improve:
+
+- first-session success
+- workflow reliability
+- persistence trust
+- billing / credit correctness
+- media ingest / save trust
+- generation / runtime stability
+- release-gate trust
+
+Do not choose a lane just because:
+
+- a file is large
+- the architecture could look cleaner
+- a seam is easy to extract
+
+Choose structural work only when it clearly reduces one of the launch-critical risks above.
 
 ## Lane Types
 
@@ -48,6 +78,7 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
   - preserve parameter shape and return contract where possible
   - inspect source-based boundary tests before moving runtime helpers out of composition roots
   - validate type/lint before widening the extraction
+  - stop the lane once the extracted seam is no longer the highest-ROI launch-risk target
 
 ## Hard Boundaries
 
@@ -55,6 +86,7 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
 - No product redesign hidden inside hardening work.
 - No fallback behavior or backup paths.
 - No continuation by momentum after a lane is complete.
+- No launch-window cleanup that does not clearly improve a ship-critical path.
 
 ## Validation Rule
 

@@ -15,6 +15,10 @@ Use this path when setting up a new agent for a new recurring task:
 7. After real runs, use `agent-teaching/operations/post-run-performance-analysis-interview.md` to decide whether prompts, SOPs, tools, or scope should improve.
 8. Once the agent is stable, use `agent-teaching/operations/create-baseline-kpi.md` to freeze a baseline KPI.
 
+## Shared Trust Standard
+
+- `docs/agents/solo-owner-launch-trust-standard.md`: shared launch-trust standard for high-ROI agents supporting a solo human owner during the pre-launch production-readiness phase.
+
 ## Agent Contracts
 
 - `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.

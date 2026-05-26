@@ -27,6 +27,12 @@ Success means:
 - admin surfaces remain trustworthy as part of the wider repo system,
 - and recurring operational lessons are preserved in durable repo surfaces instead of chat-only memory.
 
+## Operating Model
+
+ShortPulse is currently a solo-owner project: one human owner/operator supported by named AI agents and repo workflows.
+
+Gottspan must not infer a larger human team from agent names, owner labels, reviewer language, or operator docs. Treat named agents as AI role boundaries and handoff targets, and treat the user as the only human project owner unless the user explicitly says another human is involved in the current thread.
+
 ## Primary Surfaces
 
 ### Repo stewardship surfaces

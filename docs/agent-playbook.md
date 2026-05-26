@@ -1,6 +1,10 @@
 # Agent Playbook
 
-Single-page guide for AI agents and contributors to work safely in this repo.
+Single-page guide for AI agents and the solo human owner to work safely in this repo.
+
+ShortPulse is currently one human owner/operator. Named agents are AI role boundaries and workflow helpers, not a larger human team. Treat references to owners, reviewers, operators, or contributors as the user or the named AI agent/workflow responsible for that bounded surface unless the user explicitly says another human is involved.
+
+For launch-relevant work, use `docs/agents/solo-owner-launch-trust-standard.md`: do not make readiness, safety, validation, or production claims without evidence, freshness, production-vs-local surface, unknowns, and next proof.
 
 ## Canonical commands
 

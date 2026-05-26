@@ -68,6 +68,7 @@ Auth/public-origin contract:
 - `APP_BASE_URL` is the canonical server-side public origin for auth emails, Stripe redirects, and other server-generated URLs.
 - `SHORTPULSE_PUBLIC_API_BASE_URL` is optional compatibility wiring only; when set, it must match `APP_BASE_URL`.
 - Production must resolve to `https://www.shortpulse.ai`.
+- During the pre-launch production-readiness phase, browser/manual validation for production work must use `https://www.shortpulse.ai`; localhost and arbitrary preview URLs are local/non-production surfaces only and require explicit user scope.
 
 ## Optional Supabase bootstrap
 

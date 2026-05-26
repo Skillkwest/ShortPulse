@@ -70,6 +70,10 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/ayla/memory.md`
 - `docs/agents/ayla/standard-operating-procedure.md`
 - `docs/agents/ayla/ux-playbook.md`
+- `docs/agents/abismia/README.md`
+- `docs/agents/abismia/AGENTS.md`
+- `docs/agents/abismia/memory.md`
+- `docs/agents/abismia/standard-operating-procedure.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
@@ -78,6 +82,11 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gottspan-the-admin/weekly-repo-steward-run.md`
 - `docs/agents/gottspan-the-admin/runtime-load-policy.md`
 - `docs/agents/gottspan-the-admin/prompts/README.md`
+- `docs/agents/Babineaux the Engineer/README.md`
+- `docs/agents/Babineaux the Engineer/AGENTS.md`
+- `docs/agents/Babineaux the Engineer/memory.md`
+- `docs/agents/Babineaux the Engineer/standard-operating-procedure.md`
+- `docs/agents/Babineaux the Engineer/ownership-manifest.md`
 - `docs/agents/holomony/README.md`
 - `docs/agents/holomony/AGENTS.md`
 - `docs/agents/holomony/standard-operating-procedure.md`

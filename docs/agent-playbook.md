@@ -46,7 +46,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 ## Safe defaults for agents
 
 - Prefer existing helpers/components before adding new dependencies.
-- Trace failures to the source and fix the canonical path; do not create workaround, backup, fallback, legacy, or duplicate paths to mask or sidestep the real issue.
+- Trace failures to the source and fix the canonical path; do not add parallel paths, duplicate implementations, hidden fallback behavior, backup copies, or legacy variants to bypass the root problem.
 - Keep UI consistent with existing palette/spacing (see `docs/styles-structure.md`).
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
 - Keep documentation contract-driven and no-bloat:
@@ -57,13 +57,14 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 
 - Do not choose the next task by adjacency alone. Nearby files, similar routes, or matching test patterns are not sufficient justification.
 - Start each new lane with a concrete problem statement: the risk/bug, why it matters, and why this target has better ROI than stopping.
-- If a lane appears to need compatibility, migration scaffolding, or platform-required alternate transport, document the owner, removal condition or durable authority contract, and why the canonical path cannot be fixed directly in that same change.
+- If a lane needs compatibility, migration scaffolding, or platform-required alternate transport, document it as the canonical plan for that constraint, including the owner, validation path, and removal condition when temporary.
 - Require route/API tests to cover route-owned behavior or failure handling that shared logic tests do not already protect.
 - Prefer one coherent lane at a time. Finish it, checkpoint it, or explicitly stop it before starting another lane.
 - During the pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, stay on `production` for local work and target GitHub `production` for branch operations.
 - Keep `git config --local shortpulse.allowedBranch` set to `production`. Local Husky `pre-commit` and `pre-push` hooks enforce that the current branch and push target match it.
 - Never push directly to `main` unless the user explicitly changes that rule.
 - During this phase, prefer direct `production` push/check/review coordination; do not assume a cross-branch PR flow unless the user explicitly rewrites the branch policy.
+- During this phase, browser/manual validation for production work targets `https://www.shortpulse.ai`. Do not use `localhost`, `127.0.0.1`, arbitrary preview URLs, or local browser sessions as the validation surface unless the user explicitly asks for local development, localhost, or a non-production dry run in the current thread.
 - Use targeted validation during a lane and reserve full `npm run validate` for meaningful checkpoints, not every small diff.
 - Stop when the next change is no longer clearly reducing risk more than it adds churn.
 

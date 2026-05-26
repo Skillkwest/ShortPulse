@@ -29,6 +29,11 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/ayla/standard-operating-procedure.md`: Ayla's standing SOP for support replies, approval-sensitive outbound drafts, escalation, and retention.
   - `docs/agents/ayla/ux-playbook.md`: Ayla's applied UX lens for support trust, hesitation, auth recovery, pricing confusion, and escalation clarity.
   - `docs/agents/ayla/workspace/README.md`: Ayla's temporary workspace and intake surface.
+- `docs/agents/abismia/README.md`: Abismia UI/UX and intended runtime behavior stewardship contract and memory entrypoint.
+  - `docs/agents/abismia/AGENTS.md`: Abismia-scoped execution overlay for UI/UX and visible runtime-behavior work.
+  - `docs/agents/abismia/memory.md`: Abismia's repo-visible durable memory entrypoint.
+  - `docs/agents/abismia/standard-operating-procedure.md`: Abismia's standing SOP for UI/UX reviews, canonical interaction fixes, and runtime-state validation.
+  - `docs/agents/abismia/workspace/README.md`: Abismia's temporary workspace and intake surface.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.
@@ -53,6 +58,12 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/gottspan-the-admin/runtime-load-policy.md`: Gottspan's default always-load versus conditional-load policy for keeping runtime context lean.
   - `docs/agents/gottspan-the-admin/prompts/README.md`: Gottspan's reusable prompt library for repo-steward and maintenance workflows.
   - commit/push execution is intentionally out of scope for Gottspan and belongs to Gear Ball.
+- `docs/agents/Babineaux the Engineer/README.md`: Babineaux the Engineer contract for code-quality, runtime correctness, modularity, and production-readiness hardening.
+  - `docs/agents/Babineaux the Engineer/AGENTS.md`: Babineaux the Engineer local instruction overlay for this folder.
+  - `docs/agents/Babineaux the Engineer/memory.md`: Babineaux the Engineer repo-visible durable memory entrypoint.
+  - `docs/agents/Babineaux the Engineer/standard-operating-procedure.md`: standing SOP for bounded hardening, canonicalization, contract repair, and seam-reduction lanes.
+  - `docs/agents/Babineaux the Engineer/ownership-manifest.md`: owned vs non-owned surface map for Babineaux the Engineer.
+  - `docs/agents/Babineaux the Engineer/workspace/README.md`: Babineaux the Engineer temporary workspace and scratch surface.
 - `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.

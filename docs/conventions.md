@@ -31,6 +31,6 @@ Purpose: unify coding standards across the refactored codebase.
 
 - Avoid destructive commands (resets) without explicit user request.
 - Keep behavior identical during refactors unless requirements change.
-- Fix defects in the canonical implementation path. Do not add workaround branches, shadow components, duplicate route surfaces, backup copies, fallback systems that mask failures, or legacy variants unless a documented migration or platform constraint requires them.
-- Any temporary compatibility path must have a clear owner, removal condition, and validation that the canonical path remains the default behavior. Any durable alternate transport must have an authority contract that makes it the canonical path for that constraint.
+- Fix defects in the canonical implementation path by tracing ownership and correcting the source. Do not add parallel paths, duplicate implementations, hidden fallback behavior, backup copies, or legacy variants to bypass the root problem.
+- Compatibility, migration scaffolding, or platform-required alternate transport must be documented as the canonical plan for that constraint, with an owner, validation path, and removal condition when temporary.
 - Add or run tests when touching business logic where feasible; document gaps.

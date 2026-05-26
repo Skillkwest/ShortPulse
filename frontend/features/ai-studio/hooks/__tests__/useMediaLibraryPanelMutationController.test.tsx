@@ -10,6 +10,11 @@ const quotaMocks = vi.hoisted(() => ({
   requestMediaStorageQuotaSummaryRefresh: vi.fn(),
   useMediaStorageQuotaSummary: vi.fn(),
 }));
+const dataEffectsMocks = vi.hoisted(() => ({
+  deleteMediaFileWithStorage: vi.fn(),
+  deleteMediaPromptById: vi.fn(),
+  logMediaEvent: vi.fn(),
+}));
 
 const uploadMediaFileMock = vi.fn();
 const applyMediaFolderMembershipBatchMock = vi.fn();
@@ -29,9 +34,10 @@ vi.mock("../../logic/mediaLibraryPanelApi", () => ({
 }));
 
 vi.mock("../../../media-library/logic/mediaLibraryDataEffects", () => ({
-  deleteMediaFileWithStorage: vi.fn(),
-  deleteMediaPromptById: vi.fn(),
-  logMediaEvent: vi.fn(),
+  deleteMediaFileWithStorage: (...args: unknown[]) =>
+    dataEffectsMocks.deleteMediaFileWithStorage(...args),
+  deleteMediaPromptById: (...args: unknown[]) => dataEffectsMocks.deleteMediaPromptById(...args),
+  logMediaEvent: (...args: unknown[]) => dataEffectsMocks.logMediaEvent(...args),
 }));
 
 describe("useMediaLibraryPanelMutationController", () => {
@@ -41,6 +47,7 @@ describe("useMediaLibraryPanelMutationController", () => {
       quotaSummary: { isOverLimit: false },
     });
     applyMediaFolderMembershipBatchMock.mockResolvedValue(undefined);
+    dataEffectsMocks.deleteMediaFileWithStorage.mockResolvedValue(undefined);
   });
 
   it("refreshes quota summary after reactive upload quota rejection", async () => {
@@ -104,5 +111,42 @@ describe("useMediaLibraryPanelMutationController", () => {
 
     expect(quotaMocks.requestMediaStorageQuotaSummaryRefresh).toHaveBeenCalledTimes(1);
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
+  });
+
+  it("notifies the workspace when deleted library media must be removed from right-rail state", async () => {
+    const onDeleteMediaRowsFromWorkspace = vi.fn();
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelMutationController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        folders: [],
+        refreshActiveRows: vi.fn().mockResolvedValue(undefined),
+        refreshFolders: vi.fn().mockResolvedValue(undefined),
+        setFolderError: vi.fn(),
+        setMembershipMessage: vi.fn(),
+        setMediaRows: vi.fn(),
+        setPromptRows: vi.fn(),
+        onDeleteMediaRowsFromWorkspace,
+      })
+    );
+
+    const deletedRow = {
+      id: "media-1",
+      filename: "ref-1.png",
+      storage_path: "user-1/uploads/images/ref-1.png",
+      preview_storage_path: "user-1/uploads/images/ref-1-thumb.webp",
+      file_type: "image/png",
+      source: "upload",
+      created_at: "2026-05-26T18:00:00.000Z",
+      metadata: null,
+      signedUrl: "https://cdn.example.com/ref-1.png",
+    };
+
+    await act(async () => {
+      await result.current.deleteMediaRowsFromLibrary([deletedRow]);
+    });
+
+    expect(onDeleteMediaRowsFromWorkspace).toHaveBeenCalledWith([deletedRow]);
   });
 });

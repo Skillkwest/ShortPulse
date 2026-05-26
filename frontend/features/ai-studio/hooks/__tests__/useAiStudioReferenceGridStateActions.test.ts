@@ -5,7 +5,7 @@ import { useAiStudioReferenceGridStateActions } from "../useAiStudioReferenceGri
 import type { ReferenceProjectionState } from "../../reference-projections";
 import type { StudioOutput } from "../../types";
 
-const createOutput = (id: string): StudioOutput => ({
+const createOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
   prompt: `Prompt ${id}`,
   mode: "image",
@@ -13,6 +13,7 @@ const createOutput = (id: string): StudioOutput => ({
   model: "flux-dev",
   status: "ready",
   timestamp: "2026-04-24T19:00:00.000Z",
+  ...overrides,
 });
 
 describe("useAiStudioReferenceGridStateActions", () => {
@@ -38,6 +39,8 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const pendingFinalizeRemovalIdsRef = useRef(new Set<string>());
 
       const actions = useAiStudioReferenceGridStateActions({
+        outputs,
+        archivedOutputs,
         outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
@@ -82,6 +85,8 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const pendingFinalizeRemovalIdsRef = useRef(new Set<string>());
 
       const actions = useAiStudioReferenceGridStateActions({
+        outputs,
+        archivedOutputs,
         outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
@@ -108,5 +113,77 @@ describe("useAiStudioReferenceGridStateActions", () => {
 
     expect(result.current.outputs).toHaveLength(525);
     expect(result.current.archivedOutputs).toEqual([]);
+  });
+
+  it("cascade-removes right-rail references that still point at deleted library media", () => {
+    const { result } = renderHook(() => {
+      const [activeOutputId, setActiveOutputId] = useState<string | null>("output-1");
+      const [outputs, setOutputsState] = useState<StudioOutput[]>([
+        createOutput("output-1", {
+          savedMediaIds: ["media-1"],
+          previewStoragePath: "user-1/uploads/images/media-1-thumb.webp",
+          fullStoragePath: "user-1/uploads/images/media-1.png",
+        }),
+        createOutput("output-2", {
+          savedMediaIds: ["media-2"],
+          previewStoragePath: "user-1/uploads/images/media-2-thumb.webp",
+          fullStoragePath: "user-1/uploads/images/media-2.png",
+        }),
+      ]);
+      const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([
+        createOutput("archived-1", {
+          savedMediaIds: ["media-1"],
+          previewStoragePath: "user-1/uploads/images/media-1-thumb.webp",
+          fullStoragePath: "user-1/uploads/images/media-1.png",
+          archivedAt: "2026-04-24T18:30:00.000Z",
+          archiveReason: "manual",
+        }),
+      ]);
+      const [referenceProjectionState, setReferenceProjectionState] =
+        useState<ReferenceProjectionState>({
+          quickSlotIds: ["output-1", "output-2"],
+          removedFromAllRefsIds: ["output-1"],
+        });
+      const pendingFinalizeRemovalIdsRef = useRef(new Set<string>(["output-1"]));
+
+      const actions = useAiStudioReferenceGridStateActions({
+        outputs,
+        archivedOutputs,
+        outputsLength: outputs.length,
+        setActiveOutputId,
+        setOutputsState,
+        setArchivedOutputs,
+        setReferenceProjectionState,
+        pendingFinalizeRemovalIdsRef,
+      });
+
+      return {
+        activeOutputId,
+        outputs,
+        archivedOutputs,
+        referenceProjectionState,
+        pendingFinalizeRemovalIds: pendingFinalizeRemovalIdsRef.current,
+        ...actions,
+      };
+    });
+
+    act(() => {
+      result.current.removeReferencesForDeletedMedia([
+        {
+          mediaId: "media-1",
+          storagePath: "user-1/uploads/images/media-1.png",
+          previewStoragePath: "user-1/uploads/images/media-1-thumb.webp",
+        },
+      ]);
+    });
+
+    expect(result.current.outputs.map((output) => output.id)).toEqual(["output-2"]);
+    expect(result.current.archivedOutputs).toEqual([]);
+    expect(result.current.activeOutputId).toBeNull();
+    expect(result.current.referenceProjectionState).toEqual({
+      quickSlotIds: ["output-2"],
+      removedFromAllRefsIds: [],
+    });
+    expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual([]);
   });
 });

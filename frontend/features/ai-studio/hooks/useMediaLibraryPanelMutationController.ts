@@ -56,6 +56,7 @@ type UseMediaLibraryPanelMutationControllerParams = {
   setMembershipMessage: React.Dispatch<React.SetStateAction<string | null>>;
   setMediaRows: React.Dispatch<React.SetStateAction<MediaFileRow[]>>;
   setPromptRows: React.Dispatch<React.SetStateAction<PromptRow[]>>;
+  onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
 };
 
 type UseMediaLibraryPanelMutationControllerResult = {
@@ -101,6 +102,7 @@ export const useMediaLibraryPanelMutationController = ({
   setMembershipMessage,
   setMediaRows,
   setPromptRows,
+  onDeleteMediaRowsFromWorkspace,
 }: UseMediaLibraryPanelMutationControllerParams): UseMediaLibraryPanelMutationControllerResult => {
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     React.useState<PendingLibraryDeleteState | null>(null);
@@ -443,6 +445,7 @@ export const useMediaLibraryPanelMutationController = ({
       try {
         await deleteMediaFileWithStorage(file);
         setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
+        onDeleteMediaRowsFromWorkspace?.([file]);
         setMembershipMessage("Deleted from All Media.");
         await refreshFolderState();
         requestMediaStorageQuotaSummaryRefresh();
@@ -454,7 +457,14 @@ export const useMediaLibraryPanelMutationController = ({
         setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete media."));
       }
     },
-    [activeFolderId, refreshFolderState, setFolderError, setMediaRows, setMembershipMessage]
+    [
+      activeFolderId,
+      onDeleteMediaRowsFromWorkspace,
+      refreshFolderState,
+      setFolderError,
+      setMediaRows,
+      setMembershipMessage,
+    ]
   );
 
   const deleteMediaRowsFromLibrary = React.useCallback(
@@ -485,7 +495,9 @@ export const useMediaLibraryPanelMutationController = ({
 
       if (deletedIds.length) {
         const deletedIdSet = new Set(deletedIds);
+        const deletedRows = uniqueRows.filter((row) => deletedIdSet.has(row.id));
         setMediaRows((previous) => previous.filter((row) => !deletedIdSet.has(row.id)));
+        onDeleteMediaRowsFromWorkspace?.(deletedRows);
         await refreshFolderState();
         requestMediaStorageQuotaSummaryRefresh();
       }
@@ -518,7 +530,14 @@ export const useMediaLibraryPanelMutationController = ({
       setDeleteConfirmSubmitting(false);
       return false;
     },
-    [activeFolderId, refreshFolderState, setFolderError, setMediaRows, setMembershipMessage]
+    [
+      activeFolderId,
+      onDeleteMediaRowsFromWorkspace,
+      refreshFolderState,
+      setFolderError,
+      setMediaRows,
+      setMembershipMessage,
+    ]
   );
 
   const handleDeletePromptFromLibrary = React.useCallback(

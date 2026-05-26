@@ -97,6 +97,7 @@ type MediaLibraryPanelProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
+  onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
 };
 
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
@@ -123,6 +124,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onExpandMediaLibraryPanel,
   onCollapseMediaLibraryPanel,
   resolveInternalDropItem,
+  onDeleteMediaRowsFromWorkspace,
 }: MediaLibraryPanelProps) {
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const panelListSurface = "media-library-panel" as const;
@@ -250,6 +252,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setMembershipMessage,
     setMediaRows,
     setPromptRows,
+    onDeleteMediaRowsFromWorkspace,
   });
   useAiStudioModalActivity(
     "media-library-panel-delete-confirm",

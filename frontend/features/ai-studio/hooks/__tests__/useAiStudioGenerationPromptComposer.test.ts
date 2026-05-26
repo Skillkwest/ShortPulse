@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioOutput, ToolId } from "../../types";
 import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPromptComposer";
@@ -93,6 +94,38 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("forwards internal media refs for generate when character references have no URL inputs", () => {
+    const submitTask = vi.fn();
+    const internalRef = createInternalMediaRef({ storagePath: "user/chars/char-ref.png" });
+    const params = createParams({
+      submitTask,
+      resolveReferenceInputsForTool: vi.fn(() => ({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("Visible prompt", {
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/nano-banana-2/edit",
+        referenceInputsOverride: [],
+        internalMediaRefsOverride: [internalRef],
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Visible prompt",
+      [],
+      expect.objectContaining({
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/nano-banana-2/edit",
+        internalMediaRefsOverride: [internalRef],
+      })
+    );
+  });
+
   it("replaces base reference inputs when override mode is replace", () => {
     const submitTask = vi.fn();
     const params = createParams({ submitTask, selectedTool: "edit" });
@@ -117,6 +150,39 @@ describe("useAiStudioGenerationPromptComposer", () => {
         "https://example.com/flatten-secondary.png",
       ],
       expect.objectContaining({ displayPromptOverride: "edit prompt" })
+    );
+  });
+
+  it("forwards internal media refs for regenerate when replay refs are canonical-only", () => {
+    const submitTask = vi.fn();
+    const internalRef = createInternalMediaRef({ storagePath: "user/chars/replay-ref.png" });
+    const params = createParams({
+      submitTask,
+      selectedTool: "edit",
+      resolveReferenceInputsForTool: vi.fn(() => ({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.regenerateOutput({
+        referenceInputsOverride: [],
+        referenceInputsMode: "replace",
+        internalMediaRefsOverride: [internalRef],
+        modelIdOverride: "fal-ai/nano-banana-2/edit",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      [],
+      expect.objectContaining({
+        selectedToolOverride: "edit",
+        modelIdOverride: "fal-ai/nano-banana-2/edit",
+        internalMediaRefsOverride: [internalRef],
+      })
     );
   });
 

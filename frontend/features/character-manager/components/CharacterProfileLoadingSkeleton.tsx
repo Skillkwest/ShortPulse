@@ -1,4 +1,14 @@
 import React from "react";
+import {
+  CHARACTER_PANEL_FIELD_BACKGROUND,
+  CHARACTER_PANEL_FIELD_BORDER,
+  CHARACTER_PANEL_REFERENCE_SURFACE_BACKGROUND,
+  CHARACTER_PANEL_SELECTED_TAB_BACKGROUND,
+  CHARACTER_PANEL_SHELL_BACKGROUND,
+  CHARACTER_PANEL_TAB_ENTRY_BACKGROUND,
+  CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS,
+  CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
+} from "../constants";
 import { resolveCharacterPanelResponsiveLayout } from "../logic/characterPanelResponsiveLayout";
 
 type CharacterProfileLoadingSkeletonProps = {
@@ -7,9 +17,9 @@ type CharacterProfileLoadingSkeletonProps = {
 
 const REFERENCE_SLOT_LABELS = ["Portrait", "Close Up", "Front Shot"] as const;
 const LOADING_TEXT_COLOR = "rgba(201, 205, 214, 0.5)";
-const SHELL_BACKGROUND = "rgba(31, 35, 41, 0.82)";
-const FIELD_BACKGROUND = "#131518";
-const FIELD_BORDER = "rgba(34, 40, 49, 0.96)";
+const SHELL_BACKGROUND = CHARACTER_PANEL_SHELL_BACKGROUND;
+const FIELD_BACKGROUND = CHARACTER_PANEL_FIELD_BACKGROUND;
+const FIELD_BORDER = CHARACTER_PANEL_FIELD_BORDER;
 const PANEL_ACCENT = "rgba(37, 204, 255, 0.32)";
 const SHIMMER_KEYFRAMES: Keyframe[] = [
   {
@@ -93,7 +103,6 @@ const EDITOR_WRAPPER_STYLE: React.CSSProperties = {
   borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: SHELL_BACKGROUND,
-  backgroundColor: SHELL_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
 
@@ -108,7 +117,7 @@ const SHIMMER_OVERLAY_STYLE: React.CSSProperties = {
 
 const INPUT_ROW_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+  gridTemplateColumns: CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
   alignItems: "start",
 };
 
@@ -136,8 +145,8 @@ const LOOKS_OVERFLOW_ACTIONS_STYLE: React.CSSProperties = {
 
 const PRESET_GRID_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
-  gridTemplateAreas: '"description references"',
+  gridTemplateColumns: CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
+  gridTemplateAreas: CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS,
   alignItems: "start",
 };
 
@@ -198,7 +207,6 @@ const buildInputStyle = (heightPx: number): React.CSSProperties => ({
   borderRadius: "10px",
   border: `1px solid ${FIELD_BORDER}`,
   background: FIELD_BACKGROUND,
-  backgroundColor: FIELD_BACKGROUND,
   boxSizing: "border-box",
 });
 
@@ -212,7 +220,7 @@ const buildLooksRailStyle = (minHeightPx: number): React.CSSProperties => ({
   borderRadius: "12px 12px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
   borderBottom: "none",
-  background: "#0f1115",
+  background: CHARACTER_PANEL_REFERENCE_SURFACE_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
 });
@@ -228,7 +236,9 @@ const buildLooksTabStyle = (
   height: `${heightPx}px`,
   minHeight: `${heightPx}px`,
   borderRadius: "12px 12px 0 0",
-  background: active ? "rgba(31, 35, 41, 1)" : "#15161a",
+  background: active
+    ? CHARACTER_PANEL_SELECTED_TAB_BACKGROUND
+    : CHARACTER_PANEL_TAB_ENTRY_BACKGROUND,
 });
 
 const buildDescriptionCardStyle = (): React.CSSProperties => ({
@@ -250,7 +260,6 @@ const buildDescriptionBoxStyle = (heightPx: number): React.CSSProperties => ({
   borderRadius: "12px",
   border: `1px solid ${FIELD_BORDER}`,
   background: FIELD_BACKGROUND,
-  backgroundColor: FIELD_BACKGROUND,
   boxSizing: "border-box",
 });
 
@@ -287,7 +296,6 @@ const REFERENCE_HINT_STYLE: React.CSSProperties = {
   justifyContent: "center",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   background: FIELD_BACKGROUND,
-  backgroundColor: FIELD_BACKGROUND,
   boxSizing: "border-box",
 };
 

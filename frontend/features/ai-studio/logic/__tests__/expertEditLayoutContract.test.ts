@@ -76,6 +76,22 @@ describe("expert edit layout contract", () => {
     expect(layersListTransition).toContain("transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1)");
   });
 
+  it("keeps the layer delete affordance centered while hover and focus turn it red", () => {
+    const css = fs.readFileSync(expertEditCssPath, "utf8");
+    const deleteButton = extractRuleBlock(css, ".edit-expert-layer-delete-btn");
+    const deleteButtonHover = extractRuleBlock(css, ".edit-expert-layer-delete-btn:hover");
+    const deleteButtonFocus = extractRuleBlock(css, ".edit-expert-layer-delete-btn:focus-visible");
+    const deleteButtonActive = extractRuleBlock(css, ".edit-expert-layer-delete-btn:active");
+
+    expect(deleteButton).toContain("transform: translateY(-50%);");
+    expect(deleteButtonHover).toContain("border-color: rgba(231, 76, 76, 0.72);");
+    expect(deleteButtonHover).toContain("background: rgba(231, 76, 76, 0.18);");
+    expect(deleteButtonHover).toContain("color: rgba(255, 117, 117, 0.98);");
+    expect(deleteButtonHover).toContain("transform: translateY(-50%);");
+    expect(deleteButtonFocus).toContain("transform: translateY(-50%);");
+    expect(deleteButtonActive).toContain("transform: translateY(-50%);");
+  });
+
   it("keeps the left sidebar shell flat while giving every left-rail card the shared shadow", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
     const sidebarShell = extractRuleBlock(css, ".edit-expert-sidebar-shell");

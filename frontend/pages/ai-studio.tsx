@@ -24,6 +24,7 @@ import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/cre
 import type { CreatePageAgentRuntime } from "../features/ai-studio/createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
+import type { MediaFileRow } from "../features/ai-studio/logic/mediaLibraryModalModel";
 import { PERF_FLAG_PAGE_OUTPUT_DECOUPLE } from "../features/ai-studio/logic/perfProfileFlags";
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
@@ -201,6 +202,7 @@ const AiStudioPageRuntimeBody = ({
     regenerateOutput,
     removedFromAllRefsIds,
     removeOptimisticGenerationPlaceholder,
+    removeReferencesForDeletedMedia,
     saveReferenceToLibrary,
     clearPendingCharacterUploadRequest,
     resolveCharacterAvatarUrlById,
@@ -633,6 +635,20 @@ const AiStudioPageRuntimeBody = ({
     handleSelectModelFromModal,
   });
 
+  const handleDeleteMediaRowsFromWorkspace = useCallback(
+    (rows: MediaFileRow[]) => {
+      removeReferencesForDeletedMedia(
+        rows.map((row) => ({
+          mediaId: row.id,
+          storagePath: row.storage_path,
+          previewStoragePath: row.preview_storage_path ?? row.preview_variant_path ?? null,
+          previewPosterStoragePath: row.poster_variant_path ?? null,
+        }))
+      );
+    },
+    [removeReferencesForDeletedMedia]
+  );
+
   const pageContentProps = useAiStudioPageContentRuntime({
     sessionId,
     referenceGridFileInputRef,
@@ -703,6 +719,7 @@ const AiStudioPageRuntimeBody = ({
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,
     onAddLibraryPromptReference: addLibraryPromptReference,
+    onDeleteMediaRowsFromWorkspace: handleDeleteMediaRowsFromWorkspace,
     projectId,
     projectRouteRequested,
     projectName: effectiveProjectName,

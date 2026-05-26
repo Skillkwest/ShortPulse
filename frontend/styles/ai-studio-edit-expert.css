@@ -1641,14 +1641,29 @@
   pointer-events: auto;
 }
 
-.edit-expert-layer-delete-btn:hover,
+.edit-expert-layer-delete-btn:hover {
+  border-color: rgba(231, 76, 76, 0.72);
+  background: rgba(231, 76, 76, 0.18);
+  color: rgba(255, 117, 117, 0.98);
+  transform: translateY(-50%);
+}
+
 .edit-expert-stage-delete-btn:hover {
   border-color: rgba(231, 76, 76, 0.72);
   background: rgba(231, 76, 76, 0.18);
   color: rgba(255, 117, 117, 0.98);
 }
 
-.edit-expert-layer-delete-btn:focus-visible,
+.edit-expert-layer-delete-btn:focus-visible {
+  outline: none;
+  border-color: rgba(231, 76, 76, 0.8);
+  background: rgba(231, 76, 76, 0.2);
+  color: rgba(255, 117, 117, 0.98);
+  transform: translateY(-50%);
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .edit-expert-stage-delete-btn:focus-visible {
   outline: none;
   border-color: rgba(231, 76, 76, 0.8);
@@ -1656,6 +1671,10 @@
   color: rgba(255, 117, 117, 0.98);
   opacity: 1;
   pointer-events: auto;
+}
+
+.edit-expert-layer-delete-btn:active {
+  transform: translateY(-50%);
 }
 
 .edit-expert-stage-overlay-ui {

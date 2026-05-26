@@ -4,11 +4,13 @@ import {
   getCharacterSheetPresetTabId,
   MAX_CHARACTER_SHEET_PRESET_TAB_COUNT,
 } from "../logic/characterSheetPresetTabs";
+import {
+  CHARACTER_PANEL_REFERENCE_SURFACE_BACKGROUND,
+  CHARACTER_PANEL_SELECTED_TAB_BACKGROUND,
+  CHARACTER_PANEL_TAB_ENTRY_BACKGROUND,
+} from "../constants";
 import type { CharacterSheetPresetId } from "../types";
 
-const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "#0f1115";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = "#15161a";
-const CHARACTER_SELECTED_TAB_BACKGROUND = "rgba(31, 35, 41, 1)";
 const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
 type EmbeddedCharacterLooksControlProps = {
@@ -124,8 +126,7 @@ const TAB_RAIL_STYLE: React.CSSProperties = {
   borderRadius: "12px 12px 0 0",
   border: "1px solid rgba(38, 43, 51, 0.95)",
   borderBottom: "none",
-  background: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
-  backgroundColor: CHARACTER_REFERENCE_SURFACE_BACKGROUND,
+  background: CHARACTER_PANEL_REFERENCE_SURFACE_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
 };
@@ -136,8 +137,9 @@ const buildTabStyle = (isActive: boolean): React.CSSProperties => ({
   width: "100%",
   borderRadius: "12px 12px 0 0",
   border: "none",
-  background: isActive ? CHARACTER_SELECTED_TAB_BACKGROUND : CHARACTER_TEXT_ENTRY_BACKGROUND,
-  backgroundColor: isActive ? CHARACTER_SELECTED_TAB_BACKGROUND : CHARACTER_TEXT_ENTRY_BACKGROUND,
+  background: isActive
+    ? CHARACTER_PANEL_SELECTED_TAB_BACKGROUND
+    : CHARACTER_PANEL_TAB_ENTRY_BACKGROUND,
   color: isActive ? "#ecfbff" : "rgba(182, 195, 208, 0.92)",
   display: "inline-flex",
   alignItems: "center",
@@ -180,8 +182,7 @@ const TAB_SHELL_STYLE: React.CSSProperties = {
 const buildTabShellStyle = (isActive: boolean): React.CSSProperties => ({
   ...TAB_SHELL_STYLE,
   borderRadius: "12px 12px 0 0",
-  background: isActive ? CHARACTER_SELECTED_TAB_BACKGROUND : "transparent",
-  backgroundColor: isActive ? CHARACTER_SELECTED_TAB_BACKGROUND : "transparent",
+  background: isActive ? CHARACTER_PANEL_SELECTED_TAB_BACKGROUND : "transparent",
 });
 
 const buildDeleteButtonStyle = (

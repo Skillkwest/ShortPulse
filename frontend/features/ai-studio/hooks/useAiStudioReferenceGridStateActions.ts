@@ -8,6 +8,7 @@ import type { StudioOutput } from "../types";
 import {
   addQuickSlotReference,
   clearQuickSlotReferences,
+  pruneReferenceProjectionState,
   removeQuickSlotReference,
   reorderQuickSlotReference,
   shouldFinalizeRemovalOnQuickSlotDetach,
@@ -15,12 +16,21 @@ import {
 } from "../reference-projections";
 
 type UseAiStudioReferenceGridStateActionsArgs = {
+  outputs: StudioOutput[];
+  archivedOutputs: StudioOutput[];
   outputsLength: number;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
   pendingFinalizeRemovalIdsRef: MutableRefObject<Set<string>>;
+};
+
+export type DeletedMediaReferenceTarget = {
+  mediaId: string;
+  storagePath?: string | null;
+  previewStoragePath?: string | null;
+  previewPosterStoragePath?: string | null;
 };
 
 type UseAiStudioReferenceGridStateActionsResult = {
@@ -34,11 +44,38 @@ type UseAiStudioReferenceGridStateActionsResult = {
     targetId: string | null,
     placement: "before" | "after" | "end"
   ) => void;
+  removeReferencesForDeletedMedia: (targets: DeletedMediaReferenceTarget[]) => void;
   clearCuratedReferences: () => void;
   resetReferenceGridState: () => void;
 };
 
+const normalizeId = (value: string | null | undefined): string =>
+  typeof value === "string" ? value.trim() : "";
+
+const collectNormalizedStoragePaths = (target: DeletedMediaReferenceTarget): string[] =>
+  [target.storagePath, target.previewStoragePath, target.previewPosterStoragePath]
+    .map((value) => normalizeId(value))
+    .filter(Boolean);
+
+const outputReferencesDeletedMedia = (
+  output: StudioOutput,
+  deletedMediaIds: Set<string>,
+  deletedStoragePaths: Set<string>
+): boolean => {
+  if (output.savedMediaIds?.some((mediaId) => deletedMediaIds.has(normalizeId(mediaId)))) {
+    return true;
+  }
+  return [
+    output.previewStoragePath,
+    output.fullStoragePath,
+    output.previewPosterStoragePath,
+    output.companionArtStoragePath,
+  ].some((storagePath) => deletedStoragePaths.has(normalizeId(storagePath)));
+};
+
 export const useAiStudioReferenceGridStateActions = ({
+  outputs,
+  archivedOutputs,
   outputsLength,
   setActiveOutputId,
   setOutputsState,
@@ -130,6 +167,60 @@ export const useAiStudioReferenceGridStateActions = ({
     [setReferenceProjectionState]
   );
 
+  const removeReferencesForDeletedMedia = useCallback(
+    (targets: DeletedMediaReferenceTarget[]) => {
+      const deletedMediaIds = new Set(
+        targets.map((target) => normalizeId(target.mediaId)).filter(Boolean)
+      );
+      const deletedStoragePaths = new Set(
+        targets.flatMap((target) => collectNormalizedStoragePaths(target))
+      );
+      if (!deletedMediaIds.size && !deletedStoragePaths.size) return;
+
+      const removedOutputIds = new Set(
+        outputs
+          .filter((output) =>
+            outputReferencesDeletedMedia(output, deletedMediaIds, deletedStoragePaths)
+          )
+          .map((output) => output.id)
+      );
+      archivedOutputs.forEach((output) => {
+        if (outputReferencesDeletedMedia(output, deletedMediaIds, deletedStoragePaths)) {
+          removedOutputIds.add(output.id);
+        }
+      });
+      if (!removedOutputIds.size) return;
+
+      const nextOutputs = outputs.filter((output) => !removedOutputIds.has(output.id));
+      const nextArchivedOutputs = archivedOutputs.filter(
+        (output) => !removedOutputIds.has(output.id)
+      );
+
+      removedOutputIds.forEach((id) => {
+        pendingFinalizeRemovalIdsRef.current.delete(id);
+      });
+
+      setOutputsState(nextOutputs);
+      setArchivedOutputs(nextArchivedOutputs);
+      setReferenceProjectionState((prev) =>
+        pruneReferenceProjectionState(
+          prev,
+          nextOutputs.map((output) => output.id)
+        )
+      );
+      setActiveOutputId((current) => (current && removedOutputIds.has(current) ? null : current));
+    },
+    [
+      archivedOutputs,
+      outputs,
+      pendingFinalizeRemovalIdsRef,
+      setActiveOutputId,
+      setArchivedOutputs,
+      setOutputsState,
+      setReferenceProjectionState,
+    ]
+  );
+
   const clearCuratedReferences = useCallback(() => {
     setReferenceProjectionState((prev) => {
       prev.removedFromAllRefsIds.forEach((id) => {
@@ -153,6 +244,7 @@ export const useAiStudioReferenceGridStateActions = ({
     addCuratedReference,
     removeCuratedReference,
     reorderCuratedReference,
+    removeReferencesForDeletedMedia,
     clearCuratedReferences,
     resetReferenceGridState,
   };

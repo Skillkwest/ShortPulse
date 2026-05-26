@@ -81,6 +81,14 @@ export const CHARACTER_MANAGER_SLOT_DEFINITIONS: CharacterReferenceSlotDefinitio
 
 export const CHARACTER_MANAGER_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const CHARACTER_QUICK_SWAP_ACTIVE_LIMIT = 500;
+export const CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE = "minmax(0, 1.02fr) minmax(0, 0.98fr)";
+export const CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS = '"description references"';
+export const CHARACTER_PANEL_SHELL_BACKGROUND = "rgba(31, 35, 41, 0.82)";
+export const CHARACTER_PANEL_FIELD_BACKGROUND = "#131518";
+export const CHARACTER_PANEL_FIELD_BORDER = "rgba(34, 40, 49, 0.96)";
+export const CHARACTER_PANEL_REFERENCE_SURFACE_BACKGROUND = "#0f1115";
+export const CHARACTER_PANEL_SELECTED_TAB_BACKGROUND = "rgba(31, 35, 41, 1)";
+export const CHARACTER_PANEL_TAB_ENTRY_BACKGROUND = "#15161a";
 
 export const createEmptyCharacterSlotMap = (): CharacterSlotFileMap =>
   CHARACTER_MANAGER_SLOT_DEFINITIONS.reduce((acc, slot) => {

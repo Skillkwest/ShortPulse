@@ -57,6 +57,7 @@ import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
+import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
@@ -557,6 +558,7 @@ export type AiStudioPageContentProps = {
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
+  onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
   projectId?: string | null;
   projectRouteRequested?: boolean;
   projectName?: string | null;
@@ -633,6 +635,7 @@ export function AiStudioPageContent({
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
+  onDeleteMediaRowsFromWorkspace,
   projectId = null,
   projectRouteRequested = false,
   projectName,
@@ -1323,6 +1326,7 @@ export function AiStudioPageContent({
           onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
           onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+          onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
         />
       ) : (
         <p className="tiny subdued">Media Library panel is unavailable.</p>
@@ -1330,6 +1334,7 @@ export function AiStudioPageContent({
     [
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
+      onDeleteMediaRowsFromWorkspace,
       projectId,
       handleCollapseMediaLibraryPanel,
       handleExpandMediaLibraryPanel,

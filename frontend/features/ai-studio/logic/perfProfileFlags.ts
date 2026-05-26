@@ -39,6 +39,7 @@ const PROFILE_DEFAULTS = {
   referenceGridRenderCommitTelemetry: false,
   referenceGridUpdateBackpressure: true,
   rafStatusFlush: true,
+  modalStabilityV1: true,
 } as const;
 
 export const PERF_FLAG_OUTPUT_SELECTOR_STORE = resolveBooleanFlag(
@@ -156,5 +157,5 @@ export const PERF_FLAG_RAF_STATUS_FLUSH = resolveBooleanFlag(
 
 export const PERF_FLAG_MODAL_STABILITY_V1 = resolveBooleanFlag(
   process.env.NEXT_PUBLIC_AI_STUDIO_MODAL_STABILITY_V1,
-  false
+  PROFILE_DEFAULTS.modalStabilityV1
 );

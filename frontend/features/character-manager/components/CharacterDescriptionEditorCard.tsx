@@ -3,8 +3,9 @@
  * Renders the look-scoped description input, helper tip, and character counter.
  */
 import React from "react";
+import { CHARACTER_PANEL_FIELD_BACKGROUND, CHARACTER_PANEL_FIELD_BORDER } from "../constants";
 
-const CHARACTER_DESCRIPTION_INPUT_BACKGROUND = "#131518";
+const CHARACTER_DESCRIPTION_INPUT_BACKGROUND = CHARACTER_PANEL_FIELD_BACKGROUND;
 const CHARACTER_REFERENCE_DROP_ZONE_HEIGHT = "142.5px";
 
 const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
@@ -12,10 +13,9 @@ const CHARACTER_DESCRIPTION_TEXT_CONTAINER_STYLE: React.CSSProperties = {
   alignItems: "stretch",
   padding: "14px 16px 30px",
   position: "relative",
-  border: "1px solid rgba(34, 40, 49, 0.96)",
+  border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER}`,
   borderRadius: "12px",
   background: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
-  backgroundColor: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
   height: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
   minHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
   maxHeight: CHARACTER_REFERENCE_DROP_ZONE_HEIGHT,
@@ -32,7 +32,6 @@ const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
   outline: "none",
   resize: "none",
   background: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
-  backgroundColor: CHARACTER_DESCRIPTION_INPUT_BACKGROUND,
   color: "rgba(232, 236, 244, 0.96)",
   fontSize: "0.92rem",
   lineHeight: 1.45,

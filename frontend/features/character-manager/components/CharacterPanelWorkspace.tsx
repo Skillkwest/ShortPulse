@@ -14,6 +14,11 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
+  CHARACTER_PANEL_FIELD_BACKGROUND,
+  CHARACTER_PANEL_FIELD_BORDER,
+  CHARACTER_PANEL_SHELL_BACKGROUND,
+  CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS,
+  CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
   CHARACTER_SHEET_DROP_ZONES,
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
@@ -53,13 +58,13 @@ const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
-const CHARACTER_PROFILE_WRAPPER_BACKGROUND = "rgba(31, 35, 41, 0.82)";
-const CHARACTER_TEXT_ENTRY_BACKGROUND = "#131518";
+const CHARACTER_PROFILE_WRAPPER_BACKGROUND = CHARACTER_PANEL_SHELL_BACKGROUND;
+const CHARACTER_TEXT_ENTRY_BACKGROUND = CHARACTER_PANEL_FIELD_BACKGROUND;
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
 const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
-const CHARACTER_PANEL_FIELD_BORDER_COLOR = "rgba(34, 40, 49, 0.96)";
+const CHARACTER_PANEL_FIELD_BORDER_COLOR = CHARACTER_PANEL_FIELD_BORDER;
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
   minHeight: "48px",
@@ -118,7 +123,7 @@ const CHARACTER_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
 };
 const CHARACTER_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+  gridTemplateColumns: CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
   columnGap: "34px",
   alignItems: "start",
 };
@@ -147,7 +152,6 @@ const CHARACTER_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   borderRadius: "15px",
   border: "1px solid rgba(30, 35, 43, 0.96)",
   background: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
-  backgroundColor: CHARACTER_PROFILE_WRAPPER_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
 const CHARACTER_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
@@ -706,8 +710,8 @@ export function CharacterPanelWorkspace({
     () => ({
       ...CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE,
       display: "grid",
-      gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
-      gridTemplateAreas: '"description references"',
+      gridTemplateColumns: CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE,
+      gridTemplateAreas: CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS,
       columnGap: `${responsiveLayout.presetContentColumnGapPx}px`,
       rowGap: `${responsiveLayout.presetContentRowGapPx}px`,
       alignItems: "start",

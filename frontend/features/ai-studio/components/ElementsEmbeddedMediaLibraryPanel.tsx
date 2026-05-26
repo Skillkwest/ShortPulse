@@ -67,6 +67,7 @@ type ElementsEmbeddedMediaLibraryPanelProps = {
   mediaCardInteractionMode?: "selection" | "assignment";
   fixedVisualAspectRatio?: number | null;
   onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
+  onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
 };
 
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
@@ -80,6 +81,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
   mediaCardInteractionMode = "selection",
   fixedVisualAspectRatio = null,
   onSelectMedia,
+  onDeleteMediaRowsFromWorkspace,
 }: ElementsEmbeddedMediaLibraryPanelProps) {
   const activeFolderId = MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const [rootTab, setRootTab] = React.useState<RootMediaLibraryTab>("all");
@@ -166,6 +168,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     setMembershipMessage,
     setMediaRows,
     setPromptRows,
+    onDeleteMediaRowsFromWorkspace,
   });
 
   useAiStudioModalActivity(

@@ -5,7 +5,10 @@ import {
   useAiStudioShellDndController,
   type ShellDropPayload,
 } from "../useAiStudioShellDndController";
-import { doesReferenceGridOwnFileDrop } from "../../logic/referenceGridDropOwnership";
+import {
+  doesReferenceGridOwnFileDrop,
+  shouldBypassRightRailShellCapture,
+} from "../../logic/referenceGridDropOwnership";
 
 const createDragEvent = (transfer: DataTransfer, overrides: Partial<DragEvent<HTMLElement>> = {}) =>
   ({
@@ -316,7 +319,7 @@ describe("useAiStudioShellDndController", () => {
     const shellRef = { current: document.createElement("section") };
     const rightRef = { current: document.createElement("div") };
     const allRefsSurface = document.createElement("div");
-    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    allRefsSurface.setAttribute("data-right-rail-drop-surface", "all-refs");
     rightRef.current.appendChild(allRefsSurface);
     shellRef.current.appendChild(rightRef.current);
     vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
@@ -387,7 +390,7 @@ describe("useAiStudioShellDndController", () => {
     const shellRef = { current: document.createElement("section") };
     const rightRef = { current: document.createElement("div") };
     const allRefsSurface = document.createElement("div");
-    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    allRefsSurface.setAttribute("data-right-rail-drop-surface", "all-refs");
     rightRef.current.appendChild(allRefsSurface);
     shellRef.current.appendChild(rightRef.current);
     vi.spyOn(shellRef.current, "getBoundingClientRect").mockReturnValue({
@@ -468,9 +471,9 @@ describe("useAiStudioShellDndController", () => {
     const shellRef = { current: document.createElement("section") };
     const rightRef = { current: document.createElement("div") };
     const quickSlotSurface = document.createElement("div");
-    quickSlotSurface.className = "reference-curated-section";
+    quickSlotSurface.setAttribute("data-right-rail-drop-surface", "quick-slot");
     const allRefsSurface = document.createElement("div");
-    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    allRefsSurface.setAttribute("data-right-rail-drop-surface", "all-refs");
     rightRef.current.appendChild(quickSlotSurface);
     rightRef.current.appendChild(allRefsSurface);
     shellRef.current.appendChild(rightRef.current);
@@ -552,9 +555,9 @@ describe("useAiStudioShellDndController", () => {
     const shellRef = { current: document.createElement("section") };
     const rightRef = { current: document.createElement("div") };
     const canvasSurface = document.createElement("div");
-    canvasSurface.setAttribute("data-testid", "canvas-surface");
+    canvasSurface.setAttribute("data-right-rail-drop-surface", "canvas");
     const allRefsSurface = document.createElement("div");
-    allRefsSurface.setAttribute("data-reference-grid-drop-surface", "all-refs");
+    allRefsSurface.setAttribute("data-right-rail-drop-surface", "all-refs");
     rightRef.current.appendChild(canvasSurface);
     rightRef.current.appendChild(allRefsSurface);
     shellRef.current.appendChild(rightRef.current);
@@ -629,5 +632,50 @@ describe("useAiStudioShellDndController", () => {
     expect(onDropFiles).not.toHaveBeenCalled();
     expect(dragEvent.preventDefault).not.toHaveBeenCalled();
     expect(dragEvent.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it("bypasses shell capture for zero-file external media drags targeting Canvas", () => {
+    const shellRef = { current: document.createElement("section") };
+    const rightRef = { current: document.createElement("div") };
+    const canvasSurface = document.createElement("div");
+    canvasSurface.setAttribute("data-right-rail-drop-surface", "canvas");
+    rightRef.current.appendChild(canvasSurface);
+    shellRef.current.appendChild(rightRef.current);
+
+    const { result } = renderHook(() =>
+      useAiStudioShellDndController({
+        shellRef,
+        rightColumnRef: rightRef,
+        resolveDropMode: () => "media",
+        resolveDropPayload: () => ({
+          kind: "media",
+          reference: { url: "https://example.com/external-video.mp4", mimeType: "video/mp4" },
+        }),
+        onDropFiles: vi.fn(),
+        useRafBackpressure: false,
+        shouldBypassCapture: (event, context) =>
+          shouldBypassRightRailShellCapture(event, rightRef.current, context),
+      })
+    );
+
+    const transfer = createTransfer(["Files", "text/uri-list", "text/plain"]);
+    transfer.getData = vi.fn((type: string) => {
+      if (type === "text/uri-list") return "https://example.com/external-video.mp4";
+      if (type === "text/plain") return "https://example.com/external-video.mp4";
+      return "";
+    });
+
+    const dragEvent = createDragEvent(transfer, {
+      target: canvasSurface,
+      clientX: 250,
+      clientY: 80,
+    });
+
+    act(() => {
+      result.current.handleDragOverCapture(dragEvent);
+    });
+
+    expect(result.current.dropMode).toBe("none");
+    expect(dragEvent.preventDefault).not.toHaveBeenCalled();
   });
 });

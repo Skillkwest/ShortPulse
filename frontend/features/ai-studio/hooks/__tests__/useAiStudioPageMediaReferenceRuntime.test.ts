@@ -5,6 +5,10 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
 
 type MockDualCanvasArgs = {
+  resolveCanvasDroppedMediaReference?: (payload: {
+    url: string;
+    mimeType?: string | null;
+  }) => Promise<unknown> | unknown;
   resolveCanvasDropFiles?: (files: FileList) => Promise<unknown> | unknown;
 };
 
@@ -81,6 +85,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     addLibraryMediaReferenceToQuickSlot: vi.fn(async () => null),
     addLibraryPromptReferenceToQuickSlot: vi.fn(() => null),
     addPastedPromptReference: vi.fn(),
+    insertPastedMediaReference: vi.fn(() => []),
     ingestReferenceFiles: vi.fn(async () => []),
     reorderCuratedReference: vi.fn(),
     setActiveOutputId: vi.fn(),
@@ -298,7 +303,90 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(insertedIds).toEqual(["output-mixed-1"]);
   });
 
-  it("exposes a canvas file resolver that uploads dropped images through reference ingestion", async () => {
+  it("accepts direct dropped video files into quick slot", async () => {
+    const videoFile = new File(["video"], "clip.mp4", { type: "video/mp4" });
+    const ingestReferenceFiles = vi.fn(async () => [
+      {
+        outputId: "output-video-1",
+        payload: {
+          id: "media-video-1",
+          url: "https://cdn.shortpulse.test/clip.mp4",
+          fileType: "video" as const,
+          filename: "clip.mp4",
+          promptText: "Clip",
+        },
+        output: makeOutput({
+          id: "output-video-1",
+          mode: "video",
+          prompt: "Clip",
+          previewUrl: "https://cdn.shortpulse.test/clip.mp4",
+          resultUrls: ["https://cdn.shortpulse.test/clip.mp4"],
+        }),
+        file: videoFile,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        ingestReferenceFiles,
+      })
+    );
+
+    const insertedIds = await result.current.handleQuickSlotDroppedFiles(makeFileList([videoFile]));
+
+    expect(ingestReferenceFiles).toHaveBeenCalledWith([videoFile], "drop");
+    expect(insertedIds).toEqual(["output-video-1"]);
+  });
+
+  it("projects dropped external media references into quick slot in target order", () => {
+    const addCuratedReference = vi.fn();
+    const reorderCuratedReference = vi.fn();
+    const setActiveOutputId = vi.fn();
+    const insertedOutput = makeOutput({
+      id: "output-media-1",
+      mode: "image",
+      prompt: "External media",
+      previewUrl: "https://cdn.shortpulse.test/external-media.png",
+      resultUrls: ["https://cdn.shortpulse.test/external-media.png"],
+      savedMediaIds: ["saved-media-1"],
+    });
+    const insertPastedMediaReference = vi.fn(() => [insertedOutput]);
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        addCuratedReference,
+        getOutputById: () => null,
+        insertPastedMediaReference,
+        reorderCuratedReference,
+        setActiveOutputId,
+      })
+    );
+
+    const insertedId = result.current.handleQuickSlotDroppedMediaReference(
+      {
+        url: "https://cdn.shortpulse.test/external-media.png",
+        mimeType: "image/png",
+      },
+      {
+        targetId: "target-1",
+        placement: "after",
+      }
+    );
+
+    expect(insertPastedMediaReference).toHaveBeenCalledWith({
+      url: "https://cdn.shortpulse.test/external-media.png",
+      mimeType: "image/png",
+    });
+    expect(addCuratedReference).toHaveBeenCalledWith("output-media-1");
+    expect(reorderCuratedReference).toHaveBeenCalledWith("output-media-1", "target-1", "after");
+    expect(setActiveOutputId).toHaveBeenCalledWith("output-media-1");
+    expect(insertedId).toBe("output-media-1");
+  });
+
+  it("exposes a canvas file resolver that uploads dropped media through reference ingestion", async () => {
     const file = new File(["img"], "image-1.png", { type: "image/png" });
     const ingestReferenceFiles = vi.fn(async () => [
       {
@@ -342,6 +430,55 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         mediaId: "saved-media-image-1",
         src: "https://cdn.shortpulse.test/image-1.png",
         alt: "Dropped image",
+      },
+    ]);
+  });
+
+  it("resolves dropped video files into canvas video items", async () => {
+    const file = new File(["video"], "clip-1.mp4", { type: "video/mp4" });
+    const ingestReferenceFiles = vi.fn(async () => [
+      {
+        outputId: "output-video-1",
+        payload: {
+          id: "media-video-1",
+          url: "https://cdn.shortpulse.test/clip-1.mp4",
+          fileType: "video" as const,
+          filename: "clip-1.mp4",
+          promptText: "Dropped video",
+        },
+        output: makeOutput({
+          id: "output-video-1",
+          mode: "video",
+          prompt: "Dropped video",
+          previewUrl: "https://cdn.shortpulse.test/clip-1.mp4",
+          previewPosterUrl: "https://cdn.shortpulse.test/clip-1-poster.webp",
+          resultUrls: ["https://cdn.shortpulse.test/clip-1.mp4"],
+          savedMediaIds: ["saved-media-video-1"],
+        }),
+        file,
+      },
+    ]);
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        ingestReferenceFiles,
+      })
+    );
+
+    const resolvedItems = await latestDualCanvasArgs?.resolveCanvasDropFiles?.(
+      makeFileList([file])
+    );
+
+    expect(resolvedItems).toEqual([
+      {
+        kind: "video",
+        outputId: "output-video-1",
+        mediaId: "saved-media-video-1",
+        videoUrl: "https://cdn.shortpulse.test/clip-1.mp4",
+        posterUrl: "https://cdn.shortpulse.test/clip-1-poster.webp",
+        title: "Dropped video",
       },
     ]);
   });
@@ -395,5 +532,87 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         alt: "Reference clip",
       },
     ]);
+  });
+
+  it("exposes a canvas dropped-media resolver that inserts into reference state first", async () => {
+    const insertedOutput = makeOutput({
+      id: "output-audio-1",
+      mode: "audio",
+      prompt: "Dropped audio",
+      previewUrl: "https://cdn.shortpulse.test/dropped-audio.mp3",
+      resultUrls: ["https://cdn.shortpulse.test/dropped-audio.mp3"],
+      savedMediaIds: ["saved-audio-1"],
+      companionArtUrl: "https://cdn.shortpulse.test/dropped-audio.webp",
+      companionArtStoragePath: "user-1/audio/dropped-audio.webp",
+      durationMs: 8_500,
+      waveformPeaks: [5, 10, 15],
+    });
+    const insertPastedMediaReference = vi.fn(() => [insertedOutput]);
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        insertPastedMediaReference,
+      })
+    );
+
+    const resolvedItem = await latestDualCanvasArgs?.resolveCanvasDroppedMediaReference?.({
+      url: "https://cdn.shortpulse.test/dropped-audio.mp3",
+      mimeType: "audio/mpeg",
+    });
+
+    expect(insertPastedMediaReference).toHaveBeenCalledWith({
+      url: "https://cdn.shortpulse.test/dropped-audio.mp3",
+      mimeType: "audio/mpeg",
+    });
+    expect(resolvedItem).toEqual({
+      kind: "audio",
+      outputId: "output-audio-1",
+      mediaId: "saved-audio-1",
+      audioUrl: "https://cdn.shortpulse.test/dropped-audio.mp3",
+      title: "Dropped audio",
+      companionArtUrl: "https://cdn.shortpulse.test/dropped-audio.webp",
+      companionArtStoragePath: "user-1/audio/dropped-audio.webp",
+      durationMs: 8_500,
+      waveformPeaks: [5, 10, 15],
+      width: 160,
+      height: 200,
+    });
+  });
+
+  it("maps dropped external videos into canvas video items", async () => {
+    const insertedOutput = makeOutput({
+      id: "output-video-2",
+      mode: "video",
+      prompt: "Dropped video",
+      previewUrl: "https://cdn.shortpulse.test/dropped-video.mp4",
+      previewPosterUrl: "https://cdn.shortpulse.test/dropped-video-poster.webp",
+      resultUrls: ["https://cdn.shortpulse.test/dropped-video.mp4"],
+      savedMediaIds: ["saved-video-2"],
+    });
+    const insertPastedMediaReference = vi.fn(() => [insertedOutput]);
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        insertPastedMediaReference,
+      })
+    );
+
+    const resolvedItem = await latestDualCanvasArgs?.resolveCanvasDroppedMediaReference?.({
+      url: "https://cdn.shortpulse.test/dropped-video.mp4",
+      mimeType: "video/mp4",
+    });
+
+    expect(resolvedItem).toEqual({
+      kind: "video",
+      outputId: "output-video-2",
+      mediaId: "saved-video-2",
+      videoUrl: "https://cdn.shortpulse.test/dropped-video.mp4",
+      posterUrl: "https://cdn.shortpulse.test/dropped-video-poster.webp",
+      title: "Dropped video",
+    });
   });
 });

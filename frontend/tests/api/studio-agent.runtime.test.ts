@@ -3,6 +3,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import pulseStudioAgentHandler from "../../pages/api/ai/studio-agent-pulse";
 import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
+import { resolveStandardOpenAiExecutionProfile } from "../../features/agent-runtime/standardStudioAgentRuntime/runtime";
 
 const requireApiUserMock = vi.fn();
 const runThinkerFormatterTurnMock = vi.fn();
@@ -197,6 +198,36 @@ describe("AI Studio Create agent runtime boundaries", () => {
     resetRuntimeTestState();
   });
 
+  it("uses the vision execution profile for Standard mixed turns", () => {
+    expect(
+      resolveStandardOpenAiExecutionProfile({
+        flow: "MIXED",
+        openAiModel: "gpt-standard",
+        openAiVisionModel: "gpt-vision",
+        turnTimeoutMs: 20000,
+        visionTimeoutMs: 45000,
+      })
+    ).toEqual({
+      model: "gpt-vision",
+      timeoutMs: 45000,
+      imageDetail: "auto",
+    });
+
+    expect(
+      resolveStandardOpenAiExecutionProfile({
+        flow: "TEXT_ONLY",
+        openAiModel: "gpt-standard",
+        openAiVisionModel: "gpt-vision",
+        turnTimeoutMs: 20000,
+        visionTimeoutMs: 45000,
+      })
+    ).toEqual({
+      model: "gpt-standard",
+      timeoutMs: 20000,
+      imageDetail: "high",
+    });
+  });
+
   it("rejects Pulse runtime fields on the Standard route before provider execution", async () => {
     const req = {
       method: "POST",
@@ -302,6 +333,68 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).not.toHaveProperty("workflowSession");
   });
 
+  it("emits Standard telemetry with pre-openai stage latencies", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Premium product hero prompt",
+            },
+          },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(infoSpy).toHaveBeenCalled();
+    const payload = JSON.parse(String(infoSpy.mock.calls[0]?.[1] ?? "{}")) as {
+      trace_id?: string | null;
+      latency_ms_stage?: Record<string, number>;
+    };
+    expect(typeof payload.trace_id).toBe("string");
+    expect((payload.trace_id ?? "").length).toBeGreaterThan(0);
+    expect(payload.latency_ms_stage).toEqual(
+      expect.objectContaining({
+        auth_verification: expect.any(Number),
+        request_envelope: expect.any(Number),
+        runtime_prompt_resolution: expect.any(Number),
+        standard_openai_roundtrip: expect.any(Number),
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("records the Standard trace id in exception logs for upstream aborts", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new DOMException("aborted", "AbortError")
+    );
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "ai/studio-agent-standard",
+        metadata: expect.objectContaining({
+          trace_id: expect.any(String),
+          conversation_id: "session-runtime-test",
+          stage: "standard_openai",
+        }),
+      })
+    );
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(typeof payload.traceId).toBe("string");
+    expect(String(payload.traceId).length).toBeGreaterThan(0);
+    expect(payload.detail).toBe("OpenAI request timed out");
+  });
+
   it("maps Standard provider refusals to the safety refusal contract", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
@@ -378,6 +471,69 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(latestUserMessage?.content).toBe(
       "Improve this prompt.\n\nAttached reference text:\n- Golden-hour portrait with soft rim light."
     );
+  });
+
+  it("uses the Standard mixed-turn vision model profile for image attachments", async () => {
+    process.env.OPENAI_MODEL = "gpt-standard";
+    process.env.OPENAI_VISION_MODEL = "gpt-vision";
+    process.env.STUDIO_AGENT_TURN_TIMEOUT_MS = "20000";
+    process.env.STUDIO_AGENT_VISION_TIMEOUT_MS = "45000";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Cinematic image prompt",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        context: {
+          modeHint: "reference",
+          media: [
+            {
+              id: "img-1",
+              kind: "image",
+              url: "https://cdn.test/reference.png",
+              thumbnailAlt: "Reference image",
+            },
+          ],
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const requestPayload = requestInit?.body
+      ? (JSON.parse(requestInit.body) as {
+          model?: string;
+          messages?: Array<{ role: string; content: unknown }>;
+        })
+      : null;
+    expect(requestPayload?.model).toBe("gpt-vision");
+    const latestUserMessage = [...(requestPayload?.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "user");
+    expect(latestUserMessage?.content).toEqual([
+      { type: "text", text: "Improve this prompt." },
+      {
+        type: "image_url",
+        image_url: {
+          url: "https://cdn.test/reference.png",
+          detail: "auto",
+        },
+      },
+    ]);
   });
 
   it("fails closed when the Standard runtime prompt is missing", async () => {

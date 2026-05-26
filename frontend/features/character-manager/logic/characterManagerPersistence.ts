@@ -444,76 +444,6 @@ export const loadLatestCharacterManagerDraft = async (
 };
 
 /**
- * Loads the latest character draft and its reference slot state. Creates one when missing.
- */
-export const loadOrCreateCharacterManagerDraft = async (
-  preferredCharacterId?: string | null
-): Promise<CharacterManagerDraftSnapshot> => {
-  const { supabase, userId } = await resolveSupabaseContext();
-  const normalizedPreferredCharacterId = preferredCharacterId?.trim() || null;
-  if (normalizedPreferredCharacterId) {
-    const { data: preferredCharacterData, error: preferredCharacterError } = await supabase
-      .from("characters")
-      .select("id, name, description, status, metadata")
-      .eq("user_id", userId)
-      .eq("id", normalizedPreferredCharacterId)
-      .maybeSingle();
-    if (preferredCharacterError) {
-      throw new Error(asErrorMessage(preferredCharacterError, "Failed to load characters."));
-    }
-    const preferredCharacter = preferredCharacterData as {
-      id: string;
-      name: string | null;
-      description: string | null;
-      status: string;
-      metadata: unknown;
-    } | null;
-    if (preferredCharacter && preferredCharacter.status !== "archived") {
-      return toCharacterSnapshot({
-        userId,
-        characterId: preferredCharacter.id,
-        characterName: preferredCharacter.name || DEFAULT_CHARACTER_NAME,
-        characterDescription: preferredCharacter.description ?? "",
-        characterMetadata: preferredCharacter.metadata,
-      });
-    }
-  }
-
-  const { data, error } = await supabase
-    .from("characters")
-    .select("id, name, description, metadata")
-    .eq("user_id", userId)
-    .neq("status", "archived")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    throw new Error(asErrorMessage(error, "Failed to load characters."));
-  }
-
-  const character = (data as {
-    id: string;
-    name: string | null;
-    description: string | null;
-    metadata: unknown;
-  } | null)
-    ? (data as {
-        id: string;
-        name: string | null;
-        description: string | null;
-        metadata: unknown;
-      })
-    : (await createDraftCharacter(DEFAULT_CHARACTER_NAME)).character;
-  return toCharacterSnapshot({
-    userId,
-    characterId: character.id,
-    characterName: character.name || DEFAULT_CHARACTER_NAME,
-    characterDescription: character.description ?? "",
-    characterMetadata: character.metadata,
-  });
-};
-
-/**
  * Persists a locally staged Character Profile into the database and returns the saved snapshot.
  */
 export const saveCharacterManagerDraft = async ({
@@ -582,36 +512,6 @@ export const saveCharacterManagerDraft = async ({
     characterSheetPresetAssignments:
       normalizedPresetState.presets[normalizedPresetState.activePresetId] ??
       createEmptyCharacterSheetPresetAssignments(),
-    profileImageUrl: null,
-    profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
-    slots: await loadSlotFilesForCharacterSheet(characterSheet.id),
-  };
-};
-
-/**
- * Creates a fresh character draft and empty character sheet.
- */
-export const createCharacterManagerDraft = async (
-  name = DEFAULT_CHARACTER_NAME
-): Promise<CharacterManagerDraftSnapshot> => {
-  const { userId } = await resolveSupabaseContext();
-  const { character, characterSheet } = await createDraftCharacter(name);
-  const presetState = createDefaultCharacterSheetPresetState();
-  const legacyCharacterDescription = toLegacyCharacterDescription(character.description);
-  return {
-    userId,
-    characterId: character.id,
-    characterSheetId: characterSheet.id,
-    characterName: character.name?.trim() || DEFAULT_CHARACTER_NAME,
-    legacyCharacterDescription,
-    characterDescription: presetState.tabDescriptions[presetState.activePresetId] ?? "",
-    characterSheetAssignments: getCharacterSheetAssignments(character.metadata),
-    activeCharacterSheetPresetId: presetState.activePresetId,
-    characterSheetPresets: presetState.presets,
-    visibleCharacterSheetPresetIds: presetState.tabOrder,
-    characterSheetPresetLabels: presetState.tabLabels,
-    characterSheetPresetDescriptions: presetState.tabDescriptions,
-    characterSheetPresetAssignments: presetState.presets[presetState.activePresetId],
     profileImageUrl: null,
     profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
     slots: await loadSlotFilesForCharacterSheet(characterSheet.id),
@@ -889,30 +789,6 @@ export const updateCharacterManagerName = async ({
     .eq("id", characterId);
   if (error) {
     throw new Error(asErrorMessage(error, "Failed to save character name."));
-  }
-};
-
-/**
- * Persists character description changes for the current draft.
- */
-export const updateCharacterManagerDescription = async ({
-  characterId,
-  description,
-}: {
-  characterId: string;
-  description: string;
-}) => {
-  const normalizedDescription = description.slice(0, 150);
-  const { supabase, userId } = await resolveSupabaseContext();
-  const { error } = await supabase
-    .from("characters")
-    .update({
-      description: normalizedDescription,
-    })
-    .eq("user_id", userId)
-    .eq("id", characterId);
-  if (error) {
-    throw new Error(asErrorMessage(error, "Failed to save character description."));
   }
 };
 

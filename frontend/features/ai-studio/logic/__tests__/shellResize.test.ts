@@ -19,6 +19,7 @@ import {
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
   resolveCreateShellResizeAction,
+  shouldCollapseAiShellOnExpertEditPanelSelect,
   shouldCollapseCreateOnSessionChange,
   shouldCollapseAiShellOnInitialSoundSelection,
   shouldCollapseAiShellOnToolSelect,
@@ -170,6 +171,22 @@ describe("shouldCollapseAiShellOnInitialSoundSelection", () => {
     expect(shouldCollapseAiShellOnInitialSoundSelection("voices", "sound-effects")).toBe(false);
     expect(shouldCollapseAiShellOnInitialSoundSelection("sound", "edit")).toBe(false);
     expect(shouldCollapseAiShellOnInitialSoundSelection(null, null)).toBe(false);
+  });
+});
+
+describe("shouldCollapseAiShellOnExpertEditPanelSelect", () => {
+  it("collapses when entering the shared edit panel family from another panel", () => {
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("create", "edit")).toBe(true);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("create", "image")).toBe(true);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect(null, "image")).toBe(true);
+  });
+
+  it("does not collapse when reselecting or switching within the edit panel family", () => {
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("edit", "edit")).toBe(false);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("edit", "image")).toBe(false);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("image", "edit")).toBe(false);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("image", "image")).toBe(false);
+    expect(shouldCollapseAiShellOnExpertEditPanelSelect("video", "video")).toBe(false);
   });
 });
 

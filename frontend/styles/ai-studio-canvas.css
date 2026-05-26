@@ -548,6 +548,7 @@
   object-fit: cover;
   z-index: 0;
   border-radius: inherit;
+  pointer-events: none;
 }
 
 .reference-card-video--poster-backed {

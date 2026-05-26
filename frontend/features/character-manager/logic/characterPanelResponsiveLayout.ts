@@ -6,7 +6,6 @@
 
 export type CharacterPanelResponsiveLayoutInput = {
   panelWidthPx: number;
-  panelHeightPx: number;
 };
 
 export type CharacterPanelResponsiveLayoutMetrics = {
@@ -45,7 +44,6 @@ export type CharacterPanelResponsiveLayoutMetrics = {
   referenceColumnGapPx: number;
   referenceGridGapPx: number;
   referenceCardMaxWidthPx: number;
-  referenceActionInsetPx: number;
   referenceDeleteButtonSizePx: number;
   referenceMediaPaddingTopPx: number;
   referenceMediaPaddingXpx: number;
@@ -119,7 +117,6 @@ export const resolveCharacterPanelResponsiveLayout = ({
     referenceColumnGapPx: round(interpolate(6, 10, balancedProgress)),
     referenceGridGapPx: round(interpolate(8, 12, balancedProgress)),
     referenceCardMaxWidthPx,
-    referenceActionInsetPx: round(interpolate(7, 10, balancedProgress)),
     referenceDeleteButtonSizePx: round(interpolate(18, 20, balancedProgress)),
     referenceMediaPaddingTopPx: round(interpolate(10, 14, widthProgress)),
     referenceMediaPaddingXpx: round(interpolate(6, 10, widthProgress)),

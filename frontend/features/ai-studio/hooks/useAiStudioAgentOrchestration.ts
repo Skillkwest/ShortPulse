@@ -152,6 +152,7 @@ export const useAiStudioAgentOrchestration = ({
           sendToAgent,
           appendUserMessage,
           updateMessageById,
+          removeMessageById,
           getAgentContext,
           trackAgentUiEvent,
           lastAssistantMessage,
@@ -232,6 +233,7 @@ export const useAiStudioAgentOrchestration = ({
   const handleReferencePromptEnhance = handleDisabledStandardHelperAction;
   const handleDescribeReference = useCallback(
     async (_outputId: string) => {
+      void _outputId;
       await handleDisabledStandardHelperAction();
     },
     [handleDisabledStandardHelperAction]

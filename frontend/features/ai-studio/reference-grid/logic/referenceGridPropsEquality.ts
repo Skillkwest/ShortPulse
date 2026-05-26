@@ -150,6 +150,9 @@ export const areReferenceGridPropsEqual = (
   ) {
     return false;
   }
+  if (previous.onAddPastedMediaReferenceToQuickSlot !== next.onAddPastedMediaReferenceToQuickSlot) {
+    return false;
+  }
   if (previous.onRestoreArchivedOutput !== next.onRestoreArchivedOutput) {
     return false;
   }

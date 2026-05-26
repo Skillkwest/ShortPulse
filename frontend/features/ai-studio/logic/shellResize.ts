@@ -3,6 +3,7 @@
  * Computes bounds/defaults for the properties-vs-reference split layout.
  */
 import { isSoundWorkflow } from "./workflowIdentity";
+import { resolvePropertiesPanelKind } from "./propertiesPanelRouting";
 import type { ToolId } from "../types";
 
 export const AI_SHELL_LEFT_MIN_PX = 640;
@@ -146,6 +147,18 @@ export const shouldCollapseAiShellOnInitialSoundSelection = (
   nextTool: ToolId | null
 ): boolean =>
   previousTool !== nextTool && isSoundWorkflow(nextTool) && !isSoundWorkflow(previousTool);
+
+/**
+ * Indicates whether entering the shared Expert Edit panel family should open at minimum width.
+ * Inputs: previous and next tool ids.
+ * Output: true when crossing from a non-edit-panel tool into the edit/image panel family.
+ */
+export const shouldCollapseAiShellOnExpertEditPanelSelect = (
+  previousTool: ToolId | null,
+  nextTool: ToolId | null
+): boolean =>
+  resolvePropertiesPanelKind(nextTool) === "edit" &&
+  resolvePropertiesPanelKind(previousTool) !== "edit";
 
 /**
  * Indicates whether selecting the next tool should expand the properties column to its maximum.

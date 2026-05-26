@@ -1383,6 +1383,40 @@ describe("ReferenceGrid curated split", () => {
     );
   });
 
+  it("adds dropped external media references directly into quick slots", () => {
+    const onAddPastedMediaReferenceToQuickSlot = vi.fn(() => "external-out-1");
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddPastedMediaReferenceToQuickSlot,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeTransfer({
+        "text/uri-list": "https://cdn.example.com/external-drop.png",
+        "text/plain": "https://cdn.example.com/external-drop.png",
+      }),
+    });
+
+    expect(onAddPastedMediaReferenceToQuickSlot).toHaveBeenCalledWith(
+      {
+        url: "https://cdn.example.com/external-drop.png",
+        mimeType: "image/*",
+      },
+      {
+        targetId: null,
+        placement: "end",
+      }
+    );
+    expect(onSelectOutput).toHaveBeenCalledWith("external-out-1");
+  });
+
   it("adds dropped image files directly into quick slots", () => {
     const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
     const imageFile = new File(["img"], "quick-slot-drop.png", { type: "image/png" });
@@ -1435,6 +1469,86 @@ describe("ReferenceGrid curated split", () => {
         "text/reference-id": "out-2",
         "text/reference-source-surface": "all-refs",
       }),
+    });
+
+    expect(onAddCuratedReference).toHaveBeenCalledWith("out-2");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+    expect(onAddDroppedFilesToQuickSlot).not.toHaveBeenCalled();
+  });
+
+  it("prefers internal video reference drops over synthetic browser files in quick slots", () => {
+    const onAddCuratedReference = vi.fn();
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const onSelectOutput = vi.fn();
+    const syntheticBrowserFile = new File(["video"], "DraggedVideo.mov", {
+      type: "video/quicktime",
+    });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddCuratedReference,
+          onAddDroppedFilesToQuickSlot,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeMixedTransfer(
+        [syntheticBrowserFile],
+        {
+          "text/reference-output-id": "out-2",
+          "text/reference-source-surface": "all-refs",
+          "text/reference-media-kind": "video",
+          "text/reference-url": "https://cdn.example.com/reference-video.mp4",
+        },
+        [
+          "Files",
+          "text/reference-output-id",
+          "text/reference-source-surface",
+          "text/reference-media-kind",
+          "text/reference-url",
+        ]
+      ),
+    });
+
+    expect(onAddCuratedReference).toHaveBeenCalledWith("out-2");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+    expect(onAddDroppedFilesToQuickSlot).not.toHaveBeenCalled();
+  });
+
+  it("prefers degraded internal video reference drops over synthetic browser files in quick slots", () => {
+    const onAddCuratedReference = vi.fn();
+    const onAddDroppedFilesToQuickSlot = vi.fn(async () => ["file-out-1"]);
+    const onSelectOutput = vi.fn();
+    const syntheticBrowserFile = new File(["video"], "DraggedVideo.mov", {
+      type: "video/quicktime",
+    });
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onAddCuratedReference,
+          onAddDroppedFilesToQuickSlot,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeMixedTransfer(
+        [syntheticBrowserFile],
+        {
+          "text/reference-output-id": "out-2",
+          "text/reference-source-surface": "all-refs",
+          "text/reference-media-kind": "video",
+          "text/reference-url": "https://cdn.example.com/reference-video.mp4",
+        },
+        ["Files"]
+      ),
     });
 
     expect(onAddCuratedReference).toHaveBeenCalledWith("out-2");
@@ -1523,10 +1637,14 @@ describe("ReferenceGrid curated split", () => {
 
     fireEvent.drop(targetCard, {
       clientY: 10,
-      dataTransfer: makeMixedTransfer([syntheticBrowserFile], {
-        "text/reference-output-id": "out-2",
-        "text/reference-source-surface": "curated",
-      }),
+      dataTransfer: makeMixedTransfer(
+        [syntheticBrowserFile],
+        {
+          "text/reference-output-id": "out-2",
+          "text/reference-source-surface": "curated",
+        },
+        ["Files"]
+      ),
     });
 
     expect(onReorderCuratedReference).toHaveBeenCalledWith("out-2", "out-1", "after");

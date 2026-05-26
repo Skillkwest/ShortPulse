@@ -7,6 +7,7 @@ import { useCanvasSharedSceneState } from "./canvasSceneState";
 import type {
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
@@ -33,6 +34,7 @@ export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
   onItemLimitReached,
@@ -40,6 +42,7 @@ export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
+  resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
@@ -58,6 +61,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,
@@ -79,6 +83,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
   onItemLimitReached,
@@ -86,6 +91,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
+  resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
@@ -107,6 +113,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,
@@ -126,6 +133,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,

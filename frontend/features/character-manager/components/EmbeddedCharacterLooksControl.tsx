@@ -1,8 +1,10 @@
 import React from "react";
-import { CaretLeft, CaretRight, Plus } from "phosphor-react";
-import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPresetTabs";
+import { CaretLeft, CaretRight, PencilSimple, Plus, Trash } from "phosphor-react";
+import {
+  getCharacterSheetPresetTabId,
+  MAX_CHARACTER_SHEET_PRESET_TAB_COUNT,
+} from "../logic/characterSheetPresetTabs";
 import type { CharacterSheetPresetId } from "../types";
-import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 
 const CHARACTER_REFERENCE_SURFACE_BACKGROUND = "#0f1115";
 const CHARACTER_TEXT_ENTRY_BACKGROUND = "#15161a";
@@ -59,6 +61,13 @@ const OVERFLOW_ACTIONS_STYLE: React.CSSProperties = {
   flexShrink: 0,
 };
 
+const MANAGE_ACTIONS_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "4px",
+  minWidth: 0,
+};
+
 const OVERFLOW_ACTION_BUTTON_STYLE: React.CSSProperties = {
   width: "18px",
   minWidth: "18px",
@@ -73,6 +82,25 @@ const OVERFLOW_ACTION_BUTTON_STYLE: React.CSSProperties = {
   padding: 0,
   flexShrink: 0,
   cursor: "pointer",
+};
+
+const MANAGE_ACTION_BUTTON_STYLE: React.CSSProperties = {
+  minWidth: "22px",
+  height: "20px",
+  borderRadius: "999px",
+  border: "1px solid rgba(56, 64, 76, 0.92)",
+  background: "rgba(18, 22, 28, 0.92)",
+  color: "rgba(214, 223, 234, 0.94)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "4px",
+  padding: "0 8px",
+  flexShrink: 0,
+  cursor: "pointer",
+  fontSize: "11px",
+  fontWeight: 700,
+  lineHeight: 1,
 };
 
 const TAB_VIEWPORT_STYLE: React.CSSProperties = {
@@ -186,6 +214,21 @@ const buildDeleteButtonStyle = (
   cursor: "pointer",
 });
 
+const TAB_INPUT_STYLE: React.CSSProperties = {
+  width: "100%",
+  height: "20px",
+  border: "1px solid rgba(47, 210, 255, 0.48)",
+  borderRadius: "6px",
+  background: "rgba(14, 17, 23, 0.98)",
+  color: "rgba(243, 247, 255, 0.96)",
+  fontSize: "11px",
+  fontWeight: 700,
+  textAlign: "center",
+  outline: "none",
+  padding: "0 6px",
+  boxSizing: "border-box",
+};
+
 export function EmbeddedCharacterLooksControl({
   presetIds,
   activePresetId,
@@ -203,10 +246,12 @@ export function EmbeddedCharacterLooksControl({
   deleteButtonRightPx = 6,
   onSelectPreset,
   onAddPreset,
+  onRenamePreset,
   onDeletePreset,
 }: EmbeddedCharacterLooksControlProps) {
   const canAddPreset =
     Boolean(onAddPreset) && presetIds.length < MAX_CHARACTER_SHEET_PRESET_TAB_COUNT;
+  const editInputRef = React.useRef<HTMLInputElement | null>(null);
   const [hoveredPresetId, setHoveredPresetId] = React.useState<CharacterSheetPresetId | null>(null);
   const railViewportRef = React.useRef<HTMLDivElement | null>(null);
   const pointerDragStateRef = React.useRef<{
@@ -217,8 +262,40 @@ export function EmbeddedCharacterLooksControl({
   } | null>(null);
   const suppressPointerActivationRef = React.useRef(false);
   const suppressPointerActivationTimerRef = React.useRef<number | null>(null);
+  const [editingPresetId, setEditingPresetId] = React.useState<CharacterSheetPresetId | null>(null);
+  const [editingLabel, setEditingLabel] = React.useState("");
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
+  const activePresetLabel = presetLabels[activePresetId] ?? activePresetId;
+  const activeEditingPresetId =
+    editingPresetId && editingPresetId === activePresetId ? editingPresetId : null;
+  const canRenameActivePreset = Boolean(onRenamePreset);
+  const canDeleteActivePreset = Boolean(onDeletePreset) && activePresetId !== "1";
+
+  const commitRename = React.useCallback(
+    (presetId: CharacterSheetPresetId) => {
+      if (!onRenamePreset) {
+        setEditingPresetId(null);
+        setEditingLabel("");
+        return;
+      }
+      void onRenamePreset(presetId, editingLabel);
+      setEditingPresetId(null);
+      setEditingLabel("");
+    },
+    [editingLabel, onRenamePreset]
+  );
+
+  const cancelRename = React.useCallback(() => {
+    setEditingPresetId(null);
+    setEditingLabel("");
+  }, []);
+
+  React.useEffect(() => {
+    if (!activeEditingPresetId) return;
+    editInputRef.current?.focus();
+    editInputRef.current?.select();
+  }, [activeEditingPresetId]);
 
   const syncScrollAffordances = React.useCallback(() => {
     const viewport = railViewportRef.current;
@@ -335,6 +412,39 @@ export function EmbeddedCharacterLooksControl({
         <div style={HEADER_ROW_STYLE}>
           <div style={{ minWidth: 0 }}>{headerContent}</div>
           <div style={OVERFLOW_ACTIONS_STYLE}>
+            <div style={MANAGE_ACTIONS_STYLE}>
+              {canRenameActivePreset ? (
+                <button
+                  type="button"
+                  aria-label={`Rename look ${activePresetLabel}`}
+                  style={MANAGE_ACTION_BUTTON_STYLE}
+                  onClick={() => {
+                    setEditingPresetId(activePresetId);
+                    setEditingLabel(activePresetLabel);
+                  }}
+                  disabled={disabled}
+                  title={`Rename look ${activePresetLabel}`}
+                >
+                  <PencilSimple size={10} weight="bold" aria-hidden />
+                  <span>Rename</span>
+                </button>
+              ) : null}
+              {canDeleteActivePreset ? (
+                <button
+                  type="button"
+                  aria-label={`Delete look ${activePresetLabel}`}
+                  style={MANAGE_ACTION_BUTTON_STYLE}
+                  onClick={() => {
+                    void onDeletePreset?.(activePresetId);
+                  }}
+                  disabled={disabled || activeEditingPresetId !== null}
+                  title={`Delete look ${activePresetLabel}`}
+                >
+                  <Trash size={10} weight="bold" aria-hidden />
+                  <span>Delete</span>
+                </button>
+              ) : null}
+            </div>
             <button
               type="button"
               aria-label="Scroll looks left"
@@ -394,7 +504,9 @@ export function EmbeddedCharacterLooksControl({
             const eventTarget =
               event.target instanceof Element ? event.target : (event.target as Element | null);
             if (
+              eventTarget?.closest(".embedded-character-looks-rename-input") ||
               eventTarget?.closest('[aria-label^="Delete look "]') ||
+              eventTarget?.closest('[aria-label^="Rename look "]') ||
               eventTarget?.closest('[aria-label="Add character look"]')
             ) {
               return;
@@ -439,6 +551,7 @@ export function EmbeddedCharacterLooksControl({
             {presetIds.map((presetId) => {
               const label = presetLabels[presetId] ?? presetId;
               const isActive = activePresetId === presetId;
+              const isEditingCurrentTab = activeEditingPresetId === presetId;
               const canDeletePreset = Boolean(onDeletePreset) && presetId !== "1";
               const showDeleteButton = canDeletePreset && hoveredPresetId === presetId;
               return (
@@ -466,10 +579,18 @@ export function EmbeddedCharacterLooksControl({
                     }}
                     onClick={() => {
                       if (consumeSuppressedPointerActivation()) return;
+                      if (isEditingCurrentTab) return;
                       void onSelectPreset(presetId);
+                    }}
+                    onDoubleClick={() => {
+                      if (consumeSuppressedPointerActivation()) return;
+                      if (disabled || !onRenamePreset) return;
+                      setEditingPresetId(presetId);
+                      setEditingLabel(label);
                     }}
                     onKeyDown={(event) => {
                       if (disabled || !presetIds.length) return;
+                      if (isEditingCurrentTab) return;
                       if (event.key === "ArrowRight") {
                         event.preventDefault();
                         handleArrowNavigation(1);
@@ -488,12 +609,50 @@ export function EmbeddedCharacterLooksControl({
                       if (event.key === "End") {
                         event.preventDefault();
                         void onSelectPreset(presetIds[presetIds.length - 1] ?? activePresetId);
+                        return;
+                      }
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        void onSelectPreset(presetId);
                       }
                     }}
                     disabled={disabled}
                     title={label}
                   >
-                    {label}
+                    {isEditingCurrentTab ? (
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        className="embedded-character-looks-rename-input"
+                        style={TAB_INPUT_STYLE}
+                        value={editingLabel}
+                        maxLength={24}
+                        aria-label={`Rename look ${presetId}`}
+                        onChange={(event) => {
+                          setEditingLabel(event.target.value);
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelRename();
+                            return;
+                          }
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitRename(presetId);
+                          }
+                        }}
+                        onBlur={() => {
+                          commitRename(presetId);
+                        }}
+                      />
+                    ) : (
+                      label
+                    )}
                   </button>
                   {canDeletePreset ? (
                     <button

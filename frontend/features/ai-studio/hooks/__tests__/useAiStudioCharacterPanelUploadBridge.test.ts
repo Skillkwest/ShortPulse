@@ -15,7 +15,6 @@ describe("useAiStudioCharacterPanelUploadBridge", () => {
       requestId: 1,
       files,
     });
-    expect(result.current.characterError).toBeNull();
 
     act(() => {
       result.current.clearPendingCharacterUploadRequest(1);

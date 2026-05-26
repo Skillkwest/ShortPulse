@@ -197,7 +197,6 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("const CreateRuntimeRoot =");
     expect(pageSource).toContain("const CreateAgentRuntimeHost =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
-    expect(pageSource).toContain("pendingCreateRuntimeAgentHydrationRef");
     expect(pageSource).toContain("useAiStudioPageProjectSessionRuntime");
     expect(pageSource).toContain(
       'base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
@@ -428,6 +427,9 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts"
     );
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const createPanelRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts"
+    );
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
     expect(outputGenerationBridgeSource).not.toContain("expertCreateMode");
@@ -441,8 +443,8 @@ describe("Create agent mode boundaries", () => {
     expect(outputGenerationBridgeSource).toContain("if (!enabled) return;");
     expect(outputGenerationBridgeSource).toContain("assistantBubbleMedia: enabled");
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
-    expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
-    expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).toContain("handleStandardCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).toContain("<AiStudioPageRuntimeBody");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).not.toContain("<StandardCreateGenerationCommandRoot shell={shell} />");
@@ -451,22 +453,30 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("const PulseCreateGenerationCommandRoot =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).toContain('activeCreateAgentRuntime.kind === "pulse"');
-    expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
-    expect(pageSource).not.toContain('enabled: expertCreateMode === "standard"');
-    expect(pageSource).not.toContain('enabled: expertCreateMode === "pulse"');
-    expect(pageSource).not.toContain("const handlePrimarySubmit =");
-    expect(pageSource).not.toContain("standardCreateCommands:");
-    expect(pageSource).not.toContain("pulseCreateCommands:");
-    expect(pageSource).toContain("onPrimarySubmit: handleStandardCreatePrimarySubmit");
-    expect(pageSource).toContain("onGenerateArtifact: handlePulseCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).toContain("useAiStudioAgentOutputGenerationBridge({");
+    expect(createPanelRuntimeSource).not.toContain('enabled: expertCreateMode === "standard"');
+    expect(createPanelRuntimeSource).not.toContain('enabled: expertCreateMode === "pulse"');
+    expect(createPanelRuntimeSource).not.toContain("const handlePrimarySubmit =");
+    expect(createPanelRuntimeSource).not.toContain("standardCreateCommands:");
+    expect(createPanelRuntimeSource).not.toContain("pulseCreateCommands:");
+    expect(createPanelRuntimeSource).toContain(
+      "onPrimarySubmit: handleStandardCreatePrimarySubmit"
+    );
+    expect(createPanelRuntimeSource).toContain(
+      "onGenerateArtifact: handlePulseCreatePrimarySubmit"
+    );
     expect(pageSource).not.toContain("useAiStudioPanelProps");
-    expect(pageSource).toContain("useStandardCreatePrimarySubmit");
-    expect(pageSource).toContain("usePulseCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).toContain("useStandardCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("useStandardCreateInlineGenerate");
     const presenterIndex = pageSource.indexOf("<AiStudioPageShell");
     const runtimeSelectorIndex = pageSource.indexOf('activeCreateAgentRuntime.kind === "pulse"');
-    const standardPrimarySubmitIndex = pageSource.indexOf("useStandardCreatePrimarySubmit({");
-    const pulsePrimarySubmitIndex = pageSource.indexOf("usePulseCreatePrimarySubmit({");
+    const standardPrimarySubmitIndex = createPanelRuntimeSource.indexOf(
+      "useStandardCreatePrimarySubmit({"
+    );
+    const pulsePrimarySubmitIndex = createPanelRuntimeSource.indexOf(
+      "usePulseCreatePrimarySubmit({"
+    );
 
     expect(runtimeSelectorIndex).toBeGreaterThanOrEqual(0);
     expect(runtimeSelectorIndex).toBeLessThan(presenterIndex);
@@ -474,11 +484,13 @@ describe("Create agent mode boundaries", () => {
     expect(standardPrimarySubmitIndex).toBeLessThan(presenterIndex);
     expect(pulsePrimarySubmitIndex).toBeGreaterThanOrEqual(0);
     expect(pulsePrimarySubmitIndex).toBeLessThan(presenterIndex);
-    expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
-    expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
-    expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");
-    expect(pageSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");
-    expect(pageSource).toContain("prompt: standardPrompt");
+    expect(createPanelRuntimeSource).toContain("useAiStudioAgentOutputGenerationBridge({");
+    expect(createPanelRuntimeSource).not.toContain(
+      "const pulsePrompt = resolveChatOffCreatePrompt"
+    );
+    expect(createPanelRuntimeSource).not.toContain("handleAgentSend(pulsePrompt");
+    expect(createPanelRuntimeSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");
+    expect(createPanelRuntimeSource).toContain("prompt: standardPrompt");
     expect(stateRuntimeControllersSource).not.toContain("\n  prompt: string;\n");
     expect(stateRuntimeControllersSource).not.toContain(
       'const activeCreatePrompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt'
@@ -737,6 +749,12 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const createPanelRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts"
+    );
+    const editVideoPanelRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioEditVideoPanelRuntimes.ts"
+    );
 
     expect(
       existsSync(path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioPanelProps.ts"))
@@ -744,20 +762,20 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
     expect(pageSource).not.toContain("useAiStudioPanelProps");
     expect(pageSource).not.toContain("useAiStudioEditVideoPanelProps");
-    expect(pageSource).toContain("useAiStudioEditExpertPanelProps");
-    expect(pageSource).toContain("useAiStudioVideoPanelProps");
-    expect(pageSource).toContain("buildStandardCreateRuntimeResult");
-    expect(pageSource).toContain("buildPulseCreateRuntimeResult");
+    expect(editVideoPanelRuntimeSource).toContain("useAiStudioEditExpertPanelProps");
+    expect(editVideoPanelRuntimeSource).toContain("useAiStudioVideoPanelProps");
+    expect(createPanelRuntimeSource).toContain("buildStandardCreateRuntimeResult");
+    expect(createPanelRuntimeSource).toContain("buildPulseCreateRuntimeResult");
     expect(pageSource).toContain("propertiesCreate: pagePropertiesCreate");
     expect(pageSource).not.toContain("activeCreateProperties.standard");
     expect(pageSource).not.toContain("activeCreateProperties.pulse");
-    expect(pageSource).not.toContain(
+    expect(createPanelRuntimeSource).not.toContain(
       "...panelProps.propertiesCreate.standard,\n      expertCreateMode"
     );
-    expect(pageSource).not.toContain(
+    expect(createPanelRuntimeSource).not.toContain(
       "...panelProps.propertiesCreate.pulse,\n      expertCreateMode"
     );
-    expect(pageSource).not.toContain(
+    expect(createPanelRuntimeSource).not.toContain(
       "...panelProps.propertiesCreate.pulse,\n      onExpertCreateModeChange"
     );
   });

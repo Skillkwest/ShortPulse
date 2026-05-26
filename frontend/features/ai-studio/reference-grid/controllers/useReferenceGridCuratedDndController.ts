@@ -8,6 +8,7 @@ import {
   readMediaLibraryDragPayload,
   type MediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
+import { getDroppedMediaReference } from "./referenceGridClipboard";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
@@ -53,6 +54,13 @@ type UseReferenceGridCuratedDndControllerArgs = {
       placement: "before" | "after" | "end";
     }
   ) => string | null;
+  onAddPastedMediaReferenceToQuickSlot?: (
+    payload: { url: string; mimeType?: string | null },
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => string | null;
 };
 
 type UseReferenceGridCuratedDndControllerResult = {
@@ -67,8 +75,12 @@ type UseReferenceGridCuratedDndControllerResult = {
 const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
   if (hasInternalReferenceDragTypeHints(transfer)) return true;
   const types = getNormalizedTransferTypes(transfer);
-  if (types.length > 0) return false;
-  return Boolean(transfer.getData("text/reference-id"));
+  const shouldProbeDegradedPayload =
+    types.length === 0 || (types.length === 1 && types.includes("files"));
+  if (!shouldProbeDegradedPayload) return false;
+  return Boolean(
+    extractInternalReferenceDragPayload(transfer) ?? transfer.getData("text/reference-id")
+  );
 };
 
 const resolveReferenceDragOutputId = (transfer: DataTransfer): string => {
@@ -102,6 +114,9 @@ const hasDroppedFiles = (transfer: DataTransfer): boolean => {
   return getNormalizedTransferTypes(transfer).includes("files");
 };
 
+const hasDroppedMediaReference = (transfer: DataTransfer): boolean =>
+  Boolean(getDroppedMediaReference(transfer));
+
 const hasQuickSlotStructuredDropHints = (transfer: DataTransfer): boolean =>
   hasInternalReferenceDrag(transfer) || hasMediaLibraryDragTypeHints(transfer);
 
@@ -119,6 +134,7 @@ export const useReferenceGridCuratedDndController = ({
   onAddDroppedFilesToQuickSlot,
   onAddLibraryMediaReferenceToQuickSlot,
   onAddLibraryPromptReferenceToQuickSlot,
+  onAddPastedMediaReferenceToQuickSlot,
 }: UseReferenceGridCuratedDndControllerArgs): UseReferenceGridCuratedDndControllerResult => {
   const handleLibraryQuickSlotDrop = useCallback(
     (
@@ -168,6 +184,22 @@ export const useReferenceGridCuratedDndController = ({
     [onAddDroppedFilesToQuickSlot, onSelectOutput]
   );
 
+  const handleQuickSlotMediaDrop = useCallback(
+    (
+      transfer: DataTransfer,
+      options: { targetId: string | null; placement: "before" | "after" | "end" }
+    ) => {
+      const droppedMediaReference = getDroppedMediaReference(transfer);
+      if (!droppedMediaReference || !onAddPastedMediaReferenceToQuickSlot) return false;
+      const insertedId = onAddPastedMediaReferenceToQuickSlot(droppedMediaReference, options);
+      if (insertedId) {
+        onSelectOutput(insertedId);
+      }
+      return true;
+    },
+    [onAddPastedMediaReferenceToQuickSlot, onSelectOutput]
+  );
+
   const handleCuratedSectionDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (!isCuratedSplitEnabled) return;
@@ -204,6 +236,15 @@ export const useReferenceGridCuratedDndController = ({
       }
       if (
         !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
+        handleQuickSlotMediaDrop(event.dataTransfer, {
+          targetId: null,
+          placement: "end",
+        })
+      ) {
+        return;
+      }
+      if (
+        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
         handleQuickSlotFileDrop(event.dataTransfer, {
           targetId: null,
           placement: "end",
@@ -216,6 +257,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedDragDepthRef,
       curatedReferenceIds,
       handleQuickSlotFileDrop,
+      handleQuickSlotMediaDrop,
       handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,
@@ -232,10 +274,14 @@ export const useReferenceGridCuratedDndController = ({
       event.stopPropagation();
       const hasFilePayload =
         hasDroppedFiles(event.dataTransfer) && Boolean(onAddDroppedFilesToQuickSlot);
+      const hasMediaReferencePayload =
+        Boolean(onAddPastedMediaReferenceToQuickSlot) &&
+        hasDroppedMediaReference(event.dataTransfer);
       const hasLibraryPayloadHint = hasMediaLibraryDragTypeHints(event.dataTransfer);
       if (
         !hasInternalReferenceDrag(event.dataTransfer) &&
         !hasLibraryPayloadHint &&
+        !hasMediaReferencePayload &&
         !hasFilePayload
       ) {
         event.dataTransfer.dropEffect = "none";
@@ -243,6 +289,11 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
       if (hasLibraryPayloadHint) {
+        event.dataTransfer.dropEffect = "copy";
+        setCuratedDropActiveSafe(true);
+        return;
+      }
+      if (hasMediaReferencePayload) {
         event.dataTransfer.dropEffect = "copy";
         setCuratedDropActiveSafe(true);
         return;
@@ -259,7 +310,12 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
     },
-    [isCuratedSplitEnabled, onAddDroppedFilesToQuickSlot, setCuratedDropActiveSafe]
+    [
+      isCuratedSplitEnabled,
+      onAddDroppedFilesToQuickSlot,
+      onAddPastedMediaReferenceToQuickSlot,
+      setCuratedDropActiveSafe,
+    ]
   );
 
   const handleCuratedSectionDragEnter = useCallback(
@@ -271,6 +327,8 @@ export const useReferenceGridCuratedDndController = ({
       setCuratedDropActiveSafe(
         hasInternalReferenceDrag(event.dataTransfer) ||
           hasMediaLibraryDragTypeHints(event.dataTransfer) ||
+          (Boolean(onAddPastedMediaReferenceToQuickSlot) &&
+            hasDroppedMediaReference(event.dataTransfer)) ||
           (Boolean(onAddDroppedFilesToQuickSlot) && hasDroppedFiles(event.dataTransfer))
       );
     },
@@ -278,6 +336,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedDragDepthRef,
       isCuratedSplitEnabled,
       onAddDroppedFilesToQuickSlot,
+      onAddPastedMediaReferenceToQuickSlot,
       setCuratedDropActiveSafe,
     ]
   );
@@ -332,6 +391,15 @@ export const useReferenceGridCuratedDndController = ({
       }
       if (
         !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
+        handleQuickSlotMediaDrop(event.dataTransfer, {
+          targetId: target.id,
+          placement,
+        })
+      ) {
+        return;
+      }
+      if (
+        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
         handleQuickSlotFileDrop(event.dataTransfer, {
           targetId: target.id,
           placement,
@@ -344,6 +412,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedDragDepthRef,
       curatedReferenceIds,
       handleQuickSlotFileDrop,
+      handleQuickSlotMediaDrop,
       handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,

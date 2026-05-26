@@ -218,16 +218,22 @@ export const useAiStudioShellResize = ({
     }
     if (!enabled || !isResizableViewport) return;
     if (appliedMinWidthResetKeyRef.current === minWidthResetKey) return;
-    const containerWidth = resolveContainerWidth();
-    if (!containerWidth) return;
-    const bounds = getAiShellLeftWidthBounds(containerWidth, {
-      minLeftWidthPx,
-      maxLeftWidthPx,
-      minRightWidthPx,
+    if (typeof window === "undefined") return;
+    const frameId = window.requestAnimationFrame(() => {
+      const containerWidth = resolveContainerWidth();
+      if (!containerWidth) return;
+      const bounds = getAiShellLeftWidthBounds(containerWidth, {
+        minLeftWidthPx,
+        maxLeftWidthPx,
+        minRightWidthPx,
+      });
+      setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
+      setContainerWidthPx(Math.round(containerWidth));
+      appliedMinWidthResetKeyRef.current = minWidthResetKey;
     });
-    setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
-    setContainerWidthPx(Math.round(containerWidth));
-    appliedMinWidthResetKeyRef.current = minWidthResetKey;
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
   }, [
     enabled,
     isResizableViewport,

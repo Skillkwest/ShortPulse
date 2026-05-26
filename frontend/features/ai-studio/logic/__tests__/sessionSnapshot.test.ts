@@ -7,6 +7,7 @@ import {
   patchAiStudioSessionSnapshotExpertEdit,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../sessionSnapshot";
+import { buildGenerationReplayConfigV2 } from "../generationReplay";
 import type { AiStudioSessionSnapshotV2 } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { StudioOutput } from "../../types";
@@ -1534,9 +1535,14 @@ describe("sessionSnapshot", () => {
       (candidate) => candidate.kind === "without_parked_pulse_runtime"
     );
 
-    expect(reducedCandidate?.snapshot.workspace.activePulsePresetId).toBeNull();
-    expect(reducedCandidate?.snapshot.workspace.pulseSessionInstanceId).toBeNull();
-    expect(reducedCandidate?.snapshot.agentRuntimes).toEqual({
+    expect(reducedCandidate?.snapshot.schemaVersion).toBe(2);
+    if (!reducedCandidate || reducedCandidate.snapshot.schemaVersion !== 2) {
+      throw new Error("Expected v2 parked Pulse runtime candidate.");
+    }
+
+    expect(reducedCandidate.snapshot.workspace.activePulsePresetId).toBeNull();
+    expect(reducedCandidate.snapshot.workspace.pulseSessionInstanceId).toBeNull();
+    expect(reducedCandidate.snapshot.agentRuntimes).toEqual({
       standard: {
         messages: [],
         input: "",
@@ -1806,7 +1812,18 @@ describe("sessionSnapshot", () => {
           resultUrls: ["https://cdn.example.com/generated-ready.png"],
           previewStoragePath: "user-1/generated/generated-ready-preview.png",
           fullStoragePath: "user-1/generated/generated-ready-full.png",
-          generationReplay: { mode: "image", modelId: "seedream-v4.5" },
+          generationReplay:
+            buildGenerationReplayConfigV2({
+              mode: "image",
+              submitTool: "create",
+              modelId: "seedream-v4.5",
+              displayPrompt: "A cinematic portrait",
+              submissionPrompt: "A cinematic portrait",
+              aspect: "9:16",
+              imageResolution: "model_default",
+              referenceInputs: [],
+              capturedAt: "2026-03-02T12:00:00.000Z",
+            }) ?? undefined,
         }),
       ],
       archivedOutputs: [],
@@ -1878,7 +1895,18 @@ describe("sessionSnapshot", () => {
           transcriptText: "y".repeat(20_000),
           previewUrl: "https://cdn.example.com/generated-preview-fallback.png",
           resultUrls: ["https://cdn.example.com/generated-preview-fallback.png"],
-          generationReplay: { mode: "image", modelId: "seedream-v4.5" },
+          generationReplay:
+            buildGenerationReplayConfigV2({
+              mode: "image",
+              submitTool: "create",
+              modelId: "seedream-v4.5",
+              displayPrompt: "A cinematic portrait",
+              submissionPrompt: "A cinematic portrait",
+              aspect: "9:16",
+              imageResolution: "model_default",
+              referenceInputs: [],
+              capturedAt: "2026-03-02T12:00:00.000Z",
+            }) ?? undefined,
         }),
       ],
       archivedOutputs: [],

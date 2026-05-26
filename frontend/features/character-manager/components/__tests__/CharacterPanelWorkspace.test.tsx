@@ -328,8 +328,7 @@ describe("CharacterPanelWorkspace", () => {
       expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
     });
 
-    const lookTwoTab = screen.getByRole("tab", { name: "2" });
-    fireEvent.mouseEnter(lookTwoTab.parentElement as HTMLElement);
+    fireEvent.click(screen.getByRole("tab", { name: "2" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete look 2" }));
 
     const confirmationDialog = screen.getByRole("dialog", { name: 'Delete look "2"?' });

@@ -11,10 +11,8 @@ type UseAiStudioPageContentRuntimeParams = {
   onFileBrowserSelection: AiStudioPageContentProps["onFileBrowserSelection"];
   uiError: AiStudioPageContentProps["uiError"];
   uiNotice: AiStudioPageContentProps["uiNotice"];
-  characterError: AiStudioPageContentProps["characterError"];
   onDismissUiError: AiStudioPageContentProps["onDismissUiError"];
   onDismissUiNotice: AiStudioPageContentProps["onDismissUiNotice"];
-  onDismissCharacterError: AiStudioPageContentProps["onDismissCharacterError"];
   balanceCredits: AiStudioPageContentProps["balanceCredits"];
   pendingHoldCredits: AiStudioPageContentProps["pendingHoldCredits"];
   balanceLoading: AiStudioPageContentProps["balanceLoading"];
@@ -79,10 +77,8 @@ export const useAiStudioPageContentRuntime = ({
   onFileBrowserSelection,
   uiError,
   uiNotice,
-  characterError,
   onDismissUiError,
   onDismissUiNotice,
-  onDismissCharacterError,
   balanceCredits,
   pendingHoldCredits,
   balanceLoading,
@@ -144,10 +140,8 @@ export const useAiStudioPageContentRuntime = ({
       onFileBrowserSelection,
       uiError,
       uiNotice,
-      characterError,
       onDismissUiError,
       onDismissUiNotice,
-      onDismissCharacterError,
       balanceCredits,
       pendingHoldCredits,
       balanceLoading,
@@ -208,10 +202,8 @@ export const useAiStudioPageContentRuntime = ({
       onFileBrowserSelection,
       uiError,
       uiNotice,
-      characterError,
       onDismissUiError,
       onDismissUiNotice,
-      onDismissCharacterError,
       balanceCredits,
       pendingHoldCredits,
       balanceLoading,

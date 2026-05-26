@@ -104,6 +104,7 @@ describe("ReferenceGridCard", () => {
     const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
     const videoSource = videoNode?.querySelector("source");
 
+    expect(videoNode?.draggable).toBe(false);
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
     expect(videoSource?.getAttribute("src")).toBe("https://example.com/video.mp4");
 

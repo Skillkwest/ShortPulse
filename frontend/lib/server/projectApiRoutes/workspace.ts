@@ -27,7 +27,15 @@ type ProjectWorkspaceSuccessResponse = {
 type ProjectWorkspaceErrorResponse = {
   error: string;
   details?: string;
+  failureStage?: WorkspaceFailureStage;
 };
+
+type WorkspaceFailureStage =
+  | "auth resolution"
+  | "project lookup"
+  | "workspace read"
+  | "workspace save"
+  | "workspace delete";
 
 const toRequestBody = (value: unknown): Record<string, unknown> => {
   if (typeof value === "string") {
@@ -66,11 +74,35 @@ const resolveWorkspaceErrorMessage = (method: NextApiRequest["method"]): string 
   return "Failed to load project workspace";
 };
 
+const hasStructuredWorkspaceFailureDetail = (message: string): boolean =>
+  /^Failed to (?:save|load|reset) project workspace(?: snapshot)?(?: during |: )/i.test(message) ||
+  /^Project workspace save failed during /i.test(message);
+
+const resolveWorkspaceFailureDetails = ({
+  method,
+  stage,
+  error,
+}: {
+  method: NextApiRequest["method"];
+  stage: WorkspaceFailureStage | null;
+  error: unknown;
+}): string => {
+  const rawMessage =
+    error instanceof Error && error.message.trim().length > 0
+      ? error.message.trim()
+      : "Unknown error";
+  if (!stage || hasStructuredWorkspaceFailureDetail(rawMessage)) {
+    return rawMessage;
+  }
+  return `${resolveWorkspaceErrorMessage(method)} during ${stage}: ${rawMessage}`;
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ProjectWorkspaceSuccessResponse | ProjectWorkspaceErrorResponse>
 ) {
   let user: Awaited<ReturnType<typeof requireApiUser>> | null = null;
+  let failureStage: WorkspaceFailureStage | null = "auth resolution";
   try {
     if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {
       res.setHeader("Allow", "GET, PUT, DELETE");
@@ -86,6 +118,7 @@ export default async function handler(
     }
 
     const requestBody = req.method === "PUT" ? toRequestBody(req.body) : null;
+    failureStage = "project lookup";
     const project = await getProjectForUser({
       userId: user.id,
       projectId,
@@ -95,6 +128,7 @@ export default async function handler(
     }
 
     if (req.method === "DELETE") {
+      failureStage = "workspace delete";
       await deleteProjectWorkspaceStateForUser({
         userId: user.id,
         projectId,
@@ -102,6 +136,7 @@ export default async function handler(
       return res.status(200).json({ workspace: null });
     }
 
+    failureStage = req.method === "PUT" ? "workspace save" : "workspace read";
     const workspace =
       req.method === "PUT"
         ? await upsertProjectWorkspaceStateForUser({
@@ -133,6 +168,7 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid project workspace snapshot",
         details: error.message,
+        failureStage: "workspace save",
       });
     }
     await logApiRouteException({
@@ -141,6 +177,7 @@ export default async function handler(
       routeLabel: resolveWorkspaceRouteLabel(req.method),
       user,
       metadata: {
+        workspace_failure_stage: failureStage,
         source:
           req.method === "PUT"
             ? "api.projects.workspace.save"
@@ -151,7 +188,12 @@ export default async function handler(
     });
     return res.status(500).json({
       error: resolveWorkspaceErrorMessage(req.method),
-      details: error instanceof Error ? error.message : "Unknown error",
+      details: resolveWorkspaceFailureDetails({
+        method: req.method,
+        stage: failureStage,
+        error,
+      }),
+      ...(failureStage ? { failureStage } : {}),
     });
   }
 }

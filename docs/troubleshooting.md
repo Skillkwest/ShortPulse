@@ -973,12 +973,16 @@ Checklist:
   - `client.api_response` with `500`: route returned a structured save failure.
   - `api.exception` with route label `projects-workspace-save`: server-side project workspace write failed after route entry.
 - For server-side failures, inspect the exception message:
+  - `Failed to save project workspace during auth resolution: ...`
+  - `Failed to save project workspace during project lookup: ...`
   - `Project workspace save failed during owned id resolution: ...`
   - `Project workspace save failed during workspace upsert: ...`
 - Treat `telemetry.ai_studio.project_workspace.repair_pending` as a separate degraded-save lane. That event means the durable workspace write already succeeded and should not be the cause of the retry banner.
 
 Mitigation:
 
+- If failures cluster under `auth resolution`, inspect the authenticated API session/bootstrap path before the workspace handler can proceed.
+- If failures cluster under `project lookup`, inspect the `projects` lookup path and its environment/dependency health.
 - If failures cluster under `owned id resolution`, inspect the backing Supabase reads for `media_files`, `media_prompts`, and `ai_generations`.
 - If failures cluster under `workspace upsert`, inspect the `project_workspace_states` write path and its environment/dependency health.
 - If the banner pauses after repeated retries, change the workspace state and confirm a fresh save attempt is issued for the new snapshot instead of waiting on the stale failed payload.

@@ -1,8 +1,10 @@
 import React from "react";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { BUCKET, type MediaFileRow } from "../logic/mediaLibraryModalModel";
-import { collectVideoBrowseSigningRequests } from "../logic/mediaVideoBrowsePreview";
-import { isVideoUrl } from "../logic/stateParsers";
+import {
+  asRenderableVideoUrl,
+  collectVideoBrowseSigningRequests,
+} from "../logic/mediaVideoBrowsePreview";
 
 type UseMediaVideoBrowsePreviewUrlsArgs = {
   mediaRows: MediaFileRow[];
@@ -39,11 +41,8 @@ export const useMediaVideoBrowsePreviewUrls = ({
         : mediaRows;
     const directVideoUrlById: SignedUrlMap = {};
     for (const row of scopedMediaRows) {
-      const previewVariantUrl =
-        typeof row.preview_variant_path === "string" ? row.preview_variant_path.trim() : "";
-      if (previewVariantUrl && isVideoUrl(previewVariantUrl)) {
-        directVideoUrlById[row.id] = previewVariantUrl;
-      }
+      const previewVariantUrl = asRenderableVideoUrl(row.preview_variant_path);
+      if (previewVariantUrl) directVideoUrlById[row.id] = previewVariantUrl;
     }
     const {
       hoverVideoPathByRowId: collectedHoverVideoPathByRowId,

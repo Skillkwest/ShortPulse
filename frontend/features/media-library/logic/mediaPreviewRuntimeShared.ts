@@ -53,6 +53,16 @@ const LOCAL_SIGN_FIRST_SURFACES = new Set([
   "elements-media-panel",
 ]);
 const MAX_LOCAL_SIGN_CANDIDATES_PER_ROW = 2;
+const VIDEO_OBJECT_URL_MARKER = "#video=1";
+const AUDIO_OBJECT_URL_MARKER = "#audio=1";
+
+const withMediaObjectUrlMarker = (objectUrl: string, fileType?: string | null): string => {
+  const trimmedType = (fileType ?? "").toLowerCase();
+  if (!/^blob:/i.test(objectUrl)) return objectUrl;
+  if (trimmedType.startsWith("video")) return `${objectUrl}${VIDEO_OBJECT_URL_MARKER}`;
+  if (trimmedType.startsWith("audio")) return `${objectUrl}${AUDIO_OBJECT_URL_MARKER}`;
+  return objectUrl;
+};
 
 export const signMediaStoragePath = async (
   storagePath: string,
@@ -142,7 +152,7 @@ export const hydrateMediaPreviewViaStorageDownload = async <TRow extends Signing
   for (const storagePath of storageCandidates) {
     const blob = await downloadFromStoragePath(storagePath).catch(() => null);
     if (!blob || !blob.size) continue;
-    const objectUrl = URL.createObjectURL(blob);
+    const objectUrl = withMediaObjectUrlMarker(URL.createObjectURL(blob), row.file_type);
     applyObjectUrlForRow(row, objectUrl);
     finishFallback("media.storage_download_fallback.completed", {
       succeeded_count: 1,

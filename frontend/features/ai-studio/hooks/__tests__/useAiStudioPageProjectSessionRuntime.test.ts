@@ -120,7 +120,6 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         hydrateActiveFromSessionAgentSnapshot: vi.fn(),
         hydrateCanvasSessionState: vi.fn(),
         hydrateFromSessionSnapshot,
-        pendingCreateRuntimeAgentHydrationRef: { current: null },
         persistedAgentRuntime: {
           messages: [],
           input: "",
@@ -196,7 +195,6 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         hydrateActiveFromSessionAgentSnapshot: vi.fn(),
         hydrateCanvasSessionState: vi.fn(),
         hydrateFromSessionSnapshot,
-        pendingCreateRuntimeAgentHydrationRef: { current: null },
         persistedAgentRuntime: {
           messages: [],
           input: "",
@@ -263,7 +261,6 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
           createHydrationPayload(snapshot)
         ),
-        pendingCreateRuntimeAgentHydrationRef: { current: null },
         persistedAgentRuntime: {
           messages: [],
           input: "",

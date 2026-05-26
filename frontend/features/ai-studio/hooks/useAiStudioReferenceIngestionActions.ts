@@ -16,7 +16,10 @@ import type { StudioMode, StudioOutput } from "../types";
 import { buildStudioOutputsFromReferenceInputSync } from "../reference-ingestion";
 import { prepareLibraryMediaIngestionPayload } from "../reference-ingestion/prepareLibraryMediaIngestionPayload";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
-import { normalizeMediaFile } from "../reference-grid/controllers/referenceGridClipboard";
+import {
+  normalizeMediaFile,
+  type PastedMediaReference,
+} from "../reference-grid/controllers/referenceGridClipboard";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
@@ -95,6 +98,7 @@ type UseAiStudioReferenceIngestionActionsResult = {
   addAgentPromptReference: (promptText: string, title?: string | null) => void;
   addPastedPromptReference: (promptText: string) => void;
   addPastedMediaReference: (payload: { url: string; mimeType?: string | null }) => void;
+  insertPastedMediaReference: (payload: PastedMediaReference) => StudioOutput[];
   addLibraryMediaReference: (payload: LibraryMediaReferencePayload) => void;
   addLibraryMediaReferenceToQuickSlot: (
     payload: LibraryMediaReferencePayload,
@@ -314,7 +318,7 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const addPastedMediaReference = useCallback(
-    async (payload: { url: string; mimeType?: string | null }) => {
+    (payload: { url: string; mimeType?: string | null }) => {
       const result = buildStudioOutputsFromReferenceInputSync(
         {
           kind: "mediaUrl",
@@ -331,10 +335,16 @@ export const useAiStudioReferenceIngestionActions = ({
           nowIso: () => new Date().toISOString(),
         }
       );
-      if (!result.outputs.length) return;
+      if (!result.outputs.length) return [];
       setOutputs((prev) => [...result.outputs, ...prev]);
+      return result.outputs;
     },
     [aspect, mode, model, setOutputs]
+  );
+
+  const insertPastedMediaReference = useCallback(
+    (payload: PastedMediaReference): StudioOutput[] => addPastedMediaReference(payload) ?? [],
+    [addPastedMediaReference]
   );
 
   const addLibraryMediaReference = useCallback(
@@ -470,6 +480,7 @@ export const useAiStudioReferenceIngestionActions = ({
     addAgentPromptReference,
     addPastedPromptReference,
     addPastedMediaReference,
+    insertPastedMediaReference,
     addLibraryMediaReference,
     addLibraryMediaReferenceToQuickSlot,
     addLibraryPromptReference,

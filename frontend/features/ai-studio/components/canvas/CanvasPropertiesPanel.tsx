@@ -216,6 +216,19 @@ export function CanvasPropertiesPanel({
                     alt={item.alt}
                     draggable={false}
                   />
+                ) : item.kind === "video" ? (
+                  <video
+                    className="canvas-scene-item__video"
+                    src={item.videoUrl}
+                    poster={item.posterUrl ?? undefined}
+                    aria-label={item.title?.trim() || "Canvas video"}
+                    draggable={false}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    preload="metadata"
+                  />
                 ) : isEditingTextItem ? (
                   isTextEditEditable ? (
                     <textarea

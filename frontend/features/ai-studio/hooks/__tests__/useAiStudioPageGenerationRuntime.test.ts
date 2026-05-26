@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { StudioOutput } from "../../types";
 import { useAiStudioPageGenerationRuntime } from "../useAiStudioPageGenerationRuntime";
 
@@ -106,7 +107,7 @@ const createParams = (
   resolveIsCharacterModeEnabledForTool: vi.fn((tool) => tool === "create" || tool === "text"),
   resolveReferenceInputsForTool: vi.fn(() => ({
     referenceImageUrl: null,
-    extraImageUrls: [null, null, null],
+    extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
   })),
   resolveSelectedCharacterIdForTool: vi.fn(() => "char-1"),
   selectedStyleContext: null,
@@ -155,14 +156,7 @@ describe("useAiStudioPageGenerationRuntime", () => {
       submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
       displayPromptOverride: "User visible prompt",
       referenceInputsOverride: [],
-      internalMediaRefsOverride: [
-        {
-          version: 1,
-          kind: "storage_object",
-          bucket: "media_library",
-          storagePath: "user/chars/fresh.png",
-        },
-      ],
+      internalMediaRefsOverride: [createInternalMediaRef({ storagePath: "user/chars/fresh.png" })],
       characterContextOverride: {
         applied: true,
         characterId: "char-1",
@@ -246,7 +240,7 @@ describe("useAiStudioPageGenerationRuntime", () => {
       displayPromptOverride: "User visible prompt",
       referenceInputsOverride: [],
       notice: null,
-      fallbackCode: "no_character_selected",
+      fallbackCode: "no_character_selected" as const,
       characterReferenceCount: 0,
       hasCharacterDescription: false,
     }));

@@ -289,9 +289,6 @@ export const useAiStudioViewModel = ({
     pricingPolicy,
     pricingImageResolution,
     videoPricingParams,
-    videoDurationSeconds,
-    videoGenerateAudio,
-    videoResolution,
   ]);
 
   const resolveModelPickerCredits = useCallback(
@@ -470,8 +467,6 @@ export const useAiStudioViewModel = ({
     requiresModelSelection,
     klingMultiPrompts,
     klingWorkflowMode,
-    mode,
-    isCreateWorkflowSelected,
     isEditWorkflowSelected,
     isSeedance2Model,
     resolvedVideoLane,

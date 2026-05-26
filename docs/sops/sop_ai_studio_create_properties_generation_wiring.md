@@ -95,7 +95,7 @@ sequenceDiagram
 - `useAiStudioWorkflowSettings` reads `aiStudioWorkflowSettingsByTool.v1`.
 - Create startup model uses `resolveCreateWorkflowStartupModel` precedence.
 - Edit startup model uses `resolveEditWorkflowStartupModel` precedence.
-- Live workflow tab switches now restore workflow-local model and aspect selections from the lightweight workflow-settings hook. Browser session persistence for that hook remains limited to non-project routes, while project routes keep the same restore behavior only for the active in-session project authority.
+- Live workflow tab switches use the lightweight workflow-settings hook. Model selection remains workflow-local across tab switches. Non-project routes keep browser session persistence plus the shared aspect preference, while project routes suppress browser persistence and restore workflow-local model/aspect only for the active in-session project authority.
 
 6. Guard effects:
 

@@ -102,7 +102,7 @@ describe("AgentInputBar", () => {
       configurable: true,
       get: () => 900,
     });
-    rectSpy.mockImplementation(function () {
+    rectSpy.mockImplementation(function (this: HTMLElement) {
       if (this instanceof HTMLTextAreaElement) {
         return {
           x: 0,

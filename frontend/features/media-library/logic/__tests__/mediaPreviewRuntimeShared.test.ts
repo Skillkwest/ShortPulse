@@ -254,6 +254,35 @@ describe("mediaPreviewRuntimeShared", () => {
     }
   });
 
+  it("marks hydrated video object urls so browse cards keep video semantics", async () => {
+    mockResolveMediaSigningStoragePaths.mockReturnValue(["path/video.mp4"]);
+    const finishFallback = vi.fn();
+    mockCreateMediaPerfTimer.mockReturnValue(finishFallback);
+    const objectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:video-preview");
+    const downloadFromStoragePath = vi.fn(async () => new Blob(["video-bytes"]));
+    const applyObjectUrlForRow = vi.fn();
+    const row = { id: "media-video", storage_path: "path/video.mp4", file_type: "video/mp4" };
+
+    try {
+      const result = await hydrateMediaPreviewViaStorageDownload({
+        row,
+        currentUserId: "user-1",
+        surface: "media-library-panel",
+        downloadFromStoragePath,
+        applyObjectUrlForRow,
+      });
+
+      expect(result).toBe("blob:video-preview#video=1");
+      expect(applyObjectUrlForRow).toHaveBeenCalledWith(row, "blob:video-preview#video=1");
+      expect(finishFallback).toHaveBeenCalledWith("media.storage_download_fallback.completed", {
+        succeeded_count: 1,
+        failed_count: 0,
+      });
+    } finally {
+      objectUrlSpy.mockRestore();
+    }
+  });
+
   it("returns null when no storage-download candidate resolves", async () => {
     mockResolveMediaSigningStoragePaths.mockReturnValue(["path/first.png"]);
     const finishFallback = vi.fn();

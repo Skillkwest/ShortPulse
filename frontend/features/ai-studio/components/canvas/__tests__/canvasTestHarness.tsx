@@ -11,6 +11,7 @@ import {
 import type {
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "../canvasTypes";
@@ -52,6 +53,19 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
       sourceSurface: payload.sourceSurface ?? null,
     };
   }
+  if (payload.outputId === "vid-1") {
+    return {
+      kind: "video",
+      outputId: "vid-1",
+      mediaId: "media-video-1",
+      videoUrl: "https://example.com/reference-video.mp4",
+      posterUrl: "https://example.com/reference-video-poster.webp",
+      title: "Reference video",
+      width: payload.width ?? 1920,
+      height: payload.height ?? 1080,
+      sourceSurface: payload.sourceSurface ?? null,
+    };
+  }
   if (payload.outputId === "txt-1") {
     return {
       kind: "text",
@@ -68,6 +82,7 @@ export type CanvasHarnessProps = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
+  resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   isItemDraggable?: boolean;
   onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
@@ -83,6 +98,7 @@ export function CanvasHarness({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   isItemDraggable = false,
   onItemDragStart,
@@ -93,6 +109,7 @@ export function CanvasHarness({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
   });
@@ -119,12 +136,14 @@ export function DualCanvasHarness({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
 }: CanvasHarnessProps) {
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
   });
@@ -143,6 +162,7 @@ export function SeededCanvasHarness({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   isItemDraggable = false,
   onItemDragStart,
@@ -153,6 +173,7 @@ export function SeededCanvasHarness({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
   });

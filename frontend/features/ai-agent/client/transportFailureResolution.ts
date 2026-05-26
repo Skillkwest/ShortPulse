@@ -11,6 +11,13 @@ type TransportFailureResolution = {
   errorText: string | null;
 };
 
+const appendTraceId = ({ errorText, traceId }: { errorText: string; traceId?: string }): string => {
+  const normalizedTraceId = traceId?.trim();
+  if (!normalizedTraceId) return errorText;
+  if (errorText.includes(normalizedTraceId)) return errorText;
+  return `${errorText} (Trace ID: ${normalizedTraceId})`;
+};
+
 export const resolveStudioAgentTransportFailure = (
   transportResult: StudioAgentTransportFailureResult
 ): TransportFailureResolution => {
@@ -54,9 +61,12 @@ export const resolveStudioAgentTransportFailure = (
   return {
     assistantMessage: null,
     response: null,
-    errorText: normalizeErrorText(structuredErrorText ?? transportResult.detail, {
-      fallback: `Agent request failed (${transportResult.status})`,
-      maxLength: 320,
+    errorText: appendTraceId({
+      errorText: normalizeErrorText(structuredErrorText ?? transportResult.detail, {
+        fallback: `Agent request failed (${transportResult.status})`,
+        maxLength: 320,
+      }),
+      traceId: transportResult.parsedError?.traceId,
     }),
   };
 };

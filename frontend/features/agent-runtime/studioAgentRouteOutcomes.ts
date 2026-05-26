@@ -42,6 +42,7 @@ export const emitStudioAgentTurnTelemetry = ({
   flow,
   path,
   status,
+  traceId,
   model,
   outcomeClass,
   retryUsed,
@@ -66,6 +67,7 @@ export const emitStudioAgentTurnTelemetry = ({
   flow: string;
   path: string;
   status: StudioAgentTelemetryStatus;
+  traceId?: string | null;
   model: string;
   outcomeClass: StudioAgentTelemetryOutcomeClass;
   retryUsed: boolean;
@@ -97,6 +99,7 @@ export const emitStudioAgentTurnTelemetry = ({
       flow,
       path,
       status,
+      trace_id: traceId ?? null,
       model,
       decision: machineOutcome.decision,
       outcome_class: machineOutcome.outcome_class,

@@ -459,6 +459,7 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid project workspace snapshot",
       details: "Invalid project workspace snapshot",
+      failureStage: "workspace save",
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
@@ -476,13 +477,50 @@ describe("projects routes", () => {
       routeLabel: "projects-workspace-save",
       user: null,
       metadata: {
+        workspace_failure_stage: "auth resolution",
         source: "api.projects.workspace.save",
       },
     });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to save project workspace",
-      details: "auth bootstrap failed",
+      details: "Failed to save project workspace during auth resolution: auth bootstrap failed",
+      failureStage: "auth resolution",
+    });
+  });
+
+  it("returns a structured 500 when project lookup fails before workspace save", async () => {
+    getProjectForUserMock.mockRejectedValueOnce(new Error("project query unavailable"));
+    const req = {
+      method: "PUT",
+      query: { projectId: "project-1" },
+      body: {
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-workspace-save",
+      user: { id: "user-1" },
+      metadata: {
+        workspace_failure_stage: "project lookup",
+        source: "api.projects.workspace.save",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to save project workspace",
+      details: "Failed to save project workspace during project lookup: project query unavailable",
+      failureStage: "project lookup",
     });
   });
 });

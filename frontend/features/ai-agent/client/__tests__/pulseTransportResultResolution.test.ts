@@ -34,7 +34,7 @@ describe("resolvePulseCreateAgentTransportSuccess", () => {
   it("uses the active workflow step prompt when the kickoff message is empty", () => {
     const result = resolvePulseCreateAgentTransportSuccess({
       message: "   ",
-      actions: null,
+      actions: undefined,
       workflowSession: {
         presetId: "image",
         status: "awaiting_input",

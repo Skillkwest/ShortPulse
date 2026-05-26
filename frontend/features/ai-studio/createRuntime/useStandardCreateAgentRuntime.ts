@@ -232,6 +232,7 @@ export const useStandardCreateAgentRuntime = ({
     send: sendToAgent,
     appendUserMessage,
     updateMessageById,
+    removeMessageById,
     replaceMessages,
     reset: resetAgentChat,
   } = activeAgent;
@@ -326,6 +327,7 @@ export const useStandardCreateAgentRuntime = ({
         sendToAgent,
         appendUserMessage,
         updateMessageById,
+        removeMessageById,
         getAgentContext,
         trackAgentUiEvent,
         lastAssistantMessage: latestAssistantMessage,
@@ -346,6 +348,7 @@ export const useStandardCreateAgentRuntime = ({
       latestAssistantMessage,
       notifyBootstrapPending,
       prompt,
+      removeMessageById,
       sendToAgent,
       setAgentAttachmentError,
       setAgentAttachments,

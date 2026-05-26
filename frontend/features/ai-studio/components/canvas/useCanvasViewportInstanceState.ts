@@ -47,6 +47,7 @@ import type {
   CanvasResizeHandle,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
@@ -105,6 +106,7 @@ type UseCanvasViewportInstanceStateParams = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
+  resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   isSpacePanActiveRef: MutableRefObject<boolean>;
@@ -126,6 +128,7 @@ export const useCanvasViewportInstanceState = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
   isSpacePanActiveRef,
@@ -194,6 +197,7 @@ export const useCanvasViewportInstanceState = ({
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     addResolvedItem,
   });

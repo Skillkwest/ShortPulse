@@ -160,6 +160,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
     onProjectBootstrapFailed,
     onProjectBootstrapSettled,
     projectId,
+    projectWorkspaceRestoreCandidate.result,
     projectWorkspaceRestoreCandidate.snapshot,
     projectWorkspaceRestoreCandidate.source,
     projectWorkspaceRestoreCandidate.status,

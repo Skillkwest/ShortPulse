@@ -18,7 +18,7 @@ export type CanvasResizeHandle = "nw" | "ne" | "se" | "sw";
 
 type CanvasSceneItemBase = {
   id: string;
-  kind: "image" | "text" | "audio";
+  kind: "image" | "video" | "text" | "audio";
   x: number;
   y: number;
   z: number;
@@ -32,6 +32,16 @@ export type CanvasImageItem = CanvasSceneItemBase & {
   mediaId: string | null;
   src: string;
   alt: string;
+  width: number;
+  height: number;
+};
+
+export type CanvasVideoItem = CanvasSceneItemBase & {
+  kind: "video";
+  mediaId: string | null;
+  videoUrl: string;
+  posterUrl?: string | null;
+  title?: string | null;
   width: number;
   height: number;
 };
@@ -56,7 +66,7 @@ export type CanvasAudioItem = CanvasSceneItemBase & {
   height: number;
 };
 
-export type CanvasSceneItem = CanvasImageItem | CanvasTextItem | CanvasAudioItem;
+export type CanvasSceneItem = CanvasImageItem | CanvasVideoItem | CanvasTextItem | CanvasAudioItem;
 
 export type CanvasDropResolution =
   | {
@@ -65,6 +75,17 @@ export type CanvasDropResolution =
       mediaId: string | null;
       src: string;
       alt: string;
+      width?: number;
+      height?: number;
+      sourceSurface?: ReferenceDragSourceSurface | null;
+    }
+  | {
+      kind: "video";
+      outputId: string | null;
+      mediaId: string | null;
+      videoUrl: string;
+      posterUrl?: string | null;
+      title?: string | null;
       width?: number;
       height?: number;
       sourceSurface?: ReferenceDragSourceSurface | null;
@@ -111,6 +132,14 @@ export type PrepareResolvedInternalCanvasDrop = (
 export type PrepareCanvasMediaLibraryDrop = (
   payload: MediaLibraryDragPayload
 ) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
+
+/**
+ * Allows surfaces to convert dropped external media references into a Canvas insert item.
+ */
+export type ResolveCanvasDroppedMediaReference = (payload: {
+  url: string;
+  mimeType?: string | null;
+}) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
 
 /**
  * Allows surfaces to convert dropped desktop files into one or more Canvas insert items.

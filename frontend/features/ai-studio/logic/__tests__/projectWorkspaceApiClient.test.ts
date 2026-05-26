@@ -54,6 +54,17 @@ describe("projectWorkspaceApiClient", () => {
     expect(addBreadcrumbMock).toHaveBeenCalledWith({
       type: "network",
       level: "warn",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 400,
+        failure_stage: null,
+        error: "Invalid project workspace snapshot",
+      },
+    });
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "warn",
       message: "ai_studio_project_workspace_save_invalid_snapshot",
       data: {
         project_id: "project-1",
@@ -93,7 +104,17 @@ describe("projectWorkspaceApiClient", () => {
       "Failed to save project workspace snapshot: Project workspace save failed during workspace upsert: row-level security denied"
     );
 
-    expect(addBreadcrumbMock).not.toHaveBeenCalled();
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: null,
+        error: "Project workspace save failed during workspace upsert: row-level security denied",
+      },
+    });
   });
 
   it("normalizes object-shaped project workspace save errors without throwing while formatting", async () => {
@@ -125,6 +146,96 @@ describe("projectWorkspaceApiClient", () => {
     ).rejects.toThrow(
       "Failed to save project workspace snapshot: Workspace dependency misconfigured"
     );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: null,
+        error: "Workspace dependency misconfigured",
+      },
+    });
+  });
+
+  it("includes status and content type when project workspace save fails with a non-json response", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response("<!doctype html><title>Server Error</title>", {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      })
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow("Failed to save project workspace snapshot: HTTP 500 text/html");
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: null,
+        error: "",
+      },
+    });
+  });
+
+  it("records the structured failure stage for project workspace save errors", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Failed to save project workspace",
+          details:
+            "Failed to save project workspace during project lookup: project query unavailable",
+          failureStage: "project lookup",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Failed to save project workspace during project lookup: project query unavailable"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: "project lookup",
+        error: "Failed to save project workspace during project lookup: project query unavailable",
+      },
+    });
   });
 
   it("opts project workspace saves into one-time network retry", async () => {

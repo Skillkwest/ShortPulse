@@ -99,6 +99,9 @@ type NavigatorWithConnection = Navigator & {
   };
 };
 
+const stripMediaObjectUrlMarker = (value: string): string =>
+  value.replace(/#(?:video|audio)=1$/i, "");
+
 export const useMediaSurfacePreviewRuntime = <
   TRow extends PreviewRuntimeRowBase,
   TTab extends string,
@@ -323,7 +326,7 @@ export const useMediaSurfacePreviewRuntime = <
       if (previousObjectUrl && previousObjectUrl !== objectUrl) {
         URL.revokeObjectURL(previousObjectUrl);
       }
-      objectUrlByMediaIdRef.current[row.id] = objectUrl;
+      objectUrlByMediaIdRef.current[row.id] = stripMediaObjectUrlMarker(objectUrl);
       applySignedUrlsToTab(getMediaDataTabForRow(row), new Map([[row.id, objectUrl]]));
     },
     [applySignedUrlsToTab]

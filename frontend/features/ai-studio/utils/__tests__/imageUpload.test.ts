@@ -3,6 +3,7 @@
  * Ensures local images are sent as raw image bytes with explicit content type.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ShortPulseFetchInit } from "../../../../lib/authenticatedFetch";
 
 const fetchWithAuthMock = vi.fn();
 const getSignedMediaUrlMock = vi.fn();
@@ -81,7 +82,7 @@ describe("imageUpload", () => {
       })
     );
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
     expect(options.method).toBe("POST");
     expect(options.headers).toMatchObject({
       "Content-Type": "image/png",
@@ -109,7 +110,7 @@ describe("imageUpload", () => {
 
     expect(signedUrl).toBe("https://example.com/signed/reference-flattened.png");
     expect(global.fetch).not.toHaveBeenCalled();
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
     expect((options.body as Blob).size).toBe(rememberedBlob.size);
   });
 
@@ -135,7 +136,7 @@ describe("imageUpload", () => {
 
     expect(signedUrl).toBe("https://example.com/signed/reference-1.webp");
     expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
     expect(options.headers).toMatchObject({
       "Content-Type": "image/webp",
     });
@@ -156,7 +157,7 @@ describe("imageUpload", () => {
 
     await uploadImageToStorage(localUrl);
 
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
     expect(options.headers).toMatchObject({
       "Content-Type": "image/jpeg",
     });

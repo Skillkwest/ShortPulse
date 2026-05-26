@@ -10,11 +10,11 @@ import {
   getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
 import type { CharacterSheetPresetId } from "../../types";
-import { getNextCharacterSheetPresetId } from "../../logic/characterSheetPresetTabs";
 import {
-  CharacterSheetPresetTabs,
   getCharacterSheetPresetTabId,
-} from "../CharacterSheetPresetTabs";
+  getNextCharacterSheetPresetId,
+} from "../../logic/characterSheetPresetTabs";
+import { CharacterSheetPresetTabs } from "../CharacterSheetPresetTabs";
 
 function PresetTabsHarness({
   initialPresetIds = ["1"] as CharacterSheetPresetId[],

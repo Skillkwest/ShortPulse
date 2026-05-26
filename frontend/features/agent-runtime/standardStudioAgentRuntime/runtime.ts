@@ -48,6 +48,8 @@ import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
 
+type StandardOpenAiImageDetail = "high" | "auto";
+
 const resolveStandardFlow = (
   context: {
     media?: Array<unknown> | null;
@@ -67,10 +69,12 @@ const buildStandardOpenAiMessages = ({
   messages,
   context,
   systemPrompt,
+  imageDetail = "high",
 }: {
   messages: AgentMessage[];
   context: AgentContext;
   systemPrompt?: string | null;
+  imageDetail?: StandardOpenAiImageDetail;
 }): OpenAiChatMessage[] => {
   const promptReferenceSnippets = Array.from(
     new Set(
@@ -90,7 +94,7 @@ const buildStandardOpenAiMessages = ({
         type: "image_url" as const,
         image_url: {
           url: item.url as string,
-          detail: "high" as const,
+          detail: imageDetail,
         },
       })) ?? [];
   const latestUserIndex = messages.reduce(
@@ -125,6 +129,38 @@ const buildStandardOpenAiMessages = ({
   return normalizedSystemPrompt.length > 0
     ? [{ role: "system", content: normalizedSystemPrompt }, ...conversationMessages]
     : conversationMessages;
+};
+
+export const resolveStandardOpenAiExecutionProfile = ({
+  flow,
+  openAiModel,
+  openAiVisionModel,
+  turnTimeoutMs,
+  visionTimeoutMs,
+}: {
+  flow: "TEXT_ONLY" | "MIXED";
+  openAiModel: string;
+  openAiVisionModel: string;
+  turnTimeoutMs: number;
+  visionTimeoutMs: number;
+}): {
+  model: string;
+  timeoutMs: number;
+  imageDetail: StandardOpenAiImageDetail;
+} => {
+  if (flow === "MIXED") {
+    return {
+      model: openAiVisionModel,
+      timeoutMs: Math.max(turnTimeoutMs, visionTimeoutMs),
+      imageDetail: "auto",
+    };
+  }
+
+  return {
+    model: openAiModel,
+    timeoutMs: turnTimeoutMs,
+    imageDetail: "high",
+  };
 };
 
 const extractStandardOpenAiResponse = ({
@@ -229,7 +265,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     });
   }
 
+  const authVerificationStartedAt = Date.now();
   const user = await requireApiUser(req, res);
+  markStage("auth_verification", authVerificationStartedAt);
   if (!user) return;
 
   if (
@@ -245,11 +283,13 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     });
   }
 
+  const requestEnvelopeStartedAt = Date.now();
   const requestEnvelope = parseStudioAgentRequestEnvelope({
     req,
     userId: user.id,
     traceId,
   });
+  markStage("request_envelope", requestEnvelopeStartedAt);
   if (!requestEnvelope.ok) {
     return sendStudioAgentError(res, requestEnvelope.status, requestEnvelope.payload);
   }
@@ -271,11 +311,14 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const context = requestEnvelope.value.context;
   const flow = resolveStandardFlow(context);
   let resolvedSystemPrompt: RequiredRuntimeAgentPromptResolution;
+  const runtimePromptResolutionStartedAt = Date.now();
   try {
     resolvedSystemPrompt = await resolveRequiredRuntimeAgentPrompt({
       promptId: "STUDIO_AGENT_SYSTEM",
     });
+    markStage("runtime_prompt_resolution", runtimePromptResolutionStartedAt);
   } catch (error) {
+    markStage("runtime_prompt_resolution", runtimePromptResolutionStartedAt);
     const detail =
       error instanceof RequiredRuntimeAgentPromptMissingError ||
       error instanceof RequiredRuntimeAgentPromptUnavailableError ||
@@ -288,6 +331,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       flow,
       path: STANDARD_TELEMETRY_PATH,
       status: "error",
+      traceId,
       model: process.env.OPENAI_MODEL ?? "unknown",
       outcomeClass: "route_error",
       retryUsed: false,
@@ -309,7 +353,14 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
-  const standardModel = openAiConfig.openAiModel;
+  const executionProfile = resolveStandardOpenAiExecutionProfile({
+    flow,
+    openAiModel: openAiConfig.openAiModel,
+    openAiVisionModel: openAiConfig.openAiVisionModel,
+    turnTimeoutMs: openAiConfig.turnTimeoutMs,
+    visionTimeoutMs: openAiConfig.visionTimeoutMs,
+  });
+  const standardModel = executionProfile.model;
   const openAiRoundTripStartedAt = Date.now();
   try {
     const directResponse = await fetchStudioAgentChatCompletion({
@@ -320,8 +371,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         messages,
         context,
         systemPrompt: resolvedSystemPrompt.promptBody,
+        imageDetail: executionProfile.imageDetail,
       }),
-      timeoutMs: openAiConfig.turnTimeoutMs,
+      timeoutMs: executionProfile.timeoutMs,
     });
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
 
@@ -331,6 +383,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         flow,
         path: STANDARD_TELEMETRY_PATH,
         status: "error",
+        traceId,
         model: standardModel,
         outcomeClass: "upstream_error",
         retryUsed: false,
@@ -359,6 +412,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         flow,
         path: STANDARD_TELEMETRY_PATH,
         status: "error",
+        traceId,
         model: standardModel,
         outcomeClass: "upstream_error",
         retryUsed: false,
@@ -383,6 +437,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         flow,
         path: STANDARD_TELEMETRY_PATH,
         status: "refuse",
+        traceId,
         model: standardModel,
         outcomeClass: "refusal_safety",
         retryUsed: false,
@@ -402,6 +457,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       flow,
       path: STANDARD_TELEMETRY_PATH,
       status: "success",
+      traceId,
       model: standardModel,
       outcomeClass: "success_prompt",
       retryUsed: false,
@@ -428,6 +484,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       error,
       routeLabel: STANDARD_ROUTE_LABEL,
       metadata: {
+        trace_id: traceId,
         user_id: user.id,
         conversation_id: normalizedConversationId,
         stage: "standard_openai",
@@ -438,6 +495,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       flow,
       path: STANDARD_TELEMETRY_PATH,
       status: "error",
+      traceId,
       model: standardModel,
       outcomeClass: "upstream_error",
       retryUsed: false,

@@ -19,6 +19,31 @@ export type PersistedGenerationOutputRow = {
   mediaFileId: string | null;
 };
 
+const hasExpectedMediaFileAttachments = ({
+  persistedRows,
+  expectedMediaFileIds,
+}: {
+  persistedRows: PersistedGenerationOutputRow[];
+  expectedMediaFileIds: Array<string | null>;
+}): boolean => {
+  const expectedEntries = expectedMediaFileIds
+    .map((mediaFileId, outputIndex) => ({ outputIndex, mediaFileId: asString(mediaFileId) }))
+    .filter((entry): entry is { outputIndex: number; mediaFileId: string } =>
+      Boolean(entry.mediaFileId)
+    );
+  if (!expectedEntries.length) {
+    return true;
+  }
+
+  const persistedRowsByOutputIndex = new Map(
+    persistedRows.map((row) => [row.outputIndex, row.mediaFileId] as const)
+  );
+
+  return expectedEntries.every(
+    ({ outputIndex, mediaFileId }) => persistedRowsByOutputIndex.get(outputIndex) === mediaFileId
+  );
+};
+
 const normalizePersistedGenerationOutputRows = (data: unknown): PersistedGenerationOutputRow[] => {
   if (!Array.isArray(data)) return [];
 
@@ -110,7 +135,15 @@ export const persistGenerationOutputRecords = async ({
   }
 
   const normalizedRows = normalizePersistedGenerationOutputRows(data);
-  if (normalizedRows.length) return normalizedRows;
+  if (
+    normalizedRows.length &&
+    hasExpectedMediaFileAttachments({
+      persistedRows: normalizedRows,
+      expectedMediaFileIds: mediaFileIds,
+    })
+  ) {
+    return normalizedRows;
+  }
 
   return readPersistedGenerationOutputs({
     generationId,

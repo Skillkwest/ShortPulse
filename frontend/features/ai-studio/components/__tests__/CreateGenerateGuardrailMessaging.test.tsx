@@ -80,7 +80,7 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByTestId("prompt-step")).toBeInTheDocument();
   });
 
-  it("collapses the Standard empty-state shell once the composer has a draft", () => {
+  it("keeps the Standard empty-state shell visible while the composer only has a draft", () => {
     render(
       <StandardCreatePanelView
         promptStepProps={
@@ -111,7 +111,7 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
   });
 
   it("does not show the removed active Pulse status UI in Pulse mode", () => {

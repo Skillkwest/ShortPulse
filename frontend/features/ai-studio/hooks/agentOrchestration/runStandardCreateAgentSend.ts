@@ -37,6 +37,7 @@ export type RunStandardCreateAgentSendParams = Pick<
   | "sendToAgent"
   | "appendUserMessage"
   | "updateMessageById"
+  | "removeMessageById"
   | "getAgentContext"
   | "trackAgentUiEvent"
   | "lastAssistantMessage"
@@ -79,6 +80,7 @@ export const runStandardCreateAgentSend = async ({
   sendToAgent,
   appendUserMessage,
   updateMessageById,
+  removeMessageById,
   getAgentContext,
   trackAgentUiEvent,
   lastAssistantMessage,
@@ -193,6 +195,10 @@ export const runStandardCreateAgentSend = async ({
       setAgentAttachments(originalAgentAttachments);
     }
   };
+  const discardOptimisticUserMessage = () => {
+    if (!optimisticUserMessageId) return;
+    removeMessageById(optimisticUserMessageId);
+  };
   try {
     const {
       imageAttachmentIds,
@@ -217,6 +223,7 @@ export const runStandardCreateAgentSend = async ({
           attempted_image_attachments: imageAttachmentIds.length,
           failure_kind: "ephemeral_missing_model_payload",
         });
+        discardOptimisticUserMessage();
         restoreComposerDraft();
         return;
       }
@@ -240,6 +247,7 @@ export const runStandardCreateAgentSend = async ({
           trackAgentUiEvent("studio_agent_attachment_missing_url", {
             failed_image_attachments: preparedImageResult.failedIds.length,
           });
+          discardOptimisticUserMessage();
           restoreComposerDraft();
           return;
         }
@@ -257,6 +265,7 @@ export const runStandardCreateAgentSend = async ({
           failed_image_attachments: preparedImageResult.failedIds.length,
           attempted_image_attachments: preparedImageResult.attemptedCount,
         });
+        discardOptimisticUserMessage();
         restoreComposerDraft();
         return;
       }
@@ -297,6 +306,7 @@ export const runStandardCreateAgentSend = async ({
       optimisticUserMessageId,
     });
     if (discarded) {
+      discardOptimisticUserMessage();
       restoreComposerDraft();
       return;
     }
@@ -305,6 +315,7 @@ export const runStandardCreateAgentSend = async ({
       trackAgentUiEvent("studio_agent_response_empty", {
         mode_hint: options?.modeHint ?? "chat",
       });
+      discardOptimisticUserMessage();
       restoreComposerDraft();
       if (options?.captureResult) return;
       return;

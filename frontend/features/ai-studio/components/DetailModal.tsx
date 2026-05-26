@@ -44,6 +44,12 @@ export type DetailModalContext = {
   } | null;
 };
 
+type PreviewSelectionState = {
+  outputId: string;
+  currentUrl: string | null;
+  rejectedUrls: string[];
+};
+
 const buildUniquePreviewCandidates = (urls: Array<string | null | undefined>): string[] => {
   const uniqueUrls = new Set<string>();
   urls.forEach((url) => {
@@ -71,6 +77,60 @@ const resolveNextPreviewCandidateUrl = ({
     }) ?? null
   );
 };
+
+const resolveDetailPreviewCandidates = (
+  output: Pick<
+    StudioOutput,
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "mediaSource"
+    | "generationId"
+    | "savedMediaIds"
+    | "mode"
+    | "previewUrl"
+    | "resultUrls"
+  >
+): string[] => {
+  const resolvedDetailMedia = resolveReferenceCardUrls(
+    {
+      previewStoragePath: output.previewStoragePath,
+      fullStoragePath: output.fullStoragePath,
+      mediaSource: output.mediaSource,
+      generationId: output.generationId,
+      savedMediaIds: output.savedMediaIds,
+      mode: output.mode,
+      previewUrl: output.previewUrl,
+      resultUrls: output.resultUrls,
+    },
+    {
+      strictPreviewLadder: true,
+      adaptivePreviewQuality: false,
+      surface: "detail-modal",
+    }
+  );
+  const preferredDetailMediaUrl =
+    resolvedDetailMedia.fullUrl ?? resolvedDetailMedia.previewUrl ?? null;
+  return buildUniquePreviewCandidates([
+    preferredDetailMediaUrl,
+    resolvedDetailMedia.previewUrl ?? null,
+    output.previewUrl,
+    ...(output.resultUrls ?? []),
+  ]);
+};
+
+const createPreviewSelectionState = (
+  outputId: string,
+  previewCandidates: string[],
+  rejectedUrls: string[] = []
+): PreviewSelectionState => ({
+  outputId,
+  currentUrl: resolveNextPreviewCandidateUrl({
+    currentUrl: null,
+    previewCandidates,
+    rejectedUrls,
+  }),
+  rejectedUrls,
+});
 
 /**
  * Renders the detail modal for a selected reference.
@@ -174,11 +234,9 @@ function DetailModalContent({
     outputId: string;
     value: boolean;
   } | null>(null);
-  const [previewSelectionByOutput, setPreviewSelectionByOutput] = useState<{
-    outputId: string;
-    currentUrl: string | null;
-    rejectedUrls: string[];
-  } | null>(null);
+  const [previewSelectionByOutput, setPreviewSelectionByOutput] = useState<PreviewSelectionState>(
+    () => createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
+  );
   const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
     outputId: string;
     url: string | null;
@@ -251,7 +309,7 @@ function DetailModalContent({
       ? previewSelectionByOutput
       : null;
   const displayPreviewUrl = useMemo(() => {
-    if (previewSelection?.currentUrl && previewCandidates.includes(previewSelection.currentUrl)) {
+    if (previewSelection?.currentUrl) {
       return previewSelection.currentUrl;
     }
     return (
@@ -262,6 +320,29 @@ function DetailModalContent({
       }) ?? null
     );
   }, [previewCandidates, previewSelection]);
+  useEffect(() => {
+    if (!outputId) return;
+    // The detail modal intentionally locks the first viable preview URL for an open output.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewSelectionByOutput((current) => {
+      if (!current || current.outputId !== outputId) {
+        return createPreviewSelectionState(outputId, previewCandidates);
+      }
+      if (current.currentUrl) return current;
+      const nextUrl = resolveNextPreviewCandidateUrl({
+        currentUrl: null,
+        previewCandidates,
+        rejectedUrls: current.rejectedUrls,
+      });
+      if (nextUrl === current.currentUrl) {
+        return current;
+      }
+      return {
+        ...current,
+        currentUrl: nextUrl,
+      };
+    });
+  }, [outputId, previewCandidates]);
   const isAudioOutput = Boolean(
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
@@ -654,10 +735,12 @@ function DetailModalContent({
     setImagePanningByOutput(null);
     setLoadedImageNaturalSize(null);
     setLoadedPreviewAspect(null);
-    setPreviewSelectionByOutput(null);
+    setPreviewSelectionByOutput(
+      createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
+    );
     imagePanDragRef.current = null;
     onClose();
-  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose]);
+  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose, output]);
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(handleCloseModal);
 
   const looksLikeFilename = (value?: string | null) => {

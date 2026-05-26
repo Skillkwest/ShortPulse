@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
+import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { StudioOutput } from "../../types";
 import { CHARACTER_MODE_MISSING_REFERENCES_ERROR } from "../../logic/generationStartPolicy";
@@ -715,12 +716,7 @@ describe("useAiStudioGenerationController", () => {
       displayPromptOverride: "character display prompt",
       referenceInputsOverride: [],
       internalMediaRefsOverride: [
-        {
-          version: 1,
-          kind: "storage_object",
-          bucket: "media_library",
-          storagePath: "user/chars/char-ref.png",
-        },
+        createInternalMediaRef({ storagePath: "user/chars/char-ref.png" }),
       ],
       notice: null,
       fallbackCode: null,
@@ -1235,12 +1231,7 @@ describe("useAiStudioGenerationController", () => {
       displayPromptOverride: "user prompt",
       referenceInputsOverride: [],
       internalMediaRefsOverride: [
-        {
-          version: 1,
-          kind: "storage_object",
-          bucket: "media_library",
-          storagePath: "user/chars/fresh-char-ref.png",
-        },
+        createInternalMediaRef({ storagePath: "user/chars/fresh-char-ref.png" }),
       ],
       notice: null,
       fallbackCode: null,

@@ -81,6 +81,7 @@ import {
   AI_SHELL_RIGHT_ELEMENTS_MIN_PX,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
+  shouldCollapseAiShellOnExpertEditPanelSelect,
   shouldCollapseAiShellOnInitialSoundSelection,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
@@ -110,7 +111,10 @@ import {
   hasInternalReferenceDragTypeHints,
   type InternalReferenceDragPayload,
 } from "../utils/dragDrop";
-import { doesReferenceGridOwnFileDrop } from "../logic/referenceGridDropOwnership";
+import {
+  doesReferenceGridOwnFileDrop,
+  shouldBypassRightRailShellCapture,
+} from "../logic/referenceGridDropOwnership";
 import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
@@ -337,12 +341,6 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
   return { kind: "none" };
 };
 
-const getEventTargetElement = (target: EventTarget | null): Element | null => {
-  if (target instanceof Element) return target;
-  if (target instanceof Node) return target.parentElement;
-  return null;
-};
-
 type CreateSectionProps = AiStudioCreatePanelContract;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
@@ -356,11 +354,9 @@ const FLAG_HIGH_DENSITY_SHELL_MODE = PERF_FLAG_SHELL_HIGH_DENSITY_MODE;
 type AiStudioAlertsStackProps = {
   uiError: string | null;
   uiNotice: string | null;
-  characterError: string | null;
   visibleFailures: FailureCard[];
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
-  onDismissCharacterError: () => void;
   onDismissFailure: (id: string) => void;
 };
 
@@ -436,11 +432,9 @@ export const groupVisibleFailuresForAlertStack = (
 const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiError,
   uiNotice,
-  characterError,
   visibleFailures,
   onDismissUiError,
   onDismissUiNotice,
-  onDismissCharacterError,
   onDismissFailure,
 }: AiStudioAlertsStackProps) {
   const normalizedUiError = normalizeAlertText(uiError);
@@ -488,15 +482,6 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           onDismiss={onDismissUiNotice}
         />
       ) : null}
-      {characterError ? (
-        <AiStudioAlertBanner
-          message={characterError}
-          variant="error"
-          role="alert"
-          live="assertive"
-          onDismiss={onDismissCharacterError}
-        />
-      ) : null}
       {groupedFailures.length ? (
         <div className="ai-error-stack" role="alert" aria-live="polite">
           <ul className="ai-error-list">
@@ -534,10 +519,8 @@ export type AiStudioPageContentProps = {
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
   uiNotice: string | null;
-  characterError: string | null;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
-  onDismissCharacterError: () => void;
   balanceCredits: number | null;
   pendingHoldCredits: number | null;
   balanceLoading: boolean;
@@ -616,10 +599,8 @@ export function AiStudioPageContent({
   onFileBrowserSelection,
   uiError,
   uiNotice,
-  characterError,
   onDismissUiError,
   onDismissUiNotice,
-  onDismissCharacterError,
   balanceCredits,
   balanceLoading,
   visibleFailures,
@@ -900,7 +881,6 @@ export function AiStudioPageContent({
     const previousSelectedTool = previousSelectedToolRef.current;
     const previousExpertCreateMode = previousExpertCreateModeRef.current;
     const previousSessionId = previousSessionIdRef.current;
-    const isEditToolSelected = selectedTool === "edit";
     const isCharacterShellToolSelected =
       selectedTool === "character" || selectedTool === "elements";
     const shouldResetForCharacterShellSelection =
@@ -912,8 +892,10 @@ export function AiStudioPageContent({
       previousSessionIdRef.current = sessionId;
       return;
     }
-    const shouldCollapseForEditSelection =
-      isEditToolSelected && previousSelectedTool !== selectedTool;
+    const shouldCollapseForEditSelection = shouldCollapseAiShellOnExpertEditPanelSelect(
+      previousSelectedTool,
+      selectedTool
+    );
     if (shouldCollapseForEditSelection) {
       collapseToMin();
       previousSelectedToolRef.current = selectedTool;
@@ -1164,10 +1146,6 @@ export function AiStudioPageContent({
     },
     [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
   );
-  const isTargetInsideQuickSlot = React.useCallback((target: EventTarget | null): boolean => {
-    const element = getEventTargetElement(target);
-    return Boolean(element?.closest(".reference-curated-section"));
-  }, []);
   const shouldReferenceGridOwnFileDrop = React.useCallback(
     (event: React.DragEvent<HTMLElement>): boolean =>
       doesReferenceGridOwnFileDrop(event, rightColumnRef.current),
@@ -1179,16 +1157,6 @@ export function AiStudioPageContent({
     scope: "app",
     severity: "medium",
     message: uiError,
-    metadata: {
-      selected_tool: selectedTool,
-    },
-  });
-
-  useVisibleErrorTelemetry({
-    source: "client.ai_studio.character_error_banner",
-    scope: "app",
-    severity: "medium",
-    message: characterError,
     metadata: {
       selected_tool: selectedTool,
     },
@@ -1477,16 +1445,8 @@ export function AiStudioPageContent({
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldOwnFileDrop: shouldReferenceGridOwnFileDrop,
-    shouldBypassCapture: (event, context) => {
-      const payloadKind = context.payload?.kind;
-      if (isTargetInsideQuickSlot(event.target)) {
-        if (payloadKind === "libraryMedia" || payloadKind === "libraryPrompt") {
-          return true;
-        }
-        return false;
-      }
-      return false;
-    },
+    shouldBypassCapture: (event, context) =>
+      shouldBypassRightRailShellCapture(event, rightColumnRef.current, context),
   });
   const detailModalContext =
     selectedTool === "voice-changer" &&
@@ -1588,11 +1548,9 @@ export function AiStudioPageContent({
         <AiStudioAlertsStack
           uiError={uiError}
           uiNotice={uiNotice}
-          characterError={characterError}
           visibleFailures={visibleFailures}
           onDismissUiError={onDismissUiError}
           onDismissUiNotice={onDismissUiNotice}
-          onDismissCharacterError={onDismissCharacterError}
           onDismissFailure={onDismissFailure}
         />
 

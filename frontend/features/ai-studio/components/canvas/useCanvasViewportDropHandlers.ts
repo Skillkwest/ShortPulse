@@ -4,6 +4,7 @@
 import { useCallback, useRef, useState, type DragEvent, type RefObject } from "react";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import { getDroppedMediaReference } from "../../reference-grid/controllers/referenceGridClipboard";
 import {
   extractInternalReferenceDragPayload,
   getNormalizedTransferTypes,
@@ -26,6 +27,7 @@ import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
+  ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "./canvasTypes";
@@ -36,6 +38,7 @@ type UseCanvasViewportDropHandlersParams = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
   prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
+  resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   addResolvedItem: (
     resolved: CanvasDropResolution,
@@ -62,6 +65,7 @@ export const useCanvasViewportDropHandlers = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
   prepareCanvasMediaLibraryDrop,
+  resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   addResolvedItem,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
@@ -260,6 +264,48 @@ export const useCanvasViewportDropHandlers = ({
             );
             return;
           }
+          if (mediaLibraryPayload.payload.fileType === "video") {
+            const payloadWithDimensions =
+              mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
+                width?: number;
+                height?: number;
+              };
+            const fallbackWidth =
+              typeof payloadWithDimensions.width === "number" &&
+              Number.isFinite(payloadWithDimensions.width) &&
+              payloadWithDimensions.width > 0
+                ? payloadWithDimensions.width
+                : CANVAS_IMAGE_ITEM_WIDTH;
+            const fallbackHeight =
+              typeof payloadWithDimensions.height === "number" &&
+              Number.isFinite(payloadWithDimensions.height) &&
+              payloadWithDimensions.height > 0
+                ? payloadWithDimensions.height
+                : CANVAS_IMAGE_ITEM_HEIGHT;
+            void addResolvedItem(
+              {
+                kind: "video",
+                outputId: null,
+                mediaId: mediaLibraryPayload.payload.id,
+                videoUrl: previewSrc,
+                posterUrl: mediaLibraryPayload.payload.previewPosterUrl ?? null,
+                title:
+                  (
+                    mediaLibraryPayload.payload.filename ||
+                    mediaLibraryPayload.payload.promptText ||
+                    "Canvas video"
+                  ).trim() || null,
+                width: fallbackWidth,
+                height: fallbackHeight,
+              },
+              point.x,
+              point.y,
+              {
+                showLoadingPlaceholder: true,
+              }
+            );
+            return;
+          }
           const payloadWithDimensions =
             mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
               width?: number;
@@ -313,6 +359,19 @@ export const useCanvasViewportDropHandlers = ({
         );
         return;
       }
+      const droppedMediaReference = getDroppedMediaReference(transfer);
+      if (droppedMediaReference && resolveCanvasDroppedMediaReference) {
+        event.preventDefault();
+        event.stopPropagation();
+        void (async () => {
+          const resolvedItem = await resolveCanvasDroppedMediaReference(droppedMediaReference);
+          if (!resolvedItem) return;
+          await addResolvedItem(resolvedItem, point.x, point.y, {
+            showLoadingPlaceholder: true,
+          });
+        })();
+        return;
+      }
       const droppedFiles = transfer.files;
       if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
         event.preventDefault();
@@ -354,6 +413,7 @@ export const useCanvasViewportDropHandlers = ({
       handleResolvedInternalDrop,
       logUnresolvedInternalDrop,
       prepareCanvasMediaLibraryDrop,
+      resolveCanvasDroppedMediaReference,
       resolveCanvasDropFiles,
       viewportRef,
     ]

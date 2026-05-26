@@ -27,6 +27,7 @@ type AiStudioProjectWorkspaceApiPayload = {
   saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
   error?: unknown;
   details?: unknown;
+  failureStage?: unknown;
 };
 
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
@@ -107,6 +108,40 @@ const maybeLogProjectWorkspaceSaveOutcome = ({
   });
 };
 
+const resolveProjectWorkspaceFailureStage = (
+  payload: AiStudioProjectWorkspaceApiPayload | null
+): string | null => {
+  const raw = payload?.failureStage;
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+const maybeLogProjectWorkspaceSaveFailure = ({
+  projectId,
+  status,
+  payload,
+}: {
+  projectId: string;
+  status: number;
+  payload: AiStudioProjectWorkspaceApiPayload | null;
+}) => {
+  addBreadcrumb({
+    type: "network",
+    level: status >= 500 ? "error" : "warn",
+    message: "ai_studio_project_workspace_save_failed",
+    data: {
+      project_id: projectId,
+      status,
+      failure_stage: resolveProjectWorkspaceFailureStage(payload),
+      error: resolveProjectWorkspacePayloadMessage({
+        payload,
+        preferDetails: status >= 500,
+      }),
+    },
+  });
+};
+
 export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
   projectId,
 }: {
@@ -170,6 +205,11 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
   }
 
   if (!response.ok || !payload?.workspace) {
+    maybeLogProjectWorkspaceSaveFailure({
+      projectId,
+      status: response.status,
+      payload,
+    });
     maybeLogInvalidProjectWorkspaceSnapshotResponse({
       projectId,
       status: response.status,

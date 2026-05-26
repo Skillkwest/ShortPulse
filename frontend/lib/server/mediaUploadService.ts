@@ -9,7 +9,6 @@ import {
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
 } from "../mediaStorageQuota";
-import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaPreviewStoragePath } from "../../features/media-library/logic/mediaPreviewStoragePath";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -24,47 +23,29 @@ import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
 } from "./videoPosterVariant";
+import {
+  ALLOWED_AUDIO_MIME_TYPES,
+  ALLOWED_IMAGE_MIME_TYPES,
+  ALLOWED_VIDEO_MIME_TYPES,
+  buildScopedMediaStoragePath,
+  createSignedMediaUrl,
+  type InsertedMediaRow,
+  insertMediaFileRow,
+  type MediaLibraryFileType,
+  maxBytesForMediaFileType,
+  MAX_VIDEO_MEDIA_BYTES,
+  removeScopedMediaStorageObject,
+  resolveMediaFileTypeFromMimeType,
+  resolveMediaStorageExtension,
+  uploadMediaBufferToStoragePath,
+} from "./mediaIngest";
 
-const MEDIA_BUCKET = "media_library";
 const PRIVATE_MEDIA_SOURCE = "private_upload";
-const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
-const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
-const MAX_AUDIO_UPLOAD_BYTES = 100 * 1024 * 1024;
-const MAX_UPLOAD_BYTES = MAX_VIDEO_UPLOAD_BYTES;
+const MAX_UPLOAD_BYTES = MAX_VIDEO_MEDIA_BYTES;
 const MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES = 40 * 1024 * 1024;
 const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
 
 const VIDEO_DESTINATIONS = new Set<MediaUploadDestinationTab>(["uploaded_videos"]);
-
-const ALLOWED_IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/heic",
-  "image/heif",
-  "image/avif",
-]);
-
-const ALLOWED_VIDEO_MIME_TYPES = new Set([
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "video/x-m4v",
-]);
-
-const ALLOWED_AUDIO_MIME_TYPES = new Set([
-  "audio/aac",
-  "audio/flac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/x-m4a",
-  "audio/x-wav",
-]);
 
 const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
   "audio/aac",
@@ -78,30 +59,6 @@ const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
   "audio/x-m4a",
   "audio/x-wav",
 ]);
-
-const EXTENSION_BY_MIME: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "image/avif": "avif",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "video/x-m4v": "m4v",
-  "audio/aac": "aac",
-  "audio/flac": "flac",
-  "audio/m4a": "m4a",
-  "audio/mp4": "m4a",
-  "audio/mpeg": "mp3",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-  "audio/webm": "webm",
-  "audio/x-m4a": "m4a",
-  "audio/x-wav": "wav",
-};
 
 const VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
   "audio/aac": "aac",
@@ -135,7 +92,6 @@ const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 type VoiceChangerSourceKind = "audio" | "video";
-type MediaLibraryFileType = "image" | "video" | "audio";
 
 export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -162,21 +118,6 @@ type ParsedUpload = {
 
 type ParseUploadOptions = {
   defaultDestinationTab?: MediaUploadDestinationTab;
-};
-
-type InsertedMediaRow = {
-  id: string;
-  user_id: string;
-  filename: string;
-  storage_path: string;
-  file_type: string;
-  file_size: number | null;
-  source: string | null;
-  created_at: string;
-  metadata?: Record<string, unknown> | null;
-  thumb_variant_path?: string | null;
-  poster_variant_path?: string | null;
-  preview_variant_path?: string | null;
 };
 
 const normalizeContentType = (value: string | string[] | undefined): string => {
@@ -380,12 +321,6 @@ const destinationPrefersVideo = (destinationTab: MediaUploadDestinationTab): boo
 const destinationAllowsAudio = (destinationTab: MediaUploadDestinationTab): boolean =>
   destinationTab !== "private";
 
-const maxBytesForFileType = (fileType: MediaLibraryFileType): number => {
-  if (fileType === "video") return MAX_VIDEO_UPLOAD_BYTES;
-  if (fileType === "audio") return MAX_AUDIO_UPLOAD_BYTES;
-  return MAX_IMAGE_UPLOAD_BYTES;
-};
-
 const resolveDetectedMimeType = (
   destinationTab: MediaUploadDestinationTab,
   buffer: Buffer
@@ -400,13 +335,6 @@ const resolveDetectedMimeType = (
     detectImageMimeType(buffer) ??
     (destinationAllowsAudio(destinationTab) ? detectAudioMimeType(buffer) : null)
   );
-};
-
-const resolveFileTypeFromMimeType = (mimeType: string): MediaLibraryFileType | null => {
-  if (ALLOWED_VIDEO_MIME_TYPES.has(mimeType)) return "video";
-  if (ALLOWED_AUDIO_MIME_TYPES.has(mimeType)) return "audio";
-  if (ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) return "image";
-  return null;
 };
 
 const isAllowedMimeType = (
@@ -515,12 +443,12 @@ const validateUpload = ({
     }
   }
 
-  const fileType = resolveFileTypeFromMimeType(detectedMimeType);
+  const fileType = resolveMediaFileTypeFromMimeType(detectedMimeType);
   if (!fileType) {
     throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported uploaded file type.");
   }
 
-  if (fileSize > maxBytesForFileType(fileType)) {
+  if (fileSize > maxBytesForMediaFileType(fileType)) {
     throw new MediaUploadServiceError(413, "Upload failed: file too large");
   }
 
@@ -589,42 +517,47 @@ const uploadScopedStorageBuffer = async ({
   buffer: Buffer;
 }): Promise<SignedStorageAssetResult> => {
   const extension =
-    EXTENSION_BY_MIME[mimeType] ?? VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin";
+    resolveMediaStorageExtension(
+      mimeType,
+      VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin"
+    ) ?? "bin";
   const fileBaseName = resolveBaseFileName(filename);
   const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-  const storagePath = assertUserScopedMediaStoragePath({
-    path: `${userId}/${storageFolder}/${storedFileName}`,
+  const storagePath = buildScopedMediaStoragePath({
     userId,
+    storageFolder,
+    storedFileName,
     label: "Media upload storage path",
   });
 
-  const supabaseAdmin = getSupabaseAdmin();
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: mimeType,
-      upsert: false,
+  try {
+    await uploadMediaBufferToStoragePath({
+      storagePath,
+      buffer,
+      mimeType,
     });
-
-  if (uploadError) {
-    throw new MediaUploadServiceError(500, "Upload failed", uploadError.message);
+  } catch (error) {
+    throw new MediaUploadServiceError(
+      500,
+      "Upload failed",
+      error instanceof Error ? error.message : "Unknown upload error"
+    );
   }
 
-  const { data: signedAsset, error: signError } = await supabaseAdmin.storage
-    .from(MEDIA_BUCKET)
-    .createSignedUrl(storagePath, 3600);
-
-  if (signError || !signedAsset?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await createSignedMediaUrl(storagePath);
+  } catch (error) {
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
-      signError?.message ?? "Missing signed preview URL"
+      error instanceof Error ? error.message : "Missing signed preview URL"
     );
   }
 
   return {
     storagePath,
-    signedUrl: signedAsset.signedUrl,
+    signedUrl,
     size: buffer.length,
   };
 };
@@ -905,14 +838,6 @@ export const uploadSignedStorageAssetForUser = async ({
   }
 };
 
-const removeUploadedStorageObject = async (storagePath: string): Promise<void> => {
-  try {
-    await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
-  } catch {
-    // best-effort orphan cleanup
-  }
-};
-
 const insertUploadedMediaRow = async ({
   userId,
   parsedUpload,
@@ -926,24 +851,18 @@ const insertUploadedMediaRow = async ({
   fileType: MediaLibraryFileType;
   metadata: Record<string, unknown> | null;
 }): Promise<InsertedMediaRow> => {
-  const { data: insertedRow, error: insertError } = await getSupabaseAdmin()
-    .from("media_files")
-    .insert({
-      user_id: userId,
-      filename: parsedUpload.filename,
-      storage_path: storagePath,
-      file_type: fileType,
-      file_size: parsedUpload.size,
-      source: resolveUploadSource(parsedUpload.destinationTab),
-      metadata,
-    })
-    .select(
-      "id, user_id, filename, storage_path, file_type, file_size, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-    )
-    .single();
+  const { data: insertedRow, error: insertError } = await insertMediaFileRow({
+    userId,
+    filename: parsedUpload.filename,
+    storagePath,
+    fileType,
+    fileSize: parsedUpload.size,
+    source: resolveUploadSource(parsedUpload.destinationTab),
+    metadata,
+  });
 
   if (insertError || !insertedRow) {
-    await removeUploadedStorageObject(storagePath);
+    await removeScopedMediaStorageObject(storagePath);
     if (isMediaStorageQuotaExceededError(insertError)) {
       throw new MediaUploadServiceError(
         409,
@@ -1033,20 +952,20 @@ const resolveUploadedMediaPreviewUrl = async ({
     };
   }
 
-  const { data: signedPreview, error: signError } = await getSupabaseAdmin()
-    .storage.from(MEDIA_BUCKET)
-    .createSignedUrl(previewStoragePath, 3600);
-  if (signError || !signedPreview?.signedUrl) {
+  let signedUrl: string;
+  try {
+    signedUrl = await createSignedMediaUrl(previewStoragePath);
+  } catch (error) {
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
-      signError?.message ?? "Missing signed preview URL"
+      error instanceof Error ? error.message : "Missing signed preview URL"
     );
   }
 
   return {
     previewStoragePath,
-    signedUrl: signedPreview.signedUrl,
+    signedUrl,
   };
 };
 

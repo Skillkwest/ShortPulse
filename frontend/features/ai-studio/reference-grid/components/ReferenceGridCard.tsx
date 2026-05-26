@@ -368,6 +368,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       {shouldRenderVideoElement ? (
         <video
           className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible || shouldPreferVideoSurfaceByDefault ? "is-visible" : ""}`}
+          draggable={false}
           ref={(node) => {
             videoNodeRef.current = node;
             registerVideoNode(videoNodeKey, item.id, node);

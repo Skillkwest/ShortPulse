@@ -18,84 +18,32 @@ import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath"
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { reconcileOwnedGenerationOutputSlot } from "../../../lib/server/api/generationOutputConvergence";
+import {
+  createSignedMediaUrl,
+  insertMediaFileRow,
+  type MediaLibraryFileType,
+  MAX_AUDIO_MEDIA_BYTES,
+  maxBytesForMediaFileType,
+  MAX_IMAGE_MEDIA_BYTES,
+  removeScopedMediaStorageObject,
+  resolveDetectedMediaMimeType,
+  resolveMediaStorageExtension,
+  uploadMediaBufferToStoragePath,
+} from "../../../lib/server/mediaIngest";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import {
-  detectAudioMimeType,
-  detectImageMimeType,
-  detectVideoMimeType,
-} from "../../../lib/server/uploadSignature";
-import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
 } from "../../../lib/server/videoPosterVariant";
-
-type MediaLibraryFileType = "image" | "video" | "audio";
-
-const MEDIA_BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const DNS_TIMEOUT_MS = 2500;
 const MAX_REDIRECTS = 4;
-const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
-const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
+const MAX_IMAGE_BYTES = MAX_IMAGE_MEDIA_BYTES;
+const MAX_VIDEO_BYTES = maxBytesForMediaFileType("video");
+const MAX_AUDIO_BYTES = MAX_AUDIO_MEDIA_BYTES;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
-
-const ALLOWED_IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/heic",
-  "image/heif",
-  "image/avif",
-]);
-
-const ALLOWED_VIDEO_MIME_TYPES = new Set([
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "video/x-m4v",
-]);
-
-const ALLOWED_AUDIO_MIME_TYPES = new Set([
-  "audio/aac",
-  "audio/flac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/x-m4a",
-  "audio/x-wav",
-]);
-
-const CONTENT_TYPE_EXTENSION: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "image/avif": "avif",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "video/x-m4v": "m4v",
-  "audio/aac": "aac",
-  "audio/flac": "flac",
-  "audio/m4a": "m4a",
-  "audio/mp4": "m4a",
-  "audio/mpeg": "mp3",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-  "audio/webm": "webm",
-  "audio/x-m4a": "m4a",
-  "audio/x-wav": "wav",
-};
 const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   m4v: "video/x-m4v",
   mov: "video/quicktime",
@@ -517,7 +465,7 @@ const persistVideoPosterVariant = async ({
   req: NextApiRequest;
 }): Promise<string | null> => {
   const fetched = await fetchPosterSource(req, posterSourceUrl);
-  const mimeType = resolveMediaMimeType({
+  const mimeType = resolveDetectedMediaMimeType({
     contentType: fetched.contentType,
     buffer: fetched.buffer,
     fileType: "image",
@@ -529,15 +477,12 @@ const persistVideoPosterVariant = async ({
     label: "AI Studio copied video poster storage path",
   });
 
-  const { error: uploadError } = await getSupabaseAdmin()
-    .storage.from(MEDIA_BUCKET)
-    .upload(storagePath, fetched.buffer, {
-      upsert: true,
-      contentType: mimeType,
-    });
-  if (uploadError) {
-    throw uploadError;
-  }
+  await uploadMediaBufferToStoragePath({
+    storagePath,
+    buffer: fetched.buffer,
+    mimeType,
+    upsert: true,
+  });
 
   const dimensions = extractImageDimensionsFromBuffer(fetched.buffer);
 
@@ -770,34 +715,9 @@ const resolveFileType = (
 };
 
 const resolveExtension = (contentType: string | null, url: string): string =>
-  (contentType && CONTENT_TYPE_EXTENSION[contentType]) || extensionFromUrl(url) || "bin";
-
-const resolveMediaMimeType = ({
-  contentType,
-  buffer,
-  fileType,
-}: {
-  contentType: string | null;
-  buffer: Buffer;
-  fileType: MediaLibraryFileType;
-}): string => {
-  if (fileType === "image") {
-    const detected = detectImageMimeType(buffer);
-    if (detected && ALLOWED_IMAGE_MIME_TYPES.has(detected)) return detected;
-    if (contentType && ALLOWED_IMAGE_MIME_TYPES.has(contentType)) return contentType;
-    throw new Error("Fetched URL did not return a supported image.");
-  }
-  if (fileType === "audio") {
-    const detected = detectAudioMimeType(buffer);
-    if (detected && ALLOWED_AUDIO_MIME_TYPES.has(detected)) return detected;
-    if (contentType && ALLOWED_AUDIO_MIME_TYPES.has(contentType)) return contentType;
-    throw new Error("Fetched URL did not return a supported audio file.");
-  }
-  const detected = detectVideoMimeType(buffer);
-  if (detected && ALLOWED_VIDEO_MIME_TYPES.has(detected)) return detected;
-  if (contentType && ALLOWED_VIDEO_MIME_TYPES.has(contentType)) return contentType;
-  throw new Error("Fetched URL did not return a supported video.");
-};
+  (contentType ? resolveMediaStorageExtension(contentType, "") : "") ||
+  extensionFromUrl(url) ||
+  "bin";
 
 const readExistingAiStudioMediaRowByOutputIndex = async ({
   userId,
@@ -899,11 +819,11 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 
 const signStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
-  const { data, error } = await getSupabaseAdmin()
-    .storage.from(MEDIA_BUCKET)
-    .createSignedUrl(storagePath, 3600);
-  if (error) return null;
-  return asOptionalString(data?.signedUrl);
+  try {
+    return await createSignedMediaUrl(storagePath);
+  } catch {
+    return null;
+  }
 };
 
 const resolveDelivery = async ({
@@ -973,14 +893,6 @@ const resolveDelivery = async ({
   };
 };
 
-const removeCopiedStorageObject = async (storagePath: string): Promise<void> => {
-  try {
-    await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
-  } catch {
-    // best-effort cleanup
-  }
-};
-
 const logVideoVariantHydrationFailure = async ({
   userId,
   mediaFileId,
@@ -1029,46 +941,6 @@ const isDuplicateInsertError = (error: { code?: string; message?: string } | nul
   String(error?.message ?? "")
     .toLowerCase()
     .includes("duplicate");
-
-const insertCopiedMediaRow = async ({
-  userId,
-  friendlyName,
-  storagePath,
-  fileType,
-  fileSize,
-  source,
-  generationId,
-  promptId,
-  canonicalMetadata,
-}: {
-  userId: string;
-  friendlyName: string;
-  storagePath: string;
-  fileType: "image" | "video" | "audio";
-  fileSize: number;
-  source: "upload" | "ai_studio";
-  generationId: string | null;
-  promptId: string | null;
-  canonicalMetadata: Record<string, unknown> | null;
-}) => {
-  return await getSupabaseAdmin()
-    .from("media_files")
-    .insert({
-      user_id: userId,
-      filename: friendlyName,
-      storage_path: storagePath,
-      file_type: fileType,
-      file_size: fileSize,
-      source,
-      source_ref: generationId,
-      prompt_id: promptId,
-      metadata: canonicalMetadata,
-    })
-    .select(
-      "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-    )
-    .single();
-};
 
 export default async function handler(
   req: NextApiRequest,
@@ -1272,7 +1144,7 @@ export default async function handler(
       maxBytes,
     });
     const fileType = resolveFileType(fetched.contentType, mode, fileTypeHint);
-    const mimeType = resolveMediaMimeType({
+    const mimeType = resolveDetectedMediaMimeType({
       contentType: fetched.contentType,
       buffer: fetched.buffer,
       fileType,
@@ -1302,33 +1174,33 @@ export default async function handler(
     );
     const friendlyName = buildFilename(promptText, extension, index);
 
-    const { error: uploadError } = await getSupabaseAdmin()
-      .storage.from(MEDIA_BUCKET)
-      .upload(storagePath, fetched.buffer, {
-        upsert: false,
-        contentType: mimeType,
+    try {
+      await uploadMediaBufferToStoragePath({
+        storagePath,
+        buffer: fetched.buffer,
+        mimeType,
       });
-    if (uploadError) {
+    } catch {
       return res.status(500).json({
         error: "Upload failed",
       });
     }
 
-    const { data, error: insertError } = await insertCopiedMediaRow({
+    const { data, error: insertError } = await insertMediaFileRow({
       userId: user.id,
-      friendlyName,
+      filename: friendlyName,
       storagePath,
       fileType,
       fileSize: fetched.buffer.byteLength,
       source,
-      generationId: generationId ?? null,
+      sourceRef: generationId ?? null,
       promptId: promptId ?? null,
-      canonicalMetadata,
+      metadata: canonicalMetadata,
     });
 
     if (insertError) {
       if (isMediaStorageQuotaExceededError(insertError)) {
-        await removeCopiedStorageObject(storagePath);
+        await removeScopedMediaStorageObject(storagePath);
         return res.status(409).json({
           error: MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
           details:
@@ -1343,7 +1215,7 @@ export default async function handler(
           index,
         });
         if (existing) {
-          await removeCopiedStorageObject(storagePath);
+          await removeScopedMediaStorageObject(storagePath);
           try {
             await reconcileOwnedGenerationOutputSlot({
               generationId,

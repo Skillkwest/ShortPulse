@@ -10,7 +10,7 @@
 }
 
 .character-panel-split-host {
-  --character-panel-section-bg: rgba(201, 205, 214, 0.02);
+  --character-panel-section-bg: #131518;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

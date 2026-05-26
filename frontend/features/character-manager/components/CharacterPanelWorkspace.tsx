@@ -18,6 +18,7 @@ import {
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { resolveCharacterPanelResponsiveLayout } from "../logic/characterPanelResponsiveLayout";
+import { getCharacterSheetPresetTabId } from "../logic/characterSheetPresetTabs";
 import { useCharacterCardPreviewUrls } from "../hooks/useCharacterCardPreviewUrls";
 import { useCharacterManagerCharacterSheetInteractions } from "../hooks/useCharacterManagerCharacterSheetInteractions";
 import { useCharacterManagerDragInteractions } from "../hooks/useCharacterManagerDragInteractions";
@@ -29,7 +30,6 @@ import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { EmbeddedCharacterLooksControl } from "./EmbeddedCharacterLooksControl";
 import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
-import { getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import type { CharacterSheetDropZoneKey, CharacterSheetPresetId } from "../types";
 import {
   AiStudioPickerCard,
@@ -182,7 +182,6 @@ const CHARACTER_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   borderRadius: "10px",
   border: `1px solid ${CHARACTER_PANEL_FIELD_BORDER_COLOR}`,
   background: CHARACTER_TEXT_ENTRY_BACKGROUND,
-  backgroundColor: CHARACTER_TEXT_ENTRY_BACKGROUND,
   color: "rgba(242, 246, 252, 0.96)",
   boxSizing: "border-box",
 };
@@ -329,7 +328,6 @@ const CHARACTER_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
   padding: "0 8px",
   borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
   background: CHARACTER_TEXT_ENTRY_BACKGROUND,
-  backgroundColor: CHARACTER_TEXT_ENTRY_BACKGROUND,
   color: "rgba(150, 159, 176, 0.82)",
   fontSize: "0.74rem",
   fontWeight: 600,
@@ -483,9 +481,8 @@ export function CharacterPanelWorkspace({
     () =>
       resolveCharacterPanelResponsiveLayout({
         panelWidthPx: editorPanelSize.width,
-        panelHeightPx: editorPanelSize.height,
       }),
-    [editorPanelSize.height, editorPanelSize.width]
+    [editorPanelSize.width]
   );
 
   const actionButtonStyle = React.useMemo<React.CSSProperties>(

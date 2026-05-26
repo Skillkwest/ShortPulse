@@ -370,7 +370,7 @@ export const reconcileFolderMembershipCanvasItems = ({
           alt: (row.filename || item.alt).trim(),
         };
       }
-      if (item.kind === "audio") {
+      if (item.kind === "audio" || item.kind === "video") {
         return item;
       }
       const promptId = getPromptIdFromCanvasOutputId(item.outputId);

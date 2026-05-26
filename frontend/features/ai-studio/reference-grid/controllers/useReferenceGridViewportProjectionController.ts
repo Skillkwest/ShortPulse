@@ -68,13 +68,14 @@ type UseReferenceGridViewportProjectionControllerResult = {
 export const useReferenceGridViewportProjectionController = ({
   outputIds,
   curatedOutputIds,
-  activeOutputId,
+  activeOutputId: _activeOutputId,
   isCuratedSplitEnabled,
   perfDegradeLevel,
   virtualMetrics,
   curatedVirtualMetrics,
   config,
 }: UseReferenceGridViewportProjectionControllerArgs): UseReferenceGridViewportProjectionControllerResult => {
+  void _activeOutputId;
   incrementFreezeInvestigationCounter("referenceGrid.viewportProjection.recompute");
   setFreezeInvestigationGauge("referenceGrid.viewportProjection.outputsCount", outputIds.length);
   setFreezeInvestigationGauge(
@@ -158,19 +159,8 @@ export const useReferenceGridViewportProjectionController = ({
     if (baseVisibleOutputIds.length <= hardViewportVisibleLimit) {
       return baseVisibleOutputIds;
     }
-    const capped = baseVisibleOutputIds.slice(0, Math.max(1, hardViewportVisibleLimit));
-    if (!activeOutputId) return capped;
-    if (capped.includes(activeOutputId)) return capped;
-    if (!outputIds.includes(activeOutputId)) return capped;
-    if (capped.length === 0) return [activeOutputId];
-    return [...capped.slice(0, capped.length - 1), activeOutputId];
-  }, [
-    activeOutputId,
-    baseVisibleOutputIds,
-    config.hardViewportCapEnabled,
-    hardViewportVisibleLimit,
-    outputIds,
-  ]);
+    return baseVisibleOutputIds.slice(0, Math.max(1, hardViewportVisibleLimit));
+  }, [baseVisibleOutputIds, config.hardViewportCapEnabled, hardViewportVisibleLimit]);
 
   const visibleCuratedOutputIds = curatedShouldVirtualize
     ? curatedOutputIds.slice(curatedStartIndex, curatedEndIndex)

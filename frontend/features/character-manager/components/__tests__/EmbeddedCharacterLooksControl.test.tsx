@@ -173,6 +173,45 @@ describe("EmbeddedCharacterLooksControl", () => {
     });
   });
 
+  it("supports explicit rename actions with Enter and Escape", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename look 1" }));
+    const renameInput = screen
+      .getAllByLabelText("Rename look 1")
+      .find((element) => element.tagName === "INPUT");
+    expect(renameInput).toBeInstanceOf(HTMLInputElement);
+    if (!(renameInput instanceof HTMLInputElement)) return;
+    fireEvent.change(renameInput, { target: { value: "Hero Look" } });
+    fireEvent.keyDown(renameInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename look Hero Look" }));
+    const secondRenameInput = screen
+      .getAllByLabelText("Rename look 1")
+      .find((element) => element.tagName === "INPUT");
+    expect(secondRenameInput).toBeInstanceOf(HTMLInputElement);
+    if (!(secondRenameInput instanceof HTMLInputElement)) return;
+    fireEvent.change(secondRenameInput, { target: { value: "Temporary" } });
+    fireEvent.keyDown(secondRenameInput, { key: "Escape" });
+
+    expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
+  });
+
+  it("keeps delete actionable through an explicit header action", async () => {
+    render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "2" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete look 2" })[0]!);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    });
+  });
+
   it("shows the delete affordance on hover for deletable tabs", async () => {
     render(<Harness initialPresetIds={["1", "2", "3", "4"]} />);
 

@@ -238,6 +238,28 @@ const resolveCanvasImageDimensionsFromResolution = (
   return null;
 };
 
+const resolveCanvasVideoDimensions = (
+  resolved: Extract<CanvasDropResolution, { kind: "video" }>
+): { width: number; height: number } => {
+  if (
+    typeof resolved.width === "number" &&
+    Number.isFinite(resolved.width) &&
+    resolved.width > 0 &&
+    typeof resolved.height === "number" &&
+    Number.isFinite(resolved.height) &&
+    resolved.height > 0
+  ) {
+    return fitCanvasImageToProxyFrame({
+      width: resolved.width,
+      height: resolved.height,
+    });
+  }
+  return {
+    width: CANVAS_IMAGE_ITEM_WIDTH,
+    height: CANVAS_IMAGE_ITEM_HEIGHT,
+  };
+};
+
 const resolveCanvasAudioDimensions = (
   resolved: Extract<CanvasDropResolution, { kind: "audio" }>
 ): { width: number; height: number } => {
@@ -293,10 +315,10 @@ const buildCanvasSceneItem = ({
         width: width ?? CANVAS_IMAGE_ITEM_WIDTH,
         height: height ?? CANVAS_IMAGE_ITEM_HEIGHT,
       }
-    : resolved.kind === "audio"
+    : resolved.kind === "video"
       ? {
           id: randomId(),
-          kind: "audio",
+          kind: "video",
           x,
           y,
           z,
@@ -304,28 +326,45 @@ const buildCanvasSceneItem = ({
           outputId: resolved.outputId,
           sourceSurface: resolved.sourceSurface ?? null,
           mediaId: resolved.mediaId,
-          audioUrl: resolved.audioUrl,
+          videoUrl: resolved.videoUrl,
+          posterUrl: resolved.posterUrl?.trim() || null,
           title: resolved.title?.trim() || null,
-          companionArtUrl: resolved.companionArtUrl?.trim() || null,
-          companionArtStoragePath: resolved.companionArtStoragePath?.trim() || null,
-          durationMs: resolved.durationMs ?? null,
-          waveformPeaks: Array.isArray(resolved.waveformPeaks) ? resolved.waveformPeaks : null,
-          width: width ?? CANVAS_AUDIO_ITEM_WIDTH,
-          height: height ?? CANVAS_AUDIO_ITEM_HEIGHT,
+          width: width ?? CANVAS_IMAGE_ITEM_WIDTH,
+          height: height ?? CANVAS_IMAGE_ITEM_HEIGHT,
         }
-      : {
-          id: randomId(),
-          kind: "text",
-          x,
-          y,
-          z,
-          selected: true,
-          outputId: resolved.outputId,
-          sourceSurface: resolved.sourceSurface ?? null,
-          text: resolved.text,
-          width: CANVAS_TEXT_ITEM_WIDTH,
-          height: height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
-        };
+      : resolved.kind === "audio"
+        ? {
+            id: randomId(),
+            kind: "audio",
+            x,
+            y,
+            z,
+            selected: true,
+            outputId: resolved.outputId,
+            sourceSurface: resolved.sourceSurface ?? null,
+            mediaId: resolved.mediaId,
+            audioUrl: resolved.audioUrl,
+            title: resolved.title?.trim() || null,
+            companionArtUrl: resolved.companionArtUrl?.trim() || null,
+            companionArtStoragePath: resolved.companionArtStoragePath?.trim() || null,
+            durationMs: resolved.durationMs ?? null,
+            waveformPeaks: Array.isArray(resolved.waveformPeaks) ? resolved.waveformPeaks : null,
+            width: width ?? CANVAS_AUDIO_ITEM_WIDTH,
+            height: height ?? CANVAS_AUDIO_ITEM_HEIGHT,
+          }
+        : {
+            id: randomId(),
+            kind: "text",
+            x,
+            y,
+            z,
+            selected: true,
+            outputId: resolved.outputId,
+            sourceSurface: resolved.sourceSurface ?? null,
+            text: resolved.text,
+            width: CANVAS_TEXT_ITEM_WIDTH,
+            height: height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
+          };
 
 /**
  * Returns the shared scene store used by both canvas instances.
@@ -386,6 +425,8 @@ export const useCanvasSharedSceneState = ({
       const pendingId = showLoadingPlaceholder ? randomId() : null;
       const preResolvedImageDimensions =
         resolved.kind === "image" ? resolveCanvasImageDimensionsFromResolution(resolved) : null;
+      const videoDimensions =
+        resolved.kind === "video" ? resolveCanvasVideoDimensions(resolved) : null;
       const audioDimensions =
         resolved.kind === "audio" ? resolveCanvasAudioDimensions(resolved) : null;
       const imageDimensions =
@@ -395,18 +436,22 @@ export const useCanvasSharedSceneState = ({
       const pendingWidth =
         resolved.kind === "image"
           ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH)
-          : resolved.kind === "audio"
-            ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH)
-            : CANVAS_TEXT_ITEM_WIDTH;
+          : resolved.kind === "video"
+            ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH)
+            : resolved.kind === "audio"
+              ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH)
+              : CANVAS_TEXT_ITEM_WIDTH;
       const pendingHeight =
         resolved.kind === "image"
           ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
-          : resolved.kind === "audio"
-            ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
-            : CANVAS_TEXT_ITEM_MIN_HEIGHT;
+          : resolved.kind === "video"
+            ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
+            : resolved.kind === "audio"
+              ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
+              : CANVAS_TEXT_ITEM_MIN_HEIGHT;
       const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
       const pendingY =
-        resolved.kind === "image" || resolved.kind === "audio"
+        resolved.kind === "image" || resolved.kind === "video" || resolved.kind === "audio"
           ? Math.round((worldY - pendingHeight / 2) * 100) / 100
           : Math.round((worldY - 36) * 100) / 100;
 
@@ -444,15 +489,19 @@ export const useCanvasSharedSceneState = ({
           const offsetX =
             resolved.kind === "image"
               ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-              : resolved.kind === "audio"
-                ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2
-                : CANVAS_TEXT_ITEM_WIDTH / 2;
+              : resolved.kind === "video"
+                ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
+                : resolved.kind === "audio"
+                  ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2
+                  : CANVAS_TEXT_ITEM_WIDTH / 2;
           const offsetY =
             resolved.kind === "image"
               ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-              : resolved.kind === "audio"
-                ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2
-                : 36;
+              : resolved.kind === "video"
+                ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
+                : resolved.kind === "audio"
+                  ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2
+                  : 36;
           return [
             ...nextItems,
             buildCanvasSceneItem({
@@ -460,8 +509,18 @@ export const useCanvasSharedSceneState = ({
               x: Math.round((worldX - offsetX) * 100) / 100,
               y: Math.round((worldY - offsetY) * 100) / 100,
               z: highestZ,
-              width: resolved.kind === "audio" ? audioDimensions?.width : imageDimensions?.width,
-              height: resolved.kind === "audio" ? audioDimensions?.height : imageDimensions?.height,
+              width:
+                resolved.kind === "audio"
+                  ? audioDimensions?.width
+                  : resolved.kind === "video"
+                    ? videoDimensions?.width
+                    : imageDimensions?.width,
+              height:
+                resolved.kind === "audio"
+                  ? audioDimensions?.height
+                  : resolved.kind === "video"
+                    ? videoDimensions?.height
+                    : imageDimensions?.height,
             }),
           ];
         });

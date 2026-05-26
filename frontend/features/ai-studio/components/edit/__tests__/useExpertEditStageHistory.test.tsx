@@ -106,6 +106,9 @@ const buildArgs = ({
     clearAllInpaintMasks: vi.fn(() => {
       latestMaskSnapshot = initialMaskSnapshot;
     }),
+    beginPanelHistoryGesture: vi.fn(),
+    finalizePanelHistoryGesture: vi.fn(),
+    queuePanelHistoryBaselineFromCurrent: vi.fn(),
     isInpaintToolSelected,
     isMarkupToolSelected,
     queuePendingHistoryApplyEntry: vi.fn(),

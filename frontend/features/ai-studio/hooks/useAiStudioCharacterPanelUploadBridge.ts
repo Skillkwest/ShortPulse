@@ -2,9 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 
 type UseAiStudioCharacterPanelUploadBridgeResult = {
-  characterError: string | null;
   addCharacterReferences: (files: FileList | File[]) => void;
-  clearCharacterError: () => void;
   pendingCharacterUploadRequest: CharacterPanelUploadRequest | null;
   clearPendingCharacterUploadRequest: (requestId: number) => void;
 };
@@ -14,7 +12,6 @@ type UseAiStudioCharacterPanelUploadBridgeResult = {
  */
 export const useAiStudioCharacterPanelUploadBridge =
   (): UseAiStudioCharacterPanelUploadBridgeResult => {
-    const [characterError, setCharacterError] = useState<string | null>(null);
     const [pendingCharacterUploadRequest, setPendingCharacterUploadRequest] =
       useState<CharacterPanelUploadRequest | null>(null);
     const nextRequestIdRef = useRef(0);
@@ -24,15 +21,10 @@ export const useAiStudioCharacterPanelUploadBridge =
       if (!nextFiles.length) return;
 
       nextRequestIdRef.current += 1;
-      setCharacterError(null);
       setPendingCharacterUploadRequest({
         requestId: nextRequestIdRef.current,
         files: nextFiles,
       });
-    }, []);
-
-    const clearCharacterError = useCallback(() => {
-      setCharacterError(null);
     }, []);
 
     const clearPendingCharacterUploadRequest = useCallback((requestId: number) => {
@@ -43,9 +35,7 @@ export const useAiStudioCharacterPanelUploadBridge =
     }, []);
 
     return {
-      characterError,
       addCharacterReferences,
-      clearCharacterError,
       pendingCharacterUploadRequest,
       clearPendingCharacterUploadRequest,
     };

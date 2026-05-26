@@ -52,7 +52,6 @@ vi.mock("../../../../lib/supabaseClient", async () => {
 vi.mock("../../logic/characterManagerPersistence", () => ({
   clearCharacterManagerProfileImage: vi.fn(),
   clearCharacterManagerSlot: vi.fn(),
-  createCharacterManagerDraft: vi.fn(),
   deleteCharacterManagerDraft: vi.fn(),
   deleteCharacterManagerCharacterSheetPreset: vi.fn(),
   loadLatestCharacterManagerDraft: vi.fn(),

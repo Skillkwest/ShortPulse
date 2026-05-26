@@ -236,6 +236,7 @@ export function ReferenceGridSections({
                   ? " is-divider-near-collapsed"
                   : ""
               }`}
+              data-right-rail-drop-surface="canvas"
               style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
             >
               <div
@@ -316,6 +317,7 @@ export function ReferenceGridSections({
                       ? " is-divider-near-collapsed"
                       : ""
                   }`}
+                  data-right-rail-drop-surface="quick-slot"
                   style={
                     showQuickSlotReferenceDivider
                       ? horizontalSplit.topSectionStyle
@@ -430,6 +432,7 @@ export function ReferenceGridSections({
                 className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
                   isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
                 }`}
+                data-right-rail-drop-surface="all-refs"
                 data-reference-grid-drop-surface="all-refs"
                 style={
                   showStylesReferenceDivider
@@ -510,6 +513,7 @@ export function ReferenceGridSections({
                   className={`reference-all-refs-section${allRefsInventoryExpanded ? " is-inventory-expanded" : ""}${
                     isReferenceGridCollapsedForStyles ? " is-reference-grid-collapsed" : ""
                   }`}
+                  data-right-rail-drop-surface="all-refs"
                   data-reference-grid-drop-surface="all-refs"
                   style={stylesSplit.topSectionStyle}
                 >

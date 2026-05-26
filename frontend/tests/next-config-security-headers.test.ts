@@ -15,12 +15,18 @@ describe("next.config security headers", () => {
     );
 
     expect(appHeaders).toBeDefined();
+    if (!appHeaders) {
+      throw new Error("Expected app security headers entry.");
+    }
 
     const permissionsPolicy = appHeaders.headers.find(
       (header: { key: string; value: string }) => header.key === "Permissions-Policy"
     );
 
     expect(permissionsPolicy).toBeDefined();
+    if (!permissionsPolicy) {
+      throw new Error("Expected Permissions-Policy header.");
+    }
     expect(permissionsPolicy.value).toContain("microphone=(self)");
     expect(permissionsPolicy.value).not.toContain("microphone=()");
   });

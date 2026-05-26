@@ -9,6 +9,7 @@ import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiS
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
+  ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropReference,
 } from "../components/canvas/canvasTypes";
 import {
@@ -27,15 +28,18 @@ import {
   resolveVoiceChangerOutputRemoteUrl,
   resolveVoiceChangerOutputStoragePath,
 } from "../logic/voiceChangerReferenceSource";
-import { isImageFile } from "../logic/mediaLibraryModalModel";
+import { isVideoUrl } from "../logic/stateParsers";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
+import {
+  normalizeMediaFile,
+  type PastedMediaReference,
+} from "../reference-grid/controllers/referenceGridClipboard";
 import type { StudioOutput } from "../types";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 
-const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|webp)$/i;
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
 
 type QuickSlotDropOptions = {
@@ -43,14 +47,10 @@ type QuickSlotDropOptions = {
   placement: "before" | "after" | "end";
 };
 
-type DirectDroppedImageFiles = {
-  imageFiles: File[];
+type DirectDroppedMediaFiles = {
+  mediaFiles: File[];
   rejectedFileCount: number;
 };
-
-type IngestedReferenceFileResult = Awaited<
-  ReturnType<NonNullable<UseAiStudioPageMediaReferenceRuntimeParams["ingestReferenceFiles"]>>
->[number];
 
 type UseAiStudioPageMediaReferenceRuntimeParams = {
   addCuratedReference: (outputId: string) => void;
@@ -63,6 +63,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
     options?: QuickSlotDropOptions
   ) => string | null;
   addPastedPromptReference: (text: string) => void;
+  insertPastedMediaReference: (payload: PastedMediaReference) => StudioOutput[];
   getOutputById: (outputId: string) => StudioOutput | null;
   ingestReferenceFiles: (
     files: FileList | File[],
@@ -92,40 +93,150 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   addLibraryMediaReferenceToQuickSlot,
   addLibraryPromptReferenceToQuickSlot,
   addPastedPromptReference,
+  insertPastedMediaReference,
   getOutputById,
   ingestReferenceFiles,
   reorderCuratedReference,
   setActiveOutputId,
   setUiError,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
-  const resolveDirectDroppedImageFiles = useCallback(
-    (files: FileList | File[]): DirectDroppedImageFiles => {
+  const resolveDirectDroppedMediaFiles = useCallback(
+    (files: FileList | File[]): DirectDroppedMediaFiles => {
       const droppedFiles = Array.from(files);
-      const imageFiles = droppedFiles.filter((file) => {
-        if (isImageFile(file.type)) return true;
-        return !file.type && IMAGE_FILE_EXTENSION_PATTERN.test(file.name);
-      });
+      const mediaFiles = droppedFiles
+        .map((file, index) => normalizeMediaFile(file, null, index))
+        .filter((file): file is File => Boolean(file));
       return {
-        imageFiles,
-        rejectedFileCount: Math.max(0, droppedFiles.length - imageFiles.length),
+        mediaFiles,
+        rejectedFileCount: Math.max(0, droppedFiles.length - mediaFiles.length),
       };
     },
     []
   );
 
-  const ensureDroppedImageFiles = useCallback(
-    (files: FileList | File[]): DirectDroppedImageFiles => {
-      const directDrop = resolveDirectDroppedImageFiles(files);
-      if (directDrop.imageFiles.length > 0) return directDrop;
-      setUiError?.("Drop image files here.");
+  const ensureDroppedMediaFiles = useCallback(
+    (files: FileList | File[]): DirectDroppedMediaFiles => {
+      const directDrop = resolveDirectDroppedMediaFiles(files);
+      if (directDrop.mediaFiles.length > 0) return directDrop;
+      setUiError?.("Drop image, video, or audio files here.");
       return directDrop;
     },
-    [resolveDirectDroppedImageFiles, setUiError]
+    [resolveDirectDroppedMediaFiles, setUiError]
+  );
+
+  const normalizeCanvasVisualDimensions = useCallback(
+    (
+      width: number | null | undefined,
+      height: number | null | undefined
+    ): { width: number; height: number } | undefined => {
+      if (
+        typeof width !== "number" ||
+        !Number.isFinite(width) ||
+        width <= 0 ||
+        typeof height !== "number" ||
+        !Number.isFinite(height) ||
+        height <= 0
+      ) {
+        return undefined;
+      }
+      return { width, height };
+    },
+    []
+  );
+
+  const resolveCanvasPosterUrl = useCallback(
+    (...candidates: Array<string | null | undefined>): string | null => {
+      for (const candidate of candidates) {
+        const normalized = candidate?.trim() || "";
+        if (!normalized || isVideoUrl(normalized)) continue;
+        return normalized;
+      }
+      return null;
+    },
+    []
+  );
+
+  const resolveCanvasResolutionFromOutput = useCallback(
+    ({
+      output,
+      fallbackUrl = null,
+      outputId = output.id ?? null,
+      mediaId = resolveSavedMediaIdFromOutput(output, 0),
+      sourceSurface = null,
+      width,
+      height,
+      imageIndex = 0,
+    }: {
+      output: StudioOutput;
+      fallbackUrl?: string | null;
+      outputId?: string | null;
+      mediaId?: string | null;
+      sourceSurface?: CanvasDropResolution["sourceSurface"];
+      width?: number | null;
+      height?: number | null;
+      imageIndex?: number;
+    }): CanvasDropResolution | null => {
+      const visualDimensions = normalizeCanvasVisualDimensions(width, height);
+      if (output.mode === "text") {
+        const text = (output.prompt || output.previewText || "").trim();
+        if (!text) return null;
+        return {
+          kind: "text",
+          outputId,
+          text,
+          ...(sourceSurface ? { sourceSurface } : {}),
+        };
+      }
+      if (output.mode === "audio") {
+        const audioUrl = output.resultUrls?.[0] ?? output.previewUrl ?? fallbackUrl ?? null;
+        if (!audioUrl) return null;
+        return {
+          kind: "audio",
+          outputId,
+          mediaId,
+          audioUrl,
+          title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
+          companionArtUrl: output.companionArtUrl ?? null,
+          companionArtStoragePath: output.companionArtStoragePath ?? null,
+          durationMs: output.durationMs ?? null,
+          waveformPeaks: output.waveformPeaks ?? null,
+          width: CANVAS_AUDIO_ITEM_WIDTH,
+          height: CANVAS_AUDIO_ITEM_HEIGHT,
+          ...(sourceSurface ? { sourceSurface } : {}),
+        };
+      }
+      if (output.mode === "video") {
+        const videoUrl = output.resultUrls?.[0] ?? output.previewUrl ?? fallbackUrl ?? null;
+        if (!videoUrl) return null;
+        return {
+          kind: "video",
+          outputId,
+          mediaId,
+          videoUrl,
+          posterUrl: resolveCanvasPosterUrl(output.previewPosterUrl, fallbackUrl),
+          title: (output.prompt || output.previewText || "Canvas video").trim() || null,
+          ...(visualDimensions ?? {}),
+          ...(sourceSurface ? { sourceSurface } : {}),
+        };
+      }
+      if (output.mode !== "image") return null;
+      const sourceUrl = output.resultUrls?.[imageIndex] ?? output.previewUrl ?? fallbackUrl ?? null;
+      if (!sourceUrl) return null;
+      return {
+        kind: "image",
+        outputId,
+        mediaId,
+        src: sourceUrl,
+        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
+        ...(visualDimensions ?? {}),
+        ...(sourceSurface ? { sourceSurface } : {}),
+      };
+    },
+    [normalizeCanvasVisualDimensions, resolveCanvasPosterUrl]
   );
 
   const projectOutputIdsToQuickSlot = useCallback(
-    (insertedResults: IngestedReferenceFileResult[], options: QuickSlotDropOptions): string[] => {
-      const outputIds = insertedResults.map((result) => result.outputId).filter(Boolean);
+    (outputIds: string[], options: QuickSlotDropOptions): string[] => {
       if (outputIds.length === 0) return [];
 
       if (options.placement === "end" || !options.targetId) {
@@ -177,16 +288,19 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
   const handleQuickSlotDroppedFiles = useCallback(
     async (files: FileList, options?: QuickSlotDropOptions) => {
-      const { imageFiles, rejectedFileCount } = ensureDroppedImageFiles(files);
-      if (imageFiles.length === 0) return [];
-      const insertedResults = await ingestReferenceFiles(imageFiles, "drop");
+      const { mediaFiles, rejectedFileCount } = ensureDroppedMediaFiles(files);
+      if (mediaFiles.length === 0) return [];
+      const insertedResults = await ingestReferenceFiles(mediaFiles, "drop");
       if (rejectedFileCount > 0 && insertedResults.length > 0) {
         setUiError?.(SURFACE_DIRECT_DROP_PARTIAL_MESSAGE);
       }
-      const insertedOutputIds = projectOutputIdsToQuickSlot(insertedResults, {
-        targetId: options?.targetId ?? null,
-        placement: options?.placement ?? "end",
-      });
+      const insertedOutputIds = projectOutputIdsToQuickSlot(
+        insertedResults.map((result) => result.outputId).filter(Boolean),
+        {
+          targetId: options?.targetId ?? null,
+          placement: options?.placement ?? "end",
+        }
+      );
       const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
       if (activeOutputId) {
         setActiveOutputId(activeOutputId);
@@ -194,12 +308,31 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       return insertedOutputIds;
     },
     [
-      ensureDroppedImageFiles,
+      ensureDroppedMediaFiles,
       ingestReferenceFiles,
       projectOutputIdsToQuickSlot,
       setActiveOutputId,
       setUiError,
     ]
+  );
+
+  const handleQuickSlotDroppedMediaReference = useCallback(
+    (payload: PastedMediaReference, options?: QuickSlotDropOptions) => {
+      const insertedOutputs = insertPastedMediaReference(payload);
+      const insertedOutputIds = projectOutputIdsToQuickSlot(
+        insertedOutputs.map((output) => output.id).filter(Boolean),
+        {
+          targetId: options?.targetId ?? null,
+          placement: options?.placement ?? "end",
+        }
+      );
+      const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
+      if (activeOutputId) {
+        setActiveOutputId(activeOutputId);
+      }
+      return activeOutputId;
+    },
+    [insertPastedMediaReference, projectOutputIdsToQuickSlot, setActiveOutputId]
   );
 
   const handleQuickSlotLibraryPromptDrop = useCallback(
@@ -227,49 +360,18 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
       const output = outputId ? getOutputById(outputId) : null;
       if (!output) return null;
-      if (output.mode === "text") {
-        const text = (output.prompt || output.previewText || "").trim();
-        if (!text) return null;
-        return {
-          kind: "text",
-          outputId: outputId || null,
-          text,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      if (output.mode === "audio") {
-        const audioUrl =
-          output.resultUrls?.[0] ?? output.previewUrl ?? payload.referenceUrl ?? null;
-        if (!audioUrl) return null;
-        return {
-          kind: "audio",
-          outputId: outputId || null,
-          mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-          audioUrl,
-          title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
-          companionArtUrl: output.companionArtUrl ?? null,
-          companionArtStoragePath: output.companionArtStoragePath ?? null,
-          durationMs: output.durationMs ?? null,
-          waveformPeaks: output.waveformPeaks ?? null,
-          width: CANVAS_AUDIO_ITEM_WIDTH,
-          height: CANVAS_AUDIO_ITEM_HEIGHT,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      if (output.mode !== "image") return null;
-      const sourceUrl =
-        output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
-      if (!sourceUrl) return null;
-      return {
-        kind: "image",
+      return resolveCanvasResolutionFromOutput({
+        output,
+        fallbackUrl: payload.referenceUrl ?? null,
         outputId: outputId || null,
         mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-        src: sourceUrl,
-        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
         sourceSurface: payload.sourceSurface ?? null,
-      };
+        width: payload.width,
+        height: payload.height,
+        imageIndex,
+      });
     },
-    [getOutputById]
+    [getOutputById, resolveCanvasResolutionFromOutput]
   );
 
   const resolveVoiceChangerInternalReferenceSource =
@@ -348,8 +450,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   const prepareCanvasMediaLibraryDrop = useCallback<PrepareCanvasMediaLibraryDrop>(
     async (payload): Promise<CanvasDropResolution | null> => {
       if (payload.kind === "libraryMedia") {
-        const outputId = await addLibraryMediaReferenceToQuickSlot(payload.payload);
-        if (!outputId) return null;
+        const insertedOutputId = await addLibraryMediaReferenceToQuickSlot(payload.payload);
+        if (!insertedOutputId) return null;
+        const visualDimensions = normalizeCanvasVisualDimensions(
+          payload.payload.width,
+          payload.payload.height
+        );
         const previewSrc =
           (payload.payload.fullUrl ?? "").trim() ||
           (payload.payload.previewUrl ?? "").trim() ||
@@ -358,7 +464,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         if (payload.payload.fileType === "audio") {
           return {
             kind: "audio",
-            outputId,
+            outputId: insertedOutputId,
             mediaId: payload.payload.id,
             audioUrl: previewSrc,
             title:
@@ -370,26 +476,26 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             height: CANVAS_AUDIO_ITEM_HEIGHT,
           };
         }
-        const width =
-          typeof payload.payload.width === "number" &&
-          Number.isFinite(payload.payload.width) &&
-          payload.payload.width > 0
-            ? payload.payload.width
-            : undefined;
-        const height =
-          typeof payload.payload.height === "number" &&
-          Number.isFinite(payload.payload.height) &&
-          payload.payload.height > 0
-            ? payload.payload.height
-            : undefined;
+        if (payload.payload.fileType === "video") {
+          return {
+            kind: "video",
+            outputId: insertedOutputId,
+            mediaId: payload.payload.id,
+            videoUrl: previewSrc,
+            posterUrl: resolveCanvasPosterUrl(payload.payload.previewPosterUrl),
+            title:
+              (payload.payload.filename || payload.payload.promptText || "Canvas video").trim() ||
+              null,
+            ...(visualDimensions ?? {}),
+          };
+        }
         return {
           kind: "image",
-          outputId,
+          outputId: insertedOutputId,
           mediaId: payload.payload.id,
           src: previewSrc,
           alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
-          width,
-          height,
+          ...(visualDimensions ?? {}),
         };
       }
 
@@ -403,44 +509,52 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         text: promptText,
       };
     },
-    [addLibraryMediaReferenceToQuickSlot, addLibraryPromptReferenceToQuickSlot]
+    [
+      addLibraryMediaReferenceToQuickSlot,
+      addLibraryPromptReferenceToQuickSlot,
+      normalizeCanvasVisualDimensions,
+      resolveCanvasPosterUrl,
+    ]
+  );
+
+  const resolveCanvasDroppedMediaReference = useCallback<ResolveCanvasDroppedMediaReference>(
+    (payload) => {
+      const insertedOutput = insertPastedMediaReference(payload)[0];
+      if (!insertedOutput) return null;
+      return resolveCanvasResolutionFromOutput({
+        output: insertedOutput,
+        fallbackUrl: payload.url ?? null,
+      });
+    },
+    [insertPastedMediaReference, resolveCanvasResolutionFromOutput]
   );
 
   const resolveCanvasDropFiles = useCallback(
     async (files: FileList): Promise<CanvasDropResolution[] | null> => {
-      const { imageFiles, rejectedFileCount } = ensureDroppedImageFiles(files);
-      if (imageFiles.length === 0) return null;
-      const insertedResults = await ingestReferenceFiles(imageFiles, "drop");
+      const { mediaFiles, rejectedFileCount } = ensureDroppedMediaFiles(files);
+      if (mediaFiles.length === 0) return null;
+      const insertedResults = await ingestReferenceFiles(mediaFiles, "drop");
       if (rejectedFileCount > 0 && insertedResults.length > 0) {
         setUiError?.(SURFACE_DIRECT_DROP_PARTIAL_MESSAGE);
       }
       const resolvedItems = insertedResults.flatMap((result) => {
-        if (result.output.mode !== "image") return [];
-        const sourceUrl = result.output.resultUrls?.[0] ?? result.output.previewUrl ?? null;
-        if (!sourceUrl) return [];
-        return [
-          {
-            kind: "image" as const,
-            outputId: result.outputId,
-            mediaId: resolveSavedMediaIdFromOutput(result.output, 0),
-            src: sourceUrl,
-            alt: (
-              result.output.prompt ||
-              result.output.previewText ||
-              result.payload.filename ||
-              result.file.name ||
-              "Canvas media"
-            ).trim(),
-          },
-        ];
+        const resolved = resolveCanvasResolutionFromOutput({
+          output: result.output,
+          outputId: result.outputId,
+          mediaId: resolveSavedMediaIdFromOutput(result.output, 0),
+          fallbackUrl: result.output.resultUrls?.[0] ?? result.output.previewUrl ?? null,
+          width: result.payload.width ?? null,
+          height: result.payload.height ?? null,
+        });
+        return resolved ? [resolved] : [];
       });
       if (resolvedItems.length === 0) {
-        setUiError?.("Unable to place those images on the canvas right now.");
+        setUiError?.("Unable to place that media on the canvas right now.");
         return null;
       }
       return resolvedItems;
     },
-    [ensureDroppedImageFiles, ingestReferenceFiles, setUiError]
+    [ensureDroppedMediaFiles, ingestReferenceFiles, resolveCanvasResolutionFromOutput, setUiError]
   );
 
   const {
@@ -450,6 +564,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
     prepareCanvasMediaLibraryDrop,
+    resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference: addPastedPromptReference,
   });
@@ -486,6 +601,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   return {
     canvasSessionState,
     handleQuickSlotDroppedFiles,
+    handleQuickSlotDroppedMediaReference,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,

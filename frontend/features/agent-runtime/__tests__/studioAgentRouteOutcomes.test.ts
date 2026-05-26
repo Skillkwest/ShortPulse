@@ -17,6 +17,7 @@ describe("studioAgentRouteOutcomes", () => {
       flow: "TEXT_ONLY",
       path: "pulse_agent",
       status: "success",
+      traceId: "trace-telemetry-1",
       model: "gpt-default",
       outcomeClass: "success_prompt",
       retryUsed: false,
@@ -31,6 +32,7 @@ describe("studioAgentRouteOutcomes", () => {
     >;
     expect(payload).toEqual(
       expect.objectContaining({
+        trace_id: "trace-telemetry-1",
         outcome_class: "success_prompt",
         repair_used: false,
         repair_count: 0,
@@ -49,7 +51,7 @@ describe("studioAgentRouteOutcomes", () => {
     );
     expect(infoSpy).toHaveBeenCalledWith(
       "[studio-agent][telemetry]",
-      expect.stringContaining('"outcome_class":"success_prompt"')
+      expect.stringContaining('"trace_id":"trace-telemetry-1"')
     );
     infoSpy.mockRestore();
   });

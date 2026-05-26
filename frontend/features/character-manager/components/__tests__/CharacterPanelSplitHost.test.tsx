@@ -45,15 +45,12 @@ describe("CharacterPanelSplitHost", () => {
       height: "544px",
       minHeight: "544px",
       maxHeight: "544px",
-      background: "rgb(19, 21, 24)",
-      backgroundColor: "rgb(19, 21, 24)",
       overflow: "hidden",
     });
     const splitHost = container.querySelector(
       ".character-panel-split-host"
     ) as HTMLDivElement | null;
     expect(splitHost).not.toBeNull();
-    expect(splitHost?.style.getPropertyValue("--character-panel-section-bg")).toBe("#131518");
     const topSection = container.querySelector(
       ".character-panel-top-section"
     ) as HTMLDivElement | null;

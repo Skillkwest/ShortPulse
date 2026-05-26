@@ -213,7 +213,6 @@ const buildLooksRailStyle = (minHeightPx: number): React.CSSProperties => ({
   border: "1px solid rgba(38, 43, 51, 0.95)",
   borderBottom: "none",
   background: "#0f1115",
-  backgroundColor: "#0f1115",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   boxSizing: "border-box",
 });
@@ -230,7 +229,6 @@ const buildLooksTabStyle = (
   minHeight: `${heightPx}px`,
   borderRadius: "12px 12px 0 0",
   background: active ? "rgba(31, 35, 41, 1)" : "#15161a",
-  backgroundColor: active ? "rgba(31, 35, 41, 1)" : "#15161a",
 });
 
 const buildDescriptionCardStyle = (): React.CSSProperties => ({
@@ -386,7 +384,6 @@ export function CharacterProfileLoadingSkeleton({ surface }: CharacterProfileLoa
     () =>
       resolveCharacterPanelResponsiveLayout({
         panelWidthPx: measuredWidthPx,
-        panelHeightPx: 0,
       }),
     [measuredWidthPx]
   );

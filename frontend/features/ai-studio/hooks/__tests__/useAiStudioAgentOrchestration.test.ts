@@ -904,6 +904,30 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
+  it("restores the Standard draft and removes the optimistic message when the turn completes empty", async () => {
+    const setAgentInput = vi.fn();
+    const removeMessageById = vi.fn(() => true);
+    const sendToAgent = vi.fn(async () => ({
+      response: null,
+      actions: undefined,
+    }));
+    const params = createParams({
+      agentInput: "bugs dark bugs",
+      sendToAgent,
+      setAgentInput: asDispatch<string>(setAgentInput),
+      removeMessageById,
+      runtimePolicy: standardRuntimePolicy(),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(removeMessageById).toHaveBeenCalledWith("msg-1");
+    expect(setAgentInput).toHaveBeenCalledWith("bugs dark bugs");
+  });
+
   it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {
     const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
     const params = createParams({

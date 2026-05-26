@@ -74,6 +74,13 @@ export type ReferenceGridProps = {
       placement: "before" | "after" | "end";
     }
   ) => string | null;
+  onAddPastedMediaReferenceToQuickSlot?: (
+    payload: PastedMediaReference,
+    options?: {
+      targetId: string | null;
+      placement: "before" | "after" | "end";
+    }
+  ) => string | null;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   railCanvasProps?: CanvasPropertiesPanelProps;

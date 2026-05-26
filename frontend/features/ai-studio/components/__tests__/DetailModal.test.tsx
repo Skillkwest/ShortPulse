@@ -758,6 +758,99 @@ describe("DetailModal", () => {
     expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
   });
 
+  it("keeps the initially opened media URL stable when later full delivery arrives", () => {
+    const initialOutput = {
+      ...baseOutput,
+      previewUrl: "https://cdn.test/initial-preview.jpg",
+      resultUrls: ["https://cdn.test/initial-preview.jpg"],
+    };
+    const { baseElement, rerender } = render(
+      <DetailModal
+        output={initialOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const initialImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(initialImage).not.toBeNull();
+    expect(initialImage?.getAttribute("src")).toBe("https://cdn.test/initial-preview.jpg");
+
+    rerender(
+      <DetailModal
+        output={{
+          ...initialOutput,
+          fullStoragePath: "https://cdn.test/final-full.jpg",
+          previewUrl: "https://cdn.test/final-full.jpg",
+          resultUrls: ["https://cdn.test/final-full.jpg"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(stableImage).not.toBeNull();
+    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/initial-preview.jpg");
+  });
+
+  it("locks the first available media URL after it appears during an open session", async () => {
+    const initialOutput = {
+      ...baseOutput,
+      previewUrl: undefined,
+      resultUrls: [],
+    };
+    const { baseElement, rerender } = render(
+      <DetailModal
+        output={initialOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(baseElement.querySelector(".art-hero-image")).toBeNull();
+
+    rerender(
+      <DetailModal
+        output={{
+          ...initialOutput,
+          previewUrl: "https://cdn.test/first-available.jpg",
+          resultUrls: ["https://cdn.test/first-available.jpg"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      expect(image).not.toBeNull();
+      expect(image?.getAttribute("src")).toBe("https://cdn.test/first-available.jpg");
+    });
+
+    rerender(
+      <DetailModal
+        output={{
+          ...initialOutput,
+          fullStoragePath: "https://cdn.test/final-after-open.jpg",
+          previewUrl: "https://cdn.test/final-after-open.jpg",
+          resultUrls: ["https://cdn.test/final-after-open.jpg"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(stableImage).not.toBeNull();
+    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/first-available.jpg");
+  });
+
   it("uses full storage media URL for detail rendering when available", () => {
     const { baseElement } = render(
       <DetailModal

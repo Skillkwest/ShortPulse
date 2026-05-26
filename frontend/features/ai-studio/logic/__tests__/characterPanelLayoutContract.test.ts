@@ -9,6 +9,19 @@ const characterEmbeddedCssPath = path.resolve(
   "styles/character-manager-embedded.css"
 );
 
+const extractRuleBlock = (css: string, selector: string) => {
+  const escapedSelector = selector
+    .trim()
+    .split(/\s+/)
+    .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s+");
+  const pattern = new RegExp(`(^|\\n)${escapedSelector} \\{[\\s\\S]*?\\n\\}`, "gm");
+  const matches = Array.from(css.matchAll(pattern));
+  const match = matches.at(-1);
+  expect(match).not.toBeUndefined();
+  return match?.[0] ?? "";
+};
+
 describe("character panel layout contract", () => {
   it("gives the Character properties rail the same bounded shell-height contract as Elements", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
@@ -45,14 +58,14 @@ describe("character panel layout contract", () => {
 
   it("keeps the Character top workspace bounded so the lower media library remains reachable", () => {
     const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+    const workspace = extractRuleBlock(css, ".character-panel-workspace");
+    const editorColumnPanel = extractRuleBlock(css, ".character-panel-editor-column-panel");
 
-    expect(css).toContain(".character-panel-workspace {");
-    expect(css).toContain("height: 100%;");
-    expect(css).toContain("overflow: hidden;");
+    expect(workspace).toContain("height: 100%;");
+    expect(workspace).toContain("overflow: hidden;");
     expect(css).toContain(".character-panel-library-workspace {");
-    expect(css).toContain(".character-panel-editor-column-panel {");
-    expect(css).toContain("overflow: auto;");
-    expect(css).toContain("overscroll-behavior-y: contain;");
+    expect(editorColumnPanel).toContain("overflow: auto;");
+    expect(editorColumnPanel).toContain("overscroll-behavior-y: contain;");
   });
 
   it("stacks the Character library and profile into one top-column flow", () => {
@@ -111,11 +124,14 @@ describe("character panel layout contract", () => {
 
   it("matches the Character wrapper background to the Create panel surface and removes its border", () => {
     const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+    const splitHost = extractRuleBlock(css, ".character-panel-split-host");
+    const libraryWorkspace = extractRuleBlock(css, ".character-panel-library-workspace");
+    const editorColumn = extractRuleBlock(css, ".character-panel-editor-column");
 
+    expect(splitHost).toContain("--character-panel-section-bg: #131518;");
     expect(css).toContain("--character-panel-wrapper-bg: rgba(201, 205, 214, 0.02);");
-    expect(css).toContain(".character-panel-library-workspace {");
-    expect(css).toContain("padding: 4px 12px 10px;");
-    expect(css).toContain(".character-panel-editor-column {");
-    expect(css).toContain("border: 0;");
+    expect(libraryWorkspace).toContain("padding:");
+    expect(libraryWorkspace).toContain("background: var(--character-panel-wrapper-bg);");
+    expect(editorColumn).toContain("border: 0;");
   });
 });

@@ -5,7 +5,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Plus, X } from "phosphor-react";
 import type { CharacterSheetPresetId } from "../types";
-import { MAX_CHARACTER_SHEET_PRESET_TAB_COUNT } from "../logic/characterSheetPresetTabs";
+import {
+  getCharacterSheetPresetTabId,
+  MAX_CHARACTER_SHEET_PRESET_TAB_COUNT,
+} from "../logic/characterSheetPresetTabs";
 
 const TAB_DRAG_SCROLL_ACTIVATION_PX = 6;
 
@@ -23,14 +26,6 @@ type CharacterSheetPresetTabsProps = {
   compact?: boolean;
   shrinkWrap?: boolean;
 };
-
-/**
- * Builds a stable tab id for a look tab button.
- */
-export const getCharacterSheetPresetTabId = (
-  idBase: string,
-  presetId: CharacterSheetPresetId
-): string => `${idBase}-tab-${presetId}`;
 
 /**
  * Renders the Character Sheet look tabs with ARIA-compliant keyboard behavior.

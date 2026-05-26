@@ -2,6 +2,9 @@ import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
+import type { MarkupStroke } from "../markupStrokeController";
+import type { InpaintMaskSnapshot } from "../useInpaintMaskController";
 import { useExpertEditPanelHistory } from "../useExpertEditPanelHistory";
 
 describe("useExpertEditPanelHistory", () => {
@@ -11,7 +14,7 @@ describe("useExpertEditPanelHistory", () => {
       const [layerIdCounter, setLayerIdCounter] = React.useState(2);
       const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>("layer-1");
       const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
-      const [layers, setLayers] = React.useState([
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
         {
           id: "layer-1",
           name: "layer 1",
@@ -27,8 +30,10 @@ describe("useExpertEditPanelHistory", () => {
           },
         },
       ]);
-      const [markupStrokes, setMarkupStrokes] = React.useState([]);
-      const [inpaintSnapshot, setInpaintSnapshot] = React.useState({ layers: [] });
+      const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>([]);
+      const [inpaintSnapshot, setInpaintSnapshot] = React.useState<InpaintMaskSnapshot>({
+        layers: [],
+      });
       const history = useExpertEditPanelHistory({
         historyLimit: 20,
         foundationLayerId,
@@ -43,7 +48,7 @@ describe("useExpertEditPanelHistory", () => {
         setSelectedLayerIndex,
         setLayers,
         setMarkupStrokes,
-        restoreInpaintMaskSnapshot: setInpaintSnapshot,
+        restoreInpaintMaskSnapshot: (snapshot) => setInpaintSnapshot(snapshot),
         clearLayerEditing: () => {},
       });
 
@@ -107,7 +112,7 @@ describe("useExpertEditPanelHistory", () => {
       const [layerIdCounter, setLayerIdCounter] = React.useState(2);
       const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>("layer-1");
       const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
-      const [layers, setLayers] = React.useState([
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
         {
           id: "layer-1",
           name: "layer 1",
@@ -131,7 +136,9 @@ describe("useExpertEditPanelHistory", () => {
           points: Array<{ sceneX: number; sceneY: number }>;
         }>
       >([]);
-      const [inpaintSnapshot, setInpaintSnapshot] = React.useState({ layers: [] });
+      const [inpaintSnapshot, setInpaintSnapshot] = React.useState<InpaintMaskSnapshot>({
+        layers: [],
+      });
       const history = useExpertEditPanelHistory({
         historyLimit: 20,
         foundationLayerId,
@@ -146,7 +153,7 @@ describe("useExpertEditPanelHistory", () => {
         setSelectedLayerIndex,
         setLayers,
         setMarkupStrokes,
-        restoreInpaintMaskSnapshot: setInpaintSnapshot,
+        restoreInpaintMaskSnapshot: (snapshot) => setInpaintSnapshot(snapshot),
         clearLayerEditing: () => {},
       });
 
@@ -202,7 +209,7 @@ describe("useExpertEditPanelHistory", () => {
       const [layerIdCounter, setLayerIdCounter] = React.useState(2);
       const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>("layer-1");
       const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
-      const [layers, setLayers] = React.useState([
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
         {
           id: "layer-1",
           name: "layer 1",
@@ -218,8 +225,10 @@ describe("useExpertEditPanelHistory", () => {
           },
         },
       ]);
-      const [markupStrokes, setMarkupStrokes] = React.useState([]);
-      const [inpaintSnapshot, setInpaintSnapshot] = React.useState({ layers: [] });
+      const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>([]);
+      const [inpaintSnapshot, setInpaintSnapshot] = React.useState<InpaintMaskSnapshot>({
+        layers: [],
+      });
       const history = useExpertEditPanelHistory({
         historyLimit: 20,
         foundationLayerId,
@@ -234,7 +243,7 @@ describe("useExpertEditPanelHistory", () => {
         setSelectedLayerIndex,
         setLayers,
         setMarkupStrokes,
-        restoreInpaintMaskSnapshot: setInpaintSnapshot,
+        restoreInpaintMaskSnapshot: (snapshot) => setInpaintSnapshot(snapshot),
         clearLayerEditing: () => {},
       });
 

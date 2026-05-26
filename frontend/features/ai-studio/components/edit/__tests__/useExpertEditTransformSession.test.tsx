@@ -40,6 +40,8 @@ describe("useExpertEditTransformSession", () => {
         viewportOffsetXRatio: 0,
         viewportOffsetYRatio: 0,
         resolveViewportOffsetPixels: () => ({ offsetX: 0, offsetY: 0 }),
+        beginPanelHistoryGestureForLayers: vi.fn(),
+        finalizePanelHistoryGesture: vi.fn(),
         commitTransformHistoryTransition: vi.fn(),
         showStatusToast: vi.fn(),
         transformHistoryState: {
@@ -102,6 +104,8 @@ describe("useExpertEditTransformSession", () => {
         viewportOffsetXRatio: 0,
         viewportOffsetYRatio: 0,
         resolveViewportOffsetPixels: () => ({ offsetX: 0, offsetY: 0 }),
+        beginPanelHistoryGestureForLayers: vi.fn(),
+        finalizePanelHistoryGesture: vi.fn(),
         commitTransformHistoryTransition: vi.fn(),
         showStatusToast: vi.fn(),
         transformHistoryState: {

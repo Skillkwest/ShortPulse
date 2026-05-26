@@ -218,6 +218,52 @@ describe("sessionSnapshotCanvas", () => {
     ]);
   });
 
+  it("round-trips durable video canvas items with poster metadata", () => {
+    const state = createCanvasState(0);
+    state.items = [
+      {
+        id: "video-1",
+        kind: "video",
+        x: 18,
+        y: 36,
+        z: 4,
+        selected: true,
+        outputId: "output-video-1",
+        sourceSurface: "curated",
+        mediaId: "media-video-1",
+        videoUrl: "https://example.com/video-reference.mp4",
+        posterUrl: "https://example.com/video-reference-poster.webp",
+        title: "Canvas video",
+        width: 275,
+        height: 154.69,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    expect(snapshot.scene.items).toEqual([
+      expect.objectContaining({
+        id: "video-1",
+        kind: "video",
+        videoUrl: "https://example.com/video-reference.mp4",
+        posterUrl: "https://example.com/video-reference-poster.webp",
+        title: "Canvas video",
+      }),
+    ]);
+
+    const parsed = parseAiStudioSessionCanvasState(snapshot);
+    expect(parsed?.items).toEqual([
+      expect.objectContaining({
+        id: "video-1",
+        kind: "video",
+        videoUrl: "https://example.com/video-reference.mp4",
+        posterUrl: "https://example.com/video-reference-poster.webp",
+        title: "Canvas video",
+        width: 275,
+        height: 154.69,
+      }),
+    ]);
+  });
+
   it("drops non-durable audio URLs during serialization", () => {
     const state = createCanvasState(0);
     state.items = [

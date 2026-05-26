@@ -22,10 +22,6 @@ type CharacterPanelSplitHostProps = {
 
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
 const CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX = 544;
-const CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND = "#131518";
-const CHARACTER_PANEL_SPLIT_HOST_INLINE_STYLE = {
-  "--character-panel-section-bg": CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-} as React.CSSProperties;
 const CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE: React.CSSProperties = {
   flex: "1 1 auto",
   minHeight: `${CHARACTER_PANEL_MIN_TOP_HEIGHT_PX}px`,
@@ -50,14 +46,12 @@ export function CharacterPanelSplitHost({
       height: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       minHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
       maxHeight: `${CHARACTER_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
-      background: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
-      backgroundColor: CHARACTER_PANEL_MAKE_WRAPPER_BACKGROUND,
       overflow: "hidden",
     }),
     []
   );
   return (
-    <div className="character-panel-split-host" style={CHARACTER_PANEL_SPLIT_HOST_INLINE_STYLE}>
+    <div className="character-panel-split-host">
       <div className="character-panel-top-section" style={CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE}>
         <CharacterPanelWorkspace
           resolveCharacterDropReference={resolveCharacterDropReference}

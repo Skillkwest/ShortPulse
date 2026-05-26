@@ -1704,6 +1704,7 @@ describe("useCreateAgentStateCore", () => {
       new Response(
         JSON.stringify({
           message: "temporary upstream saturation",
+          traceId: "agent-trace-789",
           decision: "error",
           outcome_class: "upstream_error",
           reason_code: "UPSTREAM_ERROR",
@@ -1733,11 +1734,11 @@ describe("useCreateAgentStateCore", () => {
     expect(sendResult).toEqual(
       expect.objectContaining({
         response: null,
-        errorText: "temporary upstream saturation",
+        errorText: "temporary upstream saturation (Trace ID: agent-trace-789)",
         failureKind: "transport_error",
       })
     );
-    expect(result.current.error).toBe("temporary upstream saturation");
+    expect(result.current.error).toBe("temporary upstream saturation (Trace ID: agent-trace-789)");
     expect(result.current.messages.at(-1)).not.toEqual(
       expect.objectContaining({
         role: "assistant",

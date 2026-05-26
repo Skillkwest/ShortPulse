@@ -8,13 +8,19 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const readPageSource = () => readFileSync(path.join(process.cwd(), "pages/ai-studio.tsx"), "utf8");
+const readShellRuntimeSource = () =>
+  readFileSync(
+    path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioShellRuntime.ts"),
+    "utf8"
+  );
 
 describe("AI Studio project modal boundary", () => {
   it("keeps the create-project navigation callback inside the shell runtime seam", () => {
-    const source = readPageSource();
+    const pageSource = readPageSource();
+    const shellRuntimeSource = readShellRuntimeSource();
 
-    expect(source).toContain("handleCreateProjectFromModal: navigateToProjectRoute,");
-    expect(source).not.toContain("onCreateProjectFromModal={navigateToProjectRoute}");
+    expect(shellRuntimeSource).toContain("handleCreateProjectFromModal: navigateToProjectRoute,");
+    expect(pageSource).not.toContain("onCreateProjectFromModal={navigateToProjectRoute}");
   });
 
   it("keeps the remaining project modal controls owned by the shell runtime and forwards them into the shell", () => {

@@ -13,6 +13,14 @@ export const MAX_CHARACTER_SHEET_PRESET_TAB_COUNT = 10;
 export const CHARACTER_SHEET_PRESET_TAB_LABEL_MAX_LENGTH = 24;
 export const CHARACTER_SHEET_PRESET_DESCRIPTION_MAX_LENGTH = 150;
 
+/**
+ * Builds a stable tab id for a look tab button.
+ */
+export const getCharacterSheetPresetTabId = (
+  idBase: string,
+  presetId: CharacterSheetPresetId
+): string => `${idBase}-tab-${presetId}`;
+
 const PRESET_ID_ORDER = new Map(
   CHARACTER_SHEET_PRESET_IDS.map((presetId, index) => [presetId, index] as const)
 );

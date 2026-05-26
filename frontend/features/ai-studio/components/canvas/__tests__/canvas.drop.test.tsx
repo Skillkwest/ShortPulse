@@ -2,7 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../../logic/sessionSnapshotCanvas";
-import type { PrepareCanvasMediaLibraryDrop, ResolveCanvasDropReference } from "../canvasTypes";
+import type {
+  PrepareCanvasMediaLibraryDrop,
+  ResolveCanvasDroppedMediaReference,
+  ResolveCanvasDropReference,
+} from "../canvasTypes";
 import {
   CanvasHarness,
   createTransfer,
@@ -182,6 +186,40 @@ describe("Canvas drop behavior", () => {
     ).toContain("library-audio-cover.webp");
   });
 
+  it("creates a video item from a media-library video drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryMedia",
+        "text/shortpulse-media-library-id": "media-video-1",
+        "text/shortpulse-media-library-url": "https://example.com/library-video.mp4",
+        "text/shortpulse-media-library-file-type": "video",
+        "text/shortpulse-media-library-filename": "Library Video",
+        "text/shortpulse-media-library-preview-poster-url":
+          "https://example.com/library-video-poster.webp",
+        "text/shortpulse-media-library-width": "1920",
+        "text/shortpulse-media-library-height": "1080",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "video");
+    expect(screen.getByLabelText("Library Video")).toHaveAttribute(
+      "src",
+      "https://example.com/library-video.mp4"
+    );
+    expect(screen.getByLabelText("Library Video")).toHaveAttribute(
+      "poster",
+      "https://example.com/library-video-poster.webp"
+    );
+  });
+
   it("routes media-library prompt drops through the async library-drop preparer when provided", async () => {
     const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
       if (payload.kind !== "libraryPrompt") return null;
@@ -211,6 +249,74 @@ describe("Canvas drop behavior", () => {
       expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledTimes(1);
     });
     expect(await screen.findByText("Prompt from media library")).toBeInTheDocument();
+  });
+
+  it("routes dropped external media references through the async dropped-media resolver", async () => {
+    const resolveCanvasDroppedMediaReference = vi.fn(async (payload) => ({
+      kind: "image" as const,
+      outputId: "external-media-1",
+      mediaId: null,
+      src: payload.url,
+      alt: "External media",
+      width: 1200,
+      height: 800,
+    })) satisfies ResolveCanvasDroppedMediaReference;
+
+    render(
+      <CanvasHarness resolveCanvasDroppedMediaReference={resolveCanvasDroppedMediaReference} />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/uri-list": "https://example.com/external-image.png",
+        "text/plain": "https://example.com/external-image.png",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(resolveCanvasDroppedMediaReference).toHaveBeenCalledWith({
+        url: "https://example.com/external-image.png",
+        mimeType: "image/*",
+      });
+    });
+    expect(await screen.findByAltText("External media")).toBeInTheDocument();
+  });
+
+  it("renders dropped external videos as canvas video items", async () => {
+    const resolveCanvasDroppedMediaReference = vi.fn(async (payload) => ({
+      kind: "video" as const,
+      outputId: "external-video-1",
+      mediaId: null,
+      videoUrl: payload.url,
+      posterUrl: "https://example.com/external-video-poster.webp",
+      title: "External video",
+      width: 1280,
+      height: 720,
+    })) satisfies ResolveCanvasDroppedMediaReference;
+
+    render(
+      <CanvasHarness resolveCanvasDroppedMediaReference={resolveCanvasDroppedMediaReference} />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/uri-list": "https://example.com/external-video.mp4",
+        "text/plain": "https://example.com/external-video.mp4",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const video = await screen.findByLabelText("External video");
+    expect(video).toHaveAttribute("src", "https://example.com/external-video.mp4");
+    expect(video).toHaveAttribute("poster", "https://example.com/external-video-poster.webp");
+    expect(screen.getByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "video");
   });
 
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {
@@ -311,6 +417,33 @@ describe("Canvas drop behavior", () => {
     expect(
       item.querySelector(".reference-card-audio-shell")?.getAttribute("style") ?? ""
     ).toContain("reference-audio-cover.webp");
+  });
+
+  it("creates a video item from an internal reference-grid drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "vid-1",
+        "text/reference-output-id": "vid-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "video");
+    expect(screen.getByLabelText("Reference video")).toHaveAttribute(
+      "src",
+      "https://example.com/reference-video.mp4"
+    );
+    expect(Number(item.getAttribute("data-width"))).toBe(275);
+    expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
   });
 
   it("measures viewport geometry only once for internal reference-grid drops", async () => {

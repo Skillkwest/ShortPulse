@@ -6,6 +6,8 @@ import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasT
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
+  CANVAS_IMAGE_ITEM_HEIGHT,
+  CANVAS_IMAGE_ITEM_WIDTH,
   CANVAS_TEXT_ITEM_MIN_HEIGHT,
 } from "../components/canvas/canvasGeometry";
 import type {
@@ -56,6 +58,22 @@ type CanvasSceneItemSnapshotV1 =
       companionArtStoragePath: string | null;
       durationMs: number | null;
       waveformPeaks: number[] | null;
+      width: number;
+      height: number;
+    }
+  | {
+      id: string;
+      kind: "video";
+      x: number;
+      y: number;
+      z: number;
+      selected: boolean;
+      outputId: string | null;
+      sourceSurface: ReferenceDragSourceSurface | null;
+      mediaId: string | null;
+      videoUrl: string;
+      posterUrl: string | null;
+      title: string | null;
       width: number;
       height: number;
     }
@@ -179,6 +197,11 @@ const isDurableCanvasMediaSource = (value: string): boolean => {
   return true;
 };
 
+const asDurableNullableCanvasMediaSource = (value: unknown): string | null => {
+  const normalized = asNullableString(value);
+  return normalized && isDurableCanvasMediaSource(normalized) ? normalized : null;
+};
+
 const sortCanvasItemsForCap = (items: CanvasSceneItem[]): CanvasSceneItem[] =>
   [...items].sort((left, right) => {
     if (left.z !== right.z) return left.z - right.z;
@@ -262,6 +285,43 @@ const sanitizeCanvasSceneItem = (
             ? Math.max(0, Math.round(value.durationMs))
             : null,
         waveformPeaks: sanitizeWaveformPeaks(value.waveformPeaks),
+        width,
+        height,
+      },
+      skippedNonDurableImage: false,
+    };
+  }
+
+  if (value.kind === "video") {
+    const videoUrl = asString(value.videoUrl, "").trim();
+    if (!isDurableCanvasMediaSource(videoUrl)) {
+      return {
+        item: null,
+        skippedNonDurableImage: true,
+      };
+    }
+    const width = Math.max(
+      1,
+      Math.round(asFiniteNumber(value.width, CANVAS_IMAGE_ITEM_WIDTH) * 100) / 100
+    );
+    const height = Math.max(
+      1,
+      Math.round(asFiniteNumber(value.height, CANVAS_IMAGE_ITEM_HEIGHT) * 100) / 100
+    );
+    return {
+      item: {
+        id: value.id,
+        kind: "video",
+        x: Math.round(asFiniteNumber(value.x, 0) * 100) / 100,
+        y: Math.round(asFiniteNumber(value.y, 0) * 100) / 100,
+        z: Math.trunc(asFiniteNumber(value.z, 0)),
+        selected: Boolean(value.selected),
+        outputId: asNullableString(value.outputId),
+        sourceSurface: normalizeSourceSurface(value.sourceSurface),
+        mediaId: asNullableString(value.mediaId),
+        videoUrl,
+        posterUrl: asDurableNullableCanvasMediaSource(value.posterUrl),
+        title: asNullableString(value.title),
         width,
         height,
       },
@@ -354,19 +414,36 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
             width: item.width,
             height: item.height,
           }
-        : {
-            id: item.id,
-            kind: "text",
-            x: item.x,
-            y: item.y,
-            z: item.z,
-            selected: item.selected,
-            outputId: item.outputId,
-            sourceSurface: item.sourceSurface ?? null,
-            text: item.text,
-            width: item.width,
-            height: item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
-          }
+        : item.kind === "video"
+          ? {
+              id: item.id,
+              kind: "video",
+              x: item.x,
+              y: item.y,
+              z: item.z,
+              selected: item.selected,
+              outputId: item.outputId,
+              sourceSurface: item.sourceSurface ?? null,
+              mediaId: item.mediaId,
+              videoUrl: item.videoUrl,
+              posterUrl: item.posterUrl ?? null,
+              title: item.title ?? null,
+              width: item.width,
+              height: item.height,
+            }
+          : {
+              id: item.id,
+              kind: "text",
+              x: item.x,
+              y: item.y,
+              z: item.z,
+              selected: item.selected,
+              outputId: item.outputId,
+              sourceSurface: item.sourceSurface ?? null,
+              text: item.text,
+              width: item.width,
+              height: item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
+            }
   );
 
 /**
@@ -472,6 +549,33 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         height: Math.max(
           1,
           Math.round(asFiniteNumber(record.height, CANVAS_AUDIO_ITEM_HEIGHT) * 100) / 100
+        ),
+      });
+      return;
+    }
+    if (kind === "video") {
+      const videoUrl = asString(record.videoUrl, "").trim();
+      if (!isDurableCanvasMediaSource(videoUrl)) return;
+      parsed.push({
+        id,
+        kind: "video",
+        x: Math.round(asFiniteNumber(record.x, 0) * 100) / 100,
+        y: Math.round(asFiniteNumber(record.y, 0) * 100) / 100,
+        z: Math.trunc(asFiniteNumber(record.z, 0)),
+        selected: asBoolean(record.selected),
+        outputId: asNullableString(record.outputId),
+        sourceSurface: normalizeSourceSurface(record.sourceSurface),
+        mediaId: asNullableString(record.mediaId),
+        videoUrl,
+        posterUrl: asDurableNullableCanvasMediaSource(record.posterUrl),
+        title: asNullableString(record.title),
+        width: Math.max(
+          1,
+          Math.round(asFiniteNumber(record.width, CANVAS_IMAGE_ITEM_WIDTH) * 100) / 100
+        ),
+        height: Math.max(
+          1,
+          Math.round(asFiniteNumber(record.height, CANVAS_IMAGE_ITEM_HEIGHT) * 100) / 100
         ),
       });
       return;

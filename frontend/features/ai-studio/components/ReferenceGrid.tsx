@@ -94,6 +94,7 @@ function ReferenceGridComponent({
   onAddDroppedFilesToQuickSlot,
   onAddLibraryMediaReferenceToQuickSlot,
   onAddLibraryPromptReferenceToQuickSlot,
+  onAddPastedMediaReferenceToQuickSlot,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   railCanvasProps,
@@ -442,6 +443,7 @@ function ReferenceGridComponent({
     onAddDroppedFilesToQuickSlot,
     onAddLibraryMediaReferenceToQuickSlot,
     onAddLibraryPromptReferenceToQuickSlot,
+    onAddPastedMediaReferenceToQuickSlot,
   });
 
   const { handleAllRefsScroll, handleCuratedScroll } = useReferenceGridScrollController({

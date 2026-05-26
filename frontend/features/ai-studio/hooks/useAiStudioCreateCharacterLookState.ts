@@ -76,9 +76,16 @@ export const useAiStudioCreateCharacterLookState = ({
       return;
     }
     if (createCharacterLookOptionsByCharacterId[normalizedCharacterId]) return;
-    void loadCreateCharacterLookOptions(normalizedCharacterId).catch(() => {
-      // Best-effort cache warm-up so selected look labels survive reload/restore.
+    let cancelled = false;
+    globalThis.queueMicrotask(() => {
+      if (cancelled) return;
+      void loadCreateCharacterLookOptions(normalizedCharacterId).catch(() => {
+        // Best-effort cache warm-up so selected look labels survive reload/restore.
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [
     createCharacterLookOptionsByCharacterId,
     createSelectedCharacterId,

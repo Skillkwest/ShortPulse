@@ -668,7 +668,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/nano-banana-2");
   });
 
-  it("restores workflow-local aspects across create, edit, and video workflow switches", async () => {
+  it("keeps aspect synchronized across create, edit, and video workflow switches on non-project routes", async () => {
     window.sessionStorage.clear();
     const { result } = renderHook(() => useHarness("create"));
 
@@ -682,14 +682,14 @@ describe("useAiStudioWorkflowSettings", () => {
     });
 
     await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
-    expect(result.current.aspect).toBe("9:16");
+    expect(result.current.aspect).toBe("16:9");
 
     act(() => {
       result.current.setSelectedTool("video");
     });
 
     await waitFor(() => expect(result.current.selectedTool).toBe("video"));
-    expect(result.current.aspect).toBe("9:16");
+    expect(result.current.aspect).toBe("16:9");
 
     act(() => {
       result.current.setSelectedTool("create");

@@ -44,6 +44,34 @@ export type DetailModalContext = {
   } | null;
 };
 
+const buildUniquePreviewCandidates = (urls: Array<string | null | undefined>): string[] => {
+  const uniqueUrls = new Set<string>();
+  urls.forEach((url) => {
+    const trimmed = url?.trim();
+    if (!trimmed) return;
+    uniqueUrls.add(trimmed);
+  });
+  return Array.from(uniqueUrls);
+};
+
+const resolveNextPreviewCandidateUrl = ({
+  currentUrl,
+  previewCandidates,
+  rejectedUrls,
+}: {
+  currentUrl: string | null;
+  previewCandidates: string[];
+  rejectedUrls: string[];
+}): string | null => {
+  const rejectedUrlSet = new Set(rejectedUrls);
+  return (
+    previewCandidates.find((candidateUrl) => {
+      if (candidateUrl === currentUrl) return false;
+      return !rejectedUrlSet.has(candidateUrl);
+    }) ?? null
+  );
+};
+
 /**
  * Renders the detail modal for a selected reference.
  */
@@ -124,10 +152,12 @@ function DetailModalContent({
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
+    url: string;
     ratio: number;
   } | null>(null);
   const [loadedImageNaturalSize, setLoadedImageNaturalSize] = useState<{
     outputId: string;
+    url: string;
     width: number;
     height: number;
   } | null>(null);
@@ -144,9 +174,10 @@ function DetailModalContent({
     outputId: string;
     value: boolean;
   } | null>(null);
-  const [previewCandidateByOutput, setPreviewCandidateByOutput] = useState<{
+  const [previewSelectionByOutput, setPreviewSelectionByOutput] = useState<{
     outputId: string;
-    index: number;
+    currentUrl: string | null;
+    rejectedUrls: string[];
   } | null>(null);
   const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
     outputId: string;
@@ -203,31 +234,34 @@ function DetailModalContent({
     });
   }, [output, preferredDetailMediaUrl]);
   const previewCandidates = useMemo(() => {
-    const uniqueUrls = new Set<string>();
-    const maybeUrls = [
+    return buildUniquePreviewCandidates([
       preferredDetailMediaUrl,
       resolvedDetailMedia?.previewUrl ?? null,
       output?.previewUrl,
       ...(output?.resultUrls ?? []),
-    ];
-    maybeUrls.forEach((url) => {
-      const trimmed = url?.trim();
-      if (!trimmed) return;
-      uniqueUrls.add(trimmed);
-    });
-    return Array.from(uniqueUrls);
+    ]);
   }, [
     output?.previewUrl,
     output?.resultUrls,
     preferredDetailMediaUrl,
     resolvedDetailMedia?.previewUrl,
   ]);
-  const activePreviewCandidateIndex =
-    previewCandidateByOutput && outputId && previewCandidateByOutput.outputId === outputId
-      ? Math.min(previewCandidateByOutput.index, Math.max(0, previewCandidates.length - 1))
-      : 0;
-  const displayPreviewUrl =
-    previewCandidates.length > 0 ? (previewCandidates[activePreviewCandidateIndex] ?? null) : null;
+  const previewSelection =
+    previewSelectionByOutput && outputId && previewSelectionByOutput.outputId === outputId
+      ? previewSelectionByOutput
+      : null;
+  const displayPreviewUrl = useMemo(() => {
+    if (previewSelection?.currentUrl && previewCandidates.includes(previewSelection.currentUrl)) {
+      return previewSelection.currentUrl;
+    }
+    return (
+      resolveNextPreviewCandidateUrl({
+        currentUrl: null,
+        previewCandidates,
+        rejectedUrls: previewSelection?.rejectedUrls ?? [],
+      }) ?? null
+    );
+  }, [previewCandidates, previewSelection]);
   const isAudioOutput = Boolean(
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
@@ -367,7 +401,10 @@ function DetailModalContent({
       ? { aspectRatio: displayAspect.replace(":", " / ") }
       : undefined;
   const imageNaturalSize =
-    loadedImageNaturalSize && outputId && loadedImageNaturalSize.outputId === outputId
+    loadedImageNaturalSize &&
+    outputId &&
+    loadedImageNaturalSize.outputId === outputId &&
+    loadedImageNaturalSize.url === displayPreviewUrl
       ? loadedImageNaturalSize
       : null;
   const imageZoomScale =
@@ -384,7 +421,10 @@ function DetailModalContent({
       : false;
   const outputAspectRatio = parseAspectRatio(displayAspect);
   const previewAspectRatio =
-    loadedPreviewAspect && outputId && loadedPreviewAspect.outputId === outputId
+    loadedPreviewAspect &&
+    outputId &&
+    loadedPreviewAspect.outputId === outputId &&
+    loadedPreviewAspect.url === displayPreviewUrl
       ? loadedPreviewAspect.ratio
       : outputAspectRatio;
   const displayPromptText =
@@ -434,11 +474,21 @@ function DetailModalContent({
 
   const tryAdvancePreviewCandidate = useCallback(() => {
     if (!outputId) return false;
-    const nextIndex = activePreviewCandidateIndex + 1;
-    if (nextIndex >= previewCandidates.length) return false;
-    setPreviewCandidateByOutput({ outputId, index: nextIndex });
+    const currentUrl = previewSelection?.currentUrl ?? displayPreviewUrl;
+    const rejectedUrls = previewSelection?.rejectedUrls ?? [];
+    const nextUrl = resolveNextPreviewCandidateUrl({
+      currentUrl,
+      previewCandidates,
+      rejectedUrls,
+    });
+    if (!nextUrl) return false;
+    setPreviewSelectionByOutput({
+      outputId,
+      currentUrl: nextUrl,
+      rejectedUrls: currentUrl ? [...rejectedUrls, currentUrl] : rejectedUrls,
+    });
     return true;
-  }, [activePreviewCandidateIndex, outputId, previewCandidates.length]);
+  }, [displayPreviewUrl, outputId, previewCandidates, previewSelection]);
 
   const refreshCharacterAvatar = useCallback(async () => {
     if (!outputId || !characterId) return null;
@@ -603,7 +653,8 @@ function DetailModalContent({
     setImagePanByOutput(null);
     setImagePanningByOutput(null);
     setLoadedImageNaturalSize(null);
-    setPreviewCandidateByOutput(null);
+    setLoadedPreviewAspect(null);
+    setPreviewSelectionByOutput(null);
     imagePanDragRef.current = null;
     onClose();
   }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose]);
@@ -766,16 +817,16 @@ function DetailModalContent({
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {
-      if (!outputId) return;
+      if (!outputId || !displayPreviewUrl) return;
       if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
-      setLoadedPreviewAspect({ outputId, ratio: width / height });
+      setLoadedPreviewAspect({ outputId, url: displayPreviewUrl, ratio: width / height });
     },
-    [outputId]
+    [displayPreviewUrl, outputId]
   );
 
   const handleImageLoad = useCallback(
     (event: React.SyntheticEvent<HTMLImageElement>) => {
-      if (!outputId) return;
+      if (!outputId || !displayPreviewUrl) return;
       const { naturalWidth, naturalHeight } = event.currentTarget;
       if (
         outputAspectRatio &&
@@ -788,6 +839,7 @@ function DetailModalContent({
       handlePreviewAspectLoad(naturalWidth, naturalHeight);
       setLoadedImageNaturalSize({
         outputId,
+        url: displayPreviewUrl,
         width: naturalWidth,
         height: naturalHeight,
       });
@@ -798,6 +850,7 @@ function DetailModalContent({
     },
     [
       handlePreviewAspectLoad,
+      displayPreviewUrl,
       outputId,
       outputAspectRatio,
       previewCandidates.length,

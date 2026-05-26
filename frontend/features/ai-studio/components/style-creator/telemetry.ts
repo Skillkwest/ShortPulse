@@ -44,6 +44,11 @@ const normalizeResolutionReason = (value: string | null | undefined): string | u
   return normalized.slice(0, 64);
 };
 
+const normalizeResolutionStage = (
+  value: "primary" | "server_copy_fallback" | null | undefined
+): "primary" | "server_copy_fallback" | null =>
+  value === "primary" || value === "server_copy_fallback" ? value : null;
+
 const normalizeTransferTypes = (value: string[] | null | undefined): string[] | null => {
   if (!Array.isArray(value)) return null;
   const next = value
@@ -93,7 +98,7 @@ export const trackStyleExtractionOutcome = (
       failure_class: failureClass,
       error_class: failureClass,
       classifier_reason: normalizeClassifierReason(metadata?.classifierReason) ?? null,
-      resolution_stage: metadata?.resolutionStage === "primary" ? metadata.resolutionStage : null,
+      resolution_stage: normalizeResolutionStage(metadata?.resolutionStage),
       resolution_reason: normalizeResolutionReason(metadata?.resolutionReason) ?? null,
       candidate_count:
         typeof metadata?.candidateCount === "number" && Number.isFinite(metadata.candidateCount)
@@ -168,7 +173,7 @@ export const trackStyleSourceResolutionDiagnostic = (
       reference_render_url_kind: normalizeTelemetryValue(metadata.referenceRenderUrlKind, 80),
       image_url_kind: normalizeTelemetryValue(metadata.imageUrlKind, 80),
       plain_text_kind: normalizeTelemetryValue(metadata.plainTextKind, 80),
-      resolution_stage: metadata.resolutionStage === "primary" ? metadata.resolutionStage : null,
+      resolution_stage: normalizeResolutionStage(metadata.resolutionStage),
       resolution_reason: normalizeResolutionReason(metadata.resolutionReason) ?? null,
       candidate_count:
         typeof metadata.candidateCount === "number" && Number.isFinite(metadata.candidateCount)

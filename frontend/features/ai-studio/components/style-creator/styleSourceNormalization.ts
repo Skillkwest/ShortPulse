@@ -26,6 +26,9 @@ import {
 } from "../../utils/dragDrop";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
 
+const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
+const STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED =
+  process.env.NEXT_PUBLIC_AI_STUDIO_STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED !== "false";
 const IMAGE_FILENAME_TEXT_PATTERN =
   /(?:^|[\\/])[^\\/\n]+\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|tiff?)$/i;
 const CAMERA_FILENAME_STEM_PATTERN = /^(?:img|dsc|pxl|mvimg|screenshot)[-_ ]?\d[\w .:-]*$/i;
@@ -53,7 +56,7 @@ type StyleDropPreviewError = Error & {
   styleDropErrorCode?: StyleDropPreviewErrorCode;
   styleDropClassifierReason?: StyleDropPreviewClassifierReason;
   styleDropResolutionReason?: string | null;
-  styleDropResolutionStage?: "primary";
+  styleDropResolutionStage?: "primary" | "server_copy_fallback";
   styleDropCandidateCount?: number;
 };
 
@@ -63,7 +66,7 @@ export type ResolvedStyleSource = {
   promptText: string;
   internalPayloadPresent: boolean;
   resolutionReason: string | null;
-  resolutionStage: "primary";
+  resolutionStage: "primary" | "server_copy_fallback";
   candidateCount: number;
 };
 
@@ -72,6 +75,7 @@ const createStyleDropPreviewError = (
   classifierReason: StyleDropPreviewClassifierReason,
   context?: {
     resolutionReason?: string | null;
+    resolutionStage?: "primary" | "server_copy_fallback";
     candidateCount?: number;
   }
 ): StyleDropPreviewError => {
@@ -79,7 +83,7 @@ const createStyleDropPreviewError = (
   error.styleDropErrorCode = code;
   error.styleDropClassifierReason = classifierReason;
   error.styleDropResolutionReason = context?.resolutionReason ?? null;
-  error.styleDropResolutionStage = "primary";
+  error.styleDropResolutionStage = context?.resolutionStage ?? "primary";
   error.styleDropCandidateCount = context?.candidateCount ?? 0;
   return error;
 };
@@ -98,10 +102,12 @@ export const getStyleDropPreviewResolutionReason = (error: unknown): string | nu
   return typeof reason === "string" && reason.trim() ? reason.trim() : null;
 };
 
-export const getStyleDropPreviewResolutionStage = (error: unknown): "primary" | null => {
+export const getStyleDropPreviewResolutionStage = (
+  error: unknown
+): "primary" | "server_copy_fallback" | null => {
   if (!error || typeof error !== "object") return null;
   const stage = (error as StyleDropPreviewError).styleDropResolutionStage;
-  return stage === "primary" ? stage : null;
+  return stage === "primary" || stage === "server_copy_fallback" ? stage : null;
 };
 
 export const getStyleDropPreviewCandidateCount = (error: unknown): number | null => {
@@ -164,6 +170,29 @@ const dedupeStyleSourceUrls = (values: Array<string | null | undefined>): string
     next.push(normalized);
   });
   return next;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const asOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const resolveServerCopyDeliveryUrl = (payload: unknown): string | null => {
+  const record = asRecord(payload);
+  const delivery = asRecord(record.delivery);
+  return (
+    normalizeReferenceTransferUrlCandidate(asOptionalString(delivery.previewUrl), {
+      unwrapNextImage: false,
+    }) ??
+    normalizeReferenceTransferUrlCandidate(asOptionalString(delivery.fullUrl), {
+      unwrapNextImage: false,
+    }) ??
+    null
+  );
 };
 
 const isSameOriginUrl = (value: string): boolean => {
@@ -240,6 +269,151 @@ const buildInternalPayloadFromComposerDropPayload = (
     ...(typeof composerPayload.width === "number" ? { width: composerPayload.width } : {}),
     ...(typeof composerPayload.height === "number" ? { height: composerPayload.height } : {}),
   };
+};
+
+const hasSnapshotReferenceImageHints = (snapshot: StyleDropSnapshot): boolean => {
+  const normalizedTransferTypes = snapshot.transferTypes.map((type) => type.trim().toLowerCase());
+  const normalizedImageUrl = normalizeReferenceTransferUrlCandidate(snapshot.imageUrl, {
+    unwrapNextImage: false,
+  });
+  const normalizedReferenceUrl = normalizeReferenceTransferUrlCandidate(snapshot.referenceUrl, {
+    unwrapNextImage: false,
+  });
+  const normalizedRenderUrl = normalizeReferenceTransferUrlCandidate(snapshot.referenceRenderUrl, {
+    unwrapNextImage: false,
+  });
+  const normalizedUriUrl = normalizeReferenceTransferUrlCandidate(
+    getFirstUriListValue(snapshot.uriList),
+    {
+      unwrapNextImage: false,
+    }
+  );
+  const normalizedPlainTextUrl = URLISH_TEXT_PATTERN.test(snapshot.plainText.trim())
+    ? normalizeReferenceTransferUrlCandidate(snapshot.plainText.trim(), { unwrapNextImage: false })
+    : null;
+  const hasReferenceTransferTypeHints = normalizedTransferTypes.some(
+    (type) =>
+      type === "application/x-shortpulse-internal-reference" ||
+      type === "text/x-shortpulse-internal-reference" ||
+      type === "application/x-shortpulse-composer-image-drop" ||
+      type === "text/x-shortpulse-composer-image-drop" ||
+      type === "application/x-shortpulse-composer-image-drop-payload" ||
+      type === "text/x-shortpulse-composer-image-drop-payload" ||
+      type === "text/reference-origin" ||
+      type === "text/reference-id" ||
+      type === "text/reference-output-id" ||
+      type === "text/reference-media-id" ||
+      type === "text/reference-preview-storage-path" ||
+      type === "text/reference-full-storage-path" ||
+      type === "text/reference-source-surface" ||
+      type === "text/reference-url" ||
+      type === "text/reference-render-url" ||
+      type === "image/url"
+  );
+
+  return Boolean(
+    hasReferenceTransferTypeHints ||
+    snapshot.internalReferenceDragToken.trim() ||
+    snapshot.composerImageDropToken.trim() ||
+    snapshot.composerImageDropPayload.trim() ||
+    snapshot.referenceOrigin.trim() ||
+    snapshot.referenceId.trim() ||
+    snapshot.referenceOutputId.trim() ||
+    snapshot.referenceMediaId.trim() ||
+    snapshot.referencePreviewStoragePath.trim() ||
+    snapshot.referenceFullStoragePath.trim() ||
+    snapshot.referenceSourceSurface.trim() ||
+    normalizedImageUrl ||
+    normalizedReferenceUrl ||
+    normalizedRenderUrl ||
+    normalizedUriUrl ||
+    normalizedPlainTextUrl
+  );
+};
+
+const isServerCopyCandidateUrl = (value: string): boolean => /^(?:https?:\/\/|\/)/i.test(value);
+
+const collectInternalServerCopySourceUrls = (candidateUrls: readonly string[]): string[] => {
+  const next: string[] = [];
+  for (const candidate of candidateUrls) {
+    const normalized = candidate.trim();
+    if (!normalized || !isServerCopyCandidateUrl(normalized)) continue;
+    if (!next.includes(normalized)) next.push(normalized);
+  }
+  return next;
+};
+
+const collectSnapshotServerCopySourceUrls = ({
+  snapshot,
+  internalDropPayload,
+  dragPayloadImageUrl,
+  composerPayloadImageUrl,
+  composerPayloadReferenceUrl,
+}: {
+  snapshot: StyleDropSnapshot;
+  internalDropPayload: InternalReferenceDragPayload | null;
+  dragPayloadImageUrl?: string | null;
+  composerPayloadImageUrl?: string | null;
+  composerPayloadReferenceUrl?: string | null;
+}): string[] =>
+  collectInternalServerCopySourceUrls(
+    dedupeStyleSourceUrls([
+      composerPayloadImageUrl,
+      snapshot.referenceRenderUrl,
+      snapshot.imageUrl,
+      composerPayloadReferenceUrl,
+      snapshot.referenceUrl,
+      getFirstUriListValue(snapshot.uriList),
+      dragPayloadImageUrl,
+      internalDropPayload?.referenceRenderUrl,
+      internalDropPayload?.referenceUrl,
+    ])
+  );
+
+const resolveFallbackImageUrlViaServerCopy = async ({
+  sourceUrl,
+  payload,
+  internalSource,
+  promptText,
+  classifierReason,
+}: {
+  sourceUrl: string;
+  payload: InternalReferenceDragPayload;
+  internalSource: ResolvedInternalStyleSource | null;
+  promptText: string;
+  classifierReason: StyleDropPreviewClassifierReason;
+}): Promise<string | null> => {
+  const generationId = internalSource?.generationId?.trim() ?? "";
+  if (!generationId) return null;
+  const response = await fetchWithAuth(SERVER_COPY_ROUTE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: sourceUrl,
+      mode: "image",
+      source: "ai_studio",
+      fileTypeHint: "image",
+      generationId,
+      index: Math.max(0, Math.floor(payload.imageIndex ?? 0)),
+      previewStoragePathHint: internalSource?.previewStoragePath ?? null,
+      fullStoragePathHint: internalSource?.fullStoragePath ?? null,
+      previewUrlHint: internalSource?.preview.url ?? null,
+      fullUrlHint: internalSource?.preview.url ?? null,
+      promptText,
+      metadata: {
+        style_drop_server_copy_fallback: true,
+        style_drop_classifier_reason: classifierReason,
+        style_drop_output_id:
+          internalSource?.outputId ?? payload.outputId ?? payload.referenceId ?? null,
+        style_drop_media_id: internalSource?.mediaId ?? payload.mediaId ?? null,
+      },
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseSkipErrorLogging: true,
+  });
+  const routePayload = await response.json().catch(() => null);
+  if (!response.ok) return null;
+  return resolveServerCopyDeliveryUrl(routePayload);
 };
 
 const collectSnapshotImageUrlCandidates = ({
@@ -326,8 +500,17 @@ export const resolveStyleSource = async ({
     throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
   }
 
-  const droppedImageFile =
-    snapshot.files.find((candidate) => isImageFileCandidate(candidate)) ?? null;
+  const transferLikeSnapshot = buildStyleDropSnapshotTransfer(snapshot);
+  const composerDropPayload = extractComposerImageDropPayload(transferLikeSnapshot);
+  const internalDropPayload =
+    extractInternalReferenceDragPayload(transferLikeSnapshot) ??
+    buildInternalPayloadFromComposerDropPayload(composerDropPayload);
+  const hasStructuredReferenceDrop = Boolean(internalDropPayload || composerDropPayload);
+  const hasReferenceImageHints =
+    hasStructuredReferenceDrop || hasSnapshotReferenceImageHints(snapshot);
+  const droppedImageFile = !hasReferenceImageHints
+    ? (snapshot.files.find((candidate) => isImageFileCandidate(candidate)) ?? null)
+    : null;
   if (droppedImageFile) {
     return {
       kind: "file",
@@ -339,12 +522,6 @@ export const resolveStyleSource = async ({
       candidateCount: 0,
     };
   }
-
-  const transferLikeSnapshot = buildStyleDropSnapshotTransfer(snapshot);
-  const composerDropPayload = extractComposerImageDropPayload(transferLikeSnapshot);
-  const internalDropPayload =
-    extractInternalReferenceDragPayload(transferLikeSnapshot) ??
-    buildInternalPayloadFromComposerDropPayload(composerDropPayload);
   const internalSource =
     internalDropPayload && resolveInternalStyleDrop
       ? await resolveInternalStyleDrop(internalDropPayload).catch(() => null)
@@ -354,6 +531,7 @@ export const resolveStyleSource = async ({
     dragPayload.promptText || composerDropPayload?.promptText || internalSource?.promptText || ""
   );
   let internalResolutionError: StyleDropPreviewError | null = null;
+  let resolutionStage: "primary" | "server_copy_fallback" = "primary";
 
   if (internalSource) {
     try {
@@ -373,6 +551,7 @@ export const resolveStyleSource = async ({
         normalized.classifierReason,
         {
           resolutionReason: internalSource.provenance.resolutionReason,
+          resolutionStage,
           candidateCount: 1,
         }
       );
@@ -383,6 +562,7 @@ export const resolveStyleSource = async ({
       "internal_source_unresolved",
       {
         resolutionReason: "internal_source_unresolved",
+        resolutionStage,
         candidateCount: 0,
       }
     );
@@ -394,11 +574,20 @@ export const resolveStyleSource = async ({
     composerPayloadImageUrl: composerDropPayload?.displayArtifactUrl ?? null,
     composerPayloadReferenceUrl: composerDropPayload?.referenceUrl ?? null,
   });
-  if (!sourceUrls.length) {
-    if (internalResolutionError) {
-      throw internalResolutionError;
-    }
-    throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
+  const serverCopySourceUrls = collectSnapshotServerCopySourceUrls({
+    snapshot,
+    internalDropPayload,
+    dragPayloadImageUrl: dragPayload.imageUrl,
+    composerPayloadImageUrl: composerDropPayload?.displayArtifactUrl ?? null,
+    composerPayloadReferenceUrl: composerDropPayload?.referenceUrl ?? null,
+  });
+  const candidateCount = Math.max(sourceUrls.length, serverCopySourceUrls.length);
+  if (!sourceUrls.length && !serverCopySourceUrls.length) {
+    if (internalResolutionError) throw internalResolutionError;
+    throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload", {
+      resolutionStage,
+      candidateCount,
+    });
   }
 
   let lastError: unknown = null;
@@ -410,23 +599,78 @@ export const resolveStyleSource = async ({
         promptText,
         internalPayloadPresent: Boolean(internalDropPayload),
         resolutionReason: null,
-        resolutionStage: "primary",
-        candidateCount: sourceUrls.length,
+        resolutionStage,
+        candidateCount,
       };
     } catch (error) {
       lastError = error;
     }
   }
 
+  const normalizedLastError = normalizeStyleDropPreviewError(
+    lastError ??
+      internalResolutionError ??
+      createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload", {
+        resolutionStage,
+        candidateCount,
+      })
+  );
+  const shouldAttemptServerCopy =
+    Boolean(internalDropPayload) &&
+    Boolean(internalSource?.generationId?.trim()) &&
+    STYLE_DROP_SERVER_COPY_FALLBACK_ENABLED &&
+    serverCopySourceUrls.length > 0 &&
+    (normalizedLastError.code === BLOCKED_STYLE_IMAGE_SOURCE_ERROR ||
+      normalizedLastError.code === "missing-dropped-style-image");
+
+  if (shouldAttemptServerCopy && internalDropPayload) {
+    resolutionStage = "server_copy_fallback";
+    for (const sourceUrl of serverCopySourceUrls) {
+      const fallbackUrl = await resolveFallbackImageUrlViaServerCopy({
+        sourceUrl,
+        payload: internalDropPayload,
+        internalSource,
+        promptText,
+        classifierReason: normalizedLastError.classifierReason,
+      }).catch(() => null);
+      if (!fallbackUrl) continue;
+      try {
+        return {
+          kind: "internal",
+          sourceImageDataUrl: await readImageDataUrlFromUrl(fallbackUrl),
+          promptText,
+          internalPayloadPresent: true,
+          resolutionReason: "server_copy_delivery",
+          resolutionStage,
+          candidateCount,
+        };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
   if (lastError) {
     const normalized = normalizeStyleDropPreviewError(lastError);
     throw createStyleDropPreviewError(normalized.code, normalized.classifierReason, {
-      candidateCount: sourceUrls.length,
+      resolutionStage,
+      candidateCount,
     });
   }
 
   if (internalResolutionError) {
-    throw internalResolutionError;
+    throw createStyleDropPreviewError(
+      internalResolutionError.styleDropErrorCode ?? BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+      internalResolutionError.styleDropClassifierReason ?? "unknown",
+      {
+        resolutionReason: internalResolutionError.styleDropResolutionReason ?? null,
+        resolutionStage,
+        candidateCount,
+      }
+    );
   }
-  throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
+  throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload", {
+    resolutionStage,
+    candidateCount,
+  });
 };

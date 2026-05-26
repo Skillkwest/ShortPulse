@@ -100,6 +100,7 @@ export type ResolvedInternalReferenceSource = {
     resolutionReason: ReferenceSourceResolutionReason;
   };
   outputId: string | null;
+  generationId?: string | null;
   mediaId: string | null;
   mediaSource: StudioOutput["mediaSource"] | null;
   preview: {
@@ -729,6 +730,7 @@ export const resolveInternalReferenceSource = async ({
               : null),
     },
     outputId: resolvedOutputId || null,
+    generationId: asTrimmedString(resolvedOutput?.generationId),
     mediaId: resolvedMediaId || null,
     mediaSource: resolvedOutput?.mediaSource ?? null,
     preview: {

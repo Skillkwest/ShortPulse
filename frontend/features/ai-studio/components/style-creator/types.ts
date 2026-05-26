@@ -34,7 +34,7 @@ export type StyleExtractionTelemetryMetadata = {
   failureClass?: StyleExtractionFailureClass;
   errorMessage?: string;
   classifierReason?: string;
-  resolutionStage?: "primary" | null;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
   resolutionReason?: string | null;
   candidateCount?: number | null;
   attemptCount?: number | null;
@@ -75,7 +75,7 @@ export type StyleSourceResolutionDiagnosticMetadata = {
   referenceRenderUrlKind?: string | null;
   imageUrlKind?: string | null;
   plainTextKind?: string | null;
-  resolutionStage?: "primary" | null;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
   resolutionReason?: string | null;
   candidateCount?: number | null;
   errorMessage?: string;

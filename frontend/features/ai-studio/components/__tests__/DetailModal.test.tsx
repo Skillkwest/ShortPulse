@@ -707,6 +707,57 @@ describe("DetailModal", () => {
     });
   });
 
+  it("keeps the active fallback URL stable when same-output delivery candidates are reordered", async () => {
+    const initialOutput = {
+      ...baseOutput,
+      aspect: "5:4",
+      previewUrl: "https://cdn.test/wrong-portrait.png",
+      resultUrls: ["https://cdn.test/wrong-portrait.png", "https://cdn.test/correct-5x4.png"],
+    };
+    const { baseElement, rerender } = render(
+      <DetailModal
+        output={initialOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const firstImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(firstImage).not.toBeNull();
+    if (!firstImage) return;
+
+    Object.defineProperty(firstImage, "naturalWidth", { configurable: true, value: 800 });
+    Object.defineProperty(firstImage, "naturalHeight", { configurable: true, value: 1000 });
+    fireEvent.load(firstImage);
+
+    await waitFor(() => {
+      const nextImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+    });
+
+    rerender(
+      <DetailModal
+        output={{
+          ...initialOutput,
+          previewUrl: "https://cdn.test/new-transient-wrong.png",
+          resultUrls: [
+            "https://cdn.test/new-transient-wrong.png",
+            "https://cdn.test/wrong-portrait.png",
+            "https://cdn.test/correct-5x4.png",
+          ],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(stableImage).not.toBeNull();
+    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+  });
+
   it("uses full storage media URL for detail rendering when available", () => {
     const { baseElement } = render(
       <DetailModal

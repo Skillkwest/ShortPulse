@@ -2,6 +2,15 @@
  * Unit tests for the rebuilt Styles source-prep boundary.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { fetchWithAuthMock } = vi.hoisted(() => ({
+  fetchWithAuthMock: vi.fn(),
+}));
+
+vi.mock("../../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: fetchWithAuthMock,
+}));
+
 import {
   clearComposerImageDropSession,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
@@ -93,6 +102,7 @@ const installFileReaderMock = (result: string) => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  fetchWithAuthMock.mockReset();
   Object.defineProperty(globalThis, "Image", {
     configurable: true,
     writable: true,
@@ -239,6 +249,98 @@ describe("style-creator source normalization", () => {
       resolutionReason: "saved_media_lookup",
       resolutionStage: "primary",
       candidateCount: 1,
+    });
+  });
+
+  it("prefers structured internal reference drops over synthetic browser image files", async () => {
+    installFileReaderMock("data:image/png;base64,from-internal-authority");
+    const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
+      type: "image/png",
+    });
+    const transfer = {
+      files: [syntheticBrowserFile],
+      types: ["Files", "text/reference-output-id", "text/reference-origin"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-structured-1";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-structured-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-structured-1",
+        mediaId: "media-structured-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "saved_media_lookup",
+      },
+      outputId: "out-structured-1",
+      generationId: "gen-structured-1",
+      mediaId: "media-structured-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/structured-reference.png",
+      },
+      previewStoragePath: "user-1/generated/structured-preview.png",
+      fullStoragePath: "user-1/generated/structured-full.png",
+      promptText: "structured prompt",
+      loadBlob: async () => new Blob(["internal-authority-bytes"], { type: "image/png" }),
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    const resolved = await resolveStyleSource({
+      transfer,
+      resolveInternalStyleDrop: resolver,
+    });
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(resolved).toEqual({
+      kind: "internal",
+      sourceImageDataUrl: "data:image/png;base64,from-internal-authority",
+      promptText: "structured prompt",
+      internalPayloadPresent: true,
+      resolutionReason: "saved_media_lookup",
+      resolutionStage: "primary",
+      candidateCount: 1,
+    });
+  });
+
+  it("prefers degraded internal reference hints over synthetic browser image files", async () => {
+    installFileReaderMock("data:image/png;base64,from-degraded-hint");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["degraded-hint-bytes"], { type: "image/png" }),
+    } as Response);
+    const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
+      type: "image/png",
+    });
+    const transfer = {
+      files: [syntheticBrowserFile],
+      types: ["Files", "text/reference-render-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-render-url") {
+          return "https://cdn.example.com/degraded-reference.png";
+        }
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    const resolved = await resolveStyleSource({ transfer });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(resolved).toEqual({
+      kind: "external",
+      sourceImageDataUrl: "data:image/png;base64,from-degraded-hint",
+      promptText: "",
+      internalPayloadPresent: false,
+      resolutionReason: null,
+      resolutionStage: "primary",
+      candidateCount: 2,
     });
   });
 
@@ -541,6 +643,85 @@ describe("style-creator source normalization", () => {
       previewImageUrl: "data:image/jpeg;base64,512x512",
       extractionSourceImageUrl: "data:image/jpeg;base64,1024x768",
       promptText: "",
+    });
+  });
+
+  it("recovers blocked internal style drops through server-copy fallback", async () => {
+    installFileReaderMock("data:image/png;base64,from-server-copy");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        blob: async () => new Blob(["server-copy-bytes"], { type: "image/png" }),
+      } as Response);
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        delivery: {
+          previewUrl: "https://cdn.example.com/server-copy-delivery.png",
+        },
+      }),
+    } as Response);
+    const transfer = {
+      files: [],
+      types: ["text/reference-output-id", "text/reference-origin", "text/reference-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-server-copy-1";
+        if (type === "text/reference-url") return "https://cdn.example.com/blocked-reference.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-server-copy-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-server-copy-1",
+        mediaId: "media-server-copy-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path",
+      },
+      outputId: "out-server-copy-1",
+      generationId: "gen-server-copy-1",
+      mediaId: "media-server-copy-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/blocked-reference.png",
+      },
+      previewStoragePath: "user-1/generated/server-copy-preview.png",
+      fullStoragePath: "user-1/generated/server-copy-full.png",
+      promptText: "server copy prompt",
+      loadBlob: async () => {
+        throw new Error("blocked-style-image-source");
+      },
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    const resolved = await resolveStyleSource({
+      transfer,
+      resolveInternalStyleDrop: resolver,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(resolved).toEqual({
+      kind: "internal",
+      sourceImageDataUrl: "data:image/png;base64,from-server-copy",
+      promptText: "server copy prompt",
+      internalPayloadPresent: true,
+      resolutionReason: "server_copy_delivery",
+      resolutionStage: "server_copy_fallback",
+      candidateCount: 1,
     });
   });
 

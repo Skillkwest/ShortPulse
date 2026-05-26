@@ -287,6 +287,7 @@ export const useAiStudioInternalDropResolvers = ({
           resolutionReason: localObjectUrl ? "local_object_url" : "payload_reference_url",
         },
         outputId: outputId || null,
+        generationId: output.generationId?.trim() || null,
         mediaId,
         mediaSource: output.mediaSource ?? null,
         preview: {

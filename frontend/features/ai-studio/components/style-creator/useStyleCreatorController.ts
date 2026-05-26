@@ -205,7 +205,7 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
   flow: "create_modal" | "library_drop";
   outcome: "resolved" | "blocked_source";
   resolvedSourceKind?: "file" | "internal" | "external" | null;
-  resolutionStage?: "primary" | null;
+  resolutionStage?: "primary" | "server_copy_fallback" | null;
   resolutionReason?: string | null;
   candidateCount?: number | null;
   internalPayloadPresent?: boolean | null;

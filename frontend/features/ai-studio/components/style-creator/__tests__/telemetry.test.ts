@@ -121,4 +121,38 @@ describe("style-creator telemetry", () => {
       })
     );
   });
+
+  it("preserves server-copy fallback resolution stage in telemetry", () => {
+    trackStyleSourceResolutionDiagnostic({
+      flow: "library_drop",
+      outcome: "resolved",
+      resolvedSourceKind: "internal",
+      internalPayloadPresent: true,
+      internalDragTokenPresent: true,
+      rawSnapshotSeedCount: 2,
+      transferTypes: ["text/reference-output-id", "text/reference-url"],
+      referenceOrigin: "ai-studio-reference-grid",
+      referenceOutputId: "out-server-copy-1",
+      referenceMediaId: "media-server-copy-1",
+      referenceImageIndex: 0,
+      referenceSourceSurface: "all-refs",
+      referenceUrlKind: "remote_url",
+      referenceRenderUrlKind: "missing",
+      imageUrlKind: "missing",
+      plainTextKind: "missing",
+      resolutionStage: "server_copy_fallback",
+      resolutionReason: "server_copy_delivery",
+      candidateCount: 1,
+    });
+
+    expect(reportAppErrorMock).toHaveBeenCalledTimes(1);
+    const payload = reportAppErrorMock.mock.calls[0]?.[0];
+    expect(payload?.metadata).toEqual(
+      expect.objectContaining({
+        resolution_stage: "server_copy_fallback",
+        resolution_reason: "server_copy_delivery",
+        candidate_count: 1,
+      })
+    );
+  });
 });

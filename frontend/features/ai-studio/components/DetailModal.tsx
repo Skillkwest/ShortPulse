@@ -772,15 +772,7 @@ function DetailModalContent({
   const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
   const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
-  const normalizedFilename = uploadedHeaderFilename?.toLowerCase() ?? "";
-  const normalizedDraftPrompt = draftPrompt.trim().toLowerCase();
-  const isUploadedFilenamePrompt =
-    isUploadedReference &&
-    Boolean(normalizedFilename) &&
-    normalizedDraftPrompt === normalizedFilename;
-  const uploadedPromptLabel =
-    isUploadedReference && !isVideoOutput && !isAudioOutput ? "(Uploaded Image)" : null;
-  const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
+  const promptBladeValue = draftPrompt;
   const detailBladeLabel = generatedVoiceChangerTranscript ? "TRANSCRIPT" : "PROMPT";
   const detailBladeValue = generatedVoiceChangerTranscript ?? promptBladeValue;
   const displayModelLabel = useMemo(() => {

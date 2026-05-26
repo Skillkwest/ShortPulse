@@ -492,6 +492,29 @@ export const serializeAiStudioSessionCanvasState = (
   };
 };
 
+/**
+ * Strips transient editing state from canvas session state so project persistence
+ * keeps only durable board content and viewport cameras.
+ */
+export const createProjectDurableAiStudioSessionCanvasState = (
+  state: AiStudioSessionCanvasState | null | undefined
+): AiStudioSessionCanvasState | null => {
+  if (!state) return null;
+
+  return {
+    items: state.items.map((item) => ({
+      ...item,
+      selected: false,
+    })),
+    draftTextEntry: null,
+    textEditSession: null,
+    draftOwnerInstanceId: null,
+    textEditOwnerInstanceId: null,
+    mainCamera: asCamera(state.mainCamera),
+    railCamera: asCamera(state.railCamera),
+  };
+};
+
 const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
   if (!Array.isArray(value)) return [];
 

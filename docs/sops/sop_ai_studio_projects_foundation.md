@@ -16,7 +16,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 5. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
 6. The visible Media Library project title now reads from and writes to `projects.title`.
 7. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
-8. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes project-visible conversational runtime such as agent transcripts, Standard-lane draft agent input, unsent Create composer text, unsent Edit composer text, unsent Video composer text, unsent Sound workflow text drafts, chat-mode state, and split Standard runtime lanes. Authorized hidden Pulse parking may persist only through the dedicated Pulse lane when preset/session ownership is still valid, and it does not restore transcript history.
+8. Project workspace persistence now keeps only durable project content: active output media for the shared right rail, Quick Slot Inventory and Reference Grid projection ids, durable Canvas scene items and cameras, plus the separately owned project title and Media Library folder systems. Project routes do not persist workflow shell state, typed composer text, active output focus, shared reference-selection state, Character Mode shell state, conversational runtime, or Expert Edit document state.
 9. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state.
 10. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
 11. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
@@ -211,10 +211,10 @@ Behavior:
 
 1. When AI Studio is opened with `?projectId=<uuid>`, project routes read/write workspace snapshots through `GET|PUT /api/projects/:projectId/workspace`.
 2. The current workspace storage contract reuses the AI Studio session snapshot envelope as a temporary migration schema boundary, but project persistence sanitizes the project payload before write and ignores legacy conversational fields on restore.
-3. Unsent Standard Create composer drafts, unsent Edit composer drafts, unsent Video composer drafts, and unsent Sound workflow text drafts are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
+3. Unsent Standard Create composer drafts, unsent Edit composer drafts, unsent Video composer drafts, unsent Sound workflow text drafts, and other workflow-shell fields are not restored from project workspace state; they persist only inside the current browser session while the page stays loaded.
 4. Project routes do not use the legacy remote `sid` session snapshot API as their primary durable authority.
-5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage, but they still keep lightweight in-session workflow restore keyed to the active verified project so workflow tab switches do not leak settings across projects. Project reopen still resets conversational runtime instead of restoring it from project workspace state.
-6. Project workspace writes now reset the project shell back to the shipped Standard/Create baseline and do not preserve Pulse shell selection or Pulse session instance ids.
+5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage, and project reopen now fails closed to the shipped blank Create baseline instead of replaying workflow-shell state from the saved snapshot.
+6. Project workspace writes reset the project shell back to the shipped blank Create baseline and do not preserve Pulse shell selection, Pulse session instance ids, Character Mode shell state, or active output focus.
 7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
 8. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
 9. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.

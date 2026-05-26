@@ -103,6 +103,34 @@ const createBaseRequestBody = (
 const createPulseRequestBody = () =>
   createBaseRequestBody("ai-studio:session-runtime-test::pulse:story_builder:pulse-session-test");
 
+const createMixedStandardRequestBody = () => ({
+  ...createBaseRequestBody(),
+  context: {
+    modeHint: "reference",
+    focusedSource: "image",
+    references: [
+      {
+        id: "reference-image-1",
+        kind: "image",
+        caption: "Crown reference",
+      },
+      {
+        id: "reference-prompt-1",
+        kind: "prompt",
+        promptSnippet: "Describe the ring crown headdress.",
+      },
+    ],
+    media: [
+      {
+        id: "reference-image-1",
+        kind: "image",
+        url: "https://example.com/reference-image.png",
+        thumbnailAlt: "Reference image",
+      },
+    ],
+  },
+});
+
 const createPulseContext = () => ({
   pulse: {
     presetId: "story_builder",
@@ -205,7 +233,8 @@ describe("AI Studio Create agent runtime boundaries", () => {
         openAiModel: "gpt-standard",
         openAiVisionModel: "gpt-vision",
         turnTimeoutMs: 20000,
-        visionTimeoutMs: 45000,
+        visionTimeoutMs: 20000,
+        pulseTurnTimeoutMs: 45000,
       })
     ).toEqual({
       model: "gpt-vision",
@@ -220,6 +249,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         openAiVisionModel: "gpt-vision",
         turnTimeoutMs: 20000,
         visionTimeoutMs: 45000,
+        pulseTurnTimeoutMs: 45000,
       })
     ).toEqual({
       model: "gpt-standard",
@@ -371,10 +401,11 @@ describe("AI Studio Create agent runtime boundaries", () => {
   });
 
   it("records the Standard trace id in exception logs for upstream aborts", async () => {
+    process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS = String(45000);
     (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
       new DOMException("aborted", "AbortError")
     );
-    const req = { method: "POST", body: createBaseRequestBody() };
+    const req = { method: "POST", body: createMixedStandardRequestBody() };
     const res = createMockResponse();
 
     await standardStudioAgentHandler(req as never, res as never);
@@ -386,6 +417,27 @@ describe("AI Studio Create agent runtime boundaries", () => {
           trace_id: expect.any(String),
           conversation_id: "session-runtime-test",
           stage: "standard_openai",
+          flow: "MIXED",
+          execution_model: expect.any(String),
+          execution_image_detail: "auto",
+          effective_timeout_ms: 45000,
+          configured_turn_timeout_ms: 20000,
+          configured_vision_timeout_ms: 20000,
+          configured_pulse_turn_timeout_ms: 45000,
+          message_count: 1,
+          reference_count: 2,
+          image_reference_count: 1,
+          prompt_reference_count: 1,
+          media_count: 1,
+          image_media_count: 1,
+          mode_hint: "reference",
+          focused_source: "image",
+          stage_latency_ms: expect.objectContaining({
+            auth_verification: expect.any(Number),
+            request_envelope: expect.any(Number),
+            runtime_prompt_resolution: expect.any(Number),
+            standard_openai_roundtrip: expect.any(Number),
+          }),
         }),
       })
     );

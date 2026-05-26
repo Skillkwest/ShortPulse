@@ -137,12 +137,14 @@ export const resolveStandardOpenAiExecutionProfile = ({
   openAiVisionModel,
   turnTimeoutMs,
   visionTimeoutMs,
+  pulseTurnTimeoutMs,
 }: {
   flow: "TEXT_ONLY" | "MIXED";
   openAiModel: string;
   openAiVisionModel: string;
   turnTimeoutMs: number;
   visionTimeoutMs: number;
+  pulseTurnTimeoutMs: number;
 }): {
   model: string;
   timeoutMs: number;
@@ -151,7 +153,7 @@ export const resolveStandardOpenAiExecutionProfile = ({
   if (flow === "MIXED") {
     return {
       model: openAiVisionModel,
-      timeoutMs: Math.max(turnTimeoutMs, visionTimeoutMs),
+      timeoutMs: Math.max(turnTimeoutMs, visionTimeoutMs, pulseTurnTimeoutMs),
       imageDetail: "auto",
     };
   }
@@ -160,6 +162,22 @@ export const resolveStandardOpenAiExecutionProfile = ({
     model: openAiModel,
     timeoutMs: turnTimeoutMs,
     imageDetail: "high",
+  };
+};
+
+const summarizeStandardContextForExceptionLog = (context: AgentContext) => {
+  const references = Array.isArray(context.references) ? context.references : [];
+  const media = Array.isArray(context.media) ? context.media : [];
+  return {
+    reference_count: references.length,
+    image_reference_count: references.filter(
+      (reference) => reference.kind === "image" || reference.kind === "video"
+    ).length,
+    prompt_reference_count: references.filter((reference) => reference.kind === "prompt").length,
+    media_count: media.length,
+    image_media_count: media.filter((item) => item.kind === "image").length,
+    mode_hint: context.modeHint ?? null,
+    focused_source: context.focusedSource ?? null,
   };
 };
 
@@ -359,6 +377,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     openAiVisionModel: openAiConfig.openAiVisionModel,
     turnTimeoutMs: openAiConfig.turnTimeoutMs,
     visionTimeoutMs: openAiConfig.visionTimeoutMs,
+    pulseTurnTimeoutMs: openAiConfig.pulseTurnTimeoutMs,
   });
   const standardModel = executionProfile.model;
   const openAiRoundTripStartedAt = Date.now();
@@ -488,6 +507,16 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         user_id: user.id,
         conversation_id: normalizedConversationId,
         stage: "standard_openai",
+        flow,
+        execution_model: standardModel,
+        execution_image_detail: executionProfile.imageDetail,
+        effective_timeout_ms: executionProfile.timeoutMs,
+        configured_turn_timeout_ms: openAiConfig.turnTimeoutMs,
+        configured_vision_timeout_ms: openAiConfig.visionTimeoutMs,
+        configured_pulse_turn_timeout_ms: openAiConfig.pulseTurnTimeoutMs,
+        message_count: messages.length,
+        stage_latency_ms: stageLatencyMs,
+        ...summarizeStandardContextForExceptionLog(context),
       },
     });
     const detail = formatStudioAgentErrorMessage(error);

@@ -1,10 +1,12 @@
 import { StudioOutput } from "../types";
+import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { canExposeDirectReferenceUrls, hasSavedMediaIds } from "../logic/referenceOutputAuthority";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -821,7 +823,7 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   };
 };
 
-const extractPromptText = (transfer: DataTransfer) => {
+export const extractPromptText = (transfer: DataTransfer) => {
   const promptText = transfer.getData("text/prompt") || transfer.getData("text/plain");
   if (!promptText) return null;
   const normalizedPromptUrl = normalizeReferenceTransferUrlCandidate(promptText);
@@ -834,6 +836,49 @@ const extractPromptText = (transfer: DataTransfer) => {
     return null;
   }
   return promptText.trim();
+};
+
+export const extractPromptDropText = (transfer: DataTransfer): string | null => {
+  const promptText = extractPromptText(transfer);
+  if (!promptText) return null;
+
+  if (extractComposerImageDropPayload(transfer)) return null;
+
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+  if (mediaLibraryPayload?.kind === "libraryMedia") return null;
+
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const mediaKind =
+    internalPayload?.mediaKind ??
+    parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
+  if (mediaKind && mediaKind !== "text") return null;
+
+  const referenceCandidates = [
+    transfer.getData("text/reference-url"),
+    transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+    transfer.getData("image/url"),
+    getFirstUriListValue(transfer.getData("text/uri-list")),
+  ];
+  const hasExplicitMediaUrlHint = referenceCandidates.some((candidate) => {
+    const normalized = normalizeReferenceTransferUrlCandidate(candidate, {
+      unwrapNextImage: false,
+    });
+    return Boolean(
+      normalized &&
+      (looksLikeImageUrl(normalized) ||
+        looksLikeVideoUrl(normalized) ||
+        looksLikeAudioUrl(normalized))
+    );
+  });
+  if (hasExplicitMediaUrlHint) return null;
+
+  const hasExplicitPromptType = Array.from(transfer.types ?? []).some(
+    (type) => type.trim().toLowerCase() === "text/prompt"
+  );
+  const hasDroppedFiles = (transfer.files?.length ?? 0) > 0;
+  if (hasDroppedFiles && !hasExplicitPromptType) return null;
+
+  return promptText;
 };
 
 export const isImageDragTransfer = (transfer: DataTransfer) => {

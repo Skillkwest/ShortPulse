@@ -451,6 +451,20 @@
   opacity: 0.74;
 }
 
+.agent-message-prompt-drag-surface {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.agent-message-prompt-drag-surface.is-draggable {
+  cursor: grab;
+}
+
+.agent-message-prompt-drag-surface.is-draggable:active {
+  cursor: grabbing;
+}
+
 .agent-message-drag-ghost {
   margin: 0;
   padding: 12px 14px;
@@ -563,6 +577,14 @@
 
 .agent-message.agent-assistant.is-draggable:hover {
   transform: none;
+}
+
+.agent-message.agent-assistant.agent-message--prompt-output[draggable="false"] {
+  cursor: default;
+}
+
+.agent-message.agent-assistant.agent-message--prompt-output[draggable="false"]:active {
+  cursor: default;
 }
 
 .agent-message.agent-assistant.agent-message--pulse-guided {

@@ -42,13 +42,17 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 const StrictModeWrapper = ({ children }: { children: ReactNode }) =>
   createElement(StrictMode, null, children);
 
+const defaultSetUiError = asDispatch<string | null>(vi.fn());
+const defaultSetCharacterModeInjectionBundle = asDispatch(vi.fn());
+const defaultSetIsCharacterBundleLoading = asDispatch<boolean>(vi.fn());
+
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioCharacterModeLifecycle>[0]> = {}
 ): Parameters<typeof useAiStudioCharacterModeLifecycle>[0] => ({
   selectedTool: null,
-  setUiError: asDispatch<string | null>(vi.fn()),
-  setCharacterModeInjectionBundle: asDispatch(vi.fn()),
-  setIsCharacterBundleLoading: asDispatch<boolean>(vi.fn()),
+  setUiError: defaultSetUiError,
+  setCharacterModeInjectionBundle: defaultSetCharacterModeInjectionBundle,
+  setIsCharacterBundleLoading: defaultSetIsCharacterBundleLoading,
   ...overrides,
 });
 
@@ -146,6 +150,20 @@ const createCharacterListItem = (
   updatedAt: "2026-03-13T00:00:00.000Z",
   ...overrides,
 });
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+};
 
 describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
@@ -703,7 +721,13 @@ describe("useAiStudioCharacterModeLifecycle", () => {
         profileImageUrl: null,
       },
     ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
-    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          selectedTool: "create",
+        })
+      )
+    );
     await waitFor(() => {
       expect(result.current.characterOptions[0]?.id).toBe("char-1");
     });
@@ -756,6 +780,113 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
     await waitFor(() => {
       expect(result.current.characterOptions).toHaveLength(2);
+    });
+  });
+
+  it("coalesces overlapping imperative refresh requests into one catch-up refresh", async () => {
+    const initialRows: Awaited<ReturnType<typeof listCharacterManagerCharacters>> = [
+      createCharacterListItem(),
+    ];
+    const refreshedRows: Awaited<ReturnType<typeof listCharacterManagerCharacters>> = [
+      createCharacterListItem(),
+      createCharacterListItem({
+        characterId: "char-2",
+        characterName: "Ayla",
+        characterSheetId: "sheet-2",
+      }),
+    ];
+    const inFlightRefresh =
+      createDeferred<Awaited<ReturnType<typeof listCharacterManagerCharacters>>>();
+    let callCount = 0;
+    listCharacterManagerCharactersMock.mockImplementation(async () => {
+      callCount += 1;
+      if (callCount === 1) return initialRows;
+      if (callCount === 2) return inFlightRefresh.promise;
+      return refreshedRows;
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          selectedTool: "create" as ToolId,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.characterOptions.map((item) => item.id)).toEqual(["char-1"]);
+    });
+
+    act(() => {
+      void result.current.refreshCharacterOptions();
+      void result.current.refreshCharacterOptions();
+    });
+
+    expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      inFlightRefresh.resolve(initialRows);
+    });
+
+    await waitFor(() => {
+      expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(3);
+      expect(result.current.characterOptions.map((item) => item.id)).toEqual(["char-1", "char-2"]);
+    });
+  });
+
+  it("clears the selected character and bundle when a refresh removes the active character", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
+    const setIsCharacterBundleLoading = vi.fn();
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([createCharacterListItem()] as Awaited<
+      ReturnType<typeof listCharacterManagerCharacters>
+    >);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithLookReferences()
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          setCharacterModeInjectionBundle: asDispatch(setCharacterModeInjectionBundle),
+          setIsCharacterBundleLoading: asDispatch<boolean>(setIsCharacterBundleLoading),
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setSelectedCharacterId("char-1");
+    });
+
+    await waitFor(() => {
+      expect(setCharacterModeInjectionBundle).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          characterId: "char-1",
+        })
+      );
+    });
+
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([
+      createCharacterListItem({
+        characterId: "char-2",
+        characterName: "Ayla",
+        characterSheetId: "sheet-2",
+      }),
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+
+    act(() => {
+      publishCharacterListChanged({
+        userId: "user-1",
+        reason: "delete",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("");
+      expect(setCharacterModeInjectionBundle).toHaveBeenLastCalledWith(null);
     });
   });
 });

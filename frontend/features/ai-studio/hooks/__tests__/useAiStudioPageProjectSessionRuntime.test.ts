@@ -2,13 +2,16 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyAiStudioSessionSnapshot,
+  patchAiStudioSessionSnapshotCanvas,
+  patchAiStudioSessionSnapshotOutputs,
   patchAiStudioSessionSnapshotWorkspace,
   type AiStudioSessionSnapshot,
+  type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
+import { parseAiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
 import {
-  normalizeProjectRestoreSnapshotForCreateCharacterMode,
-  shouldRestoreCreateCharacterModeFromProjectSnapshot,
+  createProjectRestoreSnapshot,
   useAiStudioPageProjectSessionRuntime,
 } from "../useAiStudioPageProjectSessionRuntime";
 
@@ -22,7 +25,7 @@ vi.mock("../useAiStudioPageSessionPersistence", () => ({
 
 const createProjectSnapshot = (
   workspacePatch: Partial<AiStudioSessionSnapshot["workspace"]> = {}
-): AiStudioSessionSnapshot =>
+): AiStudioSessionSnapshotV2 =>
   patchAiStudioSessionSnapshotWorkspace(createEmptyAiStudioSessionSnapshot(), {
     mode: "image",
     selectedTool: "create",
@@ -71,32 +74,92 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     }));
   });
 
-  it("detects Character Mode project snapshots from Character Mode-only create models", () => {
-    const characterSnapshot = createProjectSnapshot({
-      model: "fal-ai/bytedance/seedream/v4.5/edit",
-      selectedCharacterId: "char-1",
-    });
-    const standardSnapshot = createProjectSnapshot({
-      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      selectedCharacterId: "char-1",
-    });
+  it("normalizes project restore snapshots to blank Create while keeping durable outputs and canvas", () => {
+    const snapshot = patchAiStudioSessionSnapshotCanvas(
+      patchAiStudioSessionSnapshotOutputs(
+        createProjectSnapshot({
+          model: "fal-ai/bytedance/seedream/v4.5/edit",
+          selectedCharacterId: "char-1",
+          selectedCharacterLookId: "look-1",
+          prompt: "A portrait",
+          standardPrompt: "A portrait",
+        }),
+        {
+          active: [
+            {
+              id: "out-1",
+              prompt: "Prompt",
+              mode: "image",
+              aspect: "1:1",
+              model: "model-1",
+              status: "ready",
+              timestamp: "Just now",
+              previewUrl: "https://cdn.example.com/out-1.png",
+            },
+          ],
+          archived: [
+            {
+              id: "out-archived",
+              prompt: "Archived",
+              mode: "image",
+              aspect: "1:1",
+              model: "model-1",
+              status: "ready",
+              timestamp: "Just now",
+              previewUrl: "https://cdn.example.com/out-archived.png",
+            },
+          ],
+          activeOutputId: "out-1",
+          curatedReferenceIds: ["out-1", "out-archived"],
+          removedFromAllRefsIds: ["out-archived"],
+        }
+      ),
+      {
+        items: [
+          {
+            id: "canvas-text-1",
+            kind: "text",
+            x: 12,
+            y: 24,
+            z: 1,
+            selected: true,
+            outputId: null,
+            sourceSurface: null,
+            text: "Draft note",
+            width: 260,
+            height: 180,
+          },
+        ],
+        draftTextEntry: { x: 10, y: 20, value: "typing" },
+        textEditSession: { itemId: "canvas-text-1", value: "editing" },
+        draftOwnerInstanceId: "rail",
+        textEditOwnerInstanceId: "main",
+        mainCamera: { x: 1, y: 2, zoom: 1.2 },
+        railCamera: { x: -4, y: 8, zoom: 0.8 },
+      }
+    );
 
-    expect(shouldRestoreCreateCharacterModeFromProjectSnapshot(characterSnapshot)).toBe(true);
-    expect(shouldRestoreCreateCharacterModeFromProjectSnapshot(standardSnapshot)).toBe(false);
+    const normalized = createProjectRestoreSnapshot(snapshot);
+    const normalizedCanvas = parseAiStudioSessionCanvasState(normalized.canvas ?? null);
+
+    expect(normalized.workspace.mode).toBe("text");
+    expect(normalized.workspace.selectedTool).toBe("create");
+    expect(normalized.workspace.prompt).toBe("");
+    expect(normalized.workspace.model).toBeNull();
+    expect(normalized.workspace.selectedCharacterId).toBeNull();
+    expect(normalized.workspace.selectedCharacterLookId).toBeNull();
+    expect(normalized.outputs.active.map((output) => output.id)).toEqual(["out-1"]);
+    expect(normalized.outputs.archived).toEqual([]);
+    expect(normalized.outputs.activeOutputId).toBeNull();
+    expect(normalized.outputs.curatedReferenceIds).toEqual(["out-1"]);
+    expect(normalized.outputs.removedFromAllRefsIds).toEqual([]);
+    expect(normalizedCanvas?.draftTextEntry).toBeNull();
+    expect(normalizedCanvas?.textEditSession).toBeNull();
+    expect(normalizedCanvas?.items[0]?.selected).toBe(false);
+    expect("expertEdit" in normalized).toBe(false);
   });
 
-  it("preserves Character Mode create models through project restore normalization", () => {
-    const snapshot = createProjectSnapshot({
-      model: "fal-ai/bytedance/seedream/v4.5/edit",
-      selectedCharacterId: "char-1",
-    });
-
-    const normalized = normalizeProjectRestoreSnapshotForCreateCharacterMode(snapshot);
-
-    expect(normalized.workspace.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
-  });
-
-  it("re-enables Character Mode when hydrating a project snapshot with a Character Mode-only create model", () => {
+  it("hydrates project snapshots through the blank Create restore contract", () => {
     const hydrateFromSessionSnapshot = vi.fn((snapshot: AiStudioSessionSnapshot) =>
       createHydrationPayload(snapshot)
     );
@@ -149,11 +212,31 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
       hydrateFromSessionSnapshot: (snapshot: AiStudioSessionSnapshot) => unknown;
     };
-    const snapshot = createProjectSnapshot({
-      model: "fal-ai/bytedance/seedream/v4.5/edit",
-      selectedCharacterId: "char-1",
-      selectedCharacterLookId: "look-1",
-    });
+    const snapshot = patchAiStudioSessionSnapshotOutputs(
+      createProjectSnapshot({
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        selectedCharacterId: "char-1",
+        selectedCharacterLookId: "look-1",
+      }),
+      {
+        active: [
+          {
+            id: "out-1",
+            prompt: "Prompt",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/out-1.png",
+          },
+        ],
+        archived: [],
+        activeOutputId: "out-1",
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: [],
+      }
+    );
 
     act(() => {
       capturedArgs.hydrateFromSessionSnapshot(snapshot);
@@ -161,23 +244,28 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
 
     expect(hydrateFromSessionSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [expect.objectContaining({ id: "out-1" })],
+          activeOutputId: null,
+        }),
         workspace: expect.objectContaining({
-          model: "fal-ai/bytedance/seedream/v4.5/edit",
-          selectedCharacterId: "char-1",
-          selectedCharacterLookId: "look-1",
+          mode: "text",
+          selectedTool: "create",
+          model: null,
+          selectedCharacterId: null,
+          selectedCharacterLookId: null,
         }),
       })
     );
-    expect(setCreateSelectedCharacterId).toHaveBeenCalledWith("char-1");
-    expect(setCreateSelectedCharacterLookId).toHaveBeenCalledWith("look-1");
-    expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(true);
+    expect(setCreateSelectedCharacterId).toHaveBeenCalledWith("");
+    expect(setCreateSelectedCharacterLookId).toHaveBeenCalledWith("");
+    expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(false);
   });
 
-  it("keeps Character Mode off when the project snapshot restores a standard create model", () => {
+  it("does not wire project persistence through Expert Edit hydration anymore", () => {
     const hydrateFromSessionSnapshot = vi.fn((snapshot: AiStudioSessionSnapshot) =>
       createHydrationPayload(snapshot)
     );
-    const setIsCreateCharacterModeEnabled = vi.fn();
 
     renderHook(() =>
       useAiStudioPageProjectSessionRuntime({
@@ -210,7 +298,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         sessionPersistenceTitleOverride: null,
         setCreateSelectedCharacterId: vi.fn(),
         setCreateSelectedCharacterLookId: vi.fn(),
-        setIsCreateCharacterModeEnabled,
+        setIsCreateCharacterModeEnabled: vi.fn(),
         setExpertEditSessionState: vi.fn(),
         setMusicPromptDraft: createNoopDraftSetter(),
         setMusicLyricsDraft: createNoopDraftSetter(),
@@ -222,18 +310,10 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     );
 
     const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
-      hydrateFromSessionSnapshot: (snapshot: AiStudioSessionSnapshot) => unknown;
+      patchSessionSnapshot?: unknown;
     };
-    const snapshot = createProjectSnapshot({
-      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      selectedCharacterId: "char-1",
-    });
 
-    act(() => {
-      capturedArgs.hydrateFromSessionSnapshot(snapshot);
-    });
-
-    expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(false);
+    expect(capturedArgs.patchSessionSnapshot).toBeUndefined();
   });
 
   it("clears session-only sound drafts when applying empty project state", () => {

@@ -7,7 +7,6 @@ import type {
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPersistence";
 import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
-import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
 vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
@@ -46,22 +45,6 @@ const createAgentRuntime = (
 });
 
 describe("useAiStudioPageSessionPersistence", () => {
-  const expertEditSessionState: ExpertEditSessionState = {
-    version: 2,
-    layers: {
-      layerIdCounter: 2,
-      foundationLayerId: "layer-1",
-      selectedLayerIndex: 0,
-      layers: [],
-    },
-    markup: {
-      strokes: [],
-    },
-    inpaint: {
-      snapshot: { layers: [] },
-    },
-  };
-
   beforeEach(() => {
     mockedUseAiStudioProjectWorkspacePersistenceController.mockClear();
   });
@@ -117,7 +100,6 @@ describe("useAiStudioPageSessionPersistence", () => {
     );
     const hydrateFromSessionAgentSnapshot = vi.fn();
     const hydrateFromSessionCanvasSnapshot = vi.fn();
-    const hydrateFromSessionExpertEditSnapshot = vi.fn();
     const setUiNotice = vi.fn();
 
     const { result } = renderHook(() =>
@@ -134,7 +116,6 @@ describe("useAiStudioPageSessionPersistence", () => {
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         hydrateFromSessionCanvasSnapshot,
-        hydrateFromSessionExpertEditSnapshot,
         setUiNotice,
       })
     );
@@ -300,107 +281,6 @@ describe("useAiStudioPageSessionPersistence", () => {
         }),
       },
     });
-  });
-
-  it("patches the latest Expert Edit snapshot onto the base project snapshot", () => {
-    const buildBaseSessionSnapshot = vi.fn(
-      (args): AiStudioSessionSnapshotV2 =>
-        ({
-          schemaVersion: 2,
-          sessionId: args.sessionId,
-          updatedAt: "2026-03-23T00:00:00.000Z",
-          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
-          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
-          agent: {} as AiStudioSessionSnapshotV2["agent"],
-          meta: {} as AiStudioSessionSnapshotV2["meta"],
-        }) as AiStudioSessionSnapshotV2
-    );
-    const hydrateFromSessionSnapshot = vi.fn(
-      (): AiStudioSessionHydrationPayload => ({
-        workspace: {} as never,
-        outputs: {} as never,
-        agent: {
-          messages: [],
-          input: "",
-          latestAgentPrompt: null,
-          promptOrigin: "manual",
-          chatModeEnabled: false,
-          pulseWorkflowSession: null,
-        },
-        agentRuntimes: {
-          standard: {
-            messages: [],
-            input: "",
-            latestAgentPrompt: null,
-            promptOrigin: "manual",
-            chatModeEnabled: false,
-            pulseWorkflowSession: null,
-          },
-          pulsePresetId: null,
-          pulseSessionInstanceId: null,
-          pulse: {
-            messages: [],
-            input: "",
-            latestAgentPrompt: null,
-            promptOrigin: "manual",
-            chatModeEnabled: true,
-            pulseWorkflowSession: null,
-          },
-        },
-        canvas: null,
-        expertEdit: null,
-      })
-    );
-    const updatedExpertEditSessionState: ExpertEditSessionState = {
-      ...expertEditSessionState,
-      markup: {
-        strokes: [...expertEditSessionState.markup.strokes],
-      },
-    };
-    let currentExpertEditSessionState: ExpertEditSessionState | null = expertEditSessionState;
-
-    renderHook(() =>
-      useAiStudioPageSessionPersistence({
-        projectId: "project-1",
-        sessionId: "session-1",
-        buildBaseSessionSnapshot,
-        patchSessionSnapshot: (snapshot) => ({
-          ...snapshot,
-          expertEdit:
-            currentExpertEditSessionState === null
-              ? undefined
-              : ({
-                  schemaVersion: 1,
-                  state: currentExpertEditSessionState,
-                } as NonNullable<AiStudioSessionSnapshotV2["expertEdit"]>),
-        }),
-        createPersistenceRuntime: {
-          kind: "standard",
-          agentRuntime: createAgentRuntime(),
-        },
-        hydrateFromSessionSnapshot,
-        hydrateFromSessionAgentSnapshot: vi.fn(),
-        setUiNotice: vi.fn(),
-      })
-    );
-
-    currentExpertEditSessionState = updatedExpertEditSessionState;
-    const params = mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls.at(-1)?.[0];
-    const baseSnapshot = params?.buildBaseSessionSnapshot("session-2");
-    const patchedSnapshot = baseSnapshot ? params?.patchSessionSnapshot?.(baseSnapshot) : null;
-
-    expect(buildBaseSessionSnapshot).toHaveBeenCalledWith({
-      sessionId: "session-2",
-      agentRuntime: createAgentRuntime(),
-    });
-    expect(patchedSnapshot).toEqual(
-      expect.objectContaining({
-        expertEdit: {
-          schemaVersion: 1,
-          state: updatedExpertEditSessionState,
-        },
-      })
-    );
   });
 
   it("routes project-backed sessions through the project workspace controller", () => {

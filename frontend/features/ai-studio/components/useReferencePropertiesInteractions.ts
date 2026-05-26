@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import {
   extractDragDropPayload,
+  extractPromptDropText,
   extractInternalReferenceDragPayload,
   extractVideoDragDropPayload,
   isImageDragTransfer,
@@ -255,7 +256,7 @@ export const useReferencePropertiesInteractions = ({
 
   const handlePromptDrop = (event: DragEvent<HTMLDivElement | HTMLTextAreaElement>) => {
     event.preventDefault();
-    const { promptText } = extractDragDropPayload(event.dataTransfer);
+    const promptText = extractPromptDropText(event.dataTransfer);
     if (promptText) {
       onPromptTextChange(promptText);
     }

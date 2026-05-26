@@ -72,7 +72,10 @@ const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
     typeof (error as { message?: unknown }).message === "string"
       ? (error as { message: string }).message.toLowerCase()
       : "";
-  return message.includes("preview_storage_path") && message.includes("schema cache");
+  return (
+    message.includes("preview_storage_path") &&
+    (message.includes("schema cache") || message.includes("does not exist"))
+  );
 };
 
 const readMetadataObject = (

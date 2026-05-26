@@ -839,7 +839,7 @@ describe("AgentChatPanel prompt actions", () => {
     getComputedStyleSpy.mockRestore();
   });
 
-  it("exposes prompt text on drag start for assistant and user bubbles", () => {
+  it("exposes prompt text on drag start from the assistant text surface and user bubble", () => {
     render(
       <AgentChatPanel
         messages={[
@@ -858,10 +858,15 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    const draggableMessage = screen
-      .getByText("Assistant output one.")
-      .closest(".agent-message") as HTMLElement;
+    const assistantText = screen.getByText("Assistant output one.");
+    const assistantDragSurface = assistantText.closest(
+      ".agent-message-prompt-drag-surface"
+    ) as HTMLElement | null;
+    const draggableMessage = assistantText.closest(".agent-message") as HTMLElement;
+    const userBubble = screen.getByText("User input one.").closest(".agent-message") as HTMLElement;
+    expect(assistantDragSurface).toBeTruthy();
     expect(draggableMessage).toBeTruthy();
+    expect(userBubble).toBeTruthy();
 
     const setData = vi.fn();
     const setDragImage = vi.fn();
@@ -871,16 +876,19 @@ describe("AgentChatPanel prompt actions", () => {
       effectAllowed: "none",
     } as unknown as DataTransfer;
 
-    fireEvent.dragStart(draggableMessage, { dataTransfer });
+    fireEvent.dragStart(assistantDragSurface as HTMLElement, { dataTransfer });
     expect(setData).toHaveBeenCalledWith("text/plain", "Assistant prompt payload.");
     expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant prompt payload.");
     expect(setDragImage).toHaveBeenCalledTimes(1);
     expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(1);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
 
-    fireEvent.dragEnd(draggableMessage);
+    fireEvent.dragEnd(assistantDragSurface as HTMLElement);
     expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(0);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+
+    fireEvent.dragStart(userBubble, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith("text/plain", "User input one.");
   });
 
   it("keeps completed Pulse artifact text draggable when generate controls are hidden", () => {
@@ -903,13 +911,15 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    const draggableMessage = screen
-      .getByText("Completed Pulse artifact prompt.")
-      .closest(".agent-message") as HTMLElement;
+    const promptText = screen.getByText("Completed Pulse artifact prompt.");
+    const draggableMessage = promptText.closest(".agent-message") as HTMLElement;
+    const dragSurface = promptText.closest(".agent-message-prompt-drag-surface") as HTMLElement;
     expect(draggableMessage).toBeTruthy();
+    expect(dragSurface).toBeTruthy();
     expect(draggableMessage).toHaveClass("agent-message--pulse-guided");
     expect(draggableMessage).toHaveClass("is-draggable");
     expect(draggableMessage).not.toHaveClass("agent-message--with-output-generate");
+    expect(draggableMessage).toHaveAttribute("draggable", "false");
 
     const setData = vi.fn();
     const dataTransfer = {
@@ -917,11 +927,47 @@ describe("AgentChatPanel prompt actions", () => {
       effectAllowed: "none",
     } as unknown as DataTransfer;
 
-    fireEvent.dragStart(draggableMessage, { dataTransfer });
+    fireEvent.dragStart(dragSurface, { dataTransfer });
     expect(setData).toHaveBeenCalledWith("text/plain", "Completed Pulse artifact prompt.");
     expect(setData).toHaveBeenCalledWith("text/prompt", "Completed Pulse artifact prompt.");
 
-    fireEvent.dragEnd(draggableMessage);
+    fireEvent.dragEnd(dragSurface);
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("keeps the staged prompt draggable only from its text surface", () => {
+    render(
+      <AgentChatPanel
+        messages={[]}
+        input=""
+        stagedPrompt="Assistant staged prompt."
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const promptText = screen.getByText("Assistant staged prompt.");
+    const draggableMessage = promptText.closest(".agent-message") as HTMLElement;
+    const dragSurface = promptText.closest(".agent-message-prompt-drag-surface") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+    expect(dragSurface).toBeTruthy();
+    expect(draggableMessage).toHaveAttribute("draggable", "false");
+    expect(dragSurface).toHaveAttribute("draggable", "true");
+
+    const setData = vi.fn();
+    const setDragImage = vi.fn();
+    const dataTransfer = {
+      setData,
+      setDragImage,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(dragSurface, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith("text/plain", "Assistant staged prompt.");
+    expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant staged prompt.");
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
+
+    fireEvent.dragEnd(dragSurface);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 
@@ -951,7 +997,9 @@ describe("AgentChatPanel prompt actions", () => {
     );
 
     const messageText = screen.getByText("Assistant output one.");
+    const dragSurface = messageText.closest(".agent-message-prompt-drag-surface") as HTMLElement;
     const draggableMessage = messageText.closest(".agent-message") as HTMLElement;
+    expect(dragSurface).toBeTruthy();
     expect(draggableMessage).toBeTruthy();
 
     const setData = vi.fn();
@@ -962,11 +1010,11 @@ describe("AgentChatPanel prompt actions", () => {
       effectAllowed: "none",
     } as unknown as DataTransfer;
 
-    fireEvent.dragStart(messageText, { dataTransfer });
+    fireEvent.dragStart(dragSurface, { dataTransfer });
     expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant output one.");
     expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
 
-    fireEvent.dragEnd(draggableMessage);
+    fireEvent.dragEnd(dragSurface);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 
@@ -1040,9 +1088,10 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    const draggableMessage = screen
-      .getByText("Assistant output one.")
-      .closest(".agent-message") as HTMLElement;
+    const promptText = screen.getByText("Assistant output one.");
+    const dragSurface = promptText.closest(".agent-message-prompt-drag-surface") as HTMLElement;
+    const draggableMessage = promptText.closest(".agent-message") as HTMLElement;
+    expect(dragSurface).toBeTruthy();
     expect(draggableMessage).toBeTruthy();
 
     const setData = vi.fn();
@@ -1053,7 +1102,7 @@ describe("AgentChatPanel prompt actions", () => {
       effectAllowed: "none",
     } as unknown as DataTransfer;
 
-    fireEvent.dragStart(draggableMessage, { dataTransfer });
+    fireEvent.dragStart(dragSurface, { dataTransfer });
 
     const ghost = document.querySelector(".agent-message-drag-ghost") as HTMLElement | null;
     expect(ghost).toBeTruthy();
@@ -1062,8 +1111,86 @@ describe("AgentChatPanel prompt actions", () => {
       expect(within(ghost).queryByText("Generating preview…")).toBeNull();
     }
 
-    fireEvent.dragEnd(draggableMessage);
+    fireEvent.dragEnd(dragSurface);
     expect(document.querySelector(".agent-message-drag-ghost")).toBeNull();
+  });
+
+  it("does not start a prompt drag from the assistant bubble container outside the text surface", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const bubble = screen
+      .getByText("Assistant output one.")
+      .closest(".agent-message") as HTMLElement;
+    const setData = vi.fn();
+    const dataTransfer = {
+      setData,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(bubble, { dataTransfer });
+
+    expect(setData).not.toHaveBeenCalled();
+    expect(bubble.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("does not start a prompt drag from attachment preview images inside assistant bubbles", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+            attachments: [
+              {
+                id: "img-1",
+                kind: "image",
+                imageUrl: "https://example.com/ref.png",
+              },
+            ],
+          },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const previewImage = document.querySelector(
+      ".agent-attachment-card-media"
+    ) as HTMLElement | null;
+    const bubble = screen
+      .getByText("Assistant output one.")
+      .closest(".agent-message") as HTMLElement;
+    expect(previewImage).toBeTruthy();
+
+    const setData = vi.fn();
+    const dataTransfer = {
+      setData,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(previewImage as HTMLElement, { dataTransfer });
+
+    expect(setData).not.toHaveBeenCalled();
+    expect(bubble.classList.contains("is-dragging")).toBe(false);
   });
 
   it("renders thinking inside message history when placement is history", () => {

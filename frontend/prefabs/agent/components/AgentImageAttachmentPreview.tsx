@@ -165,6 +165,7 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
         src={resolvedSrc}
         alt={alt}
         className="agent-attachment-card-media"
+        draggable={false}
         onError={() => {
           recordCreateWorkflowEvent("preview_img_error", {
             resolvedSrc,

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { extractDragDropPayload } from "../../utils/dragDrop";
+import { extractPromptDropText } from "../../utils/dragDrop";
 import {
   buildExpertEditPrimarySlotToken,
   buildExpertEditSecondarySlotToken,
@@ -121,7 +121,7 @@ export function useExpertEditPromptTokenPickerRuntime({
   const handlePromptDrop = React.useCallback(
     (event: React.DragEvent<HTMLTextAreaElement>) => {
       event.preventDefault();
-      const { promptText } = extractDragDropPayload(event.dataTransfer);
+      const promptText = extractPromptDropText(event.dataTransfer);
       if (promptText) {
         onPromptTextChange(promptText);
       }

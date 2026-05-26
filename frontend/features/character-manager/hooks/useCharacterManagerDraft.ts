@@ -47,14 +47,11 @@ type UseCharacterManagerDraftResult = {
   selectedCharacterId: string | null;
   characterName: string;
   characterDescription: string;
-  characterSheetAssignments: CharacterSheetAssignments;
   activeCharacterSheetPresetId: CharacterSheetPresetId;
-  characterSheetPresets: CharacterSheetPresetState["presets"];
   visibleCharacterSheetPresetIds: CharacterSheetPresetState["tabOrder"];
   characterSheetPresetLabels: CharacterSheetPresetState["tabLabels"];
   characterSheetPresetAssignments: CharacterSheetPresetAssignments;
   profileImageUrl: string | null;
-  profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
   error: string | null;
   loading: boolean;
@@ -64,16 +61,12 @@ type UseCharacterManagerDraftResult = {
   characterSaveProgressMessage: string | null;
   isDeletingCharacter: boolean;
   isSwitchingCharacter: boolean;
-  isSavingProfileImage: boolean;
   isSavingCharacterSheetPreset: boolean;
   isDeletingCharacterSheetPreset: boolean;
   hasUnsavedCharacterDraft: boolean;
   setCharacterName: (value: string) => void;
   setCharacterDescription: (value: string) => void;
   setProfileImageFile: (file: File) => Promise<void>;
-  saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
-  clearProfileImage: () => Promise<void>;
-  saveCharacterSheetAssignments: (assignments: CharacterSheetAssignments) => Promise<boolean>;
   setActiveCharacterSheetPreset: (presetId: CharacterSheetPresetId) => Promise<boolean>;
   saveCharacterSheetPresetAssignments: (
     assignments: CharacterSheetPresetAssignments
@@ -194,7 +187,7 @@ export const useCharacterManagerDraft = ({
   );
   const [isDeletingCharacter, setIsDeletingCharacter] = useState(false);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
-  const [isSavingProfileImage, setIsSavingProfileImage] = useState(false);
+  const [, setIsSavingProfileImage] = useState(false);
   const [isSavingCharacterSheetPreset, setIsSavingCharacterSheetPreset] = useState(false);
   const [isDeletingCharacterSheetPreset, setIsDeletingCharacterSheetPreset] = useState(false);
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
@@ -571,9 +564,6 @@ export const useCharacterManagerDraft = ({
 
   const {
     setProfileImageFile,
-    saveProfileImageTransform,
-    clearProfileImage,
-    saveCharacterSheetAssignments,
     setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
@@ -1000,14 +990,11 @@ export const useCharacterManagerDraft = ({
     selectedCharacterId: characterId,
     characterName,
     characterDescription,
-    characterSheetAssignments,
     activeCharacterSheetPresetId,
-    characterSheetPresets,
     visibleCharacterSheetPresetIds,
     characterSheetPresetLabels,
     characterSheetPresetAssignments,
     profileImageUrl,
-    profileImageTransform,
     slots,
     error,
     loading,
@@ -1017,16 +1004,12 @@ export const useCharacterManagerDraft = ({
     characterSaveProgressMessage,
     isDeletingCharacter,
     isSwitchingCharacter,
-    isSavingProfileImage,
     isSavingCharacterSheetPreset,
     isDeletingCharacterSheetPreset,
     hasUnsavedCharacterDraft: !characterId,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
-    saveProfileImageTransform,
-    clearProfileImage,
-    saveCharacterSheetAssignments,
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
     addCharacterSheetPreset,

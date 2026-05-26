@@ -113,7 +113,6 @@ describe("useAiStudioProjectWorkspaceRestoreHydration", () => {
     vi.useFakeTimers();
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const hydrateFromSessionCanvasSnapshot = vi.fn();
-    const hydrateFromSessionExpertEditSnapshot = vi.fn();
     const applyEmptyProjectState = vi.fn();
     const onProjectBootstrapSettled = vi.fn();
     const resetProjectAgentConversation = vi.fn();
@@ -132,7 +131,6 @@ describe("useAiStudioProjectWorkspaceRestoreHydration", () => {
         },
         hydrateFromSessionSnapshot,
         hydrateFromSessionCanvasSnapshot,
-        hydrateFromSessionExpertEditSnapshot,
         applyEmptyProjectState,
         resetProjectAgentConversation,
         onProjectBootstrapSettled,
@@ -156,7 +154,6 @@ describe("useAiStudioProjectWorkspaceRestoreHydration", () => {
         ],
       })
     );
-    expect(hydrateFromSessionExpertEditSnapshot).toHaveBeenCalledTimes(1);
     expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(onProjectBootstrapSettled).toHaveBeenCalledWith("project-1");
     vi.useRealTimers();

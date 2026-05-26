@@ -871,6 +871,29 @@ describe("DetailModal", () => {
     expect(image?.getAttribute("src")).toBe("https://cdn.test/full-quality.jpg");
   });
 
+  it("shows uploaded image filenames in the prompt blade", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "upload-1",
+          prompt: "create-page-current.png",
+          previewUrl: "https://cdn.test/uploads/create-page-current.png",
+          model: undefined,
+          modelId: undefined,
+          timestamp: "Dropped",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("PROMPT")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("create-page-current.png")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("(Uploaded Image)")).not.toBeInTheDocument();
+  });
+
   it("prefers canonical preview media over transient preview url in detail rendering", () => {
     const { baseElement } = render(
       <DetailModal

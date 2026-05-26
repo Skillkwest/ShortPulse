@@ -35,6 +35,11 @@ const resolveAssistantPromptText = (message: AgentMessage): string | null => {
   return outputPrompt.length > 0 ? outputPrompt : null;
 };
 
+const resolvePromptDragBubble = (source: HTMLElement): HTMLElement =>
+  source.closest(".agent-message") instanceof HTMLElement
+    ? (source.closest(".agent-message") as HTMLElement)
+    : source;
+
 const clearPromptDragGhost = (source: HTMLElement) => {
   const ghost = promptDragGhostMap.get(source);
   if (ghost?.parentNode) {
@@ -326,6 +331,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       event.dataTransfer.setData("text/plain", normalizedPrompt);
       event.dataTransfer.setData("text/prompt", normalizedPrompt);
       const source = event.currentTarget;
+      const dragBubble = resolvePromptDragBubble(source);
       if (typeof event.dataTransfer.setDragImage === "function") {
         try {
           const { ghost, offsetX, offsetY } = createPromptDragGhost(source);
@@ -334,14 +340,14 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           event.dataTransfer.setDragImage(source, source.offsetWidth / 2, source.offsetHeight / 2);
         }
       }
-      source.classList.add("is-dragging");
+      dragBubble.classList.add("is-dragging");
     },
     []
   );
 
   const handlePromptDragEnd = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     const source = event.currentTarget;
-    source.classList.remove("is-dragging");
+    resolvePromptDragBubble(source).classList.remove("is-dragging");
     clearPromptDragGhost(source);
   }, []);
 
@@ -611,11 +617,18 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                             ? "agent-message--with-output-thumbnail"
                             : ""
                         } agent-message--prompt-output`.trim()}
-                        draggable
-                        onDragStart={(event) => handlePromptDragStart(event, stagedPrompt)}
-                        onDragEnd={handlePromptDragEnd}
+                        draggable={false}
                       >
-                        <p className="tiny">{stagedPrompt}</p>
+                        <div className="agent-message-body">
+                          <div
+                            className="agent-message-prompt-drag-surface is-draggable"
+                            draggable
+                            onDragStart={(event) => handlePromptDragStart(event, stagedPrompt)}
+                            onDragEnd={handlePromptDragEnd}
+                          >
+                            <p className="tiny">{stagedPrompt}</p>
+                          </div>
+                        </div>
                         {stagedBubbleMedia ||
                         (showOutputGenerateButton && !hideOutputGenerateControls) ? (
                           <div className="agent-output-bubble-controls">
@@ -687,6 +700,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     : "";
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
+                const shouldUsePromptDragSurface =
+                  message.role === "assistant" && Boolean(assistantPromptText);
                 return (
                   <div
                     key={key}
@@ -706,13 +721,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     }
                     role={isClickable ? "button" : undefined}
                     tabIndex={isClickable ? 0 : undefined}
-                    draggable={isDraggable}
+                    draggable={shouldUsePromptDragSurface ? false : isDraggable}
                     onDragStart={
-                      isDraggable
+                      !shouldUsePromptDragSurface && isDraggable
                         ? (event) => handlePromptDragStart(event, draggablePromptText ?? "")
                         : undefined
                     }
-                    onDragEnd={isDraggable ? handlePromptDragEnd : undefined}
+                    onDragEnd={
+                      !shouldUsePromptDragSurface && isDraggable ? handlePromptDragEnd : undefined
+                    }
                   >
                     {isEditingMessage ? (
                       <textarea
@@ -757,24 +774,60 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         ) : null}
                         {hasMessageContent ? (
                           message.role === "assistant" && AssistantMessageContent ? (
-                            <AssistantMessageContent
-                              message={message}
-                              messageId={resolvedMessageId}
-                              textRef={(node) =>
-                                setAssistantMessageTextRef(resolvedMessageId, node)
-                              }
-                            />
-                          ) : (
-                            <p
-                              className="tiny"
-                              ref={
-                                message.role === "assistant"
-                                  ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
+                            <div
+                              className={
+                                shouldUsePromptDragSurface
+                                  ? "agent-message-prompt-drag-surface is-draggable"
                                   : undefined
                               }
+                              draggable={shouldUsePromptDragSurface}
+                              onDragStart={
+                                shouldUsePromptDragSurface
+                                  ? (event) =>
+                                      handlePromptDragStart(event, draggablePromptText ?? "")
+                                  : undefined
+                              }
+                              onDragEnd={
+                                shouldUsePromptDragSurface ? handlePromptDragEnd : undefined
+                              }
                             >
-                              {message.content}
-                            </p>
+                              <AssistantMessageContent
+                                message={message}
+                                messageId={resolvedMessageId}
+                                textRef={(node) =>
+                                  setAssistantMessageTextRef(resolvedMessageId, node)
+                                }
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className={
+                                shouldUsePromptDragSurface
+                                  ? "agent-message-prompt-drag-surface is-draggable"
+                                  : undefined
+                              }
+                              draggable={shouldUsePromptDragSurface}
+                              onDragStart={
+                                shouldUsePromptDragSurface
+                                  ? (event) =>
+                                      handlePromptDragStart(event, draggablePromptText ?? "")
+                                  : undefined
+                              }
+                              onDragEnd={
+                                shouldUsePromptDragSurface ? handlePromptDragEnd : undefined
+                              }
+                            >
+                              <p
+                                className="tiny"
+                                ref={
+                                  message.role === "assistant"
+                                    ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
+                                    : undefined
+                                }
+                              >
+                                {message.content}
+                              </p>
+                            </div>
                           )
                         ) : null}
                       </div>

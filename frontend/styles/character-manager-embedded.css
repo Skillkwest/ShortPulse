@@ -388,44 +388,6 @@
   padding-top: 6px;
 }
 
-.character-panel-workspace .character-sheet-preset-tab-rail,
-.character-panel-workspace .character-sheet-preset-tab-row {
-  min-height: 42px;
-}
-
-.character-panel-workspace .character-sheet-preset-tab-row {
-  --character-preset-tab-width: 64px;
-  gap: 8px;
-  padding: 0 8px;
-  border-radius: 10px 10px 0 0;
-}
-
-.character-panel-workspace .character-sheet-preset-tablist {
-  gap: 8px;
-}
-
-.character-panel-workspace .character-sheet-preset-tab-track {
-  gap: 8px;
-}
-
-.character-panel-workspace .character-sheet-preset-tab-shell {
-  padding-top: 3px;
-}
-
-.character-panel-workspace .character-sheet-preset-tab {
-  min-height: 34px;
-  padding: 0 8px;
-  border-radius: 9px 9px 0 0;
-  font-size: 11px;
-}
-
-.character-panel-workspace .character-sheet-preset-add-btn {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  margin-bottom: 0;
-}
-
 .character-panel-workspace .character-character-sheet-card {
   width: min(100%, 156px);
   grid-template-rows: auto 30px;
@@ -745,19 +707,6 @@
 .character-manager-page--embedded .character-section {
   background: rgba(201, 205, 214, 0.05);
   border-color: rgba(201, 205, 214, 0.05);
-}
-
-.character-manager-page--embedded .character-sheet-preset-tab.is-active {
-  background: rgba(201, 205, 214, 0.05);
-  border-color: rgba(201, 205, 214, 0.05);
-  border-bottom-color: rgba(201, 205, 214, 0.05);
-  box-shadow: none;
-  transform: none;
-}
-
-.character-manager-page--embedded .character-sheet-preset-tab:not(.is-active),
-.character-manager-page--embedded .character-sheet-preset-tab:not(.is-active):hover:not(:disabled) {
-  background: var(--color-bg);
 }
 
 .character-manager-page--embedded .character-profile-card {

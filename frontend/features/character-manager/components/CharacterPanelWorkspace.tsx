@@ -26,7 +26,7 @@ import {
   useCharacterManagerDroppedReferenceController,
   type ResolveCharacterDropReference,
 } from "../hooks/useCharacterManagerDroppedReferenceController";
-import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
+import { useCharacterPanelDraft } from "../hooks/useCharacterPanelDraft";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { EmbeddedCharacterLooksControl } from "./EmbeddedCharacterLooksControl";
 import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
@@ -384,7 +384,7 @@ export function CharacterPanelWorkspace({
     selectCharacter,
     deleteCharacter,
     clearMessages,
-  } = useCharacterManagerDraft({
+  } = useCharacterPanelDraft({
     preferredCharacterId,
     suppressSelectedCharacterPersistence,
     onSelectedCharacterIdChange,
@@ -414,6 +414,7 @@ export function CharacterPanelWorkspace({
     React.useState<CharacterSheetPresetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
   const inFlightExternalUploadRequestIdsRef = React.useRef<Set<number>>(new Set());
+  const handledExternalUploadRequestIdsRef = React.useRef<Set<number>>(new Set());
   const saveSuccessHideTimerRef = React.useRef<number | null>(null);
   const characterSheetFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const characterNameInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -907,15 +908,14 @@ export function CharacterPanelWorkspace({
     if (!activeUploadRequest) return;
     const requestId = activeUploadRequest.requestId ?? 0;
     if (requestId === 0) return;
+    if (handledExternalUploadRequestIdsRef.current.has(requestId)) return;
     if (inFlightExternalUploadRequestIdsRef.current.has(requestId)) return;
     inFlightExternalUploadRequestIdsRef.current.add(requestId);
     void assignFilesToSlots(activeUploadRequest.files)
-      .then((handled) => {
-        if (handled) {
-          onExternalUploadRequestHandled?.(requestId);
-        }
-      })
+      .catch(() => false)
       .finally(() => {
+        handledExternalUploadRequestIdsRef.current.add(requestId);
+        onExternalUploadRequestHandled?.(requestId);
         inFlightExternalUploadRequestIdsRef.current.delete(requestId);
       });
   }, [assignFilesToSlots, externalUploadRequest, onExternalUploadRequestHandled]);

@@ -1,4 +1,9 @@
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../../features/ai-studio/logic/chatModeDefaults";
+import {
+  createProjectDurableAiStudioSessionCanvasState,
+  parseAiStudioSessionCanvasState,
+  serializeAiStudioSessionCanvasState,
+} from "../../features/ai-studio/logic/sessionSnapshotCanvas";
 
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
@@ -164,35 +169,18 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
   const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
     .map((output) => asRecord(output))
     .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
-  const persistedArchivedOutputs = (
-    Array.isArray(outputsRecord.archived) ? outputsRecord.archived : []
-  )
-    .map((output) => asRecord(output))
-    .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
   const normalizedActiveOutputs = persistedActiveOutputs.map(trimGeneratedProjectWorkspaceOutput);
-  const normalizedArchivedOutputs = persistedArchivedOutputs.map(
-    trimGeneratedProjectWorkspaceOutput
-  );
   const persistedOutputIds = new Set<string>([
     ...normalizedActiveOutputs
       .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
       .filter((id) => id.length > 0),
-    ...normalizedArchivedOutputs
-      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
-      .filter((id) => id.length > 0),
   ]);
-  const candidateActiveOutputId =
-    typeof outputsRecord.activeOutputId === "string" ? outputsRecord.activeOutputId.trim() : "";
-  const activeOutputId =
-    candidateActiveOutputId.length > 0 && persistedOutputIds.has(candidateActiveOutputId)
-      ? candidateActiveOutputId
-      : null;
 
   return {
     ...outputsRecord,
     active: normalizedActiveOutputs,
-    archived: normalizedArchivedOutputs,
-    activeOutputId,
+    archived: [],
+    activeOutputId: null,
     curatedReferenceIds: filterProjectWorkspaceOutputIds(
       outputsRecord.curatedReferenceIds,
       persistedOutputIds
@@ -202,6 +190,71 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
       persistedOutputIds
     ),
   };
+};
+
+const createEmptyProjectWorkspaceReferenceState = () => ({
+  selectedTool: "create",
+  showCreateTools: false,
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null] as [null, null, null],
+  referenceImageInternalMediaRefs: [],
+  motionReferenceVideoUrl: null,
+  useReferenceImageIndicator: false,
+  detailOutputId: null,
+});
+
+const resetProjectWorkspaceFields = (
+  workspace: Record<string, unknown>
+): Record<string, unknown> => ({
+  ...workspace,
+  mode: "text",
+  selectedTool: "create",
+  prompt: "",
+  standardPrompt: "",
+  pulsePrompt: "",
+  model: null,
+  aspect: "9:16",
+  selectedCharacterId: null,
+  selectedCharacterLookId: null,
+  expertCreateMode: "standard",
+  activePulsePresetId: null,
+  pulseSessionInstanceId: null,
+  createModeReferenceStates: {
+    standard: createEmptyProjectWorkspaceReferenceState(),
+    pulse: createEmptyProjectWorkspaceReferenceState(),
+  },
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null],
+  referenceImageInternalMediaRefs: [],
+  editReferenceText: "",
+  videoReferenceText: "",
+  videoReferenceMode: "standard",
+  videoDurationSeconds: 6,
+  videoResolution: "1080p",
+  imageResolution: "model_default",
+  videoGenerateAudio: false,
+  videoCameraFixed: false,
+  videoAutoFix: false,
+  klingNegativePrompt: "",
+  klingCfgScale: 0.5,
+  klingWorkflowMode: "single",
+  seedance2InputMode: "text",
+  seedance2ReferenceImageUrls: [],
+  seedance2ReferenceVideoUrls: [],
+  seedance2ReferenceAudioUrls: [],
+  seedance2ReturnLastFrame: false,
+  seedance2WebSearch: false,
+  klingShotType: "customize",
+  klingVoiceIds: ["", ""],
+  klingMultiPrompts: [],
+  klingElements: [],
+  motionReferenceVideoUrl: null,
+});
+
+const normalizeProjectWorkspaceCanvas = (value: unknown) => {
+  const parsed = parseAiStudioSessionCanvasState(value);
+  const durable = createProjectDurableAiStudioSessionCanvasState(parsed);
+  return durable ? serializeAiStudioSessionCanvasState(durable) : null;
 };
 
 export const createEmptyAiStudioSessionAgentState = (): MinimalAiStudioSessionAgentState => ({
@@ -231,21 +284,26 @@ export const createAiStudioProjectWorkspaceSnapshot = <
 ): TSnapshot => {
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   if (snapshot.schemaVersion >= 2) {
-    const baseSnapshot = {
-      ...snapshot,
-    } as MinimalAiStudioSessionSnapshot;
-    delete baseSnapshot.meta;
+    const { meta, expertEdit, canvas, ...baseSnapshot } =
+      snapshot as MinimalAiStudioSessionSnapshot & {
+        canvas?: unknown;
+        expertEdit?: unknown;
+      };
+    void meta;
+    void expertEdit;
     const baseWorkspace = asRecord(baseSnapshot.workspace);
+    const normalizedWorkspace = resetProjectWorkspaceFields(baseWorkspace);
+    const normalizedCanvas = normalizeProjectWorkspaceCanvas(canvas);
     const normalizedSnapshot = {
       ...baseSnapshot,
-      workspace: {
-        ...baseWorkspace,
-        editReferenceText: "",
-        videoReferenceText: "",
-      },
+      workspace: normalizedWorkspace,
       outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
       agent: emptyAgentRuntime,
-      agentRuntimes: trimProjectWorkspaceAgentRuntimes(baseSnapshot.agentRuntimes, baseWorkspace),
+      agentRuntimes: trimProjectWorkspaceAgentRuntimes(
+        baseSnapshot.agentRuntimes,
+        normalizedWorkspace
+      ),
+      ...(normalizedCanvas ? { canvas: normalizedCanvas } : {}),
     };
     return {
       ...normalizedSnapshot,
@@ -258,11 +316,7 @@ export const createAiStudioProjectWorkspaceSnapshot = <
 
   return {
     ...snapshot,
-    workspace: {
-      ...asRecord(snapshot.workspace),
-      editReferenceText: "",
-      videoReferenceText: "",
-    },
+    workspace: resetProjectWorkspaceFields(asRecord(snapshot.workspace)),
     outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;

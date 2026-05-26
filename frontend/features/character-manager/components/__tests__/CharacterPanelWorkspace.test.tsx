@@ -5,7 +5,6 @@ import { CharacterPanelWorkspace } from "../CharacterPanelWorkspace";
 import {
   CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
-  createEmptyCharacterSheetAssignments,
   createEmptyCharacterSheetPresetAssignments,
   getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
@@ -34,9 +33,7 @@ const createDraftState = () => ({
   selectedCharacterId: "character-1",
   characterName: "Taylor",
   characterDescription: "",
-  characterSheetAssignments: createEmptyCharacterSheetAssignments(),
   activeCharacterSheetPresetId: "1" as const,
-  characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
   visibleCharacterSheetPresetIds: createDefaultCharacterSheetPresetState().tabOrder,
   characterSheetPresetLabels: Object.fromEntries(
     CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
@@ -86,8 +83,8 @@ vi.mock("next/image", () => ({
   },
 }));
 
-vi.mock("../../hooks/useCharacterManagerDraft", () => ({
-  useCharacterManagerDraft: () => currentDraftState,
+vi.mock("../../hooks/useCharacterPanelDraft", () => ({
+  useCharacterPanelDraft: () => currentDraftState,
 }));
 
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
@@ -501,7 +498,7 @@ describe("CharacterPanelWorkspace", () => {
     });
   });
 
-  it("blocks external uploads when all reference slots are already filled", async () => {
+  it("acknowledges external uploads after handled failures like full slots", async () => {
     const onExternalUploadRequestHandled = vi.fn();
     currentDraftState = {
       ...createDraftState(),
@@ -543,7 +540,7 @@ describe("CharacterPanelWorkspace", () => {
       );
     });
     expect(setCharacterSheetPresetFileMock).not.toHaveBeenCalled();
-    expect(onExternalUploadRequestHandled).not.toHaveBeenCalled();
+    expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(3);
   });
 
   it("acknowledges external uploads only after assignment succeeds", async () => {
@@ -574,5 +571,63 @@ describe("CharacterPanelWorkspace", () => {
     await waitFor(() => {
       expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(7);
     });
+  });
+
+  it("acknowledges external uploads after thrown assignment failures", async () => {
+    const onExternalUploadRequestHandled = vi.fn();
+    setCharacterSheetPresetFileMock.mockRejectedValueOnce(new Error("upload failed"));
+
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 9,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+        onExternalUploadRequestHandled={onExternalUploadRequestHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(9);
+    });
+  });
+
+  it("does not replay an already handled external upload request ID on rerender", async () => {
+    const onExternalUploadRequestHandled = vi.fn();
+    const request = {
+      requestId: 12,
+      files: [new File(["x"], "ref.png", { type: "image/png" })],
+    };
+
+    const { rerender } = render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={request}
+        onExternalUploadRequestHandled={onExternalUploadRequestHandled}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
+      expect(onExternalUploadRequestHandled).toHaveBeenCalledWith(12);
+    });
+
+    rerender(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{ ...request }}
+        onExternalUploadRequestHandled={onExternalUploadRequestHandled}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(setCharacterSheetPresetFileMock).toHaveBeenCalledTimes(1);
+    expect(onExternalUploadRequestHandled).toHaveBeenCalledTimes(1);
   });
 });

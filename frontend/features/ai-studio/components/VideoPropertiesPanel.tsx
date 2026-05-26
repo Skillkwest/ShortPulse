@@ -6,7 +6,7 @@ import { Trash } from "phosphor-react";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import { extractDragDropPayload } from "../utils/dragDrop";
+import { extractPromptDropText } from "../utils/dragDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
@@ -885,7 +885,7 @@ export function VideoPropertiesPanel({
       const droppedToken = extractKlingElementPromptTokenFromTransfer(event.dataTransfer);
       if (!droppedToken) {
         event.preventDefault();
-        const { promptText } = extractDragDropPayload(event.dataTransfer);
+        const promptText = extractPromptDropText(event.dataTransfer);
         if (!promptText) return;
         closePromptTokenPicker();
         applyPromptUpdateForTarget(target, promptText);

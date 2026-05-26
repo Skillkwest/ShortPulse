@@ -69,7 +69,7 @@ export function StandardCreatePanelView({
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
-  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages && agentInputVisualRowCount <= 1;
+  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages;
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;

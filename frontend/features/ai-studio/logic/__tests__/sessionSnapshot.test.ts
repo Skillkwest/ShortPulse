@@ -447,7 +447,7 @@ describe("sessionSnapshot", () => {
       "2026-03-02T11:58:00.000Z",
       "2026-03-02T11:57:00.000Z",
     ]);
-    expect(payload.outputs.activeOutputId).toBe("audio-newest");
+    expect(payload.outputs.activeOutputId).toBeNull();
     expect(payload.outputs.curatedReferenceIds).toEqual(["video-oldest", "audio-newest"]);
   });
 
@@ -1306,7 +1306,7 @@ describe("sessionSnapshot", () => {
     );
   });
 
-  it("preserves parked Pulse runtime and prompts in project workspace snapshots", () => {
+  it("resets project workspace shell state while keeping durable media and canvas content", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       updatedAt: "2026-03-02T12:00:00.000Z",
@@ -1362,19 +1362,19 @@ describe("sessionSnapshot", () => {
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
-    expect(projectSnapshot.workspace.expertCreateMode).toBe("pulse");
+    expect(projectSnapshot.workspace.expertCreateMode).toBe("standard");
     expect(projectSnapshot.workspace.selectedTool).toBe("create");
-    expect(projectSnapshot.workspace.prompt).toBe("A cinematic portrait");
+    expect(projectSnapshot.workspace.prompt).toBe("");
     expect(projectSnapshot.workspace.standardPrompt).toBe("");
-    expect(projectSnapshot.workspace.pulsePrompt).toBe("A cinematic portrait");
-    expect(projectSnapshot.workspace.activePulsePresetId).toBe("multi_shot");
-    expect(projectSnapshot.workspace.pulseSessionInstanceId).toBe("pulse-session-1");
+    expect(projectSnapshot.workspace.pulsePrompt).toBe("");
+    expect(projectSnapshot.workspace.activePulsePresetId).toBeNull();
+    expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();
     expect(projectSnapshot.agent).toEqual({
       messages: [],
       input: "",
       latestAgentPrompt: null,
       promptOrigin: "manual",
-      chatModeEnabled: false,
+      chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
       pulseWorkflowSession: null,
     });
     expect(projectSnapshot.schemaVersion).toBe(2);
@@ -1388,18 +1388,25 @@ describe("sessionSnapshot", () => {
           chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
           pulseWorkflowSession: null,
         },
-        pulsePresetId: "multi_shot",
-        pulseSessionInstanceId: "pulse-session-1",
+        pulsePresetId: null,
+        pulseSessionInstanceId: null,
         pulse: {
-          ...snapshot.agentRuntimes?.pulse,
           messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+          pulseWorkflowSession: null,
         },
       });
+      expect(projectSnapshot.canvas?.transient.draftTextEntry).toBeNull();
+      expect(projectSnapshot.canvas?.transient.textEditSession).toBeNull();
+      expect("expertEdit" in projectSnapshot).toBe(false);
       expect(projectSnapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
     }
   });
 
-  it("preserves Create prompts while stripping non-Create draft fields from project workspace snapshots", () => {
+  it("clears Create prompts and draft text from project workspace snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "standard-project-session",
       updatedAt: "2026-05-18T15:00:00.000Z",
@@ -1447,15 +1454,15 @@ describe("sessionSnapshot", () => {
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
-    expect(projectSnapshot.workspace.prompt).toBe("Analyze this image");
-    expect(projectSnapshot.workspace.standardPrompt).toBe("Analyze this image");
+    expect(projectSnapshot.workspace.prompt).toBe("");
+    expect(projectSnapshot.workspace.standardPrompt).toBe("");
     expect(projectSnapshot.workspace.pulsePrompt).toBe("");
     expect(projectSnapshot.workspace.editReferenceText).toBe("");
     expect(projectSnapshot.workspace.videoReferenceText).toBe("");
     expect(projectSnapshot.agent.input).toBe("");
   });
 
-  it("offers a reduced autosave candidate that drops only parked Pulse runtime", () => {
+  it("dedupes parked Pulse-runtime autosave reductions once project snapshots already reset shell state", () => {
     const snapshot = createAiStudioProjectWorkspaceSnapshot(
       buildAiStudioSessionSnapshot({
         sessionId: "project-parked-pulse-runtime-candidate",
@@ -1531,38 +1538,67 @@ describe("sessionSnapshot", () => {
       })
     );
 
-    const reducedCandidate = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot).find(
-      (candidate) => candidate.kind === "without_parked_pulse_runtime"
+    const candidates = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot);
+
+    expect(candidates.map((candidate) => candidate.kind)).toEqual(["full"]);
+  });
+
+  it("keeps canvas as the only live v2 reduction once project sanitization has run", () => {
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(
+      patchAiStudioSessionSnapshotCanvas(
+        buildAiStudioSessionSnapshot({
+          sessionId: "project-canvas-candidate-session",
+          updatedAt: "2026-05-26T18:00:00.000Z",
+          mode: "image",
+          selectedTool: "create",
+          prompt: "A cinematic portrait",
+          model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          aspect: "9:16",
+          expertCreateMode: "standard",
+          activePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          editReferenceText: "",
+          videoReferenceText: "",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          imageResolution: "model_default",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          motionReferenceVideoUrl: null,
+          outputs: [createOutput({ id: "out-1" })],
+          archivedOutputs: [
+            createOutput({
+              id: "archived-1",
+              prompt: "old archived output",
+            }),
+          ],
+          activeOutputId: "out-1",
+          curatedReferenceIds: ["out-1"],
+          removedFromAllRefsIds: ["archived-1"],
+          agentMessages: [],
+          agentInput: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+        }),
+        createCanvasState()
+      )
     );
 
-    expect(reducedCandidate?.snapshot.schemaVersion).toBe(2);
-    if (!reducedCandidate || reducedCandidate.snapshot.schemaVersion !== 2) {
-      throw new Error("Expected v2 parked Pulse runtime candidate.");
-    }
+    const candidates = createAiStudioProjectWorkspaceAutosaveCandidates(projectSnapshot);
 
-    expect(reducedCandidate.snapshot.workspace.activePulsePresetId).toBeNull();
-    expect(reducedCandidate.snapshot.workspace.pulseSessionInstanceId).toBeNull();
-    expect(reducedCandidate.snapshot.agentRuntimes).toEqual({
-      standard: {
-        messages: [],
-        input: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
-        pulseWorkflowSession: null,
-      },
-      pulsePresetId: null,
-      pulseSessionInstanceId: null,
-      pulse: {
-        messages: [],
-        input: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
-        pulseWorkflowSession: null,
-      },
-    });
-    expect(reducedCandidate?.snapshot.workspace.pulsePrompt).toBe("Pulse hidden prompt");
+    expect(candidates.map((candidate) => candidate.kind)).toEqual(["full", "without_canvas"]);
   });
 
   it("dedupes identical v2 autosave candidates when reductions are no-ops", () => {

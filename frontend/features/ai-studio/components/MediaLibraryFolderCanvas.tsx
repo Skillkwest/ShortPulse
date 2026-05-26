@@ -8,6 +8,7 @@ import { CANVAS_DEFAULT_CAMERA } from "./canvas/canvasGeometry";
 import { useAiStudioDualCanvasWorkspaceState } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasCamera,
+  PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   CanvasSceneItem,
   ResolveCanvasDropReference,
@@ -76,6 +77,8 @@ type MediaLibraryFolderCanvasProps = {
 };
 
 const SAVE_DEBOUNCE_MS = 450;
+const FOLDER_CANVAS_UNSUPPORTED_DROP_MESSAGE =
+  "Only images and prompts can be dropped onto this canvas.";
 
 export function MediaLibraryFolderCanvas({
   projectId = null,
@@ -196,7 +199,14 @@ export function MediaLibraryFolderCanvas({
 
   const prepareResolvedInternalCanvasDrop = useCallback<PrepareResolvedInternalCanvasDrop>(
     async (payload, resolved) => {
-      if (resolved.kind !== "image") return resolved;
+      if (resolved.kind === "text") {
+        setSaveError(null);
+        return resolved;
+      }
+      if (resolved.kind !== "image") {
+        setSaveError(FOLDER_CANVAS_UNSUPPORTED_DROP_MESSAGE);
+        return null;
+      }
       const resolvedMediaId = resolved.mediaId?.trim() ?? "";
       let mediaId = resolvedMediaId;
       if (!mediaId) {
@@ -235,6 +245,58 @@ export function MediaLibraryFolderCanvas({
     [addPendingAssignedMediaRow, onAssignDroppedItem, resolveInternalDropItem]
   );
 
+  const prepareCanvasMediaLibraryDrop = useCallback<PrepareCanvasMediaLibraryDrop>(
+    async (payload) => {
+      if (payload.kind === "libraryPrompt") {
+        const promptText = payload.payload.promptText.trim();
+        if (!promptText) return null;
+        if (onAssignDroppedItem) {
+          const assigned = await onAssignDroppedItem({ kind: "prompt", id: payload.payload.id });
+          if (!assigned) return null;
+        }
+        setSaveError(null);
+        return {
+          kind: "text",
+          outputId: `prompt:${payload.payload.id}`,
+          text: promptText,
+        };
+      }
+
+      if (payload.payload.fileType !== "image") {
+        setSaveError(FOLDER_CANVAS_UNSUPPORTED_DROP_MESSAGE);
+        return null;
+      }
+
+      const src =
+        (payload.payload.fullUrl ?? "").trim() ||
+        (payload.payload.previewUrl ?? "").trim() ||
+        (payload.payload.url ?? "").trim();
+      if (!src) return null;
+
+      if (onAssignDroppedItem) {
+        const assigned = await onAssignDroppedItem({ kind: "media", id: payload.payload.id });
+        if (!assigned) return null;
+      }
+
+      addPendingAssignedMediaRow({
+        mediaId: payload.payload.id,
+        src,
+        alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
+      });
+      setSaveError(null);
+      return {
+        kind: "image",
+        outputId: null,
+        mediaId: payload.payload.id,
+        src,
+        alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
+        width: payload.payload.width,
+        height: payload.payload.height,
+      };
+    },
+    [addPendingAssignedMediaRow, onAssignDroppedItem]
+  );
+
   const resolveCanvasDropFiles = useCallback(
     async (files: FileList) => {
       if (!onDropFilesToCanvas) return null;
@@ -246,7 +308,9 @@ export function MediaLibraryFolderCanvas({
         return null;
       }
 
-      const imageRows = uploadedRows.filter((row) => !isVideoFile(row.file_type));
+      const imageRows = uploadedRows.filter(
+        (row) => !isVideoFile(row.file_type) && !isAudioFile(row.file_type)
+      );
       if (!imageRows.length) {
         setSaveError("Only image files can be dropped onto this canvas.");
         return null;
@@ -281,6 +345,7 @@ export function MediaLibraryFolderCanvas({
 
   const workspace = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
+    prepareCanvasMediaLibraryDrop,
     prepareResolvedInternalCanvasDrop,
     resolveCanvasDropFiles,
     onPinTextReference: (text) => {

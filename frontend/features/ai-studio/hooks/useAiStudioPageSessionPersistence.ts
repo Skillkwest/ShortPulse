@@ -48,9 +48,6 @@ type UseAiStudioPageSessionPersistenceParams = {
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
-  hydrateFromSessionExpertEditSnapshot?: (
-    expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
-  ) => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   setUiNotice: (message: string | null) => void;
@@ -71,7 +68,6 @@ export const useAiStudioPageSessionPersistence = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
-  hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   setUiNotice,
@@ -109,7 +105,6 @@ export const useAiStudioPageSessionPersistence = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
-    hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     onPersistenceWarning: handleSessionPersistenceWarning,
@@ -136,7 +131,6 @@ export const useAiStudioPageSessionPersistence = ({
   void sessionTitleOverride;
   void hydrateFromSessionSnapshot;
   void hydrateFromSessionCanvasSnapshot;
-  void hydrateFromSessionExpertEditSnapshot;
   void handleSessionPersistenceWarning;
 
   return projectId || projectRouteRequested ? projectWorkspacePersistence : inertSessionPersistence;

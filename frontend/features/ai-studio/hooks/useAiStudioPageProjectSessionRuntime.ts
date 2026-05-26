@@ -7,19 +7,20 @@ import {
   createEmptyAiStudioSessionAgentState,
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
-  patchAiStudioSessionSnapshotExpertEdit,
+  patchAiStudioSessionSnapshotOutputs,
   patchAiStudioSessionSnapshotWorkspace,
   type AiStudioSessionAgentRuntimesV2,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
+import {
+  createProjectDurableAiStudioSessionCanvasState,
+  parseAiStudioSessionCanvasState,
+  type AiStudioSessionCanvasState,
+} from "../logic/sessionSnapshotCanvas";
 import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
-import { isCreateCharacterModeModel } from "../logic/createCharacterModeModelMapping";
-import { resolveCreateWorkflowStartupModel } from "../logic/modelSelectionPolicy";
-import { getModelConfig } from "../logic/pricing";
 import { type CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioPageSessionPersistence } from "./useAiStudioPageSessionPersistence";
 
@@ -72,35 +73,46 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   setVoiceScriptDraft: (value: string) => void;
 };
 
-export const shouldRestoreCreateCharacterModeFromProjectSnapshot = (
+const normalizeProjectRestoreOutputIds = (
+  value: string[] | undefined,
+  validOutputIds: Set<string>
+): string[] => (value ?? []).filter((id) => validOutputIds.has(id));
+
+export const createProjectRestoreSnapshot = (
   snapshot: AiStudioSessionSnapshot
-): boolean => {
-  const selectedTool = snapshot.workspace.selectedTool;
-  const mode = snapshot.workspace.mode;
-  if (selectedTool !== "create" && selectedTool !== "text") return false;
-  if (mode !== "image" && mode !== "text") return false;
-  return isCreateCharacterModeModel(snapshot.workspace.model);
-};
-
-export const normalizeProjectRestoreSnapshotForCreateCharacterMode = (
-  snapshot: AiStudioSessionSnapshot
-): AiStudioSessionSnapshot => {
-  if (snapshot.schemaVersion < 2) return snapshot;
-  if (!shouldRestoreCreateCharacterModeFromProjectSnapshot(snapshot)) return snapshot;
-
-  const resolvedCreateModel = resolveCreateWorkflowStartupModel({
-    mode: snapshot.workspace.mode,
-    savedModelId: snapshot.workspace.model,
-    isCharacterModeEnabled: true,
-    getModelConfig,
+): AiStudioSessionSnapshotV2 => {
+  const emptySnapshot = createEmptyAiStudioSessionSnapshot({
+    sessionId: snapshot.sessionId,
+    updatedAt: snapshot.updatedAt,
   });
-  if (resolvedCreateModel === snapshot.workspace.model) {
-    return snapshot;
-  }
-
-  return patchAiStudioSessionSnapshotWorkspace(snapshot as AiStudioSessionSnapshotV2, {
-    model: resolvedCreateModel,
+  const activeOutputs = Array.isArray(snapshot.outputs?.active) ? snapshot.outputs.active : [];
+  const activeOutputIds = new Set(
+    activeOutputs
+      .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0)
+  );
+  const outputRestoredSnapshot = patchAiStudioSessionSnapshotOutputs(emptySnapshot, {
+    active: activeOutputs,
+    archived: [],
+    activeOutputId: null,
+    curatedReferenceIds: normalizeProjectRestoreOutputIds(
+      snapshot.outputs?.curatedReferenceIds,
+      activeOutputIds
+    ),
+    removedFromAllRefsIds: normalizeProjectRestoreOutputIds(
+      snapshot.outputs?.removedFromAllRefsIds,
+      activeOutputIds
+    ),
   });
+  if (snapshot.schemaVersion < 2) return outputRestoredSnapshot;
+
+  const parsedCanvas = parseAiStudioSessionCanvasState(
+    (snapshot as AiStudioSessionSnapshotV2).canvas ?? null
+  );
+  const durableCanvas = createProjectDurableAiStudioSessionCanvasState(parsedCanvas);
+  return durableCanvas
+    ? patchAiStudioSessionSnapshotCanvas(outputRestoredSnapshot, durableCanvas)
+    : outputRestoredSnapshot;
 };
 
 /**
@@ -145,6 +157,8 @@ export const useAiStudioPageProjectSessionRuntime = ({
   setVoiceDesignPromptDraft,
   setVoiceScriptDraft,
 }: UseAiStudioPageProjectSessionRuntimeParams) => {
+  void expertEditSessionRevision;
+  void getExpertEditSessionState;
   const fallbackHydrateStandardFromSessionAgentSnapshot =
     activeCreateAgentKind === "standard" ? hydrateActiveFromSessionAgentSnapshot : undefined;
   const fallbackHydratePulseFromSessionAgentSnapshot =
@@ -228,13 +242,11 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
   const hydrateProjectAwareSessionSnapshot = useCallback(
     (snapshot: Parameters<typeof hydrateFromSessionSnapshot>[0]) => {
-      const normalizedSnapshot = normalizeProjectRestoreSnapshotForCreateCharacterMode(snapshot);
+      const normalizedSnapshot = createProjectRestoreSnapshot(snapshot);
       const payload = hydrateFromSessionSnapshot(normalizedSnapshot);
-      setCreateSelectedCharacterId(payload.workspace.selectedCharacterId ?? "");
-      setCreateSelectedCharacterLookId(payload.workspace.selectedCharacterLookId ?? "");
-      setIsCreateCharacterModeEnabled(
-        shouldRestoreCreateCharacterModeFromProjectSnapshot(normalizedSnapshot)
-      );
+      setCreateSelectedCharacterId("");
+      setCreateSelectedCharacterLookId("");
+      setIsCreateCharacterModeEnabled(false);
       return payload;
     },
     [
@@ -312,35 +324,16 @@ export const useAiStudioPageProjectSessionRuntime = ({
     [expertCreateMode, sessionAgentRuntime, sessionAgentRuntimes]
   );
 
-  const readLatestExpertEditSessionState = useCallback(
-    () => getExpertEditSessionState(),
-    [getExpertEditSessionState]
-  );
-
-  const patchProjectAwareSessionSnapshot = useMemo(
-    () => (snapshot: AiStudioSessionSnapshot) => {
-      void expertEditSessionRevision;
-      if (snapshot.schemaVersion < 2) return snapshot;
-      return patchAiStudioSessionSnapshotExpertEdit(
-        snapshot as AiStudioSessionSnapshotV2,
-        readLatestExpertEditSessionState()
-      );
-    },
-    [expertEditSessionRevision, readLatestExpertEditSessionState]
-  );
-
   return useAiStudioPageSessionPersistence({
     projectId,
     projectRouteRequested,
     sessionId: activeSessionPersistenceSessionId,
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildBaseSessionSnapshot: buildProjectAwareBaseSessionSnapshot,
-    patchSessionSnapshot: patchProjectAwareSessionSnapshot,
     createPersistenceRuntime,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
-    hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     setUiNotice,

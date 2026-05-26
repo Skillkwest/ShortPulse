@@ -31,9 +31,22 @@ vi.mock("../../../../prefabs/agent", () => ({
 }));
 
 vi.mock("../PromptStep", () => ({
-  PromptStep: ({ composerLeadingContent }: { composerLeadingContent?: React.ReactNode }) => (
-    <div data-testid="prompt-step">{composerLeadingContent}</div>
-  ),
+  PromptStep: ({
+    composerLeadingContent,
+    onAgentInputVisualRowCountChange,
+    agentInput,
+  }: {
+    composerLeadingContent?: React.ReactNode;
+    onAgentInputVisualRowCountChange?: (rowCount: number) => void;
+    agentInput?: string;
+  }) => {
+    React.useEffect(() => {
+      if (!onAgentInputVisualRowCountChange) return;
+      onAgentInputVisualRowCountChange(agentInput ? 2 : 1);
+    }, [agentInput, onAgentInputVisualRowCountChange]);
+
+    return <div data-testid="prompt-step">{composerLeadingContent}</div>;
+  },
 }));
 
 describe("Create generate guardrail messaging", () => {
@@ -112,6 +125,7 @@ describe("Create generate guardrail messaging", () => {
     );
 
     expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
   it("does not show the removed active Pulse status UI in Pulse mode", () => {

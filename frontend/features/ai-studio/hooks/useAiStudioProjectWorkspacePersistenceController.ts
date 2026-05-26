@@ -47,9 +47,6 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
-  hydrateFromSessionExpertEditSnapshot?: (
-    expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
-  ) => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   onPersistenceWarning?: (message: string) => void;
@@ -181,13 +178,10 @@ const areStringListsEqual = (left: readonly string[], right: readonly string[]):
 const resolveReducedWorkspaceNotice = (
   fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
 ): string => {
-  if (fallbackKind.includes("parked_pulse_runtime")) {
-    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Hidden Pulse state may need to be restarted.";
-  }
   if (fallbackKind.includes("archived_outputs")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore.";
   }
-  if (fallbackKind.includes("expert_edit") || fallbackKind.includes("canvas")) {
+  if (fallbackKind.includes("canvas")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Canvas layout or edit overlays may need to be rebuilt.";
   }
   return "Project autosave saved a reduced workspace snapshot to stay within size limits.";
@@ -213,7 +207,6 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
-  hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onPersistenceWarning,
@@ -450,7 +443,6 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
-    hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     onProjectBootstrapSettled: handleProjectBootstrapSettled,

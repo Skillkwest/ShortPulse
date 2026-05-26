@@ -17,6 +17,7 @@ import {
   extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   extractDragDropPayload,
+  extractPromptDropText,
   extractVideoDragDropPayload,
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
@@ -34,6 +35,13 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
   ({
     files: emptyFileList,
     types: Object.keys(data),
+    getData: (type: string) => data[type] ?? "",
+  }) as unknown as DataTransfer;
+
+const makeTransferWithFiles = (data: Record<string, string>, files: File[]): DataTransfer =>
+  ({
+    files,
+    types: ["Files", ...Object.keys(data)],
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
@@ -256,6 +264,29 @@ describe("dragDrop payload extraction", () => {
 
     expect(payload.imageUrl).toBeNull();
     expect(payload.promptText).toBeNull();
+  });
+
+  it("prefers explicit prompt payloads over synthetic browser files for prompt-only drops", () => {
+    const transfer = makeTransferWithFiles(
+      {
+        "text/plain": "Dragged prompt text",
+        "text/prompt": "Dragged prompt text",
+      },
+      [new File(["ghost"], "ghost.png", { type: "image/png" })]
+    );
+
+    expect(extractPromptDropText(transfer)).toBe("Dragged prompt text");
+  });
+
+  it("keeps plain-text file drags out of prompt-only extraction without an explicit prompt type", () => {
+    const transfer = makeTransferWithFiles(
+      {
+        "text/plain": "ghost.png",
+      },
+      [new File(["ghost"], "ghost.png", { type: "image/png" })]
+    );
+
+    expect(extractPromptDropText(transfer)).toBeNull();
   });
 
   it("ignores video references for image-only drops even when a poster image is present", () => {

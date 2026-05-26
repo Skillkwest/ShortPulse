@@ -197,9 +197,13 @@ describe("PromptStep agent actions", () => {
     const promptBubble = screen
       .getByText("A cinematic product photo with crisp blue rim light.")
       .closest(".agent-message");
+    const promptDragSurface = screen
+      .getByText("A cinematic product photo with crisp blue rim light.")
+      .closest(".agent-message-prompt-drag-surface");
 
     expect(promptBubble).toHaveClass("is-draggable");
-    expect(promptBubble).toHaveAttribute("draggable", "true");
+    expect(promptBubble).toHaveAttribute("draggable", "false");
+    expect(promptDragSurface).toHaveAttribute("draggable", "true");
   });
 
   it("marks only usable assistant prompt outputs for prompt-color styling", () => {
@@ -534,6 +538,41 @@ describe("PromptStep agent actions", () => {
     } finally {
       requestAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it("treats explicit prompt drags with synthetic browser files as text-only in the Standard composer", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={onAgentInputChange}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+
+    fireEvent.drop(inputShell as Element, {
+      dataTransfer: {
+        files: [new File(["ghost"], "ghost.png", { type: "image/png" })],
+        types: ["Files", "text/plain", "text/prompt"],
+        getData: (key: string) => {
+          if (key === "text/plain") return "Dropped prompt text";
+          if (key === "text/prompt") return "Dropped prompt text";
+          return "";
+        },
+      },
+    });
+
+    expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
   });
 
   it("does not load video reference prompts into the Standard composer input", () => {

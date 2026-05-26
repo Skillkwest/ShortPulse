@@ -507,8 +507,8 @@ describe("projectWorkspaceStatesService", () => {
         sessionId: "session-1",
         updatedAt: "2026-04-23T01:00:00.000Z",
         workspace: {
-          prompt: "Legacy prompt",
-          standardPrompt: "Legacy prompt",
+          prompt: "",
+          standardPrompt: "",
           editReferenceText: "",
           videoReferenceText: "",
         },
@@ -548,18 +548,13 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(mediaAssociationUpsert).toHaveBeenCalledWith(
-      expect.arrayContaining([
+      [
         expect.objectContaining({
           project_id: "project-1",
           media_file_id: "media-1",
           user_id: "user-1",
         }),
-        expect.objectContaining({
-          project_id: "project-1",
-          media_file_id: "media-2",
-          user_id: "user-1",
-        }),
-      ]),
+      ],
       expect.objectContaining({
         onConflict: "project_id,media_file_id",
       })

@@ -1,6 +1,7 @@
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractDragDropPayload,
+  extractPromptDropText,
   looksLikeVideoUrl,
   normalizeReferenceTransferUrlCandidate,
 } from "../../utils/dragDrop";
@@ -39,8 +40,8 @@ export const resolveAgentComposerDrop = (
 ): AgentComposerDropResolution => {
   const payload = transfer ? extractDragDropPayload(transfer) : null;
   const mediaLibraryPayload = transfer ? readMediaLibraryDragPayload(transfer) : null;
-  const droppedPromptText = payload?.promptText?.trim() ?? null;
-  const droppedImageUrl = payload?.imageUrl?.trim() ?? null;
+  const droppedPromptText = transfer ? extractPromptDropText(transfer) : null;
+  const droppedImageUrl = droppedPromptText ? null : (payload?.imageUrl?.trim() ?? null);
   const droppedReferenceUrl = transfer
     ? (normalizeReferenceTransferUrlCandidate(transfer.getData("text/reference-url")) ?? null)
     : null;

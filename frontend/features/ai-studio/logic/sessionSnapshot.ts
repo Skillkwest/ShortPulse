@@ -240,15 +240,8 @@ export type AiStudioSessionSnapshotV2 = {
 export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessionSnapshotV2;
 export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
-  | "without_parked_pulse_runtime"
-  | "without_expert_edit"
   | "without_canvas"
-  | "without_canvas_and_expert_edit"
-  | "without_archived_outputs"
-  | "without_archived_outputs_and_parked_pulse_runtime"
-  | "without_archived_outputs_and_expert_edit"
-  | "without_archived_outputs_and_canvas"
-  | "without_archived_outputs_and_canvas_and_expert_edit";
+  | "without_archived_outputs";
 
 export type BuildAiStudioSessionSnapshotInput = {
   sessionId: string;
@@ -1067,45 +1060,6 @@ const stripCanvasFromSnapshot = (
   return rebuildV2SnapshotMeta(baseSnapshot);
 };
 
-const stripExpertEditFromSnapshot = (
-  snapshot: AiStudioSessionSnapshotV2
-): AiStudioSessionSnapshotV2 => {
-  const { meta, expertEdit, ...baseSnapshot } = snapshot;
-  void meta;
-  void expertEdit;
-  return rebuildV2SnapshotMeta(baseSnapshot);
-};
-
-const stripParkedPulseRuntimeFromSnapshot = (
-  snapshot: AiStudioSessionSnapshotV2
-): AiStudioSessionSnapshotV2 => {
-  const expertCreateMode = snapshot.workspace?.expertCreateMode;
-  const hasParkedPulseRuntime =
-    expertCreateMode !== "pulse" &&
-    (snapshot.workspace?.activePulsePresetId ?? null) !== null &&
-    (snapshot.workspace?.pulseSessionInstanceId ?? null) !== null;
-  if (!hasParkedPulseRuntime) {
-    return snapshot;
-  }
-
-  const { meta, ...baseSnapshot } = snapshot;
-  void meta;
-  return rebuildV2SnapshotMeta({
-    ...baseSnapshot,
-    workspace: {
-      ...baseSnapshot.workspace,
-      activePulsePresetId: null,
-      pulseSessionInstanceId: null,
-    },
-    agentRuntimes: {
-      standard: createEmptyAiStudioSessionAgentState(),
-      pulsePresetId: null,
-      pulseSessionInstanceId: null,
-      pulse: createEmptyAiStudioSessionAgentState(),
-    },
-  });
-};
-
 export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   snapshot: AiStudioSessionSnapshot
 ): Array<{
@@ -1118,45 +1072,10 @@ export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   }> = [{ kind: "full", snapshot }];
   if (snapshot.schemaVersion >= 2) {
     const v2Snapshot = snapshot as AiStudioSessionSnapshotV2;
-    const withoutParkedPulseRuntime = stripParkedPulseRuntimeFromSnapshot(v2Snapshot);
-    const withoutExpertEdit = stripExpertEditFromSnapshot(v2Snapshot);
     const withoutCanvas = stripCanvasFromSnapshot(v2Snapshot);
-    const withoutCanvasAndExpertEdit = stripExpertEditFromSnapshot(withoutCanvas);
-    const withoutArchivedOutputs = stripArchivedOutputsFromSnapshot(v2Snapshot);
-    const withoutArchivedOutputsAndParkedPulseRuntime = stripParkedPulseRuntimeFromSnapshot(
-      withoutArchivedOutputs as AiStudioSessionSnapshotV2
-    );
-    const withoutArchivedOutputsAndExpertEdit = stripExpertEditFromSnapshot(
-      withoutArchivedOutputs as AiStudioSessionSnapshotV2
-    );
-    const withoutArchivedOutputsAndCanvas = stripCanvasFromSnapshot(
-      withoutArchivedOutputs as AiStudioSessionSnapshotV2
-    );
-    const withoutArchivedOutputsAndCanvasAndExpertEdit = stripExpertEditFromSnapshot(
-      withoutArchivedOutputsAndCanvas
-    );
     candidates.push(
-      { kind: "without_parked_pulse_runtime", snapshot: withoutParkedPulseRuntime },
-      { kind: "without_expert_edit", snapshot: withoutExpertEdit },
       { kind: "without_canvas", snapshot: withoutCanvas },
-      { kind: "without_canvas_and_expert_edit", snapshot: withoutCanvasAndExpertEdit },
-      { kind: "without_archived_outputs", snapshot: withoutArchivedOutputs },
-      {
-        kind: "without_archived_outputs_and_parked_pulse_runtime",
-        snapshot: withoutArchivedOutputsAndParkedPulseRuntime,
-      },
-      {
-        kind: "without_archived_outputs_and_expert_edit",
-        snapshot: withoutArchivedOutputsAndExpertEdit,
-      },
-      {
-        kind: "without_archived_outputs_and_canvas",
-        snapshot: withoutArchivedOutputsAndCanvas,
-      },
-      {
-        kind: "without_archived_outputs_and_canvas_and_expert_edit",
-        snapshot: withoutArchivedOutputsAndCanvasAndExpertEdit,
-      }
+      { kind: "without_archived_outputs", snapshot: stripArchivedOutputsFromSnapshot(v2Snapshot) }
     );
   } else {
     candidates.push({
@@ -1194,6 +1113,32 @@ export const patchAiStudioSessionSnapshotWorkspace = (
     workspace: {
       ...baseSnapshot.workspace,
       ...workspacePatch,
+    },
+  };
+
+  return {
+    ...patchedSnapshot,
+    meta: {
+      generatedAt: snapshot.updatedAt,
+      checksum: computeChecksum(patchedSnapshot),
+    },
+  };
+};
+
+/**
+ * Applies output-field patches to a v2 snapshot and recomputes metadata checksum.
+ */
+export const patchAiStudioSessionSnapshotOutputs = (
+  snapshot: AiStudioSessionSnapshotV2,
+  outputsPatch: Partial<AiStudioSessionOutputsV1>
+): AiStudioSessionSnapshotV2 => {
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+  const patchedSnapshot = {
+    ...baseSnapshot,
+    outputs: {
+      ...baseSnapshot.outputs,
+      ...outputsPatch,
     },
   };
 

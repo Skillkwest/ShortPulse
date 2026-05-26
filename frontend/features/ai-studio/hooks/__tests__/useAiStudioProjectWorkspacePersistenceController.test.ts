@@ -804,18 +804,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(autosaveSnapshot?.workspace.pulseSessionInstanceId).toBeNull();
     expect(autosaveSnapshot?.agentRuntimes?.pulsePresetId).toBeNull();
     expect(autosaveSnapshot?.agentRuntimes?.pulseSessionInstanceId).toBeNull();
-    expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave saved a reduced workspace snapshot to stay within size limits. Hidden Pulse state may need to be restarted."
-    );
-    expect(mockedAddBreadcrumb).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "ai_studio_project_workspace_snapshot_reduced_for_size",
-        data: expect.objectContaining({
-          project_id: "project-1",
-          fallback_kind: "without_parked_pulse_runtime",
-        }),
-      })
-    );
+    expect(onPersistenceWarning).not.toHaveBeenCalled();
   });
 
   it("surfaces one repair-pending warning when autosave succeeds but project association repair is still pending", async () => {

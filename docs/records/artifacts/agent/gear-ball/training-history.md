@@ -32,19 +32,19 @@ Canonical detailed surfaces:
 
 ## Latest Run
 
+- `2026-05-27` on `production`
+- Score: `8.8/10`
+- What went right: Gear Ball kept the live tree collapsed to one docs/governance lane plus one broad product lane, the product preflight cleared 24 focused files with 247 passing tests, SQL lint passed, and the final production build passed on the exact converged tree.
+- What went wrong: the product lane still paid two formatting sweeps, one bracketed-route shell glob miss, and one small lint cleanup round before the broad manifest fully cleared.
+- Capability decision: on very large mixed frontend/docs/sql lanes, start with one manifest-wide Prettier sweep and quote bracketed route paths in the first command block so the first pass reaches real signal faster.
+
+## Previous Run
+
 - `2026-05-26` on `production`
 - Score: `8.7/10`
 - What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the exact preflight cleared 10 focused files with 113 passing tests, and the final production build passed on the exact converged tree.
 - What went wrong: the lane still paid repeated formatting cleanup cycles, and `DetailModal.tsx` needed an explicit `react-hooks/set-state-in-effect` contract alignment before the lane could clear.
 - Capability decision: on modal-heavy authority lanes, do one upfront Prettier sweep and one quick effect-state lint scan before the first preflight so the first pass reaches the real behavioral signal faster.
-
-## Previous Run
-
-- `2026-05-26` on `production`
-- Score: `8.2/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the focused preflight cleared 28 files with 130 passing tests, and the final production build passed on the exact converged tree.
-- What went wrong: the lane still paid multiple formatting sweeps, a motion-recorder cleanup lint warning, two style-drop regressions, and one project-scoped generated-media authority bug before convergence.
-- Capability decision: on broad drag/drop and media-authority lanes, do one upfront touched-file Prettier sweep and one hook-to-boundary contract scan before the first preflight so the real signal appears sooner.
 
 ## Previous Supervised Synthesis
 

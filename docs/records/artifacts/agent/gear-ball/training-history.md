@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-26` on `production`
-- Score: `8.2/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the focused preflight cleared 28 files with 130 passing tests, and the final production build passed on the exact converged tree.
-- What went wrong: the lane still paid multiple formatting sweeps, a motion-recorder cleanup lint warning, two style-drop regressions, and one project-scoped generated-media authority bug before convergence.
-- Capability decision: on broad drag/drop and media-authority lanes, do one upfront touched-file Prettier sweep and one hook-to-boundary contract scan before the first preflight so the real signal appears sooner.
+- Score: `8.7/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the exact preflight cleared 10 focused files with 113 passing tests, and the final production build passed on the exact converged tree.
+- What went wrong: the lane still paid repeated formatting cleanup cycles, and `DetailModal.tsx` needed an explicit `react-hooks/set-state-in-effect` contract alignment before the lane could clear.
+- Capability decision: on modal-heavy authority lanes, do one upfront Prettier sweep and one quick effect-state lint scan before the first preflight so the first pass reaches the real behavioral signal faster.
 
 ## Previous Run
 
 - `2026-05-26` on `production`
-- Score: `8.3/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the rebuilt current-manifest preflight cleared the exact touched files and focused tests, and the final production build passed on the exact converged tree.
-- What went wrong: the first pass still paid a formatting-only cleanup, the new reference-grid delete path shipped with a missing `normalizeId` helper, and the page shell still held the old delete-callback contract until the build exposed it.
-- Capability decision: on shared media-delete/runtime lanes, scan hook-to-page callback seams immediately after any delete-path signature change so the final build is less likely to be the first place the contract breaks.
+- Score: `8.2/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the focused preflight cleared 28 files with 130 passing tests, and the final production build passed on the exact converged tree.
+- What went wrong: the lane still paid multiple formatting sweeps, a motion-recorder cleanup lint warning, two style-drop regressions, and one project-scoped generated-media authority bug before convergence.
+- Capability decision: on broad drag/drop and media-authority lanes, do one upfront touched-file Prettier sweep and one hook-to-boundary contract scan before the first preflight so the real signal appears sooner.
 
 ## Previous Supervised Synthesis
 

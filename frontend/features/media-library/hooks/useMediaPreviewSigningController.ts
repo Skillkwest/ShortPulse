@@ -62,7 +62,11 @@ type UseMediaPreviewSigningControllerArgs<
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
+  surface?:
+    | "media-library-modal"
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
@@ -70,7 +74,11 @@ type UseMediaPreviewSigningControllerArgs<
   backgroundHydrateFallbackEnabled?: boolean;
 };
 
-const VISIBLE_SCOPED_SIGN_SURFACES = new Set(["media-library-panel", "elements-media-panel"]);
+const VISIBLE_SCOPED_SIGN_SURFACES = new Set([
+  "media-library-panel",
+  "elements-media-panel",
+  "character-media-panel",
+]);
 
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,

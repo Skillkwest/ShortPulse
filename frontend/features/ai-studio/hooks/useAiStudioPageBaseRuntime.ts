@@ -224,8 +224,12 @@ export const useAiStudioPageBaseRuntime = () => {
     setMusicPromptDraft,
     musicLyricsDraft,
     setMusicLyricsDraft,
+    musicDurationSeconds,
+    setMusicDurationSeconds,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraft,
+    soundEffectsDurationSeconds,
+    setSoundEffectsDurationSeconds,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraft,
     voiceScriptDraft,
@@ -681,11 +685,15 @@ export const useAiStudioPageBaseRuntime = () => {
     videoGenerateAudio,
     musicLyricsDraft,
     musicPromptDraft,
+    musicDurationSeconds,
     soundEffectsPromptDraft,
+    soundEffectsDurationSeconds,
     videoReferenceImageUrl,
     videoReferenceMode,
     videoReferenceText,
     videoResolution,
+    setMusicDurationSeconds,
+    setSoundEffectsDurationSeconds,
   };
 };
 

@@ -103,4 +103,39 @@ describe("API proxy protections", () => {
       consoleErrorMock.mockRestore();
     }
   });
+
+  it("returns a structured 500 when protected proxy header shaping throws unexpectedly", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "user-123",
+        email: "user@example.com",
+        app_metadata: circular,
+      }),
+    }));
+    const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const request = new NextRequest("http://localhost:3000/api/media/sign-batch", {
+        headers: {
+          authorization: "Bearer valid-token",
+          "x-shortpulse-request-id": "req-123",
+        },
+      });
+      const response = await proxy(request);
+
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({
+        error: "Protected API proxy failed.",
+        code: "AUTH_PROXY_RUNTIME_FAILURE",
+      });
+    } finally {
+      consoleErrorMock.mockRestore();
+    }
+  });
 });

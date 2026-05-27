@@ -41,7 +41,11 @@ type UseMediaSurfacePreviewSigningArgs<TRow extends PreviewSigningRowBase, TTab 
   signBudgetOverride?: MediaSignBudget;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
+  surface?:
+    | "media-library-modal"
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel";
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;

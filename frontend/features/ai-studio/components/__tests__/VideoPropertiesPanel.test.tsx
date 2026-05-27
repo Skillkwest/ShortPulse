@@ -462,8 +462,10 @@ describe("VideoPropertiesPanel", () => {
 
     render(<VideoPropertiesPanel {...baseProps} motionVideoUrl={null} />);
 
-    expect(screen.getByText("Capture a motion reference")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Record clip" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Record a motion clip to use as the source for Motion Control.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open motion recorder" })).toBeInTheDocument();
   });
 
   it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {

@@ -19,6 +19,7 @@ type MediaAdaptiveSurface =
   | "media-library-modal"
   | "media-library-panel"
   | "elements-media-panel"
+  | "character-media-panel"
   | "character-grid";
 
 type MediaPreviewPressureLevel = 0 | 1;

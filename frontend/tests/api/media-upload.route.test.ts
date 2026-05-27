@@ -1,4 +1,5 @@
 import fs from "fs";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/upload";
 import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
@@ -96,6 +97,13 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+
+const buildOversizedPngBuffer = async (): Promise<Buffer> =>
+  await sharp(Buffer.alloc(3200 * 2800 * 3, 127), {
+    raw: { width: 3200, height: 2800, channels: 3 },
+  })
+    .png({ compressionLevel: 0 })
+    .toBuffer();
 
 const setupSupabaseUpload = (options?: {
   insertedRow?: Record<string, unknown>;
@@ -342,6 +350,66 @@ describe("POST /api/media/upload", () => {
         signedUrl: "https://signed.example/video-preview-loop",
       }),
     });
+  });
+
+  it("normalizes oversized image uploads before the canonical image size cap is enforced", async () => {
+    const oversizedPng = await buildOversizedPngBuffer();
+    mockFile = {
+      filepath: "/tmp/mock-media-upload-oversized-image",
+      mimetype: "image/png",
+      size: oversizedPng.length,
+      originalFilename: "oversized-reference.png",
+    };
+    vi.spyOn(fs, "readFileSync").mockReturnValue(oversizedPng);
+    const { uploadMock, insertMock } = setupSupabaseUpload();
+
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const uploadCalls = uploadMock.mock.calls as unknown as Array<
+      [string, Buffer, { contentType: string }]
+    >;
+    const uploadCall = uploadCalls[0];
+    expect(uploadCall).toBeDefined();
+    if (!uploadCall) {
+      throw new Error("Expected the upload service to receive a normalized image buffer.");
+    }
+    const [, uploadedBuffer, uploadOptions] = uploadCall;
+    expect(uploadedBuffer.length).toBeLessThan(oversizedPng.length);
+    expect(uploadedBuffer.length).toBeLessThanOrEqual(25 * 1024 * 1024);
+    expect(uploadOptions.contentType).toMatch(/^image\/(avif|webp|jpeg)$/);
+
+    const insertCalls = insertMock.mock.calls as unknown as Array<[Record<string, unknown>]>;
+    const insertCall = insertCalls[0];
+    expect(insertCall).toBeDefined();
+    if (!insertCall) {
+      throw new Error("Expected the media row insert payload to be recorded.");
+    }
+    const [insertPayload] = insertCall;
+    expect(insertPayload.file_size).toBe(uploadedBuffer.length);
+    expect(insertPayload.metadata).toEqual(
+      expect.objectContaining({
+        width: expect.any(Number),
+        height: expect.any(Number),
+        aspect_ratio: expect.any(Number),
+        upload_normalization: expect.objectContaining({
+          attempted: true,
+          applied: true,
+          original_bytes: oversizedPng.length,
+          final_bytes: uploadedBuffer.length,
+          original_mime_type: "image/png",
+          final_mime_type: uploadOptions.contentType,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("rejects mismatched content type vs file signature", async () => {

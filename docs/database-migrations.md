@@ -251,6 +251,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 129.  `sql/migrations/129_backfill_user_owned_custom_voices_from_preferences.sql`
 130.  `sql/migrations/130_quarantine_legacy_migrated_custom_voice_ownership.sql`
 131.  `sql/migrations/131_add_user_issue_reports.sql`
+132.  `sql/migrations/132_harden_public_data_api_default_privileges.sql`
+133.  `sql/migrations/133_restore_model_pricing_policy_function_grants.sql`
       Rollback files:
 
 

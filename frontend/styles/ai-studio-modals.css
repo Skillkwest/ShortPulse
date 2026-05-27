@@ -928,6 +928,13 @@
   min-width: 0;
 }
 
+.motion-recorder-modal-sidebar .voices-properties-voice-changer-record-panel {
+  max-width: none;
+  width: 100%;
+  background: rgba(10, 15, 23, 0.88);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .motion-recorder-device-card,
 .motion-recorder-status-card {
   border-radius: 18px;

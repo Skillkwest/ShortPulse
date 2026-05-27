@@ -4,9 +4,10 @@
  * to the canonical motion reference video path.
  */
 import React from "react";
-import { Camera, CircleNotch, Microphone, Record, Stop, X } from "phosphor-react";
+import { Camera, CircleNotch, Microphone, X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { uploadVideoFileToStorage } from "../utils/videoUpload";
+import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MotionRecorderModalProps = {
@@ -718,6 +719,34 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       }),
     [cameraPermissionState, microphonePermissionState]
   );
+  const modalRecordStatusMessage = React.useMemo(() => {
+    if (captureError) return captureError;
+    if (isRequestingAccess) return "Waiting for camera and microphone permission...";
+    if (isRecording) return `Recording ${formatRecordingDuration(recordingElapsedMs)}`;
+    return permissionPreflightFeedback?.message ?? null;
+  }, [
+    captureError,
+    isRecording,
+    isRequestingAccess,
+    permissionPreflightFeedback,
+    recordingElapsedMs,
+  ]);
+  const modalRecordRecoveryHint = React.useMemo(() => {
+    if (captureError) return captureRecoveryHint;
+    if (isRecording) return "Click Stop when the motion reference is complete.";
+    if (isRequestingAccess) return null;
+    return permissionPreflightFeedback?.recoveryHint ?? null;
+  }, [
+    captureError,
+    captureRecoveryHint,
+    isRecording,
+    isRequestingAccess,
+    permissionPreflightFeedback,
+  ]);
+  const isModalRecordError =
+    Boolean(captureError) ||
+    cameraPermissionState === "denied" ||
+    microphonePermissionState === "denied";
   const isShowingPlayback = Boolean(recordedClipUrl);
   const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record motion reference";
 
@@ -850,77 +879,43 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                 </label>
               </div>
 
-              <div className="motion-recorder-status-card" aria-live="polite">
-                {captureError ? (
+              {isShowingPlayback ? (
+                <div className="motion-recorder-status-card" aria-live="polite">
                   <>
-                    <p className="motion-recorder-status-line is-error">{captureError}</p>
-                    {captureRecoveryHint ? (
-                      <p className="motion-recorder-status-hint">{captureRecoveryHint}</p>
-                    ) : null}
-                  </>
-                ) : uploadError ? (
-                  <>
-                    <p className="motion-recorder-status-line is-error">{uploadError}</p>
-                    <p className="motion-recorder-status-hint">
-                      The recording is still here. You can retry staging it without recording again.
-                    </p>
-                  </>
-                ) : isUploadingClip ? (
-                  <>
-                    <p className="motion-recorder-status-line">
-                      <CircleNotch size={14} weight="bold" className="motion-recorder-spin" />{" "}
-                      Adding recorded clip…
+                    <p className={`motion-recorder-status-line${uploadError ? " is-error" : ""}`}>
+                      {uploadError
+                        ? uploadError
+                        : isUploadingClip
+                          ? "Adding recorded clip..."
+                          : "Recorded clip ready to add."}
                     </p>
                     <p className="motion-recorder-status-hint">
-                      We&apos;re staging the clip now so it survives restore and can go straight
-                      into Motion Control.
+                      {uploadError
+                        ? "The recording is still here. You can retry staging it without recording again."
+                        : isUploadingClip
+                          ? "We're staging the clip now so it survives restore and can go straight into Motion Control."
+                          : "Use clip replaces the current motion reference video. Retake keeps you in the recorder until you like the result."}
                     </p>
                   </>
-                ) : isRecording ? (
-                  <>
-                    <p className="motion-recorder-status-line is-live">
-                      <Record size={12} weight="fill" /> Recording{" "}
-                      {formatRecordingDuration(recordingElapsedMs)}
-                    </p>
-                    <p className="motion-recorder-status-hint">
-                      Click Stop when the motion reference is complete.
-                    </p>
-                  </>
-                ) : permissionPreflightFeedback ? (
-                  <>
-                    <p
-                      className={`motion-recorder-status-line${
-                        cameraPermissionState === "denied" || microphonePermissionState === "denied"
-                          ? " is-error"
-                          : ""
-                      }`}
-                    >
-                      {permissionPreflightFeedback.message}
-                    </p>
-                    {permissionPreflightFeedback.recoveryHint ? (
-                      <p className="motion-recorder-status-hint">
-                        {permissionPreflightFeedback.recoveryHint}
-                      </p>
-                    ) : null}
-                  </>
-                ) : isShowingPlayback ? (
-                  <>
-                    <p className="motion-recorder-status-line">Recorded clip ready to add.</p>
-                    <p className="motion-recorder-status-hint">
-                      Use clip replaces the current motion reference video. Retake keeps you in the
-                      recorder until you like the result.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="motion-recorder-status-line">Preview the framing, then record.</p>
-                    <p className="motion-recorder-status-hint">
-                      ShortPulse can request camera access here, but browser and system settings are
-                      controlled outside the app.
-                    </p>
-                  </>
-                )}
-              </div>
+                </div>
+              ) : null}
+
+              {!isShowingPlayback ? (
+                <AiStudioRecordPanelPrefab
+                  panelAriaLabel="Record motion clip"
+                  title="Record"
+                  helper="Record a motion clip to use as the source for Motion Control."
+                  buttonIdleAriaLabel="Record motion clip"
+                  buttonRecordingAriaLabel="Stop motion recording"
+                  idleCue="Click to record"
+                  isRecording={isRecording}
+                  isBusy={isRequestingAccess || isUploadingClip}
+                  statusMessage={modalRecordStatusMessage}
+                  recoveryHint={modalRecordRecoveryHint}
+                  isError={isModalRecordError}
+                  onClick={handleRecordClick}
+                />
+              ) : null}
 
               <div className="motion-recorder-modal-actions">
                 {isShowingPlayback ? (
@@ -958,24 +953,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                       disabled={isUploadingClip}
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className={`motion-recorder-primary-btn${isRecording ? " is-recording" : ""}`}
-                      onClick={handleRecordClick}
-                      disabled={isRequestingAccess || isUploadingClip}
-                    >
-                      {isRecording ? (
-                        <>
-                          <Stop size={14} weight="fill" />
-                          <span>Stop recording</span>
-                        </>
-                      ) : (
-                        <>
-                          <Record size={14} weight="fill" />
-                          <span>Record clip</span>
-                        </>
-                      )}
                     </button>
                   </>
                 )}

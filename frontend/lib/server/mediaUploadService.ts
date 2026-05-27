@@ -9,6 +9,11 @@ import {
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
 } from "../mediaStorageQuota";
+import {
+  maybeNormalizeOversizedImageUpload,
+  type ImageUploadNormalizationMetadata,
+  UnsupportedOversizedAnimatedImageError,
+} from "./imageUploadNormalization";
 import { resolveMediaPreviewStoragePath } from "../../features/media-library/logic/mediaPreviewStoragePath";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -32,6 +37,7 @@ import {
   type InsertedMediaRow,
   insertMediaFileRow,
   type MediaLibraryFileType,
+  MAX_IMAGE_MEDIA_BYTES,
   maxBytesForMediaFileType,
   MAX_VIDEO_MEDIA_BYTES,
   removeScopedMediaStorageObject,
@@ -400,12 +406,10 @@ const validateUpload = ({
   destinationTab,
   declaredMimeType,
   detectedMimeType,
-  fileSize,
 }: {
   destinationTab: MediaUploadDestinationTab;
   declaredMimeType: string;
   detectedMimeType: string | null;
-  fileSize: number;
 }): { mimeType: string; fileType: MediaLibraryFileType } => {
   if (!detectedMimeType || !isAllowedMimeType(destinationTab, detectedMimeType)) {
     const expected = destinationPrefersVideo(destinationTab)
@@ -448,14 +452,22 @@ const validateUpload = ({
     throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported uploaded file type.");
   }
 
-  if (fileSize > maxBytesForMediaFileType(fileType)) {
-    throw new MediaUploadServiceError(413, "Upload failed: file too large");
-  }
-
   return {
     mimeType: detectedMimeType,
     fileType,
   };
+};
+
+const enforceUploadSizeLimit = ({
+  fileType,
+  fileSize,
+}: {
+  fileType: MediaLibraryFileType;
+  fileSize: number;
+}): void => {
+  if (fileSize > maxBytesForMediaFileType(fileType)) {
+    throw new MediaUploadServiceError(413, "Upload failed: file too large");
+  }
 };
 
 /**
@@ -478,6 +490,8 @@ type UploadedStorageAsset = {
   size: number;
   parsedUpload: ParsedUpload;
   fileType: MediaLibraryFileType;
+  imageDimensions: { width: number; height: number } | null;
+  normalizationMetadata: ImageUploadNormalizationMetadata | null;
 };
 
 type StorageUploadOptions = {
@@ -655,8 +669,57 @@ const uploadStorageAssetForUser = async ({
     destinationTab: parsedUpload.destinationTab,
     declaredMimeType: parsedUpload.declaredMimeType,
     detectedMimeType,
-    fileSize: parsedUpload.size,
   });
+  let uploadBuffer = parsedUpload.buffer;
+  let uploadMimeType = validatedUpload.mimeType;
+  let uploadSize = parsedUpload.size;
+  let imageDimensions =
+    validatedUpload.fileType === "image"
+      ? extractImageDimensionsFromBuffer(parsedUpload.buffer)
+      : null;
+  let normalizationMetadata: ImageUploadNormalizationMetadata | null = null;
+
+  if (validatedUpload.fileType === "image") {
+    try {
+      const normalizedImage = await maybeNormalizeOversizedImageUpload({
+        buffer: parsedUpload.buffer,
+        mimeType: validatedUpload.mimeType,
+        maxBytes: MAX_IMAGE_MEDIA_BYTES,
+      });
+      uploadBuffer = normalizedImage.buffer;
+      uploadMimeType = normalizedImage.mimeType;
+      uploadSize = normalizedImage.buffer.length;
+      imageDimensions =
+        normalizedImage.dimensions ?? extractImageDimensionsFromBuffer(normalizedImage.buffer);
+      normalizationMetadata = normalizedImage.metadata;
+    } catch (error) {
+      if (error instanceof UnsupportedOversizedAnimatedImageError) {
+        throw new MediaUploadServiceError(
+          413,
+          "Upload failed: file too large",
+          "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again."
+        );
+      }
+      throw error;
+    }
+  }
+
+  enforceUploadSizeLimit({
+    fileType: validatedUpload.fileType,
+    fileSize: uploadSize,
+  });
+
+  const normalizedUpload: ParsedUpload =
+    uploadBuffer === parsedUpload.buffer &&
+    uploadMimeType === parsedUpload.declaredMimeType &&
+    uploadSize === parsedUpload.size
+      ? parsedUpload
+      : {
+          ...parsedUpload,
+          buffer: uploadBuffer,
+          declaredMimeType: uploadMimeType,
+          size: uploadSize,
+        };
 
   const storageFolder =
     storageFolderOverride ??
@@ -664,17 +727,19 @@ const uploadStorageAssetForUser = async ({
   const uploaded = await uploadScopedStorageBuffer({
     userId,
     storageFolder,
-    filename: parsedUpload.filename,
-    mimeType: validatedUpload.mimeType,
-    buffer: parsedUpload.buffer,
+    filename: normalizedUpload.filename,
+    mimeType: uploadMimeType,
+    buffer: uploadBuffer,
   });
 
   return {
     storagePath: uploaded.storagePath,
     signedUrl: uploaded.signedUrl,
-    size: parsedUpload.size,
-    parsedUpload,
+    size: uploaded.size,
+    parsedUpload: normalizedUpload,
     fileType: validatedUpload.fileType,
+    imageDimensions,
+    normalizationMetadata,
   };
 };
 
@@ -990,9 +1055,12 @@ export const uploadMediaForUser = async ({
     parsedUpload = uploaded.parsedUpload;
     const storagePath = uploaded.storagePath;
     storagePathForCleanup = storagePath;
-    const imageDimensions =
-      uploaded.fileType === "image" ? extractImageDimensionsFromBuffer(parsedUpload.buffer) : null;
-    const metadata = withCanonicalImageDimensions(null, imageDimensions);
+    const metadata = withCanonicalImageDimensions(
+      uploaded.normalizationMetadata
+        ? { upload_normalization: uploaded.normalizationMetadata }
+        : null,
+      uploaded.fileType === "image" ? uploaded.imageDimensions : null
+    );
     const normalizedRow = await insertUploadedMediaRow({
       userId,
       parsedUpload,

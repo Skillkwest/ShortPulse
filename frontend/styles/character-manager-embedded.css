@@ -68,11 +68,14 @@
 }
 
 .character-panel-bottom-section .elements-embedded-media-library-panel,
-.character-panel-bottom-section .elements-embedded-media-library-content {
+.character-panel-bottom-section .elements-embedded-media-library-content,
+.character-panel-bottom-section .character-embedded-media-library-panel,
+.character-panel-bottom-section .character-embedded-media-library-content {
   background: var(--character-panel-section-bg);
 }
 
-.character-panel-bottom-section .elements-embedded-media-library-panel .media-library-panel-body {
+.character-panel-bottom-section .elements-embedded-media-library-panel .media-library-panel-body,
+.character-panel-bottom-section .character-embedded-media-library-panel .media-library-panel-body {
   padding-left: 14px;
   padding-right: 14px;
 }

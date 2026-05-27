@@ -36,7 +36,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     );
     expect(screen.queryByLabelText("Sound effect output format")).not.toBeInTheDocument();
     expect(screen.queryByText("MP3")).not.toBeInTheDocument();
-    expect(screen.getByText("Auto")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("Auto");
     expect(screen.getByText("Inspiration")).toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect inspiration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "cinematic boom" })).toBeInTheDocument();
@@ -108,6 +108,26 @@ describe("SoundEffectsPropertiesPanel", () => {
     );
   });
 
+  it("supports a controlled duration draft from page state", () => {
+    const onDurationChange = vi.fn();
+    const { rerender } = render(
+      <SoundEffectsPropertiesPanel durationSeconds={10} onDurationChange={onDurationChange} />
+    );
+
+    expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("10s");
+
+    fireEvent.click(screen.getByRole("button", { name: "Sound effect duration" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "30s" }));
+
+    expect(onDurationChange).toHaveBeenCalledWith(30);
+
+    rerender(
+      <SoundEffectsPropertiesPanel durationSeconds={30} onDurationChange={onDurationChange} />
+    );
+
+    expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("30s");
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
 
@@ -136,6 +156,24 @@ describe("SoundEffectsPropertiesPanel", () => {
       modelId: "eleven_text_to_sound_v2",
       displayedBilledCredits: 2,
     });
+  });
+
+  it("submits the selected explicit sound effect duration", () => {
+    const onGenerate = vi.fn();
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
+      target: { value: "Wide atmospheric wind gust with a trailing rooftop whistle." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sound effect duration" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "10s" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durationSeconds: 10,
+      })
+    );
   });
 
   it("includes loop when enabled before generate", () => {

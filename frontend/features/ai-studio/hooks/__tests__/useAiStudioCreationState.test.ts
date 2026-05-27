@@ -37,6 +37,21 @@ describe("useAiStudioCreationState", () => {
     expect(result.current.hasUserVideoPrefs).toBe(false);
   });
 
+  it("keeps sound workflow durations page-owned with null defaults", () => {
+    const { result } = renderHook(() => useAiStudioCreationState());
+
+    expect(result.current.musicDurationSeconds).toBeNull();
+    expect(result.current.soundEffectsDurationSeconds).toBeNull();
+
+    act(() => {
+      result.current.setMusicDurationSecondsState(180);
+      result.current.setSoundEffectsDurationSecondsState(10);
+    });
+
+    expect(result.current.musicDurationSeconds).toBe(180);
+    expect(result.current.soundEffectsDurationSeconds).toBe(10);
+  });
+
   it("keeps lane busy state active until the last concurrent submission settles", () => {
     const { result } = renderHook(() => useAiStudioCreationState());
 

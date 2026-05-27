@@ -25,6 +25,7 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
 
 - Workflows:
   - AI Studio Create -> Image
+  - AI Studio Create -> Character Mode when character look refs are present
   - AI Studio standard Edit
 - Model id: `gpt-image-2`
 - Outputs per request: `n = 1`
@@ -46,7 +47,6 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
   - optional mask on the route contract for future/power-user parity
   - optional internal media-ref extensions for app-owned inputs so the route can mint fresh provider-safe signed URLs at dispatch time instead of trusting stale durable signed URLs
 - Still not in scope:
-  - Character Mode
   - streaming
   - Responses tool path
 

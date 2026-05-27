@@ -80,6 +80,9 @@ export const mapCreateModelOnCharacterModeToggle = ({
     if (entry?.supportsImageToImage && pairedModelId) {
       return pairedModelId;
     }
+    if (entry?.supportsImageToImage && entry?.supportsTextToImage) {
+      return normalizedModelId;
+    }
   }
   if (currentModelId && TEXT_TO_EDIT_MODEL_MAP.has(currentModelId)) {
     return currentModelId;

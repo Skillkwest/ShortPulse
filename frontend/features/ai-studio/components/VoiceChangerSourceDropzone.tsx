@@ -13,6 +13,7 @@ import {
 } from "../utils/dragDrop";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { VoiceChangerAudioSourcePreview } from "./VoiceChangerAudioSourcePreview";
+import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import {
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
@@ -1225,80 +1226,33 @@ export function VoiceChangerSourceDropzone({
         </div>
       ) : (
         <div className="voices-properties-voice-changer-intake-grid">
-          <div
-            className="voices-properties-voice-changer-record-panel"
-            aria-label={copy.recordPanelAriaLabel}
-          >
-            <div className="voices-properties-voice-changer-record-panel-copy">
-              <p className="voices-properties-voice-changer-record-title">{copy.recordTitle}</p>
-              <p className="voices-properties-voice-changer-record-helper">{copy.recordHelper}</p>
-            </div>
-            <div className="voices-properties-voice-changer-record-controls">
-              <div className="voices-properties-voice-changer-record-button-wrap">
-                <button
-                  type="button"
-                  className={`voices-properties-voice-changer-record-btn${
-                    isRecording ? " is-recording" : ""
-                  }`}
-                  aria-label={
-                    isRecording
-                      ? copy.recordButtonRecordingAriaLabel
-                      : copy.recordButtonIdleAriaLabel
-                  }
-                  aria-pressed={isRecording}
-                  disabled={isRequestingPermission}
-                  onClick={handleRecordSampleClick}
-                >
-                  <span
-                    className="voices-properties-voice-changer-record-btn-core"
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-
-              <div className="voices-properties-voice-changer-record-footer">
-                {recordingError || isRecording || isRequestingPermission ? (
-                  <div className="voices-properties-voice-changer-record-status-stack">
-                    <p
-                      className={`voices-properties-voice-changer-record-status-line${
-                        recordingError ? " is-error" : ""
-                      }`}
-                      aria-live="polite"
-                    >
-                      {recordingError ??
-                        (isRequestingPermission
-                          ? "Waiting for microphone permission..."
-                          : `Recording ${formatRecordingDuration(recordingElapsedMs)}`)}
-                    </p>
-                    {recordingError && recordingRecoveryHint ? (
-                      <p className="voices-properties-voice-changer-record-recovery-hint">
-                        {recordingRecoveryHint}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : permissionPreflightFeedback ? (
-                  <div className="voices-properties-voice-changer-record-status-stack">
-                    <p
-                      className={`voices-properties-voice-changer-record-status-line${
-                        microphonePermissionState === "denied" ? " is-error" : ""
-                      }`}
-                    >
-                      {permissionPreflightFeedback.message}
-                    </p>
-                    {permissionPreflightFeedback.recoveryHint ? (
-                      <p className="voices-properties-voice-changer-record-recovery-hint">
-                        {permissionPreflightFeedback.recoveryHint}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <span className="voices-properties-voice-changer-record-idle-cue">
-                    {copy.recordIdleCue}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+          <AiStudioRecordPanelPrefab
+            panelAriaLabel={copy.recordPanelAriaLabel}
+            title={copy.recordTitle}
+            helper={copy.recordHelper}
+            buttonIdleAriaLabel={copy.recordButtonIdleAriaLabel}
+            buttonRecordingAriaLabel={copy.recordButtonRecordingAriaLabel}
+            idleCue={copy.recordIdleCue}
+            isRecording={isRecording}
+            isBusy={isRequestingPermission}
+            statusMessage={
+              recordingError ||
+              (isRequestingPermission
+                ? "Waiting for microphone permission..."
+                : isRecording
+                  ? `Recording ${formatRecordingDuration(recordingElapsedMs)}`
+                  : (permissionPreflightFeedback?.message ?? null))
+            }
+            recoveryHint={
+              recordingError
+                ? recordingRecoveryHint
+                : !isRecording && !isRequestingPermission
+                  ? (permissionPreflightFeedback?.recoveryHint ?? null)
+                  : null
+            }
+            isError={Boolean(recordingError) || microphonePermissionState === "denied"}
+            onClick={handleRecordSampleClick}
+          />
 
           <div className="voices-properties-voice-changer-intake-divider" aria-hidden="true">
             OR

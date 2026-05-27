@@ -1,6 +1,5 @@
 import React from "react";
 import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel";
-import { useReferenceGridHorizontalSplit } from "../../ai-studio/hooks/useReferenceGridHorizontalSplit";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { ElementsManagerShell } from "./ElementsManagerShell";
@@ -15,9 +14,12 @@ type ElementsPanelSplitHostProps = {
   externalCreateRequestKey?: number;
 };
 
-const ELEMENTS_PANEL_DEFAULT_TOP_RATIO = 0.54;
-const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 232;
-const ELEMENTS_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
+const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 336;
+const ELEMENTS_PANEL_MAX_BOTTOM_HEIGHT_PX = 544;
+const ELEMENTS_PANEL_TOP_SECTION_INLINE_STYLE: React.CSSProperties = {
+  flex: "1 1 auto",
+  minHeight: `${ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX}px`,
+};
 
 export function ElementsPanelSplitHost({
   projectId = null,
@@ -25,36 +27,32 @@ export function ElementsPanelSplitHost({
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
 }: ElementsPanelSplitHostProps) {
-  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const split = useReferenceGridHorizontalSplit({
-    enabled: true,
-    containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
-    defaultTopRatio: ELEMENTS_PANEL_DEFAULT_TOP_RATIO,
-    minTopSectionHeightPx: ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX,
-    minBottomSectionHeightPx: ELEMENTS_PANEL_MIN_BOTTOM_HEIGHT_PX,
-    minTopRatioFloor: 0.32,
-    ariaLabel: "Resize elements workspace and media library sections",
-  });
+  const bottomSectionStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      flexGrow: 0,
+      flexShrink: 0,
+      flexBasis: `${ELEMENTS_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      height: `${ELEMENTS_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      minHeight: `${ELEMENTS_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      maxHeight: `${ELEMENTS_PANEL_MAX_BOTTOM_HEIGHT_PX}px`,
+      overflow: "hidden",
+    }),
+    []
+  );
 
   return (
-    <div ref={splitContainerRef} className="elements-panel-split-host">
-      <div className="elements-panel-top-section" style={split.topSectionStyle}>
+    <div className="elements-panel-split-host">
+      <div className="elements-panel-top-section" style={ELEMENTS_PANEL_TOP_SECTION_INLINE_STYLE}>
         <ElementsManagerShell
           externalCreateRequestKey={externalCreateRequestKey}
-          isEmbeddedMediaLibraryMaximized={split.isAllRefsExpanded}
           resolveProfileImageDropSource={resolveProfileImageDropSource}
         />
       </div>
 
-      <div
-        className="reference-grid-horizontal-divider-wrap elements-panel-horizontal-divider-wrap"
-        {...split.dividerProps}
-      >
-        <div className="reference-grid-horizontal-divider" />
-      </div>
-
-      <div className="elements-panel-bottom-section" style={split.bottomSectionStyle}>
+      <div className="elements-panel-bottom-section" style={bottomSectionStyle}>
         <ElementsEmbeddedMediaLibraryPanel
+          mediaCardInteractionMode="assignment"
+          fixedVisualAspectRatio={null}
           projectId={projectId}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
         />

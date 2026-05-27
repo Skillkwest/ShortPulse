@@ -50,10 +50,10 @@ describe("MusicPropertiesPanel", () => {
     ).toBe(true);
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
-    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveTextContent("Auto");
-    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveAttribute(
       "title",
-      "Auto duration is chosen by the music model."
+      "Let the music model choose the track length."
     );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
@@ -127,6 +127,24 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("textbox", { name: "Song lyrics" })).toHaveValue("Updated lyric line.");
   });
 
+  it("supports a controlled duration draft from page state", () => {
+    const onDurationChange = vi.fn();
+    const { rerender } = render(
+      <MusicPropertiesPanel durationSeconds={180} onDurationChange={onDurationChange} />
+    );
+
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("3m");
+
+    fireEvent.click(screen.getByRole("button", { name: "Music duration" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "10m" }));
+
+    expect(onDurationChange).toHaveBeenCalledWith(600);
+
+    rerender(<MusicPropertiesPanel durationSeconds={600} onDurationChange={onDurationChange} />);
+
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("10m");
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
 
@@ -174,10 +192,10 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("switch", { name: "Singer" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
-    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveTextContent("Auto");
-    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("button", { name: "Music duration" })).toHaveAttribute(
       "title",
-      "Auto duration is chosen by the music model."
+      "Let the music model choose the track length."
     );
     expect(screen.queryByLabelText("Custom mode note")).toBeNull();
   });
@@ -226,6 +244,35 @@ describe("MusicPropertiesPanel", () => {
     );
     expect(firstRequest.displayedBilledCredits).toBe(secondRequest.displayedBilledCredits);
     expect(firstRequest.displayedBilledCredits).not.toBeNull();
+  });
+
+  it("submits the selected fixed music duration", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: {
+        value: "Slow-burn cinematic cue with a restrained piano intro and a sweeping final lift.",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Music duration" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "3m" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        durationSeconds: 180,
+      })
+    );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        durationSeconds: 180,
+      })
+    );
   });
 
   it("submits vocal mode when singer is enabled in custom mode", async () => {

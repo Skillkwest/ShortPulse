@@ -3,6 +3,7 @@
  * Mirrors the simplified single-surface music composer while keeping SFX request shaping isolated.
  */
 import React from "react";
+import { ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
@@ -22,7 +23,9 @@ export type SoundEffectsGenerateRequest = {
 
 export type SoundEffectsPropertiesPanelProps = {
   balanceCredits?: number | null;
+  durationSeconds?: number | null;
   isGenerating?: boolean;
+  onDurationChange?: (value: number | null) => void;
   onGenerate?: (request: SoundEffectsGenerateRequest) => Promise<void> | void;
   onPromptChange?: (value: string) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
@@ -88,7 +91,9 @@ const ClockIcon = () => (
 
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
   balanceCredits: _balanceCredits = null,
+  durationSeconds: controlledDurationSeconds,
   isGenerating = false,
+  onDurationChange,
   onGenerate,
   onPromptChange,
   pricingPolicy = null,
@@ -103,8 +108,13 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const inspirationDragStartScrollLeftRef = React.useRef(0);
   const inspirationDidDragRef = React.useRef(false);
   const suppressChipClickRef = React.useRef(false);
+  const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [loopEnabled, setLoopEnabled] = React.useState(false);
+  const [uncontrolledDurationSeconds, setUncontrolledDurationSeconds] = React.useState<
+    number | null
+  >(null);
+  const [isDurationMenuOpen, setIsDurationMenuOpen] = React.useState(false);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
   const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
@@ -112,6 +122,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     canScrollForward: false,
   });
   const prompt = controlledPrompt ?? uncontrolledPrompt;
+  const durationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
   const resolveTextAction = React.useCallback(
     (current: string, action: React.SetStateAction<string>) =>
       typeof action === "function" ? (action as (value: string) => string)(current) : action,
@@ -129,12 +140,34 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     },
     [onPromptChange, prompt, resolveTextAction]
   );
+  const setDuration = React.useCallback(
+    (value: number | null) => {
+      if (onDurationChange) {
+        onDurationChange(value);
+        return;
+      }
+      setUncontrolledDurationSeconds(value);
+    },
+    [onDurationChange]
+  );
 
   React.useEffect(() => {
     setInspirationInsertError(null);
   }, [prompt]);
 
-  const durationSeconds = null;
+  React.useEffect(() => {
+    if (!isDurationMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!durationMenuRef.current?.contains(event.target as Node)) {
+        setIsDurationMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isDurationMenuOpen]);
+
   const generateCost =
     resolveClientBilledCredits({
       modelId: hardcodedSoundEffectsModelId,
@@ -146,6 +179,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       pricingPolicyReady,
     }) ?? null;
   const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
+  const selectedDurationOption =
+    ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.find((option) => option.value === durationSeconds) ??
+    ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS[0];
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef,
@@ -422,12 +458,52 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                     </span>
                   </button>
 
-                  <span className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--static">
-                    <span className="sound-effects-properties-footer-pill-icon">
-                      <ClockIcon />
-                    </span>
-                    <span className="sound-effects-properties-footer-pill-value">Auto</span>
-                  </span>
+                  <div
+                    ref={durationMenuRef}
+                    className={`sound-effects-properties-footer-dropdown ${
+                      isDurationMenuOpen ? "is-open" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="sound-effects-properties-footer-pill sound-effects-properties-footer-pill--dropdown"
+                      aria-haspopup="menu"
+                      aria-expanded={isDurationMenuOpen}
+                      aria-label="Sound effect duration"
+                      title={selectedDurationOption.title}
+                      disabled={isGenerating}
+                      onClick={() => setIsDurationMenuOpen((currentValue) => !currentValue)}
+                    >
+                      <span className="sound-effects-properties-footer-pill-icon">
+                        <ClockIcon />
+                      </span>
+                      <span className="sound-effects-properties-footer-pill-value">
+                        {selectedDurationOption.label}
+                      </span>
+                    </button>
+                    {isDurationMenuOpen ? (
+                      <div className="sound-effects-properties-footer-dropdown-menu" role="menu">
+                        {ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.map((option) => (
+                          <button
+                            key={option.value ?? "auto"}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={durationSeconds === option.value}
+                            className={`sound-effects-properties-footer-dropdown-option ${
+                              durationSeconds === option.value ? "is-active" : ""
+                            }`}
+                            title={option.title}
+                            onClick={() => {
+                              setDuration(option.value);
+                              setIsDurationMenuOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
                 <button

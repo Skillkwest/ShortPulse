@@ -5,8 +5,8 @@ import { CharacterPanelSplitHost } from "../CharacterPanelSplitHost";
 const embeddedMediaPanelSpy = vi.fn();
 const workspaceSpy = vi.fn();
 
-vi.mock("../../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel", () => ({
-  ElementsEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
+vi.mock("../CharacterEmbeddedMediaLibraryPanel", () => ({
+  CharacterEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
     embeddedMediaPanelSpy(props);
     return <div data-testid="character-bottom-media-library" />;
   },

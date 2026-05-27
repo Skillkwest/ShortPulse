@@ -75,7 +75,7 @@ type MediaLibraryAllItemsGridProps = {
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   signedPosterUrlById?: Record<string, string>;
   signedVideoUrlById?: Record<string, string>;
-  surface?: "media-library-panel" | "elements-media-panel";
+  surface?: "media-library-panel" | "elements-media-panel" | "character-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
   preferVisualMediaFirst?: boolean;
   visualMediaPriorityCount?: number;

@@ -8,6 +8,7 @@ export type MediaPerfSurface =
   | "media-library-modal"
   | "media-library-panel"
   | "elements-media-panel"
+  | "character-media-panel"
   | "reference-grid";
 
 export type MediaPerfEventName =

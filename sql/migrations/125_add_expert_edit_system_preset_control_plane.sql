@@ -11,6 +11,11 @@ create table if not exists public.expert_edit_system_preset_runtime (
 
 alter table public.expert_edit_system_preset_runtime enable row level security;
 
+revoke all on table public.expert_edit_system_preset_runtime from public;
+revoke all on table public.expert_edit_system_preset_runtime from anon;
+revoke all on table public.expert_edit_system_preset_runtime from authenticated;
+grant all on table public.expert_edit_system_preset_runtime to service_role;
+
 insert into public.expert_edit_system_preset_runtime (
     singleton,
     preset_definitions,

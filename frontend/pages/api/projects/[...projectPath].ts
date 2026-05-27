@@ -6,6 +6,8 @@
  * the focused handler implementations in `lib/server/projectApiRoutes`.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { RequestBodyTooLargeError, readRawRequestBody } from "../../../lib/server/api/requestBody";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import itemHandler from "../../../lib/server/projectApiRoutes/item";
 import workspaceHandler from "../../../lib/server/projectApiRoutes/workspace";
 import folderCanvasHandler from "../../../lib/server/projectApiRoutes/mediaFolders/canvas";
@@ -33,6 +35,15 @@ type ResolvedProjectDynamicRoute = {
   query: Record<string, string>;
 };
 
+const DYNAMIC_PROJECT_ROUTE_BODY_LIMIT_BYTES = 1024 * 1024;
+
+class InvalidDynamicProjectRouteBodyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidDynamicProjectRouteBodyError";
+  }
+}
+
 const toRouteSegments = (value: string | string[] | undefined): string[] => {
   if (Array.isArray(value)) return value.map((entry) => entry.trim()).filter(Boolean);
   if (typeof value === "string") return [value.trim()].filter(Boolean);
@@ -49,6 +60,182 @@ const dispatchHandler = (
   req: NextApiRequest,
   res: NextApiResponse
 ) => handler(req, res);
+
+const resolveRequestContentType = (req: NextApiRequest): string | null => {
+  const rawHeader = req.headers["content-type"];
+  const value = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+  if (typeof value !== "string") return null;
+  const normalized = value.split(";")[0]?.trim().toLowerCase();
+  return normalized && normalized.length > 0 ? normalized : null;
+};
+
+const requestBodyCanBeSkipped = (req: NextApiRequest): boolean =>
+  req.method === "GET" || req.method === "HEAD" || req.body !== undefined;
+
+const parseDynamicProjectRouteBody = ({
+  rawBody,
+  contentType,
+}: {
+  rawBody: string;
+  contentType: string | null;
+}): unknown => {
+  const trimmed = rawBody.trim();
+  if (!trimmed) return {};
+
+  const shouldParseJson =
+    contentType === "application/json" ||
+    contentType === "application/ld+json" ||
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith('"');
+
+  if (!shouldParseJson) return rawBody;
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    throw new InvalidDynamicProjectRouteBodyError("Invalid JSON request body.");
+  }
+};
+
+const hydrateDynamicProjectRouteBody = async (req: NextApiRequest): Promise<void> => {
+  if (requestBodyCanBeSkipped(req)) return;
+
+  const contentLengthHeader = req.headers["content-length"];
+  const contentLength = Array.isArray(contentLengthHeader)
+    ? contentLengthHeader[0]
+    : contentLengthHeader;
+  if (contentLength === "0") {
+    req.body = {};
+    return;
+  }
+
+  const rawBody = await readRawRequestBody(req, {
+    maxBytes: DYNAMIC_PROJECT_ROUTE_BODY_LIMIT_BYTES,
+  });
+  req.body = parseDynamicProjectRouteBody({
+    rawBody,
+    contentType: resolveRequestContentType(req),
+  });
+};
+
+const resolveDynamicRouteExceptionLabel = ({
+  kind,
+  method,
+}: {
+  kind: ResolvedProjectDynamicRoute["kind"];
+  method: NextApiRequest["method"];
+}): string => {
+  if (kind === "workspace") {
+    if (method === "PUT") return "projects-workspace-save-dispatch";
+    if (method === "DELETE") return "projects-workspace-delete-dispatch";
+    return "projects-workspace-read-dispatch";
+  }
+  if (kind === "item") {
+    if (method === "PATCH") return "projects-item-update-dispatch";
+    if (method === "DELETE") return "projects-item-delete-dispatch";
+    return "projects-item-read-dispatch";
+  }
+  return `projects-${kind}-dispatch`;
+};
+
+const resolveDynamicRouteErrorResponse = ({
+  kind,
+  method,
+}: {
+  kind: ResolvedProjectDynamicRoute["kind"];
+  method: NextApiRequest["method"];
+}): { error: string; details?: string; failureStage?: string } | { error: string } => {
+  if (kind === "workspace") {
+    if (method === "PUT") {
+      return {
+        error: "Failed to save project workspace",
+        details:
+          "Failed to save project workspace during dynamic route dispatch: Internal Server Error",
+        failureStage: "workspace save",
+      };
+    }
+    if (method === "DELETE") {
+      return {
+        error: "Failed to reset project workspace",
+        details:
+          "Failed to reset project workspace during dynamic route dispatch: Internal Server Error",
+        failureStage: "workspace delete",
+      };
+    }
+    return {
+      error: "Failed to load project workspace",
+      details:
+        "Failed to load project workspace during dynamic route dispatch: Internal Server Error",
+      failureStage: "workspace read",
+    };
+  }
+
+  return {
+    error: "Failed to process project route",
+  };
+};
+
+const resolveDynamicRouteBodyErrorResponse = ({
+  kind,
+  method,
+  error,
+}: {
+  kind: ResolvedProjectDynamicRoute["kind"];
+  method: NextApiRequest["method"];
+  error: unknown;
+}): {
+  status: number;
+  payload:
+    | { error: string; details?: string; failureStage?: string }
+    | { error: string; details?: string };
+} => {
+  const requestBodyMessage =
+    error instanceof RequestBodyTooLargeError
+      ? `Project request body exceeds ${error.maxBytes} bytes.`
+      : error instanceof InvalidDynamicProjectRouteBodyError
+        ? error.message
+        : "Invalid project request body.";
+
+  if (kind === "workspace") {
+    if (method === "PUT") {
+      return {
+        status: error instanceof RequestBodyTooLargeError ? 413 : 400,
+        payload: {
+          error: requestBodyMessage,
+          details: "Failed to save project workspace during request body handling.",
+          failureStage: "request body",
+        },
+      };
+    }
+    if (method === "DELETE") {
+      return {
+        status: error instanceof RequestBodyTooLargeError ? 413 : 400,
+        payload: {
+          error: requestBodyMessage,
+          details: "Failed to reset project workspace during request body handling.",
+          failureStage: "request body",
+        },
+      };
+    }
+    return {
+      status: error instanceof RequestBodyTooLargeError ? 413 : 400,
+      payload: {
+        error: requestBodyMessage,
+        details: "Failed to load project workspace during request body handling.",
+        failureStage: "request body",
+      },
+    };
+  }
+
+  return {
+    status: error instanceof RequestBodyTooLargeError ? 413 : 400,
+    payload: {
+      error: requestBodyMessage,
+      details: "Failed to process project route during request body handling.",
+    },
+  };
+};
 
 export const resolveProjectDynamicRoute = (
   segments: string[]
@@ -100,12 +287,54 @@ export const resolveProjectDynamicRoute = (
   return null;
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const segments = toRouteSegments(req.query.projectPath);
   const route = resolveProjectDynamicRoute(segments);
   if (route) {
-    return dispatchHandler(route.handler, withRouteQuery(req, route.query), res);
+    try {
+      await hydrateDynamicProjectRouteBody(req);
+      return await dispatchHandler(route.handler, withRouteQuery(req, route.query), res);
+    } catch (error) {
+      if (
+        error instanceof RequestBodyTooLargeError ||
+        error instanceof InvalidDynamicProjectRouteBodyError
+      ) {
+        if (res.headersSent || res.writableEnded) return;
+        const bodyErrorResponse = resolveDynamicRouteBodyErrorResponse({
+          kind: route.kind,
+          method: req.method,
+          error,
+        });
+        return res.status(bodyErrorResponse.status).json(bodyErrorResponse.payload);
+      }
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: resolveDynamicRouteExceptionLabel({
+          kind: route.kind,
+          method: req.method,
+        }),
+        metadata: {
+          project_dynamic_route_kind: route.kind,
+          project_dynamic_route_segments: segments,
+          source: "api.projects.dynamic_dispatch",
+        },
+      });
+      if (res.headersSent || res.writableEnded) return;
+      return res.status(500).json(
+        resolveDynamicRouteErrorResponse({
+          kind: route.kind,
+          method: req.method,
+        })
+      );
+    }
   }
 
   return res.status(404).json({ error: "Not found" });
 }
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};

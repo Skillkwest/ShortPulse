@@ -198,23 +198,30 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 
 - Expected loop: harden -> diagnose -> repair -> harden -> diagnose.
 
-5. Run runtime SQL security audit after migration/security changes.
+5. Explicit Data API grants are mandatory for new `public` tables and routines.
+
+- Do not rely on Supabase auto-exposure defaults for new `public` objects.
+- When a migration creates a table intended for browser or server Data API access, add the least-privilege `grant` statements in the same migration.
+- For service-role-only control-plane tables, explicitly revoke `public` / `anon` / `authenticated` and grant only `service_role`.
+- Treat grants, RLS enablement, and policies as one unit. Missing grants fail before RLS can help.
+
+6. Run runtime SQL security audit after migration/security changes.
 
 - Execute `sql/check_runtime_sql_security_audit.sql` in staging/production.
 - Expect `failing_checks = 0` before phase/deploy signoff.
 - Treat owner drift, missing `SECURITY DEFINER`, or missing service-role execute posture on admin stats, model-pricing control-plane, agent-safety control-plane, and other operator/runtime RPCs as a release blocker, not a degradable warning.
 - Treat failing schema/table/sequence grant checks as release blockers even when function execute posture is still green; those checks are the canary for role-grant collapse on hosted environments.
 
-6. Lint SQL before merge when migrations/functions changed.
+7. Lint SQL before merge when migrations/functions changed.
 
 - Run: `supabase db lint --linked --schema public --fail-on warning`.
 - Alternative for explicit DB target pinning: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`.
 
-7. Do not use Docker-based local Supabase commands in agent workflows.
+8. Do not use Docker-based local Supabase commands in agent workflows.
 
 - Avoid `supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, and direct `docker` commands.
 
-8. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
+9. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
 
 - Use `.github/workflows/reliability-control-plane-diagnostics.yml` for read-only reliability diagnostics against `staging`/`production`.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.

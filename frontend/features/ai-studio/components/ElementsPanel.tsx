@@ -18,6 +18,14 @@ type ElementsPanelProps = {
   projectId?: string | null;
 };
 
+const ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
+const ELEMENTS_PANEL_ROOT_INLINE_STYLE: React.CSSProperties = {
+  width: `calc(100% + ${ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX * 2}px)`,
+  marginLeft: `-${ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX}px`,
+  marginRight: `-${ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX}px`,
+  maxWidth: "none",
+};
+
 export function ElementsPanel({
   resolveProfileImageDropSource,
   resolveMediaLibraryInternalDropItem,
@@ -31,7 +39,11 @@ export function ElementsPanel({
   });
 
   return (
-    <div ref={panelRootRef} className="elements-panel-root">
+    <div
+      ref={panelRootRef}
+      className="elements-panel-root"
+      style={ELEMENTS_PANEL_ROOT_INLINE_STYLE}
+    >
       <ElementsPanelSplitHost
         externalCreateRequestKey={createRequestKey}
         projectId={projectId}

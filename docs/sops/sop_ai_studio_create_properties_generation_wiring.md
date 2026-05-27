@@ -83,7 +83,7 @@ sequenceDiagram
 - Create image/text -> text-to-image capable image models.
 - Edit/image -> image-to-image capable models.
 - Video/kling/keyframes/motion -> mode-constrained image-to-video sets.
-- Character mode in Create narrows to allowed edit-capable models.
+- Character mode in Create narrows to Character Mode-approved image-to-image-capable models, including GPT Image 2 and the paired Seedream/Nano Banana edit lanes.
 
 3. `ModelModal` applies context-specific ordering (`providerPriorityByContext`, `modelPriorityByContext`) and context-specific hides (`hiddenModelIdsByContext`).
 4. Selection commit path:

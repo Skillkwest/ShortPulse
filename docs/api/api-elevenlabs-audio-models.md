@@ -58,10 +58,12 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
 - Music generation:
   - route: `POST /api/elevenlabs/music`
   - input family: prompt-first music controls (`text`, `durationSeconds`, `bpm`, `mode`, `structure`, `energyPercent`, `outputFormat`)
+  - duration contract: `durationSeconds` is optional. When present, ShortPulse forwards `music_length_ms` to ElevenLabs and accepts the current API range `3..600` seconds; when omitted, the provider chooses the track length automatically.
   - output: persisted generated audio payload
 - Sound effects generation:
   - route: `POST /api/elevenlabs/sound-effects`
   - input family: prompt-driven SFX controls (`text`, `durationSeconds`, `loop`, `promptInfluence`, `outputFormat`)
+  - duration contract: `durationSeconds` is optional. When present, ShortPulse accepts the current API range `0.5..30` seconds; when omitted, the provider chooses the clip length automatically.
   - output: persisted generated audio payload
 - Voice design preview/create:
   - routes:

@@ -4,6 +4,12 @@
  */
 import type { ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
 import {
+  ELEVENLABS_MUSIC_DURATION_MAX_SECONDS,
+  ELEVENLABS_MUSIC_DURATION_MIN_SECONDS,
+  ELEVENLABS_SOUND_EFFECT_DURATION_MAX_SECONDS,
+  ELEVENLABS_SOUND_EFFECT_DURATION_MIN_SECONDS,
+} from "./elevenLabsAudioDurations";
+import {
   ELEVENLABS_MUSIC_MODEL_ID,
   ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
   ELEVENLABS_VOICEOVER_MODEL_ID,
@@ -897,8 +903,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultAspect: "audio",
     allowedAspects: [],
     defaultDurationSeconds: 60,
-    minDurationSeconds: 8,
-    maxDurationSeconds: 180,
+    minDurationSeconds: ELEVENLABS_MUSIC_DURATION_MIN_SECONDS,
+    maxDurationSeconds: ELEVENLABS_MUSIC_DURATION_MAX_SECONDS,
     generationLanes: ["music"],
     executionMode: "direct",
     submitHandler: "audio",
@@ -920,8 +926,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedAspects: [],
     defaultDurationSeconds: 5,
     defaultGenerationCount: 1,
-    minDurationSeconds: 0.5,
-    maxDurationSeconds: 30,
+    minDurationSeconds: ELEVENLABS_SOUND_EFFECT_DURATION_MIN_SECONDS,
+    maxDurationSeconds: ELEVENLABS_SOUND_EFFECT_DURATION_MAX_SECONDS,
     generationLanes: ["sfx"],
     executionMode: "direct",
     submitHandler: "audio",
@@ -1112,6 +1118,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 110,
     pricingFamily: "Image",
     logoKey: "openai",
+    createCharacterModeOrder: 50,
     supportsTextToImage: true,
     supportsImageToImage: true,
     generationLanes: ["text-to-image", "image-to-image"],

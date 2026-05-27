@@ -41,6 +41,7 @@ const CHARACTER_DESCRIPTION_INPUT_STYLE: React.CSSProperties = {
 const CHARACTER_DESCRIPTION_PLACEHOLDER_STYLE: React.CSSProperties = {
   position: "absolute",
   top: "20px",
+  bottom: "34px",
   left: "20px",
   right: "20px",
   margin: 0,
@@ -53,6 +54,10 @@ const CHARACTER_DESCRIPTION_PLACEHOLDER_STYLE: React.CSSProperties = {
   letterSpacing: "0.003em",
   pointerEvents: "none",
   whiteSpace: "pre-wrap",
+  overflow: "hidden",
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 3,
 };
 
 const CHARACTER_DESCRIPTION_CARD_STYLE: React.CSSProperties = {
@@ -171,12 +176,12 @@ export function CharacterDescriptionEditorCard({
             style={{
               ...CHARACTER_DESCRIPTION_PLACEHOLDER_STYLE,
               top: `${resolvedContainerPaddingTopPx + resolvedTextareaPaddingYpx}px`,
+              bottom: `${resolvedContainerPaddingBottomPx + 8}px`,
               left: `${resolvedContainerPaddingXpx + 4}px`,
               right: `${resolvedContainerPaddingXpx + 4}px`,
             }}
           >
-            A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim,
-            toned waist, a curvy lower body, and thick thighs.
+            Describe the character&apos;s look, features, and build.
           </p>
         ) : null}
         <textarea

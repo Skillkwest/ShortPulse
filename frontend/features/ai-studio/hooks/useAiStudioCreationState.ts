@@ -41,8 +41,12 @@ export type UseAiStudioCreationStateResult = {
   setMusicPromptDraftState: Dispatch<SetStateAction<string>>;
   musicLyricsDraft: string;
   setMusicLyricsDraftState: Dispatch<SetStateAction<string>>;
+  musicDurationSeconds: number | null;
+  setMusicDurationSecondsState: Dispatch<SetStateAction<number | null>>;
   soundEffectsPromptDraft: string;
   setSoundEffectsPromptDraftState: Dispatch<SetStateAction<string>>;
+  soundEffectsDurationSeconds: number | null;
+  setSoundEffectsDurationSecondsState: Dispatch<SetStateAction<number | null>>;
   voiceDesignPromptDraft: string;
   setVoiceDesignPromptDraftState: Dispatch<SetStateAction<string>>;
   voiceScriptDraft: string;
@@ -135,7 +139,11 @@ export const useAiStudioCreationState = ({
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
   const [musicPromptDraft, setMusicPromptDraftState] = useState<string>("");
   const [musicLyricsDraft, setMusicLyricsDraftState] = useState<string>("");
+  const [musicDurationSeconds, setMusicDurationSecondsState] = useState<number | null>(null);
   const [soundEffectsPromptDraft, setSoundEffectsPromptDraftState] = useState<string>("");
+  const [soundEffectsDurationSeconds, setSoundEffectsDurationSecondsState] = useState<
+    number | null
+  >(null);
   const [voiceDesignPromptDraft, setVoiceDesignPromptDraftState] = useState<string>("");
   const [voiceScriptDraft, setVoiceScriptDraftState] = useState<string>("");
   const [expertEditSessionState, setExpertEditSessionStateState] =
@@ -286,8 +294,12 @@ export const useAiStudioCreationState = ({
     setMusicPromptDraftState,
     musicLyricsDraft,
     setMusicLyricsDraftState,
+    musicDurationSeconds,
+    setMusicDurationSecondsState,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraftState,
+    soundEffectsDurationSeconds,
+    setSoundEffectsDurationSecondsState,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraftState,
     voiceScriptDraft,

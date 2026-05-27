@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EventEmitter } from "node:events";
 import createHandler from "../../pages/api/projects/create";
 import collectionHandler from "../../pages/api/projects";
 import dynamicProjectHandler, {
+  config as dynamicProjectRouteConfig,
   resolveProjectDynamicRoute,
 } from "../../pages/api/projects/[...projectPath]";
 import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
@@ -55,6 +57,44 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+
+const createStreamRequest = ({
+  method,
+  projectPath,
+  body,
+  contentType = "application/json",
+}: {
+  method: string;
+  projectPath: string[];
+  body: string;
+  contentType?: string;
+}) => {
+  const req = new EventEmitter() as EventEmitter & {
+    method: string;
+    query: { projectPath: string[] } | { projectId: string };
+    headers: Record<string, string>;
+    body?: unknown;
+    destroyed?: boolean;
+    destroy: () => void;
+  };
+
+  req.method = method;
+  req.query = { projectPath };
+  req.headers = {
+    "content-type": contentType,
+    "content-length": String(Buffer.byteLength(body)),
+  };
+  req.destroy = () => {
+    req.destroyed = true;
+  };
+
+  queueMicrotask(() => {
+    req.emit("data", Buffer.from(body));
+    req.emit("end");
+  });
+
+  return req;
+};
 
 describe("projects routes", () => {
   beforeEach(() => {
@@ -311,6 +351,120 @@ describe("projects routes", () => {
       projectId: "project-1",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("catches escaped dynamic project workspace dispatch failures with structured logging", async () => {
+    const res = createMockResponse();
+    const req = { method: "PUT" } as {
+      method: string;
+      query?: unknown;
+    };
+    Object.defineProperty(req, "query", {
+      configurable: true,
+      enumerable: true,
+      get: () => ({ projectPath: ["project-1", "workspace"] }),
+      set: () => {
+        throw new Error("query mutation blocked");
+      },
+    });
+
+    await dynamicProjectHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-workspace-save-dispatch",
+      metadata: {
+        project_dynamic_route_kind: "workspace",
+        project_dynamic_route_segments: ["project-1", "workspace"],
+        source: "api.projects.dynamic_dispatch",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to save project workspace",
+      details:
+        "Failed to save project workspace during dynamic route dispatch: Internal Server Error",
+      failureStage: "workspace save",
+    });
+  });
+
+  it("manually parses project workspace save bodies before dispatch", async () => {
+    const req = createStreamRequest({
+      method: "PUT",
+      projectPath: ["project-1", "workspace"],
+      body: JSON.stringify({
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-2",
+        },
+      }),
+    });
+    const res = createMockResponse();
+
+    await dynamicProjectHandler(req as never, res as never);
+
+    expect(upsertProjectWorkspaceStateForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-2",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns a structured 400 when dynamic project workspace body parsing fails", async () => {
+    const req = createStreamRequest({
+      method: "PUT",
+      projectPath: ["project-1", "workspace"],
+      body: "{",
+    });
+    const res = createMockResponse();
+
+    await dynamicProjectHandler(req as never, res as never);
+
+    expect(upsertProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid JSON request body.",
+      details: "Failed to save project workspace during request body handling.",
+      failureStage: "request body",
+    });
+  });
+
+  it("returns a structured 413 when dynamic project workspace body parsing exceeds the route cap", async () => {
+    const oversizedBody = "x".repeat(1024 * 1024 + 1);
+    const req = createStreamRequest({
+      method: "PUT",
+      projectPath: ["project-1", "workspace"],
+      body: oversizedBody,
+      contentType: "text/plain",
+    });
+    const res = createMockResponse();
+
+    await dynamicProjectHandler(req as never, res as never);
+
+    expect(upsertProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Project request body exceeds 1048576 bytes.",
+      details: "Failed to save project workspace during request body handling.",
+      failureStage: "request body",
+    });
+  });
+
+  it("disables the framework body parser for the dynamic project route", () => {
+    expect(dynamicProjectRouteConfig).toEqual({
+      api: {
+        bodyParser: false,
+      },
+    });
   });
 
   it("resolves the supported dynamic project route tree", () => {

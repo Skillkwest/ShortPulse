@@ -30,6 +30,14 @@ type AiStudioProjectWorkspaceApiPayload = {
   failureStage?: unknown;
 };
 
+type ProjectWorkspaceApiResponseDetails = {
+  payload: AiStudioProjectWorkspaceApiPayload | null;
+  contentType: string | null;
+  parseMode: "json_object" | "json_scalar" | "text" | "empty";
+  scalarMessage: string;
+  rawErrorExcerpt: string;
+};
+
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
 
 const resolveProjectWorkspacePayloadMessage = ({
@@ -48,16 +56,75 @@ const resolveProjectWorkspacePayloadMessage = ({
 
 const resolveProjectWorkspaceApiErrorMessage = (
   response: Response,
-  payload: AiStudioProjectWorkspaceApiPayload | null
+  responseDetails: ProjectWorkspaceApiResponseDetails
 ): string => {
+  const { payload, contentType, scalarMessage } = responseDetails;
   const payloadMessage = resolveProjectWorkspacePayloadMessage({
     payload,
     preferDetails: response.status >= 500,
   });
   if (payloadMessage) return payloadMessage;
+  if (scalarMessage) return scalarMessage;
 
-  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim();
   return `HTTP ${response.status}${contentType ? ` ${contentType}` : ""}`;
+};
+
+const readProjectWorkspaceApiResponseDetails = async (
+  response: Response
+): Promise<ProjectWorkspaceApiResponseDetails> => {
+  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? null;
+  const rawText = await response.text().catch(() => "");
+  const normalizedRawText = rawText.trim();
+
+  if (!normalizedRawText) {
+    return {
+      payload: null,
+      contentType,
+      parseMode: "empty",
+      scalarMessage: "",
+      rawErrorExcerpt: "",
+    };
+  }
+
+  const shouldAttemptJsonParse =
+    contentType === "application/json" ||
+    contentType === "application/ld+json" ||
+    normalizedRawText.startsWith("{") ||
+    normalizedRawText.startsWith("[") ||
+    normalizedRawText.startsWith('"');
+
+  if (shouldAttemptJsonParse) {
+    try {
+      const parsed = JSON.parse(normalizedRawText) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return {
+          payload: parsed as AiStudioProjectWorkspaceApiPayload,
+          contentType,
+          parseMode: "json_object",
+          scalarMessage: "",
+          rawErrorExcerpt: "",
+        };
+      }
+      const scalarMessage = normalizeErrorText(parsed, { fallback: "" });
+      return {
+        payload: null,
+        contentType,
+        parseMode: "json_scalar",
+        scalarMessage,
+        rawErrorExcerpt: scalarMessage,
+      };
+    } catch {
+      // Fall through to plain-text handling below.
+    }
+  }
+
+  return {
+    payload: null,
+    contentType,
+    parseMode: "text",
+    scalarMessage: "",
+    rawErrorExcerpt: normalizeErrorText(normalizedRawText, { fallback: "" }),
+  };
 };
 
 const maybeLogInvalidProjectWorkspaceSnapshotResponse = ({
@@ -120,12 +187,13 @@ const resolveProjectWorkspaceFailureStage = (
 const maybeLogProjectWorkspaceSaveFailure = ({
   projectId,
   status,
-  payload,
+  responseDetails,
 }: {
   projectId: string;
   status: number;
-  payload: AiStudioProjectWorkspaceApiPayload | null;
+  responseDetails: ProjectWorkspaceApiResponseDetails;
 }) => {
+  const payload = responseDetails.payload;
   addBreadcrumb({
     type: "network",
     level: status >= 500 ? "error" : "warn",
@@ -134,10 +202,14 @@ const maybeLogProjectWorkspaceSaveFailure = ({
       project_id: projectId,
       status,
       failure_stage: resolveProjectWorkspaceFailureStage(payload),
-      error: resolveProjectWorkspacePayloadMessage({
-        payload,
-        preferDetails: status >= 500,
-      }),
+      error:
+        resolveProjectWorkspacePayloadMessage({
+          payload,
+          preferDetails: status >= 500,
+        }) || responseDetails.scalarMessage,
+      content_type: responseDetails.contentType,
+      payload_parse_mode: responseDetails.parseMode,
+      raw_error_excerpt: responseDetails.rawErrorExcerpt || null,
     },
   });
 };
@@ -153,16 +225,11 @@ export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
     shortpulseAuthTimeoutMs: 5000,
     shortpulseRetryNetworkOnce: true,
   });
-
-  let payload: AiStudioProjectWorkspaceApiPayload | null = null;
-  try {
-    payload = (await response.json()) as AiStudioProjectWorkspaceApiPayload;
-  } catch {
-    payload = null;
-  }
+  const responseDetails = await readProjectWorkspaceApiResponseDetails(response);
+  const payload = responseDetails.payload;
 
   if (!response.ok) {
-    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
+    const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
     throw new Error(`Failed to load project workspace snapshot: ${message}`);
   }
 
@@ -196,26 +263,21 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
     shortpulseLogScope: "app",
     shortpulseRetryNetworkOnce: true,
   });
-
-  let payload: AiStudioProjectWorkspaceApiPayload | null = null;
-  try {
-    payload = (await response.json()) as AiStudioProjectWorkspaceApiPayload;
-  } catch {
-    payload = null;
-  }
+  const responseDetails = await readProjectWorkspaceApiResponseDetails(response);
+  const payload = responseDetails.payload;
 
   if (!response.ok || !payload?.workspace) {
     maybeLogProjectWorkspaceSaveFailure({
       projectId,
       status: response.status,
-      payload,
+      responseDetails,
     });
     maybeLogInvalidProjectWorkspaceSnapshotResponse({
       projectId,
       status: response.status,
       payload,
     });
-    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
+    const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
     throw new Error(`Failed to save project workspace snapshot: ${message}`);
   }
 
@@ -240,16 +302,10 @@ export const resetAiStudioProjectWorkspaceSnapshotViaApi = async ({
     shortpulseLogScope: "app",
     shortpulseRetryNetworkOnce: true,
   });
-
-  let payload: AiStudioProjectWorkspaceApiPayload | null = null;
-  try {
-    payload = (await response.json()) as AiStudioProjectWorkspaceApiPayload;
-  } catch {
-    payload = null;
-  }
+  const responseDetails = await readProjectWorkspaceApiResponseDetails(response);
 
   if (!response.ok) {
-    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
+    const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
     throw new Error(`Failed to reset project workspace snapshot: ${message}`);
   }
 };

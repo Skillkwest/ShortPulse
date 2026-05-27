@@ -14,6 +14,7 @@ describe("createCharacterModeModelMapping", () => {
   });
 
   it("detects create character-mode models", () => {
+    expect(isCreateCharacterModeModel("gpt-image-2")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v4.5/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v5/lite/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/nano-banana-2/edit")).toBe(true);
@@ -46,6 +47,12 @@ describe("createCharacterModeModelMapping", () => {
         isCharacterModeEnabled: true,
       })
     ).toBe("fal-ai/nano-banana-pro/edit");
+    expect(
+      mapCreateModelOnCharacterModeToggle({
+        currentModelId: "gpt-image-2",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("gpt-image-2");
     expect(
       mapCreateModelOnCharacterModeToggle({
         currentModelId: "legacy/removed-model",
@@ -81,6 +88,12 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("fal-ai/nano-banana-pro");
     expect(
       mapCreateModelOnCharacterModeToggle({
+        currentModelId: "gpt-image-2",
+        isCharacterModeEnabled: false,
+      })
+    ).toBe("gpt-image-2");
+    expect(
+      mapCreateModelOnCharacterModeToggle({
         currentModelId: "legacy/removed-model/edit",
         isCharacterModeEnabled: false,
       })
@@ -112,6 +125,12 @@ describe("createCharacterModeModelMapping", () => {
         isCharacterModeEnabled: true,
       })
     ).toBe("fal-ai/bytedance/seedream/v5/lite/edit");
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "gpt-image-2",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("gpt-image-2");
     expect(
       resolveCreateCharacterModeSubmitModel({
         currentModelId: "legacy/removed-model",

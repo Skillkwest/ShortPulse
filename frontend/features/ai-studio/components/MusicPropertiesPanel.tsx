@@ -3,6 +3,7 @@
  * Keeps music composition UI isolated from generic Sound and Sound Effects panels.
  */
 import React from "react";
+import { ELEVENLABS_MUSIC_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
@@ -27,7 +28,9 @@ export type MusicGenerateRequest = {
 
 export type MusicPropertiesPanelProps = {
   balanceCredits?: number | null;
+  durationSeconds?: number | null;
   isGenerating?: boolean;
+  onDurationChange?: (value: number | null) => void;
   onGenerate?: (request: MusicGenerateRequest) => Promise<boolean | void> | boolean | void;
   onLyricsChange?: (value: string) => void;
   onPromptChange?: (value: string) => void;
@@ -124,7 +127,9 @@ const formatCreditValue = (value: number): string =>
 
 export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   balanceCredits: _balanceCredits = null,
+  durationSeconds: controlledDurationSeconds,
   isGenerating = false,
+  onDurationChange,
   onGenerate,
   onLyricsChange,
   onPromptChange,
@@ -142,12 +147,16 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const inspirationDidDragRef = React.useRef(false);
   const suppressChipClickRef = React.useRef(false);
   const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [uncontrolledLyrics, setUncontrolledLyrics] = React.useState("");
   const [composerMode, setComposerMode] = React.useState<MusicComposerMode>("simple");
   const [singerEnabled, setSingerEnabled] = React.useState(false);
   const [songBatchCount, setSongBatchCount] = React.useState<MusicSongBatchCount>(2);
-  const [isSongBatchMenuOpen, setIsSongBatchMenuOpen] = React.useState(false);
+  const [uncontrolledDurationSeconds, setUncontrolledDurationSeconds] = React.useState<
+    number | null
+  >(null);
+  const [activeFooterMenu, setActiveFooterMenu] = React.useState<"songs" | "duration" | null>(null);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
   const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
@@ -156,6 +165,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   });
   const prompt = controlledPrompt ?? uncontrolledPrompt;
   const lyrics = controlledLyrics ?? uncontrolledLyrics;
+  const selectedDurationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
   const resolveTextAction = React.useCallback(
     (current: string, action: React.SetStateAction<string>) =>
       typeof action === "function" ? (action as (value: string) => string)(current) : action,
@@ -185,6 +195,16 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     },
     [lyrics, onLyricsChange, resolveTextAction]
   );
+  const setSelectedDuration = React.useCallback(
+    (value: number | null) => {
+      if (onDurationChange) {
+        onDurationChange(value);
+        return;
+      }
+      setUncontrolledDurationSeconds(value);
+    },
+    [onDurationChange]
+  );
   const inspirationChips = React.useMemo(() => shuffleChipOrder(musicInspirationEntries), []);
   const composerModeToggleStyle = React.useMemo(
     () =>
@@ -208,7 +228,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     resolveClientBilledCredits({
       modelId: hardcodedMusicModelId,
       params: {
-        durationSeconds: null,
+        durationSeconds: selectedDurationSeconds,
       },
       pricingPolicy,
       pricingPolicyReady,
@@ -234,6 +254,9 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
   const isWithinPromptLimit = submissionLength <= maxPromptCharacters;
   const isGenerateEnabled = Boolean(onGenerate) && submissionLength > 0 && isWithinPromptLimit;
+  const selectedDurationOption =
+    ELEVENLABS_MUSIC_DURATION_OPTIONS.find((option) => option.value === selectedDurationSeconds) ??
+    ELEVENLABS_MUSIC_DURATION_OPTIONS[0];
 
   const syncInspirationScrollState = React.useCallback(() => {
     const node = inspirationScrollerRef.current;
@@ -270,17 +293,18 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [composerMode, lyrics, prompt]);
 
   React.useEffect(() => {
-    if (!isSongBatchMenuOpen) return;
+    if (!activeFooterMenu) return;
     const handlePointerDown = (event: MouseEvent) => {
-      if (!songBatchMenuRef.current?.contains(event.target as Node)) {
-        setIsSongBatchMenuOpen(false);
-      }
+      const targetNode = event.target as Node;
+      const clickedSongBatchMenu = songBatchMenuRef.current?.contains(targetNode) ?? false;
+      const clickedDurationMenu = durationMenuRef.current?.contains(targetNode) ?? false;
+      if (!clickedSongBatchMenu && !clickedDurationMenu) setActiveFooterMenu(null);
     };
     window.addEventListener("mousedown", handlePointerDown);
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [isSongBatchMenuOpen]);
+  }, [activeFooterMenu]);
 
   const handleInspirationClick = React.useCallback(
     (chip: MusicInspirationEntry) => {
@@ -399,7 +423,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
     const request = {
       text: submissionText,
-      durationSeconds: null,
+      durationSeconds: selectedDurationSeconds,
       bpm: defaultMusicBpm,
       mode: requestedMusicMode,
       structure: defaultMusicStructure,
@@ -416,6 +440,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     isWithinPromptLimit,
     onGenerate,
     songBatchCount,
+    selectedDurationSeconds,
     submissionText,
   ]);
 
@@ -659,17 +684,19 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     <div
                       ref={songBatchMenuRef}
                       className={`music-properties-footer-dropdown ${
-                        isSongBatchMenuOpen ? "is-open" : ""
+                        activeFooterMenu === "songs" ? "is-open" : ""
                       }`}
                     >
                       <button
                         type="button"
                         className="music-properties-footer-pill music-properties-footer-pill--dropdown"
                         aria-haspopup="menu"
-                        aria-expanded={isSongBatchMenuOpen}
+                        aria-expanded={activeFooterMenu === "songs"}
                         aria-label="Songs per generate"
                         title="How many songs to generate in this run."
-                        onClick={() => setIsSongBatchMenuOpen((current) => !current)}
+                        onClick={() =>
+                          setActiveFooterMenu((current) => (current === "songs" ? null : "songs"))
+                        }
                       >
                         <span className="music-properties-footer-pill-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24" focusable="false">
@@ -680,7 +707,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         </span>
                         <span className="music-properties-footer-pill-value">{songBatchCount}</span>
                       </button>
-                      {isSongBatchMenuOpen ? (
+                      {activeFooterMenu === "songs" ? (
                         <div className="music-properties-footer-dropdown-menu" role="menu">
                           {songBatchCountOptions.map((option) => (
                             <button
@@ -693,7 +720,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                               }`}
                               onClick={() => {
                                 setSongBatchCount(option);
-                                setIsSongBatchMenuOpen(false);
+                                setActiveFooterMenu(null);
                               }}
                             >
                               {option} {option === 1 ? "song" : "songs"}
@@ -702,20 +729,58 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         </div>
                       ) : null}
                     </div>
-                    <span
-                      className="music-properties-footer-pill music-properties-footer-pill--static"
-                      aria-label="Duration auto"
-                      role="note"
-                      title="Auto duration is chosen by the music model."
+                    <div
+                      ref={durationMenuRef}
+                      className={`music-properties-footer-dropdown ${
+                        activeFooterMenu === "duration" ? "is-open" : ""
+                      }`}
                     >
-                      <span className="music-properties-footer-pill-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                          <circle cx="12" cy="12" r="8.5" />
-                          <path d="M12 7v5l3 2" />
-                        </svg>
-                      </span>
-                      <span className="music-properties-footer-pill-value">Auto</span>
-                    </span>
+                      <button
+                        type="button"
+                        className="music-properties-footer-pill music-properties-footer-pill--dropdown"
+                        aria-haspopup="menu"
+                        aria-expanded={activeFooterMenu === "duration"}
+                        aria-label="Music duration"
+                        title={selectedDurationOption.title}
+                        onClick={() =>
+                          setActiveFooterMenu((current) =>
+                            current === "duration" ? null : "duration"
+                          )
+                        }
+                      >
+                        <span className="music-properties-footer-pill-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false">
+                            <circle cx="12" cy="12" r="8.5" />
+                            <path d="M12 7v5l3 2" />
+                          </svg>
+                        </span>
+                        <span className="music-properties-footer-pill-value">
+                          {selectedDurationOption.label}
+                        </span>
+                      </button>
+                      {activeFooterMenu === "duration" ? (
+                        <div className="music-properties-footer-dropdown-menu" role="menu">
+                          {ELEVENLABS_MUSIC_DURATION_OPTIONS.map((option) => (
+                            <button
+                              key={option.value ?? "auto"}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={selectedDurationSeconds === option.value}
+                              className={`music-properties-footer-dropdown-option ${
+                                selectedDurationSeconds === option.value ? "is-active" : ""
+                              }`}
+                              title={option.title}
+                              onClick={() => {
+                                setSelectedDuration(option.value);
+                                setActiveFooterMenu(null);
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   <button
                     type="button"

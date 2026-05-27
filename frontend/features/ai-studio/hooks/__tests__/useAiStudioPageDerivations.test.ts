@@ -126,6 +126,7 @@ describe("useAiStudioPageDerivations", () => {
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
     expect(values).toEqual(
       new Set([
+        "gpt-image-2",
         "fal-ai/bytedance/seedream/v4.5/edit",
         "fal-ai/bytedance/seedream/v5/lite/edit",
         "fal-ai/nano-banana-2/edit",

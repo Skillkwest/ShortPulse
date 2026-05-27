@@ -48,6 +48,11 @@ create index if not exists ix_user_owned_custom_voices_user_created
 
 alter table public.user_owned_custom_voices enable row level security;
 
+revoke all on table public.user_owned_custom_voices from public;
+revoke all on table public.user_owned_custom_voices from anon;
+revoke all on table public.user_owned_custom_voices from authenticated;
+grant all on table public.user_owned_custom_voices to service_role;
+
 drop policy if exists select_user_owned_custom_voices_isolation on public.user_owned_custom_voices;
 create policy select_user_owned_custom_voices_isolation
     on public.user_owned_custom_voices

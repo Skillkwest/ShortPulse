@@ -109,8 +109,8 @@ describe("MotionRecorderModal", () => {
     });
     await screen.findByText("Live preview");
 
-    fireEvent.click(screen.getByRole("button", { name: "Record clip" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Stop recording" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop motion recording" }));
 
     await screen.findByRole("button", { name: "Use clip" });
     fireEvent.click(screen.getByRole("button", { name: "Use clip" }));
@@ -270,8 +270,8 @@ describe("MotionRecorderModal", () => {
     await waitFor(() => {
       expect(getUserMediaMock).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(screen.getByRole("button", { name: "Record clip" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Stop recording" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop motion recording" }));
     await screen.findByRole("button", { name: "Use clip" });
 
     fireEvent.change(screen.getByLabelText("Camera"), {

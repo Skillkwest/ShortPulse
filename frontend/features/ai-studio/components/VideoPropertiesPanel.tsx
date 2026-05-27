@@ -11,6 +11,7 @@ import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
+import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { MotionRecorderModal } from "./MotionRecorderModal";
 import { ReferencePromptStep } from "./ReferencePromptStep";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
@@ -1301,25 +1302,26 @@ export function VideoPropertiesPanel({
                     {isMotionMode ? (
                       <div className="video-setup-recorder-slot">
                         <div className="reference-dropzone-block motion-recorder-launch-block">
-                          <section className="motion-recorder-launch-card">
-                            <div className="motion-recorder-launch-copy">
-                              <div className="video-reference-card-title">Record Motion Clip</div>
-                              <p className="motion-recorder-launch-title">
-                                Capture a motion reference
-                              </p>
-                              <p className="motion-recorder-launch-helper">
-                                Use your preferred camera and microphone to record a clip, then add
-                                it directly into Motion Control.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              className="motion-recorder-launch-btn"
-                              onClick={handleOpenMotionRecorder}
-                            >
-                              {motionVideoUrl ? "Record new clip" : "Record clip"}
-                            </button>
-                          </section>
+                          <AiStudioRecordPanelPrefab
+                            panelAriaLabel="Record motion reference"
+                            title="Record"
+                            helper="Record a motion clip to use as the source for Motion Control."
+                            buttonIdleAriaLabel={
+                              motionVideoUrl
+                                ? "Open motion recorder to replace the current clip"
+                                : "Open motion recorder"
+                            }
+                            buttonRecordingAriaLabel="Open motion recorder"
+                            idleCue="Click to record"
+                            isRecording={false}
+                            statusMessage={motionVideoUrl ? "Current clip attached" : null}
+                            recoveryHint={
+                              motionVideoUrl
+                                ? "Recording a new take replaces the current motion reference video."
+                                : null
+                            }
+                            onClick={handleOpenMotionRecorder}
+                          />
                         </div>
                       </div>
                     ) : null}

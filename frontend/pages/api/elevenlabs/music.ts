@@ -1,4 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  ELEVENLABS_MUSIC_DURATION_MAX_SECONDS,
+  ELEVENLABS_MUSIC_DURATION_MIN_SECONDS,
+} from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -59,8 +63,8 @@ type GenerateMusicErrorResponse = {
 };
 
 const DEFAULT_MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
-const MIN_DURATION_SECONDS = 8;
-const MAX_DURATION_SECONDS = 180;
+const MIN_DURATION_SECONDS = ELEVENLABS_MUSIC_DURATION_MIN_SECONDS;
+const MAX_DURATION_SECONDS = ELEVENLABS_MUSIC_DURATION_MAX_SECONDS;
 const MIN_BPM = 60;
 const MAX_BPM = 180;
 const MAX_TEXT_LENGTH = 2000;

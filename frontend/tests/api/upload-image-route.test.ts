@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import fs from "fs";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/upload-image";
 
@@ -45,6 +46,13 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+
+const buildOversizedPngBuffer = async (): Promise<Buffer> =>
+  await sharp(Buffer.alloc(3200 * 2800 * 3, 127), {
+    raw: { width: 3200, height: 2800, channels: 3 },
+  })
+    .png({ compressionLevel: 0 })
+    .toBuffer();
 
 describe("POST /api/upload-image", () => {
   beforeEach(() => {
@@ -119,6 +127,72 @@ describe("POST /api/upload-image", () => {
           method: "POST",
           route_label: "upload-image",
           file_size: 8,
+        }),
+      })
+    );
+  });
+
+  it("keeps the legacy adapter response shape while server-normalizing oversized images", async () => {
+    const oversizedPng = await buildOversizedPngBuffer();
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/reference-image-normalized",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "image/png",
+        "x-shortpulse-upload-filename": "oversized-reference.png",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", oversizedPng);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    const uploadCalls = uploadMock.mock.calls as unknown as Array<
+      [string, Buffer, { contentType: string }]
+    >;
+    const uploadCall = uploadCalls[0];
+    expect(uploadCall).toBeDefined();
+    if (!uploadCall) {
+      throw new Error("Expected the upload adapter to receive a normalized image buffer.");
+    }
+    const [, uploadedBuffer, uploadOptions] = uploadCall;
+    expect(uploadedBuffer.length).toBeLessThan(oversizedPng.length);
+    expect(uploadedBuffer.length).toBeLessThanOrEqual(25 * 1024 * 1024);
+    expect(uploadOptions.contentType).toMatch(/^image\/(avif|webp|jpeg)$/);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://signed.example/reference-image-normalized",
+        path: expect.stringMatching(/^user-1\/images\/reference\//),
+        size: uploadedBuffer.length,
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          file_size: uploadedBuffer.length,
         }),
       })
     );

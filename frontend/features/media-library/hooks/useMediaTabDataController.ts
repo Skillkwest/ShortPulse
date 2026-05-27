@@ -142,7 +142,11 @@ type UseMediaTabDataControllerArgs<
   activeTab: MediaTab;
   activeTabRef: MutableRefObject<MediaTab>;
   cacheTtlMs: number;
-  surface: "media-library-modal" | "media-library-panel" | "elements-media-panel";
+  surface:
+    | "media-library-modal"
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel";
   currentUserIdRef: MutableRefObject<string | null>;
   fetchEnabled?: boolean;
   fetchTimeoutMs?: number;

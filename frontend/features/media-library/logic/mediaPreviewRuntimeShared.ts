@@ -25,6 +25,7 @@ type ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow extends SigningCandidateRow
     | "media-library-modal"
     | "media-library-panel"
     | "elements-media-panel"
+    | "character-media-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"
@@ -41,6 +42,7 @@ type HydrateMediaPreviewViaStorageDownloadArgs<TRow extends SigningCandidateRow>
     | "media-library-modal"
     | "media-library-panel"
     | "elements-media-panel"
+    | "character-media-panel"
     | "reference-grid"
     | "quick-slot"
     | "character-grid"
@@ -51,6 +53,7 @@ const LOCAL_SIGN_FIRST_SURFACES = new Set([
   "media-library-modal",
   "media-library-panel",
   "elements-media-panel",
+  "character-media-panel",
 ]);
 const MAX_LOCAL_SIGN_CANDIDATES_PER_ROW = 2;
 const VIDEO_OBJECT_URL_MARKER = "#video=1";

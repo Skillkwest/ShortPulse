@@ -1,4 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  ELEVENLABS_SOUND_EFFECT_DURATION_MAX_SECONDS,
+  ELEVENLABS_SOUND_EFFECT_DURATION_MIN_SECONDS,
+} from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -58,8 +62,8 @@ type GenerateSoundEffectErrorResponse = {
 
 const DEFAULT_SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
 const DEFAULT_PROMPT_INFLUENCE = 0.3;
-const MIN_DURATION_SECONDS = 0.5;
-const MAX_DURATION_SECONDS = 30;
+const MIN_DURATION_SECONDS = ELEVENLABS_SOUND_EFFECT_DURATION_MIN_SECONDS;
+const MAX_DURATION_SECONDS = ELEVENLABS_SOUND_EFFECT_DURATION_MAX_SECONDS;
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_SOUND_EFFECTS_MODEL_ID]);
 const ELEVENLABS_SOUND_EFFECTS_RATE_LIMIT = {
   keyPrefix: "elevenlabs-sound-effects",

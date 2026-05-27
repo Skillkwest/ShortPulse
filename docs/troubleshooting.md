@@ -46,11 +46,12 @@ Symptoms:
 Checklist:
 
 - AI Studio now auto-resizes local/blob/data reference images before upload when possible.
+- The canonical server upload path now also auto-normalizes oversized still images before the final 25 MB image cap is enforced.
 - Treat this as a reference-image upload size limit, not a model/reference token error.
 - The Reference Grid `Add files` lane and AI Studio Media Library upload lane now use the canonical `POST /api/media/upload` path.
 - Legacy generation-submit image preflight still uses `POST /api/upload-image` for local/blob/data reference conversion before provider submit.
 - Confirm the reference image is under the 25 MB image upload cap enforced by the canonical upload service.
-- If the image came from a browser capture, preview export, or Trello attachment, re-export it at a smaller size or compress it before retrying.
+- Oversized animated images are still not auto-resized server-side; export a smaller animated file or a static frame and try again.
 - If the UI only shows `Unable to upload media.`, capture the failing upload response because that usually means the request was rejected before the app could return its normal structured JSON error.
 
 Mitigation:

@@ -39,6 +39,10 @@ const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
 const SAVE_ELEMENT_FIRST_MESSAGE = "Save the element before adding a profile photo or references.";
+const SAVE_ELEMENT_REQUIRED_REFERENCES_MESSAGE =
+  "Add the first two required references before saving the element.";
+const SAVE_ELEMENT_REQUIRED_VIDEO_REFERENCE_MESSAGE =
+  "Add the required motion reference before saving the element.";
 
 const sanitizeFilenameSegment = (value: string): string =>
   value
@@ -309,6 +313,13 @@ const serializeDraftState = (draft: ElementDraft): string =>
     videoReferenceUrl: draft.videoReferenceUrl,
   });
 
+const hasRequiredReferencesForInitialSave = (draft: ElementDraft): boolean => {
+  if (draft.assetType === "video") {
+    return Boolean(draft.videoReferenceUrl.trim());
+  }
+  return Boolean(draft.imageReferenceUrls[0]?.trim() && draft.imageReferenceUrls[1]?.trim());
+};
+
 type UseElementsManagerViewStateParams = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
 };
@@ -445,13 +456,44 @@ export const useElementsManagerViewState = ({
   }, [resetDraft]);
 
   const handleSaveElement = React.useCallback(async () => {
-    if (selectedElementIdRef.current) {
-      return true;
-    }
+    const targetId = selectedElementIdRef.current;
 
     setError(null);
     setIsSavingElement(true);
     try {
+      if (targetId) {
+        const result = await saveElementManagerDraftSnapshot({
+          elementId: targetId,
+          name: draft.name,
+          profileImageTransform: draft.profileImageTransform,
+          description: draft.description,
+          assetType: draft.assetType,
+          imageReferenceUrls: draft.imageReferenceUrls,
+          videoReferenceUrl: draft.videoReferenceUrl || null,
+        });
+        const serializedDraft = serializeDraftState(draft);
+        suppressNextPersistRef.current = true;
+        lastPersistedDraftRef.current = serializedDraft;
+        if (persistTimerRef.current) {
+          window.clearTimeout(persistTimerRef.current);
+          persistTimerRef.current = null;
+        }
+        syncElementListEntryById(targetId, draft, {
+          updatedAt: result.updatedAt,
+          status: result.status,
+        });
+        return true;
+      }
+
+      if (!hasRequiredReferencesForInitialSave(draft)) {
+        setError(
+          draft.assetType === "video"
+            ? SAVE_ELEMENT_REQUIRED_VIDEO_REFERENCE_MESSAGE
+            : SAVE_ELEMENT_REQUIRED_REFERENCES_MESSAGE
+        );
+        return false;
+      }
+
       const snapshot = await saveElementManagerDraft({
         name: draft.name,
         profileImageTransform: draft.profileImageTransform,
@@ -477,7 +519,7 @@ export const useElementsManagerViewState = ({
     } finally {
       setIsSavingElement(false);
     }
-  }, [draft, hydrateDraft, updateElementListEntry]);
+  }, [draft, hydrateDraft, syncElementListEntryById, updateElementListEntry]);
 
   const handleSelectElement = React.useCallback(
     async (elementId: string) => {
@@ -921,9 +963,7 @@ export const useElementsManagerViewState = ({
     onCreateElement: () => {
       void handleCreateElement();
     },
-    onSaveElement: () => {
-      void handleSaveElement();
-    },
+    onSaveElement: handleSaveElement,
     onSelectElement: (elementId: string) => {
       void handleSelectElement(elementId);
     },

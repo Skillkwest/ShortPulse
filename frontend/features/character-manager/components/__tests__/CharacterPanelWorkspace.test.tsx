@@ -182,6 +182,11 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("tab", { name: "4" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "5" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Description:" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Describe the character's look, features, and build.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/A gorgeous woman in her early 30s/i)).not.toBeInTheDocument();
+    expect(screen.getByText("0/150")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Saved characters" })).not.toBeInTheDocument();
     expect(screen.queryByText("No saved characters yet.")).not.toBeInTheDocument();
     expect(

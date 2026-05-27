@@ -1,8 +1,8 @@
 import React from "react";
-import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
+import { CharacterEmbeddedMediaLibraryPanel } from "./CharacterEmbeddedMediaLibraryPanel";
 import { CharacterPanelWorkspace } from "./CharacterPanelWorkspace";
 
 type CharacterPanelSplitHostProps = {
@@ -65,7 +65,7 @@ export function CharacterPanelSplitHost({
       </div>
 
       <div className="character-panel-bottom-section" style={bottomSectionStyle}>
-        <ElementsEmbeddedMediaLibraryPanel
+        <CharacterEmbeddedMediaLibraryPanel
           mediaCardInteractionMode="assignment"
           fixedVisualAspectRatio={null}
           projectId={projectId}

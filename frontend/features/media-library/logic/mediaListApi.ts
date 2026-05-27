@@ -12,7 +12,8 @@ export type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 export type MediaListSurface =
   | "media-library-modal"
   | "media-library-panel"
-  | "elements-media-panel";
+  | "elements-media-panel"
+  | "character-media-panel";
 
 export type MediaListCursor = {
   createdAt: string;
@@ -70,6 +71,7 @@ const MAX_LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
   "media-library-panel": 36,
   "elements-media-panel": 36,
+  "character-media-panel": 36,
 };
 
 const toSafeCursor = (value: unknown): MediaListCursor | null => {

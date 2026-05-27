@@ -9,12 +9,20 @@ import {
 type UseMediaVideoBrowsePreviewUrlsArgs = {
   mediaRows: MediaFileRow[];
   currentUserId?: string | null;
-  surface?: "media-library-panel" | "elements-media-panel" | "media-library-modal";
+  surface?:
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel"
+    | "media-library-modal";
   visibleMediaIdsRef?: React.MutableRefObject<Set<string>>;
 };
 
 type SignedUrlMap = Record<string, string>;
-const VISIBLE_SCOPED_VIDEO_SURFACES = new Set(["media-library-panel", "elements-media-panel"]);
+const VISIBLE_SCOPED_VIDEO_SURFACES = new Set([
+  "media-library-panel",
+  "elements-media-panel",
+  "character-media-panel",
+]);
 
 const areSignedUrlMapsEqual = (left: SignedUrlMap, right: SignedUrlMap): boolean => {
   const leftKeys = Object.keys(left);

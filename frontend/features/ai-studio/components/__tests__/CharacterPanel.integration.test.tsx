@@ -76,8 +76,8 @@ vi.mock("next/image", () => ({
   },
 }));
 
-vi.mock("../ElementsEmbeddedMediaLibraryPanel", () => ({
-  ElementsEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
+vi.mock("../../../character-manager/components/CharacterEmbeddedMediaLibraryPanel", () => ({
+  CharacterEmbeddedMediaLibraryPanel: (props: Record<string, unknown>) => {
     embeddedMediaPanelSpy(props);
     return <div data-testid="character-bottom-media-library" />;
   },

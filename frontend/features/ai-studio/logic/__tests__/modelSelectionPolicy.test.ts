@@ -174,7 +174,7 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
-  it("includes gpt-image-2 in standard Edit while keeping it out of character mode", () => {
+  it("includes gpt-image-2 in both standard Edit and create Character Mode", () => {
     const standardEditValues = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "edit",
@@ -196,7 +196,7 @@ describe("modelSelectionPolicy", () => {
     );
 
     expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
-    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
+    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
   });
 
   it("hides FLUX.2 Lite for create/image while character mode is enabled", () => {
@@ -210,6 +210,7 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
+      OPENAI_GPT_IMAGE_2_MODEL_ID,
       FAL_NANO_BANANA_2_EDIT_MODEL_ID,
       FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
       FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,

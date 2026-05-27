@@ -55,7 +55,11 @@ type MediaLibraryMediaGridProps = {
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
-  surface?: "media-library-modal" | "media-library-panel" | "elements-media-panel";
+  surface?:
+    | "media-library-modal"
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel";
   densityConfig?: MediaLibraryGridDensityConfig;
   fixedVisualAspectRatio?: number | null;
 };

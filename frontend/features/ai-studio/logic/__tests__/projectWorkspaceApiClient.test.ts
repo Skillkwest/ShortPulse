@@ -60,6 +60,9 @@ describe("projectWorkspaceApiClient", () => {
         status: 400,
         failure_stage: null,
         error: "Invalid project workspace snapshot",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
       },
     });
     expect(addBreadcrumbMock).toHaveBeenCalledWith({
@@ -113,6 +116,9 @@ describe("projectWorkspaceApiClient", () => {
         status: 500,
         failure_stage: null,
         error: "Project workspace save failed during workspace upsert: row-level security denied",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
       },
     });
   });
@@ -156,6 +162,9 @@ describe("projectWorkspaceApiClient", () => {
         status: 500,
         failure_stage: null,
         error: "Workspace dependency misconfigured",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
       },
     });
   });
@@ -190,6 +199,9 @@ describe("projectWorkspaceApiClient", () => {
         status: 500,
         failure_stage: null,
         error: "",
+        content_type: "text/html",
+        payload_parse_mode: "text",
+        raw_error_excerpt: "Server returned an invalid error response.",
       },
     });
   });
@@ -234,6 +246,46 @@ describe("projectWorkspaceApiClient", () => {
         status: 500,
         failure_stage: "project lookup",
         error: "Failed to save project workspace during project lookup: project query unavailable",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
+      },
+    });
+  });
+
+  it("uses scalar json error payloads when project workspace save fails outside the route contract", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify("Internal Server Error"), {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow("Failed to save project workspace snapshot: Internal Server Error");
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: null,
+        error: "Internal Server Error",
+        content_type: "application/json",
+        payload_parse_mode: "json_scalar",
+        raw_error_excerpt: "Internal Server Error",
       },
     });
   });

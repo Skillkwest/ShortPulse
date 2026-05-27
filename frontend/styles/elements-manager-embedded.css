@@ -1,23 +1,26 @@
 /**
  * Elements Manager embedded overrides.
- * Keeps the Elements panel compact at smaller widths.
+ * Keeps the cloned Character-style shell readable at narrower properties-rail widths.
  */
-@media (max-width: 1180px) {
-  .elements-manager-shell--panel .elements-references-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 860px) {
+  .elements-manager-shell--panel .elements-panel-top-row-secondary-actions {
+    gap: 6px;
+  }
+
+  .elements-manager-shell--panel .elements-reference-card {
+    min-height: 228px;
   }
 }
 
-@media (max-width: 860px) {
-  .elements-manager-shell--panel .elements-references-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 640px) {
+  .elements-manager-shell--panel .elements-panel-top-row-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, max-content));
   }
 
-  .elements-manager-shell--panel .elements-manage-header-row {
-    grid-template-columns: 1fr;
-  }
-
-  .elements-manager-shell--panel .elements-manage-header-actions {
-    width: 100%;
+  .elements-manager-shell--panel .elements-panel-save-progress,
+  .elements-manager-shell--panel .elements-panel-save-success {
+    grid-column: 1 / -1;
+    width: fit-content;
   }
 }

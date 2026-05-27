@@ -33,18 +33,18 @@ Canonical detailed surfaces:
 ## Latest Run
 
 - `2026-05-26` on `production`
-- Score: `8.3/10`
-- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the rebuilt current-manifest preflight cleared the exact touched files and focused tests, and the final production build passed on the exact converged tree.
-- What went wrong: the first pass still paid a formatting-only cleanup, the new reference-grid delete path shipped with a missing `normalizeId` helper, and the page shell still held the old delete-callback contract until the build exposed it.
-- Capability decision: on shared media-delete/runtime lanes, scan hook-to-page callback seams immediately after any delete-path signature change so the final build is less likely to be the first place the contract breaks.
+- Score: `8.2/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the focused preflight cleared 28 files with 130 passing tests, and the final production build passed on the exact converged tree.
+- What went wrong: the lane still paid multiple formatting sweeps, a motion-recorder cleanup lint warning, two style-drop regressions, and one project-scoped generated-media authority bug before convergence.
+- Capability decision: on broad drag/drop and media-authority lanes, do one upfront touched-file Prettier sweep and one hook-to-boundary contract scan before the first preflight so the real signal appears sooner.
 
 ## Previous Run
 
 - `2026-05-26` on `production`
-- Score: `8.8/10`
-- What went right: Gear Ball kept the live tree collapsed to one governance lane plus one broad project-workspace/runtime lane, the docs checks plus shared-runtime preflight plus Generate CTA contract plus final build all passed, and the final tree converged cleanly before the score writeback.
-- What went wrong: the first product pass still paid a formatting sweep, and one dead import warning in `VideoPropertiesPanel.tsx` surfaced before the lane could clear.
-- Capability decision: on medium shared-runtime lanes, run a tiny dead-import scan alongside the first formatting sweep so the first preflight speaks only to real behavioral regressions.
+- Score: `8.3/10`
+- What went right: Gear Ball kept the live tree collapsed to one coherent AI Studio lane, the rebuilt current-manifest preflight cleared the exact touched files and focused tests, and the final production build passed on the exact converged tree.
+- What went wrong: the first pass still paid a formatting-only cleanup, the new reference-grid delete path shipped with a missing `normalizeId` helper, and the page shell still held the old delete-callback contract until the build exposed it.
+- Capability decision: on shared media-delete/runtime lanes, scan hook-to-page callback seams immediately after any delete-path signature change so the final build is less likely to be the first place the contract breaks.
 
 ## Previous Supervised Synthesis
 

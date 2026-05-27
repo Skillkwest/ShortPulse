@@ -78,6 +78,17 @@ type UseAiStudioCreatePanelRuntimeParams = {
   ) => void;
 };
 
+export const resolveStandardCreatePrimaryCostCredits = ({
+  mode,
+  currentCostCredits,
+  promptReferenceGenerateCostCredits,
+}: {
+  mode: StudioMode;
+  currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits: number | null;
+}): number | null =>
+  mode === "text" ? (promptReferenceGenerateCostCredits ?? currentCostCredits) : currentCostCredits;
+
 /**
  * Builds the discriminated create-panel props for Standard and Pulse mode using the active create agent runtime.
  */
@@ -177,10 +188,11 @@ export const useAiStudioCreatePanelRuntime = ({
     standardCreateAgentRuntime?.chatModeEnabled ?? STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
-  const createGenerateCostCredits =
-    mode === "text" && !chatModeEnabled
-      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
-      : currentCostCredits;
+  const createGenerateCostCredits = resolveStandardCreatePrimaryCostCredits({
+    mode,
+    currentCostCredits,
+    promptReferenceGenerateCostCredits,
+  });
   const handleProviderPrimarySubmit = useCallback(() => {
     void handleGenerate();
   }, [handleGenerate]);

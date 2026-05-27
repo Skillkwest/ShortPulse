@@ -36,6 +36,21 @@ const fileChecks = [
     forbidIncludes: ["computeCostForModel("],
   },
   {
+    file: "frontend/features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts",
+    label: "Standard Create runtime",
+    requireIncludes: [
+      "resolveStandardCreatePrimaryCostCredits",
+      'mode === "text"',
+      "promptReferenceGenerateCostCredits ?? currentCostCredits",
+    ],
+    forbidIncludes: ['mode === "text" && !chatModeEnabled'],
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts",
+    label: "Standard Create primary submit",
+    requireIncludes: ["costOverrideCredits: createGenerateCostCredits"],
+  },
+  {
     file: "frontend/features/ai-studio/components/ModelModal.tsx",
     label: "model modal",
     requireIncludes: ['return "—";'],
@@ -81,7 +96,7 @@ for (const check of fileChecks) {
   for (const snippet of check.requireIncludes || []) {
     if (!source.includes(snippet)) {
       failures.push(
-        `${check.file}: missing required ${check.label} marker ${JSON.stringify(snippet)}`
+        `${check.file}: missing required ${check.label} marker ${JSON.stringify(snippet)}`,
       );
     }
   }
@@ -89,7 +104,7 @@ for (const check of fileChecks) {
   for (const snippet of check.forbidIncludes || []) {
     if (source.includes(snippet)) {
       failures.push(
-        `${check.file}: found forbidden ${check.label} marker ${JSON.stringify(snippet)}`
+        `${check.file}: found forbidden ${check.label} marker ${JSON.stringify(snippet)}`,
       );
     }
   }
@@ -98,7 +113,7 @@ for (const check of fileChecks) {
     const matches = countMatches(source, regexCheck.pattern);
     if (matches < regexCheck.minimum) {
       failures.push(
-        `${check.file}: ${regexCheck.description}; found ${matches}, expected at least ${regexCheck.minimum}`
+        `${check.file}: ${regexCheck.description}; found ${matches}, expected at least ${regexCheck.minimum}`,
       );
     }
   }

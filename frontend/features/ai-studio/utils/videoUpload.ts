@@ -77,6 +77,69 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
   );
 };
 
+const uploadVideoBlob = async ({
+  blob,
+  mimeType,
+  filename,
+}: {
+  blob: Blob;
+  mimeType: string;
+  filename: string;
+}): Promise<VideoUploadResult> => {
+  const uploadResponse = await fetchWithAuth("/api/upload-video", {
+    method: "POST",
+    headers: {
+      "Content-Type": mimeType || "video/mp4",
+      "x-shortpulse-upload-filename": filename,
+    },
+    body: blob,
+  });
+
+  if (!uploadResponse.ok) {
+    const errorData = await uploadResponse.json().catch(() => ({}));
+    const errorMessage =
+      typeof errorData?.error === "string" && errorData.error.trim().length
+        ? errorData.error.trim()
+        : "Video upload failed";
+    const errorDetails =
+      typeof errorData?.details === "string" && errorData.details.trim().length
+        ? errorData.details.trim()
+        : null;
+    throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
+  }
+
+  const result: VideoUploadResult = await uploadResponse.json();
+  if (!result?.url || !result?.path) {
+    throw new Error("Video upload failed: missing signed delivery metadata.");
+  }
+  return result;
+};
+
+/**
+ * Uploads a local video File to storage and returns signed delivery metadata.
+ */
+export const uploadVideoFileToStorage = async (file: File): Promise<VideoUploadResult> => {
+  const timestamp = Date.now();
+  const randomString = Math.random().toString(36).substring(7);
+  const fallbackExtension = file.type.split("/")[1] || "mp4";
+  const filenameBase = file.name.trim().replace(/\.[^/.]+$/, "") || "motion-reference";
+  const extension = file.name.split(".").pop()?.trim() || fallbackExtension;
+  const filename = `${filenameBase}-${timestamp}-${randomString}.${extension}`;
+
+  try {
+    return await uploadVideoBlob({
+      blob: file,
+      mimeType: file.type || "video/mp4",
+      filename,
+    });
+  } catch (error) {
+    console.error("Video file upload error:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to upload video. Please try again."
+    );
+  }
+};
+
 /**
  * Uploads a local video URL to storage and returns signed delivery metadata.
  */
@@ -96,34 +159,11 @@ export const uploadVideoAssetToStorage = async (
     const randomString = Math.random().toString(36).substring(7);
     const extension = blob.type.split("/")[1] || "mp4";
     const filename = `motion-reference-${timestamp}-${randomString}.${extension}`;
-
-    const uploadResponse = await fetchWithAuth("/api/upload-video", {
-      method: "POST",
-      headers: {
-        "Content-Type": blob.type || "video/mp4",
-        "x-shortpulse-upload-filename": filename,
-      },
-      body: blob,
+    return await uploadVideoBlob({
+      blob,
+      mimeType: blob.type || "video/mp4",
+      filename,
     });
-
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json().catch(() => ({}));
-      const errorMessage =
-        typeof errorData?.error === "string" && errorData.error.trim().length
-          ? errorData.error.trim()
-          : "Video upload failed";
-      const errorDetails =
-        typeof errorData?.details === "string" && errorData.details.trim().length
-          ? errorData.details.trim()
-          : null;
-      throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
-    }
-
-    const result: VideoUploadResult = await uploadResponse.json();
-    if (!result?.url || !result?.path) {
-      throw new Error("Video upload failed: missing signed delivery metadata.");
-    }
-    return result;
   } catch (error) {
     console.error("Video upload error:", error);
     if (

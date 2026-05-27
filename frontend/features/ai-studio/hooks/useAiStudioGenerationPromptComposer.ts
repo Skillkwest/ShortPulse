@@ -86,6 +86,51 @@ const resolvePromptForTool = ({
 const shouldAttachStyleContextForTool = (tool: ToolId | null): boolean =>
   tool === "create" || tool === "text" || tool === "image" || tool === "edit";
 
+const buildTaskSubmitOptions = ({
+  modeOverride,
+  selectedToolOverride,
+  displayPromptOverride,
+  displayedBilledCredits,
+  internalMediaRefsOverride,
+  characterContextOverride,
+  styleContextOverrideToSubmit,
+  modelIdOverride,
+  inpaintOverride,
+  hideOutputFromReferenceGrid,
+  outputIdOverride,
+}: {
+  modeOverride?: AiStudioTaskSubmitOptions["modeOverride"];
+  selectedToolOverride?: AiStudioTaskSubmitOptions["selectedToolOverride"];
+  displayPromptOverride: string;
+  displayedBilledCredits?: AiStudioTaskSubmitOptions["displayedBilledCredits"];
+  internalMediaRefsOverride?: AiStudioTaskSubmitOptions["internalMediaRefsOverride"];
+  characterContextOverride?: AiStudioTaskSubmitOptions["characterContextOverride"];
+  styleContextOverrideToSubmit?: AiStudioTaskSubmitOptions["styleContextOverride"];
+  modelIdOverride?: AiStudioTaskSubmitOptions["modelIdOverride"];
+  inpaintOverride?: AiStudioTaskSubmitOptions["inpaintOverride"];
+  hideOutputFromReferenceGrid?: AiStudioTaskSubmitOptions["hideOutputFromReferenceGrid"];
+  outputIdOverride?: AiStudioTaskSubmitOptions["outputIdOverride"];
+}): AiStudioTaskSubmitOptions => {
+  const nextOptions = {
+    ...(modeOverride ? { modeOverride } : {}),
+    ...(selectedToolOverride !== undefined ? { selectedToolOverride } : {}),
+    displayPromptOverride,
+    displayedBilledCredits,
+    internalMediaRefsOverride,
+    characterContextOverride,
+    modelIdOverride,
+    inpaintOverride,
+    hideOutputFromReferenceGrid,
+    ...(styleContextOverrideToSubmit
+      ? {
+          styleContextOverride: styleContextOverrideToSubmit,
+        }
+      : {}),
+    ...(typeof outputIdOverride === "string" ? { outputIdOverride } : {}),
+  } satisfies AiStudioTaskSubmitOptions;
+  return nextOptions;
+};
+
 /**
  * Returns generate/regenerate handlers with stable prompt and reference composition rules.
  */
@@ -189,25 +234,23 @@ export const useAiStudioGenerationPromptComposer = ({
           preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
         }
       );
-      submitTask(compiledSubmissionPrompt, imageInputs, {
-        modeOverride: options?.modeOverride,
-        selectedToolOverride: options?.selectedToolOverride,
-        displayPromptOverride: displayPromptToSubmit,
-        displayedBilledCredits: options?.displayedBilledCredits,
-        internalMediaRefsOverride: options?.internalMediaRefsOverride,
-        characterContextOverride: options?.characterContextOverride,
-        modelIdOverride: options?.modelIdOverride,
-        inpaintOverride: options?.inpaintOverride,
-        hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
-        ...(styleContextOverrideToSubmit
-          ? {
-              styleContextOverride: styleContextOverrideToSubmit,
-            }
-          : {}),
-        ...(typeof options?.outputIdOverride === "string"
-          ? { outputIdOverride: options.outputIdOverride }
-          : {}),
-      });
+      submitTask(
+        compiledSubmissionPrompt,
+        imageInputs,
+        buildTaskSubmitOptions({
+          modeOverride: options?.modeOverride,
+          selectedToolOverride: options?.selectedToolOverride,
+          displayPromptOverride: displayPromptToSubmit,
+          displayedBilledCredits: options?.displayedBilledCredits,
+          internalMediaRefsOverride: options?.internalMediaRefsOverride,
+          characterContextOverride: options?.characterContextOverride,
+          styleContextOverrideToSubmit,
+          modelIdOverride: options?.modelIdOverride,
+          inpaintOverride: options?.inpaintOverride,
+          hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+          outputIdOverride: options?.outputIdOverride,
+        })
+      );
     },
     [
       editReferenceText,
@@ -277,22 +320,22 @@ export const useAiStudioGenerationPromptComposer = ({
           preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
         }
       );
-      submitTask(compiledSubmissionPrompt, imageInputs, {
-        selectedToolOverride: effectiveTool,
-        displayPromptOverride: displayPromptToUse,
-        displayedBilledCredits: options?.displayedBilledCredits,
-        internalMediaRefsOverride: options?.internalMediaRefsOverride,
-        characterContextOverride: options?.characterContextOverride,
-        modelIdOverride: options?.modelIdOverride,
-        outputIdOverride: options?.outputIdOverride,
-        inpaintOverride: options?.inpaintOverride,
-        hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
-        ...(styleContextOverrideToSubmit
-          ? {
-              styleContextOverride: styleContextOverrideToSubmit,
-            }
-          : {}),
-      });
+      submitTask(
+        compiledSubmissionPrompt,
+        imageInputs,
+        buildTaskSubmitOptions({
+          selectedToolOverride: effectiveTool,
+          displayPromptOverride: displayPromptToUse,
+          displayedBilledCredits: options?.displayedBilledCredits,
+          internalMediaRefsOverride: options?.internalMediaRefsOverride,
+          characterContextOverride: options?.characterContextOverride,
+          styleContextOverrideToSubmit,
+          modelIdOverride: options?.modelIdOverride,
+          outputIdOverride: options?.outputIdOverride,
+          inpaintOverride: options?.inpaintOverride,
+          hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        })
+      );
     },
     [
       activeOutputPreviewUrl,

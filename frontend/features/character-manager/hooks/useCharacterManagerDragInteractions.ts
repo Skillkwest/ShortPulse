@@ -13,8 +13,7 @@ const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
   ".character-reference-upload-image-wrap, .character-character-sheet-media";
 
 type UseCharacterManagerDragInteractionsParams = {
-  pageBusy: boolean;
-  isDropResolutionBusy: boolean;
+  dragBusy: boolean;
   resolvedCharacterSheetPresetAssignments: CharacterSheetPresetAssignments;
   setDraggedCharacterSheetZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   setActiveCharacterSheetDropZone: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
@@ -30,8 +29,7 @@ type UseCharacterManagerDragInteractionsResult = {
 };
 
 export const useCharacterManagerDragInteractions = ({
-  pageBusy,
-  isDropResolutionBusy,
+  dragBusy,
   resolvedCharacterSheetPresetAssignments,
   setDraggedCharacterSheetZoneKey,
   setActiveCharacterSheetDropZone,
@@ -82,7 +80,7 @@ export const useCharacterManagerDragInteractions = ({
 
   const handleCharacterSheetDragStart = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: DragEvent<HTMLElement>) => {
-      if (pageBusy || isDropResolutionBusy) {
+      if (dragBusy) {
         event.preventDefault();
         return;
       }
@@ -101,8 +99,7 @@ export const useCharacterManagerDragInteractions = ({
     [
       applyDragGhost,
       characterSheetZoneMimeType,
-      isDropResolutionBusy,
-      pageBusy,
+      dragBusy,
       referenceSlotMimeType,
       resolvedCharacterSheetPresetAssignments,
       setDraggedCharacterSheetZoneKey,

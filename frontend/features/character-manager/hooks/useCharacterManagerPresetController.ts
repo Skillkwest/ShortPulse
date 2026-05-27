@@ -123,12 +123,30 @@ export const useCharacterManagerPresetController = ({
   setCharacterDescriptionState,
   toErrorMessage,
 }: UseCharacterManagerPresetControllerParams): UseCharacterManagerPresetControllerResult => {
+  const presetAssignmentPersistenceQueueRef = React.useRef<
+    Partial<Record<CharacterSheetPresetId, Promise<void>>>
+  >({});
+
   const publishCharacterRefresh = React.useCallback(() => {
     publishCharacterListChanged({
       userId: selectedCharacterStorageScopeRef.current,
       reason: "refresh",
     });
   }, [selectedCharacterStorageScopeRef]);
+
+  const enqueuePresetAssignmentPersistence = React.useCallback(
+    <T>(presetId: CharacterSheetPresetId, task: () => Promise<T>): Promise<T> => {
+      const previousTask =
+        presetAssignmentPersistenceQueueRef.current[presetId] ?? Promise.resolve();
+      const nextTask = previousTask.catch(() => undefined).then(task);
+      presetAssignmentPersistenceQueueRef.current[presetId] = nextTask.then(
+        () => undefined,
+        () => undefined
+      );
+      return nextTask;
+    },
+    []
+  );
 
   const mergePersistedTabDescriptions = React.useCallback(
     (
@@ -461,11 +479,13 @@ export const useCharacterManagerPresetController = ({
       characterSheetPresetAssignmentsRequestRef.current = requestId;
       beginCharacterSheetPresetMutation();
       try {
-        const persistedState = await saveCharacterManagerCharacterSheetPresetAssignments({
-          characterId,
-          presetId,
-          assignments: normalizedAssignments,
-        });
+        const persistedState = await enqueuePresetAssignmentPersistence(presetId, () =>
+          saveCharacterManagerCharacterSheetPresetAssignments({
+            characterId,
+            presetId,
+            assignments: normalizedAssignments,
+          })
+        );
         if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
           return true;
         }
@@ -503,6 +523,7 @@ export const useCharacterManagerPresetController = ({
       characterSheetPresetAssignmentsRequestRef,
       characterSheetPresetsRef,
       clearMessages,
+      enqueuePresetAssignmentPersistence,
       endCharacterSheetPresetMutation,
       setCharacterSheetPresetAssignments,
       setCharacterSheetPresets,

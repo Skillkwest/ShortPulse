@@ -1,23 +1,26 @@
-import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
-import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
-import type { StudioMode, StudioOutput, ToolId } from "../../types";
+import type { StudioMode } from "../../types";
+import type { AiStudioTaskSubmitOptions } from "./taskSubmissionContracts";
 
 export type ReferenceInputsMode = "merge" | "replace";
 
-export type AiStudioGenerateSubmissionOverrides = {
-  selectedToolOverride?: ToolId | null;
+type AiStudioForwardedGenerateSubmitOptions = Pick<
+  AiStudioTaskSubmitOptions,
+  | "selectedToolOverride"
+  | "displayPromptOverride"
+  | "displayedBilledCredits"
+  | "internalMediaRefsOverride"
+  | "characterContextOverride"
+  | "styleContextOverride"
+  | "outputIdOverride"
+  | "modelIdOverride"
+  | "inpaintOverride"
+  | "hideOutputFromReferenceGrid"
+>;
+
+export type AiStudioGenerateSubmissionOverrides = AiStudioForwardedGenerateSubmitOptions & {
   submissionPromptOverride?: string | null;
-  displayPromptOverride?: string | null;
-  displayedBilledCredits?: number | null;
   referenceInputsOverride?: string[];
-  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   referenceInputsMode?: ReferenceInputsMode;
-  characterContextOverride?: StudioOutput["characterContext"];
-  styleContextOverride?: StudioOutput["styleContext"];
-  outputIdOverride?: string;
-  modelIdOverride?: string | null;
-  inpaintOverride?: InpaintSubmissionOverride | null;
-  hideOutputFromReferenceGrid?: boolean;
   suppressStyle?: boolean;
   suppressCharacter?: boolean;
   ignoreGenerationGuardrail?: boolean;

@@ -2,34 +2,50 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useCharacterManagerCharacterSheetInteractions } from "../useCharacterManagerCharacterSheetInteractions";
 
+const createParams = (
+  overrides: Partial<Parameters<typeof useCharacterManagerCharacterSheetInteractions>[0]> = {}
+): Parameters<typeof useCharacterManagerCharacterSheetInteractions>[0] => ({
+  intakeBusy: false,
+  slotMutationBusy: false,
+  isAnyCharacterSheetSlotPending: false,
+  isCharacterSheetSlotPending: () => false,
+  pendingCharacterSheetUploadZoneKey: null,
+  setPendingCharacterSheetUploadZoneKey: vi.fn(),
+  setCharacterSheetPresetFile: vi.fn(),
+  resolvedCharacterSheetPresetAssignments: {
+    portrait: null,
+    close_up: null,
+    front_shot: null,
+  },
+  saveCharacterSheetPresetAssignments: vi.fn(),
+  draggedCharacterSheetZoneKey: null,
+  canResolveCharacterDropReference: false,
+  handleCharacterSheetReferenceDrop: vi.fn(),
+  setActiveCharacterSheetDropZone: vi.fn(),
+  openCharacterSheetPicker: vi.fn(),
+  characterSheetZoneMimeType: "application/x-shortpulse-character-sheet-zone-key",
+  ...overrides,
+});
+
 describe("useCharacterManagerCharacterSheetInteractions", () => {
   it("clears assigned references even before a character id exists", () => {
     const saveCharacterSheetPresetAssignments = vi.fn();
 
     const { result } = renderHook(() =>
-      useCharacterManagerCharacterSheetInteractions({
-        pageBusy: false,
-        isDropResolutionBusy: false,
-        pendingCharacterSheetUploadZoneKey: null,
-        setPendingCharacterSheetUploadZoneKey: vi.fn(),
-        setCharacterSheetPresetFile: vi.fn(),
-        resolvedCharacterSheetPresetAssignments: {
-          portrait: {
-            characterMediaId: "local-1",
-            storagePath: "",
-            previewUrl: "blob:portrait-preview",
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          resolvedCharacterSheetPresetAssignments: {
+            portrait: {
+              characterMediaId: "local-1",
+              storagePath: "",
+              previewUrl: "blob:portrait-preview",
+            },
+            close_up: null,
+            front_shot: null,
           },
-          close_up: null,
-          front_shot: null,
-        },
-        saveCharacterSheetPresetAssignments,
-        draggedCharacterSheetZoneKey: null,
-        canResolveCharacterDropReference: false,
-        handleCharacterSheetReferenceDrop: vi.fn(),
-        setActiveCharacterSheetDropZone: vi.fn(),
-        openCharacterSheetPicker: vi.fn(),
-        characterSheetZoneMimeType: "application/x-shortpulse-character-sheet-zone-key",
-      })
+          saveCharacterSheetPresetAssignments,
+        })
+      )
     );
 
     act(() => {
@@ -41,5 +57,96 @@ describe("useCharacterManagerCharacterSheetInteractions", () => {
       close_up: null,
       front_shot: null,
     });
+  });
+
+  it("keeps other empty slots clickable while a different slot is pending", () => {
+    const openCharacterSheetPicker = vi.fn();
+    const { result } = renderHook(() =>
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          isAnyCharacterSheetSlotPending: true,
+          isCharacterSheetSlotPending: (zoneKey) => zoneKey === "portrait",
+          openCharacterSheetPicker,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleCharacterSheetCardClick("close_up")();
+    });
+    act(() => {
+      result.current.handleCharacterSheetCardClick("portrait")();
+    });
+
+    expect(openCharacterSheetPicker).toHaveBeenCalledTimes(1);
+    expect(openCharacterSheetPicker).toHaveBeenCalledWith("close_up");
+  });
+
+  it("lets the direct picker save into another slot while a different slot is pending", () => {
+    const setPendingCharacterSheetUploadZoneKey = vi.fn();
+    const setCharacterSheetPresetFile = vi.fn();
+    const file = new File(["close-up"], "close-up.png", { type: "image/png" });
+    const { result } = renderHook(() =>
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          isAnyCharacterSheetSlotPending: true,
+          isCharacterSheetSlotPending: (zoneKey) => zoneKey === "portrait",
+          pendingCharacterSheetUploadZoneKey: "close_up",
+          setPendingCharacterSheetUploadZoneKey,
+          setCharacterSheetPresetFile,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleCharacterSheetFileSelection({
+        target: {
+          files: [file],
+          value: "filled",
+        },
+      } as never);
+    });
+
+    expect(setPendingCharacterSheetUploadZoneKey).toHaveBeenCalledWith(null);
+    expect(setCharacterSheetPresetFile).toHaveBeenCalledWith("close_up", file);
+  });
+
+  it("keeps internal slot swap blocked while any slot upload is pending", () => {
+    const saveCharacterSheetPresetAssignments = vi.fn();
+    const setActiveCharacterSheetDropZone = vi.fn();
+    const preventDefault = vi.fn();
+    const { result } = renderHook(() =>
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          slotMutationBusy: true,
+          isAnyCharacterSheetSlotPending: true,
+          resolvedCharacterSheetPresetAssignments: {
+            portrait: {
+              characterMediaId: "portrait-media",
+              storagePath: "portrait.png",
+              previewUrl: "https://example.com/portrait.png",
+            },
+            close_up: null,
+            front_shot: null,
+          },
+          saveCharacterSheetPresetAssignments,
+          draggedCharacterSheetZoneKey: "portrait",
+          setActiveCharacterSheetDropZone,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleCharacterSheetDrop("close_up")({
+        preventDefault,
+        dataTransfer: {
+          getData: () => "portrait",
+        },
+      } as never);
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(setActiveCharacterSheetDropZone).toHaveBeenCalledWith(null);
+    expect(saveCharacterSheetPresetAssignments).not.toHaveBeenCalled();
   });
 });

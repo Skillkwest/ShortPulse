@@ -14,8 +14,10 @@ import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload"
 import type { CharacterSheetDropZoneKey, CharacterSheetPresetAssignments } from "../types";
 
 type UseCharacterManagerCharacterSheetInteractionsParams = {
-  pageBusy: boolean;
-  isDropResolutionBusy: boolean;
+  intakeBusy: boolean;
+  slotMutationBusy: boolean;
+  isAnyCharacterSheetSlotPending: boolean;
+  isCharacterSheetSlotPending: (zoneKey: CharacterSheetDropZoneKey) => boolean;
   pendingCharacterSheetUploadZoneKey: CharacterSheetDropZoneKey | null;
   setPendingCharacterSheetUploadZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
@@ -47,8 +49,10 @@ type UseCharacterManagerCharacterSheetInteractionsResult = {
 };
 
 export const useCharacterManagerCharacterSheetInteractions = ({
-  pageBusy,
-  isDropResolutionBusy,
+  intakeBusy,
+  slotMutationBusy,
+  isAnyCharacterSheetSlotPending,
+  isCharacterSheetSlotPending,
   pendingCharacterSheetUploadZoneKey,
   setPendingCharacterSheetUploadZoneKey,
   setCharacterSheetPresetFile,
@@ -75,11 +79,14 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       const targetDropZone = pendingCharacterSheetUploadZoneKey;
       setPendingCharacterSheetUploadZoneKey(null);
 
-      if (!file || !targetDropZone || pageBusy) return;
+      if (!file || !targetDropZone || intakeBusy || isCharacterSheetSlotPending(targetDropZone)) {
+        return;
+      }
       void setCharacterSheetPresetFile(targetDropZone, file);
     },
     [
-      pageBusy,
+      intakeBusy,
+      isCharacterSheetSlotPending,
       pendingCharacterSheetUploadZoneKey,
       setCharacterSheetPresetFile,
       setPendingCharacterSheetUploadZoneKey,
@@ -88,7 +95,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
 
   const handleCharacterSheetDragOver = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: DragEvent<HTMLElement>) => {
-      if (pageBusy || isDropResolutionBusy) return;
+      if (intakeBusy) return;
       const sourceCharacterSheetZoneKey =
         (event.dataTransfer.getData(characterSheetZoneMimeType) as
           | CharacterSheetDropZoneKey
@@ -103,6 +110,11 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         canResolveCharacterDropReference &&
         (internalReferenceGridPayload || hasInternalReferenceGridHints)
       );
+      if (isInternalSheetDrag) {
+        if (slotMutationBusy || isAnyCharacterSheetSlotPending) return;
+      } else if (isCharacterSheetSlotPending(characterSheetSlotKey)) {
+        return;
+      }
       if (!isInternalSheetDrag && !isInternalReferenceGridDrag && !hasExternalImageReference) {
         return;
       }
@@ -114,9 +126,11 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       canResolveCharacterDropReference,
       characterSheetZoneMimeType,
       draggedCharacterSheetZoneKey,
-      isDropResolutionBusy,
-      pageBusy,
+      intakeBusy,
+      isAnyCharacterSheetSlotPending,
+      isCharacterSheetSlotPending,
       setActiveCharacterSheetDropZone,
+      slotMutationBusy,
     ]
   );
 
@@ -137,7 +151,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
       setActiveCharacterSheetDropZone(null);
-      if (pageBusy || isDropResolutionBusy) return;
+      if (intakeBusy) return;
       const sourceCharacterSheetZoneKey =
         (event.dataTransfer.getData(characterSheetZoneMimeType) as
           | CharacterSheetDropZoneKey
@@ -146,6 +160,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         sourceCharacterSheetZoneKey &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey)
       ) {
+        if (slotMutationBusy || isAnyCharacterSheetSlotPending) return;
         const sourceReference =
           resolvedCharacterSheetPresetAssignments[sourceCharacterSheetZoneKey];
         if (!sourceReference) return;
@@ -159,6 +174,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         persistCharacterSheetPresetAssignments(nextAssignments);
         return;
       }
+      if (isCharacterSheetSlotPending(characterSheetSlotKey)) return;
 
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
       void handleCharacterSheetReferenceDrop(characterSheetSlotKey, event.dataTransfer).finally(
@@ -173,25 +189,27 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       characterSheetZoneMimeType,
       draggedCharacterSheetZoneKey,
       handleCharacterSheetReferenceDrop,
-      isDropResolutionBusy,
-      pageBusy,
+      intakeBusy,
+      isAnyCharacterSheetSlotPending,
+      isCharacterSheetSlotPending,
       persistCharacterSheetPresetAssignments,
       resolvedCharacterSheetPresetAssignments,
       setActiveCharacterSheetDropZone,
+      slotMutationBusy,
     ]
   );
 
   const handleCharacterSheetCardClick = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => () => {
-      if (pageBusy || isDropResolutionBusy) return;
+      if (intakeBusy || isCharacterSheetSlotPending(dropZoneKey)) return;
       const assignedReference = resolvedCharacterSheetPresetAssignments[dropZoneKey];
       if (assignedReference) return;
       openCharacterSheetPicker(dropZoneKey);
     },
     [
-      isDropResolutionBusy,
+      intakeBusy,
+      isCharacterSheetSlotPending,
       openCharacterSheetPicker,
-      pageBusy,
       resolvedCharacterSheetPresetAssignments,
     ]
   );

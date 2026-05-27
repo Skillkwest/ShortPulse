@@ -63,8 +63,15 @@ const CHARACTER_TEXT_ENTRY_BACKGROUND = CHARACTER_PANEL_FIELD_BACKGROUND;
 const SLOT_ASSIGNMENT_ORDER: CharacterSheetDropZoneKey[] = ["portrait", "close_up", "front_shot"];
 const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
+const BUSY_SLOT_UPLOAD_ERROR =
+  "Character reference slots are busy. Wait for current uploads to finish before adding more media.";
 const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
 const CHARACTER_PANEL_FIELD_BORDER_COLOR = CHARACTER_PANEL_FIELD_BORDER;
+const createCharacterSheetSlotPendingCounts = (): Record<CharacterSheetDropZoneKey, number> => ({
+  portrait: 0,
+  close_up: 0,
+  front_shot: 0,
+});
 const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
   minHeight: "48px",
@@ -405,6 +412,9 @@ export function CharacterPanelWorkspace({
   >(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     React.useState<CharacterSheetDropZoneKey | null>(null);
+  const [pendingCharacterSheetUploadCounts, setPendingCharacterSheetUploadCounts] = React.useState<
+    Record<CharacterSheetDropZoneKey, number>
+  >(createCharacterSheetSlotPendingCounts);
   const [isCharacterLibraryModalOpen, setIsCharacterLibraryModalOpen] = React.useState(false);
   const [deleteTargetCharacter, setDeleteTargetCharacter] = React.useState<{
     characterId: string;
@@ -426,14 +436,14 @@ export function CharacterPanelWorkspace({
     width: 0,
     height: 0,
   }));
-  const pageBusy =
+  const structuralBusy =
     loading ||
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isSavingCharacter ||
     isDeletingCharacter ||
-    isDeletingCharacterSheetPreset ||
-    isSavingCharacterSheetPreset;
+    isDeletingCharacterSheetPreset;
+  const pageBusy = structuralBusy || isSavingCharacterSheetPreset;
   const looksControlDisabled =
     loading ||
     isSwitchingCharacter ||
@@ -448,6 +458,11 @@ export function CharacterPanelWorkspace({
   const createActionDisabled = pageBusy;
   const resolvedCharacterSaveProgressMessage =
     characterSaveProgressMessage ?? "Saving character...";
+  const isAnyCharacterSheetSlotPending = React.useMemo(
+    () => Object.values(pendingCharacterSheetUploadCounts).some((count) => count > 0),
+    [pendingCharacterSheetUploadCounts]
+  );
+  const slotMutationBusy = pageBusy || isAnyCharacterSheetSlotPending;
 
   const resolvedCharacterSheetPresetAssignments = React.useMemo(
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
@@ -756,11 +771,37 @@ export function CharacterPanelWorkspace({
       pressureLevel: 0,
     });
 
-  const { pendingDropTarget, isDropResolutionBusy, handleCharacterSheetReferenceDrop } =
-    useCharacterManagerDroppedReferenceController({
-      setCharacterSheetPresetFile,
-      resolveCharacterDropReference,
-    });
+  const setCharacterSheetSlotPending = React.useCallback(
+    (zoneKey: CharacterSheetDropZoneKey, direction: 1 | -1) => {
+      setPendingCharacterSheetUploadCounts((current) => ({
+        ...current,
+        [zoneKey]: Math.max(0, (current[zoneKey] ?? 0) + direction),
+      }));
+    },
+    []
+  );
+
+  const isCharacterSheetSlotPending = React.useCallback(
+    (zoneKey: CharacterSheetDropZoneKey) => (pendingCharacterSheetUploadCounts[zoneKey] ?? 0) > 0,
+    [pendingCharacterSheetUploadCounts]
+  );
+
+  const setCharacterSheetPresetFileWithPending = React.useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, file: File) => {
+      setCharacterSheetSlotPending(zoneKey, 1);
+      try {
+        return await setCharacterSheetPresetFile(zoneKey, file);
+      } finally {
+        setCharacterSheetSlotPending(zoneKey, -1);
+      }
+    },
+    [setCharacterSheetPresetFile, setCharacterSheetSlotPending]
+  );
+
+  const { handleCharacterSheetReferenceDrop } = useCharacterManagerDroppedReferenceController({
+    setCharacterSheetPresetFile: setCharacterSheetPresetFileWithPending,
+    resolveCharacterDropReference,
+  });
 
   const openCharacterSheetPicker = React.useCallback((zoneKey: CharacterSheetDropZoneKey) => {
     setPendingCharacterSheetUploadZoneKey(zoneKey);
@@ -774,11 +815,13 @@ export function CharacterPanelWorkspace({
     handleCharacterSheetDrop,
     handleCharacterSheetCardClick,
   } = useCharacterManagerCharacterSheetInteractions({
-    pageBusy,
-    isDropResolutionBusy,
+    intakeBusy: structuralBusy,
+    slotMutationBusy,
+    isAnyCharacterSheetSlotPending,
+    isCharacterSheetSlotPending,
     pendingCharacterSheetUploadZoneKey,
     setPendingCharacterSheetUploadZoneKey,
-    setCharacterSheetPresetFile,
+    setCharacterSheetPresetFile: setCharacterSheetPresetFileWithPending,
     resolvedCharacterSheetPresetAssignments,
     saveCharacterSheetPresetAssignments,
     draggedCharacterSheetZoneKey,
@@ -791,8 +834,7 @@ export function CharacterPanelWorkspace({
 
   const { handleCharacterSheetDragStart, handleReferenceDragEnd } =
     useCharacterManagerDragInteractions({
-      pageBusy,
-      isDropResolutionBusy,
+      dragBusy: slotMutationBusy,
       resolvedCharacterSheetPresetAssignments,
       setDraggedCharacterSheetZoneKey,
       setActiveCharacterSheetDropZone,
@@ -867,10 +909,13 @@ export function CharacterPanelWorkspace({
       if (!nextFiles.length) return false;
       clearMessages();
       const openSlotQueue = SLOT_ASSIGNMENT_ORDER.filter(
-        (slotKey) => !resolvedCharacterSheetPresetAssignments[slotKey]
+        (slotKey) =>
+          !resolvedCharacterSheetPresetAssignments[slotKey] && !isCharacterSheetSlotPending(slotKey)
       );
       if (!openSlotQueue.length) {
-        setErrorMessage(FULL_SLOT_UPLOAD_ERROR);
+        setErrorMessage(
+          isAnyCharacterSheetSlotPending ? BUSY_SLOT_UPLOAD_ERROR : FULL_SLOT_UPLOAD_ERROR
+        );
         return false;
       }
       let assignedCount = 0;
@@ -878,7 +923,7 @@ export function CharacterPanelWorkspace({
       for (const file of nextFiles) {
         const targetSlotKey = openSlotQueue[assignedCount] ?? null;
         if (!targetSlotKey) break;
-        const saved = await setCharacterSheetPresetFile(targetSlotKey, file);
+        const saved = await setCharacterSheetPresetFileWithPending(targetSlotKey, file);
         if (!saved) return false;
         assignedCount += 1;
       }
@@ -894,8 +939,10 @@ export function CharacterPanelWorkspace({
     },
     [
       clearMessages,
+      isAnyCharacterSheetSlotPending,
+      isCharacterSheetSlotPending,
       resolvedCharacterSheetPresetAssignments,
-      setCharacterSheetPresetFile,
+      setCharacterSheetPresetFileWithPending,
       setErrorMessage,
     ]
   );
@@ -1228,9 +1275,7 @@ export function CharacterPanelWorkspace({
                                 const assignedReference =
                                   resolvedCharacterSheetPresetAssignments[dropZone.key];
                                 const isDropActive = activeCharacterSheetDropZone === dropZone.key;
-                                const isDropPending =
-                                  pendingDropTarget?.target === "character_sheet" &&
-                                  pendingDropTarget.zoneKey === dropZone.key;
+                                const isDropPending = isCharacterSheetSlotPending(dropZone.key);
                                 const showDeleteButton =
                                   Boolean(assignedReference) &&
                                   hoveredCharacterSheetActionZone === dropZone.key;
@@ -1271,7 +1316,9 @@ export function CharacterPanelWorkspace({
                                         draggedCharacterSheetZoneKey === dropZone.key ? 0.74 : 1,
                                     }}
                                     draggable={
-                                      !pageBusy && !isDropPending && Boolean(assignedReference)
+                                      !slotMutationBusy &&
+                                      !isDropPending &&
+                                      Boolean(assignedReference)
                                     }
                                     onClick={handleCharacterSheetCardClick(dropZone.key)}
                                     onDoubleClick={() => {
@@ -1332,7 +1379,7 @@ export function CharacterPanelWorkspace({
                                             event.stopPropagation();
                                             void clearCharacterSheetAssignment(dropZone.key);
                                           }}
-                                          disabled={pageBusy}
+                                          disabled={slotMutationBusy}
                                         >
                                           <Trash size={12} weight="bold" />
                                         </button>

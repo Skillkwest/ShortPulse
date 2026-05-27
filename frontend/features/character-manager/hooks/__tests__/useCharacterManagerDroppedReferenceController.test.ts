@@ -44,10 +44,64 @@ describe("useCharacterManagerDroppedReferenceController", () => {
 
     expect(setCharacterSheetPresetFile).toHaveBeenCalledWith("portrait", file);
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
-    expect(result.current.pendingDropTarget).toBeNull();
   });
 
-  it("shows the target character-sheet card as pending while a media-library image is loading", async () => {
+  it("allows separate character-sheet zones to resolve concurrently when the caller permits it", async () => {
+    const portraitSave = createDeferred<boolean>();
+    const closeUpSave = createDeferred<boolean>();
+    const setCharacterSheetPresetFile = vi.fn().mockImplementation((zoneKey: string) => {
+      if (zoneKey === "portrait") return portraitSave.promise;
+      if (zoneKey === "close_up") return closeUpSave.promise;
+      throw new Error(`Unexpected zone: ${zoneKey}`);
+    });
+    const portraitFile = new File(["portrait"], "portrait.png", { type: "image/png" });
+    const closeUpFile = new File(["close-up"], "close-up.png", { type: "image/png" });
+    const portraitTransfer = {
+      files: [portraitFile],
+      items: [],
+      types: ["Files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+    const closeUpTransfer = {
+      files: [closeUpFile],
+      items: [],
+      types: ["Files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+      })
+    );
+
+    let portraitDropPromise!: Promise<void>;
+    let closeUpDropPromise!: Promise<void>;
+    act(() => {
+      portraitDropPromise = result.current.handleCharacterSheetReferenceDrop(
+        "portrait",
+        portraitTransfer
+      );
+      closeUpDropPromise = result.current.handleCharacterSheetReferenceDrop(
+        "close_up",
+        closeUpTransfer
+      );
+    });
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(2);
+    });
+    expect(setCharacterSheetPresetFile).toHaveBeenNthCalledWith(1, "portrait", portraitFile);
+    expect(setCharacterSheetPresetFile).toHaveBeenNthCalledWith(2, "close_up", closeUpFile);
+
+    await act(async () => {
+      closeUpSave.resolve(true);
+      portraitSave.resolve(true);
+      await Promise.all([portraitDropPromise, closeUpDropPromise]);
+    });
+  });
+
+  it("converts media-library image drops into files before saving", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
@@ -100,10 +154,6 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     await waitFor(() => {
       expect(setCharacterSheetPresetFile).toHaveBeenCalledTimes(1);
     });
-    expect(result.current.pendingDropTarget).toEqual({
-      target: "character_sheet",
-      zoneKey: "portrait",
-    });
 
     const uploadedFile = setCharacterSheetPresetFile.mock.calls[0]?.[1] as File;
     expect(setCharacterSheetPresetFile.mock.calls[0]?.[0]).toBe("portrait");
@@ -116,7 +166,6 @@ describe("useCharacterManagerDroppedReferenceController", () => {
       await dropPromise;
     });
 
-    expect(result.current.pendingDropTarget).toBeNull();
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
 

@@ -1695,6 +1695,124 @@ describe("generatedMediaAuthority", () => {
     expect(projectionBuilder.in).toHaveBeenCalledWith("generation_id", ["gen-project-visible-1"]);
   });
 
+  it("hydrates project-scoped generated images from canonical media when projection storage is missing", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/images/gen-project-image-canonical-1/output.png",
+          "https://signed.test/gen-project-image-canonical-1/output.png",
+        ],
+      ])
+    );
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-image-canonical-1",
+          updated_at: "2026-04-18T16:20:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-image-canonical-1",
+          request_id: "req-project-image-canonical-1",
+          source_ref: "source-project-image-canonical-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "A project image with expired provider preview",
+          preview_url: "https://fal.test/project-image-canonical-preview.png",
+          result_urls: ["https://fal.test/project-image-canonical-full.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-image-canonical-1",
+          media_file_id: "media-project-image-canonical-1",
+          output_index: 0,
+          created_at: "2026-04-18T16:11:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-project-image-canonical-1",
+          storage_path: "user-1/generations/images/gen-project-image-canonical-1/output.png",
+          file_type: "image/png",
+          poster_variant_path: null,
+          preview_variant_path: null,
+          filename: "output.png",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-project-image-canonical-1",
+        generationId: "gen-project-image-canonical-1",
+        previewUrl: "https://signed.test/gen-project-image-canonical-1/output.png",
+        resultUrls: ["https://signed.test/gen-project-image-canonical-1/output.png"],
+        previewStoragePath: "user-1/generations/images/gen-project-image-canonical-1/output.png",
+        fullStoragePath: "user-1/generations/images/gen-project-image-canonical-1/output.png",
+      }),
+    ]);
+    expect(canonicalOutputBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-image-canonical-1",
+    ]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: ["user-1/generations/images/gen-project-image-canonical-1/output.png"],
+        surface: "reference-grid",
+      })
+    );
+  });
+
   it("orders project generated outputs by newest addition or generation start", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: [

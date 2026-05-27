@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
@@ -30,19 +30,12 @@ export type ResolveCharacterDropReference = (
   payload: InternalReferenceDragPayload
 ) => Promise<ResolvedCharacterDropReference | null>;
 
-export type PendingCharacterDropTarget = {
-  target: "character_sheet";
-  zoneKey: CharacterSheetDropZoneKey;
-} | null;
-
 type UseCharacterManagerDroppedReferenceControllerParams = {
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
 };
 
 type UseCharacterManagerDroppedReferenceControllerResult = {
-  pendingDropTarget: PendingCharacterDropTarget;
-  isDropResolutionBusy: boolean;
   handleCharacterSheetReferenceDrop: (
     zoneKey: CharacterSheetDropZoneKey,
     transfer: DataTransfer
@@ -262,27 +255,8 @@ export const useCharacterManagerDroppedReferenceController = ({
   setCharacterSheetPresetFile,
   resolveCharacterDropReference,
 }: UseCharacterManagerDroppedReferenceControllerParams): UseCharacterManagerDroppedReferenceControllerResult => {
-  const [pendingDropTarget, setPendingDropTarget] = useState<PendingCharacterDropTarget>(null);
   const mediaReferenceCacheRef = useRef(
     new Map<string, { storagePath: string; previewUrl: string | null }>()
-  );
-  const isDropResolutionBusy = pendingDropTarget !== null;
-
-  const withCharacterSheetDropPending = useCallback(
-    async (zoneKey: CharacterSheetDropZoneKey, action: () => Promise<void>) => {
-      setPendingDropTarget({
-        target: "character_sheet",
-        zoneKey,
-      });
-      try {
-        await action();
-      } finally {
-        setPendingDropTarget((current) =>
-          current?.target === "character_sheet" && current.zoneKey === zoneKey ? null : current
-        );
-      }
-    },
-    []
   );
 
   const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
@@ -444,76 +418,62 @@ export const useCharacterManagerDroppedReferenceController = ({
       const internalReference = extractInternalReferenceDragPayload(transfer);
       const hasInternalHintTypes = hasInternalReferenceDragTypeHints(transfer);
       if (internalReference && resolveCharacterDropReference) {
-        setPendingDropTarget({
-          target: "character_sheet",
+        const resolvedReference = await resolveInternalCharacterDrop({
+          transfer,
           zoneKey,
         });
-        try {
-          const resolvedReference = await resolveInternalCharacterDrop({
-            transfer,
-            zoneKey,
-          });
-          if (!resolvedReference) {
-            return;
-          }
-          const resolvedMediaId = resolvedReference.mediaId.trim();
-          let previewUrl = resolvedReference.previewUrl?.trim() || null;
-          if (!previewUrl && resolvedMediaId) {
-            const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
-            previewUrl = mediaReference?.previewUrl?.trim() || null;
-          }
-          if (!previewUrl) {
-            void reportAppError({
-              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-              scope: "app",
-              severity: "low",
-              message: "character_sheet_drop_reference_missing_preview_url",
-              metadata: {
-                target: "character_sheet",
-                drop_zone_key: zoneKey,
-                output_id: resolvedReference.outputId ?? null,
-                image_index: resolvedReference.imageIndex ?? null,
-                media_id: resolvedMediaId || null,
-              },
-            });
-            logCharacterDropBreadcrumb("character_drop_rejected", {
+        if (!resolvedReference) {
+          return;
+        }
+        const resolvedMediaId = resolvedReference.mediaId.trim();
+        let previewUrl = resolvedReference.previewUrl?.trim() || null;
+        if (!previewUrl && resolvedMediaId) {
+          const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
+          previewUrl = mediaReference?.previewUrl?.trim() || null;
+        }
+        if (!previewUrl) {
+          void reportAppError({
+            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+            scope: "app",
+            severity: "low",
+            message: "character_sheet_drop_reference_missing_preview_url",
+            metadata: {
               target: "character_sheet",
-              zone_key: zoneKey,
-              reason: "missing_preview_url",
+              drop_zone_key: zoneKey,
               output_id: resolvedReference.outputId ?? null,
               image_index: resolvedReference.imageIndex ?? null,
               media_id: resolvedMediaId || null,
-            });
-            return;
-          }
-          await ingestCharacterSheetDroppedReference(zoneKey, {
-            url: previewUrl,
-            mimeType: null,
-            characterMediaId: resolvedMediaId || null,
-            storagePath: resolvedReference.storagePath ?? null,
+            },
+          });
+          logCharacterDropBreadcrumb("character_drop_rejected", {
+            target: "character_sheet",
+            zone_key: zoneKey,
+            reason: "missing_preview_url",
+            output_id: resolvedReference.outputId ?? null,
+            image_index: resolvedReference.imageIndex ?? null,
+            media_id: resolvedMediaId || null,
           });
           return;
-        } finally {
-          setPendingDropTarget((current) =>
-            current?.target === "character_sheet" && current.zoneKey === zoneKey ? null : current
-          );
         }
+        await ingestCharacterSheetDroppedReference(zoneKey, {
+          url: previewUrl,
+          mimeType: null,
+          characterMediaId: resolvedMediaId || null,
+          storagePath: resolvedReference.storagePath ?? null,
+        });
+        return;
       }
 
       const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
       if (mediaLibraryReference) {
-        await withCharacterSheetDropPending(zoneKey, async () => {
-          await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
-        });
+        await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
         return;
       }
 
       const droppedReference = resolveDroppedImageReference(transfer);
       if (hasInternalHintTypes) {
         if (droppedReference) {
-          await withCharacterSheetDropPending(zoneKey, async () => {
-            await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
-          });
+          await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
           return;
         }
         logCharacterDropBreadcrumb("character_drop_rejected", {
@@ -539,9 +499,7 @@ export const useCharacterManagerDroppedReferenceController = ({
 
       const droppedFile = extractDroppedFiles(transfer)[0] ?? null;
       if (droppedFile) {
-        await withCharacterSheetDropPending(zoneKey, async () => {
-          await setCharacterSheetPresetFile(zoneKey, droppedFile);
-        });
+        await setCharacterSheetPresetFile(zoneKey, droppedFile);
         return;
       }
 
@@ -560,9 +518,7 @@ export const useCharacterManagerDroppedReferenceController = ({
         });
         return;
       }
-      await withCharacterSheetDropPending(zoneKey, async () => {
-        await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
-      });
+      await ingestCharacterSheetDroppedReference(zoneKey, droppedReference);
     },
     [
       setCharacterSheetPresetFile,
@@ -571,13 +527,10 @@ export const useCharacterManagerDroppedReferenceController = ({
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
       resolveMediaReferenceById,
-      withCharacterSheetDropPending,
     ]
   );
 
   return {
-    pendingDropTarget,
-    isDropResolutionBusy,
     handleCharacterSheetReferenceDrop,
   };
 };

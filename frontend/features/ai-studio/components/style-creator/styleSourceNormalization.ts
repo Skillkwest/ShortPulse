@@ -4,6 +4,16 @@
  */
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+} from "../../../../lib/internalReferenceDragSession";
+import {
+  COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+} from "../../../../lib/internalReferenceDragPayload";
+import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   IMAGE_FILE_EXTENSION_PATTERN,
@@ -293,12 +303,12 @@ const hasSnapshotReferenceImageHints = (snapshot: StyleDropSnapshot): boolean =>
     : null;
   const hasReferenceTransferTypeHints = normalizedTransferTypes.some(
     (type) =>
-      type === "application/x-shortpulse-internal-reference" ||
-      type === "text/x-shortpulse-internal-reference" ||
-      type === "application/x-shortpulse-composer-image-drop" ||
-      type === "text/x-shortpulse-composer-image-drop" ||
-      type === "application/x-shortpulse-composer-image-drop-payload" ||
-      type === "text/x-shortpulse-composer-image-drop-payload" ||
+      type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE.toLowerCase() ||
+      type === INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_SESSION_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_PAYLOAD_TYPE.toLowerCase() ||
+      type === COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE.toLowerCase() ||
       type === "text/reference-origin" ||
       type === "text/reference-id" ||
       type === "text/reference-output-id" ||
@@ -527,6 +537,8 @@ export const resolveStyleSource = async ({
       ? await resolveInternalStyleDrop(internalDropPayload).catch(() => null)
       : null;
   const dragPayload = extractDragDropPayload(transferLikeSnapshot);
+  const dragPayloadImageUrl =
+    hasReferenceImageHints && !internalSource ? null : (dragPayload.imageUrl ?? null);
   const promptText = normalizeStylePromptFallbackText(
     dragPayload.promptText || composerDropPayload?.promptText || internalSource?.promptText || ""
   );
@@ -570,18 +582,23 @@ export const resolveStyleSource = async ({
 
   const sourceUrls = collectSnapshotImageUrlCandidates({
     snapshot,
-    dragPayloadImageUrl: dragPayload.imageUrl,
+    dragPayloadImageUrl,
     composerPayloadImageUrl: composerDropPayload?.displayArtifactUrl ?? null,
     composerPayloadReferenceUrl: composerDropPayload?.referenceUrl ?? null,
   });
   const serverCopySourceUrls = collectSnapshotServerCopySourceUrls({
     snapshot,
     internalDropPayload,
-    dragPayloadImageUrl: dragPayload.imageUrl,
+    dragPayloadImageUrl,
     composerPayloadImageUrl: composerDropPayload?.displayArtifactUrl ?? null,
     composerPayloadReferenceUrl: composerDropPayload?.referenceUrl ?? null,
   });
-  const candidateCount = Math.max(sourceUrls.length, serverCopySourceUrls.length);
+  const suppressedSyntheticFileCount =
+    hasReferenceImageHints && snapshot.files.some((candidate) => isImageFileCandidate(candidate))
+      ? 1
+      : 0;
+  const candidateCount =
+    Math.max(sourceUrls.length, serverCopySourceUrls.length) + suppressedSyntheticFileCount;
   if (!sourceUrls.length && !serverCopySourceUrls.length) {
     if (internalResolutionError) throw internalResolutionError;
     throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload", {

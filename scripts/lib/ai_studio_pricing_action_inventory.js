@@ -7,7 +7,8 @@ const phase1Actions = [
     id: "ai_studio_core_generate",
     classification: "billable_shared_policy",
     surface: "AI Studio core generate / regenerate",
-    trigger: "Primary generate buttons across create, edit, image, and video flows",
+    trigger:
+      "Primary generate buttons across create, edit, image, and video flows",
     modelIdSource:
       "Selected model plus create/edit coercion via useAiStudioViewModel and useAiStudioGenerationController",
     pricingDisplaySource:
@@ -27,8 +28,10 @@ const phase1Actions = [
     id: "standard_create_primary_submit",
     classification: "billable_shared_policy",
     surface: "Standard create primary submit",
-    trigger: "Primary create button when chat mode is off",
-    modelIdSource: "AI Studio selected create model resolved through shared view-model and controller",
+    trigger:
+      "Primary create button in Standard Create when the create/text lane hands off to image generation",
+    modelIdSource:
+      "AI Studio selected create model resolved through shared view-model and controller",
     pricingDisplaySource:
       "promptReferenceGenerateCostCredits ?? currentCostCredits from useAiStudioViewModel",
     submitPath:
@@ -45,7 +48,8 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Standard create inline generate",
     trigger: "Inline generate affordance in standard create runtime",
-    modelIdSource: "AI Studio selected create model resolved through shared generation controller",
+    modelIdSource:
+      "AI Studio selected create model resolved through shared generation controller",
     pricingDisplaySource:
       "promptReferenceGenerateCostCredits ?? currentCostCredits from useAiStudioViewModel",
     submitPath:
@@ -62,7 +66,8 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Agent output generate",
     trigger: "Generate from agent-output prompt bubbles",
-    modelIdSource: "Selected workflow tool and current model in AI Studio shell",
+    modelIdSource:
+      "Selected workflow tool and current model in AI Studio shell",
     pricingDisplaySource:
       "promptReferenceGenerateCostCredits ?? currentCostCredits from useAiStudioViewModel",
     submitPath:
@@ -96,7 +101,8 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Music properties panel",
     trigger: "Generate music button",
-    modelIdSource: "resolveRequiredAudioMusicModelId() via MusicPropertiesPanel",
+    modelIdSource:
+      "resolveRequiredAudioMusicModelId() via MusicPropertiesPanel",
     pricingDisplaySource: "MusicPropertiesPanel -> clientPricingDisplay.ts",
     submitPath: "useAiStudioAudioGeneration -> /api/elevenlabs/music",
     serverDebitPath: "/api/elevenlabs/music -> chargeGenerationRequest",
@@ -111,8 +117,10 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Sound effects properties panel",
     trigger: "Generate sound effect button",
-    modelIdSource: "resolveRequiredAudioSoundEffectsModelId() via SoundEffectsPropertiesPanel",
-    pricingDisplaySource: "SoundEffectsPropertiesPanel -> clientPricingDisplay.ts",
+    modelIdSource:
+      "resolveRequiredAudioSoundEffectsModelId() via SoundEffectsPropertiesPanel",
+    pricingDisplaySource:
+      "SoundEffectsPropertiesPanel -> clientPricingDisplay.ts",
     submitPath: "useAiStudioAudioGeneration -> /api/elevenlabs/sound-effects",
     serverDebitPath: "/api/elevenlabs/sound-effects -> chargeGenerationRequest",
     references: [
@@ -126,10 +134,12 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Voices properties panel (voiceover mode)",
     trigger: "Generate voiceover button",
-    modelIdSource: "request.config.model_id with voiceover defaults in VoicesPropertiesPanel",
+    modelIdSource:
+      "request.config.model_id with voiceover defaults in VoicesPropertiesPanel",
     pricingDisplaySource: "VoicesPropertiesPanel -> clientPricingDisplay.ts",
     submitPath: "useAiStudioAudioGeneration -> /api/elevenlabs/text-to-speech",
-    serverDebitPath: "/api/elevenlabs/text-to-speech -> chargeGenerationRequest",
+    serverDebitPath:
+      "/api/elevenlabs/text-to-speech -> chargeGenerationRequest",
     references: [
       "frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx",
       "frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts",
@@ -141,10 +151,13 @@ const phase1Actions = [
     classification: "billable_shared_policy",
     surface: "Voices properties panel (voice changer mode)",
     trigger: "Generate voice changer button",
-    modelIdSource: "request.modelId in VoicesPropertiesPanel voice-changer flow",
+    modelIdSource:
+      "request.modelId in VoicesPropertiesPanel voice-changer flow",
     pricingDisplaySource: "VoicesPropertiesPanel -> clientPricingDisplay.ts",
-    submitPath: "useAiStudioAudioGeneration -> /api/elevenlabs/speech-to-speech",
-    serverDebitPath: "/api/elevenlabs/speech-to-speech -> chargeGenerationRequest",
+    submitPath:
+      "useAiStudioAudioGeneration -> /api/elevenlabs/speech-to-speech",
+    serverDebitPath:
+      "/api/elevenlabs/speech-to-speech -> chargeGenerationRequest",
     references: [
       "frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx",
       "frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts",

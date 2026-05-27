@@ -14,8 +14,10 @@ vi.mock("../../../../../lib/authenticatedFetch", () => ({
 import {
   clearComposerImageDropSession,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   registerComposerImageDropSession,
 } from "../../../../../lib/internalReferenceDragSession";
+import { COMPOSER_IMAGE_DROP_PAYLOAD_TYPE } from "../../../../../lib/internalReferenceDragPayload";
 import {
   captureStyleDropSnapshot,
   canAcceptStyleLibraryImageDropHint,
@@ -342,6 +344,48 @@ describe("style-creator source normalization", () => {
       resolutionStage: "primary",
       candidateCount: 2,
     });
+  });
+
+  it("suppresses synthetic browser image files when only internal drag types survive", async () => {
+    const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
+      type: "image/png",
+    });
+    const transfer = {
+      files: [syntheticBrowserFile],
+      types: ["Files", INTERNAL_REFERENCE_DRAG_SESSION_TYPE, COMPOSER_IMAGE_DROP_PAYLOAD_TYPE],
+      getData: () => "",
+    } as unknown as DataTransfer;
+
+    await expect(resolveStyleSource({ transfer })).rejects.toThrow("missing-dropped-style-image");
+  });
+
+  it("fails with blocked-source instead of treating synthetic browser files as local uploads when internal payload fetch is blocked", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Failed to fetch"));
+    const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
+      type: "image/png",
+    });
+    const transfer = {
+      files: [syntheticBrowserFile],
+      types: ["Files", "text/reference-output-id", "text/reference-origin", "text/reference-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-blocked-1";
+        if (type === "text/reference-url") return "https://cdn.example.com/blocked-reference.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
+
+    await expect(
+      resolveStyleSource({
+        transfer,
+        resolveInternalStyleDrop: resolver,
+      })
+    ).rejects.toThrow("blocked-style-image-source");
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
   it("preserves legacy internal reference ids through captured style-drop snapshots", async () => {

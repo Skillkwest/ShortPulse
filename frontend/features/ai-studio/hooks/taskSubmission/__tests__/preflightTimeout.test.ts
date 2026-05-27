@@ -3,6 +3,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { resolvePrepareReferenceTimeoutBudget } from "../preflightTimeout";
+import {
+  FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+  UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+} from "../../../utils/imageUploadTimeouts";
 
 describe("resolvePrepareReferenceTimeoutBudget", () => {
   it("returns the base timeout budget when no preflight work units are present", () => {
@@ -65,7 +69,19 @@ describe("resolvePrepareReferenceTimeoutBudget", () => {
 
     expect(budget).toEqual({
       workUnitCount: 2,
-      timeoutMs: 54_000,
+      timeoutMs: 120_000,
     });
+  });
+
+  it("keeps single local-upload prep above the canonical upload route timeout", () => {
+    const budget = resolvePrepareReferenceTimeoutBudget({
+      imageInputs: ["blob:reference-1"],
+    });
+
+    expect(budget.workUnitCount).toBe(1);
+    expect(budget.timeoutMs).toBeGreaterThan(UPLOAD_IMAGE_ROUTE_TIMEOUT_MS);
+    expect(budget.timeoutMs).toBeGreaterThan(
+      FETCH_LOCAL_IMAGE_TIMEOUT_MS + UPLOAD_IMAGE_ROUTE_TIMEOUT_MS
+    );
   });
 });

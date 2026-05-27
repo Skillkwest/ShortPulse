@@ -9,6 +9,11 @@ import {
 } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
+import {
+  FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+  SIGNED_URL_REFRESH_TIMEOUT_MS,
+  UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+} from "./imageUploadTimeouts";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 
@@ -49,9 +54,6 @@ export type PrepareImageUrlOptions = {
 
 const SIGNED_URL_BUFFER_MS = 55 * 60 * 1000;
 const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
-const FETCH_LOCAL_IMAGE_TIMEOUT_MS = 12_000;
-const UPLOAD_IMAGE_ROUTE_TIMEOUT_MS = 45_000;
-const SIGNED_URL_REFRESH_TIMEOUT_MS = 10_000;
 const UPLOAD_IMAGE_AUTH_TIMEOUT_MS = 12_000;
 const UPLOAD_TOO_LARGE_ERROR_MESSAGE =
   "Reference image is too large. ShortPulse accepts reference images up to 25 MB.";

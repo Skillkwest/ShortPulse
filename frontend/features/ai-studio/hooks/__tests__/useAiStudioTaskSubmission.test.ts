@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { resolveModelLabel } from "../../logic/stateParsers";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
+import { resolvePrepareReferenceTimeoutBudget } from "../taskSubmission/preflightTimeout";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "../useAiStudioTasks";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
@@ -1596,7 +1597,11 @@ describe("useAiStudioTaskSubmission", () => {
           modeOverride: "image",
           selectedToolOverride: "edit",
         });
-        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(
+          resolvePrepareReferenceTimeoutBudget({
+            imageInputs: ["blob:slow-ref"],
+          }).timeoutMs + 1_000
+        );
         await pending;
       });
 

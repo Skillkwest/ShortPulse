@@ -3,10 +3,23 @@
  * Keeps small runs responsive while allowing larger inpaint payload prep to complete.
  */
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import {
+  FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+  UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+} from "../../utils/imageUploadTimeouts";
 
 const PREPARE_REFERENCE_TIMEOUT_BASE_MS = 14_000;
 const PREPARE_REFERENCE_TIMEOUT_PER_WORK_UNIT_MS = 12_000;
-const PREPARE_REFERENCE_TIMEOUT_LOCAL_UPLOAD_BONUS_MS = 14_000;
+// Local Expert Edit/reference uploads can require a full local fetch plus the
+// canonical upload route before provider submit begins.
+const PREPARE_REFERENCE_TIMEOUT_LOCAL_UPLOAD_BUFFER_MS = 8_000;
+const PREPARE_REFERENCE_TIMEOUT_LOCAL_UPLOAD_BONUS_MS = Math.max(
+  0,
+  FETCH_LOCAL_IMAGE_TIMEOUT_MS +
+    UPLOAD_IMAGE_ROUTE_TIMEOUT_MS +
+    PREPARE_REFERENCE_TIMEOUT_LOCAL_UPLOAD_BUFFER_MS -
+    PREPARE_REFERENCE_TIMEOUT_BASE_MS
+);
 const PREPARE_REFERENCE_TIMEOUT_MAX_MS = 120_000;
 
 const hasNonEmptyUrl = (value: string | null | undefined): boolean =>

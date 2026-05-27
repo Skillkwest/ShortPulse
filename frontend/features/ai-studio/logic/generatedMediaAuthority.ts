@@ -856,16 +856,17 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
   generationIds: string[];
   userId: string;
 }): Promise<Map<string, GeneratedMediaLibraryRow>> => {
-  try {
-    const normalizedGenerationIds = Array.from(
-      new Set(
-        generationIds
-          .map((value) => asTrimmedString(value))
-          .filter((value): value is string => Boolean(value))
-      )
-    );
-    if (!normalizedGenerationIds.length) return new Map();
+  const normalizedGenerationIds = Array.from(
+    new Set(
+      generationIds
+        .map((value) => asTrimmedString(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (!normalizedGenerationIds.length) return new Map();
 
+  const mediaIdByGenerationId = new Map<string, string>();
+  try {
     const { data: publicationData, error: publicationError } = await supabase
       .from("generation_publications")
       .select("generation_id, owned_media_file_id, created_at")
@@ -875,7 +876,6 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
       .order("created_at", { ascending: false })
       .limit(Math.max(normalizedGenerationIds.length * 3, normalizedGenerationIds.length));
 
-    const mediaIdByGenerationId = new Map<string, string>();
     if (!publicationError && Array.isArray(publicationData)) {
       for (const rawRow of publicationData) {
         const row = rawRow as GenerationPublicationRow;
@@ -885,11 +885,15 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
         mediaIdByGenerationId.set(generationId, mediaFileId);
       }
     }
+  } catch {
+    // Canonical output fallback remains authoritative when publication reads are unavailable.
+  }
 
-    const missingGenerationIds = normalizedGenerationIds.filter(
-      (generationId) => !mediaIdByGenerationId.has(generationId)
-    );
-    if (missingGenerationIds.length) {
+  const missingGenerationIds = normalizedGenerationIds.filter(
+    (generationId) => !mediaIdByGenerationId.has(generationId)
+  );
+  if (missingGenerationIds.length) {
+    try {
       const { data: canonicalOutputData, error: canonicalOutputError } = await supabase
         .from("ai_generation_outputs")
         .select("generation_id, media_file_id, output_index, created_at")
@@ -908,12 +912,17 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
           mediaIdByGenerationId.set(generationId, mediaFileId);
         }
       }
+    } catch {
+      return new Map();
     }
+  }
 
-    const mediaFileIds = Array.from(new Set(mediaIdByGenerationId.values()));
-    if (!mediaFileIds.length) return new Map();
+  const mediaFileIds = Array.from(new Set(mediaIdByGenerationId.values()));
+  if (!mediaFileIds.length) return new Map();
 
-    const { data: mediaData, error: mediaError } = await supabase
+  let mediaData: unknown[] = [];
+  try {
+    const mediaResult = await supabase
       .from("media_files")
       .select(
         "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
@@ -921,27 +930,42 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
       .eq("user_id", userId)
       .in("id", mediaFileIds)
       .limit(mediaFileIds.length);
-    if (mediaError || !Array.isArray(mediaData)) return new Map();
-
-    const mediaById = new Map<string, GeneratedMediaLibraryRow>();
-    for (const rawRow of mediaData) {
-      const mediaRow = toGeneratedMediaLibraryRow(rawRow as MediaFileRow);
-      if (mediaRow) {
-        mediaById.set(mediaRow.mediaFileId, mediaRow);
-      }
+    if (mediaResult.error || !Array.isArray(mediaResult.data)) {
+      mediaData = [];
+    } else {
+      mediaData = mediaResult.data;
     }
-
-    const mediaByGenerationId = new Map<string, GeneratedMediaLibraryRow>();
-    for (const [generationId, mediaFileId] of mediaIdByGenerationId.entries()) {
-      const mediaRow = mediaById.get(mediaFileId);
-      if (mediaRow) {
-        mediaByGenerationId.set(generationId, mediaRow);
-      }
-    }
-    return mediaByGenerationId;
   } catch {
-    return new Map();
+    mediaData = [];
   }
+
+  const mediaById = new Map<string, GeneratedMediaLibraryRow>();
+  for (const rawRow of mediaData) {
+    const mediaRow = toGeneratedMediaLibraryRow(rawRow as MediaFileRow);
+    if (mediaRow) {
+      mediaById.set(mediaRow.mediaFileId, mediaRow);
+    }
+  }
+
+  const missingMediaFileIds = mediaFileIds.filter((mediaFileId) => !mediaById.has(mediaFileId));
+  for (const mediaFileId of missingMediaFileIds) {
+    const mediaRow = await resolveGeneratedMediaLibraryRowById({
+      supabase,
+      mediaFileId,
+    });
+    if (mediaRow) {
+      mediaById.set(mediaRow.mediaFileId, mediaRow);
+    }
+  }
+
+  const mediaByGenerationId = new Map<string, GeneratedMediaLibraryRow>();
+  for (const [generationId, mediaFileId] of mediaIdByGenerationId.entries()) {
+    const mediaRow = mediaById.get(mediaFileId);
+    if (mediaRow) {
+      mediaByGenerationId.set(generationId, mediaRow);
+    }
+  }
+  return mediaByGenerationId;
 };
 
 const applyPublishedGeneratedMediaAuthority = (
@@ -1615,13 +1639,20 @@ export const listVisibleGeneratedOutputs = async ({
     const outputs = data
       .map((row) => toHydratedGeneratedOutput(row as GenerationProjectionDeliveryRow))
       .filter((row): row is StudioOutput => Boolean(row));
-    const videoGenerationIds = outputs
-      .filter((output) => output.mode === "video" && output.generationId)
+    const authorityRepairGenerationIds = outputs
+      .filter((output) => {
+        if (!output.generationId) return false;
+        if (output.mode === "video") return true;
+        return (
+          !asCanonicalStoragePath(output.previewStoragePath) ||
+          !asCanonicalStoragePath(output.fullStoragePath)
+        );
+      })
       .map((output) => output.generationId as string);
-    if (!videoGenerationIds.length) return await applySignedGeneratedMediaUrls(outputs);
+    if (!authorityRepairGenerationIds.length) return await applySignedGeneratedMediaUrls(outputs);
     const mediaByGenerationId = await resolveLatestPublishedGenerationMediaByGenerationIds({
       supabase,
-      generationIds: videoGenerationIds,
+      generationIds: authorityRepairGenerationIds,
       userId,
     });
     const outputsWithPosterStoragePaths =

@@ -11,6 +11,7 @@ import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
+import { MotionRecorderModal } from "./MotionRecorderModal";
 import { ReferencePromptStep } from "./ReferencePromptStep";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
@@ -193,6 +194,7 @@ export function VideoPropertiesPanel({
   } | null>(null);
   const [elementPickerSlotIndex, setElementPickerSlotIndex] = React.useState<number | null>(null);
   const [isElementPickerOpen, setIsElementPickerOpen] = React.useState(false);
+  const [isMotionRecorderOpen, setIsMotionRecorderOpen] = React.useState(false);
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
@@ -541,6 +543,12 @@ export function VideoPropertiesPanel({
     }
   }, [isVeo31ModelSelected, onVideoAutoFixChange, videoAutoFix]);
 
+  React.useEffect(() => {
+    if (!isMotionMode && isMotionRecorderOpen) {
+      setIsMotionRecorderOpen(false);
+    }
+  }, [isMotionMode, isMotionRecorderOpen]);
+
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
   const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
     primary: referenceImageUrl,
@@ -676,6 +684,19 @@ export function VideoPropertiesPanel({
   const primaryPromptValue = isCustomKlingWorkflow
     ? (customKlingPrompts[0]?.prompt ?? "")
     : (referenceText ?? "");
+  const handleOpenMotionRecorder = React.useCallback(() => {
+    setIsMotionRecorderOpen(true);
+  }, []);
+  const handleCloseMotionRecorder = React.useCallback(() => {
+    setIsMotionRecorderOpen(false);
+  }, []);
+  const handleApplyRecordedMotionVideo = React.useCallback(
+    (url: string) => {
+      onMotionVideoChange?.(url);
+      setIsMotionRecorderOpen(false);
+    },
+    [onMotionVideoChange]
+  );
   const klingElementDisplayTokens = React.useMemo(
     () => resolveAiStudioKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
     [selectedKlingElements]
@@ -1268,6 +1289,7 @@ export function VideoPropertiesPanel({
                         onPrimaryImageChange={onPrimaryImageChange}
                         onExtraImageChange={onExtraImageChange}
                         onMotionVideoChange={onMotionVideoChange}
+                        onOpenMotionRecorder={isMotionMode ? handleOpenMotionRecorder : undefined}
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={
@@ -1277,6 +1299,11 @@ export function VideoPropertiesPanel({
                         }
                       />
                     </div>
+                    <MotionRecorderModal
+                      isOpen={isMotionMode && isMotionRecorderOpen}
+                      onClose={handleCloseMotionRecorder}
+                      onApplyVideo={handleApplyRecordedMotionVideo}
+                    />
                     <div className="video-setup-settings-slot">
                       <ReferenceVideoSettingsStep
                         isVideoVariant={true}

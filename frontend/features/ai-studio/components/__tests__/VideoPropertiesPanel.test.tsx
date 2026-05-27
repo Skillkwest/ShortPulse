@@ -42,6 +42,45 @@ const referencePromptStepMock = vi.fn((props: ReferencePromptStepMockProps) => {
   return <div data-testid="reference-prompt-step" />;
 });
 
+const defaultDerivedState = {
+  activeVideoMode: "standard",
+  isKling3Mode: true,
+  isKlingPatternMode: true,
+  isKeyframesMode: false,
+  isMotionMode: false,
+  isStandardMode: true,
+  isSeedanceModel: false,
+  isSeedance2FamilyModel: false,
+  isVeoModel: false,
+  referenceStepTitle: "Add References",
+  referenceStepSubtitle: "Add references",
+  promptOrder: 1,
+  promptBadge: "1",
+  referenceOrder: 2,
+  referenceBadge: "2",
+  videoSettingsOrder: 3,
+  motionAudioOrder: 3,
+  klingAdvancedOrder: 4,
+  klingAdvancedBadge: "4",
+  klingAssetsOrder: 5,
+  klingAssetsBadge: "5",
+  aspectOptionsForModel: [
+    {
+      value: "16:9",
+      ratioLabel: "16:9",
+      name: "Landscape",
+      orientation: "horizontal",
+    },
+  ],
+  durationOptions: [5, 8],
+  resolutionOptions: [{ value: "720p", label: "720p" }],
+  videoDurationValue: 5,
+  videoResolutionValue: "720p",
+  videoGenerateAudioValue: false,
+};
+
+const useReferencePropertiesDerivedStateMock = vi.fn(() => defaultDerivedState);
+
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(async () => [
     {
@@ -234,42 +273,7 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
 }));
 
 vi.mock("../useReferencePropertiesDerivedState", () => ({
-  useReferencePropertiesDerivedState: () => ({
-    activeVideoMode: "standard",
-    isKling3Mode: true,
-    isKlingPatternMode: true,
-    isKeyframesMode: false,
-    isMotionMode: false,
-    isStandardMode: true,
-    isSeedanceModel: false,
-    isSeedance2FamilyModel: false,
-    isVeoModel: false,
-    referenceStepTitle: "Add References",
-    referenceStepSubtitle: "Add references",
-    promptOrder: 1,
-    promptBadge: "1",
-    referenceOrder: 2,
-    referenceBadge: "2",
-    videoSettingsOrder: 3,
-    motionAudioOrder: 3,
-    klingAdvancedOrder: 4,
-    klingAdvancedBadge: "4",
-    klingAssetsOrder: 5,
-    klingAssetsBadge: "5",
-    aspectOptionsForModel: [
-      {
-        value: "16:9",
-        ratioLabel: "16:9",
-        name: "Landscape",
-        orientation: "horizontal",
-      },
-    ],
-    durationOptions: [5, 8],
-    resolutionOptions: [{ value: "720p", label: "720p" }],
-    videoDurationValue: 5,
-    videoResolutionValue: "720p",
-    videoGenerateAudioValue: false,
-  }),
+  useReferencePropertiesDerivedState: () => useReferencePropertiesDerivedStateMock(),
 }));
 
 const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
@@ -420,6 +424,8 @@ function KlingSparseSlotHarness() {
 describe("VideoPropertiesPanel", () => {
   beforeEach(() => {
     referencePromptStepMock.mockClear();
+    useReferencePropertiesDerivedStateMock.mockReset();
+    useReferencePropertiesDerivedStateMock.mockReturnValue(defaultDerivedState);
     vi.mocked(listCharacterManagerCharacters).mockClear();
     vi.mocked(loadCharacterManagerDraftByCharacterId).mockClear();
     vi.mocked(fetchElementsManagerList).mockClear();
@@ -443,6 +449,21 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.queryByText("Reference image required for generation")).toBeNull();
+  });
+
+  it("renders the recorder in its own left-column panel for Motion Control", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+    });
+
+    render(<VideoPropertiesPanel {...baseProps} motionVideoUrl={null} />);
+
+    expect(screen.getByText("Capture a motion reference")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record clip" })).toBeInTheDocument();
   });
 
   it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {

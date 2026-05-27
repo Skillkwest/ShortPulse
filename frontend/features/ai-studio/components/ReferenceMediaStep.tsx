@@ -50,7 +50,6 @@ type ReferenceMediaStepProps = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onMotionVideoChange?: (url: string | null) => void;
-  onOpenMotionRecorder?: () => void;
   handleFileSelection: (
     setter: (url: string | null) => void
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -100,7 +99,6 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   onPrimaryImageChange,
   onExtraImageChange,
   onMotionVideoChange,
-  onOpenMotionRecorder,
   handleFileSelection,
   handleMotionVideoSelection,
   topContent,
@@ -188,18 +186,6 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   >
                     ×
                   </button>
-                  {onOpenMotionRecorder ? (
-                    <button
-                      type="button"
-                      className="motion-drop-record-chip"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenMotionRecorder();
-                      }}
-                    >
-                      Record new
-                    </button>
-                  ) : null}
                 </>
               ) : (
                 <div className="reference-drop-content video-drop-content">
@@ -207,18 +193,6 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   <p className="reference-drop-title helper-text">
                     Upload an MP4, MOV, or WEBM clip
                   </p>
-                  {onOpenMotionRecorder ? (
-                    <button
-                      type="button"
-                      className="motion-drop-record-btn"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenMotionRecorder();
-                      }}
-                    >
-                      Record clip
-                    </button>
-                  ) : null}
                 </div>
               )}
             </div>

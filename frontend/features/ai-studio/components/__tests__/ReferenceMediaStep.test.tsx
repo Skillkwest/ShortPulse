@@ -1,12 +1,10 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceMediaStep } from "../ReferenceMediaStep";
 
-describe("ReferenceMediaStep motion recorder affordance", () => {
-  it("renders a record action for the Motion tile and keeps WEBM in the picker contract", () => {
-    const onOpenMotionRecorder = vi.fn();
-
+describe("ReferenceMediaStep motion intake", () => {
+  it("keeps the Motion tile focused on upload/drop intake and accepts WEBM clips", () => {
     const { container } = render(
       <ReferenceMediaStep
         referenceOrder={1}
@@ -45,14 +43,12 @@ describe("ReferenceMediaStep motion recorder affordance", () => {
         onPrimaryImageChange={vi.fn()}
         onExtraImageChange={vi.fn()}
         onMotionVideoChange={vi.fn()}
-        onOpenMotionRecorder={onOpenMotionRecorder}
         handleFileSelection={() => vi.fn()}
         handleMotionVideoSelection={vi.fn()}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Record clip" }));
-    expect(onOpenMotionRecorder).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Record clip" })).toBeNull();
 
     const motionVideoInput = container.querySelector('input[type="file"][accept*=".webm"]');
     expect(motionVideoInput).not.toBeNull();

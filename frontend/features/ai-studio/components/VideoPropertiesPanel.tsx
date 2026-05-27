@@ -1289,7 +1289,6 @@ export function VideoPropertiesPanel({
                         onPrimaryImageChange={onPrimaryImageChange}
                         onExtraImageChange={onExtraImageChange}
                         onMotionVideoChange={onMotionVideoChange}
-                        onOpenMotionRecorder={isMotionMode ? handleOpenMotionRecorder : undefined}
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={
@@ -1299,6 +1298,31 @@ export function VideoPropertiesPanel({
                         }
                       />
                     </div>
+                    {isMotionMode ? (
+                      <div className="video-setup-recorder-slot">
+                        <div className="reference-dropzone-block motion-recorder-launch-block">
+                          <section className="motion-recorder-launch-card">
+                            <div className="motion-recorder-launch-copy">
+                              <div className="video-reference-card-title">Record Motion Clip</div>
+                              <p className="motion-recorder-launch-title">
+                                Capture a motion reference
+                              </p>
+                              <p className="motion-recorder-launch-helper">
+                                Use your preferred camera and microphone to record a clip, then add
+                                it directly into Motion Control.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="motion-recorder-launch-btn"
+                              onClick={handleOpenMotionRecorder}
+                            >
+                              {motionVideoUrl ? "Record new clip" : "Record clip"}
+                            </button>
+                          </section>
+                        </div>
+                      </div>
+                    ) : null}
                     <MotionRecorderModal
                       isOpen={isMotionMode && isMotionRecorderOpen}
                       onClose={handleCloseMotionRecorder}

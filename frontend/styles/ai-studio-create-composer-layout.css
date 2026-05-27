@@ -65,8 +65,8 @@
   padding: 6px 4px 6px 0;
   min-height: calc(var(--create-composer-agent-input-min-height) - 28px);
   max-height: var(--create-composer-agent-input-max-height);
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
   transition: height 60ms cubic-bezier(0.22, 0.61, 0.36, 1);
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -85,7 +85,7 @@
   .create-composer-prompt-step
   .agent-composer-input-shell
   .agent-input-prefab-field::placeholder {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .create-composer-panel .create-composer-prompt-step .agent-send-prefab--inside-input {

@@ -1145,43 +1145,6 @@
   word-wrap: break-word;
 }
 
-.motion-drop-row .motion-drop-record-btn,
-.motion-drop-row .motion-drop-record-chip {
-  position: relative;
-  z-index: 2;
-  border: 1px solid rgba(52, 201, 255, 0.3);
-  background: rgba(20, 30, 44, 0.82);
-  color: rgba(235, 244, 255, 0.96);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
-}
-
-.motion-drop-row .motion-drop-record-btn:hover,
-.motion-drop-row .motion-drop-record-chip:hover {
-  background: rgba(29, 45, 64, 0.96);
-  border-color: rgba(86, 220, 255, 0.58);
-  transform: translateY(-1px);
-}
-
-.motion-drop-row .motion-drop-record-btn {
-  margin-top: 12px;
-  padding: 8px 12px;
-}
-
-.motion-drop-row .motion-drop-record-chip {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  padding: 8px 10px;
-}
-
 /* Kling 3.0 styling refinements */
 .kling-shot-row {
   border: 1px solid var(--ai-border-medium, rgba(201, 205, 214, 0.18));

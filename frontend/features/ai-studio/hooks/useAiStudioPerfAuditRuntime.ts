@@ -168,10 +168,12 @@ type PerfSeedOutputInput = {
   id?: string;
   prompt?: string;
   mode?: "image" | "video" | "text";
+  generationId?: string | null;
   previewUrl?: string | null;
   previewText?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
+  resultUrls?: string[] | null;
   savedMediaIds?: string[] | null;
   mediaSource?: StudioOutput["mediaSource"];
 };
@@ -355,9 +357,14 @@ export function useAiStudioPerfAuditRuntime({
           model: currentModelLabel,
           modelId: model ?? undefined,
           createdAt: new Date(baseCreatedAtMs - index).toISOString(),
+          generationId:
+            item.generationId === null ? undefined : item.generationId?.trim() || undefined,
           status: "ready",
           taskState: "success",
           timestamp: "Perf seed",
+          resultUrls: Array.isArray(item.resultUrls)
+            ? item.resultUrls.map((value) => value.trim()).filter(Boolean)
+            : undefined,
           previewUrl,
           previewStoragePath:
             item.previewStoragePath === null

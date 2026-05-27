@@ -799,9 +799,21 @@ export function CharacterPanelWorkspace({
   );
 
   const { handleCharacterSheetReferenceDrop } = useCharacterManagerDroppedReferenceController({
-    setCharacterSheetPresetFile: setCharacterSheetPresetFileWithPending,
+    setCharacterSheetPresetFile,
     resolveCharacterDropReference,
   });
+
+  const handleCharacterSheetReferenceDropWithPending = React.useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, transfer: DataTransfer) => {
+      setCharacterSheetSlotPending(zoneKey, 1);
+      try {
+        await handleCharacterSheetReferenceDrop(zoneKey, transfer);
+      } finally {
+        setCharacterSheetSlotPending(zoneKey, -1);
+      }
+    },
+    [handleCharacterSheetReferenceDrop, setCharacterSheetSlotPending]
+  );
 
   const openCharacterSheetPicker = React.useCallback((zoneKey: CharacterSheetDropZoneKey) => {
     setPendingCharacterSheetUploadZoneKey(zoneKey);
@@ -826,7 +838,7 @@ export function CharacterPanelWorkspace({
     saveCharacterSheetPresetAssignments,
     draggedCharacterSheetZoneKey,
     canResolveCharacterDropReference: Boolean(resolveCharacterDropReference),
-    handleCharacterSheetReferenceDrop,
+    handleCharacterSheetReferenceDrop: handleCharacterSheetReferenceDropWithPending,
     setActiveCharacterSheetDropZone,
     openCharacterSheetPicker,
     characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,

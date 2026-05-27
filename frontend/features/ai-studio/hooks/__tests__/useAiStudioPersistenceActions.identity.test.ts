@@ -28,6 +28,10 @@ vi.mock("../../../../lib/appErrorReporter", () => ({
 
 import { useAiStudioPersistenceActions } from "../useAiStudioPersistenceActions";
 
+const RESOLVED_GENERATION_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_GENERATION_ID = "22222222-2222-4222-8222-222222222222";
+const EXISTING_GENERATION_ID = "33333333-3333-4333-8333-333333333333";
+
 const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   ({
     id: "out-1",
@@ -59,7 +63,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       if (!current) return;
       outputs.set(id, updater(current));
     });
-    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-from-projection");
+    resolveGenerationIdForRequestIdMock.mockResolvedValue(RESOLVED_GENERATION_ID);
 
     const { result } = renderHook(() =>
       useAiStudioPersistenceActions({
@@ -84,9 +88,9 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       });
     });
 
-    expect(resolvedGenerationId).toBe("gen-from-projection");
+    expect(resolvedGenerationId).toBe(RESOLVED_GENERATION_ID);
     expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", null);
-    expect(outputs.get("out-1")?.generationId).toBe("gen-from-projection");
+    expect(outputs.get("out-1")?.generationId).toBe(RESOLVED_GENERATION_ID);
     expect(updateOutputById).toHaveBeenCalled();
   });
 
@@ -97,7 +101,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       if (!current) return;
       outputs.set(id, updater(current));
     });
-    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-from-project-route");
+    resolveGenerationIdForRequestIdMock.mockResolvedValue(PROJECT_GENERATION_ID);
 
     const { result } = renderHook(() =>
       useAiStudioPersistenceActions({
@@ -125,13 +129,13 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
-      generationId: "gen-from-project-route",
+      generationId: PROJECT_GENERATION_ID,
     });
   });
 
-  it("associates submit-provided generation ids to the active project without lookup", async () => {
+  it("associates submit-provided canonical generation ids to the active project without lookup", async () => {
     const outputs = new Map<string, StudioOutput>([
-      ["out-1", makeOutput({ generationId: "gen-existing-project" })],
+      ["out-1", makeOutput({ generationId: EXISTING_GENERATION_ID })],
     ]);
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       const current = outputs.get(id);
@@ -163,12 +167,102 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       });
     });
 
-    expect(resolvedGenerationId).toBe("gen-existing-project");
+    expect(resolvedGenerationId).toBe(EXISTING_GENERATION_ID);
     expect(resolveGenerationIdForRequestIdMock).not.toHaveBeenCalled();
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
-      generationId: "gen-existing-project",
+      generationId: EXISTING_GENERATION_ID,
     });
+  });
+
+  it("re-resolves stale non-canonical generation ids before associating them to the active project", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      ["out-1", makeOutput({ generationId: "gen-stale-project" })],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    resolveGenerationIdForRequestIdMock.mockResolvedValue(PROJECT_GENERATION_ID);
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let resolvedGenerationId: string | null = null;
+    await act(async () => {
+      resolvedGenerationId = await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+    });
+
+    expect(resolvedGenerationId).toBe(PROJECT_GENERATION_ID);
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
+    expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      generationId: PROJECT_GENERATION_ID,
+    });
+  });
+
+  it("canonicalizes stale generation ids before generated media saves", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          generationId: "gen-stale-project",
+          previewUrl: "https://cdn.example.com/generated.png",
+          resultUrls: ["https://cdn.example.com/generated.png"],
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    resolveGenerationIdForRequestIdMock.mockResolvedValue(PROJECT_GENERATION_ID);
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
+    expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: PROJECT_GENERATION_ID,
+      })
+    );
+    expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
   });
 
   it("associates already-saved media with the active project without reuploading", async () => {

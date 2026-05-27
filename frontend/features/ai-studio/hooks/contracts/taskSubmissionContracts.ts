@@ -18,14 +18,25 @@ export type AiStudioTaskSubmitOptions = {
   hideOutputFromReferenceGrid?: boolean;
 };
 
-export type AiStudioImageRerollSubmitOptions = {
+type AiStudioImageRerollForwardedOptions = Pick<
+  AiStudioTaskSubmitOptions,
+  | "selectedToolOverride"
+  | "displayPromptOverride"
+  | "internalMediaRefsOverride"
+  | "characterContextOverride"
+  | "styleContextOverride"
+  | "modelIdOverride"
+  | "aspectOverride"
+  | "imageResolutionOverride"
+>;
+
+export type AiStudioImageRerollSubmitOptions = Omit<
+  AiStudioImageRerollForwardedOptions,
+  "displayPromptOverride" | "modelIdOverride" | "aspectOverride" | "imageResolutionOverride"
+> & {
   modeOverride: "image";
-  selectedToolOverride: ToolId | null;
   displayPromptOverride: string;
-  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
-  characterContextOverride?: StudioOutput["characterContext"];
   modelIdOverride: string;
   aspectOverride: string;
   imageResolutionOverride: string;
-  styleContextOverride?: StudioOutput["styleContext"];
 };

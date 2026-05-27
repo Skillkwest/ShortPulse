@@ -96,8 +96,6 @@ vi.mock("../../../character-manager/hooks/useCharacterPanelDraft", () => ({
 
 vi.mock("../../../character-manager/hooks/useCharacterManagerDroppedReferenceController", () => ({
   useCharacterManagerDroppedReferenceController: () => ({
-    pendingDropTarget: null,
-    isDropResolutionBusy: false,
     handleCharacterSheetReferenceDrop: async () => undefined,
   }),
 }));

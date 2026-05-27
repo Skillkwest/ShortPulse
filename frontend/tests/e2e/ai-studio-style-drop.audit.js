@@ -12,6 +12,8 @@ const AI_STUDIO_AUDIT_PATH = "/ai-studio?perfAuditRuntime=1";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 const BLOCKED_URL = "https://capture.invalid/c1-blocked-style.jpg";
+const DURABLE_PASS_PREVIEW_URL = "/dashboard/ai-studio-hero.png";
+const SERVER_COPY_DELIVERY_URL = "/dashboard/media-library.png";
 const EXTRACT_SUCCESS_BODY = {
   stylePrompt: "cinematic portrait lighting, soft diffusion, polished editorial finish",
   styleTitle: "Cinematic Soft Diffusion",
@@ -85,6 +87,7 @@ async function ensureAiStudioPanels(page) {
 async function runScenario(page, scenarioName, seedItem) {
   const captured = {
     telemetryRequests: [],
+    sourceResolutionRequests: [],
     serverCopyRequests: [],
     serverCopyResponses: [],
   };
@@ -93,6 +96,9 @@ async function runScenario(page, scenarioName, seedItem) {
     const url = request.url();
     if (url.endsWith("/api/log/client-error")) {
       const payload = request.postDataJSON?.() ?? null;
+      if (payload?.source === "telemetry.ai_studio.style_source_resolution") {
+        captured.sourceResolutionRequests.push(payload);
+      }
       if (payload?.source === "telemetry.ai_studio.style_extraction") {
         captured.telemetryRequests.push(payload);
       }
@@ -209,6 +215,7 @@ async function runScenario(page, scenarioName, seedItem) {
     }));
 
     const telemetry = captured.telemetryRequests.at(-1) ?? null;
+    const sourceResolution = captured.sourceResolutionRequests.at(-1) ?? null;
     const serverCopyRequest = captured.serverCopyRequests.at(-1) ?? null;
     const serverCopyResponse = captured.serverCopyResponses.at(-1) ?? null;
 
@@ -220,6 +227,12 @@ async function runScenario(page, scenarioName, seedItem) {
         ? {
             message: telemetry.message,
             metadata: telemetry.metadata,
+          }
+        : null,
+      sourceResolution: sourceResolution
+        ? {
+            message: sourceResolution.message,
+            metadata: sourceResolution.metadata,
           }
         : null,
       serverCopy: {
@@ -266,6 +279,18 @@ async function main() {
       body: JSON.stringify(EXTRACT_SUCCESS_BODY),
     });
   });
+  await context.route("**/api/media/copy-from-url", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        delivery: {
+          previewUrl: SERVER_COPY_DELIVERY_URL,
+          fullUrl: SERVER_COPY_DELIVERY_URL,
+        },
+      }),
+    });
+  });
   await context.route("**/c1-blocked-style.jpg", async (route) => {
     await route.abort("failed");
   });
@@ -279,6 +304,7 @@ async function main() {
       blockedReason: null,
     },
     packets: [],
+    gates: [],
   };
 
   try {
@@ -310,31 +336,58 @@ async function main() {
       { timeout: 45_000 }
     );
 
-    const passingPacket = await runScenario(page, "passing_internal_data_url", {
+    const passingPacket = await runScenario(page, "passing_internal_durable_identity", {
       id: "lane-c-pass-1",
       prompt: "lane c passing prompt",
       mode: "image",
-      previewUrl:
-        "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230f6fff'/%3E%3Ccircle cx='32' cy='32' r='18' fill='%23ffffff' fill-opacity='0.32'/%3E%3C/svg%3E",
-      previewStoragePath: null,
-      fullStoragePath: null,
-      savedMediaIds: null,
+      generationId: "gen-lane-c-pass-1",
+      previewUrl: DURABLE_PASS_PREVIEW_URL,
+      previewStoragePath: "audit-user/generations/images/lane-c-pass-1-preview.png",
+      fullStoragePath: "audit-user/generations/images/lane-c-pass-1-full.png",
+      savedMediaIds: ["media-lane-c-pass-1"],
       mediaSource: "generated",
     });
 
-    const failingPacket = await runScenario(page, "failing_external_blocked_source", {
-      id: "lane-c-fail-1",
-      prompt: "lane c failing prompt",
+    const recoveringPacket = await runScenario(page, "recovering_internal_server_copy", {
+      id: "lane-c-recover-1",
+      prompt: "lane c recovery prompt",
       mode: "image",
+      generationId: "gen-lane-c-recover-1",
       previewUrl: BLOCKED_URL,
-      previewStoragePath: null,
-      fullStoragePath: null,
-      savedMediaIds: null,
+      previewStoragePath: "audit-user/generations/images/lane-c-recover-1-preview.png",
+      fullStoragePath: "audit-user/generations/images/lane-c-recover-1-full.png",
+      savedMediaIds: ["media-lane-c-recover-1"],
       mediaSource: "generated",
     });
 
-    result.packets.push(passingPacket, failingPacket);
-    result.ok = true;
+    const gates = [
+      {
+        name: "durable_internal_source_resolves",
+        pass:
+          passingPacket.sourceResolution?.metadata?.outcome === "resolved" &&
+          passingPacket.sourceResolution?.metadata?.resolved_source_kind === "internal" &&
+          passingPacket.sourceResolution?.metadata?.resolution_stage === "primary" &&
+          passingPacket.serverCopy.attempted === false &&
+          passingPacket.ui.dropErrorText === null,
+      },
+      {
+        name: "blocked_internal_source_recovers_via_server_copy",
+        pass:
+          recoveringPacket.sourceResolution?.metadata?.outcome === "resolved" &&
+          recoveringPacket.sourceResolution?.metadata?.resolved_source_kind === "internal" &&
+          recoveringPacket.sourceResolution?.metadata?.resolution_stage ===
+            "server_copy_fallback" &&
+          recoveringPacket.serverCopy.attempted === true &&
+          recoveringPacket.ui.dropErrorText === null,
+      },
+    ];
+
+    result.packets.push(passingPacket, recoveringPacket);
+    result.gates = gates;
+    result.ok = gates.every((gate) => gate.pass);
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     console.error("[ai-studio-style-drop.audit] fatal:", error);

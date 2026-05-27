@@ -968,6 +968,146 @@ describe("useCharacterManagerDraft", () => {
     });
   });
 
+  it("serializes persisted look assignment saves so overlapping uploads keep both references", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    const portraitAsset = createDeferred<ReturnType<typeof createPresetMedia>>();
+    const closeUpAsset = createDeferred<ReturnType<typeof createPresetMedia>>();
+    const firstPersist = createDeferred<CharacterSheetPresetState>();
+    const secondPersist = createDeferred<CharacterSheetPresetState>();
+    const uploadedPortrait = createPresetMedia(
+      "queued-portrait",
+      "https://signed.example/queued-portrait.png"
+    );
+    const uploadedCloseUp = createPresetMedia(
+      "queued-close-up",
+      "https://signed.example/queued-close-up.png"
+    );
+
+    saveCharacterManagerCharacterSheetPresetAssetMock.mockImplementation(({ file }) => {
+      if (file.name === "portrait.png") {
+        return portraitAsset.promise as never;
+      }
+      if (file.name === "close-up.png") {
+        return closeUpAsset.promise as never;
+      }
+      throw new Error(`Unexpected file: ${file.name}`);
+    });
+
+    let persistCallCount = 0;
+    saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockImplementation(() => {
+      persistCallCount += 1;
+      if (persistCallCount === 1) {
+        return firstPersist.promise as never;
+      }
+      if (persistCallCount === 2) {
+        return secondPersist.promise as never;
+      }
+      throw new Error(`Unexpected persist call: ${persistCallCount}`);
+    });
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.activeCharacterSheetPresetId).toBe("1");
+    });
+
+    const portraitFile = new File(["portrait"], "portrait.png", { type: "image/png" });
+    const closeUpFile = new File(["close-up"], "close-up.png", { type: "image/png" });
+
+    let portraitUploadPromise: Promise<boolean> | null = null;
+    let closeUpUploadPromise: Promise<boolean> | null = null;
+    await act(async () => {
+      portraitUploadPromise = result.current.setCharacterSheetPresetFile("portrait", portraitFile);
+      closeUpUploadPromise = result.current.setCharacterSheetPresetFile("close_up", closeUpFile);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      portraitAsset.resolve(uploadedPortrait);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledTimes(1);
+      expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+        characterId: "char-1",
+        presetId: "1",
+        assignments: expect.objectContaining({
+          portrait: uploadedPortrait,
+        }),
+      });
+    });
+
+    await act(async () => {
+      closeUpAsset.resolve(uploadedCloseUp);
+      await Promise.resolve();
+    });
+
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledTimes(1);
+    expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
+      "https://signed.example/queued-portrait.png"
+    );
+    expect(result.current.characterSheetPresetAssignments.close_up?.previewUrl).toBe(
+      "https://signed.example/queued-close-up.png"
+    );
+
+    await act(async () => {
+      firstPersist.resolve({
+        activePresetId: "1",
+        tabOrder: snapshot.visibleCharacterSheetPresetIds,
+        tabLabels: snapshot.characterSheetPresetLabels,
+        tabDescriptions: snapshot.characterSheetPresetDescriptions,
+        presets: {
+          ...snapshot.characterSheetPresets,
+          "1": {
+            ...snapshot.characterSheetPresets["1"],
+            portrait: uploadedPortrait,
+          },
+        },
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledTimes(2);
+      expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenLastCalledWith({
+        characterId: "char-1",
+        presetId: "1",
+        assignments: expect.objectContaining({
+          portrait: uploadedPortrait,
+          close_up: uploadedCloseUp,
+        }),
+      });
+    });
+
+    await act(async () => {
+      secondPersist.resolve({
+        activePresetId: "1",
+        tabOrder: snapshot.visibleCharacterSheetPresetIds,
+        tabLabels: snapshot.characterSheetPresetLabels,
+        tabDescriptions: snapshot.characterSheetPresetDescriptions,
+        presets: {
+          ...snapshot.characterSheetPresets,
+          "1": {
+            ...snapshot.characterSheetPresets["1"],
+            portrait: uploadedPortrait,
+            close_up: uploadedCloseUp,
+          },
+        },
+      });
+      await Promise.all([portraitUploadPromise!, closeUpUploadPromise!]);
+    });
+
+    expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
+      "https://signed.example/queued-portrait.png"
+    );
+    expect(result.current.characterSheetPresetAssignments.close_up?.previewUrl).toBe(
+      "https://signed.example/queued-close-up.png"
+    );
+  });
+
   it("allows preset tabs to be added and switched before the first save", async () => {
     readSupabaseUserIdMock.mockResolvedValue("user-1");
     readPersistedSelectedCharacterIdMock.mockReturnValue(null);

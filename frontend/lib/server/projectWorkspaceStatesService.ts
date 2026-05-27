@@ -16,6 +16,8 @@ import {
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, created_at, updated_at" as const;
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 type ProjectWorkspaceStateRow = {
   project_id: string;
   user_id: string;
@@ -54,6 +56,28 @@ const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeUuid = (value: unknown): string | null => {
+  const normalized = normalizeOptionalString(value);
+  return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
+};
+
+const normalizeUuidList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value
+            .map((entry) => normalizeUuid(entry))
+            .filter((entry): entry is string => Boolean(entry))
+        )
+      )
+    : [];
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
@@ -173,23 +197,14 @@ const collectSnapshotGenerationIds = (snapshot: Record<string, unknown>): string
   return [...generationIds];
 };
 
-const sanitizeProjectWorkspaceOutputs = ({
+const sanitizeProjectWorkspaceOutputsByShape = ({
   userId,
   snapshot,
-  ownedMediaFileIds,
-  ownedPromptIds,
-  ownedGenerationIds,
 }: {
   userId: string;
   snapshot: Record<string, unknown>;
-  ownedMediaFileIds: readonly string[];
-  ownedPromptIds: readonly string[];
-  ownedGenerationIds: readonly string[];
 }): Record<string, unknown> => {
   const outputsRecord = asRecord(snapshot.outputs);
-  const allowedMediaFileIds = new Set(ownedMediaFileIds);
-  const allowedPromptIds = new Set(ownedPromptIds);
-  const allowedGenerationIds = new Set(ownedGenerationIds);
   const sanitizeScopedStoragePathFields = (row: Record<string, unknown>) => {
     for (const field of [
       "previewStoragePath",
@@ -213,7 +228,7 @@ const sanitizeProjectWorkspaceOutputs = ({
   const isFailedWorkspaceOutputRow = (row: Record<string, unknown>): boolean =>
     typeof row.taskState === "string" && row.taskState.trim() === "fail";
 
-  const sanitizeRows = (value: unknown) => {
+  const sanitizeRowsByShape = (value: unknown) => {
     if (!Array.isArray(value)) return [];
 
     return value
@@ -222,19 +237,169 @@ const sanitizeProjectWorkspaceOutputs = ({
         if (isFailedWorkspaceOutputRow(normalizedRow)) {
           return null;
         }
-        const generationId =
-          typeof normalizedRow.generationId === "string" ? normalizedRow.generationId.trim() : "";
-        const promptId =
-          typeof normalizedRow.promptId === "string" ? normalizedRow.promptId.trim() : "";
-        const savedMediaIds = Array.isArray(normalizedRow.savedMediaIds)
-          ? Array.from(
-              new Set(
-                normalizedRow.savedMediaIds
-                  .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-                  .filter((entry) => entry.length > 0 && allowedMediaFileIds.has(entry))
-              )
-            )
-          : [];
+
+        const generationId = normalizeUuid(normalizedRow.generationId);
+        const hadGenerationId = normalizeOptionalString(normalizedRow.generationId);
+        if (hadGenerationId && !generationId) {
+          return null;
+        }
+
+        const promptId = normalizeUuid(normalizedRow.promptId);
+        const savedMediaIds = normalizeUuidList(normalizedRow.savedMediaIds);
+        const nextRow: Record<string, unknown> = {
+          ...normalizedRow,
+          ...(generationId ? { generationId } : {}),
+          ...(promptId ? { promptId } : {}),
+          ...(savedMediaIds.length > 0 ? { savedMediaIds } : {}),
+        };
+
+        if (!generationId && "generationId" in nextRow) {
+          delete nextRow.generationId;
+        }
+        if (!promptId && "promptId" in nextRow) {
+          delete nextRow.promptId;
+        }
+        if (savedMediaIds.length === 0 && "savedMediaIds" in nextRow) {
+          delete nextRow.savedMediaIds;
+        }
+        sanitizeScopedStoragePathFields(nextRow);
+
+        return nextRow;
+      })
+      .filter((row): row is Record<string, unknown> => Boolean(row));
+  };
+
+  const sanitizeOutputIdCollections = ({
+    active,
+    archived,
+    outputs,
+  }: {
+    active: Record<string, unknown>[];
+    archived: Record<string, unknown>[];
+    outputs: Record<string, unknown>;
+  }) => {
+    const outputIds = new Set<string>(
+      [...active, ...archived]
+        .map((row) => normalizeOptionalString(row.id) ?? "")
+        .filter((value) => value.length > 0)
+    );
+    const activeOutputId =
+      typeof outputs.activeOutputId === "string" && outputIds.has(outputs.activeOutputId.trim())
+        ? outputs.activeOutputId.trim()
+        : null;
+    const filterOutputIds = (value: unknown) =>
+      Array.isArray(value)
+        ? value
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0 && outputIds.has(entry))
+        : [];
+
+    return {
+      activeOutputId,
+      curatedReferenceIds: filterOutputIds(outputs.curatedReferenceIds),
+      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds),
+    };
+  };
+
+  const shapeSanitizedActive = sanitizeRowsByShape(outputsRecord.active);
+  const shapeSanitizedArchived = sanitizeRowsByShape(outputsRecord.archived);
+  const shapeSanitizedCollections = sanitizeOutputIdCollections({
+    active: shapeSanitizedActive,
+    archived: shapeSanitizedArchived,
+    outputs: outputsRecord,
+  });
+  return {
+    ...snapshot,
+    outputs: {
+      ...outputsRecord,
+      active: shapeSanitizedActive,
+      archived: shapeSanitizedArchived,
+      ...shapeSanitizedCollections,
+    },
+  };
+};
+
+const sanitizeProjectWorkspaceOutputs = ({
+  userId,
+  snapshot,
+  ownedMediaFileIds,
+  ownedPromptIds,
+  ownedGenerationIds,
+}: {
+  userId: string;
+  snapshot: Record<string, unknown>;
+  ownedMediaFileIds: readonly string[];
+  ownedPromptIds: readonly string[];
+  ownedGenerationIds: readonly string[];
+}): Record<string, unknown> => {
+  const shapeSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({ userId, snapshot });
+  const shapeSanitizedOutputsRecord = asRecord(shapeSanitizedSnapshot.outputs);
+  const allowedMediaFileIds = new Set(ownedMediaFileIds);
+  const allowedPromptIds = new Set(ownedPromptIds);
+  const allowedGenerationIds = new Set(ownedGenerationIds);
+  const sanitizeScopedStoragePathFields = (row: Record<string, unknown>) => {
+    for (const field of [
+      "previewStoragePath",
+      "fullStoragePath",
+      "previewPosterStoragePath",
+    ] as const) {
+      const value = row[field];
+      if (value == null) continue;
+      if (typeof value !== "string") {
+        delete row[field];
+        continue;
+      }
+      const normalized = value.trim();
+      if (!normalized || !isUserScopedMediaStoragePath(normalized, userId)) {
+        delete row[field];
+        continue;
+      }
+      row[field] = normalized;
+    }
+  };
+  const sanitizeOutputIdCollections = ({
+    active,
+    archived,
+    outputs,
+  }: {
+    active: Record<string, unknown>[];
+    archived: Record<string, unknown>[];
+    outputs: Record<string, unknown>;
+  }) => {
+    const outputIds = new Set<string>(
+      [...active, ...archived]
+        .map((row) => normalizeOptionalString(row.id) ?? "")
+        .filter((value) => value.length > 0)
+    );
+    const activeOutputId =
+      typeof outputs.activeOutputId === "string" && outputIds.has(outputs.activeOutputId.trim())
+        ? outputs.activeOutputId.trim()
+        : null;
+    const filterOutputIds = (value: unknown) =>
+      Array.isArray(value)
+        ? value
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0 && outputIds.has(entry))
+        : [];
+
+    return {
+      activeOutputId,
+      curatedReferenceIds: filterOutputIds(outputs.curatedReferenceIds),
+      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds),
+    };
+  };
+
+  const sanitizeRows = (value: unknown) => {
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .map((row) => {
+        const normalizedRow = asRecord(row);
+        const generationId = normalizeUuid(normalizedRow.generationId) ?? "";
+        const promptId = normalizeUuid(normalizedRow.promptId) ?? "";
+        const savedMediaIds = normalizeUuidList(normalizedRow.savedMediaIds).filter((entry) =>
+          allowedMediaFileIds.has(entry)
+        );
 
         if (generationId && !allowedGenerationIds.has(generationId)) {
           return null;
@@ -262,34 +427,24 @@ const sanitizeProjectWorkspaceOutputs = ({
       .filter((row): row is Record<string, unknown> => Boolean(row));
   };
 
-  const active = sanitizeRows(outputsRecord.active);
-  const archived = sanitizeRows(outputsRecord.archived);
-  const outputIds = new Set<string>(
-    [...active, ...archived]
-      .map((row) => (typeof row.id === "string" ? row.id.trim() : ""))
-      .filter((value) => value.length > 0)
-  );
-  const activeOutputId =
-    typeof outputsRecord.activeOutputId === "string" &&
-    outputIds.has(outputsRecord.activeOutputId.trim())
-      ? outputsRecord.activeOutputId.trim()
-      : null;
-  const filterOutputIds = (value: unknown) =>
-    Array.isArray(value)
-      ? value
-          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-          .filter((entry) => entry.length > 0 && outputIds.has(entry))
-      : [];
+  const active = sanitizeRows(shapeSanitizedOutputsRecord.active);
+  const archived = sanitizeRows(shapeSanitizedOutputsRecord.archived);
+  const { activeOutputId, curatedReferenceIds, removedFromAllRefsIds } =
+    sanitizeOutputIdCollections({
+      active,
+      archived,
+      outputs: shapeSanitizedOutputsRecord,
+    });
 
   return {
-    ...snapshot,
+    ...shapeSanitizedSnapshot,
     outputs: {
-      ...outputsRecord,
+      ...shapeSanitizedOutputsRecord,
       active,
       archived,
       activeOutputId,
-      curatedReferenceIds: filterOutputIds(outputsRecord.curatedReferenceIds),
-      removedFromAllRefsIds: filterOutputIds(outputsRecord.removedFromAllRefsIds),
+      curatedReferenceIds,
+      removedFromAllRefsIds,
     },
   };
 };
@@ -305,13 +460,14 @@ const resolveOwnedIds = async ({
   userId: string;
   ids: string[];
 }): Promise<string[]> => {
-  if (ids.length === 0) return [];
+  const canonicalIds = normalizeUuidList(ids);
+  if (canonicalIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from(table)
     .select(idColumn)
     .eq("user_id", userId)
-    .in(idColumn, ids);
+    .in(idColumn, canonicalIds);
 
   if (error) {
     const tableLabel = table === "media_files" ? "media ids" : "prompt ids";
@@ -336,13 +492,14 @@ const resolveOwnedGenerationIds = async ({
   userId: string;
   generationIds: string[];
 }): Promise<string[]> => {
-  if (generationIds.length === 0) return [];
+  const canonicalGenerationIds = normalizeUuidList(generationIds);
+  if (canonicalGenerationIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("ai_generations")
     .select("id")
     .eq("user_id", userId)
-    .in("id", generationIds);
+    .in("id", canonicalGenerationIds);
 
   if (error) {
     throw new Error(error.message || "Failed to resolve owned generation ids");
@@ -470,6 +627,10 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
   ownedPromptIds: string[];
   ownedGenerationIds: string[];
 }> => {
+  const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
+    userId,
+    snapshot,
+  });
   let ownedMediaFileIds: string[] = [];
   let ownedPromptIds: string[] = [];
   let ownedGenerationIds: string[] = [];
@@ -477,7 +638,7 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
     ({ ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
       await resolveOwnedSnapshotAssociationIds({
         userId,
-        snapshot,
+        snapshot: baseSanitizedSnapshot,
       }));
   } catch (error) {
     throw wrapProjectWorkspaceSaveStageError({
@@ -487,7 +648,7 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
   }
   const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
     userId,
-    snapshot,
+    snapshot: baseSanitizedSnapshot,
     ownedMediaFileIds,
     ownedPromptIds,
     ownedGenerationIds,
@@ -550,16 +711,20 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   projectId: string;
   snapshot: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
-  let fallbackSnapshot = snapshot;
+  const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
+    userId,
+    snapshot,
+  });
+  let fallbackSnapshot = baseSanitizedSnapshot;
   try {
     const { ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
       await resolveOwnedSnapshotAssociationIds({
         userId,
-        snapshot,
+        snapshot: baseSanitizedSnapshot,
       });
     const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
       userId,
-      snapshot,
+      snapshot: baseSanitizedSnapshot,
       ownedMediaFileIds,
       ownedPromptIds,
       ownedGenerationIds,

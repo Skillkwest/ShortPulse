@@ -18,6 +18,14 @@ vi.mock("../api/appErrorLogs", () => ({
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
 const writeAppErrorLogMock = vi.mocked(writeAppErrorLog);
 
+const MEDIA_ID_1 = "11111111-1111-4111-8111-111111111111";
+const MEDIA_ID_2 = "22222222-2222-4222-8222-222222222222";
+const PROMPT_ID_1 = "33333333-3333-4333-8333-333333333333";
+const GENERATION_ID_1 = "44444444-4444-4444-8444-444444444444";
+const GENERATION_ID_2 = "55555555-5555-4555-8555-555555555555";
+const MEDIA_VIDEO_ID_1 = "66666666-6666-4666-8666-666666666666";
+const MEDIA_VIDEO_ID_2 = "77777777-7777-4777-8777-777777777777";
+
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
   associatedSnapshotGenerationIds?: string[];
@@ -36,11 +44,11 @@ type SupabaseMockOptions = {
 
 const createSupabaseMock = ({
   workspaceSnapshot,
-  associatedSnapshotGenerationIds = ["generation-1"],
-  recentGenerationIds = ["generation-1"],
+  associatedSnapshotGenerationIds = [GENERATION_ID_1],
+  recentGenerationIds = [GENERATION_ID_1],
   projectionRows = [
     {
-      generation_id: "generation-1",
+      generation_id: GENERATION_ID_1,
       request_id: "task-1",
       preview_url: "https://cdn.example.com/project-output.png",
       result_urls: ["https://cdn.example.com/project-output.png"],
@@ -93,7 +101,7 @@ const createSupabaseMock = ({
         }
         return {
           data: ids
-            .filter((id) => id === "media-1" || id === "media-2" || mediaRowsById.has(id))
+            .filter((id) => id === MEDIA_ID_1 || id === MEDIA_ID_2 || mediaRowsById.has(id))
             .map((id) => mediaRowsById.get(id) ?? { id }),
           error: null,
         };
@@ -103,7 +111,7 @@ const createSupabaseMock = ({
   const promptSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids.filter((id) => id === "prompt-1").map((id) => ({ id })),
+        data: ids.filter((id) => id === PROMPT_ID_1).map((id) => ({ id })),
         error: null,
       })),
     })),
@@ -111,7 +119,7 @@ const createSupabaseMock = ({
   const generationSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids.filter((id) => id === "generation-1").map((id) => ({ id })),
+        data: ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
         error: null,
       })),
     })),
@@ -198,13 +206,13 @@ const createSupabaseMock = ({
           active: [
             {
               id: "out-1",
-              generationId: "generation-1",
+              generationId: GENERATION_ID_1,
               previewUrl: "https://expired.example.com/old.png",
               resultUrls: ["https://expired.example.com/old.png"],
             },
             {
               id: "out-2",
-              generationId: "generation-2",
+              generationId: GENERATION_ID_2,
               previewUrl: "https://expired.example.com/other.png",
               resultUrls: ["https://expired.example.com/other.png"],
             },
@@ -427,9 +435,9 @@ describe("projectWorkspaceStatesService", () => {
         active: [
           {
             id: "out-1",
-            generationId: "generation-1",
-            promptId: "prompt-1",
-            savedMediaIds: ["media-1", "media-1", "media-missing"],
+            generationId: GENERATION_ID_1,
+            promptId: PROMPT_ID_1,
+            savedMediaIds: [MEDIA_ID_1, MEDIA_ID_1, "media-missing"],
           },
         ],
         archived: [
@@ -437,7 +445,7 @@ describe("projectWorkspaceStatesService", () => {
             id: "out-2",
             generationId: "generation-missing",
             promptId: "prompt-missing",
-            savedMediaIds: ["media-2"],
+            savedMediaIds: [MEDIA_ID_2],
           },
         ],
       },
@@ -524,9 +532,9 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             {
               id: "out-1",
-              generationId: "generation-1",
-              promptId: "prompt-1",
-              savedMediaIds: ["media-1"],
+              generationId: GENERATION_ID_1,
+              promptId: PROMPT_ID_1,
+              savedMediaIds: [MEDIA_ID_1],
               prompt: "Server prompt",
               previewUrl: "https://cdn.example.com/project-output.png",
               resultUrls: ["https://cdn.example.com/project-output.png"],
@@ -551,7 +559,7 @@ describe("projectWorkspaceStatesService", () => {
       [
         expect.objectContaining({
           project_id: "project-1",
-          media_file_id: "media-1",
+          media_file_id: MEDIA_ID_1,
           user_id: "user-1",
         }),
       ],
@@ -563,7 +571,7 @@ describe("projectWorkspaceStatesService", () => {
       [
         expect.objectContaining({
           project_id: "project-1",
-          prompt_id: "prompt-1",
+          prompt_id: PROMPT_ID_1,
           user_id: "user-1",
         }),
       ],
@@ -575,7 +583,7 @@ describe("projectWorkspaceStatesService", () => {
       [
         expect.objectContaining({
           project_id: "project-1",
-          generation_id: "generation-1",
+          generation_id: GENERATION_ID_1,
           user_id: "user-1",
         }),
       ],
@@ -591,9 +599,9 @@ describe("projectWorkspaceStatesService", () => {
             active: [
               expect.objectContaining({
                 id: "out-1",
-                generationId: "generation-1",
-                promptId: "prompt-1",
-                savedMediaIds: ["media-1"],
+                generationId: GENERATION_ID_1,
+                promptId: PROMPT_ID_1,
+                savedMediaIds: [MEDIA_ID_1],
               }),
             ],
             archived: [],
@@ -617,6 +625,104 @@ describe("projectWorkspaceStatesService", () => {
       workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
     ).at(0)?.[0];
     expect(firstWorkspaceUpsertArg?.snapshot?.agentRuntimes).toBeDefined();
+  });
+
+  it("drops invalid association ids before owned-id resolution so autosave does not fail", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-invalid-associations",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:invalid-associations",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "out-library",
+                mediaSource: "library",
+                promptId: "prompt-stale-local",
+                savedMediaIds: [MEDIA_ID_1, "media-stale-local"],
+                previewUrl: "https://cdn.example.com/library.png",
+                resultUrls: ["https://cdn.example.com/library.png"],
+              },
+              {
+                id: "out-generated-stale",
+                generationId: "gen-stale-project",
+                previewUrl: "https://expired.example.com/generated.png",
+                resultUrls: ["https://expired.example.com/generated.png"],
+              },
+            ],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).resolves.toMatchObject({
+      saveOutcome: {
+        status: "saved",
+      },
+      snapshot: {
+        outputs: {
+          active: [
+            expect.objectContaining({
+              id: "out-library",
+              savedMediaIds: [MEDIA_ID_1],
+            }),
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot).toMatchObject({
+      outputs: {
+        active: [
+          expect.objectContaining({
+            id: "out-library",
+            savedMediaIds: [MEDIA_ID_1],
+          }),
+        ],
+        archived: [],
+      },
+    });
+    expect(
+      (
+        ((
+          firstWorkspaceUpsertArg?.snapshot?.outputs as {
+            active?: Array<Record<string, unknown>>;
+          }
+        )?.active ?? []) as Array<Record<string, unknown>>
+      )[0]
+    ).not.toHaveProperty("promptId");
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).not.toMatchObject({
+      active: [expect.objectContaining({ id: "out-generated-stale" })],
+    });
   });
 
   it("removes failed outputs from project workspace snapshots before saving", async () => {
@@ -736,7 +842,7 @@ describe("projectWorkspaceStatesService", () => {
               previewStoragePath: "user-2/generated/foreign-preview.png",
               fullStoragePath: "user-2/generated/foreign-full.png",
               previewPosterStoragePath: "user-2/generated/foreign-poster.png",
-              savedMediaIds: ["media-1"],
+              savedMediaIds: [MEDIA_ID_1],
             },
           ],
           archived: [],
@@ -762,7 +868,7 @@ describe("projectWorkspaceStatesService", () => {
 
     expect(savedRow).toMatchObject({
       id: "out-1",
-      savedMediaIds: ["media-1"],
+      savedMediaIds: [MEDIA_ID_1],
       previewUrl: "https://cdn.example.com/library.png",
       resultUrls: ["https://cdn.example.com/library.png"],
     });
@@ -799,7 +905,7 @@ describe("projectWorkspaceStatesService", () => {
               active: [
                 {
                   id: "out-1",
-                  generationId: "generation-1",
+                  generationId: GENERATION_ID_1,
                   previewUrl: "https://expired.example.com/old.png",
                   resultUrls: ["https://expired.example.com/old.png"],
                   previewStoragePath: "user-1/generated/out-1-preview.png",
@@ -824,7 +930,7 @@ describe("projectWorkspaceStatesService", () => {
             active: [
               expect.objectContaining({
                 id: "out-1",
-                generationId: "generation-1",
+                generationId: GENERATION_ID_1,
               }),
             ],
           },
@@ -839,7 +945,7 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             expect.objectContaining({
               id: "out-1",
-              generationId: "generation-1",
+              generationId: GENERATION_ID_1,
             }),
           ],
         },
@@ -881,11 +987,11 @@ describe("projectWorkspaceStatesService", () => {
       mediaRowReadError: "media rows unavailable",
       projectionRows: [
         {
-          generation_id: "generation-1",
+          generation_id: GENERATION_ID_1,
           request_id: "task-1",
           preview_url: "https://cdn.example.com/generated-video.mp4",
           result_urls: ["https://cdn.example.com/generated-video.mp4"],
-          saved_media_ids: ["media-video-1"],
+          saved_media_ids: [MEDIA_VIDEO_ID_1],
           task_state: "success",
           queue_state: "dispatched",
           display_prompt: "Restored video",
@@ -897,8 +1003,8 @@ describe("projectWorkspaceStatesService", () => {
       ],
       publicationRows: [
         {
-          generation_id: "generation-1",
-          owned_media_file_id: "media-video-1",
+          generation_id: GENERATION_ID_1,
+          owned_media_file_id: MEDIA_VIDEO_ID_1,
           preview_storage_path: "user-1/generated/generated-video-preview.png",
           full_storage_path: "user-1/generated/generated-video.mp4",
           created_at: "2026-04-23T01:00:00.000Z",
@@ -927,7 +1033,7 @@ describe("projectWorkspaceStatesService", () => {
               active: [
                 {
                   id: "video-1",
-                  generationId: "generation-1",
+                  generationId: GENERATION_ID_1,
                   mode: "video",
                   previewUrl: "https://cdn.example.com/generated-video.mp4",
                   resultUrls: ["https://cdn.example.com/generated-video.mp4"],
@@ -951,7 +1057,7 @@ describe("projectWorkspaceStatesService", () => {
             active: [
               expect.objectContaining({
                 id: "video-1",
-                generationId: "generation-1",
+                generationId: GENERATION_ID_1,
                 mode: "video",
               }),
             ],
@@ -999,7 +1105,7 @@ describe("projectWorkspaceStatesService", () => {
               active: [
                 {
                   id: "library-1",
-                  savedMediaIds: ["media-1"],
+                  savedMediaIds: [MEDIA_ID_1],
                 },
               ],
               archived: [],
@@ -1026,7 +1132,7 @@ describe("projectWorkspaceStatesService", () => {
             active: [
               expect.objectContaining({
                 id: "library-1",
-                savedMediaIds: ["media-1"],
+                savedMediaIds: [MEDIA_ID_1],
               }),
             ],
           },
@@ -1095,7 +1201,7 @@ describe("projectWorkspaceStatesService", () => {
                     id: "att-1",
                     kind: "image",
                     referenceId: "out-1",
-                    mediaId: "media-1",
+                    mediaId: MEDIA_ID_1,
                     previewStoragePath: "user-1/generated/out-1-preview.png",
                     fullStoragePath: "user-1/generated/out-1-full.png",
                     referenceUrl: "https://signed.example.com/reference.png",
@@ -1159,7 +1265,7 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             {
               id: "out-1",
-              generationId: "generation-1",
+              generationId: GENERATION_ID_1,
               previewUrl: "https://cdn.example.com/project-output.png",
               resultUrls: ["https://cdn.example.com/project-output.png"],
               previewStoragePath: "user-1/generated/project-output-preview.png",
@@ -1272,7 +1378,7 @@ describe("projectWorkspaceStatesService", () => {
             active: [
               {
                 id: "out-1",
-                generationId: "generation-1",
+                generationId: GENERATION_ID_1,
               },
             ],
             archived: [],
@@ -1327,7 +1433,7 @@ describe("projectWorkspaceStatesService", () => {
               previewStoragePath: "user-2/generated/foreign-preview.png",
               fullStoragePath: "user-2/generated/foreign-full.png",
               previewPosterStoragePath: "user-2/generated/foreign-poster.png",
-              savedMediaIds: ["media-1"],
+              savedMediaIds: [MEDIA_ID_1],
               saveState: "saved",
             },
           ],
@@ -1365,7 +1471,7 @@ describe("projectWorkspaceStatesService", () => {
       mediaSource: "library",
       previewUrl: "https://cdn.example.com/library.png",
       resultUrls: ["https://cdn.example.com/library.png"],
-      savedMediaIds: ["media-1"],
+      savedMediaIds: [MEDIA_ID_1],
       saveState: "saved",
     });
     expect(restoredRow).not.toHaveProperty("previewStoragePath");
@@ -1387,7 +1493,7 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             {
               id: "generated-1",
-              generationId: "generation-1",
+              generationId: GENERATION_ID_1,
               previewUrl: "https://expired.example.com/generated.png",
               resultUrls: ["https://expired.example.com/generated.png"],
             },
@@ -1396,7 +1502,7 @@ describe("projectWorkspaceStatesService", () => {
               mediaSource: "library",
               previewUrl: "https://cdn.example.com/library.png",
               resultUrls: ["https://cdn.example.com/library.png"],
-              savedMediaIds: ["media-1"],
+              savedMediaIds: [MEDIA_ID_1],
               saveState: "saved",
               status: "saved",
             },
@@ -1437,7 +1543,7 @@ describe("projectWorkspaceStatesService", () => {
         expect.objectContaining({
           id: "library-1",
           mediaSource: "library",
-          savedMediaIds: ["media-1"],
+          savedMediaIds: [MEDIA_ID_1],
           saveState: "saved",
         }),
         expect.objectContaining({
@@ -1463,7 +1569,7 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             {
               id: "out-1",
-              generationId: "generation-1",
+              generationId: GENERATION_ID_1,
               mode: "video",
               previewUrl: "https://cdn.example.com/generated-video.mp4",
               resultUrls: ["https://cdn.example.com/generated-video.mp4"],
@@ -1485,11 +1591,11 @@ describe("projectWorkspaceStatesService", () => {
       },
       projectionRows: [
         {
-          generation_id: "generation-1",
+          generation_id: GENERATION_ID_1,
           request_id: "task-1",
           preview_url: "https://cdn.example.com/generated-video.mp4",
           result_urls: ["https://cdn.example.com/generated-video.mp4"],
-          saved_media_ids: ["media-video-1"],
+          saved_media_ids: [MEDIA_VIDEO_ID_1],
           preview_storage_path: null,
           full_storage_path: null,
           task_state: "success",
@@ -1503,8 +1609,8 @@ describe("projectWorkspaceStatesService", () => {
       ],
       publicationRows: [
         {
-          generation_id: "generation-1",
-          owned_media_file_id: "media-video-1",
+          generation_id: GENERATION_ID_1,
+          owned_media_file_id: MEDIA_VIDEO_ID_1,
           preview_storage_path: null,
           full_storage_path: null,
           publication_state: "published",
@@ -1513,7 +1619,7 @@ describe("projectWorkspaceStatesService", () => {
       ],
       mediaRows: [
         {
-          id: "media-video-1",
+          id: MEDIA_VIDEO_ID_1,
           file_type: "video",
           storage_path: "user-1/generations/videos/restored-video.mp4",
           preview_storage_path: null,
@@ -1533,7 +1639,7 @@ describe("projectWorkspaceStatesService", () => {
       active: [
         {
           id: "out-1",
-          generationId: "generation-1",
+          generationId: GENERATION_ID_1,
           mode: "video",
           previewPosterStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
           previewStoragePath: "user-1/generations/videos/restored-video.mp4",
@@ -1573,14 +1679,14 @@ describe("projectWorkspaceStatesService", () => {
           pulseWorkflowSession: null,
         },
       },
-      recentGenerationIds: ["generation-2"],
+      recentGenerationIds: [GENERATION_ID_2],
       projectionRows: [
         {
-          generation_id: "generation-2",
+          generation_id: GENERATION_ID_2,
           request_id: "task-2",
           preview_url: "https://cdn.example.com/generated-video.mp4",
           result_urls: ["https://cdn.example.com/generated-video.mp4"],
-          saved_media_ids: ["media-video-2"],
+          saved_media_ids: [MEDIA_VIDEO_ID_2],
           preview_storage_path: null,
           full_storage_path: null,
           task_state: "success",
@@ -1594,8 +1700,8 @@ describe("projectWorkspaceStatesService", () => {
       ],
       publicationRows: [
         {
-          generation_id: "generation-2",
-          owned_media_file_id: "media-video-2",
+          generation_id: GENERATION_ID_2,
+          owned_media_file_id: MEDIA_VIDEO_ID_2,
           preview_storage_path: null,
           full_storage_path: null,
           publication_state: "published",
@@ -1604,7 +1710,7 @@ describe("projectWorkspaceStatesService", () => {
       ],
       mediaRows: [
         {
-          id: "media-video-2",
+          id: MEDIA_VIDEO_ID_2,
           file_type: "video",
           storage_path: "user-1/generations/videos/generated-video.mp4",
           preview_storage_path: null,
@@ -1623,8 +1729,8 @@ describe("projectWorkspaceStatesService", () => {
     expect(result?.snapshot.outputs).toMatchObject({
       active: [
         {
-          id: "generated:generation-2",
-          generationId: "generation-2",
+          id: `generated:${GENERATION_ID_2}`,
+          generationId: GENERATION_ID_2,
           taskId: "task-2",
           taskState: "success",
           queueState: "dispatched",

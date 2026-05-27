@@ -4,6 +4,11 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TrashSimple } from "phosphor-react";
+import {
+  asCanonicalStoragePath,
+  logAdaptiveDetailFullQualityUsed,
+} from "../../../lib/adaptive-media";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { StudioOutput } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import {
@@ -11,12 +16,12 @@ import {
   canSaveReferenceOutput,
 } from "../logic/referenceActionAvailability";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
-import { downloadUrlToFile } from "../logic/referenceDownload";
+import { downloadUrlToFile, resolveReferenceDownloadTarget } from "../logic/referenceDownload";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
-import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -132,6 +137,58 @@ const createPreviewSelectionState = (
   rejectedUrls,
 });
 
+const shouldResolveCanonicalDetailAuthority = (
+  output: Pick<
+    StudioOutput,
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "savedMediaIds"
+    | "generationId"
+    | "taskId"
+    | "mediaSource"
+  >
+): boolean => {
+  if (asCanonicalStoragePath(output.previewStoragePath)) return true;
+  if (asCanonicalStoragePath(output.fullStoragePath)) return true;
+  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.some((value) => value?.trim())) {
+    return true;
+  }
+  if (output.mediaSource === "generated") return true;
+  return Boolean(output.generationId?.trim() || output.taskId?.trim());
+};
+
+const resolveCanonicalDetailAuthorityUrl = async (
+  output: Pick<
+    StudioOutput,
+    | "savedMediaIds"
+    | "generationId"
+    | "taskId"
+    | "mediaSource"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "previewUrl"
+    | "resultUrls"
+  >
+): Promise<string | null> => {
+  if (!shouldResolveCanonicalDetailAuthority(output)) return null;
+  try {
+    const supabase = ensureSupabaseQueryClient();
+    const resolvedTarget = await resolveReferenceDownloadTarget({
+      output,
+      supabase,
+    });
+    const storagePath = resolvedTarget.fileRecord?.storagePath?.trim() ?? "";
+    if (!storagePath) return null;
+    return await getSignedMediaUrl({
+      bucket: "media_library",
+      storagePath,
+      previewProfile: "none",
+    });
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Renders the detail modal for a selected reference.
  */
@@ -237,6 +294,10 @@ function DetailModalContent({
   const [previewSelectionByOutput, setPreviewSelectionByOutput] = useState<PreviewSelectionState>(
     () => createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
   );
+  const [resolvedCanonicalPreviewByOutput, setResolvedCanonicalPreviewByOutput] = useState<{
+    outputId: string;
+    url: string | null;
+  } | null>(null);
   const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
     outputId: string;
     url: string | null;
@@ -283,6 +344,32 @@ function DetailModalContent({
   }, [output]);
   const preferredDetailMediaUrl =
     resolvedDetailMedia?.fullUrl ?? resolvedDetailMedia?.previewUrl ?? null;
+  const resolvedCanonicalPreviewUrl =
+    resolvedCanonicalPreviewByOutput && resolvedCanonicalPreviewByOutput.outputId === outputId
+      ? resolvedCanonicalPreviewByOutput.url
+      : null;
+  const canonicalAuthorityInput = useMemo(
+    () => ({
+      savedMediaIds: output.savedMediaIds,
+      generationId: output.generationId,
+      taskId: output.taskId,
+      mediaSource: output.mediaSource,
+      previewStoragePath: output.previewStoragePath,
+      fullStoragePath: output.fullStoragePath,
+      previewUrl: output.previewUrl,
+      resultUrls: output.resultUrls,
+    }),
+    [
+      output.fullStoragePath,
+      output.generationId,
+      output.mediaSource,
+      output.previewStoragePath,
+      output.previewUrl,
+      output.resultUrls,
+      output.savedMediaIds,
+      output.taskId,
+    ]
+  );
 
   useEffect(() => {
     if (!output || !preferredDetailMediaUrl) return;
@@ -293,6 +380,7 @@ function DetailModalContent({
   }, [output, preferredDetailMediaUrl]);
   const previewCandidates = useMemo(() => {
     return buildUniquePreviewCandidates([
+      resolvedCanonicalPreviewUrl,
       preferredDetailMediaUrl,
       resolvedDetailMedia?.previewUrl ?? null,
       output?.previewUrl,
@@ -302,6 +390,7 @@ function DetailModalContent({
     output?.previewUrl,
     output?.resultUrls,
     preferredDetailMediaUrl,
+    resolvedCanonicalPreviewUrl,
     resolvedDetailMedia?.previewUrl,
   ]);
   const previewSelection =
@@ -343,6 +432,59 @@ function DetailModalContent({
       };
     });
   }, [outputId, previewCandidates]);
+  useEffect(() => {
+    if (!outputId) return;
+    let cancelled = false;
+    // The detail modal intentionally clears stale authority while the next signed URL resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResolvedCanonicalPreviewByOutput((current) =>
+      current?.outputId === outputId ? current : { outputId, url: null }
+    );
+    void (async () => {
+      const nextUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput);
+      if (cancelled) return;
+      setResolvedCanonicalPreviewByOutput({
+        outputId,
+        url: nextUrl,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canonicalAuthorityInput, outputId]);
+  useEffect(() => {
+    if (!outputId || !resolvedCanonicalPreviewUrl) return;
+    const hasRawStorageAuthority = Boolean(
+      asCanonicalStoragePath(output.previewStoragePath) ||
+      asCanonicalStoragePath(output.fullStoragePath)
+    );
+    if (!hasRawStorageAuthority) return;
+    const legacyUrlCandidates = buildUniquePreviewCandidates([
+      output.previewUrl,
+      ...(output.resultUrls ?? []),
+    ]);
+    // The detail modal intentionally promotes canonical storage authority after it resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewSelectionByOutput((current) => {
+      if (!current || current.outputId !== outputId) return current;
+      if (current.currentUrl === resolvedCanonicalPreviewUrl) return current;
+      if (current.currentUrl && !legacyUrlCandidates.includes(current.currentUrl)) {
+        return current;
+      }
+      return {
+        ...current,
+        currentUrl: resolvedCanonicalPreviewUrl,
+        rejectedUrls: current.rejectedUrls.filter((value) => value !== resolvedCanonicalPreviewUrl),
+      };
+    });
+  }, [
+    output.fullStoragePath,
+    output.previewStoragePath,
+    output.previewUrl,
+    output.resultUrls,
+    outputId,
+    resolvedCanonicalPreviewUrl,
+  ]);
   const isAudioOutput = Boolean(
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
@@ -735,6 +877,7 @@ function DetailModalContent({
     setImagePanningByOutput(null);
     setLoadedImageNaturalSize(null);
     setLoadedPreviewAspect(null);
+    setResolvedCanonicalPreviewByOutput(null);
     setPreviewSelectionByOutput(
       createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
     );

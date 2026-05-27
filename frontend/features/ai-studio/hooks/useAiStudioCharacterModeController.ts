@@ -19,7 +19,11 @@ import {
   mergeCharacterAndUserReferences,
 } from "../logic/characterModePayload";
 import { buildCharacterModeInjectionBundleFromSnapshot } from "../logic/characterModeLookSelection";
-import type { StudioOutput, ToolId } from "../types";
+import type {
+  CharacterModeFallbackSummary as SharedCharacterModeFallbackSummary,
+  CharacterModeSubmissionOverrides as SharedCharacterModeSubmissionOverrides,
+} from "./generationCharacterModePreflight";
+import type { ToolId } from "../types";
 
 const MEDIA_BUCKET = "media_library";
 const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
@@ -107,23 +111,17 @@ export type CharacterModeFallbackCode =
   | "no_description"
   | "no_references";
 
+export type CharacterModeFallbackSummary =
+  SharedCharacterModeFallbackSummary<CharacterModeFallbackCode>;
+
+export type CharacterModeSubmissionOverrides =
+  SharedCharacterModeSubmissionOverrides<CharacterModeFallbackCode>;
+
 type CharacterOptionSummary = {
   id: string;
   name: string;
   profileImageUrl: string | null;
 };
-
-type CharacterModeSubmissionOverrides = {
-  submissionPromptOverride: string;
-  displayPromptOverride: string;
-  referenceInputsOverride: string[];
-  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
-  characterContextOverride?: StudioOutput["characterContext"];
-  notice: string | null;
-  fallbackCode: CharacterModeFallbackCode | null;
-  characterReferenceCount: number;
-  hasCharacterDescription: boolean;
-} | null;
 
 type UseAiStudioCharacterModeControllerParams = {
   isCharacterModeEnabled: boolean;

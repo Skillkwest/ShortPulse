@@ -234,6 +234,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const recorderRef = React.useRef<MediaRecorder | null>(null);
   const recordingChunksRef = React.useRef<Blob[]>([]);
   const recordingStartedAtRef = React.useRef<number | null>(null);
+  const isOpenRef = React.useRef(isOpen);
   const permissionStatusRef = React.useRef<{
     camera: PermissionStatus | null;
     microphone: PermissionStatus | null;
@@ -361,7 +362,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     }: {
       nextVideoDeviceId?: string;
       nextAudioDeviceId?: string;
-    } = {}) => {
+    } = {}): Promise<boolean> => {
       if (
         !isClient() ||
         !navigator.mediaDevices?.getUserMedia ||
@@ -370,7 +371,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         const feedback = resolveRecordingUnavailableFeedback();
         setCaptureError(feedback.message);
         setCaptureRecoveryHint(feedback.recoveryHint);
-        return;
+        return false;
       }
 
       const requestId = previewRequestIdRef.current + 1;
@@ -444,7 +445,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
 
         if (previewRequestIdRef.current !== requestId) {
           stream.getTracks().forEach((track) => track.stop());
-          return;
+          return false;
         }
 
         previewStreamRef.current = stream;
@@ -464,11 +465,13 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         setSelectedAudioDeviceId(activeAudioDeviceId);
         writeStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY, activeVideoDeviceId);
         writeStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY, activeAudioDeviceId);
+        return true;
       } catch (error) {
         stopPreviewStream();
         const feedback = resolveRecordingStartErrorFeedback(error);
         setCaptureError(feedback.message);
         setCaptureRecoveryHint(feedback.recoveryHint);
+        return false;
       } finally {
         if (previewRequestIdRef.current === requestId) {
           setIsRequestingAccess(false);
@@ -488,6 +491,10 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (isUploadingClip) return;
     onClose();
   }, [isUploadingClip, onClose]);
+
+  React.useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -616,6 +623,10 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setIsRecording(false);
       stopPreviewStream();
 
+      if (!isOpenRef.current) {
+        return;
+      }
+
       if (!recordedBlob.size) {
         setCaptureError("No video was captured.");
         setCaptureRecoveryHint("Try again and wait for the preview before you start recording.");
@@ -673,10 +684,12 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setSelectedVideoDeviceId(nextDeviceId);
       writeStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY, nextDeviceId);
       if (isRecording || isUploadingClip) return;
-      if (recordedClipFile) {
-        resetRecordedClip();
-      }
-      void startPreview({ nextVideoDeviceId: nextDeviceId });
+      void (async () => {
+        const didStartPreview = await startPreview({ nextVideoDeviceId: nextDeviceId });
+        if (didStartPreview && recordedClipFile) {
+          resetRecordedClip();
+        }
+      })();
     },
     [isRecording, isUploadingClip, recordedClipFile, resetRecordedClip, startPreview]
   );
@@ -687,10 +700,12 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setSelectedAudioDeviceId(nextDeviceId);
       writeStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY, nextDeviceId);
       if (isRecording || isUploadingClip) return;
-      if (recordedClipFile) {
-        resetRecordedClip();
-      }
-      void startPreview({ nextAudioDeviceId: nextDeviceId });
+      void (async () => {
+        const didStartPreview = await startPreview({ nextAudioDeviceId: nextDeviceId });
+        if (didStartPreview && recordedClipFile) {
+          resetRecordedClip();
+        }
+      })();
     },
     [isRecording, isUploadingClip, recordedClipFile, resetRecordedClip, startPreview]
   );

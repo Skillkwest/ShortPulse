@@ -45,6 +45,19 @@ type UseAiStudioPersistenceActionsArgs = {
   prompt: string;
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const normalizeOptionalString = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeUuid = (value: string | null | undefined): string | null => {
+  const normalized = normalizeOptionalString(value);
+  return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
+};
+
 const resolveFileTypeHintForPersistedUrl = (
   output: StudioOutput,
   url: string
@@ -120,26 +133,35 @@ export const useAiStudioPersistenceActions = ({
     }) => {
       const output = findOutputById(outputId);
       if (!output) return null;
-      if (output.generationId) {
+      const existingGenerationId = normalizeUuid(output.generationId);
+      const resolvedTaskId =
+        normalizeOptionalString(taskId) ?? normalizeOptionalString(output.taskId);
+      if (taskId && taskId !== output.taskId) {
+        updateOutputById(outputId, (item) => ({ ...item, taskId }));
+      }
+      if (existingGenerationId) {
         if (projectId) {
           try {
             await associateGenerationWithProject({
               projectId,
-              generationId: output.generationId,
+              generationId: existingGenerationId,
             });
           } catch {
             // Project association is best-effort here; direct polling remains authoritative.
           }
         }
-        return output.generationId;
+        if (existingGenerationId !== output.generationId) {
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            generationId: existingGenerationId,
+            taskId: resolvedTaskId ?? item.taskId,
+          }));
+        }
+        return existingGenerationId;
       }
-      if (taskId && taskId !== output.taskId) {
-        updateOutputById(outputId, (item) => ({ ...item, taskId }));
-      }
-      const resolvedGenerationId = await resolveGenerationIdForRequestId(
-        taskId ?? output.taskId,
-        projectId
-      );
+      const resolvedGenerationId = resolvedTaskId
+        ? await resolveGenerationIdForRequestId(resolvedTaskId, projectId)
+        : null;
       if (resolvedGenerationId) {
         if (projectId) {
           try {
@@ -153,7 +175,7 @@ export const useAiStudioPersistenceActions = ({
         }
         updateOutputById(outputId, (item) => ({
           ...item,
-          taskId: taskId ?? item.taskId,
+          taskId: resolvedTaskId ?? item.taskId,
           generationId: resolvedGenerationId,
         }));
         return resolvedGenerationId;

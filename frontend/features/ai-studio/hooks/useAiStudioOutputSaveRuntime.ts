@@ -226,12 +226,11 @@ export const useAiStudioOutputSaveRuntime = ({
           const generatedOutput = isDurablyGeneratedOutput(output);
           const source = generatedOutput ? "ai_studio" : "upload";
           const generationId = generatedOutput
-            ? (output.generationId ??
-              (await ensureGenerationRecord({
+            ? await ensureGenerationRecord({
                 outputId,
                 provider,
                 taskId: output.taskId,
-              })))
+              })
             : null;
           if (generatedOutput && !generationId) {
             markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR, {

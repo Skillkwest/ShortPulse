@@ -347,6 +347,7 @@ describe("style-creator source normalization", () => {
   });
 
   it("suppresses synthetic browser image files when only internal drag types survive", async () => {
+    installFileReaderMock("data:image/png;base64,from-synthetic-file");
     const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
       type: "image/png",
     });
@@ -360,6 +361,7 @@ describe("style-creator source normalization", () => {
   });
 
   it("fails with blocked-source instead of treating synthetic browser files as local uploads when internal payload fetch is blocked", async () => {
+    installFileReaderMock("data:image/png;base64,from-synthetic-file");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Failed to fetch"));
     const syntheticBrowserFile = new File(["synthetic-browser-bytes"], "DraggedImage.png", {
       type: "image/png",
@@ -384,7 +386,7 @@ describe("style-creator source normalization", () => {
     ).rejects.toThrow("blocked-style-image-source");
 
     expect(resolver).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 

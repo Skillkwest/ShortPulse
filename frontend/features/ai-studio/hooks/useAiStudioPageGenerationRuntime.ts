@@ -5,8 +5,9 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import {
-  type CharacterModeFallbackCode,
+  type CharacterModeFallbackSummary,
   type CharacterModeInjectionBundle,
+  type CharacterModeSubmissionOverrides,
 } from "./useAiStudioCharacterModeController";
 import { useAiStudioAudioGeneration } from "./useAiStudioAudioGeneration";
 import { useAiStudioGenerationController } from "./useAiStudioGenerationController";
@@ -23,7 +24,6 @@ import {
   resolvePulseArtifactCostOverrideCredits,
   resolvePulseArtifactGenerationRoute,
 } from "./pulseCreateRuntime/usePulseCreatePrimarySubmit";
-import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type OptimisticDebitEntry = {
@@ -31,24 +31,6 @@ type OptimisticDebitEntry = {
   outputId: string | null;
   createdAtMs?: number;
 };
-
-type CharacterModeFallbackSummary = {
-  fallbackCode: CharacterModeFallbackCode | null;
-  characterReferenceCount: number;
-  hasCharacterDescription: boolean;
-} | null;
-
-type CharacterModeSubmissionOverrides = {
-  submissionPromptOverride: string;
-  displayPromptOverride: string;
-  referenceInputsOverride: string[];
-  internalMediaRefsOverride?: Array<InternalMediaRef | null>;
-  characterContextOverride?: StudioOutput["characterContext"];
-  notice: string | null;
-  fallbackCode: CharacterModeFallbackCode | null;
-  characterReferenceCount: number;
-  hasCharacterDescription: boolean;
-} | null;
 
 type ActiveCreatePulsePresetSnapshot = {
   pulseKind?: string | null;

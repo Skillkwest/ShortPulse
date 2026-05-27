@@ -70,10 +70,6 @@ const createDraftState = () => ({
 });
 
 let currentDraftState = createDraftState();
-let currentDroppedReferenceState = {
-  pendingDropTarget: null as null | { target: "character_sheet"; zoneKey: "portrait" },
-  isDropResolutionBusy: false,
-};
 
 vi.mock("next/image", () => ({
   default: ({ unoptimized, ...props }: Record<string, unknown>) => {
@@ -89,7 +85,6 @@ vi.mock("../../hooks/useCharacterPanelDraft", () => ({
 
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
   useCharacterManagerDroppedReferenceController: () => ({
-    ...currentDroppedReferenceState,
     handleCharacterSheetReferenceDrop: async () => undefined,
   }),
 }));
@@ -162,10 +157,6 @@ describe("CharacterPanelWorkspace", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     currentDraftState = createDraftState();
-    currentDroppedReferenceState = {
-      pendingDropTarget: null,
-      isDropResolutionBusy: false,
-    };
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
     clearCharacterSheetAssignmentMock.mockReset();
@@ -396,18 +387,35 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
   });
 
-  it("shows a loading spinner over the target reference card while a drop is loading", () => {
-    currentDroppedReferenceState = {
-      pendingDropTarget: { target: "character_sheet", zoneKey: "portrait" },
-      isDropResolutionBusy: true,
-    };
+  it("shows a loading spinner over the target reference card while an upload is in flight", async () => {
+    let resolveUploadPromise!: (value: boolean) => void;
+    const uploadPromise = new Promise<boolean>((resolve) => {
+      resolveUploadPromise = resolve;
+    });
+    setCharacterSheetPresetFileMock.mockImplementation(() => uploadPromise);
 
-    render(<CharacterPanelWorkspace />);
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 21,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledWith("portrait", expect.any(File));
+    });
 
     expect(screen.getByRole("status", { name: "Loading Portrait reference" })).toHaveTextContent(
       "Loading..."
     );
     expect(screen.getByText("Portrait").closest("article")).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      resolveUploadPromise(true);
+      await uploadPromise;
+    });
   });
 
   it("keeps the Characters modal browsable but read-only while character save is in progress", () => {

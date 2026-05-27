@@ -39,8 +39,10 @@ npm run build
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
-- Solo-owner operating model: ShortPulse is currently one human owner/operator. Named agents are AI role boundaries and repo-management helpers, not evidence of a larger human team. Do not write or plan as though there are additional staff, departments, reviewers, or operators unless the user explicitly says so in the current thread. When instructions mention an owner, reviewer, or operator, interpret that as either the user or the named AI agent/workflow responsible for that bounded surface.
+- Solo-owner operating model: ShortPulse is currently one human owner/operator. Named agents are bounded AI authority surfaces for their documented lanes, not evidence of a larger human team. Do not write or plan as though there are additional staff, departments, reviewers, or operators unless the user explicitly says so in the current thread. When instructions mention an owner, reviewer, or operator, interpret that as either the user or the named AI agent/workflow responsible for that bounded surface.
+- Delegated authority policy: named agents may be treated as operational authority inside their documented lane only when they load their own instructions, stay in scope, and provide decision-grade conclusions under `docs/agents/solo-owner-launch-trust-standard.md`. Unsupported, stale, out-of-lane, or conflicting agent claims are not authority until reconciled by the correct owner surface.
 - Solo-owner launch trust policy: for launch-relevant work, follow `docs/agents/solo-owner-launch-trust-standard.md`. Do not make readiness, safety, validation, or production claims without naming the source of truth, evidence, freshness, production-vs-local surface, unknowns, and next proof.
+- Instruction freshness policy: prior context is advisory; current repo-local instructions are authority. Fresh-read the bounded startup spine and the active agent's default-load instructions at each new task/lane, after commit/push/deploy, after context resume or compaction, when instruction freshness is uncertain, when asked what instructions are active, when relevant instruction files changed, and before launch-relevant delegated-authority claims. During continuous work in the same lane, already-fresh loaded instructions may be reused unless relevant instructions changed. Do not bulk-load historical artifacts, retained reports, training logs, or old packets unless the task or default-load policy requires them.
 - Pre-launch branch policy: ShortPulse is in a pre-launch production-readiness phase through the Copperknot effective launch decision window ending `2026-07-02` (`docs/agents/copperknot/production-readiness-plan-2026-07-02.md` and `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`). During this pre-launch phase, all repo work must be performed on the local `production` branch, and any GitHub branch operations must target the GitHub `production` branch.
 - Pre-launch branch isolation policy: work only on `production`. Do not switch branches, create feature branches, commit on another branch, push another branch, merge into another branch, promote work to another branch, or open GitHub work against another branch unless the user explicitly rewrites this pre-launch policy in the current thread. During this phase, the default GitHub coordination model is direct work on `production` plus checks/review reporting, not cross-branch PR flow. Never push directly to `main`.
 - Pre-launch runtime surface policy: browser/manual validation must target the production URL `https://www.shortpulse.ai` unless the user explicitly asks for local development, localhost, or a non-production dry run in the current thread. Do not open or rely on `localhost`, `127.0.0.1`, arbitrary preview URLs, or local browser sessions as the validation surface for production work. Local commands and tests may still be used for implementation validation, but they do not replace production-URL checks when the task concerns deployed behavior.
@@ -74,6 +76,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 
 - Confirm task mode (`brainstorm/no-edit` vs implementation).
 - Run a workspace safety check before broad/repo-wide commands (artifact/backup guardrails).
+- Treat prior conversation context as advisory until the current bounded startup spine is fresh from disk for this task/lane.
 
 2. **Core doc load (always)**
 
@@ -81,6 +84,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Read `docs/dev-ground-rules.md`, `docs/conventions.md`, and `docs/agent-playbook.md`.
 - Read `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - Read the scoped instructions for the touched areas (`frontend/AGENTS.md`, `docs/AGENTS.md`) instead of loading unrelated scoped surfaces by default.
+- For named-agent work, read the active agent's contract, local `AGENTS.md` or SOP if present, and explicitly marked default-load memory. Do not load archives or retained artifacts by default.
 
 3. **Task classification + targeted context load**
 

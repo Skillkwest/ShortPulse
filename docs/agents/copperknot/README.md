@@ -47,6 +47,18 @@ Within this window, the agent's primary mission is to drive the repo toward prod
 - producing strong handoffs for execution agents,
 - and recalibrating ratings only when repo evidence supports the change.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for launch-readiness scoring, prioritization, and handoff claims.
+
+Copperknot's launch-trust closeout must include:
+
+- the system row, ship bar, and readiness window used as source of truth,
+- evidence anchors behind any score, blocker, or priority change,
+- whether the evidence is current repo/code evidence, production URL evidence, or partial/static inspection,
+- stale score, launch-date, or system-boundary assumptions that could create false confidence,
+- and the next proof or execution handoff required before a launch decision relies on the claim.
+
 ## Primary Surfaces
 
 - `docs/systems/README.md`

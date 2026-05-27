@@ -2,9 +2,9 @@
 
 Date: `2026-05-06`
 
-Last updated: `2026-05-19`
+Last updated: `2026-05-27`
 
-Freshness status as of `2026-05-19`: `current`
+Freshness status as of `2026-05-27`: `current`
 
 Purpose: record which handoff packets have already been dispatched to execution agents during the current production-readiness window.
 
@@ -37,6 +37,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - follow-up narrowed to runtime verification
   - runtime-verification rerun later succeeded with fresh protected-route browser evidence
   - blocker `KI-AI-RG-STYLES-001` cleared on `2026-05-16`
+  - later Holomony production baseline on `2026-05-25` found no clear blocker
   - score moved to ship floor at `7/10`
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-reference-grid-styles-drop-blocker-closeout.md`
@@ -74,6 +75,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - closeout received on `2026-05-16`
   - reviewed and rerated on `2026-05-16`
   - score moved to ship floor at `7/10`
+  - later Dave follow-up on `2026-05-23` added hosted session cleanup and history-purge follow-through without reopening the row below floor
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-security-boundaries-release-audit-closeout.md`
 
@@ -104,8 +106,8 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - targeted repo review confirms one bounded ownership-hardening patch landed with focused tests
   - broader Copperknot review completed on `2026-05-16`
   - May 19 baseline refresh broadened the review scope to the newer unsent Create/Edit/Video/Sound draft exclusion contract
+  - May 27 baseline reset kept the score held because newer restore/save hardening still needs cleaner current-state proof
   - score held at `6/10`
-  - confidence moved up on `2026-05-19`
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-project-workspace-persistence-hardening-closeout.md`
 
@@ -126,20 +128,29 @@ Purpose: record which handoff packets have already been dispatched to execution 
 
 ### Ready next
 
-9. `Characters workflow`
+9. `Create workflow`
 
 - Packet:
-  - `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`
+  - `queue-only`
 - Status:
-  - ready next after the May 19 baseline refresh
-  - still carries fresh production continuity-trust evidence from Beeper
+  - exact next lane after the May 27 baseline reset
+  - must absorb current AI Studio/runtime validation red state before the older workflow queue is trusted again
 
 10. `Elements workflow`
 
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`
 - Status:
-  - second open workflow lane after Characters
+  - second open lane after the validation-first Create review
+  - still carries fresh approved-panel runtime pressure from Holomony
+
+11. `Characters workflow`
+
+- Packet:
+  - `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`
+- Status:
+  - no longer the exact next lane by default
+  - remains ready after the current validation-first queue is reduced
 
 ## Refresh Notes
 
@@ -185,6 +196,13 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - the earlier Create-workflow attachment seam found during the first audit pass no longer reproduced once the current worktree hardening landed, so the focused rerun passed cleanly
   - `Create workflow` stayed at `6/10` with higher confidence, but no new external lane was opened for it
   - restored `Characters workflow` and `Elements workflow` as the exact next open dispatch set
+- `2026-05-27` production baseline reset:
+  - audited the full repo plus current worktree on `production` at `1d46e8473d`
+  - reconciled Holomony's approved-panel runtime report, Holomony's Reference Grid production baseline, and Dave's production storage-state exposure report
+  - captured the live worktree motion/video recorder lane and SQL grant-hardening lane as part of current launch truth
+  - recorded a focused failing rerun at `8 failed / 26 total tests`
+  - retired the stale May 19 Characters-first exact-next order
+  - moved the exact next lane back to `Create workflow` as a validation-first review
 
 ## Operating Note
 

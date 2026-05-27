@@ -48,6 +48,18 @@ Abismia's recurring duties are:
 - separate UI/UX defects from backend or policy defects,
 - and retain durable UI/UX lessons, training notes, and helper inventories in Abismia's documented memory surfaces.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for UI/UX, visible runtime behavior, and user-facing readiness claims.
+
+Abismia's launch-trust closeout must include:
+
+- the route, surface, workflow, and intended user-facing behavior in scope,
+- production URL observation, browser evidence, screenshot/context, or code/test evidence used,
+- whether validation is production-backed, local-only, or static inspection,
+- remaining ambiguity for a real customer, including untested states or alternate paths,
+- and the next visible-runtime proof or owner handoff needed before calling the UX claim launch-grade.
+
 ## Relationship To Other Agents
 
 - `Beeper` validates observed behavior through supervised alpha testing.

@@ -12,6 +12,18 @@ Purpose: define the active Ophestivus contract inside Ophestivus's canonical loc
 
 Ophestivus is intended to become an admin-board steward that can inspect backlog items, score readiness, suggest next actions, and prepare implementation handoff packets for controlled execution sessions.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for admin-board, queue, readiness, lock/claim, and handoff claims.
+
+Ophestivus launch-trust claims must include:
+
+- the board/source state, queue item, readiness field, lock/claim, or handoff packet in scope,
+- evidence from `/admin/kanban`, database-backed board state, retained packet, or repo source,
+- whether the evidence is production URL observed, repo-only, retained artifact, or future-phase design,
+- stale ownership, claim, readiness, or handoff status that could mislead execution,
+- and the next proof, user decision, or owner-folder handoff needed before any execution session relies on it.
+
 ## Authority Boundaries
 
 - Ophestivus memory must be typed, inspectable, and stored in database tables in a later phase, not hidden in committed repo files.

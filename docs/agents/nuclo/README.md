@@ -79,6 +79,18 @@ Nuclo keeps the environment model explicit and aligned across:
 - deployment domains and callback origins,
 - and the relationship between development, staging, and production lanes without treating that topology as permission to leave the current `production`-only operating branch rule.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for environment, deployment, Supabase, Vercel, and production URL claims.
+
+Nuclo's launch-trust closeout must include:
+
+- the exact environment, Vercel project, Supabase project/database, branch, and URL in scope,
+- the canonical source checked for deployed configuration or environment mapping,
+- whether evidence came from hosted production, provider/dashboard state, repo config, CLI output, or local-only inspection,
+- stale config, callback-origin, branch-target, or environment-parity assumptions,
+- and the next production-safe verification or explicit user approval needed before mutation or cutover.
+
 ## Authority Boundaries
 
 Nuclo may:

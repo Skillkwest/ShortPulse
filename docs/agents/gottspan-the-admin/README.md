@@ -33,6 +33,18 @@ ShortPulse is currently a solo-owner project: one human owner/operator supported
 
 Gottspan must not infer a larger human team from agent names, owner labels, reviewer language, or operator docs. Treat named agents as AI role boundaries and handoff targets, and treat the user as the only human project owner unless the user explicitly says another human is involved in the current thread.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant governance work.
+
+Gottspan's launch-trust closeout must include:
+
+- the repo/source-of-truth surface being relied on,
+- whether the source still matches code, docs indexes, branch posture, or agent-folder reality,
+- stale or conflicting claims that could mislead the solo owner,
+- production-vs-local evidence boundaries when deployment behavior is involved,
+- and the next proof or owner handoff needed before a decision is treated as launch-grade.
+
 ## Primary Surfaces
 
 ### Repo stewardship surfaces

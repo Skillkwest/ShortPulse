@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Copperknot Operator Brief - 2026-05-27</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #141516;
+        --bg2: #1b1d20;
+        --panel: #23262b;
+        --panel2: #2a2e34;
+        --border: #3c434c;
+        --text: #f3f4f6;
+        --muted: #c7ccd4;
+        --green: #9be38d;
+        --blue: #9bb8ff;
+        --amber: #f0cf76;
+        --purple: #c7a7ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 18px;
+        background: linear-gradient(180deg, var(--bg), var(--bg2));
+        color: var(--text);
+        font:
+          500 14px/1.38 ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        display: grid;
+        gap: 12px;
+      }
+      .panel,
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+      }
+      .panel {
+        padding: 18px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 8px;
+        line-height: 1.06;
+      }
+      h1 {
+        font-size: 34px;
+      }
+      h2 {
+        font-size: 24px;
+      }
+      h3 {
+        font-size: 18px;
+      }
+      p,
+      li {
+        margin: 0;
+        color: var(--muted);
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 6px;
+      }
+      .cards {
+        display: grid;
+        gap: 12px;
+      }
+      .card {
+        padding: 16px;
+        background: var(--panel2);
+      }
+      .badge {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .green {
+        background: rgba(155, 227, 141, 0.14);
+        color: var(--green);
+      }
+      .blue {
+        background: rgba(155, 184, 255, 0.14);
+        color: var(--blue);
+      }
+      .amber {
+        background: rgba(240, 207, 118, 0.14);
+        color: var(--amber);
+      }
+      .purple {
+        background: rgba(199, 167, 255, 0.14);
+        color: var(--purple);
+      }
+      .meta {
+        display: grid;
+        gap: 8px;
+      }
+      .meta strong {
+        color: var(--text);
+      }
+      a {
+        color: #e4eaff;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      code {
+        color: #f5f6f8;
+        font:
+          600 0.98em/1.35 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="panel">
+        <h1>Operator Brief</h1>
+        <div class="meta">
+          <p>
+            <strong>Run:</strong> Full repo + worktree baseline reset on
+            <code>production</code>
+          </p>
+          <p><strong>Ship target:</strong> July 2, 2026</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>What Changed</h2>
+        <ul>
+          <li>The May 27 baseline reset is complete.</li>
+          <li>The May 19 queue and brief are now historical.</li>
+          <li>
+            The live branch/worktree is red on a focused rerun at
+            <code>8 failed / 26 total tests</code>.
+          </li>
+          <li>
+            <code>Reference Grid</code> stays closed as a blocker lane on the
+            May 25 production baseline.
+          </li>
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h2>Do Next</h2>
+        <div class="cards">
+          <article class="card">
+            <span class="badge green">Do This Next</span>
+            <h3>Create workflow</h3>
+            <p>Lane: <code>AI Studio validation convergence</code></p>
+            <p>
+              Current failures span AI Studio runtime, prompt policy,
+              media-route sanitization, output ordering, and flag/default
+              behavior.
+            </p>
+            <p>
+              <a
+                href="./2026-05-27-production-baseline-reset-audit.md"
+                >Open baseline report</a
+              >
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="badge blue">Second Lane</span>
+            <h3>Elements workflow</h3>
+            <p>Lane: <code>approved panel/runtime health</code></p>
+            <p>
+              Holomony still rates the approved panel lane as fragile on
+              production.
+            </p>
+            <p>
+              <a
+                href="../../../../../agents/copperknot/handoffs/2026-05-06-elements-workflow.md"
+                >Open handoff</a
+              >
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="badge amber">Third Lane</span>
+            <h3>Project / workspace persistence</h3>
+            <p>Lane: <code>project-workspace-persistence-hardening</code></p>
+            <p>
+              Restore/save behavior moved heavily after May 19 and still needs
+              cleaner current-state proof.
+            </p>
+            <p>
+              <a
+                href="../../../../../agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md"
+                >Open handoff</a
+              >
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Held Inside Copperknot</h2>
+        <div class="cards">
+          <article class="card">
+            <span class="badge purple">Queue Moved</span>
+            <h3>Characters workflow</h3>
+            <p>
+              No longer the exact next lane by default. The May 19
+              Characters-first order is stale.
+            </p>
+          </article>
+          <article class="card">
+            <span class="badge purple">At Floor, Not Quiet</span>
+            <h3>Security boundaries</h3>
+            <p>
+              Repo guardrails improved, but hosted session cleanup and
+              history-purge follow-through remain open.
+            </p>
+          </article>
+          <article class="card">
+            <span class="badge purple">Keep Closed</span>
+            <h3>Reference Grid</h3>
+            <p>
+              The May 25 production baseline does not support reopening this as
+              an active blocker lane.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Do Not Do Yet</h2>
+        <ul>
+          <li>
+            Do not paste the May 19 <code>Characters workflow</code> handoff
+            first.
+          </li>
+          <li>Do not reopen <code>Reference Grid</code>.</li>
+          <li>Do not claim the security lane is fully settled yet.</li>
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h2>Notes</h2>
+        <ul>
+          <li>
+            <a href="./2026-05-27-production-baseline-reset-audit.md"
+              >Open the May 27 baseline reset</a
+            >
+          </li>
+          <li>
+            <a href="./2026-05-27-launch-ready-checklist.md"
+              >Open the launch-ready checklist</a
+            >
+          </li>
+          <li>
+            <a
+              href="../../../../../agents/copperknot/prioritized-handoff-queue-2026-07-02.md"
+              >Open the live queue</a
+            >
+          </li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

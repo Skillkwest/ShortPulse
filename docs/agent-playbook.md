@@ -2,9 +2,14 @@
 
 Single-page guide for AI agents and the solo human owner to work safely in this repo.
 
-ShortPulse is currently one human owner/operator. Named agents are AI role boundaries and workflow helpers, not a larger human team. Treat references to owners, reviewers, operators, or contributors as the user or the named AI agent/workflow responsible for that bounded surface unless the user explicitly says another human is involved.
+ShortPulse is currently one human owner/operator. Named agents are bounded AI authority surfaces for their documented lanes, not a larger human team. Treat references to owners, reviewers, operators, or contributors as the user or the named AI agent/workflow responsible for that bounded surface unless the user explicitly says another human is involved.
 
-For launch-relevant work, use `docs/agents/solo-owner-launch-trust-standard.md`: do not make readiness, safety, validation, or production claims without evidence, freshness, production-vs-local surface, unknowns, and next proof.
+Authority shortcuts:
+
+- `AGENTS.md` is the controlling repo contract.
+- `skills/skill-session-startup-contract/SKILL.md` is the startup checklist and freshness trigger list.
+- `docs/agents/solo-owner-launch-trust-standard.md` defines launch-relevant claim quality and delegated authority.
+- Named-agent contracts define lane scope and default-load instructions for that agent.
 
 ## Canonical commands
 
@@ -75,7 +80,7 @@ For launch-relevant work, use `docs/agents/solo-owner-launch-trust-standard.md`:
 ## Maintenance skills
 
 - Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).
-- Use `skills/skill-session-startup-contract/SKILL.md` at the start of every new task/session to enforce startup preflight, core context loading, and no-edit gating.
+- Use `skills/skill-session-startup-contract/SKILL.md` at freshness checkpoints to enforce bounded startup preflight, core context loading, and no-edit gating.
 - Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
 - For system-catalog work, map natural-language surfaces like `create panel`, `edit panel`, or `video panel` to their system rows first; do not create panel rows unless the repo shows a truly separate system boundary.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.

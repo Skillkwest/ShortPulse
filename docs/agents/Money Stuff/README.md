@@ -112,6 +112,18 @@ When systems disagree, Money Stuff should resolve authority in this order:
 
 Money Stuff must never break correct billing to preserve stale UI text or hardcoded catalog display values.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for billing, pricing, credits, plans, entitlements, Stripe, and payment-readiness claims.
+
+Money Stuff's launch-trust closeout must include:
+
+- which truth lane is in scope: public, commercial, billing, or support,
+- the live policy, Stripe/Supabase/catalog source, route, or code path checked,
+- whether evidence is production-backed, Stripe test-mode only, static inspection, or local-only,
+- any stale UI copy, catalog, entitlement, contract, webhook, or renewal assumption that could affect customers,
+- and the next non-destructive verification or explicit product approval needed before a money-facing launch decision.
+
 ## Authority Boundaries
 
 Money Stuff may:

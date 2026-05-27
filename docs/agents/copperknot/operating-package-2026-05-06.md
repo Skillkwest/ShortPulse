@@ -23,7 +23,7 @@ The catalog is a decision tool. It is not the mission.
 - Handoff template: `docs/agents/copperknot/handoff-template.md`
 - Detailed handoffs: `docs/agents/copperknot/handoffs/README.md`
 - Dispatch log: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-- Latest repo-wide baseline refresh: `docs/records/artifacts/agent/copperknot/reports/2026-05-19-production-baseline-refresh.md`
+- Latest repo-wide baseline refresh: `docs/records/artifacts/agent/copperknot/reports/2026-05-27-production-baseline-reset-audit.md`
 - External lane closeouts: `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 
 ## Authority Rule
@@ -63,21 +63,25 @@ The May 16 Reference Grid blocker was cleared and is now historical in `docs/kno
 
 ## Current Lane Snapshot
 
-As of `2026-05-19`:
+As of `2026-05-27`:
 
-- `Generation recovery / settlement` is still treated as execution-complete and reviewed, but its score remains unchanged pending a broader generation-runtime rerate.
-- the 2026-05-16 consolidated rerating pass still stands:
-  - `Billing / credits`, `Security boundaries`, and `Generation submission / polling` are at ship floor
-  - `Edit workflow` is at `6/10` after the bounded hardening passes, but still below floor
-  - `Reference Grid` is at ship floor and no longer the active blocker
-- the May 19 baseline refresh found real repo movement in:
-  - `Create workflow`
-  - `Project / workspace persistence`
-  - `Video workflow`
-  - `Sound workflow`
-  - `Media delivery / signing / preview resolution`
-- the May 19 focused validation pass passed docs checks, passed the platform/media/API test bundle, and the rerun focused Create + persistence suite passed cleanly too
-- `Create workflow` stayed at `6/10`, but confidence moved up after the current worktree attachment hardening validated cleanly
-- because the narrow Create seam is no longer open, the exact next lanes are now:
-  - `characters-workflow-hardening`
-  - `elements-workflow-hardening`
+- the May 19 baseline refresh is now historical, not current launch-control truth
+- the repo moved heavily after May 19 across:
+  - AI Studio shell/runtime
+  - panel/runtime polish
+  - workspace restore behavior
+  - media delete, motion intake, and detail authority
+  - character-mode recovery and right-rail behavior
+- the active worktree now also contains:
+  - live motion/video recorder UI work
+  - shared record-panel prefab work
+  - SQL/security grant-hardening work
+- the current validation posture is mixed:
+  - `node scripts/check_secret_exposure.js` passed
+  - `npm -C frontend run build` passed
+  - the focused failing Vitest rerun is red at `8 failed / 26 total tests`
+- the live queue changed because the branch/worktree is not in a trustworthy `paste old workflow handoff first` state
+- `Create workflow` is now the exact next launch-control lane
+- `Elements workflow` remains the next best external workflow lane because the approved media-panel runtime is still fragile on production
+- `Reference Grid` should stay closed as a blocker lane on current evidence
+- `Security boundaries` stays at floor, but hosted session cleanup plus history-purge follow-through remains open outside the code path

@@ -16,7 +16,7 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
 
 ## Launch-Readiness Mode
 
-Use this mode during a defined launch window such as the current `2026-07-07` target.
+Use this mode during a defined launch window such as the current Copperknot launch decision window ending `2026-07-02`.
 
 ### Priority Rule
 

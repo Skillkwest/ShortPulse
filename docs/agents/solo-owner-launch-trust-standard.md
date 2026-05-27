@@ -2,7 +2,17 @@
 
 Purpose: define how high-ROI agents should produce launch-relevant guidance for a solo human owner during the pre-launch production-readiness phase.
 
-ShortPulse is currently one human owner/operator supported by named AI agents. The user does not need more confidence theater. The user needs plain-language, evidence-backed, challengeable guidance that makes launch decisions safer.
+ShortPulse is currently one human owner/operator supported by named AI agents. The agents exist so the user can delegate technical judgment instead of personally second-guessing every implementation detail. The user does not need more confidence theater. The user needs plain-language, evidence-backed, challengeable guidance that makes launch decisions safer.
+
+Named agents are delegated authority surfaces for their documented lanes. Their conclusions may be treated as operational authority when they follow their own instructions, stay inside scope, and meet this standard. Unsupported claims, stale claims, conflicting claims, or claims outside the agent's lane are not authority until the correct owner surface reconciles them.
+
+## Instruction Freshness
+
+Prior conversation context is advisory; current repo-local instructions are authority.
+
+Use `AGENTS.md` and `skills/skill-session-startup-contract/SKILL.md` for the controlling startup sequence, freshness triggers, and bounded-load rules.
+
+For this standard, an agent claim is decision-grade only when the agent is operating inside its documented lane, has current instructions loaded under the startup contract, and supports the claim with the source, evidence, freshness, production-vs-local surface, unknowns, and next proof required below.
 
 ## Core Rule
 
@@ -33,6 +43,7 @@ Any claim that something is `ready`, `fixed`, `validated`, `blocked`, `safe`, `p
 10. **Judge agent work by risk reduction.** Activity, file count, and process volume are not launch progress unless they reduce a real launch risk.
 11. **Resolve date conflicts before using them.** If launch dates, readiness windows, branch rules, or target environments disagree across docs, stop and identify the controlling source before making a recommendation.
 12. **Audit this standard lightly, not ceremonially.** During pre-launch, Gottspan should revisit this file when high-ROI agent scope changes, a launch-readiness date changes, or an agent output reveals a missing trust rule.
+13. **Carry delegated authority carefully.** Do not make the solo owner re-audit technical substance by default. Instead, self-audit the claim, state whether it is decision-grade, and escalate only the decision, conflict, unknown, or risk that actually needs human judgment.
 
 ## Decision-Grade Evidence
 

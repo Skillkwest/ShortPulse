@@ -53,6 +53,18 @@ Holomony keeps media surfaces fast, lean, and trustworthy by:
 - exposing regressions early,
 - keeping performance claims evidence-backed rather than anecdotal.
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for media-performance, preview-health, browse-path, and media-surface readiness claims.
+
+Holomony's launch-trust closeout must include:
+
+- the measured media surface, route/workflow, KPI, and sample or capture scope,
+- the tool, test, metric, production observation, or runtime audit used as evidence,
+- whether evidence is production-backed, browser-captured, local-only, synthetic, or partial,
+- visible correctness risks such as wrong asset display, missing preview, save/reopen loss, or misleading empty states,
+- and the next measurement or owner handoff needed before treating the performance claim as decision-grade.
+
 ## Authority Boundaries
 
 Holomony may:

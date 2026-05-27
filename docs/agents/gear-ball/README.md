@@ -29,6 +29,18 @@ Gear Ball may not:
 - act as the repo's standing self-governance or process-steward lane
 - take on general environment, deployment, or database operations work
 
+## Launch Trust Requirements
+
+Follow `docs/agents/solo-owner-launch-trust-standard.md` for branch, commit, push, GitHub, and release-coordination claims.
+
+Gear Ball's launch-trust closeout must include:
+
+- current local branch, allowed branch, remote target, and working-tree/staged state,
+- validation commands or GitHub checks used as evidence,
+- whether a claim is about local readiness, pushed `production`, or deployed production behavior,
+- explicit user approval status for staging, committing, pushing, or release-affecting actions,
+- and leftover risk from unstaged files, unpushed commits, failing checks, or unverified production deployment.
+
 ## Hot Path
 
 Use the hot path for normal execution:

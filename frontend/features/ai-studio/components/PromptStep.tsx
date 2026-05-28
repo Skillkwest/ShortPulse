@@ -72,6 +72,7 @@ export function PromptStep({
   composerLeadingContent = null,
   chatComposerOverlayEnabled = false,
   stackTrailingComposerControls = false,
+  hideChatComposerHint = false,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
   onAgentInputVisualRowCountChange,
@@ -381,6 +382,7 @@ export function PromptStep({
                 composerLeadingContent={composerLeadingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}
                 stackTrailingComposerControls={stackTrailingComposerControls}
+                hideChatComposerHint={hideChatComposerHint}
                 showComposerAttachments={showComposerAttachments}
                 agentInputRef={agentInputRef}
                 agentInput={effectiveComposerInput}

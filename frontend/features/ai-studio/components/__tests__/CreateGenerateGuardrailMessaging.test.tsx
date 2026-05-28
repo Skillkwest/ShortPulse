@@ -83,6 +83,7 @@ describe("Create generate guardrail messaging", () => {
         aspect="9:16"
         aspectOptionsForModel={[]}
         onAspectChange={vi.fn()}
+        showCreateControlSet
         shouldShowImageResolutionCard={false}
         imageResolutionValue="default"
         imageResolutionOptions={[]}
@@ -118,6 +119,7 @@ describe("Create generate guardrail messaging", () => {
         aspect="9:16"
         aspectOptionsForModel={[]}
         onAspectChange={vi.fn()}
+        showCreateControlSet
         shouldShowImageResolutionCard={false}
         imageResolutionValue="default"
         imageResolutionOptions={[]}
@@ -126,6 +128,72 @@ describe("Create generate guardrail messaging", () => {
 
     expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
+  });
+
+  it("shows the Standard blank empty-state shell when no visible history exists", () => {
+    render(
+      <StandardCreatePanelView
+        promptStepProps={{} as PromptStepProps}
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No Characters"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        showCreateControlSet
+        shouldShowImageResolutionCard={false}
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+      />
+    );
+
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
+  });
+
+  it("hides the Standard create control row when chat mode-only UI is requested", () => {
+    render(
+      <StandardCreatePanelView
+        promptStepProps={{} as PromptStepProps}
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No Characters"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        showCreateControlSet={false}
+        shouldShowImageResolutionCard
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+      />
+    );
+
+    expect(screen.queryByText("Character")).toBeNull();
+    expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("Aspect")).toBeNull();
+    expect(screen.queryByText("Resolution")).toBeNull();
   });
 
   it("does not show the removed active Pulse status UI in Pulse mode", () => {
@@ -140,6 +208,20 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Pulse activation hint")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+  });
+
+  it("shows the Pulse blank empty-state shell when no visible history exists", () => {
+    render(
+      <PulseCreatePanelView
+        promptStepProps={{} as unknown as PromptStepProps}
+        isPromptGenerating={false}
+        activePulsePresetId="story_builder"
+        pulsePreferenceRuntime={pulsePreferenceRuntime}
+      />
+    );
+
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
   it("shows an obvious centered startup state while a Pulse is loading its first response", () => {
@@ -191,7 +273,7 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.getByRole("button", { name: "Deactivate pulse" })).toBeInTheDocument();
   });
 
-  it("collapses the Pulse empty-state shell once the composer has a draft", () => {
+  it("keeps the Pulse empty-state shell visible while the composer only has a draft", () => {
     render(
       <PulseCreatePanelView
         promptStepProps={
@@ -205,7 +287,8 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
   it("locks deactivate while a Pulse artifact is generating", () => {

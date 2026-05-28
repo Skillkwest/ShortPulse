@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PulseCreatePropertiesPanel } from "../PulseCreatePropertiesPanel";
 
@@ -30,7 +30,6 @@ vi.mock("../PulseCreatePanelView", () => ({
 const baseProps: React.ComponentProps<typeof PulseCreatePropertiesPanel> = {
   pulsePrompt: "",
   onPulsePromptChange: vi.fn(),
-  onGeneratePulseArtifact: vi.fn(),
   agentEnabled: true,
   activePulsePresetId: "pulse_custom",
   activePulsePresetLabel: "Custom Pulse",
@@ -140,39 +139,10 @@ describe("PulseCreatePropertiesPanel", () => {
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 
-  it("mounts Pulse generate in composer-leading content without button busy semantics", () => {
-    render(
-      <PulseCreatePropertiesPanel
-        {...baseProps}
-        costCredits={4}
-        isPromptGenerating
-        isGenerateDisabled
-        guardrailReason="Complete the active Pulse before generating."
-      />
-    );
+  it("does not inject footer generate chrome into the Pulse composer", () => {
+    render(<PulseCreatePropertiesPanel {...baseProps} isPromptGenerating />);
 
-    expect(
-      within(screen.getByTestId("pulse-leading-content")).getByRole("button", {
-        name: "Generate",
-      })
-    ).not.toHaveAttribute("aria-busy");
-    expect(
-      within(screen.getByTestId("pulse-middle-content")).getByText(
-        "Complete the active Pulse before generating."
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("does not render passive startup guardrail copy before the user triggers generation", () => {
-    render(
-      <PulseCreatePropertiesPanel
-        {...baseProps}
-        costCredits={4}
-        isGenerateDisabled
-        guardrailReason={null}
-      />
-    );
-
+    expect(screen.getByTestId("pulse-leading-content")).toBeEmptyDOMElement();
     expect(screen.getByTestId("pulse-middle-content")).toBeEmptyDOMElement();
   });
 

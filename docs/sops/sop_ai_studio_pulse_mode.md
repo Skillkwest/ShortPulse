@@ -185,7 +185,8 @@ Retired Pulse metadata such as `prompt_editor`, `activate_only`, and
 ### Built-in artifact routing
 
 Built-in guided workflows may declare explicit artifact targets so their final
-outputs route into the correct generation/export path.
+outputs remain typed correctly in workflow/session state, even though Pulse mode
+itself does not expose a direct generate/export action from the composer.
 
 ## Built-in guided workflows
 
@@ -225,7 +226,7 @@ but it must preserve these observable states and transitions.
 | `inactive`              | Pulse mode is open with no active Pulse.                                                             | Start Pulse, switch to Standard.                                                                                               |
 | `starting`              | A Pulse was selected and kickoff is in flight with no prior active Pulse fallback.                   | `active.awaiting_input`, `active.completed`, `failed_retryable`, `inactive`.                                                   |
 | `active.awaiting_input` | The active Pulse has started and is collecting input or continuing its custom conversation/workflow. | Continue turn, complete, restart, switch Pulse, deactivate, switch to Standard.                                                |
-| `active.completed`      | The active Pulse has emitted a final reusable output or guided-workflow artifact.                    | Generate/export when supported, restart, switch Pulse, deactivate, switch to Standard.                                         |
+| `active.completed`      | The active Pulse has emitted a final reusable output or guided-workflow artifact.                    | Continue chatting, drag/use the artifact text elsewhere, restart, switch Pulse, deactivate, switch to Standard.                |
 | `switching`             | A replacement Pulse kickoff is in flight while a previous active Pulse remains the fallback state.   | New `active.awaiting_input` or `active.completed` on success; previous active state plus `failed_retryable` status on failure. |
 | `failed_retryable`      | Startup, switch, or turn failed without destroying the last valid Pulse state.                       | Retry, dismiss status, restart, switch Pulse, deactivate.                                                                      |
 | `deactivated`           | User explicitly cleared active Pulse runtime while staying in Pulse mode.                            | `inactive`, start Pulse.                                                                                                       |

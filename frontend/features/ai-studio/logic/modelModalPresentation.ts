@@ -116,7 +116,7 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Kie Veo 3.1 Fast handles text-to-video, single-image animation, and first/last-frame transitions at 720p or 1080p.",
+      "Veo 3.1 Fast handles text-to-video, single-image animation, and first/last-frame transitions at 720p or 1080p.",
     tags: [
       "Video",
       "Text-to-Video",
@@ -130,13 +130,13 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   [KIE_KLING_30_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Kie Kling 3.0 supports standard image-to-video and dedicated motion-control transfers.",
+      "Kling 3.0 supports standard image-to-video and dedicated motion-control transfers.",
     tags: ["Video", "Image-to-Video", "Motion Control", "720p/1080p", "Audio"],
   },
   [KIE_SEEDANCE_2_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Kie Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
+      "Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
     tags: [
       "Video",
       "Text-to-Video",
@@ -151,7 +151,7 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Kie Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
+      "Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
     tags: [
       "Video",
       "Text-to-Video",

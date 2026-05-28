@@ -1305,7 +1305,7 @@ export function VideoPropertiesPanel({
                           <AiStudioRecordPanelPrefab
                             panelAriaLabel="Record optional motion source"
                             title="Need a clip?"
-                            helper="If you do not already have a motion video, record one here."
+                            helper="If you do not already have a motion video, you can record one here."
                             buttonIdleAriaLabel={
                               motionVideoUrl
                                 ? "Open motion recorder to replace the current uploaded clip"

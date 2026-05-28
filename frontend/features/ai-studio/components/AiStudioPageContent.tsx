@@ -11,8 +11,9 @@ import {
 } from "../../../lib/explicitContentFailure";
 import {
   normalizeCustomerFacingProviderError,
-  sanitizeCustomerFacingProviderText,
+  resolveCustomerFacingModelLabel,
 } from "../../../lib/customerFacingProviderText";
+import { resolveModelLabelById } from "../../../lib/model-runtime/modelCatalog";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
@@ -398,7 +399,12 @@ export const groupVisibleFailuresForAlertStack = (
 ): GroupedFailureCard[] => {
   const grouped = new Map<string, GroupedFailureCard>();
   visibleFailures.forEach((item) => {
-    const modelLabel = sanitizeCustomerFacingProviderText(item.model || item.modelId, "Generation");
+    const modelLabel = resolveCustomerFacingModelLabel({
+      model: item.model,
+      modelId: item.modelId,
+      resolveModelLabel: resolveModelLabelById,
+      fallback: "Generation",
+    });
     const isExplicitContentFailure =
       isExplicitContentFailureMessage(item.errorDetail) ||
       isExplicitContentFailureMessage(item.errorMessage) ||
@@ -442,10 +448,12 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const suppressUiErrorForFailureStack =
     normalizedUiError.length > 0 &&
     visibleFailures.some((item) => {
-      const modelLabel = sanitizeCustomerFacingProviderText(
-        item.model || item.modelId,
-        "Generation"
-      );
+      const modelLabel = resolveCustomerFacingModelLabel({
+        model: item.model,
+        modelId: item.modelId,
+        resolveModelLabel: resolveModelLabelById,
+        fallback: "Generation",
+      });
       const detail = normalizeCustomerFacingProviderError(
         item.errorDetail ?? item.errorMessage ?? "",
         ""

@@ -10,7 +10,6 @@ import type {
 } from "../../components/create/createPulsePresets";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
-import { shouldShowPassivePulseGenerationGuardrail } from "./usePulseCreatePrimarySubmit";
 
 type UsePulseCreatePanelPropsParams = {
   pulsePrompt: string;
@@ -38,28 +37,9 @@ type UsePulseCreatePanelPropsParams = {
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handlePulsePromptChange: (value: string) => void;
   createIsGenerating: boolean;
-  currentCostCredits: number | null;
-  isGenerateDisabled: boolean;
-  generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
-  handlePulseCreatePrimarySubmit: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
-};
-
-const resolveImageAttachmentGuardrail = (attachments: AgentAttachment[]): string | null => {
-  const imageAttachments = attachments.filter((attachment) => attachment.kind === "image");
-  if (
-    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "failed")
-  ) {
-    return "Resolve failed image attachments before generating.";
-  }
-  if (
-    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "preparing")
-  ) {
-    return "Wait for attached images to finish preparing.";
-  }
-  return null;
 };
 
 /**
@@ -92,20 +72,10 @@ export const buildPulseCreatePanelProps = ({
   handleAssistantMessageEdit,
   handlePulsePromptChange,
   createIsGenerating,
-  currentCostCredits,
-  isGenerateDisabled,
-  generationGuardrail,
   handleClearAgentChat,
   handlePulsePresetRestart,
-  handlePulseCreatePrimarySubmit,
   pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
-  const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
-  const visibleGuardrailReason = imageAttachmentGuardrail
-    ? imageAttachmentGuardrail
-    : shouldShowPassivePulseGenerationGuardrail(generationGuardrail)
-      ? generationGuardrail
-      : null;
   return {
     pulsePrompt,
     activePulsePresetKind,
@@ -131,12 +101,8 @@ export const buildPulseCreatePanelProps = ({
     onAssistantMessageEdit: handleAssistantMessageEdit,
     onPulsePromptChange: handlePulsePromptChange,
     isPromptGenerating: createIsGenerating,
-    costCredits: currentCostCredits,
-    isGenerateDisabled: isGenerateDisabled || Boolean(imageAttachmentGuardrail),
-    guardrailReason: visibleGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onPulsePresetRestart: handlePulsePresetRestart,
-    onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
     pulsePreferenceRuntime,
   };
 };

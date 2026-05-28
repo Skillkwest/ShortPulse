@@ -31,19 +31,25 @@ vi.mock("../StandardCreatePanelView", () => ({
     createModeToggle,
     promptStepProps,
     onCreateModelOpen,
+    showCreateControlSet,
   }: {
     createModeToggle?: React.ReactNode;
     promptStepProps: {
       title?: string;
       hideChatModeToggle?: boolean;
       composerLeadingContent?: React.ReactNode;
+      onChatModeEnabledChange?: (value: boolean) => void;
     };
     onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    showCreateControlSet: boolean;
   }) => (
     <div data-testid="standard-create-panel-view">
       <span>{promptStepProps.title}</span>
       <span data-testid="chat-toggle-visibility">
         {promptStepProps.hideChatModeToggle ? "hidden" : "visible"}
+      </span>
+      <span data-testid="create-control-set-visibility">
+        {showCreateControlSet ? "visible" : "hidden"}
       </span>
       <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
       <button type="button" onClick={onCreateModelOpen}>
@@ -124,11 +130,72 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
     expect(screen.getByText("Ask anything")).toBeInTheDocument();
     expect(screen.getByTestId("chat-toggle-visibility")).toHaveTextContent("visible");
+    expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("visible");
     expect(
       within(screen.getByTestId("composer-leading-content")).getByRole("button", {
         name: "Generate",
       })
     ).toBeInTheDocument();
+  });
+
+  it("hides the create control set and inline actions while chat mode is enabled", () => {
+    render(<StandardCreatePropertiesPanel {...baseProps} chatModeEnabled />);
+
+    expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("hidden");
+    expect(
+      within(screen.getByTestId("composer-leading-content")).queryByRole("button", {
+        name: "Generate",
+      })
+    ).toBeNull();
+  });
+
+  it("toggles the Standard create control set cleanly across chat mode changes", () => {
+    const onStylesPanelToggle = vi.fn();
+    const onModelPickerClose = vi.fn();
+    createCharacterModeControllerState.isCharacterPickerOpen = true;
+
+    const { rerender } = render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        onStylesPanelToggle={onStylesPanelToggle}
+        onModelPickerClose={onModelPickerClose}
+        isStylesPanelOpen
+        isModelModalOpen
+        modelModalAnchor="create-model"
+      />
+    );
+
+    expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("visible");
+    expect(createCharacterModeControllerState.closeCharacterPicker).not.toHaveBeenCalled();
+    expect(onStylesPanelToggle).not.toHaveBeenCalled();
+    expect(onModelPickerClose).not.toHaveBeenCalled();
+
+    rerender(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        chatModeEnabled
+        onStylesPanelToggle={onStylesPanelToggle}
+        onModelPickerClose={onModelPickerClose}
+        isStylesPanelOpen
+        isModelModalOpen
+        modelModalAnchor="create-model"
+      />
+    );
+
+    expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("hidden");
+    expect(createCharacterModeControllerState.closeCharacterPicker).toHaveBeenCalledTimes(1);
+    expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
+    expect(onModelPickerClose).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        onStylesPanelToggle={onStylesPanelToggle}
+        onModelPickerClose={onModelPickerClose}
+      />
+    );
+
+    expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("visible");
   });
 
   it("uses the inline-response generate prefab without button busy semantics in the composer row", () => {
@@ -185,6 +252,28 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(onModelPickerOpen).toHaveBeenCalledTimes(1);
     expect(onModelPickerOpen.mock.calls[0]?.[0]).toBe("create-model");
     expect(onModelPickerOpen.mock.calls[0]?.[2]).toBe("character-image");
+  });
+
+  it("closes hidden create-only surfaces while chat mode is on", () => {
+    const onStylesPanelToggle = vi.fn();
+    const onModelPickerClose = vi.fn();
+    createCharacterModeControllerState.isCharacterPickerOpen = true;
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        chatModeEnabled
+        onStylesPanelToggle={onStylesPanelToggle}
+        onModelPickerClose={onModelPickerClose}
+        isStylesPanelOpen
+        isModelModalOpen
+        modelModalAnchor="create-model"
+      />
+    );
+
+    expect(createCharacterModeControllerState.closeCharacterPicker).toHaveBeenCalledTimes(1);
+    expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
+    expect(onModelPickerClose).toHaveBeenCalledTimes(1);
   });
 
   it("renders the character picker modal with shared controls and preserves selection behavior", async () => {

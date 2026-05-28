@@ -69,7 +69,6 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioPageGenerationRuntime>[0]> = {}
 ): Parameters<typeof useAiStudioPageGenerationRuntime>[0] => ({
   activeCreatePrompt: "User visible prompt",
-  activeCreatePulsePresetSnapshot: null,
   activeOutput: null,
   activeOutputId: null,
   addCharacterReferences: vi.fn(),
@@ -97,7 +96,6 @@ const createParams = (
   closeModelModal: vi.fn(),
   openModelModal: vi.fn(),
   projectId: null,
-  pulsePrompt: "",
   referenceImageUrl: null,
   refreshBalance: vi.fn(async () => 100),
   refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),

@@ -2,7 +2,7 @@
  * AI Studio page generation runtime.
  * Owns page-scoped generation/view-model orchestration so the page shell stays focused on composition.
  */
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import {
   type CharacterModeFallbackSummary,
@@ -20,10 +20,6 @@ import type {
   AiStudioGenerateOutputOptions,
   AiStudioGenerateSubmissionOverrides,
 } from "./contracts/generationSubmissionContracts";
-import {
-  resolvePulseArtifactCostOverrideCredits,
-  resolvePulseArtifactGenerationRoute,
-} from "./pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type OptimisticDebitEntry = {
@@ -32,14 +28,8 @@ type OptimisticDebitEntry = {
   createdAtMs?: number;
 };
 
-type ActiveCreatePulsePresetSnapshot = {
-  pulseKind?: string | null;
-  artifactTarget?: Parameters<typeof resolvePulseArtifactGenerationRoute>[0];
-} | null;
-
 type UseAiStudioPageGenerationRuntimeParams = {
   activeCreatePrompt: string;
-  activeCreatePulsePresetSnapshot: ActiveCreatePulsePresetSnapshot;
   activeOutput: StudioOutput | null;
   activeOutputId: string | null;
   addCharacterReferences: (files: FileList) => void;
@@ -85,7 +75,6 @@ type UseAiStudioPageGenerationRuntimeParams = {
     context: ModelModalContext | null
   ) => void;
   projectId: string | null;
-  pulsePrompt: string;
   referenceImageUrl: string | null;
   refreshBalance: (options?: {
     silent?: boolean;
@@ -159,7 +148,6 @@ type UseAiStudioPageGenerationRuntimeParams = {
  */
 export const useAiStudioPageGenerationRuntime = ({
   activeCreatePrompt,
-  activeCreatePulsePresetSnapshot,
   activeOutput,
   activeOutputId,
   addCharacterReferences,
@@ -194,7 +182,6 @@ export const useAiStudioPageGenerationRuntime = ({
   closeModelModal,
   openModelModal,
   projectId,
-  pulsePrompt,
   referenceImageUrl,
   refreshBalance,
   refreshCharacterModeInjectionBundleForSubmission,
@@ -308,62 +295,6 @@ export const useAiStudioPageGenerationRuntime = ({
     pricingPolicyError: modelPricingPolicyError,
   });
 
-  const isGuidedWorkflowPulse = activeCreatePulsePresetSnapshot?.pulseKind === "guided_workflow";
-  const pulseArtifactTarget = isGuidedWorkflowPulse
-    ? (activeCreatePulsePresetSnapshot?.artifactTarget ?? null)
-    : null;
-  const pulseArtifactGenerationRoute = useMemo(
-    () => resolvePulseArtifactGenerationRoute(pulseArtifactTarget),
-    [pulseArtifactTarget]
-  );
-
-  const {
-    currentCostCredits: pulseCurrentCostCredits,
-    promptReferenceGenerateCostCredits: pulsePromptReferenceGenerateCostCredits,
-    generationGuardrail: pulseGenerationGuardrail,
-  } = useAiStudioViewModel({
-    mode: pulseArtifactGenerationRoute?.modeOverride ?? mode,
-    model,
-    aspect,
-    prompt: pulsePrompt,
-    referenceImageUrl,
-    activeOutput,
-    selectedTool: pulseArtifactGenerationRoute?.toolOverride ?? selectedTool,
-    useReferenceImageIndicator,
-    getDefaultDurationSeconds,
-    videoDurationSeconds,
-    videoResolution,
-    videoReferenceMode,
-    motionReferenceVideoUrl,
-    extraImageUrls,
-    imageResolution,
-    videoGenerateAudio,
-    klingWorkflowMode,
-    klingMultiPrompts,
-    klingElements,
-    seedance2InputMode,
-    seedance2ReferenceImageUrls,
-    seedance2ReferenceVideoUrls,
-    seedance2ReferenceAudioUrls,
-    balanceCredits,
-    editSubmitIntent,
-    costParamsForModel,
-    pricingPolicy: modelPricingPolicy,
-    pricingPolicyReady: modelPricingPolicyReady,
-    pricingPolicyLoading: modelPricingPolicyLoading,
-    pricingPolicyError: modelPricingPolicyError,
-  });
-
-  const pulseGenerateCostCredits = isGuidedWorkflowPulse
-    ? pulseArtifactGenerationRoute
-      ? resolvePulseArtifactCostOverrideCredits({
-          artifactTarget: pulseArtifactTarget,
-          promptReferenceGenerateCostCredits: pulsePromptReferenceGenerateCostCredits ?? null,
-          currentCostCredits: pulseCurrentCostCredits,
-        })
-      : null
-    : currentCostCredits;
-
   const effectiveGenerationGuardrail = generationGuardrail;
   const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
 
@@ -472,11 +403,6 @@ export const useAiStudioPageGenerationRuntime = ({
     isTemplateView,
     musicIsGenerating,
     promptReferenceGenerateCostCredits,
-    pulseArtifactTarget,
-    pulseCurrentCostCredits,
-    pulseGenerateCostCredits,
-    pulseGenerationGuardrail,
-    pulsePromptReferenceGenerateCostCredits,
     referenceImageWarning,
     resolveModelPickerCredits,
     soundEffectsIsGenerating,

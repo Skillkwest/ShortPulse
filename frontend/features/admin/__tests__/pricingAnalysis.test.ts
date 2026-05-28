@@ -648,7 +648,7 @@ describe("pricingAnalysis", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
       id: "kie-ai/kling-3.0",
-      label: "Kling 3.0 (Kie)",
+      label: "Kling 3.0",
       provider: "kie",
       sourceUrl: "https://docs.kie.ai/",
       workflowType: "Image to video",
@@ -704,7 +704,7 @@ describe("pricingAnalysis", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
       id: "kie-ai/seedance-2",
-      label: "Seedance 2.0 (Kie)",
+      label: "Seedance 2.0",
       provider: "kie",
       sourceUrl: "https://kie.ai/pricing",
       workflowType: "Text to video",
@@ -765,7 +765,7 @@ describe("pricingAnalysis", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
       id: "kie-ai/seedance-2-fast",
-      label: "Seedance 2.0 Fast (Kie)",
+      label: "Seedance 2.0 Fast",
       provider: "kie",
       sourceUrl: "https://kie.ai/pricing",
       workflowType: "Text to video",
@@ -821,7 +821,7 @@ describe("pricingAnalysis", () => {
   it("recomputes shared-policy credits at cost from provider usd instead of marked runtime raw credits", () => {
     const model = buildModelRow({
       id: "kie-ai/veo-3.1-fast-i2v",
-      label: "Veo 3.1 Fast I2V (Kie)",
+      label: "Veo 3.1 Fast I2V",
       provider: "kie",
       sourceUrl: "https://docs.kie.ai/",
       workflowType: "Text to video",
@@ -883,7 +883,7 @@ describe("pricingAnalysis", () => {
   it("applies variant provider cost per-second overrides linearly through duration", () => {
     const model = buildModelRow({
       id: "kie-ai/kling-3.0",
-      label: "Kling 3.0 (Kie)",
+      label: "Kling 3.0",
       provider: "kie",
       sourceUrl: "https://docs.kie.ai/",
       workflowType: "Image to video",

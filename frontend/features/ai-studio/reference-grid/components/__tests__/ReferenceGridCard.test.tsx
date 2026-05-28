@@ -234,6 +234,7 @@ describe("ReferenceGridCard", () => {
     );
 
     expect(container.querySelector(".reference-loading")).not.toBeNull();
+    expect(container.querySelector(".reference-loading--spinner")).not.toBeNull();
     expect(container.querySelector(".reference-spinner")).not.toBeNull();
   });
 
@@ -305,6 +306,35 @@ describe("ReferenceGridCard", () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+  });
+
+  it("shows a controlled unavailable placeholder when an image preview fails", () => {
+    const markLoaded = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/broken.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/broken.png",
+          imageSrc: "https://example.com/broken.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const image = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+
+    fireEvent.error(image as HTMLImageElement);
+
+    expect(screen.getByText("Preview unavailable")).toBeInTheDocument();
+    expect(container.querySelector(".reference-card-image")).toBeNull();
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 

@@ -34,6 +34,7 @@ describe("buildStandardCreatePanelProps", () => {
     modelModalAnchor: null,
     setAspect: vi.fn(),
     handleOpenModelModal: vi.fn(),
+    handleCloseModelModal: vi.fn(),
     handleManualPromptChange: vi.fn(),
     createIsGenerating: false,
     isPromptRefining: false,

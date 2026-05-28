@@ -54,7 +54,7 @@ const createImageOptions: ModelOption[] = [
   },
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V (Kie)",
+    label: "Veo 3.1 Fast I2V",
     mediaType: "image-to-video",
   },
 ];
@@ -62,22 +62,22 @@ const createImageOptions: ModelOption[] = [
 const videoReferenceOptions: ModelOption[] = [
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V (Kie)",
+    label: "Veo 3.1 Fast I2V",
     mediaType: "image-to-video",
   },
   {
     value: KIE_KLING_30_MODEL_ID,
-    label: "Kling 3.0 (Kie)",
+    label: "Kling 3.0",
     mediaType: "image-to-video",
   },
   {
     value: KIE_SEEDANCE_2_MODEL_ID,
-    label: "Seedance 2.0 (Kie)",
+    label: "Seedance 2.0",
     mediaType: "image-to-video",
   },
   {
     value: KIE_SEEDANCE_2_FAST_MODEL_ID,
-    label: "Seedance 2.0 Fast (Kie)",
+    label: "Seedance 2.0 Fast",
     mediaType: "image-to-video",
   },
 ];

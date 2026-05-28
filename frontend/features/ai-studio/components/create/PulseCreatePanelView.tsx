@@ -8,6 +8,7 @@ import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
 } from "./CreatePulsePreferenceProvider";
+import { resolveCreateComposerNoHistoryShell } from "./createComposerEmptyState";
 import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 import type {
   CreatePulsePresetId,
@@ -65,15 +66,11 @@ const PulseCreatePanelViewContent = ({
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
-  const hasDraftedComposerInput = (promptStepProps.agentInput?.trim().length ?? 0) > 0;
-  const hasComposerAttachments = (promptStepProps.stagedAttachments?.length ?? 0) > 0;
   const pulseLoadingState = promptStepProps.pulseLoadingState ?? null;
   const hasPulseLoadingSurface = pulseLoadingState != null;
-  const isNoHistoryShell =
-    !hasVisibleAgentMessages &&
-    !hasDraftedComposerInput &&
-    !hasComposerAttachments &&
-    agentInputVisualRowCount <= 1;
+  const isNoHistoryShell = resolveCreateComposerNoHistoryShell({
+    hasVisibleAgentMessages,
+  });
   const shouldShowPulseStartupShell =
     isNoHistoryShell && pulseLoadingState?.phase === "starting_pulse";
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;

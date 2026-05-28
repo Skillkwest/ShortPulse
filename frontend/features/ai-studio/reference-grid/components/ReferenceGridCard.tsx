@@ -189,6 +189,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const [hasPosterImageError, setHasPosterImageError] = React.useState(false);
+  const [hasMediaRenderError, setHasMediaRenderError] = React.useState(false);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const saveDisabled =
@@ -214,7 +215,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
   const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;
   const canDragReference =
-    Boolean(item.previewText) || (!!cardPreviewUrl && canDragReferenceOutput(item));
+    Boolean(item.previewText) ||
+    (!hasMediaRenderError && !!cardPreviewUrl && canDragReferenceOutput(item));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
   const resolvedVideoPosterUrl = videoPosterUrl?.trim() || null;
   const resolvedHoverVideoUrl =
@@ -227,13 +229,15 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     (!hasVideoPosterPreview || hasPosterImageError)
   );
   const shouldRenderVideoElement = Boolean(
-    (isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview
+    !hasMediaRenderError &&
+    ((isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview)
   );
   const shouldRenderImageElement = Boolean(
-    (isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError)
+    !hasMediaRenderError &&
+    ((isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError))
   );
   const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
-  const shouldRenderAudioElement = Boolean(audioPreviewUrl);
+  const shouldRenderAudioElement = Boolean(!hasMediaRenderError && audioPreviewUrl);
   const audioSourceMode = resolveOutputAudioSourceMode(item);
   const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
   const primaryImageDataSrc = hasVideoPosterPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
@@ -257,10 +261,21 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ].join(" | "),
     [composerImageArtifact?.displayArtifactUrl, dragImageSrc, primaryImageDataSrc, primaryImageSrc]
   );
+  const effectiveIsLoading = isLoading && !hasMediaRenderError;
+  const shouldShowLoadingOverlay = loadingVisual !== "none" && !hasMediaRenderError;
 
   React.useEffect(() => {
     setHasPosterImageError(false);
-  }, [item.id, resolvedVideoPosterUrl]);
+    setHasMediaRenderError(false);
+  }, [
+    audioPreviewUrl,
+    cardPreviewUrl,
+    item.id,
+    primaryImageDataSrc,
+    primaryImageSrc,
+    resolvedHoverVideoUrl,
+    resolvedVideoPosterUrl,
+  ]);
 
   const startHoverPlayback = React.useCallback(() => {
     if (!resolvedHoverVideoUrl) return;
@@ -311,7 +326,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isLoading || loadingVisual !== "hydrating") return;
+    if (!effectiveIsLoading || loadingVisual !== "hydrating") return;
     const hasRenderableMedia = Boolean(
       primaryImageSrc ?? primaryImageDataSrc ?? resolvedHoverVideoUrl ?? cardPreviewUrl
     );
@@ -324,7 +339,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     return () => window.clearTimeout(timeoutId);
   }, [
     cardPreviewUrl,
-    isLoading,
+    effectiveIsLoading,
     item.id,
     loadingVisual,
     markLoaded,
@@ -335,10 +350,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 
   return (
     <div
-      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasVideoPosterPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasVideoPosterPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasVideoPosterPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasVideoPosterPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${effectiveIsLoading ? "is-loading" : ""} ${hasMediaRenderError ? "is-media-unavailable" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
       role="button"
-      aria-busy={isLoading}
-      data-loading={isLoading ? "true" : "false"}
+      aria-busy={effectiveIsLoading}
+      data-loading={effectiveIsLoading ? "true" : "false"}
       data-reference-authority-tier={authorityTier}
       data-drag-preview-url={cardPreviewUrl ?? undefined}
       data-drag-image-src={dragImageSrc}
@@ -395,6 +410,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onError={() => {
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
+            setHasMediaRenderError(true);
             markLoaded(item.id, { notifyAutoSave: false });
           }}
           onPlay={() => {
@@ -422,9 +438,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
             onLoad={() => markLoaded(item.id)}
             onError={() => {
-              if (hasVideoPosterPreview) {
+              if (hasVideoPosterPreview && resolvedHoverVideoUrl) {
                 setHasPosterImageError(true);
+                return;
               }
+              setHasMediaRenderError(true);
               markLoaded(item.id, { notifyAutoSave: false });
             }}
           />
@@ -454,7 +472,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           pauseLabel="Pause audio preview"
           onActivate={() => onSelectOutput(item.id)}
           onReady={() => markLoaded(item.id)}
-          onError={() => markLoaded(item.id, { notifyAutoSave: false })}
+          onError={() => {
+            setHasMediaRenderError(true);
+            markLoaded(item.id, { notifyAutoSave: false });
+          }}
           eagerWaveformDecode
           onRequestPlay={onRequestAudioPlay}
           onPlaybackStarted={onAudioPlaybackStarted}
@@ -468,6 +489,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           mediaUrl={videoDurationMediaUrl}
           mediaKind="video"
         />
+      ) : null}
+      {hasMediaRenderError && !isFailing ? (
+        <div className="reference-card-media-unavailable" aria-label="Preview unavailable">
+          <span>Preview unavailable</span>
+        </div>
       ) : null}
       {isFailing ? (
         <div className="reference-fail-overlay">
@@ -502,8 +528,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           ) : null}
         </div>
       ) : null}
-      {loadingVisual !== "none" ? (
-        <div className="reference-loading">
+      {shouldShowLoadingOverlay ? (
+        <div className={`reference-loading reference-loading--${loadingVisual}`}>
           {onClearGenerationOutput ? (
             <button
               type="button"
@@ -524,7 +550,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           <div className="reference-spinner" />
         </div>
       ) : null}
-      {isLoading && canRetryStatus && isSelected ? (
+      {effectiveIsLoading && canRetryStatus && isSelected ? (
         <button
           type="button"
           className="reference-status-retry-btn reference-status-retry-btn--loading"

@@ -9,7 +9,6 @@ import type {
   AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
-import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
 import { PulsePromptStep } from "../PulsePromptStep";
 import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
@@ -41,10 +40,7 @@ export type PulseCreatePropertiesPanelProps = {
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   onPulsePromptChange: (value: string) => void;
-  costCredits?: number | null;
   isPromptGenerating?: boolean;
-  isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -54,7 +50,6 @@ export type PulseCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGeneratePulseArtifact: () => void;
   onClearAgentChat?: () => void;
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
@@ -82,7 +77,6 @@ export type PulseCreatePropertiesPanelProps = {
 export function PulseCreatePropertiesPanel({
   pulsePrompt,
   onPulsePromptChange,
-  costCredits = null,
   agentEnabled = false,
   agentBootstrapPending = false,
   agentMessages = [],
@@ -104,7 +98,6 @@ export function PulseCreatePropertiesPanel({
   onClearAgentAttachments,
   onAssistantMessageEdit,
   isPromptGenerating = false,
-  isGenerateDisabled = false,
   onClearAgentChat,
   createModeToggle = null,
   activePulsePresetId,
@@ -116,8 +109,6 @@ export function PulseCreatePropertiesPanel({
   onPulsePresetRestart,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
-  onGeneratePulseArtifact,
-  guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
@@ -157,22 +148,6 @@ export function PulseCreatePropertiesPanel({
     agentUiBusy,
     pulseWorkflowSession?.status,
   ]);
-  const pulseGenerateControl = (
-    <div className="create-composer-inline-leading-controls">
-      <div className="create-composer-inline-generate">
-        <AgentResponseInlineGenerateButton
-          onClick={onGeneratePulseArtifact}
-          costCredits={costCredits}
-          disabled={isGenerateDisabled}
-        />
-      </div>
-    </div>
-  );
-  const pulseGenerateGuardrail =
-    isGenerateDisabled && guardrailReason ? (
-      <div className="inline-warning-hint">{guardrailReason}</div>
-    ) : null;
-
   const promptStepProps: React.ComponentProps<typeof PulsePromptStep> = {
     prompt: pulsePrompt,
     onPromptChange: onPulsePromptChange,
@@ -214,8 +189,6 @@ export function PulseCreatePropertiesPanel({
     highlightLatestAssistantOnly: true,
     CreateChatPanel: PulseCreateChatPanel,
     useFlowComposerLayout: true,
-    composerMiddleContent: pulseGenerateGuardrail,
-    composerLeadingContent: pulseGenerateControl,
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,

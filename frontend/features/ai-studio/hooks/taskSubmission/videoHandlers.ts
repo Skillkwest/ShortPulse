@@ -125,7 +125,7 @@ const uploadUrlToKieTemporaryFile = async ({
       const error =
         typeof payload.error === "string" && payload.error.trim().length
           ? payload.error
-          : "Kie temporary upload failed";
+          : "Temporary upload failed";
       const details =
         typeof payload.details === "string" && payload.details.trim().length
           ? payload.details
@@ -135,7 +135,7 @@ const uploadUrlToKieTemporaryFile = async ({
 
     const uploadedUrl = payload.url?.trim();
     if (!uploadedUrl) {
-      throw new Error("Kie temporary upload failed: missing uploaded URL.");
+      throw new Error("Temporary upload failed: missing uploaded URL.");
     }
     return uploadedUrl;
   })();
@@ -184,7 +184,7 @@ const uploadBlobToKieTemporaryFile = async ({
       const error =
         typeof payload.error === "string" && payload.error.trim().length
           ? payload.error
-          : "Kie temporary upload failed";
+          : "Temporary upload failed";
       const details =
         typeof payload.details === "string" && payload.details.trim().length
           ? payload.details
@@ -194,7 +194,7 @@ const uploadBlobToKieTemporaryFile = async ({
 
     const uploadedUrl = payload.url?.trim();
     if (!uploadedUrl) {
-      throw new Error("Kie temporary upload failed: missing uploaded URL.");
+      throw new Error("Temporary upload failed: missing uploaded URL.");
     }
     return uploadedUrl;
   })();
@@ -930,7 +930,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       }
 
       if (!preparedImageInputs.length) {
-        notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
+        notifyGenerationFailure(id, "Kling 3.0 requires at least one reference image.");
         return { handled: true };
       }
       let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;

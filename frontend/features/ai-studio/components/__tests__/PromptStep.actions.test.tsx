@@ -177,6 +177,12 @@ describe("PromptStep agent actions", () => {
     ).toBeInTheDocument();
   });
 
+  it("can suppress the chat composer helper hint for Standard Create chat mode", () => {
+    render(<PromptStep {...baseProps} hideChatComposerHint />);
+
+    expect(screen.queryByText("Enter sends chat. Shift+Enter adds a new line.")).toBeNull();
+  });
+
   it("renders promptable Standard assistant replies as draggable history bubbles", () => {
     render(
       <PromptStep

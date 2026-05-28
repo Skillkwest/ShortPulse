@@ -50,6 +50,7 @@ type UseStandardCreatePanelPropsParams = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
+  handleCloseModelModal: () => void;
   handleManualPromptChange: (value: string) => void;
   createIsGenerating: boolean;
   isPromptRefining: boolean;
@@ -133,6 +134,7 @@ export const buildStandardCreatePanelProps = ({
   modelModalAnchor,
   setAspect,
   handleOpenModelModal,
+  handleCloseModelModal,
   handleManualPromptChange,
   createIsGenerating,
   isPromptRefining,
@@ -206,6 +208,7 @@ export const buildStandardCreatePanelProps = ({
     modelModalAnchor,
     onAspectChange: setAspect,
     onModelPickerOpen: handleOpenModelModal,
+    onModelPickerClose: handleCloseModelModal,
     onPromptChange: handleManualPromptChange,
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,

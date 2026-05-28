@@ -79,6 +79,7 @@ export type PromptStepProps = {
   composerLeadingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;
   stackTrailingComposerControls?: boolean;
+  hideChatComposerHint?: boolean;
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur?: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;

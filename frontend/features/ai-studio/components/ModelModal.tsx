@@ -515,6 +515,12 @@ function ModelModalContent({
     return "—";
   };
 
+  const tooltipProvider = chipTooltip
+    ? (MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.provider ?? null)
+    : null;
+  const shouldShowTooltipProvider =
+    Boolean(tooltipProvider) && !/^kie ai$/i.test(tooltipProvider ?? "");
+
   return (
     <AiStudioModalLayer>
       <div className="model-modal-backdrop" {...backdropDismiss}>
@@ -572,10 +578,8 @@ function ModelModalContent({
               <div className="model-chip-tooltip-header">
                 <div>
                   <p className="model-chip-tooltip-title">{getDisplayLabel(chipTooltip.modelId)}</p>
-                  {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.provider ? (
-                    <p className="model-chip-tooltip-provider">
-                      {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.provider}
-                    </p>
+                  {shouldShowTooltipProvider ? (
+                    <p className="model-chip-tooltip-provider">{tooltipProvider}</p>
                   ) : null}
                 </div>
               </div>

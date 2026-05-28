@@ -70,6 +70,7 @@ type StandardPromptStepChatSurfaceProps = {
   composerLeadingContent: React.ReactNode;
   chatComposerOverlayEnabled: boolean;
   stackTrailingComposerControls: boolean;
+  hideChatComposerHint: boolean;
   showComposerAttachments: boolean;
   agentInputRef: React.RefObject<HTMLTextAreaElement>;
   agentInput: string;
@@ -130,6 +131,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   composerLeadingContent,
   chatComposerOverlayEnabled,
   stackTrailingComposerControls,
+  hideChatComposerHint,
   showComposerAttachments,
   agentInputRef,
   agentInput,
@@ -448,7 +450,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
           {composerRowContent}
         </>
       )}
-      {chatModeEnabled ? (
+      {chatModeEnabled && !hideChatComposerHint ? (
         <p className="tiny helper-text agent-composer-hint">
           {showDragGenerateHint
             ? "Drag agent text into the composer to enable Generate. Enter sends chat. Shift+Enter adds a new line."

@@ -109,6 +109,7 @@ export type StandardCreateRuntimeProps = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
+  onModelPickerClose: () => void;
   onSelectedCharacterChange: (characterId: string, lookId: string) => void;
   onCreateCharacter?: () => void;
   onCharacterModeChange: Dispatch<SetStateAction<boolean>>;
@@ -188,7 +189,6 @@ export type PulseCreateAgentRuntimeActions = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onClearAgentChat: () => void;
   onPresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
-  onGenerateArtifact: () => void;
   onPresetStart: (
     preset: CreatePulseResolvedPreset,
     options?: {
@@ -208,16 +208,12 @@ export type PulseCreateRuntimeProps = {
   activePresetKind: CreatePulsePresetKind | null;
   workflowSession: AgentPulseWorkflowSession | null;
   createIsGenerating: boolean;
-  currentCostCredits: number | null;
-  isGenerateDisabled: boolean;
-  generationGuardrail: string | null;
   onPulsePromptChange: (value: string) => void;
   onActivePresetIdChange: (
     nextPresetId: string | null,
     options?: AiStudioPulsePresetChangeOptions
   ) => string | null | void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
-  generationServices: NeutralCreateGenerationServices;
 };
 
 export type PulseCreateRuntimeResult = {

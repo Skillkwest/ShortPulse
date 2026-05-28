@@ -65,6 +65,7 @@ export type StandardCreatePropertiesPanelProps = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
+  onModelPickerClose?: () => void;
   onPromptChange: (value: string) => void;
   costCredits?: number | null;
   isPromptGenerating?: boolean;
@@ -530,6 +531,7 @@ export function StandardCreatePropertiesPanel({
   modelModalAnchor,
   onAspectChange,
   onModelPickerOpen,
+  onModelPickerClose,
   onPromptChange,
   costCredits = null,
   agentEnabled = false,
@@ -615,6 +617,7 @@ export function StandardCreatePropertiesPanel({
     onCharacterModeEnabledChange,
     onStepActionClick,
   });
+  const shouldHideCreateControlSet = chatModeEnabled;
   const selectedCharacterAvatarUrl = resolveAvatarUrl(
     selectedCharacterId,
     resolveCharacterAvatarUrlById?.(selectedCharacterId) ?? selectedCharacterProfileImageUrl ?? null
@@ -690,6 +693,28 @@ export function StandardCreatePropertiesPanel({
     }
   }, [imageResolution, imageResolutionValue, onImageResolutionChange]);
 
+  useEffect(() => {
+    if (!shouldHideCreateControlSet) return;
+    if (isCharacterPickerOpen) {
+      closeCharacterPicker();
+    }
+    if (isStylesPanelOpen) {
+      onStylesPanelToggle?.();
+    }
+    if (isModelModalOpen && modelModalAnchor === "create-model") {
+      onModelPickerClose?.();
+    }
+  }, [
+    closeCharacterPicker,
+    isCharacterPickerOpen,
+    isModelModalOpen,
+    isStylesPanelOpen,
+    modelModalAnchor,
+    onModelPickerClose,
+    onStylesPanelToggle,
+    shouldHideCreateControlSet,
+  ]);
+
   const sharedPromptStepProps = {
     prompt,
     onPromptChange,
@@ -744,10 +769,11 @@ export function StandardCreatePropertiesPanel({
     CreateChatPanel: StandardCreateChatPanel,
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
+    hideChatComposerHint: true,
     agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
     hideChatModeToggle: false,
-    composerLeadingContent: (
+    composerLeadingContent: shouldHideCreateControlSet ? null : (
       <div className="create-composer-inline-leading-controls">
         <StylesControl
           isOpen={isStylesPanelOpen}
@@ -791,6 +817,7 @@ export function StandardCreatePropertiesPanel({
         aspect={aspect}
         aspectOptionsForModel={aspectOptionsForModel}
         onAspectChange={onAspectChange}
+        showCreateControlSet={!shouldHideCreateControlSet}
         shouldShowImageResolutionCard={shouldShowImageResolutionCard}
         imageResolutionValue={imageResolutionValue}
         imageResolutionOptions={imageResolutionOptions}

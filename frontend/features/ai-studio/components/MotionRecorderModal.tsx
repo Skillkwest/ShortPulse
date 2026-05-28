@@ -275,6 +275,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [isUploadingClip, setIsUploadingClip] = React.useState(false);
   const [didAttemptSettingsRecovery, setDidAttemptSettingsRecovery] = React.useState(false);
+  const [hasRequestedCameraAccess, setHasRequestedCameraAccess] = React.useState(false);
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
     disabled: isUploadingClip,
   });
@@ -473,6 +474,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setUploadError(null);
       hasAttemptedSettingsRecoveryRef.current = false;
       setDidAttemptSettingsRecovery(false);
+      setHasRequestedCameraAccess(false);
       stopPreviewStream();
       resetRecordedClip();
       return;
@@ -480,7 +482,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
 
     void updatePermissions();
     void loadDeviceOptions();
-    void startPreview();
   }, [
     isOpen,
     loadDeviceOptions,
@@ -567,6 +568,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       return;
     }
 
+    setHasRequestedCameraAccess(true);
     setCaptureError(null);
     setCaptureRecoveryHint(null);
     setUploadError(null);
@@ -649,6 +651,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   }, [isRecording, resetRecordedClip, revokeRecordedObjectUrl, startPreview, stopPreviewStream]);
 
   const handleRetakeClick = React.useCallback(() => {
+    setHasRequestedCameraAccess(true);
     setCaptureError(null);
     setCaptureRecoveryHint(null);
     setUploadError(null);
@@ -658,6 +661,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
 
   const handleOpenSettingsClick = React.useCallback(async () => {
     hasAttemptedSettingsRecoveryRef.current = true;
+    setHasRequestedCameraAccess(true);
     const didAttempt = await attemptSettingsRecovery();
     if (!didAttempt) {
       setCaptureRecoveryHint(
@@ -690,7 +694,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       const nextDeviceId = event.target.value;
       setSelectedVideoDeviceId(nextDeviceId);
       writeStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY, nextDeviceId);
-      if (isRecording || isUploadingClip) return;
+      if (isRecording || isUploadingClip || (!previewStreamRef.current && !recordedClipFile))
+        return;
       void (async () => {
         const didStartPreview = await startPreview({ nextVideoDeviceId: nextDeviceId });
         if (didStartPreview && recordedClipFile) {
@@ -709,9 +714,11 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (captureError) return captureError;
     if (isRequestingAccess) return "Waiting for camera permission...";
     if (isRecording) return `Recording ${formatRecordingDuration(recordingElapsedMs)}`;
+    if (!hasRequestedCameraAccess) return null;
     return permissionPreflightFeedback?.message ?? null;
   }, [
     captureError,
+    hasRequestedCameraAccess,
     isRecording,
     isRequestingAccess,
     permissionPreflightFeedback,
@@ -721,6 +728,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (captureError) return captureRecoveryHint;
     if (isRecording) return "Click Stop when the motion reference is complete.";
     if (isRequestingAccess) return null;
+    if (!hasRequestedCameraAccess) return null;
     if (didAttemptSettingsRecovery && cameraPermissionState === "denied") {
       return "We tried to open your computer's camera settings. If nothing opened, allow access in your browser's site settings and system privacy settings, then try again.";
     }
@@ -730,15 +738,18 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     cameraPermissionState,
     captureRecoveryHint,
     didAttemptSettingsRecovery,
+    hasRequestedCameraAccess,
     isRecording,
     isRequestingAccess,
     permissionPreflightFeedback,
   ]);
-  const isModalRecordError = Boolean(captureError) || cameraPermissionState === "denied";
+  const isModalRecordError =
+    Boolean(captureError) || (hasRequestedCameraAccess && cameraPermissionState === "denied");
   const shouldShowSettingsRecoveryAction =
-    cameraPermissionState === "denied" || captureError === "Camera access is blocked.";
+    (hasRequestedCameraAccess && cameraPermissionState === "denied") ||
+    captureError === "Camera access is blocked.";
   const isShowingPlayback = Boolean(recordedClipUrl);
-  const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record motion reference";
+  const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record a motion clip";
 
   if (!isOpen) {
     return null;
@@ -760,7 +771,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                 {modalTitle}
               </h2>
               <p className="motion-recorder-modal-subtitle">
-                Record a camera clip here, then stage it directly into the Motion reference slot.
+                Use this only if you need a source clip for Motion Control. You can still upload
+                your own video in the Motion slot.
               </p>
             </div>
             <button
@@ -804,6 +816,11 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                     <span className="motion-recorder-modal-preview-badge is-live">
                       <Camera size={14} weight="fill" />
                       <span>Live preview</span>
+                    </span>
+                  ) : !hasRequestedCameraAccess ? (
+                    <span className="motion-recorder-modal-preview-badge">
+                      <Camera size={14} weight="regular" />
+                      <span>Preview starts after you click record</span>
                     </span>
                   ) : (
                     <span className="motion-recorder-modal-preview-badge">
@@ -871,7 +888,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                 <AiStudioRecordPanelPrefab
                   panelAriaLabel="Record motion clip"
                   title="Record"
-                  helper="Record a motion clip to use as the source for Motion Control."
+                  helper="Record a motion clip only if you need one for Motion Control."
                   buttonIdleAriaLabel="Record motion clip"
                   buttonRecordingAriaLabel="Stop motion recording"
                   idleCue="Click to record"

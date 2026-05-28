@@ -377,11 +377,8 @@ describe("Create agent mode boundaries", () => {
     expect(pulseCreatePanelPropsSource).not.toContain("onChatOffInlineGenerate");
     expect(pulseCreatePanelPropsSource).not.toContain("onGenerate: handlePrimarySubmit");
     expect(pulseCreatePanelPropsSource).not.toContain("handlePrimarySubmit");
-    expect(pulseCreatePanelPropsSource).toContain(
-      "onGeneratePulseArtifact: handlePulseCreatePrimarySubmit"
-    );
     expect(pulseComposerSource).not.toContain("onGenerate: () => void");
-    expect(pulseComposerSource).toContain("onGeneratePulseArtifact: () => void");
+    expect(pulseComposerSource).not.toContain("onGeneratePulseArtifact: () => void");
     expect(pulseComposerSource).not.toContain("prompt: string;");
     expect(pulseComposerSource).not.toContain("onPromptChange: (value: string) => void;");
     expect(pulseComposerSource).toContain("pulsePrompt: string;");
@@ -409,9 +406,6 @@ describe("Create agent mode boundaries", () => {
     );
     const standardInlineGenerateSource = readFrontendFile(
       "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate.ts"
-    );
-    const pulsePrimarySubmitSource = readFrontendFile(
-      "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit.ts"
     );
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
@@ -444,7 +438,7 @@ describe("Create agent mode boundaries", () => {
     expect(outputGenerationBridgeSource).toContain("assistantBubbleMedia: enabled");
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(createPanelRuntimeSource).toContain("handleStandardCreatePrimarySubmit");
-    expect(createPanelRuntimeSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).not.toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).toContain("<AiStudioPageRuntimeBody");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).not.toContain("<StandardCreateGenerationCommandRoot shell={shell} />");
@@ -462,28 +456,21 @@ describe("Create agent mode boundaries", () => {
     expect(createPanelRuntimeSource).toContain(
       "onPrimarySubmit: handleStandardCreatePrimarySubmit"
     );
-    expect(createPanelRuntimeSource).toContain(
-      "onGenerateArtifact: handlePulseCreatePrimarySubmit"
-    );
+    expect(createPanelRuntimeSource).not.toContain("onGenerateArtifact:");
     expect(pageSource).not.toContain("useAiStudioPanelProps");
     expect(createPanelRuntimeSource).toContain("useStandardCreatePrimarySubmit");
-    expect(createPanelRuntimeSource).toContain("usePulseCreatePrimarySubmit");
+    expect(createPanelRuntimeSource).not.toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("useStandardCreateInlineGenerate");
     const presenterIndex = pageSource.indexOf("<AiStudioPageShell");
     const runtimeSelectorIndex = pageSource.indexOf('activeCreateAgentRuntime.kind === "pulse"');
     const standardPrimarySubmitIndex = createPanelRuntimeSource.indexOf(
       "useStandardCreatePrimarySubmit({"
     );
-    const pulsePrimarySubmitIndex = createPanelRuntimeSource.indexOf(
-      "usePulseCreatePrimarySubmit({"
-    );
 
     expect(runtimeSelectorIndex).toBeGreaterThanOrEqual(0);
     expect(runtimeSelectorIndex).toBeLessThan(presenterIndex);
     expect(standardPrimarySubmitIndex).toBeGreaterThanOrEqual(0);
     expect(standardPrimarySubmitIndex).toBeLessThan(presenterIndex);
-    expect(pulsePrimarySubmitIndex).toBeGreaterThanOrEqual(0);
-    expect(pulsePrimarySubmitIndex).toBeLessThan(presenterIndex);
     expect(createPanelRuntimeSource).toContain("useAiStudioAgentOutputGenerationBridge({");
     expect(createPanelRuntimeSource).not.toContain(
       "const pulsePrompt = resolveChatOffCreatePrompt"
@@ -525,11 +512,6 @@ describe("Create agent mode boundaries", () => {
     );
     expect(standardInlineGenerateSource).toContain("resolveChatOffCreatePrompt");
     expect(standardInlineGenerateSource).not.toContain("Pulse");
-    expect(pulsePrimarySubmitSource).not.toContain("agentInput");
-    expect(pulsePrimarySubmitSource).not.toContain("agentInput || prompt");
-    expect(pulsePrimarySubmitSource).not.toContain("handleProviderPrimarySubmit");
-    expect(pulsePrimarySubmitSource).toContain("pulseCompletedArtifactPrompt");
-    expect(pulsePrimarySubmitSource).toContain("suppressStyle: true");
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {

@@ -6,7 +6,7 @@ import React from "react";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
-import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
+import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -49,7 +49,7 @@ function StudioPreviewComponent({
   );
   const taskState = activeOutput?.taskState;
   const errorMessage = activeOutput
-    ? sanitizeCustomerFacingProviderText(
+    ? normalizeCustomerFacingProviderError(
         activeOutput.errorMessageShort ?? activeOutput.errorMessage,
         ""
       )

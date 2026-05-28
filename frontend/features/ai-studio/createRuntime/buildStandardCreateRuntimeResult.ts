@@ -58,6 +58,7 @@ export const buildStandardCreateRuntimeResult = ({
     modelModalAnchor: props.modelModalAnchor,
     setAspect: props.onAspectChange,
     handleOpenModelModal: props.onModelPickerOpen,
+    handleCloseModelModal: props.onModelPickerClose,
     handleManualPromptChange: props.onPromptChange,
     createIsGenerating: props.createIsGenerating,
     isPromptRefining: props.isPromptRefining,

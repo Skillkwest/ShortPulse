@@ -279,7 +279,7 @@ vi.mock("../useReferencePropertiesDerivedState", () => ({
 const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   aspect: "16:9",
   modelId: KIE_KLING_30_MODEL_ID,
-  modelLabel: "Kling 3.0 (Kie)",
+  modelLabel: "Kling 3.0",
   referenceImageUrl: null,
   extraImageUrls: [null, null, null],
   referenceText: "Generate this shot",
@@ -463,7 +463,7 @@ describe("VideoPropertiesPanel", () => {
     render(<VideoPropertiesPanel {...baseProps} motionVideoUrl={null} />);
 
     expect(
-      screen.getByText("If you do not already have a motion video, record one here.")
+      screen.getByText("If you do not already have a motion video, you can record one here.")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Open motion recorder to add a motion clip" })
@@ -605,7 +605,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_FAST_MODEL_ID}
-        modelLabel="Seedance 2.0 Fast (Kie)"
+        modelLabel="Seedance 2.0 Fast"
       />
     );
 
@@ -621,7 +621,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0 (Kie)"
+        modelLabel="Seedance 2.0"
         klingWorkflowMode="custom"
       />
     );

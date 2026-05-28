@@ -28,16 +28,12 @@ describe("buildPulseCreatePanelProps", () => {
     handleAssistantMessageEdit: vi.fn(),
     handlePulsePromptChange: vi.fn(),
     createIsGenerating: false,
-    currentCostCredits: 2,
-    isGenerateDisabled: false,
-    generationGuardrail: null,
     handleClearAgentChat: vi.fn(),
-    handlePulseCreatePrimarySubmit: vi.fn(),
     handlePulsePresetRestart: vi.fn(async () => undefined),
     pulsePreferenceRuntime: undefined,
   };
 
-  it("blocks Pulse generate while an attached image is still preparing", () => {
+  it("preserves image attachments for the Pulse composer input", () => {
     const props = buildPulseCreatePanelProps({
       ...baseParams,
       agentAttachments: [
@@ -53,11 +49,11 @@ describe("buildPulseCreatePanelProps", () => {
       ],
     });
 
-    expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBe("Wait for attached images to finish preparing.");
+    expect(props.stagedAttachments).toHaveLength(1);
+    expect(props.stagedAttachments?.[0]?.deliveryStatus).toBe("preparing");
   });
 
-  it("blocks Pulse generate when an attached image has failed", () => {
+  it("preserves failed image attachments for user recovery in the composer", () => {
     const props = buildPulseCreatePanelProps({
       ...baseParams,
       agentAttachments: [
@@ -73,44 +69,8 @@ describe("buildPulseCreatePanelProps", () => {
       ],
     });
 
-    expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBe("Resolve failed image attachments before generating.");
-  });
-
-  it("suppresses passive custom Pulse guardrail copy before the user acts", () => {
-    const props = buildPulseCreatePanelProps({
-      ...baseParams,
-      isGenerateDisabled: true,
-      generationGuardrail: "This Pulse has not produced a generation-ready prompt yet.",
-    });
-
-    expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBeNull();
-  });
-
-  it("suppresses passive guided Pulse prompt-missing guardrail copy before the user acts", () => {
-    const props = buildPulseCreatePanelProps({
-      ...baseParams,
-      activePulsePresetKind: "guided_workflow",
-      isGenerateDisabled: true,
-      generationGuardrail: "This Pulse has not produced a generation-ready prompt yet.",
-    });
-
-    expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBeNull();
-  });
-
-  it("keeps non-passive Pulse guardrails visible", () => {
-    const props = buildPulseCreatePanelProps({
-      ...baseParams,
-      isGenerateDisabled: true,
-      generationGuardrail:
-        "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse.",
-    });
-
-    expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBe(
-      "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse."
-    );
+    expect(props.stagedAttachments).toHaveLength(1);
+    expect(props.stagedAttachments?.[0]?.deliveryStatus).toBe("failed");
+    expect(props.agentError).toBeUndefined();
   });
 });

@@ -364,7 +364,9 @@
 }
 
 .reference-card.is-loading .reference-loading {
-  background: transparent;
+  background: var(--ai-create-prompt-input-bg);
+  background-image: none;
+  box-shadow: inset 0 0 0 2px var(--ai-create-prompt-input-bg);
 }
 
 .reference-canvas-panel.is-loading-placeholder-timeout-mode
@@ -621,6 +623,11 @@
   pointer-events: none;
   transition: none;
   will-change: auto;
+}
+
+.reference-card.is-loading .reference-card-image,
+.reference-card.is-loading .reference-card-video {
+  opacity: 0;
 }
 
 .reference-card-image--cover {
@@ -1038,6 +1045,27 @@
 
 .reference-loading--hydrating {
   background: linear-gradient(180deg, rgba(12, 15, 22, 0.22), rgba(12, 15, 22, 0.34));
+}
+
+.reference-card-media-unavailable {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: inherit;
+  background: var(--ai-create-prompt-input-bg);
+  color: rgba(201, 205, 214, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.12);
 }
 
 .reference-spinner {

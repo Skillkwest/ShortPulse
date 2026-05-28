@@ -83,4 +83,27 @@ describe("groupVisibleFailuresForAlertStack", () => {
       },
     ]);
   });
+
+  it("de-brands legacy Kie model labels before grouping failure alerts", () => {
+    const grouped = groupVisibleFailuresForAlertStack([
+      {
+        id: "out-1",
+        model: "Kie Kling 3.0",
+        modelId: "legacy-kie-kling",
+        prompt: "first",
+        errorMessage: "Generation failed",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Kie Kling 3.0 submit requires at least one image URL.",
+      },
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        ids: ["out-1"],
+        modelLabel: "Kling 3.0",
+        failureMessage: "Kling 3.0 submit requires at least one image URL.",
+        count: 1,
+      },
+    ]);
+  });
 });

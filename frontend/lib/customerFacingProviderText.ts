@@ -40,10 +40,18 @@ export const sanitizeCustomerFacingProviderText = (
     trimmed
   );
 
-  return sanitized.trim() || fallback;
+  return sanitized.replace(/\s+/g, " ").trim() || fallback;
 };
 
 const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const stripHiddenVideoProviderBranding = (value: string): string =>
+  collapseWhitespace(
+    value
+      .replace(/\s+\((?:Kie|Kai(?:\.ai)?)\)/gi, "")
+      .replace(/\bKie AI\b/gi, "")
+      .replace(/\bKie (?=(?:Veo|Kling|Seedance|temporary upload failed\b))/gi, "")
+  );
 
 const humanizeIdentifier = (value: string): string =>
   collapseWhitespace(value.replace(/[_-]+/g, " "));
@@ -166,7 +174,8 @@ const extractStructuredProviderError = (value: unknown, depth = 0): string | nul
 export const extractCustomerFacingProviderError = (value: unknown): string | null => {
   const extracted = extractStructuredProviderError(value);
   if (!extracted) return null;
-  return sanitizeCustomerFacingProviderText(extracted, extracted);
+  const sanitized = sanitizeCustomerFacingProviderText(extracted, extracted);
+  return stripHiddenVideoProviderBranding(sanitized) || null;
 };
 
 export const normalizeCustomerFacingProviderError = (
@@ -187,5 +196,9 @@ export const resolveCustomerFacingModelLabel = ({
 }): string => {
   const normalizedModelId = modelId?.trim() ?? "";
   const labelFromId = normalizedModelId ? resolveModelLabel?.(normalizedModelId)?.trim() : "";
-  return sanitizeCustomerFacingProviderText(labelFromId || model || normalizedModelId, fallback);
+  const sanitized = sanitizeCustomerFacingProviderText(
+    labelFromId || model || normalizedModelId,
+    fallback
+  );
+  return stripHiddenVideoProviderBranding(sanitized) || fallback;
 };

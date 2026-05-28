@@ -45,7 +45,7 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("hydrating");
   });
 
-  it("does not keep renderable generated rows in any loading visual state", () => {
+  it("keeps generated rows loading until preview media renders", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({
         taskState: "running",
@@ -54,6 +54,26 @@ describe("referenceGridCardVisualState", () => {
       }),
       cardPreviewUrl: "https://cdn.test/generated-preview.png",
       isLoaded: false,
+      decodeBudgetEnabled: false,
+      isImagePreview: true,
+      isPriorityHydration: false,
+      imageSrc: "https://cdn.test/generated-preview.png",
+    });
+
+    expect(state.isGenerationLoading).toBe(true);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("spinner");
+  });
+
+  it("does not keep rendered generated rows in any loading visual state", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "running",
+        mediaSource: "generated",
+        previewUrl: "https://cdn.test/generated-preview.png",
+      }),
+      cardPreviewUrl: "https://cdn.test/generated-preview.png",
+      isLoaded: true,
       decodeBudgetEnabled: false,
       isImagePreview: true,
       isPriorityHydration: false,
@@ -118,5 +138,24 @@ describe("referenceGridCardVisualState", () => {
 
     expect(state.isGenerationLoading).toBe(false);
     expect(state.loadingVisual).toBe("none");
+  });
+
+  it("uses hydration visual for generated successes waiting to render", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      cardPreviewUrl: "https://provider.example.com/generated-preview.png",
+      isLoaded: false,
+      decodeBudgetEnabled: true,
+      isImagePreview: true,
+      isPriorityHydration: false,
+      imageSrc: "https://provider.example.com/generated-preview.png",
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(true);
+    expect(state.loadingVisual).toBe("hydrating");
   });
 });

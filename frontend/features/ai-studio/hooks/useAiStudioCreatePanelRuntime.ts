@@ -14,10 +14,6 @@ import type {
   CreatePageAgentRuntime,
   PulseCreatePageAgentRuntime,
 } from "../createRuntime/contracts";
-import {
-  resolvePulseArtifactGenerationRoute,
-  usePulseCreatePrimarySubmit,
-} from "./pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import { useStandardCreatePrimarySubmit } from "./standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type { StudioMode, ToolId } from "../types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
@@ -55,10 +51,6 @@ type UseAiStudioCreatePanelRuntimeParams = {
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
-  pulseArtifactTarget: Parameters<typeof resolvePulseArtifactGenerationRoute>[0];
-  pulseCurrentCostCredits: number | null;
-  pulsePromptReferenceGenerateCostCredits: number | null;
-  pulseGenerateCostCredits: number | null;
   handleStandardCreatePromptChange: (value: string) => void;
   handlePulseCreatePromptChange: (value: string) => void;
   handleExpertCreateModeChangeForPage: (value: "standard" | "pulse") => void;
@@ -101,10 +93,6 @@ export const useAiStudioCreatePanelRuntime = ({
   hasSufficientCreditsForPromptReferenceGenerate,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
-  pulseArtifactTarget,
-  pulseCurrentCostCredits,
-  pulsePromptReferenceGenerateCostCredits,
-  pulseGenerateCostCredits,
   handleStandardCreatePromptChange,
   handlePulseCreatePromptChange,
   handleExpertCreateModeChangeForPage,
@@ -143,7 +131,6 @@ export const useAiStudioCreatePanelRuntime = ({
     setMode,
     setSelectedToolWithEditIntentReset,
     setStandardCreatePrompt,
-    setUiNotice,
     setVideoReferenceText,
     standardPrompt,
     useReferenceImageIndicator,
@@ -178,8 +165,6 @@ export const useAiStudioCreatePanelRuntime = ({
   } = activeCreateAgentRuntime;
   const standardCreateAgentRuntime =
     activeCreateAgentRuntime.kind === "standard" ? activeCreateAgentRuntime : null;
-  const pulseCreateAgentRuntime =
-    activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
   const noopSetChatModeEnabled = useCallback<Dispatch<SetStateAction<boolean>>>(
     () => undefined,
     []
@@ -226,8 +211,6 @@ export const useAiStudioCreatePanelRuntime = ({
     setPromptOrigin,
     handleGenerate,
   });
-  const pulsePrimarySubmitCostCredits =
-    pulseArtifactTarget != null ? pulseCurrentCostCredits : currentCostCredits;
   const {
     pulsePreferenceRuntime,
     displayCreatePulsePresetId,
@@ -235,22 +218,6 @@ export const useAiStudioCreatePanelRuntime = ({
     hasActivePulseSession,
     isPulseStartupPending,
   } = createPulsePageRuntime;
-  const {
-    pulseArtifactGenerateGuardrail,
-    pulseArtifactGenerateDisabled,
-    handlePulseCreatePrimarySubmit,
-  } = usePulseCreatePrimarySubmit({
-    hasActivePulseSession: createPulsePageRuntime.hasActivePulseSession,
-    isPulseStartupPending: createPulsePageRuntime.isPulseStartupPending,
-    pulseKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
-    pulseWorkflowSession: base.pulseWorkflowSession,
-    latestAgentPrompt: pulseCreateAgentRuntime?.latestAgentPrompt ?? null,
-    artifactTarget: pulseArtifactTarget,
-    promptReferenceGenerateCostCredits: pulsePromptReferenceGenerateCostCredits ?? null,
-    currentCostCredits: pulsePrimarySubmitCostCredits,
-    handleGenerate,
-    setUiNotice,
-  });
   const handlePulsePresetRestart = useMemo(
     () => handleCreatePulsePresetRestart ?? (async () => undefined),
     [handleCreatePulsePresetRestart]
@@ -267,13 +234,9 @@ export const useAiStudioCreatePanelRuntime = ({
           activePresetKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
           workflowSession: base.pulseWorkflowSession,
           createIsGenerating,
-          currentCostCredits: pulseGenerateCostCredits,
-          isGenerateDisabled: pulseArtifactGenerateDisabled,
-          generationGuardrail: pulseArtifactGenerateGuardrail,
           onPulsePromptChange: handlePulseCreatePromptChange,
           onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
           pulsePreferenceRuntime,
-          generationServices: { handleGenerate },
         },
         agentRuntime: {
           agentEnabled,
@@ -302,7 +265,6 @@ export const useAiStudioCreatePanelRuntime = ({
           onClearAgentAttachments: handleClearAgentAttachments,
           onAssistantMessageEdit: handleAssistantMessageEdit,
           onClearAgentChat: handleClearAgentChat,
-          onGenerateArtifact: handlePulseCreatePrimarySubmit,
           onPresetRestart: handlePulsePresetRestart,
           onPresetStart: handleCreatePulsePresetStart,
         },
@@ -351,6 +313,7 @@ export const useAiStudioCreatePanelRuntime = ({
         onPromptChange: handleStandardCreatePromptChange,
         onAspectChange: setAspect,
         onModelPickerOpen: handleOpenModelModal,
+        onModelPickerClose: base.closeModelModal,
         onSelectedCharacterChange: handleCreateCharacterSelection,
         onCreateCharacter: base.handleOpenCharacterCreate,
         onCharacterModeChange: setIsCreateCharacterModeEnabled,
@@ -440,7 +403,6 @@ export const useAiStudioCreatePanelRuntime = ({
     handleExpertCreateModeChangeForPage,
     handleGenerate,
     handleOpenModelModal,
-    handlePulseCreatePrimarySubmit,
     handlePulseCreatePromptChange,
     handlePulsePresetRestart,
     handleRemoveAgentAttachment,
@@ -457,9 +419,6 @@ export const useAiStudioCreatePanelRuntime = ({
     model,
     modelModalAnchor,
     persistedAgentRuntime,
-    pulseArtifactGenerateDisabled,
-    pulseArtifactGenerateGuardrail,
-    pulseGenerateCostCredits,
     pulsePreferenceRuntime,
     pulsePrompt,
     refreshCharacterOptions,

@@ -194,7 +194,7 @@ describe("useReferenceGridCardItemsController", () => {
     });
   });
 
-  it("does not treat renderable generated cards as loading once preview media is available", () => {
+  it("keeps generated cards loading until preview media renders", () => {
     const pendingItem = output({
       id: "pending-1",
       taskState: "pending",
@@ -240,12 +240,12 @@ describe("useReferenceGridCardItemsController", () => {
       })
     );
 
-    expect(result.current.loadingCardIdSet.has("pending-1")).toBe(false);
-    expect(result.current.generationLoadingCardIdSet.has("pending-1")).toBe(false);
-    expect(result.current.hydrationLoadingCardIdSet.has("hydrating-1")).toBe(false);
-    expect(result.current.loadingIdsLength).toBe(0);
-    expect(result.current.generationLoadingIdsLength).toBe(0);
-    expect(result.current.hydrationLoadingIdsLength).toBe(0);
+    expect(result.current.loadingCardIdSet.has("pending-1")).toBe(true);
+    expect(result.current.generationLoadingCardIdSet.has("pending-1")).toBe(true);
+    expect(result.current.hydrationLoadingCardIdSet.has("hydrating-1")).toBe(true);
+    expect(result.current.loadingIdsLength).toBe(2);
+    expect(result.current.generationLoadingIdsLength).toBe(1);
+    expect(result.current.hydrationLoadingIdsLength).toBe(1);
   });
 
   it("uses the hydrated source url rather than the hydrated render blob for drag artifacts", () => {

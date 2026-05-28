@@ -96,12 +96,16 @@ describe("MotionRecorderModal", () => {
 
     render(<MotionRecorderModal isOpen={true} onClose={onClose} onApplyVideo={onApplyVideo} />);
 
+    expect(getUserMediaMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Preview starts after you click record")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
     await waitFor(() => {
       expect(getUserMediaMock).toHaveBeenCalledTimes(1);
     });
     await screen.findByText("Live preview");
 
-    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
     fireEvent.click(await screen.findByRole("button", { name: "Stop motion recording" }));
 
     await screen.findByRole("button", { name: "Use clip" });
@@ -158,11 +162,15 @@ describe("MotionRecorderModal", () => {
 
     render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
 
+    expect(screen.queryByText(/camera access is blocked/i)).not.toBeInTheDocument();
+    expect(windowOpenMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
     expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
     expect(
       screen.getByText(/allow camera access in your browser's site settings/i)
     ).toBeInTheDocument();
-    expect(windowOpenMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Open camera settings" }));
 
@@ -175,7 +183,7 @@ describe("MotionRecorderModal", () => {
     });
   });
 
-  it("retries camera access on record click after a blocked attempt instead of reopening settings", async () => {
+  it("keeps the blocked state in the record flow until camera access is resolved", async () => {
     const mediaStream = {
       getTracks: () => [{ stop: vi.fn() }],
       getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
@@ -241,15 +249,13 @@ describe("MotionRecorderModal", () => {
 
     render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
 
-    expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
-    expect(getUserMediaMock).toHaveBeenCalledTimes(1);
+    expect(getUserMediaMock).toHaveBeenCalledTimes(0);
     expect(windowOpenMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
 
-    await waitFor(() => {
-      expect(getUserMediaMock).toHaveBeenCalledTimes(2);
-    });
+    expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1);
     expect(windowOpenMock).not.toHaveBeenCalled();
   });
 
@@ -343,10 +349,11 @@ describe("MotionRecorderModal", () => {
 
     render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
     await waitFor(() => {
       expect(getUserMediaMock).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
     fireEvent.click(await screen.findByRole("button", { name: "Stop motion recording" }));
     await screen.findByRole("button", { name: "Use clip" });
 

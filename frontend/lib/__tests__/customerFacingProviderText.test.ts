@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   extractCustomerFacingProviderError,
   normalizeCustomerFacingProviderError,
+  resolveCustomerFacingModelLabel,
+  sanitizeCustomerFacingProviderText,
 } from "../customerFacingProviderText";
 
 describe("customerFacingProviderText", () => {
@@ -37,5 +39,26 @@ describe("customerFacingProviderText", () => {
         "Generation failed."
       )
     ).toBe("bad input");
+  });
+
+  it("strips hidden video-provider branding from model labels without mutating unrelated text", () => {
+    expect(
+      resolveCustomerFacingModelLabel({
+        model: "Seedance 2.0 (Kie)",
+        modelId: null,
+        fallback: "Generation",
+      })
+    ).toBe("Seedance 2.0");
+
+    expect(sanitizeCustomerFacingProviderText("Kie AI narrator", "Voice")).toBe("Kie AI narrator");
+  });
+
+  it("strips hidden video-provider branding from provider error copy", () => {
+    expect(
+      normalizeCustomerFacingProviderError(
+        "Kie Kling 3.0 submit requires at least one image URL.",
+        "Generation failed."
+      )
+    ).toBe("Kling 3.0 submit requires at least one image URL.");
   });
 });

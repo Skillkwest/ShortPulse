@@ -1278,7 +1278,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "seedream-v5-lite-edit",
   }),
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: activePickerPricingRuntime({
-    label: "Veo 3.1 Fast I2V (Kie)",
+    label: "Veo 3.1 Fast I2V",
     mediaType: "image-to-video",
     pricingStrategy: "veo-3-per-second",
     displayFamily: "Video",
@@ -1297,7 +1297,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "kie-veo",
   }),
   [KIE_KLING_30_MODEL_ID]: activePickerPricingRuntime({
-    label: "Kling 3.0 (Kie)",
+    label: "Kling 3.0",
     mediaType: "image-to-video",
     pricingStrategy: "kling-3-per-second",
     displayFamily: "Video",
@@ -1317,7 +1317,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "kie-kling",
   }),
   [KIE_SEEDANCE_2_MODEL_ID]: activePickerPricingRuntime({
-    label: "Seedance 2.0 (Kie)",
+    label: "Seedance 2.0",
     mediaType: "image-to-video",
     pricingStrategy: "seedance-2-per-second",
     displayFamily: "Video",
@@ -1337,7 +1337,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "kie-seedance-2",
   }),
   [KIE_SEEDANCE_2_FAST_MODEL_ID]: activePickerPricingRuntime({
-    label: "Seedance 2.0 Fast (Kie)",
+    label: "Seedance 2.0 Fast",
     mediaType: "image-to-video",
     pricingStrategy: "seedance-2-fast-per-second",
     displayFamily: "Video",

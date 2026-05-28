@@ -8,8 +8,10 @@ import {
   BUCKET,
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataDurationMs,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
+  resolveMediaMetadataWaveformPeaks,
   type MediaFileRow,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
@@ -96,6 +98,10 @@ export const useMediaLibraryPanelItemInteractions = ({
           companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
           companionArtStoragePath: isAudioFile(file.file_type)
             ? (file.companion_art_storage_path ?? null)
+            : null,
+          durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+          waveformPeaks: isAudioFile(file.file_type)
+            ? resolveMediaMetadataWaveformPeaks(file.metadata)
             : null,
           width: dragDimensions.width,
           height: dragDimensions.height,

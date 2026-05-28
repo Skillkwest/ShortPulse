@@ -112,12 +112,6 @@ const ELEMENT_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
   background: ELEMENT_PANEL_SHELL_BACKGROUND,
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
 };
-const ELEMENT_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr)",
-  columnGap: "34px",
-  alignItems: "start",
-};
 const ELEMENT_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
   gap: "4px",
@@ -153,13 +147,17 @@ const ELEMENT_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
   color: "rgba(242, 246, 252, 0.96)",
   boxSizing: "border-box",
 };
-const ELEMENT_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
+const ELEMENT_EDITOR_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
-  gridTemplateAreas: '"description references"',
+  gridTemplateAreas: '"name empty" "description references"',
   columnGap: "34px",
   rowGap: "18px",
   alignItems: "start",
+};
+const ELEMENT_NAME_COLUMN_INLINE_STYLE: React.CSSProperties = {
+  gridArea: "name",
+  minWidth: 0,
 };
 const ELEMENT_DESCRIPTION_COLUMN_INLINE_STYLE: React.CSSProperties = {
   gridArea: "description",
@@ -547,13 +545,6 @@ export function ElementsManagerShell({
     []
   );
 
-  const topFieldsGridStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      ...ELEMENT_TOP_FIELDS_GRID_INLINE_STYLE,
-    }),
-    []
-  );
-
   const topFieldGroupStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...ELEMENT_TOP_FIELD_GROUP_INLINE_STYLE,
@@ -568,19 +559,26 @@ export function ElementsManagerShell({
     []
   );
 
-  const presetContentGridStyle = React.useMemo<React.CSSProperties>(
+  const editorContentGridStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      ...ELEMENT_PRESET_CONTENT_GRID_INLINE_STYLE,
+      ...ELEMENT_EDITOR_CONTENT_GRID_INLINE_STYLE,
       gridTemplateColumns:
-        editorPanelWidth > 0 && editorPanelWidth <= 1180
+        editorPanelWidth > 0 && editorPanelWidth <= 980
           ? "minmax(0, 1fr)"
           : "minmax(0, 1.02fr) minmax(0, 0.98fr)",
       gridTemplateAreas:
-        editorPanelWidth > 0 && editorPanelWidth <= 1180
-          ? '"description" "references"'
-          : '"description references"',
+        editorPanelWidth > 0 && editorPanelWidth <= 980
+          ? '"name" "description" "references"'
+          : '"name empty" "description references"',
     }),
     [editorPanelWidth]
+  );
+
+  const nameColumnStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_NAME_COLUMN_INLINE_STYLE,
+    }),
+    []
   );
 
   const descriptionColumnStyle = React.useMemo<React.CSSProperties>(
@@ -979,33 +977,35 @@ export function ElementsManagerShell({
                 </div>
 
                 <div style={editorFieldsWrapperStyle}>
-                  <div className="elements-panel-profile-fields-row" style={topFieldsGridStyle}>
-                    <div className="elements-profile-field" style={topFieldGroupStyle}>
-                      <label
-                        htmlFor="element-manager-name"
-                        style={ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE}
-                      >
-                        <span style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
-                      </label>
-                      <div style={ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE}>
-                        <input
-                          ref={elementNameInputRef}
-                          id="element-manager-name"
-                          className="elements-name-input"
-                          style={nameInputStyle}
-                          type="text"
-                          value={draft.name}
-                          onChange={(event) => updateDraftField("name", event.target.value)}
-                          placeholder="Enter element name"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   <div
                     className="elements-panel-preset-content-grid"
-                    style={presetContentGridStyle}
+                    style={editorContentGridStyle}
                   >
+                    <div
+                      className="elements-panel-profile-fields-row elements-panel-profile-fields-row--name"
+                      style={nameColumnStyle}
+                    >
+                      <div className="elements-profile-field" style={topFieldGroupStyle}>
+                        <label
+                          htmlFor="element-manager-name"
+                          style={ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE}
+                        >
+                          <span style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
+                        </label>
+                        <div style={ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                          <input
+                            ref={elementNameInputRef}
+                            id="element-manager-name"
+                            className="elements-name-input"
+                            style={nameInputStyle}
+                            type="text"
+                            value={draft.name}
+                            onChange={(event) => updateDraftField("name", event.target.value)}
+                            placeholder="Enter element name"
+                          />
+                        </div>
+                      </div>
+                    </div>
                     <div
                       className="elements-panel-preset-description-column"
                       style={descriptionColumnStyle}

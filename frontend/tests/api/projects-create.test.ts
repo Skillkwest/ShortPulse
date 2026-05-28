@@ -16,6 +16,7 @@ const { MockInvalidProjectWorkspaceSnapshotError } = vi.hoisted(() => ({
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const createProjectForUserMock = vi.fn();
 const listProjectsForUserMock = vi.fn();
 const getProjectForUserMock = vi.fn();
@@ -32,6 +33,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/projectsService", () => ({
@@ -101,6 +103,7 @@ describe("projects routes", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "event-1" });
     parseProjectIdMock.mockImplementation((value: unknown) =>
       typeof value === "string" ? value : null
     );
@@ -355,8 +358,9 @@ describe("projects routes", () => {
 
   it("catches escaped dynamic project workspace dispatch failures with structured logging", async () => {
     const res = createMockResponse();
-    const req = { method: "PUT" } as {
+    const req = { method: "PUT", body: {} } as {
       method: string;
+      body?: unknown;
       query?: unknown;
     };
     Object.defineProperty(req, "query", {
@@ -429,6 +433,25 @@ describe("projects routes", () => {
 
     expect(upsertProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+      source: "telemetry.api.projects.dynamic_route.request_body_failure",
+      scope: "app",
+      severity: "low",
+      message: "Project dynamic route request body was invalid.",
+      route: "projects-workspace-save-request-body",
+      endpoint: null,
+      statusCode: 400,
+      metadata: {
+        method: "PUT",
+        route_label: "projects-workspace-save-request-body",
+        source: "api.projects.dynamic_request_body",
+        project_dynamic_route_kind: "workspace",
+        project_dynamic_route_segments: ["project-1", "workspace"],
+        request_body_failure_kind: "invalid_request_body",
+        request_body_content_type: "application/json",
+        request_body_limit_bytes: undefined,
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid JSON request body.",
@@ -451,6 +474,25 @@ describe("projects routes", () => {
 
     expect(upsertProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+      source: "telemetry.api.projects.dynamic_route.request_body_failure",
+      scope: "app",
+      severity: "medium",
+      message: "Project dynamic route request body exceeded configured limit.",
+      route: "projects-workspace-save-request-body",
+      endpoint: null,
+      statusCode: 413,
+      metadata: {
+        method: "PUT",
+        route_label: "projects-workspace-save-request-body",
+        source: "api.projects.dynamic_request_body",
+        project_dynamic_route_kind: "workspace",
+        project_dynamic_route_segments: ["project-1", "workspace"],
+        request_body_failure_kind: "request_body_too_large",
+        request_body_content_type: "text/plain",
+        request_body_limit_bytes: 1024 * 1024,
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(413);
     expect(res.json).toHaveBeenCalledWith({
       error: "Project request body exceeds 1048576 bytes.",

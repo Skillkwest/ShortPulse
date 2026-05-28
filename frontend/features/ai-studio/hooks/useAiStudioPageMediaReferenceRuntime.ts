@@ -215,6 +215,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           videoUrl,
           posterUrl: resolveCanvasPosterUrl(output.previewPosterUrl, fallbackUrl),
           title: (output.prompt || output.previewText || "Canvas video").trim() || null,
+          durationMs: output.durationMs ?? null,
           ...(visualDimensions ?? {}),
           ...(sourceSurface ? { sourceSurface } : {}),
         };
@@ -486,6 +487,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             title:
               (payload.payload.filename || payload.payload.promptText || "Canvas video").trim() ||
               null,
+            durationMs: payload.payload.durationMs ?? null,
             ...(visualDimensions ?? {}),
           };
         }

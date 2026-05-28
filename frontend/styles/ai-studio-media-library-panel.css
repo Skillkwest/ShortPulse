@@ -967,6 +967,13 @@
   padding: 1px;
 }
 
+.media-library-panel .media-library-panel-media-duration {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+}
+
 .media-library-panel .media-library-panel-media-card-button .media-library-panel-video-poster,
 .media-library-panel .media-library-panel-media-card-button .media-library-panel-hover-video {
   position: absolute;

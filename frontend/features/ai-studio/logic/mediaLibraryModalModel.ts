@@ -291,3 +291,80 @@ export const resolveMediaMetadataTranscriptText = (
   const trimmed = transcript.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const normalizeMetadataDurationCandidateMs = (
+  value: unknown,
+  options?: { unit?: "ms" | "seconds" }
+): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  const durationMs = options?.unit === "seconds" ? value * 1000 : value;
+  return Math.max(0, Math.round(durationMs));
+};
+
+export const resolveMediaMetadataDurationMs = (
+  metadata?: Record<string, unknown> | null,
+  options?: { fileType?: string | null }
+): number | null => {
+  if (!metadata) return null;
+
+  const isAudio = isAudioFile(options?.fileType);
+  const isVideo = isVideoFile(options?.fileType);
+
+  const candidateGroups: Array<Array<{ value: unknown; unit?: "ms" | "seconds" }>> = [
+    [
+      { value: metadata.durationMs, unit: "ms" },
+      { value: metadata.duration_ms, unit: "ms" },
+      { value: metadata.durationSeconds, unit: "seconds" },
+      { value: metadata.duration_seconds, unit: "seconds" },
+    ],
+  ];
+
+  if (isAudio) {
+    candidateGroups.push([
+      { value: metadata.audioDurationMs, unit: "ms" },
+      { value: metadata.audio_duration_ms, unit: "ms" },
+      { value: metadata.audioDurationSeconds, unit: "seconds" },
+      { value: metadata.audio_duration_seconds, unit: "seconds" },
+    ]);
+  }
+
+  if (isVideo) {
+    candidateGroups.push([
+      { value: metadata.videoDurationMs, unit: "ms" },
+      { value: metadata.video_duration_ms, unit: "ms" },
+      { value: metadata.videoDurationSeconds, unit: "seconds" },
+      { value: metadata.video_duration_seconds, unit: "seconds" },
+      { value: metadata.source_duration_ms, unit: "ms" },
+      { value: metadata.source_duration_seconds, unit: "seconds" },
+    ]);
+  }
+
+  for (const candidates of candidateGroups) {
+    for (const candidate of candidates) {
+      const durationMs = normalizeMetadataDurationCandidateMs(candidate.value, {
+        unit: candidate.unit,
+      });
+      if (durationMs != null) return durationMs;
+    }
+  }
+
+  return null;
+};
+
+export const resolveMediaMetadataWaveformPeaks = (
+  metadata?: Record<string, unknown> | null
+): number[] | null => {
+  if (!metadata) return null;
+  const candidates = [
+    metadata.waveformPeaks,
+    metadata.waveform_peaks,
+    metadata.audioWaveformPeaks,
+    metadata.audio_waveform_peaks,
+  ];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate) || candidate.length === 0) continue;
+    const peaks = candidate.filter((value): value is number => typeof value === "number");
+    if (peaks.length > 0) return peaks;
+  }
+  return null;
+};

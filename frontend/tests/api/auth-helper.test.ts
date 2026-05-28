@@ -1,5 +1,5 @@
 /**
- * Auth helper coverage for token-first route verification and proxy metadata behavior.
+ * Auth helper coverage for proxy-first protected-route verification and token fallback behavior.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -15,7 +15,7 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
-describe("auth helper token-first behavior", () => {
+describe("auth helper protected-route auth behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
@@ -24,7 +24,30 @@ describe("auth helper token-first behavior", () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("verifies bearer auth and ignores mismatched proxy identity", async () => {
+  it("reuses proxy-authenticated context on protected routes without re-verifying the bearer", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "verified-user-id",
+        "x-shortpulse-user-email": "verified@example.com",
+        "x-shortpulse-user-app-metadata": encodeURIComponent('{"role":"member"}'),
+      },
+    };
+
+    const user = await getOptionalApiUser(req as never);
+
+    expect(user?.id).toBe("verified-user-id");
+    expect(user?.email).toBe("verified@example.com");
+    expect(user?.app_metadata).toEqual({ role: "member" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to bearer verification when proxy context is unavailable", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -39,9 +62,6 @@ describe("auth helper token-first behavior", () => {
       url: "/api/media/move",
       headers: {
         authorization: "Bearer valid-token",
-        "x-shortpulse-authenticated": "1",
-        "x-shortpulse-user-id": "spoofed-user",
-        "x-shortpulse-user-email": "spoofed@example.com",
       },
     };
 
@@ -71,22 +91,19 @@ describe("auth helper token-first behavior", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("authorizes admin users from verified bearer identity", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        id: "admin-1",
-        email: "admin@example.com",
-        app_metadata: { role: "admin", roles: ["operator"] },
-      }),
-    }));
+  it("authorizes admin users from proxy-authenticated identity context", async () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const req = {
       url: "/api/admin/users",
       headers: {
         authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
-        "x-shortpulse-user-id": "spoofed-admin-id",
+        "x-shortpulse-user-id": "admin-1",
+        "x-shortpulse-user-email": "admin@example.com",
+        "x-shortpulse-user-app-metadata": encodeURIComponent(
+          '{"role":"admin","roles":["operator"]}'
+        ),
       },
     };
     const res = createMockResponse();
@@ -94,7 +111,7 @@ describe("auth helper token-first behavior", () => {
     const adminUser = await requireAdminUser(req as never, res as never);
 
     expect(adminUser?.id).toBe("admin-1");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
   });
 
@@ -130,19 +147,14 @@ describe("auth helper token-first behavior", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("does not fallback to proxy headers when bearer verification fails", async () => {
+  it("does not allow proxy-header trust when bearer auth is missing", async () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "true";
-    const fetchMock = vi.fn(async () => ({
-      status: 401,
-      ok: false,
-      json: async () => ({}),
-    }));
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
       url: "/api/media/move",
       headers: {
-        authorization: "Bearer invalid-token",
         "x-shortpulse-authenticated": "1",
         "x-shortpulse-user-id": "proxy-user-1",
       },
@@ -152,7 +164,7 @@ describe("auth helper token-first behavior", () => {
     const user = await requireApiUser(req as never, res as never);
 
     expect(user).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
   });
 

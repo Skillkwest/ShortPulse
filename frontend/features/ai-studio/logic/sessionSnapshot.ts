@@ -95,6 +95,8 @@ export type AiStudioSessionOutputV1 = {
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
+  durationMs?: number | null;
+  waveformPeaks?: number[] | null;
   resultUrls?: string[];
   previewUrl?: string;
   previewPosterUrl?: string | null;
@@ -548,6 +550,14 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
     errorDetail: output.errorDetail ?? null,
+    durationMs:
+      typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
+        ? Math.max(0, Math.round(output.durationMs))
+        : null,
+    waveformPeaks:
+      Array.isArray(output.waveformPeaks) && output.waveformPeaks.length > 0
+        ? output.waveformPeaks.filter((value): value is number => typeof value === "number")
+        : null,
     resultUrls: persistedResultUrls,
     previewUrl,
     previewPosterUrl,

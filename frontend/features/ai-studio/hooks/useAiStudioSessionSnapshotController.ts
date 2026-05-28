@@ -260,7 +260,6 @@ export const useAiStudioSessionSnapshotController = ({
   setMotionReferenceVideoUrl,
   setOutputCollectionsForCreateMode,
   setOutputsState,
-  setArchivedOutputs,
   setRuntimeUiStateForCreateMode,
 }: UseAiStudioSessionSnapshotControllerParams) => {
   const restoreSigningRetryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -415,8 +414,8 @@ export const useAiStudioSessionSnapshotController = ({
         restoreSigningRetryTimerRef.current = null;
       }
       const activeBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.active);
-      const archivedBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.archived);
-      const hydrationOutputs = [...outputPayload.active, ...outputPayload.archived];
+      // Archived outputs are not rendered during restore; avoid signing their media in the hot path.
+      const hydrationOutputs = outputPayload.active;
       void Promise.all([
         resolveReferenceUrlsFromInternalMediaRefs(
           workspace.referenceImageUrl,
@@ -480,13 +479,6 @@ export const useAiStudioSessionSnapshotController = ({
               });
               return patched.changed ? patched.outputs : rows;
             });
-            setArchivedOutputs((rows) => {
-              const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
-                baselineById: archivedBaselineById,
-                recoveredAuthorityById: recoveredAuthorityByOutputId,
-              });
-              return patched.changed ? patched.outputs : rows;
-            });
           })
           .catch((error) => {
             if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
@@ -521,7 +513,6 @@ export const useAiStudioSessionSnapshotController = ({
       restoreSigningRetryTimerRef,
       sessionHydrationSigningRevisionRef,
       setActivePulsePresetId,
-      setArchivedOutputs,
       setAspect,
       setEditReferenceText,
       setExpertCreateMode,

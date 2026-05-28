@@ -42,6 +42,7 @@ export type CanvasVideoItem = CanvasSceneItemBase & {
   videoUrl: string;
   posterUrl?: string | null;
   title?: string | null;
+  durationMs?: number | null;
   width: number;
   height: number;
 };
@@ -86,6 +87,7 @@ export type CanvasDropResolution =
       videoUrl: string;
       posterUrl?: string | null;
       title?: string | null;
+      durationMs?: number | null;
       width?: number;
       height?: number;
       sourceSurface?: ReferenceDragSourceSurface | null;

@@ -590,9 +590,11 @@ export const resolveInternalReferenceSource = async ({
   const compatibilityHintUrl =
     !hasInternalIdentity || (missingDurableGeneratedIdentity && !allowTrustedPreviewBypass)
       ? null
-      : allowSessionPayloadAuthority
-        ? (payloadReferenceUrl ?? asTrimmedString(resolvedOutput?.previewUrl) ?? null)
-        : (asTrimmedString(resolvedOutput?.previewUrl) ?? null);
+      : !resolvedOutput && resolvedMediaId
+        ? payloadReferenceUrl
+        : allowSessionPayloadAuthority
+          ? (payloadReferenceUrl ?? asTrimmedString(resolvedOutput?.previewUrl) ?? null)
+          : (asTrimmedString(resolvedOutput?.previewUrl) ?? null);
   const previewUrl =
     trustedPreviewHintUrl ??
     asTrimmedString(resolvedOutput?.previewUrl) ??

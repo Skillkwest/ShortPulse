@@ -13,7 +13,6 @@ describe("agentPromptsConfig", () => {
 
   it("keeps ordered prompt-structure policy across active prompt paths", () => {
     const activePromptPolicies = [
-      agentPrompts.STUDIO_AGENT_SYSTEM,
       agentPrompts.STUDIO_AGENT_THINKER,
       agentPrompts.OPENAI_PROMPT_SYSTEM,
     ];
@@ -29,6 +28,18 @@ describe("agentPromptsConfig", () => {
       expect(promptPolicy).toContain('"The prompt now includes..."');
       expect(promptPolicy).toContain("editing process");
     });
+  });
+
+  it("keeps the Standard runtime on direct-response behavior instead of forced prompt rewriting", () => {
+    const standardPrompt = agentPrompts.STUDIO_AGENT_SYSTEM;
+
+    expect(standardPrompt).toContain("Respond directly to the user's request in plain text.");
+    expect(standardPrompt).toContain(
+      "Do not rewrite the user's request into a prompt unless they explicitly ask you to do that."
+    );
+    expect(standardPrompt).not.toContain(
+      "style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color"
+    );
   });
 
   it("preserves refusal wording constraints", () => {

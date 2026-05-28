@@ -46,6 +46,8 @@ export type ReferenceIngestionInput =
         fullUrl?: string | null;
         companionArtUrl?: string | null;
         companionArtStoragePath?: string | null;
+        durationMs?: number | null;
+        waveformPeaks?: number[] | null;
         width?: number;
         height?: number;
       };

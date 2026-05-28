@@ -42,6 +42,10 @@ type ApplySessionRestoreSignedUrlsOptions = {
   recoveredAuthorityById?: SessionRecoveredStorageAuthorityByOutputId;
 };
 
+type CollectSessionRestoreSigningPathsOptions = {
+  includeDetailFullQuality?: boolean;
+};
+
 type MediaStoragePathRow = {
   id?: unknown;
   preview_storage_path?: unknown;
@@ -274,10 +278,34 @@ export const buildSessionOutputSigningFingerprintById = (
   return byId;
 };
 
+const shouldSignFullStoragePathForRestore = ({
+  output,
+  previewStoragePath,
+  fullStoragePath,
+  includeDetailFullQuality,
+}: {
+  output: StudioOutput;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  includeDetailFullQuality: boolean;
+}): boolean => {
+  if (!fullStoragePath) return false;
+  if (includeDetailFullQuality) return true;
+  if (output.mode === "image") {
+    return !previewStoragePath;
+  }
+  return true;
+};
+
 /**
  * Collects unique canonical storage paths that need signed URL resolution.
+ * Callers can skip eager image full-quality paths when restore only needs card-preview authority.
  */
-export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): string[] => {
+export const collectSessionRestoreSigningPaths = (
+  outputs: StudioOutput[],
+  options: CollectSessionRestoreSigningPathsOptions = {}
+): string[] => {
+  const includeDetailFullQuality = options.includeDetailFullQuality ?? true;
   const pathSet = new Set<string>();
   outputs.forEach((output) => {
     const previewStoragePath = toCanonicalStoragePath(output.previewStoragePath);
@@ -295,7 +323,15 @@ export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): stri
     if (companionArtStoragePath) {
       pathSet.add(companionArtStoragePath);
     }
-    if (fullStoragePath) {
+    if (
+      fullStoragePath &&
+      shouldSignFullStoragePathForRestore({
+        output,
+        previewStoragePath,
+        fullStoragePath,
+        includeDetailFullQuality,
+      })
+    ) {
       pathSet.add(fullStoragePath);
     }
   });
@@ -313,7 +349,9 @@ export const resolveSessionRestoreSignedMediaAuthority = async (
   const signingOutputs = resolveSessionRestoreSigningOutputs(outputs, recoveredAuthorityByOutputId);
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: "media_library",
-    storagePaths: collectSessionRestoreSigningPaths(signingOutputs),
+    storagePaths: collectSessionRestoreSigningPaths(signingOutputs, {
+      includeDetailFullQuality: false,
+    }),
     surface: "reference-grid",
     queryMode: "default",
   });

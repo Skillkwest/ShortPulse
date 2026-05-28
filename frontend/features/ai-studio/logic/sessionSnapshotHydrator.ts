@@ -501,6 +501,14 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
       typeof output.errorDetail === "string" || output.errorDetail === null
         ? output.errorDetail
         : null,
+    durationMs:
+      typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
+        ? Math.max(0, Math.round(output.durationMs))
+        : null,
+    waveformPeaks:
+      Array.isArray(output.waveformPeaks) && output.waveformPeaks.length > 0
+        ? output.waveformPeaks.filter((value): value is number => typeof value === "number")
+        : null,
     resultUrls: output.resultUrls,
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl ?? null,

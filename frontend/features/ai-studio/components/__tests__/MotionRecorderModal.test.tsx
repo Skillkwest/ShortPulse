@@ -29,7 +29,6 @@ describe("MotionRecorderModal", () => {
     const mediaStream = {
       getTracks: () => [{ stop: mediaStreamTrackStop }],
       getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
-      getAudioTracks: () => [{ getSettings: () => ({ deviceId: "mic-1" }) }],
     };
     const getUserMediaMock = vi.fn().mockResolvedValue(mediaStream);
     const enumerateDevicesMock = vi.fn().mockResolvedValue([
@@ -38,13 +37,6 @@ describe("MotionRecorderModal", () => {
         groupId: "group-camera-1",
         kind: "videoinput",
         label: "Front Camera",
-        toJSON: () => ({}),
-      },
-      {
-        deviceId: "mic-1",
-        groupId: "group-mic-1",
-        kind: "audioinput",
-        label: "Studio Mic",
         toJSON: () => ({}),
       },
     ]);
@@ -124,7 +116,12 @@ describe("MotionRecorderModal", () => {
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });
 
-  it("surfaces blocked permission recovery guidance when camera access is denied", async () => {
+  it("surfaces blocked camera recovery guidance when camera access is denied", async () => {
+    Object.defineProperty(globalThis.navigator, "userAgent", {
+      configurable: true,
+      value:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    });
     Object.defineProperty(globalThis.navigator, "permissions", {
       configurable: true,
       value: {
@@ -145,6 +142,11 @@ describe("MotionRecorderModal", () => {
         enumerateDevices: vi.fn().mockResolvedValue([]),
       },
     });
+    const windowOpenMock = vi.fn();
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: windowOpenMock,
+    });
 
     class MockMediaRecorder {
       static isTypeSupported() {
@@ -156,17 +158,23 @@ describe("MotionRecorderModal", () => {
 
     render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
 
-    expect(await screen.findByText(/camera or microphone access is blocked/i)).toBeInTheDocument();
+    expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/allow camera and microphone access in your browser's site settings/i)
+      screen.getByText(/allow camera access in your browser's site settings/i)
     ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(windowOpenMock).toHaveBeenCalledWith(
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera",
+        "_blank",
+        "noopener,noreferrer"
+      );
+    });
   });
 
   it("keeps the recorded clip when switching to a broken camera device", async () => {
     const mediaStream = {
       getTracks: () => [{ stop: vi.fn() }],
       getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
-      getAudioTracks: () => [{ getSettings: () => ({ deviceId: "mic-1" }) }],
     };
     const getUserMediaMock = vi.fn().mockResolvedValueOnce(mediaStream).mockRejectedValueOnce({
       name: "NotFoundError",
@@ -189,13 +197,6 @@ describe("MotionRecorderModal", () => {
           label: "Rear Camera",
           toJSON: () => ({}),
         },
-        {
-          deviceId: "mic-1",
-          groupId: "group-mic-1",
-          kind: "audioinput",
-          label: "Studio Mic",
-          toJSON: () => ({}),
-        },
       ])
       .mockResolvedValueOnce([
         {
@@ -210,13 +211,6 @@ describe("MotionRecorderModal", () => {
           groupId: "group-camera-2",
           kind: "videoinput",
           label: "Rear Camera",
-          toJSON: () => ({}),
-        },
-        {
-          deviceId: "mic-1",
-          groupId: "group-mic-1",
-          kind: "audioinput",
-          label: "Studio Mic",
           toJSON: () => ({}),
         },
       ]);

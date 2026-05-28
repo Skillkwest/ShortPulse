@@ -463,9 +463,7 @@ describe("VideoPropertiesPanel", () => {
     render(<VideoPropertiesPanel {...baseProps} motionVideoUrl={null} />);
 
     expect(
-      screen.getByText(
-        "If you do not already have a motion video, record one here and we'll add it to the Motion upload slot."
-      )
+      screen.getByText("If you do not already have a motion video, record one here.")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Open motion recorder to add a motion clip" })

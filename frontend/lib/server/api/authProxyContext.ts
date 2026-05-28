@@ -4,10 +4,14 @@
  * authorization authority without verified bearer identity.
  */
 import type { NextApiRequest } from "next";
-import type { AuthenticatedApiUser } from "./authTokenVerifier";
 import { isProtectedApiPath } from "./protectedApiPaths";
 
-type ProxyAuthenticatedApiUser = AuthenticatedApiUser;
+type ProxyAuthenticatedApiUser = {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+};
 
 const readRequestHeader = (req: NextApiRequest, name: string): string | null => {
   const raw = req.headers[name.toLowerCase()];
@@ -65,24 +69,5 @@ export const readProxyAuthenticatedUser = (
     email: email || undefined,
     app_metadata: appMetadata,
     user_metadata: userMetadata,
-  };
-};
-
-/**
- * Merges trusted proxy metadata onto a verified user when principal IDs match.
- */
-export const mergeVerifiedUserWithProxyContext = (
-  verifiedUser: AuthenticatedApiUser,
-  proxyUser: ProxyAuthenticatedApiUser | null
-): AuthenticatedApiUser => {
-  if (!proxyUser || proxyUser.id !== verifiedUser.id) {
-    return verifiedUser;
-  }
-
-  return {
-    ...verifiedUser,
-    email: verifiedUser.email ?? proxyUser.email,
-    app_metadata: verifiedUser.app_metadata ?? proxyUser.app_metadata,
-    user_metadata: verifiedUser.user_metadata ?? proxyUser.user_metadata,
   };
 };

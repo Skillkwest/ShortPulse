@@ -4,8 +4,10 @@ import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPrevie
 import {
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataDurationMs,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
+  resolveMediaMetadataWaveformPeaks,
   type MediaFileRow,
 } from "../logic/mediaLibraryModalModel";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
@@ -25,6 +27,8 @@ export type MediaLibrarySelectionPayload = {
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
+  durationMs?: number | null;
+  waveformPeaks?: number[] | null;
 };
 
 type UseMediaLibraryPanelSelectionControllerParams = {
@@ -102,6 +106,10 @@ export const useMediaLibraryPanelSelectionController = ({
         previewUrl,
         previewPosterUrl,
         fullUrl,
+        durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+        waveformPeaks: isAudioFile(file.file_type)
+          ? resolveMediaMetadataWaveformPeaks(file.metadata)
+          : null,
       });
       return true;
     },

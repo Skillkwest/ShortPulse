@@ -161,6 +161,8 @@ const buildLibraryMediaOutput = ({
     previewPosterUrl,
     companionArtUrl,
     companionArtStoragePath,
+    durationMs: payload.durationMs ?? null,
+    waveformPeaks: Array.isArray(payload.waveformPeaks) ? payload.waveformPeaks : null,
     mediaSource: payload.source === "ai_studio" ? "generated" : "library",
     previewTier:
       payload.fileType === "video"

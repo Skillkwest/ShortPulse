@@ -31,6 +31,8 @@ const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_URL_TYPE =
   "text/shortpulse-media-library-companion-art-url";
 const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE =
   "text/shortpulse-media-library-companion-art-storage-path";
+const MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE = "text/shortpulse-media-library-duration-ms";
+const MEDIA_LIBRARY_FALLBACK_WAVEFORM_PEAKS_TYPE = "text/shortpulse-media-library-waveform-peaks";
 const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
 const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height";
 const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
@@ -87,6 +89,25 @@ const normalizePositiveNumber = (value: string | null | undefined): number | und
   const parsed = Number.parseFloat(value.trim());
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return parsed;
+};
+
+const normalizeNonNegativeNumber = (value: string | null | undefined): number | null => {
+  if (typeof value !== "string") return null;
+  const parsed = Number.parseFloat(value.trim());
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.max(0, Math.round(parsed));
+};
+
+const parseWaveformPeaks = (value: string | null | undefined): number[] | null => {
+  if (typeof value !== "string" || !value.trim().length) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const peaks = parsed.filter((entry): entry is number => typeof entry === "number");
+    return peaks.length > 0 ? peaks : null;
+  } catch {
+    return null;
+  }
 };
 
 const getFirstUriListValue = (value: string): string | null =>
@@ -193,6 +214,12 @@ const readFallbackMediaLibraryDragPayload = (
         ),
         companionArtStoragePath: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE)
+        ),
+        durationMs: normalizeNonNegativeNumber(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE)
+        ),
+        waveformPeaks: parseWaveformPeaks(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_WAVEFORM_PEAKS_TYPE)
         ),
         width: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE)),
         height: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE)),
@@ -357,6 +384,18 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE,
       payload.payload.companionArtStoragePath
+    );
+    setTransferNumberIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE,
+      payload.payload.durationMs
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_WAVEFORM_PEAKS_TYPE,
+      Array.isArray(payload.payload.waveformPeaks) && payload.payload.waveformPeaks.length > 0
+        ? JSON.stringify(payload.payload.waveformPeaks)
+        : null
     );
     setTransferNumberIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE, payload.payload.width);
     setTransferNumberIfPresent(

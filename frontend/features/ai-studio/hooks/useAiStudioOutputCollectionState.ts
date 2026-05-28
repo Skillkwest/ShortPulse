@@ -27,7 +27,11 @@ type OutputCollectionAuthorityState = {
 };
 
 const normalizeActiveRows = (rows: StudioOutput[]): StudioOutputCollectionState =>
-  normalizeStudioOutputCollection(sortStudioOutputsByCreatedAtDesc(rows));
+  normalizeStudioOutputCollection(
+    rows.every((row) => typeof row.createdAt === "string" && row.createdAt.trim().length > 0)
+      ? sortStudioOutputsByCreatedAtDesc(rows)
+      : rows
+  );
 
 type UseAiStudioOutputCollectionStateResult = {
   activeOutputState: OutputCollectionState;

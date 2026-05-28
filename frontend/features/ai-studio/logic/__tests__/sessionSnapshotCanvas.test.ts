@@ -234,6 +234,7 @@ describe("sessionSnapshotCanvas", () => {
         videoUrl: "https://example.com/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
         title: "Canvas video",
+        durationMs: 8_000,
         width: 275,
         height: 154.69,
       },
@@ -247,6 +248,7 @@ describe("sessionSnapshotCanvas", () => {
         videoUrl: "https://example.com/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
         title: "Canvas video",
+        durationMs: 8_000,
       }),
     ]);
 
@@ -258,6 +260,7 @@ describe("sessionSnapshotCanvas", () => {
         videoUrl: "https://example.com/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
         title: "Canvas video",
+        durationMs: 8_000,
         width: 275,
         height: 154.69,
       }),

@@ -6,6 +6,7 @@ import React from "react";
 import { PushPinSimple } from "phosphor-react";
 import type { CanvasResizeHandle } from "./canvasTypes";
 import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceState";
+import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
 
@@ -217,18 +218,26 @@ export function CanvasPropertiesPanel({
                     draggable={false}
                   />
                 ) : item.kind === "video" ? (
-                  <video
-                    className="canvas-scene-item__video"
-                    src={item.videoUrl}
-                    poster={item.posterUrl ?? undefined}
-                    aria-label={item.title?.trim() || "Canvas video"}
-                    draggable={false}
-                    muted
-                    loop
-                    playsInline
-                    autoPlay
-                    preload="metadata"
-                  />
+                  <>
+                    <video
+                      className="canvas-scene-item__video"
+                      src={item.videoUrl}
+                      poster={item.posterUrl ?? undefined}
+                      aria-label={item.title?.trim() || "Canvas video"}
+                      draggable={false}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      preload="metadata"
+                    />
+                    <MediaDurationBadge
+                      className="canvas-scene-item__media-duration"
+                      durationMs={item.durationMs ?? null}
+                      mediaUrl={item.videoUrl}
+                      mediaKind="video"
+                    />
+                  </>
                 ) : isEditingTextItem ? (
                   isTextEditEditable ? (
                     <textarea

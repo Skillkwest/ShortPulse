@@ -1,7 +1,7 @@
 /**
  * Synthetic auth-boundary behavior benchmark.
- * Verifies protected-route auth always performs bearer verification, regardless
- * of whether proxy headers are present.
+ * Verifies protected-route auth reuses middleware context when available and
+ * falls back to bearer verification only when proxy context is absent.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireApiUser } from "../../lib/server/api/auth";
@@ -30,7 +30,7 @@ describe("auth boundary latency benchmark", () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("performs Supabase user verification for both proxy-header and token-only requests", async () => {
+  it("reuses proxy-authenticated context before falling back to bearer verification", async () => {
     const fetchMock = vi.fn(async () => {
       return {
         ok: true,
@@ -49,7 +49,7 @@ describe("auth boundary latency benchmark", () => {
         headers: {
           authorization: "Bearer valid-token",
           "x-shortpulse-authenticated": "1",
-          "x-shortpulse-user-id": `user-${i}`,
+          "x-shortpulse-user-id": `proxy-user-${i}`,
           "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
           "x-shortpulse-user-user-metadata": encodeURIComponent("{}"),
         },
@@ -65,6 +65,6 @@ describe("auth boundary latency benchmark", () => {
       }),
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(iterations * 2);
+    expect(fetchMock).toHaveBeenCalledTimes(iterations);
   });
 });

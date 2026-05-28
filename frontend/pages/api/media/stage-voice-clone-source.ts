@@ -59,6 +59,20 @@ export default async function handler(
     });
   } catch (error) {
     if (error instanceof MediaUploadServiceError) {
+      if (error.status >= 500) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "media-stage-voice-clone-source",
+          scope: "generation",
+          user,
+        });
+
+        return res.status(500).json({
+          error: "Unable to stage voice clone source",
+        });
+      }
+
       return res.status(error.status).json({
         error: error.message,
         details: error.details,

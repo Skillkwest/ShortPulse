@@ -21,6 +21,7 @@ import { normalizeCustomerFacingProviderError } from "../../../../lib/customerFa
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
+import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 
 const HYDRATION_FALLBACK_LOADED_MS = 1500;
@@ -238,6 +239,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     dragPreviewKind === "image" || hasVideoPosterPreview
       ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
       : undefined;
+  const videoDurationMediaUrl =
+    item.mode === "video"
+      ? (resolvedHoverVideoUrl ?? item.resultUrls?.[0] ?? item.previewUrl ?? cardPreviewUrl ?? null)
+      : null;
   const showPerfAuditDebug = isPerfAuditRuntimeEnabled();
   const perfAuditDebugLabel = React.useMemo(
     () =>
@@ -451,6 +456,14 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onRequestPlay={onRequestAudioPlay}
           onPlaybackStarted={onAudioPlaybackStarted}
           onPlaybackStopped={onAudioPlaybackStopped}
+        />
+      ) : null}
+      {item.mode === "video" ? (
+        <MediaDurationBadge
+          className="reference-card-media-duration"
+          durationMs={item.durationMs ?? null}
+          mediaUrl={videoDurationMediaUrl}
+          mediaKind="video"
         />
       ) : null}
       {isFailing ? (

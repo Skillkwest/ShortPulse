@@ -68,7 +68,7 @@ const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKi
 };
 
 const resolveMediaListProfile = (itemType: MediaLibraryPanelItemType): MediaListProfile => {
-  if (itemType === "images" || itemType === "videos") return "minimal";
+  if (itemType === "images") return "minimal";
   return "expanded";
 };
 

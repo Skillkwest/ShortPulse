@@ -10,6 +10,7 @@ import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio
 import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
 import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
 import { isVideoUrl } from "../../logic/stateParsers";
+import { formatMediaDurationClock, MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
@@ -17,6 +18,8 @@ import {
   createdAtTime,
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataDurationMs,
+  resolveMediaMetadataWaveformPeaks,
   type MediaCardRefCallback,
   type MediaFileRow,
   type PromptRow,
@@ -87,46 +90,6 @@ type MediaLibraryAllItem =
   | { key: string; kind: "prompt"; id: string; createdAt: number; row: PromptRow };
 
 const PROMPT_CARD_ASPECT_RATIO = 4 / 5;
-
-const readAudioDurationMs = (file: MediaFileRow): number | null => {
-  const metadata = file.metadata;
-  const candidates = [
-    metadata?.durationMs,
-    metadata?.duration_ms,
-    metadata?.audioDurationMs,
-    metadata?.audio_duration_ms,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0) {
-      return Math.round(candidate);
-    }
-  }
-  return null;
-};
-
-const readAudioWaveformPeaks = (file: MediaFileRow): number[] | null => {
-  const metadata = file.metadata;
-  const candidates = [
-    metadata?.waveformPeaks,
-    metadata?.waveform_peaks,
-    metadata?.audioWaveformPeaks,
-    metadata?.audio_waveform_peaks,
-  ];
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate) || candidate.length === 0) continue;
-    const peaks = candidate.filter((value): value is number => typeof value === "number");
-    if (peaks.length > 0) return peaks;
-  }
-  return null;
-};
-
-const formatAudioDurationLabel = (valueMs: number | null): string => {
-  if (!Number.isFinite(valueMs) || valueMs == null || valueMs <= 0) return "0:00";
-  const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
 
 type MediaCardShellProps = {
   file: MediaFileRow;
@@ -267,6 +230,8 @@ function MediaLibraryAllItemsMediaCard({
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview && hoverVideoUrl);
+  const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
+  const durationMediaUrl = hoverVideoUrl ?? cardPreviewUrl ?? file.signedUrl ?? null;
 
   const markSignedUrlLoaded = React.useCallback(() => {
     if (signedUrlLoadedRef.current) return;
@@ -501,6 +466,14 @@ function MediaLibraryAllItemsMediaCard({
               aria-hidden
             />
           )}
+          {isVideo ? (
+            <MediaDurationBadge
+              className="media-library-panel-media-duration"
+              durationMs={durationMs}
+              mediaUrl={durationMediaUrl}
+              mediaKind="video"
+            />
+          ) : null}
         </div>
       </button>
       {showCardActions ? (
@@ -636,8 +609,8 @@ function MediaLibraryAllItemsAudioCard({
             audioId={file.id}
             audioUrl={audioUrl}
             backgroundImageUrl={file.companion_art_url ?? null}
-            durationMs={readAudioDurationMs(file)}
-            waveformPeaks={readAudioWaveformPeaks(file)}
+            durationMs={resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type })}
+            waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
             playLabel={`Play audio ${file.filename}`}
             pauseLabel={`Pause audio ${file.filename}`}
             onReady={() => {
@@ -694,7 +667,11 @@ function MediaLibraryAllItemsAudioCard({
                       {isRequestingAudioUrl ? "Loading…" : "Load audio"}
                     </span>
                     <span className="reference-card-audio-time-total">
-                      {formatAudioDurationLabel(readAudioDurationMs(file))}
+                      {formatMediaDurationClock(
+                        resolveMediaMetadataDurationMs(file.metadata, {
+                          fileType: file.file_type,
+                        })
+                      )}
                     </span>
                   </div>
                 </div>

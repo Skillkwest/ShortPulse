@@ -7,7 +7,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { RequestBodyTooLargeError, readRawRequestBody } from "../../../lib/server/api/requestBody";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import itemHandler from "../../../lib/server/projectApiRoutes/item";
 import workspaceHandler from "../../../lib/server/projectApiRoutes/workspace";
 import folderCanvasHandler from "../../../lib/server/projectApiRoutes/mediaFolders/canvas";
@@ -139,6 +139,26 @@ const resolveDynamicRouteExceptionLabel = ({
   return `projects-${kind}-dispatch`;
 };
 
+const resolveDynamicRouteBodyEventLabel = ({
+  kind,
+  method,
+}: {
+  kind: ResolvedProjectDynamicRoute["kind"];
+  method: NextApiRequest["method"];
+}): string => {
+  if (kind === "workspace") {
+    if (method === "PUT") return "projects-workspace-save-request-body";
+    if (method === "DELETE") return "projects-workspace-delete-request-body";
+    return "projects-workspace-read-request-body";
+  }
+  if (kind === "item") {
+    if (method === "PATCH") return "projects-item-update-request-body";
+    if (method === "DELETE") return "projects-item-delete-request-body";
+    return "projects-item-read-request-body";
+  }
+  return `projects-${kind}-request-body`;
+};
+
 const resolveDynamicRouteErrorResponse = ({
   kind,
   method,
@@ -237,6 +257,54 @@ const resolveDynamicRouteBodyErrorResponse = ({
   };
 };
 
+const logDynamicRouteBodyFailure = async ({
+  req,
+  route,
+  segments,
+  error,
+}: {
+  req: NextApiRequest;
+  route: ResolvedProjectDynamicRoute;
+  segments: string[];
+  error: RequestBodyTooLargeError | InvalidDynamicProjectRouteBodyError;
+}): Promise<void> => {
+  const routeLabel = resolveDynamicRouteBodyEventLabel({
+    kind: route.kind,
+    method: req.method,
+  });
+
+  try {
+    await writeAppErrorLog({
+      source: "telemetry.api.projects.dynamic_route.request_body_failure",
+      scope: "app",
+      severity: error instanceof RequestBodyTooLargeError ? "medium" : "low",
+      message:
+        error instanceof RequestBodyTooLargeError
+          ? "Project dynamic route request body exceeded configured limit."
+          : "Project dynamic route request body was invalid.",
+      route: routeLabel,
+      endpoint: req.url ?? null,
+      statusCode: error instanceof RequestBodyTooLargeError ? 413 : 400,
+      metadata: {
+        method: req.method ?? null,
+        route_label: routeLabel,
+        source: "api.projects.dynamic_request_body",
+        project_dynamic_route_kind: route.kind,
+        project_dynamic_route_segments: segments,
+        request_body_failure_kind:
+          error instanceof RequestBodyTooLargeError
+            ? "request_body_too_large"
+            : "invalid_request_body",
+        request_body_content_type: resolveRequestContentType(req),
+        request_body_limit_bytes:
+          error instanceof RequestBodyTooLargeError ? error.maxBytes : undefined,
+      },
+    });
+  } catch (loggingError) {
+    console.error("[projects dynamic route] request body failure log write failed", loggingError);
+  }
+};
+
 export const resolveProjectDynamicRoute = (
   segments: string[]
 ): ResolvedProjectDynamicRoute | null => {
@@ -299,6 +367,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         error instanceof RequestBodyTooLargeError ||
         error instanceof InvalidDynamicProjectRouteBodyError
       ) {
+        await logDynamicRouteBodyFailure({
+          req,
+          route,
+          segments,
+          error,
+        });
         if (res.headersSent || res.writableEnded) return;
         const bodyErrorResponse = resolveDynamicRouteBodyErrorResponse({
           kind: route.kind,

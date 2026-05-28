@@ -329,6 +329,7 @@ const buildCanvasSceneItem = ({
           videoUrl: resolved.videoUrl,
           posterUrl: resolved.posterUrl?.trim() || null,
           title: resolved.title?.trim() || null,
+          durationMs: resolved.durationMs ?? null,
           width: width ?? CANVAS_IMAGE_ITEM_WIDTH,
           height: height ?? CANVAS_IMAGE_ITEM_HEIGHT,
         }

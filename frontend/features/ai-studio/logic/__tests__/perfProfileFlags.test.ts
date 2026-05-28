@@ -29,7 +29,7 @@ describe("perfProfileFlags", () => {
     expect(mod.PERF_FLAG_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT).toBe(true);
     expect(mod.PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE).toBe(true);
     expect(mod.PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT).toBe(true);
-    expect(mod.PERF_FLAG_MODAL_STABILITY_V1).toBe(false);
+    expect(mod.PERF_FLAG_MODAL_STABILITY_V1).toBe(true);
   });
 
   it("lets explicit env flags override profile defaults", async () => {

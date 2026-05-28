@@ -109,6 +109,20 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
 
+  it("shows a video duration badge when duration metadata exists", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        ...props.mediaRows[0],
+        metadata: { durationMs: 9_000 },
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(screen.getByText("0:09")).toBeInTheDocument();
+  });
+
   it("attaches and plays the provided hover video preview on pointer enter", async () => {
     const props = baseProps();
     props.mediaRows = [

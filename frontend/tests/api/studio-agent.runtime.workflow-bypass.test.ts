@@ -3,6 +3,7 @@ import pulseStudioAgentHandler from "../../pages/api/ai/studio-agent-pulse";
 
 const requireApiUserMock = vi.fn();
 const resolveRuntimeSafetyProfileMock = vi.fn();
+const resolveRuntimeCreatePulseBuiltInCatalogMock = vi.fn();
 const readAgentConversationCanonicalPromptMock = vi.fn();
 const upsertAgentConversationCanonicalPromptMock = vi.fn();
 
@@ -12,6 +13,15 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/agentSafetyPolicyControlPlane", () => ({
   resolveRuntimeSafetyProfile: (...args: unknown[]) => resolveRuntimeSafetyProfileMock(...args),
+}));
+
+vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
+  isAuthoritativeCreatePulseBuiltInCatalogResolution: (resolution: {
+    source?: string;
+    degraded?: boolean;
+  }) => resolution.source === "control_plane" && resolution.degraded !== true,
+  resolveRuntimeCreatePulseBuiltInCatalog: (...args: unknown[]) =>
+    resolveRuntimeCreatePulseBuiltInCatalogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/agentConversationState", async () => {
@@ -46,6 +56,7 @@ const createPulseRequest = () => ({
         presetId: "story_builder",
         label: "DFY Story Builder",
         instructions: "Guide the user toward a story-circle scene prompt.",
+        pulseKind: "guided_workflow",
         runtimeMode: "workflow_gpt",
         activationMode: "activate_and_start",
         outputMode: "chat_reply",
@@ -67,6 +78,27 @@ describe("Pulse route mode isolation", () => {
       profileId: "prod_safe_v1",
       policyVersion: 1,
       source: "env",
+    });
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [
+        {
+          presetId: "story_builder",
+          label: "DFY Story Builder",
+          description: "Guided story-circle workflow for scene plans and final image prompts.",
+          starterAssistantMessage: "**Step 1 — Upload your characters.**",
+          workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+          artifactTarget: "image_prompt",
+          systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          pulseKind: "guided_workflow",
+        },
+      ],
+      source: "control_plane",
+      updatedAt: "2026-05-05T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
     });
     readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
     upsertAgentConversationCanonicalPromptMock.mockResolvedValue("saved prompt");

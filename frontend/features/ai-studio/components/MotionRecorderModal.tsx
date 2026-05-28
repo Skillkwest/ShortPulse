@@ -1,11 +1,12 @@
 /**
  * Motion recorder modal for Motion Control reference video capture.
- * Records a local camera+microphone clip, stages it to storage, and hands the signed URL back
+ * Records a local camera clip, stages it to storage, and hands the signed URL back
  * to the canonical motion reference video path.
  */
 import React from "react";
-import { Camera, CircleNotch, Microphone, X } from "phosphor-react";
+import { Camera, CircleNotch, X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
+import { attemptOpenCapturePermissionSettings } from "../utils/capturePermissionRecovery";
 import { uploadVideoFileToStorage } from "../utils/videoUpload";
 import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -31,8 +32,6 @@ type BrowserMediaRecorder = typeof MediaRecorder;
 
 const MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY =
   "shortpulse.aiStudio.motionRecorder.preferredVideoDeviceId";
-const MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY =
-  "shortpulse.aiStudio.motionRecorder.preferredAudioDeviceId";
 
 const isClient = (): boolean => typeof window !== "undefined" && typeof navigator !== "undefined";
 
@@ -116,27 +115,22 @@ const resolveRecordingStartErrorFeedback = (error: unknown): CaptureFeedback => 
       : "";
   const normalizedMessage = message.toLowerCase();
 
-  if (
-    normalizedName === "notallowederror" ||
-    normalizedName === "permissiondeniederror" ||
-    normalizedName === "securityerror" ||
-    /permission|denied|not allowed|disallow/.test(normalizedMessage)
-  ) {
+  if (isPermissionDeniedCaptureError(error)) {
     return {
-      message: "Camera or microphone access is blocked.",
+      message: "Camera access is blocked.",
       recoveryHint:
-        "Allow camera and microphone access in your browser's site settings. If it is still blocked, enable ShortPulse in your computer's system camera and microphone settings, then try again.",
+        "Allow camera access in your browser's site settings. If it is still blocked, enable ShortPulse in your computer's system camera settings, then try again.",
     };
   }
   if (
     normalizedName === "notfounderror" ||
     normalizedName === "devicesnotfounderror" ||
     normalizedName === "overconstrainederror" ||
-    /no camera|no microphone|no audio input|not found|no device/.test(normalizedMessage)
+    /no camera|not found|no device/.test(normalizedMessage)
   ) {
     return {
-      message: "No usable camera or microphone was found on this device.",
-      recoveryHint: "Connect or enable a camera and microphone, then try recording again.",
+      message: "No usable camera was found on this device.",
+      recoveryHint: "Connect or enable a camera, then try recording again.",
     };
   }
   if (
@@ -145,8 +139,8 @@ const resolveRecordingStartErrorFeedback = (error: unknown): CaptureFeedback => 
     /not readable|could not start|device in use|hardware error|concurrent/.test(normalizedMessage)
   ) {
     return {
-      message: "Your camera or microphone is unavailable or already in use.",
-      recoveryHint: "Close other apps that may be using your camera or microphone, then try again.",
+      message: "Your camera is unavailable or already in use.",
+      recoveryHint: "Close other apps that may be using your camera, then try again.",
     };
   }
   if (normalizedName === "aborterror") {
@@ -162,6 +156,24 @@ const resolveRecordingStartErrorFeedback = (error: unknown): CaptureFeedback => 
   };
 };
 
+const isPermissionDeniedCaptureError = (error: unknown): boolean => {
+  const normalizedName =
+    typeof (error as { name?: unknown } | null)?.name === "string"
+      ? ((error as { name: string }).name || "").trim().toLowerCase()
+      : "";
+  const normalizedMessage =
+    typeof (error as { message?: unknown } | null)?.message === "string"
+      ? ((error as { message: string }).message || "").trim().toLowerCase()
+      : "";
+
+  return (
+    normalizedName === "notallowederror" ||
+    normalizedName === "permissiondeniederror" ||
+    normalizedName === "securityerror" ||
+    /permission|denied|not allowed|disallow/.test(normalizedMessage)
+  );
+};
+
 const formatRecordingDuration = (valueMs: number): string => {
   const totalSeconds = Math.max(0, Math.floor(valueMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -171,21 +183,19 @@ const formatRecordingDuration = (valueMs: number): string => {
 
 const resolvePermissionPreflightFeedback = ({
   cameraPermissionState,
-  microphonePermissionState,
 }: {
   cameraPermissionState: CapturePermissionState;
-  microphonePermissionState: CapturePermissionState;
 }): CaptureFeedback | null => {
-  if (cameraPermissionState === "denied" || microphonePermissionState === "denied") {
+  if (cameraPermissionState === "denied") {
     return {
-      message: "Camera or microphone access is blocked.",
+      message: "Camera access is blocked.",
       recoveryHint:
-        "Allow camera and microphone access in your browser's site settings. Browser and system settings are managed outside ShortPulse.",
+        "Allow camera access in your browser's site settings. Browser and system settings are managed outside ShortPulse.",
     };
   }
-  if (cameraPermissionState === "prompt" || microphonePermissionState === "prompt") {
+  if (cameraPermissionState === "prompt") {
     return {
-      message: "ShortPulse will ask for camera and microphone access.",
+      message: "ShortPulse will ask for camera access.",
       recoveryHint:
         "After access is granted, you can review the preview before you start recording.",
     };
@@ -195,7 +205,7 @@ const resolvePermissionPreflightFeedback = ({
 
 const formatDeviceLabel = (
   device: MediaDeviceInfo,
-  fallbackLabel: "Camera" | "Microphone",
+  fallbackLabel: "Camera",
   index: number
 ): string => {
   const trimmedLabel = device.label.trim();
@@ -203,11 +213,11 @@ const formatDeviceLabel = (
   return `${fallbackLabel} ${index + 1}`;
 };
 
-const buildDeviceOptions = (devices: MediaDeviceInfo[], kind: MediaDeviceKind): DeviceOption[] => {
-  const filtered = devices.filter((device) => device.kind === kind);
+const buildVideoDeviceOptions = (devices: MediaDeviceInfo[]): DeviceOption[] => {
+  const filtered = devices.filter((device) => device.kind === "videoinput");
   return filtered.map((device, index) => ({
     deviceId: device.deviceId,
-    label: formatDeviceLabel(device, kind === "videoinput" ? "Camera" : "Microphone", index),
+    label: formatDeviceLabel(device, "Camera", index),
   }));
 };
 
@@ -238,24 +248,17 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const isOpenRef = React.useRef(isOpen);
   const permissionStatusRef = React.useRef<{
     camera: PermissionStatus | null;
-    microphone: PermissionStatus | null;
   }>({
     camera: null,
-    microphone: null,
   });
   const previewRequestIdRef = React.useRef(0);
   const recordedObjectUrlRef = React.useRef<string | null>(null);
+  const hasAttemptedSettingsRecoveryRef = React.useRef(false);
   const [cameraPermissionState, setCameraPermissionState] =
     React.useState<CapturePermissionState>("prompt");
-  const [microphonePermissionState, setMicrophonePermissionState] =
-    React.useState<CapturePermissionState>("prompt");
   const [videoDevices, setVideoDevices] = React.useState<DeviceOption[]>([]);
-  const [audioDevices, setAudioDevices] = React.useState<DeviceOption[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = React.useState<string>(() =>
     readStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY)
-  );
-  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = React.useState<string>(() =>
-    readStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY)
   );
   const [isRequestingAccess, setIsRequestingAccess] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
@@ -266,9 +269,18 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const [captureRecoveryHint, setCaptureRecoveryHint] = React.useState<string | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [isUploadingClip, setIsUploadingClip] = React.useState(false);
+  const [didAttemptSettingsRecovery, setDidAttemptSettingsRecovery] = React.useState(false);
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
     disabled: isUploadingClip,
   });
+
+  const attemptSettingsRecovery = React.useCallback(async () => {
+    const didAttempt = attemptOpenCapturePermissionSettings("camera");
+    if (didAttempt) {
+      setDidAttemptSettingsRecovery(true);
+    }
+    return didAttempt;
+  }, []);
 
   const stopPreviewStream = React.useCallback(() => {
     previewStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -293,43 +305,28 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const loadDeviceOptions = React.useCallback(async () => {
     if (!isClient() || !navigator.mediaDevices?.enumerateDevices) {
       setVideoDevices([]);
-      setAudioDevices([]);
       return;
     }
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const nextVideoDevices = buildDeviceOptions(devices, "videoinput");
-      const nextAudioDevices = buildDeviceOptions(devices, "audioinput");
+      const nextVideoDevices = buildVideoDeviceOptions(devices);
       setVideoDevices(nextVideoDevices);
-      setAudioDevices(nextAudioDevices);
       setSelectedVideoDeviceId((current) => {
         if (current && nextVideoDevices.some((device) => device.deviceId === current)) {
           return current;
         }
         return nextVideoDevices[0]?.deviceId ?? "";
       });
-      setSelectedAudioDeviceId((current) => {
-        if (current && nextAudioDevices.some((device) => device.deviceId === current)) {
-          return current;
-        }
-        return nextAudioDevices[0]?.deviceId ?? "";
-      });
     } catch {
       setVideoDevices([]);
-      setAudioDevices([]);
     }
   }, []);
 
   const updatePermissions = React.useCallback(async () => {
-    const [camera, microphone] = await Promise.all([
-      queryPermissionState("camera" as PermissionName),
-      queryPermissionState("microphone" as PermissionName),
-    ]);
+    const camera = await queryPermissionState("camera" as PermissionName);
 
     permissionStatusRef.current.camera = camera.status;
-    permissionStatusRef.current.microphone = microphone.status;
     setCameraPermissionState(camera.state);
-    setMicrophonePermissionState(microphone.state);
 
     if (camera.status) {
       camera.status.onchange = () => {
@@ -342,27 +339,13 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         );
       };
     }
-
-    if (microphone.status) {
-      microphone.status.onchange = () => {
-        setMicrophonePermissionState(
-          microphone.status?.state === "granted" ||
-            microphone.status?.state === "prompt" ||
-            microphone.status?.state === "denied"
-            ? microphone.status.state
-            : "unsupported"
-        );
-      };
-    }
   }, []);
 
   const startPreview = React.useCallback(
     async ({
       nextVideoDeviceId,
-      nextAudioDeviceId,
     }: {
       nextVideoDeviceId?: string;
-      nextAudioDeviceId?: string;
     } = {}): Promise<boolean> => {
       if (
         !isClient() ||
@@ -384,15 +367,12 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       stopPreviewStream();
 
       const requestedVideoDeviceId = nextVideoDeviceId ?? selectedVideoDeviceId;
-      const requestedAudioDeviceId = nextAudioDeviceId ?? selectedAudioDeviceId;
 
       try {
         const buildConstraints = ({
           videoDeviceId,
-          audioDeviceId,
         }: {
           videoDeviceId?: string;
-          audioDeviceId?: string;
         }): MediaStreamConstraints => ({
           video: videoDeviceId
             ? {
@@ -406,25 +386,13 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                 height: { ideal: 720 },
                 frameRate: { ideal: 30, max: 30 },
               },
-          audio: audioDeviceId
-            ? {
-                deviceId: { exact: audioDeviceId },
-                echoCancellation: true,
-                noiseSuppression: true,
-              }
-            : {
-                echoCancellation: true,
-                noiseSuppression: true,
-              },
+          audio: false,
         });
 
         let stream: MediaStream;
         try {
           stream = await navigator.mediaDevices.getUserMedia(
-            buildConstraints({
-              videoDeviceId: requestedVideoDeviceId,
-              audioDeviceId: requestedAudioDeviceId,
-            })
+            buildConstraints({ videoDeviceId: requestedVideoDeviceId })
           );
         } catch (error) {
           const errorName =
@@ -432,16 +400,14 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
               ? ((error as { name: string }).name || "").trim().toLowerCase()
               : "";
           const canRetryWithBrowserDefaults =
-            Boolean(requestedVideoDeviceId || requestedAudioDeviceId) &&
+            Boolean(requestedVideoDeviceId) &&
             (errorName === "overconstrainederror" || errorName === "notfounderror");
           if (!canRetryWithBrowserDefaults) {
             throw error;
           }
           stream = await navigator.mediaDevices.getUserMedia(buildConstraints({}));
           setSelectedVideoDeviceId("");
-          setSelectedAudioDeviceId("");
           writeStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY, "");
-          writeStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY, "");
         }
 
         if (previewRequestIdRef.current !== requestId) {
@@ -459,19 +425,19 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
 
         const activeVideoDeviceId =
           stream.getVideoTracks()[0]?.getSettings().deviceId ?? requestedVideoDeviceId ?? "";
-        const activeAudioDeviceId =
-          stream.getAudioTracks()[0]?.getSettings().deviceId ?? requestedAudioDeviceId ?? "";
 
         setSelectedVideoDeviceId(activeVideoDeviceId);
-        setSelectedAudioDeviceId(activeAudioDeviceId);
         writeStoredDeviceId(MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY, activeVideoDeviceId);
-        writeStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY, activeAudioDeviceId);
         return true;
       } catch (error) {
         stopPreviewStream();
         const feedback = resolveRecordingStartErrorFeedback(error);
         setCaptureError(feedback.message);
         setCaptureRecoveryHint(feedback.recoveryHint);
+        if (isPermissionDeniedCaptureError(error)) {
+          hasAttemptedSettingsRecoveryRef.current = true;
+          void attemptSettingsRecovery();
+        }
         return false;
       } finally {
         if (previewRequestIdRef.current === requestId) {
@@ -481,9 +447,9 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     },
     [
       loadDeviceOptions,
-      selectedAudioDeviceId,
       selectedVideoDeviceId,
       stopPreviewStream,
+      attemptSettingsRecovery,
       updatePermissions,
     ]
   );
@@ -509,6 +475,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setCaptureError(null);
       setCaptureRecoveryHint(null);
       setUploadError(null);
+      hasAttemptedSettingsRecoveryRef.current = false;
+      setDidAttemptSettingsRecovery(false);
       stopPreviewStream();
       resetRecordedClip();
       return;
@@ -557,13 +525,21 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       if (permissionStatuses.camera) {
         permissionStatuses.camera.onchange = null;
       }
-      if (permissionStatuses.microphone) {
-        permissionStatuses.microphone.onchange = null;
-      }
       stopPreviewStream();
       revokeRecordedObjectUrl();
     };
   }, [revokeRecordedObjectUrl, stopPreviewStream]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (hasAttemptedSettingsRecoveryRef.current) return;
+    if (cameraPermissionState !== "denied") {
+      return;
+    }
+
+    hasAttemptedSettingsRecoveryRef.current = true;
+    void attemptSettingsRecovery();
+  }, [attemptSettingsRecovery, cameraPermissionState, isOpen]);
 
   const handleRecordClick = React.useCallback(async () => {
     if (isRecording) {
@@ -574,6 +550,11 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     setCaptureError(null);
     setCaptureRecoveryHint(null);
     setUploadError(null);
+
+    if (cameraPermissionState === "denied") {
+      await attemptSettingsRecovery();
+      return;
+    }
 
     if (!previewStreamRef.current) {
       await startPreview();
@@ -650,7 +631,15 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     setRecordingElapsedMs(0);
     setIsRecording(true);
     recorder.start();
-  }, [isRecording, resetRecordedClip, revokeRecordedObjectUrl, startPreview, stopPreviewStream]);
+  }, [
+    attemptSettingsRecovery,
+    cameraPermissionState,
+    isRecording,
+    resetRecordedClip,
+    revokeRecordedObjectUrl,
+    startPreview,
+    stopPreviewStream,
+  ]);
 
   const handleRetakeClick = React.useCallback(() => {
     setCaptureError(null);
@@ -695,33 +684,13 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     [isRecording, isUploadingClip, recordedClipFile, resetRecordedClip, startPreview]
   );
 
-  const handleAudioDeviceChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const nextDeviceId = event.target.value;
-      setSelectedAudioDeviceId(nextDeviceId);
-      writeStoredDeviceId(MOTION_RECORDER_AUDIO_DEVICE_STORAGE_KEY, nextDeviceId);
-      if (isRecording || isUploadingClip) return;
-      void (async () => {
-        const didStartPreview = await startPreview({ nextAudioDeviceId: nextDeviceId });
-        if (didStartPreview && recordedClipFile) {
-          resetRecordedClip();
-        }
-      })();
-    },
-    [isRecording, isUploadingClip, recordedClipFile, resetRecordedClip, startPreview]
-  );
-
   const permissionPreflightFeedback = React.useMemo(
-    () =>
-      resolvePermissionPreflightFeedback({
-        cameraPermissionState,
-        microphonePermissionState,
-      }),
-    [cameraPermissionState, microphonePermissionState]
+    () => resolvePermissionPreflightFeedback({ cameraPermissionState }),
+    [cameraPermissionState]
   );
   const modalRecordStatusMessage = React.useMemo(() => {
     if (captureError) return captureError;
-    if (isRequestingAccess) return "Waiting for camera and microphone permission...";
+    if (isRequestingAccess) return "Waiting for camera permission...";
     if (isRecording) return `Recording ${formatRecordingDuration(recordingElapsedMs)}`;
     return permissionPreflightFeedback?.message ?? null;
   }, [
@@ -735,18 +704,20 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (captureError) return captureRecoveryHint;
     if (isRecording) return "Click Stop when the motion reference is complete.";
     if (isRequestingAccess) return null;
+    if (didAttemptSettingsRecovery && cameraPermissionState === "denied") {
+      return "We tried to open your computer's camera settings. If nothing opened, allow access in your browser's site settings and system privacy settings, then try again.";
+    }
     return permissionPreflightFeedback?.recoveryHint ?? null;
   }, [
     captureError,
+    cameraPermissionState,
     captureRecoveryHint,
+    didAttemptSettingsRecovery,
     isRecording,
     isRequestingAccess,
     permissionPreflightFeedback,
   ]);
-  const isModalRecordError =
-    Boolean(captureError) ||
-    cameraPermissionState === "denied" ||
-    microphonePermissionState === "denied";
+  const isModalRecordError = Boolean(captureError) || cameraPermissionState === "denied";
   const isShowingPlayback = Boolean(recordedClipUrl);
   const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record motion reference";
 
@@ -848,29 +819,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                         : "No camera detected yet"}
                     </option>
                     {videoDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="motion-recorder-device-field">
-                  <span>
-                    <Microphone size={14} weight="regular" />
-                    <span>Microphone</span>
-                  </span>
-                  <select
-                    value={selectedAudioDeviceId}
-                    onChange={handleAudioDeviceChange}
-                    disabled={isRequestingAccess || isRecording || isUploadingClip}
-                  >
-                    <option value="">
-                      {audioDevices.length > 0
-                        ? "Browser default microphone"
-                        : "No microphone detected yet"}
-                    </option>
-                    {audioDevices.map((device) => (
                       <option key={device.deviceId} value={device.deviceId}>
                         {device.label}
                       </option>

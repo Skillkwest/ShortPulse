@@ -134,6 +134,22 @@ describe("ReferenceGridCard", () => {
     expect(playMock).toHaveBeenCalled();
   });
 
+  it("renders a video duration badge when duration metadata is available", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video", durationMs: 6_000 }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "metadata",
+        })}
+      />
+    );
+
+    expect(screen.getByText("0:06")).toBeInTheDocument();
+  });
+
   it("shows an NSFW pill for provider safety failures", () => {
     render(
       <ReferenceGridCard

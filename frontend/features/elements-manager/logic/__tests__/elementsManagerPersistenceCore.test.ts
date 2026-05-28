@@ -31,6 +31,7 @@ vi.mock("../../../../lib/mediaStoragePath", () => ({
 }));
 
 import {
+  fetchElementsManagerList,
   loadElementManagerDraftByElementId,
   saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
@@ -128,6 +129,82 @@ describe("elementsManagerPersistenceCore", () => {
     expect(refreshSupabaseSignedUrlIfNeededMock).toHaveBeenCalledTimes(2);
   });
 
+  it("derives draft status from incomplete saved references when listing elements", async () => {
+    const supabaseMock = {
+      from: (table: string) => {
+        if (table === "elements") {
+          return {
+            select: () => ({
+              eq: () => ({
+                neq: () => ({
+                  order: async () => ({
+                    data: [
+                      {
+                        id: "element-1",
+                        name: "Taylor",
+                        alias: "taylor",
+                        status: "ready",
+                        metadata: {
+                          profile_image_storage_path:
+                            "user-1/elements/element-1/profile/profile.png",
+                          active_reference_set_id: "1",
+                          active_reference_set_asset_type: "image",
+                          reference_set_tab_order: ["1"],
+                        },
+                        updated_at: "2026-04-07T00:00:00.000Z",
+                      },
+                    ],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "element_reference_sets") {
+          return {
+            select: () => ({
+              eq: () => ({
+                in: async () => ({
+                  data: [
+                    {
+                      id: "set-1",
+                      element_id: "element-1",
+                      set_key: "1",
+                      label: "Double click me",
+                      description: "saved element",
+                      asset_type: "image",
+                      deck_reference_urls: [],
+                      image_reference_urls: ["https://example.com/only-one-reference.png"],
+                      video_reference_url: null,
+                      updated_at: "2026-04-07T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseMock);
+
+    const items = await fetchElementsManagerList();
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        elementId: "element-1",
+        elementStatus: "draft",
+        elementAssetType: "image",
+      }),
+    ]);
+  });
+
   it("upserts active reference sets before pruning stale set keys during save", async () => {
     const operations: string[] = [];
     const supabaseMock = {
@@ -205,7 +282,7 @@ describe("elementsManagerPersistenceCore", () => {
 
     expect(result).toEqual({
       updatedAt: "2026-04-07T01:00:00.000Z",
-      status: "ready",
+      status: "draft",
     });
     expect(operations).toEqual([
       "elements.update",
@@ -346,7 +423,7 @@ describe("elementsManagerPersistenceCore", () => {
     expect(snapshot.elementId).toBe(savedElementId);
     expect(snapshot.name).toBe("Taylor");
     expect(snapshot.alias).toBe("taylor");
-    expect(snapshot.status).toBe("ready");
+    expect(snapshot.status).toBe("draft");
     expect(snapshot.description).toBe("new element");
     expect(snapshot.imageReferenceUrls).toEqual(["https://example.com/taylor-front.png"]);
     expect(operations).toEqual([
@@ -429,7 +506,7 @@ describe("elementsManagerPersistenceCore", () => {
     expect(updates[0]).toMatchObject({
       name: "Beach",
       alias: "taylor",
-      status: "ready",
+      status: "draft",
     });
   });
 });

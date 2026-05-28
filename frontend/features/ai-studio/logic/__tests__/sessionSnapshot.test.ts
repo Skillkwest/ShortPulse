@@ -451,6 +451,81 @@ describe("sessionSnapshot", () => {
     expect(payload.outputs.curatedReferenceIds).toEqual(["video-oldest", "audio-newest"]);
   });
 
+  it("preserves output duration metadata across session snapshot hydration", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "audio",
+      selectedTool: "text-to-speech",
+      prompt: "voiceover",
+      model: "eleven_multilingual_v2",
+      aspect: "audio",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "audio-duration",
+          mode: "audio",
+          durationMs: 4_000,
+          waveformPeaks: [10, 30, 20],
+        }),
+        createOutput({
+          id: "video-duration",
+          mode: "video",
+          durationMs: 9_000,
+          previewUrl: "https://cdn.example.com/video-duration.mp4",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "audio-duration",
+      curatedReferenceIds: ["audio-duration", "video-duration"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+      canvasState: undefined,
+      expertEditSessionState: undefined,
+    });
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.outputs.active).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "audio-duration",
+          durationMs: 4_000,
+          waveformPeaks: [10, 30, 20],
+        }),
+        expect.objectContaining({
+          id: "video-duration",
+          durationMs: 9_000,
+        }),
+      ])
+    );
+  });
+
   it("omits unsettled failed generated audio outputs from persisted snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

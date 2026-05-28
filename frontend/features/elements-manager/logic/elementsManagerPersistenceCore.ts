@@ -69,6 +69,10 @@ type ElementReferenceSetState = {
   sets: ElementReferenceSetMap;
 };
 
+type BuildReferenceSetStateOptions = {
+  hydrateUrls?: boolean;
+};
+
 export type ElementsManagerListItem = {
   elementId: string;
   elementName: string;
@@ -233,24 +237,51 @@ const isElementReferenceSetId = (value: string): value is ElementReferenceSetId 
 
 const LEGACY_ACTIVE_REFERENCE_SET_ID: ElementReferenceSetId = "1";
 
-const flattenReferenceSetState = (referenceSetState: ElementReferenceSetState) => {
-  const activeSet =
-    referenceSetState.sets[referenceSetState.activeSetId] ??
-    referenceSetState.sets[LEGACY_ACTIVE_REFERENCE_SET_ID];
-  const imageReferenceUrls = [
-    ...(activeSet?.imageReferenceUrls ?? []),
-    ...(activeSet?.deckReferenceUrls ?? []),
-  ]
+const normalizeReferenceSetImageUrls = (
+  activeSet:
+    | Pick<ElementReferenceSet, "imageReferenceUrls" | "deckReferenceUrls">
+    | null
+    | undefined
+): string[] =>
+  [...(activeSet?.imageReferenceUrls ?? []), ...(activeSet?.deckReferenceUrls ?? [])]
     .map((value) => value.trim())
     .filter(Boolean)
     .filter((value, index, collection) => collection.indexOf(value) === index)
     .slice(0, 6);
+
+const flattenReferenceSetState = (referenceSetState: ElementReferenceSetState) => {
+  const activeSet =
+    referenceSetState.sets[referenceSetState.activeSetId] ??
+    referenceSetState.sets[LEGACY_ACTIVE_REFERENCE_SET_ID];
+  const imageReferenceUrls = normalizeReferenceSetImageUrls(activeSet);
   return {
     description: activeSet?.description ?? "",
     assetType: activeSet?.assetType ?? "image",
     imageReferenceUrls,
     videoReferenceUrl: activeSet?.videoReferenceUrl.trim() || null,
   };
+};
+
+const deriveElementStatusFromFlatDraft = ({
+  name,
+  assetType,
+  imageReferenceUrls,
+  videoReferenceUrl,
+}: {
+  name: string;
+  assetType: ElementAssetType;
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string | null;
+}): ElementStatus => {
+  if (name.trim().length < 2) {
+    return "draft";
+  }
+
+  if (assetType === "video") {
+    return videoReferenceUrl?.trim() ? "ready" : "draft";
+  }
+
+  return imageReferenceUrls[0]?.trim() && imageReferenceUrls[1]?.trim() ? "ready" : "draft";
 };
 
 const buildLegacyReferenceSetStateFromFlatDraft = ({
@@ -394,12 +425,6 @@ const getElementReferenceSetTabOrder = (metadata: unknown): ElementReferenceSetI
   return parsed.length ? parsed : ["1"];
 };
 
-const getElementActiveReferenceSetAssetType = (metadata: unknown): ElementAssetType => {
-  const record = toObjectRecord(metadata);
-  const parsed = asText(record[ELEMENT_ACTIVE_REFERENCE_SET_ASSET_TYPE_KEY]);
-  return parsed === "video" ? "video" : "image";
-};
-
 const getElementActiveReferenceSetId = (
   metadata: unknown,
   fallbackIds: readonly ElementReferenceSetId[]
@@ -414,8 +439,10 @@ const getElementActiveReferenceSetId = (
 
 const buildReferenceSetState = async (
   metadata: unknown,
-  rows: ElementReferenceSetRow[]
+  rows: ElementReferenceSetRow[],
+  options?: BuildReferenceSetStateOptions
 ): Promise<ElementReferenceSetState> => {
+  const hydrateUrls = options?.hydrateUrls ?? true;
   const defaultLabels = createDefaultElementReferenceSetLabels();
   const defaultSets = createEmptyElementReferenceSetMap();
   const tabOrder = getElementReferenceSetTabOrder(metadata);
@@ -428,10 +455,16 @@ const buildReferenceSetState = async (
     sets[row.set_key] = {
       assetType: row.asset_type,
       description: row.description ?? "",
-      deckReferenceUrls: await hydrateReferenceUrlArray(row.deck_reference_urls),
-      imageReferenceUrls: await hydrateReferenceUrlArray(row.image_reference_urls),
+      deckReferenceUrls: hydrateUrls
+        ? await hydrateReferenceUrlArray(row.deck_reference_urls)
+        : asTextArray(row.deck_reference_urls),
+      imageReferenceUrls: hydrateUrls
+        ? await hydrateReferenceUrlArray(row.image_reference_urls)
+        : asTextArray(row.image_reference_urls),
       videoReferenceUrl: row.video_reference_url?.trim()
-        ? await hydrateReferenceUrl(row.video_reference_url)
+        ? hydrateUrls
+          ? await hydrateReferenceUrl(row.video_reference_url)
+          : row.video_reference_url.trim()
         : "",
     };
   }
@@ -474,17 +507,58 @@ export const fetchElementsManagerList = async (): Promise<ElementsManagerListIte
   const rows = ((data ?? []) as ElementRow[]).filter(
     (row): row is ElementRow & { status: ElementStatus } => row.status !== "archived"
   );
+  if (!rows.length) {
+    return [];
+  }
+
+  const { data: referenceRowsData, error: referenceRowsError } = await supabase
+    .from("element_reference_sets")
+    .select(
+      "id, element_id, set_key, label, description, asset_type, deck_reference_urls, image_reference_urls, video_reference_url, updated_at"
+    )
+    .eq("user_id", userId)
+    .in(
+      "element_id",
+      rows.map((row) => row.id)
+    );
+  if (referenceRowsError) {
+    throw new Error(asErrorMessage(referenceRowsError, "Failed to load element reference sets."));
+  }
+
+  const referenceRowsByElementId = new Map<string, ElementReferenceSetRow[]>();
+  for (const row of (referenceRowsData ?? []) as ElementReferenceSetRow[]) {
+    const existingRows = referenceRowsByElementId.get(row.element_id);
+    if (existingRows) {
+      existingRows.push(row);
+      continue;
+    }
+    referenceRowsByElementId.set(row.element_id, [row]);
+  }
+
   const items = await Promise.all(
-    rows.map(async (row) => ({
-      elementId: row.id,
-      elementName: row.name,
-      elementAlias: resolveElementWorkflowAlias({ name: row.name, legacyAlias: row.alias }),
-      elementAssetType: getElementActiveReferenceSetAssetType(row.metadata),
-      elementStatus: row.status,
-      profileImageUrl: await toSignedProfileImageUrl(row.metadata),
-      profileImageTransform: getElementProfileImageTransform(row.metadata),
-      updatedAt: row.updated_at ?? new Date().toISOString(),
-    }))
+    rows.map(async (row) => {
+      const referenceSetState = await buildReferenceSetState(
+        row.metadata,
+        referenceRowsByElementId.get(row.id) ?? [],
+        { hydrateUrls: false }
+      );
+      const flattenedDraft = flattenReferenceSetState(referenceSetState);
+      return {
+        elementId: row.id,
+        elementName: row.name,
+        elementAlias: resolveElementWorkflowAlias({ name: row.name, legacyAlias: row.alias }),
+        elementAssetType: flattenedDraft.assetType,
+        elementStatus: deriveElementStatusFromFlatDraft({
+          name: row.name,
+          assetType: flattenedDraft.assetType,
+          imageReferenceUrls: flattenedDraft.imageReferenceUrls,
+          videoReferenceUrl: flattenedDraft.videoReferenceUrl,
+        }),
+        profileImageUrl: await toSignedProfileImageUrl(row.metadata),
+        profileImageTransform: getElementProfileImageTransform(row.metadata),
+        updatedAt: row.updated_at ?? new Date().toISOString(),
+      };
+    })
   );
   return items;
 };
@@ -610,7 +684,17 @@ export const loadElementManagerDraftByElementId = async (
   }
 
   const row = elementRow as ElementRow;
-  const status = row.status === "ready" ? "ready" : "draft";
+  const referenceSetState = await buildReferenceSetState(
+    row.metadata,
+    (referenceRows ?? []) as ElementReferenceSetRow[]
+  );
+  const flattenedDraft = flattenReferenceSetState(referenceSetState);
+  const status = deriveElementStatusFromFlatDraft({
+    name: row.name,
+    assetType: flattenedDraft.assetType,
+    imageReferenceUrls: flattenedDraft.imageReferenceUrls,
+    videoReferenceUrl: flattenedDraft.videoReferenceUrl,
+  });
   return {
     userId,
     elementId: row.id,
@@ -619,9 +703,7 @@ export const loadElementManagerDraftByElementId = async (
     status,
     profileImageUrl: await toSignedProfileImageUrl(row.metadata),
     profileImageTransform: getElementProfileImageTransform(row.metadata),
-    ...flattenReferenceSetState(
-      await buildReferenceSetState(row.metadata, (referenceRows ?? []) as ElementReferenceSetRow[])
-    ),
+    ...flattenedDraft,
     updatedAt: row.updated_at ?? new Date().toISOString(),
   };
 };
@@ -664,6 +746,7 @@ export const saveElementManagerDraftSnapshot = async ({
     imageReferenceUrls,
     videoReferenceUrl,
   });
+  const flattenedDraft = flattenReferenceSetState(legacyReferenceSetState);
   const existingElementRow = existingRow as { name?: unknown; alias?: unknown; metadata: unknown };
   const nextMetadata = toObjectRecord(existingElementRow.metadata);
   nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ID_KEY] = legacyReferenceSetState.activeSetId;
@@ -687,7 +770,12 @@ export const saveElementManagerDraftSnapshot = async ({
       : existingAlias && existingAlias.toLowerCase() !== previousCanonicalAlias.toLowerCase()
         ? existingAlias
         : previousCanonicalAlias || existingAlias || resolvedAlias;
-  const nextStatus: ElementStatus = name.trim().length >= 2 ? "ready" : "draft";
+  const nextStatus = deriveElementStatusFromFlatDraft({
+    name: resolvedName,
+    assetType: flattenedDraft.assetType,
+    imageReferenceUrls: flattenedDraft.imageReferenceUrls,
+    videoReferenceUrl: flattenedDraft.videoReferenceUrl,
+  });
   const { data: updatedRow, error: updateError } = await supabase
     .from("elements")
     .update({

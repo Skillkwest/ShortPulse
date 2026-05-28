@@ -178,6 +178,13 @@
   pointer-events: none;
 }
 
+.canvas-scene-item__media-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+}
+
 .canvas-scene-item__audio-frame {
   position: relative;
   width: 100%;

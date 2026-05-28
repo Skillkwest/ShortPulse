@@ -1,5 +1,5 @@
 /**
- * Verifies Fal status polling ownership checks with token-first auth.
+ * Verifies Fal status polling ownership checks with proxy-first protected-route auth.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/seedream-status";
@@ -46,12 +46,6 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
   it("keeps ownership enforcement with middleware-authenticated user context", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("forbidden");
     const fetchMock = vi.fn();
-    fetchMock.mockResolvedValueOnce(
-      mockFetchResponse({
-        status: 200,
-        body: { id: "user-ctx" },
-      })
-    );
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -75,18 +69,12 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
       providerRequestId: "foreign-request-id",
     });
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("still proxies status when middleware-authenticated ownership is confirmed", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
-    fetchMock.mockResolvedValueOnce(
-      mockFetchResponse({
-        status: 200,
-        body: { id: "user-ctx" },
-      })
-    );
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -146,18 +134,12 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces non-JSON completed result probes as status errors", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
-    fetchMock.mockResolvedValueOnce(
-      mockFetchResponse({
-        status: 200,
-        body: { id: "user-ctx" },
-      })
-    );
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -210,6 +192,6 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
       })
     );
     expect(logGenerationFailureMock).toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

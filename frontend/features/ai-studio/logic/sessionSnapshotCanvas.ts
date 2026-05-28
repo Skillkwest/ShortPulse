@@ -74,6 +74,7 @@ type CanvasSceneItemSnapshotV1 =
       videoUrl: string;
       posterUrl: string | null;
       title: string | null;
+      durationMs: number | null;
       width: number;
       height: number;
     }
@@ -322,6 +323,10 @@ const sanitizeCanvasSceneItem = (
         videoUrl,
         posterUrl: asDurableNullableCanvasMediaSource(value.posterUrl),
         title: asNullableString(value.title),
+        durationMs:
+          typeof value.durationMs === "number" && Number.isFinite(value.durationMs)
+            ? Math.max(0, Math.round(value.durationMs))
+            : null,
         width,
         height,
       },
@@ -428,6 +433,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
               videoUrl: item.videoUrl,
               posterUrl: item.posterUrl ?? null,
               title: item.title ?? null,
+              durationMs: item.durationMs ?? null,
               width: item.width,
               height: item.height,
             }
@@ -579,6 +585,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
     if (kind === "video") {
       const videoUrl = asString(record.videoUrl, "").trim();
       if (!isDurableCanvasMediaSource(videoUrl)) return;
+      const durationMs = asNullableFiniteNumber(record.durationMs);
       parsed.push({
         id,
         kind: "video",
@@ -592,6 +599,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         videoUrl,
         posterUrl: asDurableNullableCanvasMediaSource(record.posterUrl),
         title: asNullableString(record.title),
+        durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
         width: Math.max(
           1,
           Math.round(asFiniteNumber(record.width, CANVAS_IMAGE_ITEM_WIDTH) * 100) / 100

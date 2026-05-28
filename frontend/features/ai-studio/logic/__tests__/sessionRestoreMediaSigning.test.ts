@@ -61,6 +61,40 @@ describe("sessionRestoreMediaSigning", () => {
     expect(paths).toEqual(["user-1/images/a.png", "user-1/images/b.png"]);
   });
 
+  it("can collect restore-preview paths without eager image full-quality signing", () => {
+    const paths = collectSessionRestoreSigningPaths(
+      [
+        createOutput({
+          id: "image-a",
+          mode: "image",
+          previewStoragePath: "user-1/images/image-a-thumb.png",
+          fullStoragePath: "user-1/images/image-a-full.png",
+        }),
+        createOutput({
+          id: "image-b",
+          mode: "image",
+          fullStoragePath: "user-1/images/image-b-full.png",
+        }),
+        createOutput({
+          id: "video-a",
+          mode: "video",
+          previewPosterStoragePath: "user-1/videos/video-a-poster.jpg",
+          fullStoragePath: "user-1/videos/video-a.mp4",
+        }),
+      ],
+      {
+        includeDetailFullQuality: false,
+      }
+    );
+
+    expect(paths).toEqual([
+      "user-1/images/image-a-thumb.png",
+      "user-1/images/image-b-full.png",
+      "user-1/videos/video-a-poster.jpg",
+      "user-1/videos/video-a.mp4",
+    ]);
+  });
+
   it("resolves signed URLs for restore paths", async () => {
     const signedMap = new Map<string, string | null>([
       ["user-1/images/a.png", "https://signed/a.png"],

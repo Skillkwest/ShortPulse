@@ -1,0 +1,55 @@
+# Elements Workflow Hardening Closeout
+
+- lane id: `elements-workflow-hardening`
+- source handoff path: `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`
+- execution status: `bounded hardening patch complete`
+- systems touched:
+  - `ai-studio-elements-workflow`
+  - downstream Kling element reuse seam via ready-only element listing
+- files changed:
+  - `frontend/features/elements-manager/logic/elementsManagerPersistenceCore.ts`
+  - `frontend/features/elements-manager/logic/__tests__/elementsManagerPersistenceCore.test.ts`
+- summary of what changed:
+  - Hardened element readiness so `ready` now derives from the persisted reusable-reference contract instead of name length alone.
+  - `fetchElementsManagerList()` now reads the saved active reference-set payload and recalculates each element's effective readiness before returning list items.
+  - `loadElementManagerDraftByElementId()` now derives snapshot status from the persisted active reference set, so stale saved rows no longer present an incomplete element as reusable.
+  - `saveElementManagerDraftSnapshot()` now writes `draft` whenever a saved element no longer has the minimum required reusable references for its active asset type.
+  - Added regression coverage for incomplete saved elements staying `draft` in the listing path and updated persistence expectations for save/load flows.
+- acceptance criteria reached:
+  - One key Elements workflow ambiguity was removed: downstream reuse readiness is now anchored to persisted reference completeness.
+  - The change stayed inside the bounded Elements workflow persistence seam and avoided `frontend/features/elements-manager/components/ElementsManagerShell.tsx`.
+- evidence snapshot:
+  - Source of truth for lane scope: `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`
+  - System row reviewed: `docs/systems/catalog.md` row `ai-studio-elements-workflow` (`Current score 5/10`, `Ship floor 6/10`, reviewed `2026-05-28`)
+  - Code evidence gathered from:
+    - `frontend/features/elements-manager/logic/elementsManagerPersistenceCore.ts`
+    - `frontend/features/elements-manager/hooks/useElementsManagerViewState.ts`
+    - `frontend/features/ai-studio/components/ElementPickerModal.tsx`
+  - Freshness: inspected and changed on `2026-05-28`
+  - Surface type: repo/worktree code plus local validation only; no production URL evidence gathered in this lane
+- validation run:
+  - `npm -C frontend run test -- --run features/elements-manager/logic/__tests__/elementsManagerPersistenceCore.test.ts`
+  - `npm -C frontend run test -- --run features/ai-studio/components/__tests__/ElementsPanel.layout.test.tsx features/elements-manager/components/__tests__/ElementsPanelSplitHost.test.tsx features/ai-studio/components/__tests__/VideoPropertiesPanel.test.tsx`
+  - `./node_modules/.bin/eslint features/elements-manager/logic/elementsManagerPersistenceCore.ts features/elements-manager/logic/__tests__/elementsManagerPersistenceCore.test.ts`
+- validation evidence:
+  - Elements persistence core suite: `5/5` tests passed.
+  - Adjacent bounded regression suites: `43/43` tests passed across Elements layout, split host, and Video properties picker-adjacent coverage.
+  - Targeted ESLint on touched files exited cleanly with code `0`.
+  - Attempted `npm -C frontend run lint -- --file ...` first, but the repo's flat-config ESLint script rejects `--file`; this was a command-shape issue, not a code failure, and was replaced by direct file-scoped ESLint.
+- self-audit findings:
+  - The original persistence contract let an existing saved element fall back to `ready` after required references were removed, which made the downstream reuse filter too trusting.
+  - The first implementation draft also left existing stale saved rows dependent on stored `elements.status`; that was tightened by recalculating readiness in the listing path as part of the same lane.
+- issues fixed during self-audit:
+  - Added list-path status derivation so older/stale saved rows do not remain picker-visible just because the database row still says `ready`.
+  - Removed an unused helper after the readiness refactor.
+  - Replaced the invalid `npm run lint -- --file ...` attempt with direct file-scoped ESLint.
+- issues intentionally left out of scope:
+  - No UI copy, shell layout, or editor workflow changes in `ElementsManagerShell.tsx`
+  - No broad asset-management redesign
+  - No catalog rerating or queue mutation inside this external lane
+- blockers encountered:
+  - None on the code path itself
+- residual risk:
+  - This lane proves the repo/worktree persistence contract locally, but it does not provide production-URL evidence that current hosted element data is free of stale incomplete rows or that real user-created video-backed elements have already exercised the hardened path in production.
+- recommended next step for Copperknot review:
+  - Review this patch against the `ai-studio-elements-workflow` catalog row, then decide whether the next bounded follow-up should be production evidence gathering on real saved Elements reuse behavior or a separate persistence/catalog lane if stale hosted rows need repair.

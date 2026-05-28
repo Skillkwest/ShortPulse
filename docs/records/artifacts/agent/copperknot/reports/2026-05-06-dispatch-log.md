@@ -2,9 +2,9 @@
 
 Date: `2026-05-06`
 
-Last updated: `2026-05-27`
+Last updated: `2026-05-28`
 
-Freshness status as of `2026-05-27`: `current`
+Freshness status as of `2026-05-28`: `current`
 
 Purpose: record which handoff packets have already been dispatched to execution agents during the current production-readiness window.
 
@@ -131,17 +131,22 @@ Purpose: record which handoff packets have already been dispatched to execution 
 9. `Create workflow`
 
 - Packet:
-  - `queue-only`
+  - `docs/agents/copperknot/handoffs/2026-05-28-create-workflow-validation-convergence.md`
 - Status:
-  - exact next lane after the May 27 baseline reset
-  - must absorb current AI Studio/runtime validation red state before the older workflow queue is trusted again
+  - dispatched through managed Copperknot subagent execution on `2026-05-28`
+  - closeout reconstructed and reviewed on `2026-05-28`
+  - focused validation rerun is green at `24 passed / 24 total tests`
+  - score held at `6/10`
+  - exact next lane moved to `Elements workflow`
+- Closeout:
+  - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-create-workflow-validation-convergence-closeout.md`
 
 10. `Elements workflow`
 
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`
 - Status:
-  - second open lane after the validation-first Create review
+  - exact next lane after the May 28 Create validation-convergence review
   - still carries fresh approved-panel runtime pressure from Holomony
 
 11. `Characters workflow`
@@ -203,6 +208,12 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - recorded a focused failing rerun at `8 failed / 26 total tests`
   - retired the stale May 19 Characters-first exact-next order
   - moved the exact next lane back to `Create workflow` as a validation-first review
+- `2026-05-28` Create validation-convergence review:
+  - accepted the bounded Create lane result after local Copperknot review
+  - reran the exact handoff validation locally and confirmed `24/24` passing tests
+  - reran `npm run build` successfully
+  - kept `Create workflow` at `6/10`
+  - moved the exact next lane to `Elements workflow`
 
 ## Operating Note
 

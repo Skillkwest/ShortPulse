@@ -49,6 +49,9 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-16: Keep the Copperknot rename focused on identity surfaces, folders, indexes, and live authority docs. Historical date-based report filenames can stay stable when the file purpose is still correct.
 - 2026-05-16: Audit credentials should live only in canonical local env surfaces such as `frontend/.env.local`. Copperknot may remember to use `PLAYWRIGHT_AUDIT_EMAIL` and `PLAYWRIGHT_AUDIT_PASSWORD` from that env file, but should not duplicate raw secrets into repo-visible memory, reports, or handoffs.
 - 2026-05-19: A full repo-plus-worktree audit is only valid at final closeout if Copperknot rechecks the live worktree right before locking the baseline. If a failing seam goes green during the audit, the final baseline should follow the newest validated repo truth, not the first failing snapshot.
+- 2026-05-28: Copperknot stays healthiest when it remains the launch-control steward instead of absorbing many implementation lanes directly. Default to packaging, dispatching, reviewing, and rerating. Delegate bounded execution work once a real handoff exists, and only execute code locally when that is the cleanest way to preserve or restore launch-truth accuracy.
+- 2026-05-28: Delegation is not shared authority. Copperknot remains the accountable decision-maker in its lane and should absorb the management overhead of subagents itself. The user should not need to supervise Copperknot's subagent choices for Copperknot to be useful.
+- 2026-05-28: Dispatch readiness is a user checkpoint. Copperknot should prepare the next execution lane and be ready to recommend dispatch, but it should pause there until the user explicitly says to send the lane out.
 
 ## Open Follow-Ups
 

@@ -13,47 +13,41 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 
 ## Queue
 
-| Priority | System                                          | Current | Ship floor | Lane                                 | Recommended agent profile                    | Current handoff                                                                            |
-| -------- | ----------------------------------------------- | ------: | ---------: | ------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1        | `Create workflow`                               |       6 |          7 | AI Studio validation convergence     | AI Studio runtime triage + workflow steward  | `queue-only`                                                                               |
-| 2        | `Elements workflow`                             |       5 |          6 | Approved panel/runtime health        | panel runtime + preview delivery hardening   | `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`                          |
-| 3        | `Project / workspace persistence`               |       6 |          7 | AI Studio workflow stability         | persistence contracts + restore boundaries   | `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`              |
-| 4        | `Characters workflow`                           |       5 |          6 | Secondary workflow confidence        | workflow modularization + persistence cleanup | `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`                        |
-| 5        | `Media delivery / signing / preview resolution` |       6 |          6 | Approved panel/runtime follow-up     | preview delivery performance                 | `queue-only`                                                                               |
-| 6        | `Edit workflow`                                 |       6 |          7 | AI Studio workflow stability         | AI Studio workflow modularization            | `docs/agents/copperknot/handoffs/2026-05-06-edit-workflow.md`                              |
-| 7        | `Media ingest / save`                           |       6 |          7 | Platform trust and release safety    | media persistence + upload authority         | `queue-only`                                                                               |
-| 8        | `Core data persistence`                         |       6 |          7 | Platform trust and release safety    | schema/persistence contract audit            | `queue-only`                                                                               |
-| 9        | `Storage / file delivery`                       |       6 |          7 | Platform trust and release safety    | storage scope + signed delivery              | `queue-only`                                                                               |
-| 10       | `Security boundaries`                           |       7 |          7 | Release security follow-through      | security boundary validation                 | `docs/agents/copperknot/handoffs/2026-05-16-security-boundaries-release-audit.md`          |
-| 11       | `Provider integrations`                         |       6 |          7 | Shared runtime hardening             | provider contract normalization              | `queue-only`                                                                               |
-| 12       | `Video workflow`                                |       6 |          6 | Secondary workflow confidence        | video generation workflow validation         | `queue-only`                                                                               |
-| 13       | `Reference Grid`                                |       7 |          7 | Validation maintenance               | reference-surface validation maintenance     | `docs/agents/copperknot/handoffs/2026-05-16-reference-grid-styles-runtime-verification.md` |
-| 14       | `Generation submission / polling`               |       7 |          7 | Shared runtime hardening             | provider submit/status validation            | `docs/agents/copperknot/handoffs/2026-05-16-generation-submission-polling-hardening.md`    |
-| 15       | `Billing / credits`                             |       7 |          7 | Shared runtime hardening             | billing-runtime validation                   | `docs/agents/copperknot/handoffs/2026-05-16-billing-credits-runtime-hardening.md`          |
-| 16       | `Media Library workflow`                        |       6 |          6 | Secondary workflow confidence        | media UX and workflow semantics              | `queue-only`                                                                               |
-| 17       | `Media derivatives / variants`                  |       6 |          6 | Platform trust and release safety    | derivative worker reliability                | `queue-only`                                                                               |
-| 18       | `Sound workflow`                                |       6 |          6 | Secondary workflow confidence        | sound workflow validation                    | `queue-only`                                                                               |
-| 19       | `Observability / incident triage`               |       6 |          6 | Platform trust and release safety    | telemetry and operator visibility            | `queue-only`                                                                               |
-| 20       | `Admin operations`                              |       6 |          6 | Platform trust and release safety    | admin support surface integrity              | `queue-only`                                                                               |
-| 21       | `Pricing / entitlements`                        |       7 |          7 | Platform trust and release safety    | control-plane validation                     | `queue-only`                                                                               |
-| 22       | `Auth / identity`                               |       7 |          7 | Platform trust and release safety    | auth boundary validation                     | `queue-only`                                                                               |
+| Priority | System                                          | Current | Ship floor | Lane                                | Recommended agent profile                     | Current handoff                                                                            |
+| -------- | ----------------------------------------------- | ------: | ---------: | ----------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1        | `Elements workflow`                             |       5 |          6 | Approved panel/runtime health       | panel runtime + preview delivery hardening    | `docs/agents/copperknot/handoffs/2026-05-06-elements-workflow.md`                          |
+| 2        | `Project / workspace persistence`               |       6 |          7 | AI Studio workflow stability        | persistence contracts + restore boundaries    | `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`              |
+| 3        | `Characters workflow`                           |       5 |          6 | Secondary workflow confidence       | workflow modularization + persistence cleanup | `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`                        |
+| 4        | `Create workflow`                               |       6 |          7 | AI Studio validation follow-up hold | AI Studio runtime triage + workflow steward   | `docs/agents/copperknot/handoffs/2026-05-28-create-workflow-validation-convergence.md`     |
+| 5        | `Media delivery / signing / preview resolution` |       6 |          6 | Approved panel/runtime follow-up    | preview delivery performance                  | `queue-only`                                                                               |
+| 6        | `Edit workflow`                                 |       6 |          7 | AI Studio workflow stability        | AI Studio workflow modularization             | `docs/agents/copperknot/handoffs/2026-05-06-edit-workflow.md`                              |
+| 7        | `Media ingest / save`                           |       6 |          7 | Platform trust and release safety   | media persistence + upload authority          | `queue-only`                                                                               |
+| 8        | `Core data persistence`                         |       6 |          7 | Platform trust and release safety   | schema/persistence contract audit             | `queue-only`                                                                               |
+| 9        | `Storage / file delivery`                       |       6 |          7 | Platform trust and release safety   | storage scope + signed delivery               | `queue-only`                                                                               |
+| 10       | `Security boundaries`                           |       7 |          7 | Release security follow-through     | security boundary validation                  | `docs/agents/copperknot/handoffs/2026-05-16-security-boundaries-release-audit.md`          |
+| 11       | `Provider integrations`                         |       6 |          7 | Shared runtime hardening            | provider contract normalization               | `queue-only`                                                                               |
+| 12       | `Video workflow`                                |       6 |          6 | Secondary workflow confidence       | video generation workflow validation          | `queue-only`                                                                               |
+| 13       | `Reference Grid`                                |       7 |          7 | Validation maintenance              | reference-surface validation maintenance      | `docs/agents/copperknot/handoffs/2026-05-16-reference-grid-styles-runtime-verification.md` |
+| 14       | `Generation submission / polling`               |       7 |          7 | Shared runtime hardening            | provider submit/status validation             | `docs/agents/copperknot/handoffs/2026-05-16-generation-submission-polling-hardening.md`    |
+| 15       | `Billing / credits`                             |       7 |          7 | Shared runtime hardening            | billing-runtime validation                    | `docs/agents/copperknot/handoffs/2026-05-16-billing-credits-runtime-hardening.md`          |
+| 16       | `Media Library workflow`                        |       6 |          6 | Secondary workflow confidence       | media UX and workflow semantics               | `queue-only`                                                                               |
+| 17       | `Media derivatives / variants`                  |       6 |          6 | Platform trust and release safety   | derivative worker reliability                 | `queue-only`                                                                               |
+| 18       | `Sound workflow`                                |       6 |          6 | Secondary workflow confidence       | sound workflow validation                     | `queue-only`                                                                               |
+| 19       | `Observability / incident triage`               |       6 |          6 | Platform trust and release safety   | telemetry and operator visibility             | `queue-only`                                                                               |
+| 20       | `Admin operations`                              |       6 |          6 | Platform trust and release safety   | admin support surface integrity               | `queue-only`                                                                               |
+| 21       | `Pricing / entitlements`                        |       7 |          7 | Platform trust and release safety   | control-plane validation                      | `queue-only`                                                                               |
+| 22       | `Auth / identity`                               |       7 |          7 | Platform trust and release safety   | auth boundary validation                      | `queue-only`                                                                               |
 
 ## Queue Interpretation
 
-- Priority `1` is the exact next lane from the `2026-05-27` baseline reset because the current `production` branch plus active worktree no longer supports blindly dispatching the older workflow queue while targeted validation is red.
-- The confirmed failing rerun is:
-  - `8 failed / 26 total tests` across:
-    - `features/ai-studio/hooks/__tests__/useAiStudioOutputCollectionState.test.ts`
-    - `features/ai-studio/logic/__tests__/perfProfileFlags.test.ts`
-    - `features/ai-studio/components/style-creator/__tests__/internalDropResolver.test.ts`
-    - `tests/api/studio-agent.runtime.workflow-bypass.test.ts`
-    - `tests/api/error-logging-coverage.test.ts`
-    - `tests/api/media-stage-voice-clone-source-route.test.ts`
-    - `tests/api/media-stage-voice-changer-source-route.test.ts`
-    - `lib/__tests__/agentPromptsConfig.test.ts`
-- Priority `2` stays high because Holomony's `2026-05-21` approved-panel runtime check kept the shared media-panel lane at `6/10 fragile`, with open-phase signing cost still high and an Elements-only missing-preview gap still active.
+- Priority `1` is now `Elements workflow` because the `Create workflow` validation-convergence lane has been reviewed locally by Copperknot, the focused rerun is green at `24 passed / 24 total tests`, and the exact-next validation-red blocker is no longer open.
+- The accepted Create rerun is:
+  - `8 passed test files`
+  - `24 passed / 24 total tests`
+- Priority `1` stays on `Elements workflow` because Holomony's `2026-05-21` approved-panel runtime check still holds the shared media-panel lane at `6/10 fragile`, with open-phase signing cost still high and an Elements-only missing-preview gap still active.
 - Priorities `3..9` are the remaining below-floor workflow and persistence set after the heavy May 21 through May 27 repo hardening wave.
 - `Characters workflow` moved down from the May 19 exact-next slot because newer repo movement materially changed that surface's evidence base, so the old Characters-first ordering is no longer trustworthy by default.
+- `Create workflow` stays below floor, but it moves back to a held follow-up state after the May 28 validation-convergence closeout rather than remaining the exact next dispatch lane.
 - `Reference Grid` stays at floor and should not be reopened as a blocker lane on current evidence.
 - `Security boundaries` stays at floor, but the queue keeps an explicit follow-through slot for hosted auth-session cleanup, Git history purge judgment, and the new public-schema grant hardening posture.
 
@@ -61,10 +55,9 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 
 The Copperknot should treat these as the current active next-work set:
 
-1. `Create workflow`
-   - note: the lane is `queue-only` today because the current highest-ROI action is still local validation convergence on the live repo/worktree state
-2. `Elements workflow`
-3. `Project / workspace persistence`
+1. `Elements workflow`
+2. `Project / workspace persistence`
+3. `Characters workflow`
 
 ## Reviewed-Complete Follow-Up Lanes
 
@@ -76,7 +69,7 @@ The Copperknot should treat these as the current active next-work set:
 
 ## Current Dispatch Snapshot
 
-As of `2026-05-27`:
+As of `2026-05-28`:
 
 - reviewed complete:
   - `Generation recovery / settlement`
@@ -90,9 +83,11 @@ As of `2026-05-27`:
   - `Project / workspace persistence`
 - score held after May 19 validation:
   - `Create workflow`
+- score held after May 28 validation convergence:
+  - `Create workflow`
 - fresh queue correction after the May 27 baseline reset:
   - the May 19 `Characters workflow -> Elements workflow` exact-next order is now historical
-  - the live branch/worktree must first absorb the current AI Studio/runtime validation red state
+  - the earlier Create validation-red state has now been absorbed and accepted
 
 ## Fresh Production And Worktree Follow-Up Signals
 
@@ -103,4 +98,4 @@ As of `2026-05-27`:
 - current worktree findings that changed the exact top queue order:
   - active frontend edits now touch `MotionRecorderModal`, `VideoPropertiesPanel`, shared record prefab work, and related tests/styles
   - active SQL/docs edits now harden explicit public-schema Data API grants and restore service-role execute posture for model-pricing functions
-  - the focused failing rerun proves the current branch/worktree is not in a trustworthy `paste old workflow handoff first` state
+  - the May 28 Create validation-convergence closeout cleared the focused failing rerun without earning a score lift, which returns the exact next lane to `Elements workflow`

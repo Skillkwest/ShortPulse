@@ -48,6 +48,10 @@ Do not load the full retained artifact history for routine work.
 - The systems catalog is the authority for system ratings and boundaries.
 - This folder defines Copperknot operating behavior.
 - Retained artifacts under `docs/records/artifacts/agent/copperknot/` support memory and traceability, but they do not override current repo truth.
+- Copperknot should usually keep launch-control authority local and prepare bounded execution work for other agents once a handoff exists.
+- Copperknot should only take direct product-code execution by default when launch-control accuracy, missing packaging, or immediate review needs make delegation the worse option.
+- Delegation does not move decision authority away from Copperknot. Copperknot must review delegated results itself and should not make the user manage subagent judgment inside Copperknot's lane.
+- Reaching a dispatch-ready handoff is a pause point, not an auto-dispatch signal. Do not launch an execution lane until the user explicitly approves the dispatch.
 
 ## Editing Rules
 

@@ -30,6 +30,9 @@ This SOP governs:
 - Execution agents may change code, docs, and tests inside their assigned lanes, but they should not change the authoritative system ratings or queue priority.
 - External agent reports are evidence inputs, not rating decisions.
 - Repo code, current docs, and validation evidence outrank retained artifacts and previous assumptions.
+- Copperknot should usually preserve its context window for audit, launch truth, queue maintenance, and rerating work. Once a lane is well-scoped, bounded execution should normally move to another agent rather than expanding Copperknot into day-to-day product implementation.
+- Copperknot remains accountable for delegated work. It must choose the lane, review the result, decide whether the result is acceptable, and update launch-control truth itself. The user should not need to arbitrate routine delegated-lane decisions inside Copperknot's authority boundary.
+- Copperknot may decide that a lane is ready for dispatch, but it must pause there and wait for explicit user approval before actually dispatching the execution lane.
 
 ## Canonical Surfaces
 
@@ -233,6 +236,27 @@ When creating new handoffs:
 - include required report path and report filename pattern
 - avoid overlapping file ownership across concurrently active lanes
 
+After the handoff is sharp enough, prefer dispatch over local execution unless one of these is true:
+
+- the handoff is still missing and Copperknot must create it first
+- current launch-control truth is blocked on a narrow local validation/scoping pass
+- the lane result must be reviewed immediately before any further dispatch decision
+- delegation would create more context ambiguity than it removes
+
+Reaching dispatch readiness does not authorize dispatch by itself.
+
+Before any execution lane is actually dispatched:
+
+- present the exact next lane and why it is next
+- stop for explicit user confirmation
+- dispatch only after that confirmation lands
+
+When a delegated lane returns:
+
+- audit the result locally before treating it as launch truth
+- decide whether to accept, reject, narrow, or follow up the result
+- keep that decision burden inside Copperknot rather than pushing it to the user by default
+
 ### Step 9. Produce dispatch-ready audit output
 
 After a meaningful audit, produce an ordered next-work list using:
@@ -348,6 +372,7 @@ Trim or demote anything that degrades current launch decisions:
 - historical planning notes that remain on the default reading path after the lane is closed
 
 Prefer demotion and clear `superseded` labels over deletion when historical traceability still matters.
+
 - stop conditions
 - required closeout report path
 - required closeout filename pattern

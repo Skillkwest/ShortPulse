@@ -22,10 +22,14 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-19-launch-ready-checklist.md`: historical ADHD-friendly launch-ready checklist for the May 19 launch snapshot.
 - `2026-05-19-launch-ready-checklist.html`: browser-friendly version of the May 19 launch-ready checklist.
 - `2026-05-27-production-baseline-reset-audit.md`: current full repo-plus-worktree baseline reset that replaces the stale May 19 queue truth.
-- `2026-05-27-operator-brief.html`: current rich-format operator brief for the May 27 baseline reset.
+- `2026-05-27-operator-brief.html`: historical rich-format operator brief for the May 27 baseline reset.
 - `2026-05-27-operator-brief.md`: source-only backing artifact for the May 27 operator brief.
-- `2026-05-27-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist for the May 27 launch snapshot.
-- `2026-05-27-launch-ready-checklist.html`: browser-friendly version of the May 27 launch-ready checklist.
+- `2026-05-28-operator-brief.html`: current rich-format operator brief for the Create-lane acceptance follow-up.
+- `2026-05-28-operator-brief.md`: source-only backing artifact for the May 28 operator brief.
+- `2026-05-28-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the Create validation-convergence closeout.
+- `2026-05-28-launch-ready-checklist.html`: browser-friendly version of the May 28 launch-ready checklist.
+- `2026-05-27-launch-ready-checklist.md`: historical ADHD-friendly launch-ready checklist for the May 27 launch snapshot.
+- `2026-05-27-launch-ready-checklist.html`: historical browser-friendly version of the May 27 launch-ready checklist.
 - `2026-05-16-memory-and-catalog-prune-audit.md`: pruning audit for Copperknot memory, retained context, and launch-focus catalog docs.
 - `2026-05-16-workspace-audit.md`: workspace-structure audit confirming the Copperknot space is self-contained and operational.
 - `external-lane-closeouts/README.md`: intake rules for closeout reports written by execution agents.

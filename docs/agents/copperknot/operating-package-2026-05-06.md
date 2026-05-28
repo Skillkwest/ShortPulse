@@ -63,7 +63,7 @@ The May 16 Reference Grid blocker was cleared and is now historical in `docs/kno
 
 ## Current Lane Snapshot
 
-As of `2026-05-27`:
+As of `2026-05-28`:
 
 - the May 19 baseline refresh is now historical, not current launch-control truth
 - the repo moved heavily after May 19 across:
@@ -76,12 +76,12 @@ As of `2026-05-27`:
   - live motion/video recorder UI work
   - shared record-panel prefab work
   - SQL/security grant-hardening work
-- the current validation posture is mixed:
+- the current validation posture for the last exact-next Create lane is now improved:
   - `node scripts/check_secret_exposure.js` passed
   - `npm -C frontend run build` passed
-  - the focused failing Vitest rerun is red at `8 failed / 26 total tests`
-- the live queue changed because the branch/worktree is not in a trustworthy `paste old workflow handoff first` state
-- `Create workflow` is now the exact next launch-control lane
-- `Elements workflow` remains the next best external workflow lane because the approved media-panel runtime is still fragile on production
+  - the focused Create/runtime rerun is now green at `24 passed / 24 total tests`
+- the Create validation-convergence lane is now reviewed complete with no score change
+- `Elements workflow` is now the exact next launch-control lane because the approved media-panel runtime is still fragile on production
+- `Project / workspace persistence` remains the next broad below-floor restore/save lane after Elements
 - `Reference Grid` should stay closed as a blocker lane on current evidence
 - `Security boundaries` stays at floor, but hosted session cleanup plus history-purge follow-through remains open outside the code path

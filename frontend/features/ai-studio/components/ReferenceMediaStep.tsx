@@ -30,6 +30,8 @@ type ReferenceMediaStepProps = {
   motionVideoUrl: string | null;
   primaryDragActive: boolean;
   extraDragActive: boolean[];
+  primaryImageLoading?: boolean;
+  extraImageLoading?: boolean[];
   motionVideoDragActive: boolean;
   setMotionVideoDragActive: (value: boolean) => void;
   handlePrimaryDrop: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -79,6 +81,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   motionVideoUrl,
   primaryDragActive,
   extraDragActive,
+  primaryImageLoading = false,
+  extraImageLoading = [false, false, false],
   motionVideoDragActive,
   setMotionVideoDragActive,
   handlePrimaryDrop,
@@ -111,6 +115,11 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   const shouldShowPrimaryRequiredPill =
     isVideoVariant && isStandardMode && primaryImageRequired && !referenceImageUrl;
   const shouldShowLastFrameOptionalPill = isVideoVariant && isStandardMode && !extraImageUrls[0];
+  const renderLoadingOverlay = () => (
+    <div className="reference-dropzone-loading" aria-live="polite" aria-busy="true">
+      <div className="reference-spinner" />
+    </div>
+  );
   const mediaContent = (
     <>
       {isMotionMode ? (
@@ -127,6 +136,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
             >
+              {primaryImageLoading ? renderLoadingOverlay() : null}
               <span className="dropzone-tag">Character</span>
               {referenceImageUrl ? (
                 <button
@@ -212,6 +222,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
             >
+              {primaryImageLoading ? renderLoadingOverlay() : null}
               <span className="dropzone-tag">Start frame</span>
               {referenceImageUrl ? (
                 <button
@@ -243,6 +254,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined
               }
             >
+              {extraImageLoading[0] ? renderLoadingOverlay() : null}
               <span className="dropzone-tag subtle">End frame (optional)</span>
               {extraImageUrls[0] ? (
                 <button
@@ -277,6 +289,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
             >
+              {primaryImageLoading ? renderLoadingOverlay() : null}
               {isVideoVariant ? (
                 <span className="dropzone-tag">
                   {isStandardMode ? (
@@ -332,6 +345,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                     extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined
                   }
                 >
+                  {extraImageLoading[0] ? renderLoadingOverlay() : null}
                   <span className="dropzone-tag">
                     <span>Last frame</span>
                   </span>

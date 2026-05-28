@@ -11,6 +11,29 @@ export type AudioUploadResult = {
 };
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
+const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
+  "audio/m4a": "audio/mp4",
+  "audio/mp3": "audio/mpeg",
+  "audio/mpeg3": "audio/mpeg",
+  "audio/vnd.wave": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/x-aac": "audio/aac",
+  "audio/x-flac": "audio/flac",
+  "audio/x-m4a": "audio/mp4",
+  "audio/x-mp3": "audio/mpeg",
+  "audio/x-mpeg-3": "audio/mpeg",
+  "audio/x-ogg": "audio/ogg",
+  "audio/x-pn-wav": "audio/wav",
+  "audio/x-wav": "audio/wav",
+  "application/ogg": "audio/ogg",
+};
+
+const normalizeSupportedMimeType = (value: string | null | undefined): string => {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (!normalized) return "";
+  return MIME_ALIAS_TO_CANONICAL[normalized] ?? normalized;
+};
 
 const isPrivateIpv4Address = (hostname: string): boolean => {
   const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -46,27 +69,37 @@ const shouldUploadForProviderAccess = (url: string): boolean => {
 };
 
 const inferExtension = (mimeType: string): string => {
-  switch (mimeType) {
+  switch (normalizeSupportedMimeType(mimeType)) {
     case "audio/aac":
       return "aac";
     case "audio/flac":
       return "flac";
-    case "audio/m4a":
     case "audio/mp4":
-    case "audio/x-m4a":
       return "m4a";
     case "audio/mpeg":
       return "mp3";
     case "audio/ogg":
       return "ogg";
     case "audio/wav":
-    case "audio/x-wav":
       return "wav";
     case "audio/webm":
       return "webm";
     default:
       return "wav";
   }
+};
+
+const inferMimeTypeFromFilename = (value: string): string | null => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (/\.mp3(?:$|[?#])/i.test(normalized)) return "audio/mpeg";
+  if (/\.wav(?:$|[?#])/i.test(normalized)) return "audio/wav";
+  if (/\.m4a(?:$|[?#])/i.test(normalized)) return "audio/mp4";
+  if (/\.aac(?:$|[?#])/i.test(normalized)) return "audio/aac";
+  if (/\.flac(?:$|[?#])/i.test(normalized)) return "audio/flac";
+  if (/\.(?:ogg|oga)(?:$|[?#])/i.test(normalized)) return "audio/ogg";
+  if (/\.webm(?:$|[?#])/i.test(normalized)) return "audio/webm";
+  return null;
 };
 
 export const uploadAudioAssetToStorage = async (
@@ -80,7 +113,12 @@ export const uploadAudioAssetToStorage = async (
       throw new Error(`Unable to read local audio input (${response.status}).`);
     }
     const blob = await response.blob();
-    const mimeType = blob.type || "audio/wav";
+    const inferredMimeTypeFromUrl =
+      inferMimeTypeFromFilename(normalizedLocalAudioUrl.replace(/#audio=1$/i, "")) ?? "";
+    const normalizedBlobMimeType = normalizeSupportedMimeType(blob.type);
+    const mimeType = GENERIC_UPLOAD_MIME_TYPES.has(normalizedBlobMimeType)
+      ? inferredMimeTypeFromUrl || "audio/wav"
+      : normalizedBlobMimeType;
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
     const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;

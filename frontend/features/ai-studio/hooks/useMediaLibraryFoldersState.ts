@@ -128,6 +128,7 @@ type UseMediaLibraryFoldersStateResult = {
 export const useMediaLibraryFoldersState = (
   projectId: string | null = null
 ): UseMediaLibraryFoldersStateResult => {
+  void projectId;
   const [folders, setFolders] = useState<MediaFolder[]>([]);
   const [activeFolderId, setActiveFolderIdState] = useState<MediaFolderId>(
     MEDIA_LIBRARY_ROOT_FOLDER_ID
@@ -203,20 +204,6 @@ export const useMediaLibraryFoldersState = (
     setEditingFolderName("");
   }, [editingFolderId, foldersById]);
 
-  useEffect(() => {
-    scopeTokenRef.current += 1;
-    foldersRequestTokenRef.current += 1;
-    createMutationTokenRef.current += 1;
-    creatingFolderInFlightRef.current = false;
-    setFolders([]);
-    setActiveFolderIdState(MEDIA_LIBRARY_ROOT_FOLDER_ID);
-    setFolderError(null);
-    setCreatingFolder(false);
-    setEditingFolderId(null);
-    setEditingFolderName("");
-    setSavingFolderEdit(false);
-  }, [projectId]);
-
   const setActiveFolderId = useCallback((folderId: MediaFolderId) => {
     if (typeof folderId === "string" && isPendingFolderId(folderId)) {
       return;
@@ -230,7 +217,7 @@ export const useMediaLibraryFoldersState = (
     const scopeToken = scopeTokenRef.current;
     try {
       const nextFolders = await withTimeout(
-        listMediaFolders(projectId),
+        listMediaFolders(),
         FOLDERS_REQUEST_TIMEOUT_MS,
         "Unable to load folders."
       );
@@ -251,7 +238,7 @@ export const useMediaLibraryFoldersState = (
       }
       setFolderError(toMediaLibraryErrorText(loadError, "Unable to load folders."));
     }
-  }, [projectId]);
+  }, []);
 
   useEffect(() => {
     void refreshFolders();
@@ -292,7 +279,7 @@ export const useMediaLibraryFoldersState = (
       try {
         for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
           try {
-            const folder = await createMediaFolder(nextName, nextParentFolderId, projectId);
+            const folder = await createMediaFolder(nextName, nextParentFolderId);
             if (scopeTokenRef.current !== scopeToken) {
               return;
             }
@@ -342,7 +329,7 @@ export const useMediaLibraryFoldersState = (
         }
       }
     },
-    [activeFolderId, folders, projectId]
+    [activeFolderId, folders]
   );
 
   const startFolderRename = useCallback(
@@ -367,7 +354,7 @@ export const useMediaLibraryFoldersState = (
     setSavingFolderEdit(true);
     setFolderError(null);
     try {
-      const renamed = await renameMediaFolder({ folderId, name: nextName, projectId });
+      const renamed = await renameMediaFolder({ folderId, name: nextName });
       if (scopeTokenRef.current !== scopeToken) {
         return;
       }
@@ -394,7 +381,7 @@ export const useMediaLibraryFoldersState = (
         setSavingFolderEdit(false);
       }
     }
-  }, [editingFolderId, editingFolderName, projectId, savingFolderEdit]);
+  }, [editingFolderId, editingFolderName, savingFolderEdit]);
 
   const deleteFolder = useCallback(
     async (folderId: string) => {
@@ -403,7 +390,7 @@ export const useMediaLibraryFoldersState = (
       const scopeToken = scopeTokenRef.current;
       setFolderError(null);
       try {
-        await deleteMediaFolder(normalizedFolderId, projectId);
+        await deleteMediaFolder(normalizedFolderId);
         if (scopeTokenRef.current !== scopeToken) {
           return;
         }
@@ -423,44 +410,40 @@ export const useMediaLibraryFoldersState = (
         setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete folder."));
       }
     },
-    [activeFolderId, editingFolderId, projectId]
+    [activeFolderId, editingFolderId]
   );
 
-  const moveFolder = useCallback(
-    async (folderId: string, parentFolderId: string | null) => {
-      const normalizedFolderId = folderId.trim();
-      if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-      const scopeToken = scopeTokenRef.current;
-      setFolderError(null);
-      try {
-        const moved = await moveMediaFolder({
-          folderId: normalizedFolderId,
-          parentFolderId,
-          projectId,
-        });
-        if (scopeTokenRef.current !== scopeToken) {
-          return;
-        }
-        setFolders((previous) =>
-          previous.map((folder) =>
-            folder.id === normalizedFolderId
-              ? {
-                  ...folder,
-                  ...moved,
-                  itemCount: moved.itemCount ?? folder.itemCount ?? 0,
-                }
-              : folder
-          )
-        );
-      } catch (moveError) {
-        if (scopeTokenRef.current !== scopeToken) {
-          return;
-        }
-        setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
+  const moveFolder = useCallback(async (folderId: string, parentFolderId: string | null) => {
+    const normalizedFolderId = folderId.trim();
+    if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+    const scopeToken = scopeTokenRef.current;
+    setFolderError(null);
+    try {
+      const moved = await moveMediaFolder({
+        folderId: normalizedFolderId,
+        parentFolderId,
+      });
+      if (scopeTokenRef.current !== scopeToken) {
+        return;
       }
-    },
-    [projectId]
-  );
+      setFolders((previous) =>
+        previous.map((folder) =>
+          folder.id === normalizedFolderId
+            ? {
+                ...folder,
+                ...moved,
+                itemCount: moved.itemCount ?? folder.itemCount ?? 0,
+              }
+            : folder
+        )
+      );
+    } catch (moveError) {
+      if (scopeTokenRef.current !== scopeToken) {
+        return;
+      }
+      setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
+    }
+  }, []);
 
   return {
     folders,

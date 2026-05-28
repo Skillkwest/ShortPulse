@@ -496,6 +496,23 @@
   .voices-properties-voice-changer-record-panel {
   max-width: none;
   width: 100%;
+  border-color: rgba(201, 205, 214, 0.1);
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.9), rgba(19, 21, 24, 0.94)), #131518;
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
+}
+
+.video-properties-panel
+  .motion-recorder-launch-block
+  .voices-properties-voice-changer-record-helper {
+  color: rgba(201, 205, 214, 0.66);
+}
+
+.video-properties-panel
+  .motion-recorder-launch-block
+  .voices-properties-voice-changer-record-idle-cue {
+  color: rgba(201, 205, 214, 0.5);
 }
 
 .video-properties-panel .video-multishot-card {

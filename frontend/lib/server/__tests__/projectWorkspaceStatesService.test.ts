@@ -535,14 +535,6 @@ describe("projectWorkspaceStatesService", () => {
               generationId: GENERATION_ID_1,
               promptId: PROMPT_ID_1,
               savedMediaIds: [MEDIA_ID_1],
-              prompt: "Server prompt",
-              previewUrl: "https://cdn.example.com/project-output.png",
-              resultUrls: ["https://cdn.example.com/project-output.png"],
-              previewStoragePath: "user-1/generated/project-output-preview.png",
-              fullStoragePath: "user-1/generated/project-output-full.png",
-              taskId: "task-1",
-              taskState: "success",
-              queueState: "dispatched",
             },
           ],
           archived: [],
@@ -877,7 +869,7 @@ describe("projectWorkspaceStatesService", () => {
     expect(savedRow).not.toHaveProperty("previewPosterStoragePath");
   });
 
-  it("persists the sanitized snapshot when restored-project projection hydration fails during save", async () => {
+  it("persists the sanitized snapshot without requiring projection hydration during save", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
       projectionLimitError: "projection unavailable",
@@ -968,20 +960,13 @@ describe("projectWorkspaceStatesService", () => {
           )?.active ?? []) as Array<Record<string, unknown>>
         )[0]
       ).not.toHaveProperty("resultUrls");
-      expect(warnSpy).toHaveBeenCalledWith(
-        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
-        expect.objectContaining({
-          projectId: "project-1",
-          stage: "generated output hydration",
-          error: "projection unavailable",
-        })
-      );
+      expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       warnSpy.mockRestore();
     }
   });
 
-  it("persists the sanitized snapshot when restored-project media delivery hydration fails during save", async () => {
+  it("persists the sanitized snapshot without requiring media delivery hydration during save", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     createSupabaseMock({
       mediaRowReadError: "media rows unavailable",
@@ -1064,14 +1049,7 @@ describe("projectWorkspaceStatesService", () => {
           },
         },
       });
-      expect(warnSpy).toHaveBeenCalledWith(
-        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
-        expect.objectContaining({
-          projectId: "project-1",
-          stage: "generated output hydration",
-          error: "media rows unavailable",
-        })
-      );
+      expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       warnSpy.mockRestore();
     }

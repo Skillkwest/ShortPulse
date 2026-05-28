@@ -51,6 +51,37 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const buildWebmTrackSignature = (trackType: number): Buffer =>
+  Buffer.from([
+    0x1a,
+    0x45,
+    0xdf,
+    0xa3,
+    0x87,
+    0x42,
+    0x82,
+    0x84,
+    0x77,
+    0x65,
+    0x62,
+    0x6d,
+    0x18,
+    0x53,
+    0x80,
+    0x67,
+    0x8a,
+    0x16,
+    0x54,
+    0xae,
+    0x6b,
+    0x85,
+    0xae,
+    0x83,
+    0x83,
+    0x81,
+    trackType,
+  ]);
+
 describe("POST /api/upload-video", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -140,6 +171,7 @@ describe("POST /api/upload-video", () => {
       url: "https://signed.example/motion-video",
       path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
       size: rawBody.length,
+      mimeType: "video/mp4",
     });
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -189,7 +221,8 @@ describe("POST /api/upload-video", () => {
     expect(res.json).toHaveBeenCalledWith({
       url: "https://signed.example/motion-video",
       path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
-      size: 32,
+      size: 12,
+      mimeType: "video/mp4",
     });
     expect(fs.unlinkSync).toHaveBeenCalledWith("/tmp/mock-video");
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
@@ -201,7 +234,7 @@ describe("POST /api/upload-video", () => {
         metadata: expect.objectContaining({
           method: "POST",
           route_label: "upload-video",
-          file_size: 32,
+          file_size: 12,
         }),
       })
     );
@@ -253,6 +286,111 @@ describe("POST /api/upload-video", () => {
       expect.any(Buffer),
       expect.objectContaining({ contentType: "video/mp4" })
     );
+  });
+
+  it("accepts quicktime aliases for mov uploads and returns the detected mime type", async () => {
+    const rawBody = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from("ftypqt  ", "ascii"),
+    ]);
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "video/x-quicktime",
+        "x-shortpulse-upload-filename": "clip.mov",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/quicktime", upsert: false })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/motion-video",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      size: rawBody.length,
+      mimeType: "video/quicktime",
+    });
+  });
+
+  it("returns detected audio/webm when a webm upload is audio-only", async () => {
+    const rawBody = buildWebmTrackSignature(0x02);
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "video/webm",
+        "x-shortpulse-upload-filename": "sample.webm",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "audio/webm", upsert: false })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/motion-video",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      size: rawBody.length,
+      mimeType: "audio/webm",
+    });
   });
 
   it("accepts generic octet-stream declared mime when file signature is a supported multipart video", async () => {

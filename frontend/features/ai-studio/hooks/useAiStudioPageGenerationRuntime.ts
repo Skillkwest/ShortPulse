@@ -36,6 +36,8 @@ type UseAiStudioPageGenerationRuntimeParams = {
   addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => void;
   aspect: string;
   balanceCredits: number | null;
+  balanceError: string | null;
+  balanceLoading: boolean;
   createCharacterModeInjectionBundle: CharacterModeInjectionBundle | null;
   createSelectedCharacterId: string;
   editReferenceText: string;
@@ -154,6 +156,8 @@ export const useAiStudioPageGenerationRuntime = ({
   addOutputsFromFiles,
   aspect,
   balanceCredits,
+  balanceError,
+  balanceLoading,
   createCharacterModeInjectionBundle,
   createSelectedCharacterId,
   editReferenceText,
@@ -287,6 +291,8 @@ export const useAiStudioPageGenerationRuntime = ({
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
     balanceCredits,
+    balanceError,
+    balanceLoading,
     editSubmitIntent,
     costParamsForModel,
     pricingPolicy: modelPricingPolicy,

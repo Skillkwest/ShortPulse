@@ -6,6 +6,7 @@ import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
@@ -555,6 +556,70 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
           "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last-frame.png",
       })
     );
+  });
+
+  it("preserves selected 480p resolution for Seedance 2 submits", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [],
+      requestedDurationSeconds: 15,
+      requestedResolution: "480p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "text",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolution: "480p",
+        duration: "15",
+        generate_audio: true,
+      })
+    );
+  });
+
+  it("preserves selected 480p resolution for Seedance 2 Fast submits", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_FAST_MODEL_ID),
+      preparedImageInputs: [],
+      requestedDurationSeconds: 10,
+      requestedResolution: "480p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "text",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2FastVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolution: "480p",
+        duration: "10",
+        generate_audio: false,
+      })
+    );
+  });
+
+  it("fails closed when Seedance receives an unsupported resolution", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [],
+      requestedResolution: "4k",
+      videoReferenceMode: "standard",
+      seedance2InputMode: "text",
+    });
+
+    await expect(handleVideoModelSubmission(args)).rejects.toThrow(
+      "Seedance 2.0 submit uses unsupported resolution: 4k. Allowed: 1080p, 720p, 480p"
+    );
+    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
   });
 
   it("keeps Seedance 2 on the single-shot Kie payload when stale custom prompts exist", async () => {

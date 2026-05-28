@@ -1278,7 +1278,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "seedream-v5-lite-edit",
   }),
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: activePickerPricingRuntime({
-    label: "Veo 3.1 Fast I2V",
+    label: "Veo 3.1 Fast",
     mediaType: "image-to-video",
     pricingStrategy: "veo-3-per-second",
     displayFamily: "Video",

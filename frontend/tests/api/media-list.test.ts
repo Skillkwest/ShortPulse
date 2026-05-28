@@ -6,8 +6,6 @@ const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveMediaSigningStoragePathsMock = vi.fn();
 const resolvePreferredMediaSigningStoragePathMock = vi.fn();
-const getProjectForUserMock = vi.fn();
-const assertProjectMediaFolderAccessForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -19,19 +17,6 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
-}));
-
-vi.mock("../../lib/server/projectsService", async () => {
-  const actual = await vi.importActual("../../lib/server/projectsService");
-  return {
-    ...actual,
-    getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
-  };
-});
-
-vi.mock("../../lib/server/projectMediaFoldersService", () => ({
-  assertProjectMediaFolderAccessForUser: (...args: unknown[]) =>
-    assertProjectMediaFolderAccessForUserMock(...args),
 }));
 
 vi.mock("../../lib/mediaPreviewPath", () => ({
@@ -415,8 +400,6 @@ describe("POST /api/media/list", () => {
     resolvePreferredMediaSigningStoragePathMock.mockImplementation(
       (row: { storage_path: string }) => row.storage_path
     );
-    getProjectForUserMock.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
-    assertProjectMediaFolderAccessForUserMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -565,7 +548,7 @@ describe("POST /api/media/list", () => {
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "minimal");
   });
 
-  it.each(["media-library-panel", "elements-media-panel"] as const)(
+  it.each(["media-library-panel", "elements-media-panel", "character-media-panel"] as const)(
     "supports count-only requests for %s without row hydration or seeded signing",
     async (surface) => {
       const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
@@ -1163,76 +1146,82 @@ describe("POST /api/media/list", () => {
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "5");
   });
 
-  it("seeds initial signed urls for the elements panel surface on the default mixed open", async () => {
-    const rows = [
-      {
-        id: "elements-audio-1",
-        user_id: "user-1",
-        filename: "elements-audio-1.wav",
-        storage_path: "user-1/uploads/audio/elements-audio-1.wav",
-        file_type: "audio/wav",
-        file_size: 10,
-        source: "upload",
-        source_ref: null,
-        prompt_id: null,
-        metadata: null,
-        thumb_variant_path: null,
-        poster_variant_path: null,
-        preview_variant_path: null,
-        created_at: "2026-02-20T12:00:00.000Z",
-        updated_at: null,
-      } satisfies MediaRow,
-      {
-        id: "elements-media-1",
-        user_id: "user-1",
-        filename: "elements-target.png",
-        storage_path: "user-1/uploads/images/elements-target.png",
-        file_type: "image/png",
-        file_size: 10,
-        source: "upload",
-        source_ref: null,
-        prompt_id: null,
-        metadata: null,
-        thumb_variant_path: "user-1/uploads/images/elements-target-thumb.png",
-        poster_variant_path: null,
-        preview_variant_path: null,
-        created_at: "2026-02-20T11:00:00.000Z",
-        updated_at: null,
-      } satisfies MediaRow,
-    ];
-    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
-    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
-      (row: MediaRow) => row.thumb_variant_path
-    );
+  it.each(["elements-media-panel", "character-media-panel"] as const)(
+    "seeds initial signed urls for the %s surface on the default mixed open",
+    async (surface) => {
+      const rows = [
+        {
+          id: "elements-audio-1",
+          user_id: "user-1",
+          filename: "elements-audio-1.wav",
+          storage_path: "user-1/uploads/audio/elements-audio-1.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "upload",
+          source_ref: null,
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T12:00:00.000Z",
+          updated_at: null,
+        } satisfies MediaRow,
+        {
+          id: "elements-media-1",
+          user_id: "user-1",
+          filename: "elements-target.png",
+          storage_path: "user-1/uploads/images/elements-target.png",
+          file_type: "image/png",
+          file_size: 10,
+          source: "upload",
+          source_ref: null,
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: "user-1/uploads/images/elements-target-thumb.png",
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T11:00:00.000Z",
+          updated_at: null,
+        } satisfies MediaRow,
+      ];
+      const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+      resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+        (row: MediaRow) => row.thumb_variant_path
+      );
 
-    const req = {
-      method: "POST",
-      body: {
-        mediaKind: "all",
-        cursor: null,
-        query: "",
-        limit: 36,
-        surface: "elements-media-panel",
-      },
-    };
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(createSignedUrlsMock).toHaveBeenCalledWith(
-      ["user-1/uploads/images/elements-target-thumb.png"],
-      3600
-    );
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "1");
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        signedById: {
-          "elements-media-1":
-            "https://signed.test/user-1%2Fuploads%2Fimages%2Felements-target-thumb.png",
+      const req = {
+        method: "POST",
+        body: {
+          mediaKind: "all",
+          cursor: null,
+          query: "",
+          limit: 36,
+          surface,
         },
-      })
-    );
-  });
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(createSignedUrlsMock).toHaveBeenCalledWith(
+        ["user-1/uploads/images/elements-target-thumb.png"],
+        3600
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        "x-shortpulse-media-list-initial-signed-count",
+        "1"
+      );
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signedById: {
+            "elements-media-1":
+              "https://signed.test/user-1%2Fuploads%2Fimages%2Felements-target-thumb.png",
+          },
+        })
+      );
+    }
+  );
 
   it("keeps the canonical list API available without an env gate", async () => {
     createSupabaseAdminMock([]);
@@ -1426,7 +1415,7 @@ describe("POST /api/media/list", () => {
     );
   });
 
-  it("returns 400 for malformed project ids", async () => {
+  it("ignores malformed project ids because folder authority is global", async () => {
     createSupabaseAdminMock([]);
 
     const req = {
@@ -1444,10 +1433,10 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: "Invalid project id",
+        rows: [],
       })
     );
   });
@@ -1569,7 +1558,7 @@ describe("POST /api/media/list", () => {
     expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);
   });
 
-  it("filters project folders through project folder membership join semantics", async () => {
+  it("filters custom folders even when a project id is provided", async () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     const folderId = "2d6fc803-2289-47a9-9a07-063ebf2eec4f";
     const rows: MediaRow[] = [
@@ -1621,7 +1610,9 @@ describe("POST /api/media/list", () => {
       },
     ];
 
-    createSupabaseAdminMock(rows);
+    createSupabaseAdminMock(rows, {
+      existingFolderIds: [folderId],
+    });
 
     const req = {
       method: "POST",
@@ -1639,12 +1630,6 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(getProjectForUserMock).toHaveBeenCalledWith({ userId: "user-1", projectId });
-    expect(assertProjectMediaFolderAccessForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      projectId,
-      folderId,
-    });
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0];
     expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);

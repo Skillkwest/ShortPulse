@@ -54,4 +54,54 @@ describe("ReferenceMediaStep motion intake", () => {
     expect(motionVideoInput).not.toBeNull();
     expect(motionVideoInput?.getAttribute("accept")).toContain("video/webm");
   });
+
+  it("shows a loading spinner overlay for Video panel frame slots while a drop is resolving", () => {
+    const { container } = render(
+      <ReferenceMediaStep
+        referenceOrder={1}
+        collapsedReference={false}
+        onExpandReference={vi.fn()}
+        onToggleReference={vi.fn()}
+        isVideoVariant={true}
+        referenceStepTitle="Add references"
+        referenceStepSubtitle="Add references"
+        isMotionMode={false}
+        isKling3Mode={false}
+        isStandardMode={true}
+        isKeyframesMode={false}
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        motionVideoUrl={null}
+        primaryDragActive={false}
+        extraDragActive={[false, false, false]}
+        primaryImageLoading={true}
+        extraImageLoading={[true, false, false]}
+        motionVideoDragActive={false}
+        setMotionVideoDragActive={vi.fn()}
+        handlePrimaryDrop={vi.fn()}
+        handlePrimaryDragEnter={vi.fn()}
+        handlePrimaryDragOver={vi.fn()}
+        handlePrimaryDragLeave={vi.fn()}
+        handleExtraDrop={() => vi.fn()}
+        handleExtraDragEnter={() => vi.fn()}
+        handleExtraDragOver={() => vi.fn()}
+        handleExtraDragLeave={() => vi.fn()}
+        allowVideoDrag={vi.fn(() => false)}
+        handleMotionVideoDrop={vi.fn()}
+        primaryInputRef={{ current: null }}
+        extraOneInputRef={{ current: null }}
+        extraTwoInputRef={{ current: null }}
+        extraThreeInputRef={{ current: null }}
+        motionVideoInputRef={{ current: null }}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onMotionVideoChange={vi.fn()}
+        handleFileSelection={() => vi.fn()}
+        handleMotionVideoSelection={vi.fn()}
+      />
+    );
+
+    expect(container.querySelectorAll(".reference-dropzone-loading")).toHaveLength(2);
+    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(2);
+  });
 });

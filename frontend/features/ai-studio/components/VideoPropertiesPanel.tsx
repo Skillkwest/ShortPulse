@@ -116,9 +116,9 @@ export type VideoPropertiesPanelProps = {
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
-  resolveInternalReferenceVideoFrameDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   onCreateCharacter?: () => void;
   onCreateElement?: () => void;
@@ -173,9 +173,9 @@ export function VideoPropertiesPanel({
   onRegenerate,
   resolvePreviewUrlById,
   resolveInternalReferenceImageDropSource,
-  resolveInternalReferenceVideoFrameDropSource,
   costCredits,
   isGenerateDisabled = false,
+  guardrailReason = null,
   referenceImageWarning = null,
   onCreateCharacter,
   onCreateElement,
@@ -221,6 +221,8 @@ export function VideoPropertiesPanel({
     motionVideoInputRef,
     primaryDragActive,
     extraDragActive,
+    primaryImageLoading,
+    extraImageLoading,
     motionVideoDragActive,
     setMotionVideoDragActive,
     collapsedSteps,
@@ -253,7 +255,6 @@ export function VideoPropertiesPanel({
     onMotionVideoChange,
     resolvePreviewUrlById,
     resolveInternalReferenceImageDropSource,
-    resolveInternalReferenceVideoFrameDropSource,
     klingMultiPrompts,
     onKlingMultiPromptsChange,
     klingElements,
@@ -1273,6 +1274,8 @@ export function VideoPropertiesPanel({
                         motionVideoUrl={motionVideoUrl}
                         primaryDragActive={primaryDragActive}
                         extraDragActive={extraDragActive}
+                        primaryImageLoading={primaryImageLoading}
+                        extraImageLoading={extraImageLoading}
                         motionVideoDragActive={motionVideoDragActive}
                         setMotionVideoDragActive={setMotionVideoDragActive}
                         handlePrimaryDrop={handlePrimaryDrop}
@@ -1727,6 +1730,14 @@ export function VideoPropertiesPanel({
                   {!shouldShowKlingReferenceImageWarning && referenceImageWarning ? (
                     <div className="video-inline-warning-bubble" role="status" aria-live="polite">
                       {referenceImageWarning}
+                    </div>
+                  ) : null}
+                  {!shouldShowKlingReferenceImageWarning &&
+                  !referenceImageWarning &&
+                  isGenerateDisabled &&
+                  guardrailReason ? (
+                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
+                      {guardrailReason}
                     </div>
                   ) : null}
                   <div className="video-right-generate-button">

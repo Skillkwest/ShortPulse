@@ -83,6 +83,8 @@ const maxVoiceChangerBottomSectionHeightPx = 600;
 const fixedVoiceChangerBottomSectionHeightPx = 600;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
+const voiceChangerAudioFilenamePattern = /\.(?:mp3|wav|m4a|aac|flac|ogg|oga)(?:$|[?#])/i;
+const voiceChangerVideoFilenamePattern = /\.(?:mp4|mov|m4v)(?:$|[?#])/i;
 const cloneVoiceSourceDropzoneCopy = {
   inputAriaLabel: "Voice clone source file input",
   dropzoneAriaLabel: "Voice clone source drop zone",
@@ -146,6 +148,23 @@ const loadedVoiceArrowInlineStyle: React.CSSProperties = {
   letterSpacing: "-0.08em",
   textShadow: "0 0 18px rgba(80, 226, 205, 0.3), 0 0 32px rgba(80, 226, 205, 0.18)",
   transform: "translateY(1px)",
+};
+
+const resolveVoiceChangerStagedKind = ({
+  fallbackKind,
+  mimeType,
+  name,
+}: {
+  fallbackKind: "audio" | "video";
+  mimeType: string | null;
+  name: string;
+}): "audio" | "video" => {
+  const normalizedMimeType = mimeType?.trim().toLowerCase() ?? "";
+  if (normalizedMimeType.startsWith("audio/")) return "audio";
+  if (normalizedMimeType.startsWith("video/")) return "video";
+  if (voiceChangerAudioFilenamePattern.test(name)) return "audio";
+  if (voiceChangerVideoFilenamePattern.test(name)) return "video";
+  return fallbackKind;
 };
 const loadedVoiceValueInlineStyle: React.CSSProperties = {
   color: "rgba(239, 255, 252, 1)",
@@ -794,7 +813,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
           if (voiceChangerSourceRequestIdRef.current !== requestId) return;
 
-          if (initialSource.kind === "audio") {
+          const stagedKind = resolveVoiceChangerStagedKind({
+            fallbackKind: initialSource.kind,
+            mimeType: stagedMimeType,
+            name: stagedName,
+          });
+
+          if (stagedKind === "audio") {
             if (!stagedSourceUrl) {
               throw new Error("Unable to resolve the staged audio source URL.");
             }
@@ -807,7 +832,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
             setVoiceChangerSource({
               ...initialSource,
-              kind: "audio",
+              kind: stagedKind,
               status: "ready",
               aspect: null,
               durationMs: stagedDurationMs,

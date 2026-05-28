@@ -21,7 +21,6 @@ import {
   createInternalMediaRefFromResolvedSource,
   registerInternalMediaRefForUrl,
 } from "../logic/referenceInputInternalMediaRegistry";
-import { hasInternalReferenceDragTypeHints } from "../../../lib/internalReferenceDragPayload";
 
 export type ReferenceStepKey =
   | "reference"
@@ -48,7 +47,6 @@ type UseReferencePropertiesInteractionsParams = {
   onMotionVideoChange?: (url: string | null) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
-  resolveInternalReferenceVideoFrameDropSource?: ResolveInternalReferenceDrop;
   klingMultiPrompts: KlingMultiPrompt[];
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
   klingElements: KlingElement[];
@@ -95,7 +93,6 @@ export const useReferencePropertiesInteractions = ({
   onMotionVideoChange,
   resolvePreviewUrlById,
   resolveInternalReferenceImageDropSource,
-  resolveInternalReferenceVideoFrameDropSource,
   klingMultiPrompts,
   onKlingMultiPromptsChange,
   klingElements,
@@ -107,10 +104,13 @@ export const useReferencePropertiesInteractions = ({
   const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
+  const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
+  const [primaryImageLoading, setPrimaryImageLoading] = useState(false);
+  const [extraImageLoading, setExtraImageLoading] = useState([false, false, false]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
@@ -197,6 +197,13 @@ export const useReferencePropertiesInteractions = ({
     return url;
   };
 
+  const commitImageUrl = (setter: (url: string | null) => void, url: string | null) => {
+    if (url?.startsWith("blob:")) {
+      pendingCommittedImageObjectUrlsRef.current.add(url);
+    }
+    setter(url);
+  };
+
   const stabilizeDroppedImageUrl = async ({
     imageUrl,
     fromFile,
@@ -223,11 +230,18 @@ export const useReferencePropertiesInteractions = ({
   };
 
   useEffect(() => {
-    const activeBlobUrls = new Set(
+    const propBlobUrls = new Set(
       [referenceImageUrl, ...extraImageUrls].filter(
         (value): value is string => typeof value === "string" && value.startsWith("blob:")
       )
     );
+    propBlobUrls.forEach((url) => {
+      pendingCommittedImageObjectUrlsRef.current.delete(url);
+    });
+    const activeBlobUrls = new Set([
+      ...propBlobUrls,
+      ...pendingCommittedImageObjectUrlsRef.current,
+    ]);
     Array.from(ownedImageObjectUrlsRef.current).forEach((url) => {
       if (!activeBlobUrls.has(url)) {
         releaseOwnedImageObjectUrl(url);
@@ -253,7 +267,7 @@ export const useReferencePropertiesInteractions = ({
         return;
       }
       const url = URL.createObjectURL(file);
-      setter(trackOwnedImageObjectUrl(url, file));
+      commitImageUrl(setter, trackOwnedImageObjectUrl(url, file));
       event.target.value = "";
     };
 
@@ -266,54 +280,30 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const handleImageDrop =
-    (setter: (url: string | null) => void) => async (event: DragEvent<HTMLDivElement>) => {
+    (setter: (url: string | null) => void, setLoading: (value: boolean) => void) =>
+    async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
-      const inferredInternalVideoDrop = Boolean(
-        resolveInternalReferenceVideoFrameDropSource &&
-        internalPayload &&
-        !internalPayload.mediaKind &&
-        looksLikeVideoUrl(internalPayload.referenceUrl ?? undefined)
-      );
-      const effectiveMediaKind = inferredInternalVideoDrop
-        ? "video"
-        : (internalPayload?.mediaKind ?? mediaKind ?? null);
+      const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
       let nextUrl: string | null = null;
       let resolvedInternalMediaRef = null;
 
       if (internalPayload) {
-        if (
-          effectiveMediaKind &&
-          effectiveMediaKind !== "image" &&
-          effectiveMediaKind !== "video"
-        ) {
+        if (effectiveMediaKind && effectiveMediaKind !== "image") {
           return;
         }
-        if (effectiveMediaKind === "video" && !resolveInternalReferenceVideoFrameDropSource) {
-          return;
-        }
-        const dropResolver =
-          effectiveMediaKind === "video"
-            ? resolveInternalReferenceVideoFrameDropSource
-            : resolveInternalReferenceImageDropSource;
-        const resolvedSource = dropResolver
-          ? await dropResolver(internalPayload).catch(() => null)
+        setLoading(true);
+        const resolvedSource = resolveInternalReferenceImageDropSource
+          ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
           : null;
         resolvedInternalMediaRef = resolvedSource
           ? createInternalMediaRefFromResolvedSource(resolvedSource)
           : null;
         nextUrl =
           resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
-        if (
-          !nextUrl &&
-          effectiveMediaKind === "video" &&
-          looksLikeImageUrl(internalPayload.referenceRenderUrl ?? undefined)
-        ) {
-          nextUrl = internalPayload.referenceRenderUrl?.trim() ?? null;
-        }
       } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
         return;
       }
@@ -332,20 +322,28 @@ export const useReferencePropertiesInteractions = ({
       if (!nextUrl) return;
       if (!looksLikeImageUrl(nextUrl)) return;
 
+      if (!internalPayload) {
+        setLoading(true);
+      }
+
       const isBlobUrl = nextUrl.startsWith("blob:");
       const canAcceptBlob = fromFile || Boolean(referenceId);
 
-      if (!isBlobUrl || canAcceptBlob) {
-        const stableUrl = isBlobUrl
-          ? await stabilizeDroppedImageUrl({
-              imageUrl: nextUrl,
-              fromFile: Boolean(fromFile),
-              sourceBlob: imageFile ?? null,
-            })
-          : nextUrl;
-        if (!stableUrl) return;
-        registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
-        setter(stableUrl);
+      try {
+        if (!isBlobUrl || canAcceptBlob) {
+          const stableUrl = isBlobUrl
+            ? await stabilizeDroppedImageUrl({
+                imageUrl: nextUrl,
+                fromFile: Boolean(fromFile),
+                sourceBlob: imageFile ?? null,
+              })
+            : nextUrl;
+          if (!stableUrl) return;
+          registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
+          commitImageUrl(setter, stableUrl);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -353,16 +351,12 @@ export const useReferencePropertiesInteractions = ({
     setExtraDragActive((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
+  const setExtraImageLoadingAt = (index: number, value: boolean) => {
+    setExtraImageLoading((prev) => prev.map((item, idx) => (idx === index ? value : item)));
+  };
+
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
     if (isImageDragTransfer(event.dataTransfer)) {
-      event.preventDefault();
-      return true;
-    }
-    if (
-      resolveInternalReferenceVideoFrameDropSource &&
-      hasInternalReferenceDragTypeHints(event.dataTransfer) &&
-      isVideoDragTransfer(event.dataTransfer)
-    ) {
       event.preventDefault();
       return true;
     }
@@ -371,12 +365,15 @@ export const useReferencePropertiesInteractions = ({
 
   const handlePrimaryDrop = (event: DragEvent<HTMLDivElement>) => {
     setPrimaryDragActive(false);
-    handleImageDrop(onPrimaryImageChange)(event);
+    handleImageDrop(onPrimaryImageChange, setPrimaryImageLoading)(event);
   };
 
   const handleExtraDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
     setExtraDragActiveAt(index, false);
-    handleImageDrop((url) => onExtraImageChange(index, url))(event);
+    handleImageDrop(
+      (url) => onExtraImageChange(index, url),
+      (value) => setExtraImageLoadingAt(index, value)
+    )(event);
   };
 
   const handlePrimaryDragEnter = (event: DragEvent<HTMLDivElement>) => {
@@ -473,6 +470,8 @@ export const useReferencePropertiesInteractions = ({
     motionVideoInputRef,
     primaryDragActive,
     extraDragActive,
+    primaryImageLoading,
+    extraImageLoading,
     motionVideoDragActive,
     setMotionVideoDragActive,
     collapsedSteps,

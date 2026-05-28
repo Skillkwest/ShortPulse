@@ -844,22 +844,23 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                     <Camera size={14} weight="regular" />
                     <span>Camera</span>
                   </span>
-                  <select
-                    value={selectedVideoDeviceId}
-                    onChange={handleVideoDeviceChange}
-                    disabled={isRequestingAccess || isRecording || isUploadingClip}
-                  >
-                    <option value="">
-                      {videoDevices.length > 0
-                        ? "Browser default camera"
-                        : "No camera detected yet"}
-                    </option>
-                    {videoDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label}
-                      </option>
-                    ))}
-                  </select>
+                  {videoDevices.length > 0 ? (
+                    <select
+                      value={selectedVideoDeviceId}
+                      onChange={handleVideoDeviceChange}
+                      disabled={isRequestingAccess || isRecording || isUploadingClip}
+                    >
+                      {videoDevices.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="motion-recorder-device-empty-state" aria-live="polite">
+                      No cameras detected yet.
+                    </div>
+                  )}
                 </label>
               </div>
 

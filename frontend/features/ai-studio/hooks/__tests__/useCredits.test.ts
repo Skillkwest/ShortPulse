@@ -209,4 +209,38 @@ describe("useCredits", () => {
     expect(result.current.balanceReservedCents).toBeNull();
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(snapshotCallCountBeforePreferLedgerRefresh);
   });
+
+  it("dedupes overlapping credit snapshot refreshes into one authenticated request", async () => {
+    let resolveSnapshot: ((value: Response) => void) | null = null;
+    fetchWithAuthMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSnapshot = resolve as (value: Response) => void;
+        })
+    );
+
+    const first = renderHook(() => useCredits());
+    const second = renderHook(() => useCredits());
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    resolveSnapshot?.({
+      ok: true,
+      json: async () => ({
+        spendableCents: 900,
+        reservedCents: 120,
+        updatedAt: "2026-02-15T20:00:00.000Z",
+      }),
+    } as unknown as Response);
+
+    await waitFor(() => {
+      expect(first.result.current.balanceLoading).toBe(false);
+      expect(second.result.current.balanceLoading).toBe(false);
+    });
+
+    expect(first.result.current.balanceCents).toBe(900);
+    expect(second.result.current.balanceCents).toBe(900);
+    expect(first.result.current.balanceReservedCents).toBe(120);
+    expect(second.result.current.balanceReservedCents).toBe(120);
+  });
 });

@@ -22,7 +22,15 @@ export type AiStudioProjectWorkspaceApiRecord = {
   saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
 };
 
+export type AiStudioProjectWorkspaceApiProjectRecord = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type AiStudioProjectWorkspaceApiPayload = {
+  project?: AiStudioProjectWorkspaceApiProjectRecord | null;
   workspace: AiStudioProjectWorkspaceApiRecord | null;
   saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
   error?: unknown;
@@ -37,6 +45,16 @@ type ProjectWorkspaceApiResponseDetails = {
   scalarMessage: string;
   rawErrorExcerpt: string;
 };
+
+class ProjectWorkspaceBootstrapApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ProjectWorkspaceBootstrapApiError";
+    this.status = status;
+  }
+}
 
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
 
@@ -214,31 +232,115 @@ const maybeLogProjectWorkspaceSaveFailure = ({
   });
 };
 
+const toProjectWorkspaceBootstrapProjectRecord = (
+  project: AiStudioProjectWorkspaceApiProjectRecord | null | undefined
+): AiStudioProjectWorkspaceApiProjectRecord | null =>
+  project &&
+  typeof project.id === "string" &&
+  typeof project.title === "string" &&
+  typeof project.createdAt === "string" &&
+  typeof project.updatedAt === "string"
+    ? project
+    : null;
+
+type AiStudioProjectWorkspaceBootstrapApiResult = {
+  project: AiStudioProjectWorkspaceApiProjectRecord | null;
+  workspace: AiStudioProjectWorkspaceApiRecord | null;
+};
+
+const projectWorkspaceBootstrapInFlightRequests = new Map<
+  string,
+  Promise<AiStudioProjectWorkspaceBootstrapApiResult>
+>();
+
+export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
+  projectId,
+}: {
+  projectId: string;
+}): Promise<AiStudioProjectWorkspaceBootstrapApiResult> => {
+  const cachedRequest = projectWorkspaceBootstrapInFlightRequests.get(projectId);
+  if (cachedRequest) {
+    return await cachedRequest;
+  }
+
+  const request = (async (): Promise<AiStudioProjectWorkspaceBootstrapApiResult> => {
+    const response = await fetchWithAuth(
+      `/api/projects/${encodeURIComponent(projectId)}/workspace`,
+      {
+        method: "GET",
+        shortpulseLogScope: "app",
+        shortpulseAuthTimeoutMs: 5000,
+        shortpulseRetryNetworkOnce: true,
+      }
+    );
+    const responseDetails = await readProjectWorkspaceApiResponseDetails(response);
+    const payload = responseDetails.payload;
+
+    if (!response.ok) {
+      const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
+      throw new ProjectWorkspaceBootstrapApiError(response.status, message);
+    }
+
+    return {
+      project: toProjectWorkspaceBootstrapProjectRecord(payload?.project),
+      workspace: payload?.workspace
+        ? {
+            ...payload.workspace,
+            ...(payload.saveOutcome ? { saveOutcome: payload.saveOutcome } : {}),
+          }
+        : null,
+    };
+  })();
+
+  projectWorkspaceBootstrapInFlightRequests.set(projectId, request);
+  try {
+    return await request;
+  } finally {
+    if (projectWorkspaceBootstrapInFlightRequests.get(projectId) === request) {
+      projectWorkspaceBootstrapInFlightRequests.delete(projectId);
+    }
+  }
+};
+
 export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
   projectId,
 }: {
   projectId: string;
 }): Promise<AiStudioProjectWorkspaceApiRecord | null> => {
-  const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}/workspace`, {
-    method: "GET",
-    shortpulseLogScope: "app",
-    shortpulseAuthTimeoutMs: 5000,
-    shortpulseRetryNetworkOnce: true,
-  });
-  const responseDetails = await readProjectWorkspaceApiResponseDetails(response);
-  const payload = responseDetails.payload;
-
-  if (!response.ok) {
-    const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
-    throw new Error(`Failed to load project workspace snapshot: ${message}`);
+  try {
+    const result = await getAiStudioProjectWorkspaceBootstrapViaApi({ projectId });
+    return result.workspace;
+  } catch (error) {
+    if (error instanceof ProjectWorkspaceBootstrapApiError) {
+      throw new Error(`Failed to load project workspace snapshot: ${error.message}`);
+    }
+    throw error;
   }
+};
 
-  return payload?.workspace
-    ? {
-        ...payload.workspace,
-        ...(payload.saveOutcome ? { saveOutcome: payload.saveOutcome } : {}),
+export const getAiStudioProjectIdentityViaApi = async ({
+  projectId,
+}: {
+  projectId: string;
+}): Promise<AiStudioProjectWorkspaceApiProjectRecord | null> => {
+  try {
+    const result = await getAiStudioProjectWorkspaceBootstrapViaApi({ projectId });
+    return result.project;
+  } catch (error) {
+    if (error instanceof ProjectWorkspaceBootstrapApiError) {
+      if (error.status === 401) {
+        throw new Error("Session expired. Retry project load.");
       }
-    : null;
+      if (error.status === 400) {
+        throw new Error("Invalid project link.");
+      }
+      if (error.status === 404) {
+        throw new Error("Project not found.");
+      }
+      throw new Error(error.message || "Failed to load project.");
+    }
+    throw error;
+  }
 };
 
 export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({

@@ -54,7 +54,7 @@ const createImageOptions: ModelOption[] = [
   },
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V",
+    label: "Veo 3.1 Fast",
     mediaType: "image-to-video",
   },
 ];
@@ -62,7 +62,7 @@ const createImageOptions: ModelOption[] = [
 const videoReferenceOptions: ModelOption[] = [
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V",
+    label: "Veo 3.1 Fast",
     mediaType: "image-to-video",
   },
   {

@@ -55,6 +55,33 @@ const createVideoReferenceDropEvent = (referenceId: string) =>
     ReturnType<typeof useReferencePropertiesInteractions>["handleMotionVideoDrop"]
   >[0];
 
+const createMotionDropEvent = (overrides?: {
+  mediaKind?: "image" | "video" | "audio" | "text";
+  referenceId?: string;
+  referenceUrl?: string;
+  files?: File[];
+}) =>
+  ({
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    dataTransfer: {
+      files: (overrides?.files ?? []) satisfies File[] as unknown as FileList,
+      types: [
+        ...(overrides?.referenceId ? ["text/reference-id"] : []),
+        ...(overrides?.referenceUrl ? ["text/reference-url"] : []),
+        ...(overrides?.mediaKind ? ["text/reference-media-kind"] : []),
+      ],
+      getData: vi.fn((type: string) => {
+        if (type === "text/reference-id") return overrides?.referenceId ?? "";
+        if (type === "text/reference-url") return overrides?.referenceUrl ?? "";
+        if (type === "text/reference-media-kind") return overrides?.mediaKind ?? "";
+        return "";
+      }),
+    },
+  }) as unknown as Parameters<
+    ReturnType<typeof useReferencePropertiesInteractions>["handleMotionVideoDrop"]
+  >[0];
+
 describe("useReferencePropertiesInteractions", () => {
   const originalCreateObjectUrl = URL.createObjectURL;
   const originalRevokeObjectUrl = URL.revokeObjectURL;
@@ -171,30 +198,15 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onExtraImageChange).not.toHaveBeenCalled();
   });
 
-  it("accepts internal video references for frame-image drop targets when a video frame resolver is provided", async () => {
+  it("marks a frame slot as loading while an internal image drop is resolving", async () => {
     const onExtraImageChange = vi.fn();
-    const resolveInternalReferenceVideoFrameDropSource = vi.fn(async () => ({
-      kind: "internal" as const,
-      sourceKind: "generated_output" as const,
-      sourceId: "poster-1",
-      provenance: {
-        origin: "ai-studio-reference-grid",
-        outputId: "out-1",
-        mediaId: "media-video-1",
-        imageIndex: 0,
-        sourceSurface: "all-refs",
-        resolutionReason: "output_storage_path" as const,
-      },
-      outputId: "out-1",
-      mediaId: "media-video-1",
-      mediaSource: "generated" as const,
-      preview: { url: "https://example.com/reference-video-poster.jpg" },
-      previewStoragePath: "user/posters/ref-video-poster.jpg",
-      fullStoragePath: "user/posters/ref-video-poster.jpg",
-      promptText: null,
-      preparedImageUrl: "https://example.com/reference-video-poster.jpg",
-      loadBlob: async () => new Blob(["poster"], { type: "image/jpeg" }),
-    }));
+    let resolveDrop: ((value: Awaited<ReturnType<typeof Promise.resolve>>) => void) | null = null;
+    const resolveInternalReferenceImageDropSource = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveDrop = resolve;
+        })
+    );
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
@@ -203,149 +215,89 @@ describe("useReferencePropertiesInteractions", () => {
         onPrimaryImageChange: vi.fn(),
         onExtraImageChange,
         onPromptTextChange: vi.fn(),
-        resolveInternalReferenceVideoFrameDropSource,
+        resolveInternalReferenceImageDropSource,
         klingMultiPrompts: [],
         klingElements: [],
       })
     );
 
-    const dragEvent = makeInternalReferenceDragEvent({
-      mediaKind: "video",
-      referenceUrl: "https://example.com/reference-video.mp4",
-      imageUrl: "https://example.com/reference-video-poster.jpg",
-    });
     const dropEvent = makeInternalReferenceDragEvent({
-      mediaKind: "video",
-      referenceUrl: "https://example.com/reference-video.mp4",
-      imageUrl: "https://example.com/reference-video-poster.jpg",
+      mediaKind: "image",
+      referenceUrl: "https://example.com/reference-image.png",
+      imageUrl: "https://example.com/reference-image.png",
     });
 
-    act(() => {
-      result.current.handleExtraDragEnter(1)(dragEvent);
-    });
+    expect(result.current.extraImageLoading[0]).toBe(false);
+
+    let dropPromise!: Promise<void>;
     await act(async () => {
-      await result.current.handleExtraDrop(1)(dropEvent);
+      dropPromise = result.current.handleExtraDrop(0)(dropEvent);
+      await Promise.resolve();
     });
 
-    expect(dragEvent.preventDefault).toHaveBeenCalled();
-    expect(resolveInternalReferenceVideoFrameDropSource).toHaveBeenCalledTimes(1);
-    expect(onExtraImageChange).toHaveBeenCalledWith(
-      1,
-      "https://example.com/reference-video-poster.jpg"
-    );
+    expect(result.current.extraImageLoading[0]).toBe(true);
+
+    await act(async () => {
+      resolveDrop?.({
+        kind: "internal" as const,
+        sourceKind: "generated_output" as const,
+        sourceId: "image-loading-1",
+        provenance: {
+          origin: "ai-studio-reference-grid",
+          outputId: "out-1",
+          mediaId: "media-image-loading-1",
+          imageIndex: 0,
+          sourceSurface: "all-refs",
+          resolutionReason: "output_storage_path" as const,
+        },
+        outputId: "out-1",
+        mediaId: "media-image-loading-1",
+        mediaSource: "generated" as const,
+        preview: { url: "https://example.com/reference-image.png" },
+        previewStoragePath: "user/images/loading-image.png",
+        fullStoragePath: "user/images/loading-image.png",
+        promptText: null,
+        preparedImageUrl: "https://example.com/reference-image.png",
+        loadBlob: async () => new Blob(["image"], { type: "image/png" }),
+      });
+      await dropPromise;
+    });
+
+    expect(result.current.extraImageLoading[0]).toBe(false);
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "https://example.com/reference-image.png");
   });
 
-  it("prefers the video frame resolver over synthetic image files on internal video drags", async () => {
-    const onExtraImageChange = vi.fn();
-    const syntheticPosterFile = new File(["poster"], "poster.png", { type: "image/png" });
-    const resolveInternalReferenceVideoFrameDropSource = vi.fn(async () => ({
-      kind: "internal" as const,
-      sourceKind: "generated_output" as const,
-      sourceId: "poster-2",
-      provenance: {
-        origin: "ai-studio-reference-grid",
-        outputId: "out-1",
-        mediaId: "media-video-2",
-        imageIndex: 0,
-        sourceSurface: "all-refs",
-        resolutionReason: "output_storage_path" as const,
-      },
-      outputId: "out-1",
-      mediaId: "media-video-2",
-      mediaSource: "generated" as const,
-      preview: { url: "https://example.com/durable-video-poster.jpg" },
-      previewStoragePath: "user/posters/ref-video-poster-2.jpg",
-      fullStoragePath: "user/posters/ref-video-poster-2.jpg",
-      promptText: null,
-      preparedImageUrl: "https://example.com/durable-video-poster.jpg",
-      loadBlob: async () => new Blob(["poster"], { type: "image/jpeg" }),
-    }));
+  it("ignores internal image references for motion video drop targets", async () => {
+    const onMotionVideoChange = vi.fn();
+    const resolvePreviewUrlById = vi.fn((id: string | null) =>
+      id === "out-1" ? "https://example.com/reference-image.png" : null
+    );
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
         referenceImageUrl: null,
         extraImageUrls: [null, null, null],
         onPrimaryImageChange: vi.fn(),
-        onExtraImageChange,
+        onExtraImageChange: vi.fn(),
         onPromptTextChange: vi.fn(),
-        resolveInternalReferenceVideoFrameDropSource,
+        onMotionVideoChange,
+        resolvePreviewUrlById,
         klingMultiPrompts: [],
         klingElements: [],
       })
     );
 
-    const dropEvent = makeInternalReferenceDragEvent({
-      mediaKind: "video",
-      referenceUrl: "https://example.com/reference-video.mp4",
-      imageUrl: "https://example.com/reference-video-poster.jpg",
-      files: [syntheticPosterFile],
+    const event = createMotionDropEvent({
+      mediaKind: "image",
+      referenceId: "out-1",
+      referenceUrl: "https://example.com/reference-image.png",
     });
 
     await act(async () => {
-      await result.current.handleExtraDrop(0)(dropEvent);
+      await result.current.handleMotionVideoDrop(event);
     });
 
-    expect(resolveInternalReferenceVideoFrameDropSource).toHaveBeenCalledTimes(1);
-    expect(onExtraImageChange).toHaveBeenCalledWith(
-      0,
-      "https://example.com/durable-video-poster.jpg"
-    );
-  });
-
-  it("infers degraded internal video drags from video reference plus poster render hints", async () => {
-    const onExtraImageChange = vi.fn();
-    const syntheticPosterFile = new File(["poster"], "poster.png", { type: "image/png" });
-    const resolveInternalReferenceVideoFrameDropSource = vi.fn(async () => ({
-      kind: "internal" as const,
-      sourceKind: "generated_output" as const,
-      sourceId: "poster-3",
-      provenance: {
-        origin: "ai-studio-reference-grid",
-        outputId: "out-1",
-        mediaId: "media-video-3",
-        imageIndex: 0,
-        sourceSurface: "all-refs",
-        resolutionReason: "output_storage_path" as const,
-      },
-      outputId: "out-1",
-      mediaId: "media-video-3",
-      mediaSource: "generated" as const,
-      preview: { url: "https://example.com/inferred-video-poster.jpg" },
-      previewStoragePath: "user/posters/ref-video-poster-3.jpg",
-      fullStoragePath: "user/posters/ref-video-poster-3.jpg",
-      promptText: null,
-      preparedImageUrl: "https://example.com/inferred-video-poster.jpg",
-      loadBlob: async () => new Blob(["poster"], { type: "image/jpeg" }),
-    }));
-
-    const { result } = renderHook(() =>
-      useReferencePropertiesInteractions({
-        referenceImageUrl: null,
-        extraImageUrls: [null, null, null],
-        onPrimaryImageChange: vi.fn(),
-        onExtraImageChange,
-        onPromptTextChange: vi.fn(),
-        resolveInternalReferenceVideoFrameDropSource,
-        klingMultiPrompts: [],
-        klingElements: [],
-      })
-    );
-
-    const dropEvent = makeInternalReferenceDragEvent({
-      referenceUrl: "https://example.com/reference-video.mp4",
-      imageUrl: "https://example.com/reference-video-poster.jpg",
-      files: [syntheticPosterFile],
-    });
-
-    await act(async () => {
-      await result.current.handleExtraDrop(2)(dropEvent);
-    });
-
-    expect(resolveInternalReferenceVideoFrameDropSource).toHaveBeenCalledTimes(1);
-    expect(onExtraImageChange).toHaveBeenCalledWith(
-      2,
-      "https://example.com/inferred-video-poster.jpg"
-    );
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
   it("remembers file-selected image blobs for later submission reuse", () => {

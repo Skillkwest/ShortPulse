@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
+  getAiStudioProjectIdentityViaApi,
+  getAiStudioProjectWorkspaceBootstrapViaApi,
   getAiStudioProjectWorkspaceSnapshotViaApi,
   resetAiStudioProjectWorkspaceSnapshotViaApi,
   saveAiStudioProjectWorkspaceSnapshotViaApi,
@@ -390,6 +392,118 @@ describe("projectWorkspaceApiClient", () => {
       shortpulseAuthTimeoutMs: 5000,
       shortpulseRetryNetworkOnce: true,
     });
+  });
+
+  it("maps workspace bootstrap auth failures to project-identity load messages", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Unauthorized",
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      getAiStudioProjectIdentityViaApi({
+        projectId: "project-1",
+      })
+    ).rejects.toThrow("Session expired. Retry project load.");
+  });
+
+  it("dedupes overlapping workspace bootstrap reads for the same project", async () => {
+    let resolveResponse: ((value: Response) => void) | null = null;
+    fetchWithAuthMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve as (value: Response) => void;
+        })
+    );
+
+    const first = getAiStudioProjectWorkspaceBootstrapViaApi({
+      projectId: "project-1",
+    });
+    const second = getAiStudioProjectWorkspaceBootstrapViaApi({
+      projectId: "project-1",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.(
+      new Response(
+        JSON.stringify({
+          project: {
+            id: "project-1",
+            title: "Project One",
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+          workspace: {
+            projectId: "project-1",
+            schemaVersion: 2,
+            snapshot: {
+              schemaVersion: 2,
+              sessionId: "session-1",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      {
+        project: {
+          id: "project-1",
+          title: "Project One",
+          createdAt: "2026-04-25T00:00:00.000Z",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        },
+        workspace: {
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+          createdAt: "2026-04-25T00:00:00.000Z",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        },
+      },
+      {
+        project: {
+          id: "project-1",
+          title: "Project One",
+          createdAt: "2026-04-25T00:00:00.000Z",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        },
+        workspace: {
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+          createdAt: "2026-04-25T00:00:00.000Z",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        },
+      },
+    ]);
   });
 
   it("uses DELETE to reset the saved project workspace snapshot", async () => {

@@ -456,6 +456,132 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("records compact Kie submit summaries on accepted Seedance direct submits", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/seedance-2",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Seedance 2.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic skyline reveal",
+        aspect_ratio: "16:9",
+        resolution: "480p",
+        duration: "15",
+        generate_audio: true,
+        reference_video_urls: ["https://example.com/reference.mp4"],
+      },
+      headers: {},
+      url: "/api/fal/kie-seedance-2-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptInput: expect.objectContaining({
+          metadata: expect.objectContaining({
+            provider_submit_summary: expect.objectContaining({
+              aspect_ratio: "16:9",
+              resolution: "480p",
+              duration: "15",
+              generate_audio: true,
+              reference_video_count: 1,
+              prompt_present: true,
+            }),
+          }),
+        }),
+      })
+    );
+  });
+
+  it("records compact Kie submit summaries on direct submit failures", async () => {
+    const charge = {
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+      billingMode: "reservation",
+      markSubmitted: vi.fn().mockResolvedValue({
+        ok: true,
+        status: "reserved",
+        sourceRef: "source-ref-1",
+        message: null,
+        code: null,
+      }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValue(charge);
+    dispatchProviderSubmitMock.mockResolvedValue({
+      response: new Response(JSON.stringify({ code: 402, msg: "Credits insufficient" }), {
+        status: 402,
+        headers: { "Content-Type": "application/json" },
+      }),
+      data: { code: 402, msg: "Credits insufficient" },
+      targetUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      targetIndex: 0,
+      providerRequestId: null,
+      providerDiagnostics: null,
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/seedance-2",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Seedance 2.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic skyline reveal",
+        resolution: "480p",
+        duration: "15",
+        generate_audio: true,
+      },
+      headers: {},
+      url: "/api/fal/kie-seedance-2-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: inline provider submit failed.",
+      expect.objectContaining({
+        provider_body_code: 402,
+        provider_submit_summary: expect.objectContaining({
+          resolution: "480p",
+          duration: "15",
+          generate_audio: true,
+          prompt_present: true,
+        }),
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.direct_submit_failed",
+        statusCode: 402,
+        metadata: expect.objectContaining({
+          provider_body_code: 402,
+          provider_submit_summary: expect.objectContaining({
+            resolution: "480p",
+            duration: "15",
+            generate_audio: true,
+            prompt_present: true,
+          }),
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Credits insufficient",
+      detail: "Credits insufficient",
+    });
+  });
+
   it("fails closed when no direct submit path is available for a non-inline route", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/kling-video/v2/master/image-to-video",

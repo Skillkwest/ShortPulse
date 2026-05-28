@@ -4,8 +4,6 @@ import handler from "../../pages/api/media/prompts/list";
 const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-const getProjectForUserMock = vi.fn();
-const assertProjectMediaFolderAccessForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -17,19 +15,6 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
-}));
-
-vi.mock("../../lib/server/projectsService", async () => {
-  const actual = await vi.importActual("../../lib/server/projectsService");
-  return {
-    ...actual,
-    getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
-  };
-});
-
-vi.mock("../../lib/server/projectMediaFoldersService", () => ({
-  assertProjectMediaFolderAccessForUser: (...args: unknown[]) =>
-    assertProjectMediaFolderAccessForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -198,8 +183,6 @@ describe("POST /api/media/prompts/list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
-    getProjectForUserMock.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
-    assertProjectMediaFolderAccessForUserMock.mockResolvedValue(undefined);
   });
 
   it("returns 400 for invalid custom folder ids", async () => {
@@ -263,7 +246,7 @@ describe("POST /api/media/prompts/list", () => {
     );
   });
 
-  it("returns 400 for malformed project ids", async () => {
+  it("ignores malformed project ids because folder authority is global", async () => {
     createSupabaseAdminMock([]);
 
     const req = {
@@ -280,10 +263,12 @@ describe("POST /api/media/prompts/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: "Invalid project id",
+        rows: [],
+        hasMore: false,
+        nextCursor: null,
       })
     );
   });
@@ -400,7 +385,7 @@ describe("POST /api/media/prompts/list", () => {
     );
   });
 
-  it("filters project folders through project folder membership join semantics", async () => {
+  it("filters custom folders even when a project id is provided", async () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     const folderId = "2d6fc803-2289-47a9-9a07-063ebf2eec4f";
     const rows: PromptRow[] = [
@@ -434,7 +419,9 @@ describe("POST /api/media/prompts/list", () => {
       },
     ];
 
-    createSupabaseAdminMock(rows);
+    createSupabaseAdminMock(rows, {
+      existingFolderIds: [folderId],
+    });
 
     const req = {
       method: "POST",
@@ -450,12 +437,6 @@ describe("POST /api/media/prompts/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(getProjectForUserMock).toHaveBeenCalledWith({ userId: "user-1", projectId });
-    expect(assertProjectMediaFolderAccessForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      projectId,
-      folderId,
-    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -558,6 +558,7 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  guardrailReason = null,
   onClearAgentChat,
   imageResolution,
   onImageResolutionChange,
@@ -787,6 +788,9 @@ export function StandardCreatePropertiesPanel({
             costCredits={costCredits}
             disabled={isGenerateDisabled}
           />
+          {isGenerateDisabled && guardrailReason ? (
+            <div className="inline-warning-hint">{guardrailReason}</div>
+          ) : null}
         </div>
       </div>
     ),

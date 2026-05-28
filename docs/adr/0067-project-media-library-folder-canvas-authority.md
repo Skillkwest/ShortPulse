@@ -1,5 +1,7 @@
 # ADR 0067: Project Media Library Folder Canvas Authority
 
+Superseded by ADR 0085.
+
 - Status: Accepted
 - Date: 2026-04-24
 

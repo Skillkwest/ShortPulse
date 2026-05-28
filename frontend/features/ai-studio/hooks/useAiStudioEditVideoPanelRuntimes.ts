@@ -170,7 +170,6 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
     resolveInternalReferenceImageDropSource: base.resolveComposerInternalImageDropSource,
-    resolveInternalReferenceVideoFrameDropSource: base.resolveVideoFrameInternalDropSource,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
     onCreateCharacter: base.handleOpenCharacterCreate,

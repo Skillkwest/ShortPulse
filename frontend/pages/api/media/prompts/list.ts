@@ -5,13 +5,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
-import { assertProjectMediaFolderAccessForUser } from "../../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../../lib/server/projectsService";
+import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import {
-  isCustomMediaFolderId,
+  assertMediaFolderAccessForUser,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../../lib/server/mediaFoldersService";
-import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 
 type PromptListCursor = {
   createdAt: string;
@@ -80,14 +78,6 @@ const asFolderId = (value: unknown): string => {
   return folderId;
 };
 
-const asProjectId = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  return parseProjectId(value);
-};
-
-const hasProjectIdInput = (value: unknown): boolean =>
-  typeof value === "string" && value.trim().length > 0;
-
 const asCursor = (value: unknown): PromptListCursor | null => {
   if (!value || typeof value !== "object") return null;
   const raw = value as { createdAt?: unknown; id?: unknown };
@@ -153,42 +143,12 @@ const stripFolderMembershipRows = (
 const assertFolderAccess = async ({
   userId,
   folderId,
-  projectId,
 }: {
   userId: string;
   folderId: string;
-  projectId: string | null;
 }): Promise<void> => {
   if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-  if (projectId) {
-    const project = await getProjectForUser({ userId, projectId });
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    await assertProjectMediaFolderAccessForUser({
-      userId,
-      projectId,
-      folderId,
-    });
-    return;
-  }
-  if (!isCustomMediaFolderId(folderId)) {
-    throw new Error("Invalid folder id");
-  }
-
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data: folderRow, error: folderError } = await supabaseAdmin
-    .from("media_folders")
-    .select("id")
-    .eq("id", folderId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (folderError) {
-    throw new Error(folderError.message || "Failed to load folder");
-  }
-  if (!folderRow) {
-    throw new Error("Folder not found");
-  }
+  await assertMediaFolderAccessForUser({ userId, folderId });
 };
 
 /**
@@ -208,15 +168,11 @@ export default async function handler(
   try {
     const body = toRequestBody(req.body);
     const folderId = asFolderId(body.folderId);
-    const projectId = asProjectId(body.projectId);
-    if (hasProjectIdInput(body.projectId) && !projectId) {
-      return res.status(400).json({ error: "Invalid project id" });
-    }
     const query = normalizeSearchTerm(asString(body.query));
     const cursor = asCursor(body.cursor);
     const limit = clampLimit(body.limit);
 
-    await assertFolderAccess({ userId: user.id, folderId, projectId });
+    await assertFolderAccess({ userId: user.id, folderId });
 
     const supabaseAdmin = getSupabaseAdmin();
     const selectColumns = "id, title, prompt_text, mode, source, created_at, updated_at";
@@ -226,9 +182,7 @@ export default async function handler(
         .from("media_prompts")
         .select(
           folderScoped
-            ? projectId
-              ? `${selectColumns}, folder_membership:project_media_folder_prompt_items!project_media_folder_prompt_items_prompt_fk!inner(folder_id,user_id,project_id)`
-              : `${selectColumns}, folder_membership:media_folder_prompt_items!media_folder_prompt_items_prompt_fk!inner(folder_id,user_id)`
+            ? `${selectColumns}, folder_membership:media_folder_prompt_items!media_folder_prompt_items_prompt_fk!inner(folder_id,user_id)`
             : selectColumns
         )
         .eq("user_id", user.id);
@@ -236,9 +190,6 @@ export default async function handler(
         queryBuilder = queryBuilder
           .eq("folder_membership.folder_id", folderId)
           .eq("folder_membership.user_id", user.id);
-        if (projectId) {
-          queryBuilder = queryBuilder.eq("folder_membership.project_id", projectId);
-        }
       }
       if (query) {
         const wildcard = `*${query}*`;

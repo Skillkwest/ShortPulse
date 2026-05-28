@@ -30,6 +30,8 @@
   --reference-drop-max-width: 200px;
   --reference-drop-primary-width: clamp(84px, calc(var(--app-fixed-width) * 0.15), 104px);
   --reference-drop-secondary-width: clamp(58px, calc(var(--app-fixed-width) * 0.075), 76px);
+  --reference-spinner-size: 22px;
+  --reference-spinner-border-width: 2px;
 }
 
 .reference-dropzone-block {
@@ -809,6 +811,17 @@
 .reference-drop-layout-inner .reference-dropzone.is-dragging {
   border-color: var(--reference-drop-border-active);
   box-shadow: var(--reference-drop-shadow-active);
+}
+
+.reference-dropzone-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0.76) 0%, rgba(6, 8, 12, 0.84) 100%);
+  pointer-events: none;
 }
 
 .reference-drop-layout-inner .dropzone-clear {

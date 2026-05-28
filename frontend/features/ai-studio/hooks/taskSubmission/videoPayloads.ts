@@ -169,12 +169,42 @@ export const resolveSeedance2Duration = (requestedDurationSeconds: number): stri
   requestedDurationSeconds <= 5 ? "5" : requestedDurationSeconds <= 10 ? "10" : "15";
 
 /**
- * Normalizes Seedance 2.x resolution to documented values.
+ * Resolves Seedance 2.x resolution against the model-declared contract.
  */
-export const resolveSeedance2Resolution = (requestedResolution?: string): "720p" | "1080p" => {
-  const normalized = requestedResolution?.toLowerCase() ?? "";
-  if (normalized.includes("720")) return "720p";
-  return "1080p";
+const normalizeSeedanceResolutionChoice = (requestedResolution?: string): string | null => {
+  const normalized = requestedResolution?.trim().toLowerCase() ?? "";
+  if (!normalized) return null;
+  if (normalized.includes("1080")) return "1080p";
+  if (normalized.includes("720") || normalized.includes("high")) return "720p";
+  if (normalized.includes("480")) return "480p";
+  return requestedResolution?.trim() ?? null;
+};
+
+export const resolveSeedance2Resolution = (
+  requestedResolution: string | undefined,
+  modelConfig: SubmissionModelConfig
+): string => {
+  const contract = modelConfig?.id ? getModelApiContract(modelConfig.id) : null;
+  const allowedResolutions = contract?.allowedResolutions ?? modelConfig?.allowedResolutions ?? [];
+  const defaultResolution =
+    contract?.defaultResolution ?? modelConfig?.defaultResolution ?? "1080p";
+  const fallbackResolution = allowedResolutions.includes(defaultResolution)
+    ? defaultResolution
+    : (allowedResolutions[0] ?? defaultResolution);
+  const normalizedRequested = normalizeSeedanceResolutionChoice(requestedResolution);
+  if (!normalizedRequested) {
+    return fallbackResolution;
+  }
+  const matchedResolution = allowedResolutions.find(
+    (candidate) => candidate.toLowerCase() === normalizedRequested.toLowerCase()
+  );
+  if (matchedResolution) {
+    return matchedResolution;
+  }
+  const modelLabel = modelConfig?.label ?? contract?.modelId ?? "Seedance 2";
+  throw new Error(
+    `${modelLabel} submit uses unsupported resolution: ${normalizedRequested}. Allowed: ${allowedResolutions.join(", ")}`
+  );
 };
 
 /**

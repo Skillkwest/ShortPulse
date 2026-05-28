@@ -148,6 +148,13 @@ const asProviderString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const asProviderInteger = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
+  const normalized = asProviderString(value);
+  if (!normalized || !/^-?\d+$/.test(normalized)) return null;
+  return Number.parseInt(normalized, 10);
+};
+
 const asTrimmedStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -189,6 +196,95 @@ const readProviderSubmitFailureMessage = (payload: Record<string, unknown>): str
     if (message) return message;
   }
   return null;
+};
+
+const readProviderBodyCode = (payload: Record<string, unknown>): number | null => {
+  const candidates = [
+    payload,
+    asJsonObject(payload.data),
+    asJsonObject(payload.result),
+    asJsonObject(payload.response),
+  ];
+  for (const candidate of candidates) {
+    const code = asProviderInteger(candidate.code);
+    if (code !== null) return code;
+  }
+  return null;
+};
+
+const readSubmitPayloadSource = (payload: Record<string, unknown>): Record<string, unknown> => {
+  const inputPayload = asJsonObject(payload.input);
+  return Object.keys(inputPayload).length ? inputPayload : payload;
+};
+
+const countSubmitUrlList = (payload: Record<string, unknown>, fields: string[]): number => {
+  const values = fields.flatMap((field) => {
+    const raw = payload[field];
+    if (Array.isArray(raw)) return asTrimmedStringArray(raw);
+    const direct = asProviderString(raw);
+    return direct ? [direct] : [];
+  });
+  return dedupeStrings(values, 50).length;
+};
+
+const summarizeProviderSubmitPayload = ({
+  provider,
+  payload,
+}: {
+  provider: string;
+  payload: Record<string, unknown>;
+}): Record<string, unknown> | null => {
+  if (provider !== "kie") return null;
+  const source = readSubmitPayloadSource(payload);
+  const summary: Record<string, unknown> = {};
+  const providerModel = asProviderString(payload.model);
+  const aspectRatio = asProviderString(source.aspect_ratio) ?? asProviderString(source.aspect);
+  const resolution = asProviderString(source.resolution);
+  const duration =
+    asProviderString(source.duration) ??
+    (typeof source.duration === "number" && Number.isFinite(source.duration)
+      ? String(Math.trunc(source.duration))
+      : null) ??
+    (typeof source.duration_seconds === "number" && Number.isFinite(source.duration_seconds)
+      ? String(Math.trunc(source.duration_seconds))
+      : null);
+  const mode = asProviderString(source.mode);
+  const generationType = asProviderString(source.generation_type);
+  const prompt = asProviderString(source.prompt);
+  const firstFramePresent = Boolean(asProviderString(source.first_frame_url));
+  const lastFramePresent = Boolean(asProviderString(source.last_frame_url));
+  const imageUrlCount = countSubmitUrlList(source, ["image_url", "image_urls"]);
+  const inputUrlCount = countSubmitUrlList(source, ["input_url", "input_urls"]);
+  const videoUrlCount = countSubmitUrlList(source, ["video_url", "video_urls"]);
+  const referenceImageCount = countSubmitUrlList(source, ["reference_image_urls"]);
+  const referenceVideoCount = countSubmitUrlList(source, ["reference_video_urls"]);
+  const referenceAudioCount = countSubmitUrlList(source, ["reference_audio_urls"]);
+  const multiPromptCount = Array.isArray(source.multi_prompt) ? source.multi_prompt.length : 0;
+
+  if (providerModel) summary.provider_model = providerModel;
+  if (prompt) summary.prompt_present = true;
+  if (aspectRatio) summary.aspect_ratio = aspectRatio;
+  if (resolution) summary.resolution = resolution;
+  if (duration) summary.duration = duration;
+  if (mode) summary.mode = mode;
+  if (generationType) summary.generation_type = generationType;
+  if (typeof source.generate_audio === "boolean") summary.generate_audio = source.generate_audio;
+  if (typeof source.sound === "boolean") summary.sound = source.sound;
+  if (typeof source.return_last_frame === "boolean") {
+    summary.return_last_frame = source.return_last_frame;
+  }
+  if (typeof source.web_search === "boolean") summary.web_search = source.web_search;
+  if (typeof source.multi_shots === "boolean") summary.multi_shots = source.multi_shots;
+  if (firstFramePresent) summary.first_frame_present = true;
+  if (lastFramePresent) summary.last_frame_present = true;
+  if (imageUrlCount > 0) summary.image_url_count = imageUrlCount;
+  if (inputUrlCount > 0) summary.input_url_count = inputUrlCount;
+  if (videoUrlCount > 0) summary.video_url_count = videoUrlCount;
+  if (referenceImageCount > 0) summary.reference_image_count = referenceImageCount;
+  if (referenceVideoCount > 0) summary.reference_video_count = referenceVideoCount;
+  if (referenceAudioCount > 0) summary.reference_audio_count = referenceAudioCount;
+  if (multiPromptCount > 0) summary.multi_prompt_count = multiPromptCount;
+  return Object.keys(summary).length ? summary : null;
 };
 
 const readProjectIdFromShortpulseContext = (context: Record<string, unknown>): string | null =>
@@ -666,6 +762,10 @@ export const createFalSubmitHandler = ({
             signal: controller.signal,
             requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
           });
+          const providerSubmitSummary = summarizeProviderSubmitPayload({
+            provider: providerKey,
+            payload,
+          });
 
           if (!submitResult.response.ok || !submitResult.providerRequestId) {
             const upstreamMessage =
@@ -673,6 +773,7 @@ export const createFalSubmitHandler = ({
               (submitResult.providerRequestId
                 ? "Provider submit failed."
                 : "Provider submit response missing request id.");
+            const providerBodyCode = readProviderBodyCode(submitResult.data);
             const contentPolicyMessage = readProviderContentPolicyMessage({
               provider: providerKey,
               payload: submitResult.data,
@@ -699,6 +800,8 @@ export const createFalSubmitHandler = ({
               upstream_target_url: submitResult.targetUrl,
               upstream_target_index: submitResult.targetIndex,
               upstream_payload: submitResult.data,
+              provider_body_code: providerBodyCode,
+              ...(providerSubmitSummary ? { provider_submit_summary: providerSubmitSummary } : {}),
             });
             await logGenerationFailure({
               req,
@@ -716,6 +819,10 @@ export const createFalSubmitHandler = ({
                 provider_request_id: submitResult.providerRequestId,
                 explicit_content_blocked: explicitContentFailure != null,
                 upstream_message: upstreamMessage,
+                provider_body_code: providerBodyCode,
+                ...(providerSubmitSummary
+                  ? { provider_submit_summary: providerSubmitSummary }
+                  : {}),
               },
             });
             return res.status(failureStatus).json({
@@ -743,6 +850,7 @@ export const createFalSubmitHandler = ({
             provider_response_url: submitResult.providerResponseUrl,
             provider_cancel_url: submitResult.providerCancelUrl,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
+            ...(providerSubmitSummary ? { provider_submit_summary: providerSubmitSummary } : {}),
             ...(Object.keys(generationReplayContext).length > 0
               ? { generation_replay: generationReplayContext }
               : {}),
@@ -771,6 +879,7 @@ export const createFalSubmitHandler = ({
               provider_response_url: submitResult.providerResponseUrl,
               provider_cancel_url: submitResult.providerCancelUrl,
               provider_diagnostics: submitResult.providerDiagnostics ?? null,
+              ...(providerSubmitSummary ? { provider_submit_summary: providerSubmitSummary } : {}),
               ...(Object.keys(shortpulseContext).length > 0
                 ? { shortpulse_context: shortpulseContext }
                 : {}),

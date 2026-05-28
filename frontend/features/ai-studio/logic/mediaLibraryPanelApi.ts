@@ -83,6 +83,11 @@ type MediaUploadResponse = {
   details?: string;
 };
 
+type MediaLibraryHttpRequestError = Error & {
+  code: "MEDIA_LIBRARY_HTTP_ERROR";
+  status: number;
+};
+
 export type MediaFolderCanvasState = {
   folderId: string;
   schemaVersion: number;
@@ -102,6 +107,34 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 
 const asString = (value: unknown): string => {
   return typeof value === "string" ? value.trim() : "";
+};
+
+const createMediaLibraryHttpRequestError = (
+  message: string,
+  status: number
+): MediaLibraryHttpRequestError => {
+  const error = new Error(message) as MediaLibraryHttpRequestError;
+  error.code = "MEDIA_LIBRARY_HTTP_ERROR";
+  error.status = Math.trunc(status);
+  return error;
+};
+
+const readResponseErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+  try {
+    const payload = asRecord(await response.clone().json());
+    const error = asString(payload.error);
+    if (error) return error;
+    const message = asString(payload.message);
+    if (message) return message;
+  } catch {
+    // Fall through to text response read.
+  }
+  try {
+    const text = (await response.clone().text()).trim();
+    return text || fallback;
+  } catch {
+    return fallback;
+  }
 };
 
 const IMAGE_UPLOAD_MAX_MB = 25;
@@ -276,27 +309,17 @@ const withTransientNetworkRetry = async <T>(
 };
 
 const resolveProjectFolderApiPath = (
-  projectId: string | null | undefined,
+  _projectId: string | null | undefined,
   suffix: string
 ): string => {
-  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
-  if (!normalizedProjectId) {
-    return `/api/media/folders/${suffix}`;
-  }
-  return `/api/projects/${encodeURIComponent(normalizedProjectId)}/media/folders/${suffix}`;
+  return `/api/media/folders/${suffix}`;
 };
 
 const resolveProjectFolderCanvasApiPath = (
-  projectId: string | null | undefined,
+  _projectId: string | null | undefined,
   folderId: string
 ): string => {
-  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
-  if (!normalizedProjectId) {
-    return `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`;
-  }
-  return `/api/projects/${encodeURIComponent(
-    normalizedProjectId
-  )}/media/folders/${encodeURIComponent(folderId)}/canvas`;
+  return `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`;
 };
 
 /**
@@ -311,7 +334,10 @@ export const listMediaFolders = async (projectId?: string | null): Promise<Media
       })
   );
   if (!response.ok) {
-    throw new Error("Unable to load media folders.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to load media folders."),
+      response.status
+    );
   }
   const payload = asRecord(await response.json().catch(() => ({})));
   const rows = Array.isArray(payload.folders) ? payload.folders : [];
@@ -571,8 +597,10 @@ export const fetchMediaPromptListPage = async ({
       })
   );
   if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to load prompts.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to load prompts."),
+      response.status
+    );
   }
   const payload = asRecord(await response.json().catch(() => ({})));
   const rows = (Array.isArray(payload.rows) ? payload.rows : [])
@@ -627,33 +655,27 @@ export const saveMediaFolderCanvasState = async ({
   folderId,
   schemaVersion,
   snapshot,
-  projectId,
+  projectId: _projectId,
 }: {
   folderId: string;
   schemaVersion: number;
   snapshot: Record<string, unknown>;
   projectId?: string | null;
 }): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
-  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
   const response = await withTransientNetworkRetry(
     async () =>
-      await fetchWithAuth(
-        normalizedProjectId
-          ? resolveProjectFolderCanvasApiPath(normalizedProjectId, folderId)
-          : "/api/ai/media-folder-canvas/save",
-        {
-          method: normalizedProjectId ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            folderId,
-            schemaVersion,
-            snapshot,
-          }),
-          shortpulseLogScope: "app",
-        }
-      )
+      await fetchWithAuth("/api/ai/media-folder-canvas/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          folderId,
+          schemaVersion,
+          snapshot,
+        }),
+        shortpulseLogScope: "app",
+      })
   );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));

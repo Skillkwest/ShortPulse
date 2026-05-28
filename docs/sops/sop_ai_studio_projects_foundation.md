@@ -47,16 +47,14 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/pages/api/projects/[...projectPath].ts`                                       | Sole dynamic project API dispatcher that keeps `/api/projects/:projectId*` reachable in Next dev/Turbopack while delegating to non-routable project handlers.                                                                               |
 | `frontend/lib/server/projectApiRoutes/item.ts`                                          | Authenticated single-project handler for ownership checks, title updates, and permanent delete.                                                                                                                                             |
 | `frontend/lib/server/projectApiRoutes/workspace.ts`                                     | Authenticated workspace handler used by project-aware AI Studio restore/write against the sanitized project snapshot projection.                                                                                                            |
-| `frontend/lib/server/projectApiRoutes/mediaFolders/*.ts`                                | Authenticated project Media Library folder CRUD, membership, and folder-canvas handlers.                                                                                                                                                    |
 | `frontend/pages/dashboard.tsx`                                                          | `New Project` UI entry plus an `Open Projects` action card that opens the shared saved-project modal and routes selection into AI Studio with `projectId`.                                                                                  |
 | `frontend/pages/ai-studio.tsx`                                                          | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
 | `frontend/features/ai-studio/components/ProjectsModal.tsx`                              | Saved-project picker modal used by the AI Studio left rail to create, reopen, and delete owned projects without leaving AI Studio.                                                                                                          |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts`                       | Canonical client hook for `projectId` query resolution, owned-project fetch, and AI Studio title updates.                                                                                                                                   |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts` | Canonical client controller for project-owned workspace restore/apply and debounced autosave.                                                                                                                                               |
-| `frontend/lib/server/projectMediaFoldersService.ts`                                     | Canonical server helper for project-owned Media Library custom folders and saved media/prompt membership operations.                                                                                                                        |
-| `frontend/lib/server/projectMediaFolderCanvasService.ts`                                | Canonical server helper for project-owned Media Library folder canvas read/write operations.                                                                                                                                                |
-| `frontend/pages/api/media/list.ts`                                                      | Shared Media Library media list route that now accepts optional `projectId` for project-folder membership resolution while keeping `All Media` global.                                                                                      |
-| `frontend/pages/api/media/prompts/list.ts`                                              | Shared Media Library prompt list route that now accepts optional `projectId` for project-folder membership resolution while keeping `All Media` global.                                                                                     |
+| `frontend/lib/server/mediaFoldersService.ts`                                            | Canonical server helper for the global Media Library folder tree, membership operations, and folder-access validation used on both project and non-project routes.                                                                          |
+| `frontend/pages/api/media/list.ts`                                                      | Shared Media Library media list route that resolves folder-scoped requests through the global membership authority while keeping `All Media` global.                                                                                        |
+| `frontend/pages/api/media/prompts/list.ts`                                              | Shared Media Library prompt list route that resolves folder-scoped requests through the global membership authority while keeping `All Media` global.                                                                                       |
 | `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`                          | Canonical media/prompt save helper that now attaches saved assets to the active project while keeping the global library inventory user-scoped.                                                                                             |
 | `frontend/features/ai-studio/hooks/useAiStudioPersistenceActions.ts`                    | Canonical AI Studio save/autosave hook that associates already-saved outputs/prompts with the active project without reuploading them.                                                                                                      |
 | `frontend/lib/server/projectWorkspaceStatesService.ts`                                  | Canonical server helper for project-owned workspace read/write access and snapshot validation.                                                                                                                                              |
@@ -151,38 +149,6 @@ Behavior:
 - `404` for missing or non-owned project
 - `500` for unexpected server failure
 
-### `/api/projects/:projectId/media/folders/*`
-
-Behavior:
-
-1. Requires authenticated API user.
-2. Validates `projectId` format before project-folder access proceeds.
-3. Resolves the owned project before folder CRUD or membership proceeds.
-4. `GET /list` returns caller-owned custom folders for that project only.
-5. `POST /create|rename|move|delete` mutate only caller-owned folders for that project.
-6. `POST /membership-batch` assigns, unassigns, or moves saved media/prompt memberships between caller-owned folders for that project.
-7. These routes do not change `All Media`; they only own the custom-folder organization layer above it.
-8. Returns:
-   - `400` for invalid project id, invalid folder ids, or invalid membership actions
-   - `404` for missing or non-owned project/folder
-   - `409` for folder-name collisions, invalid hierarchy, or isolated character-scoped media assignment
-   - `500` for unexpected server failure
-
-### `GET|PUT /api/projects/:projectId/media/folders/:folderId/canvas`
-
-Behavior:
-
-1. Requires authenticated API user.
-2. Validates `projectId` and `folderId` before project-folder canvas access proceeds.
-3. Resolves the owned project before folder-canvas read/write proceeds.
-4. `GET` returns the current caller-owned project folder canvas snapshot or `state: null` when none exists yet.
-5. `PUT` validates the posted snapshot through the shared Media Library folder-canvas snapshot parser before upsert.
-6. Project routes use this surface instead of the legacy user-scoped folder canvas endpoints.
-7. Returns:
-   - `400` for invalid project id, folder id, or folder canvas payload
-   - `404` for missing or non-owned project/folder
-   - `500` for unexpected server failure
-
 ## Dashboard and AI Studio handoff workflow
 
 1. User clicks `New Project` or `Open Projects` on `/dashboard`.
@@ -217,18 +183,17 @@ Behavior:
 6. Project workspace writes reset the project shell back to the shipped blank Create baseline and do not preserve Pulse shell selection, Pulse session instance ids, Character Mode shell state, or active output focus.
 7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
 8. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
-9. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.
+9. This does not change Media Library folder authority, which remains user-global across projects, and it does not yet make every live generation read path project-scoped.
 
 ## AI Studio Media Library folder authority
 
 1. `All Media` remains the canonical user-global Media Library inventory on project routes.
-2. The visible custom-folder area above `All Media` is now project-scoped on project routes.
-3. Folder CRUD on project routes uses `/api/projects/:projectId/media/folders/*`, not the legacy user-global folder routes.
-4. Folder-scoped media and prompt listing on project routes now passes `projectId` into `/api/media/list` and `/api/media/prompts/list` so folder contents resolve through project membership tables.
-5. Saved media and saved prompts can be assigned to project folders without duplicating the underlying `media_files` or `media_prompts` rows.
-6. Switching to a different project must not carry custom folders or folder membership across.
-7. Project folder canvas snapshots now persist through `/api/projects/:projectId/media/folders/:folderId/canvas`, not the legacy user-scoped folder canvas routes.
-8. Legacy user-global folder routes and user-scoped folder canvas routes still exist for non-project surfaces while migration is in progress.
+2. The visible custom-folder area above `All Media` is also user-global on project routes.
+3. Folder CRUD, folder membership, nested-folder traversal, and folder-canvas persistence all use the same global Media Library APIs on project and non-project routes.
+4. Folder-scoped media and prompt listing always resolves through the global user-owned membership tables.
+5. Saved media and saved prompts can be assigned to those global folders without duplicating the underlying `media_files` or `media_prompts` rows.
+6. Switching to a different project must preserve the same visible folder tree, folder memberships, and folder-canvas state.
+7. Project identity affects project-owned workspace persistence and asset association only; it does not create a separate folder authority.
 
 ## Project asset association
 
@@ -250,7 +215,7 @@ Behavior:
 ## Source-of-truth guidance
 
 1. Use this SOP for the shipped Projects foundation contract.
-2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, ADR 0065 for project generated-output association, ADR 0066 for project Media Library folder authority, ADR 0067 for project Media Library folder canvas authority, and ADR 0070 for project conversational-runtime exclusion.
+2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, ADR 0065 for project generated-output association, ADR 0070 for project conversational-runtime exclusion, and ADR 0085 for global Media Library folder authority across project routes.
 3. Use the `docs/planning/ai-studio-project-persistence-*.md` files only for future migration phases, not as the source of truth for already shipped behavior.
 
 ## Validation
@@ -258,6 +223,9 @@ Behavior:
 - `npm -C frontend run test -- tests/api/projects-create.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectIdentity.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionIdentity.test.ts`
+- `npm -C frontend run test -- tests/api/media-list.test.ts`
+- `npm -C frontend run test -- tests/api/media-prompts-list.test.ts`
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPanelApi.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPersistenceActions.identity.test.ts`

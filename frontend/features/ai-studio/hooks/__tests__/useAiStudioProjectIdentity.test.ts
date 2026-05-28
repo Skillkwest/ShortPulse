@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRouter } from "next/router";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { getAiStudioProjectIdentityViaApi } from "../../logic/projectWorkspaceApiClient";
 import { useAiStudioProjectIdentity } from "../useAiStudioProjectIdentity";
 
 vi.mock("next/router", () => ({
@@ -12,6 +13,10 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
+vi.mock("../../logic/projectWorkspaceApiClient", () => ({
+  getAiStudioProjectIdentityViaApi: vi.fn(),
+}));
+
 type MockRouter = {
   isReady: boolean;
   query: Record<string, unknown>;
@@ -19,6 +24,7 @@ type MockRouter = {
 
 const mockedUseRouter = vi.mocked(useRouter);
 const mockedFetchWithAuth = vi.mocked(fetchWithAuth);
+const mockedGetAiStudioProjectIdentityViaApi = vi.mocked(getAiStudioProjectIdentityViaApi);
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_TWO_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -45,7 +51,7 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.projectRouteRequested).toBe(false);
     expect(result.current.project).toBeNull();
     expect(result.current.status).toBe("idle");
-    expect(mockedFetchWithAuth).not.toHaveBeenCalled();
+    expect(mockedGetAiStudioProjectIdentityViaApi).not.toHaveBeenCalled();
   });
 
   it("treats a project route in the URL as pending before router query resolution finishes", () => {
@@ -64,7 +70,7 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.projectRouteRequested).toBe(true);
     expect(result.current.status).toBe("loading");
-    expect(mockedFetchWithAuth).not.toHaveBeenCalled();
+    expect(mockedGetAiStudioProjectIdentityViaApi).not.toHaveBeenCalled();
   });
 
   it("loads the owned project record from the project route", async () => {
@@ -73,17 +79,12 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        project: {
-          id: PROJECT_ID,
-          title: "Project One",
-          createdAt: "2026-04-23T00:00:00.000Z",
-          updatedAt: "2026-04-23T01:00:00.000Z",
-        },
-      }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockResolvedValueOnce({
+      id: PROJECT_ID,
+      title: "Project One",
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+    });
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -91,10 +92,8 @@ describe("useAiStudioProjectIdentity", () => {
       expect(result.current.status).toBe("ready");
     });
 
-    expect(mockedFetchWithAuth).toHaveBeenCalledWith(`/api/projects/${PROJECT_ID}`, {
-      method: "GET",
-      shortpulseAuthTimeoutMs: 5000,
-      shortpulseRetryNetworkOnce: true,
+    expect(mockedGetAiStudioProjectIdentityViaApi).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
     });
     expect(result.current.project).toEqual({
       id: PROJECT_ID,
@@ -121,7 +120,7 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.errorKind).toBe("invalid_id");
     expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.project).toBeNull();
-    expect(mockedFetchWithAuth).not.toHaveBeenCalled();
+    expect(mockedGetAiStudioProjectIdentityViaApi).not.toHaveBeenCalled();
   });
 
   it("surfaces a closed failure state for missing or unauthorized projects", async () => {
@@ -130,11 +129,9 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_TWO_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: "Invalid project id" }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockRejectedValueOnce(
+      new Error("Invalid project link.")
+    );
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -154,11 +151,9 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_TWO_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      json: async () => ({ error: "Forbidden" }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockRejectedValueOnce(
+      new Error("You do not have access to this project.")
+    );
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -178,11 +173,7 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_TWO_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-      json: async () => ({ error: "Project not found" }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockRejectedValueOnce(new Error("Project not found."));
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -202,11 +193,9 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ error: "Unauthorized" }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockRejectedValueOnce(
+      new Error("Session expired. Retry project load.")
+    );
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -224,15 +213,9 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_ID },
       }) as never
     );
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: async () => ({
-        error: {
-          message: "Project service unavailable",
-        },
-      }),
-    } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockRejectedValueOnce(
+      new Error("Project service unavailable")
+    );
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
@@ -251,29 +234,23 @@ describe("useAiStudioProjectIdentity", () => {
         query: { projectId: PROJECT_ID },
       }) as never
     );
-    mockedFetchWithAuth
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          project: {
-            id: PROJECT_ID,
-            title: "Project One",
-            createdAt: "2026-04-23T00:00:00.000Z",
-            updatedAt: "2026-04-23T01:00:00.000Z",
-          },
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          project: {
-            id: PROJECT_ID,
-            title: "Renamed Project",
-            createdAt: "2026-04-23T00:00:00.000Z",
-            updatedAt: "2026-04-23T02:00:00.000Z",
-          },
-        }),
-      } as Response);
+    mockedGetAiStudioProjectIdentityViaApi.mockResolvedValueOnce({
+      id: PROJECT_ID,
+      title: "Project One",
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+    });
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        project: {
+          id: PROJECT_ID,
+          title: "Renamed Project",
+          createdAt: "2026-04-23T00:00:00.000Z",
+          updatedAt: "2026-04-23T02:00:00.000Z",
+        },
+      }),
+    } as Response);
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 

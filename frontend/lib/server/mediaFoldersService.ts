@@ -13,6 +13,10 @@ const FOLDER_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DbErrorLike = { code?: string | null; message?: string | null };
+type FolderItemCountRpcRow = {
+  folder_id?: unknown;
+  item_count?: unknown;
+};
 const MEDIA_FOLDER_SELECT_COLUMNS =
   "id, user_id, name, parent_folder_id, created_at, updated_at" as const;
 const LEGACY_MEDIA_FOLDER_SELECT_COLUMNS = "id, user_id, name, created_at, updated_at" as const;
@@ -132,6 +136,32 @@ const toMediaFolderRow = (
   };
 };
 
+const toNonNegativeCount = (value: unknown): number => {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  if (typeof parsed !== "number" || !Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
+};
+
+export const buildFolderItemCountMap = ({
+  folderIds,
+  rows,
+}: {
+  folderIds: string[];
+  rows: unknown[] | null | undefined;
+}): Map<string, number> => {
+  const counts = new Map<string, number>();
+  for (const folderId of folderIds) {
+    counts.set(folderId, 0);
+  }
+  for (const row of rows ?? []) {
+    const record = row as FolderItemCountRpcRow;
+    const folderId = typeof record.folder_id === "string" ? record.folder_id.trim() : "";
+    if (!folderId || !counts.has(folderId)) continue;
+    counts.set(folderId, toNonNegativeCount(record.item_count));
+  }
+  return counts;
+};
+
 const toFolderItemCountMap = async ({
   supabaseAdmin,
   userId,
@@ -147,40 +177,14 @@ const toFolderItemCountMap = async ({
   }
   if (!folderIds.length) return counts;
 
-  const [mediaMembershipsResult, promptMembershipsResult] = await Promise.all([
-    supabaseAdmin
-      .from("media_folder_media_items")
-      .select("folder_id")
-      .eq("user_id", userId)
-      .in("folder_id", folderIds),
-    supabaseAdmin
-      .from("media_folder_prompt_items")
-      .select("folder_id")
-      .eq("user_id", userId)
-      .in("folder_id", folderIds),
-  ]);
-
-  const { data: mediaMemberships, error: mediaMembershipsError } = mediaMembershipsResult;
-  if (mediaMembershipsError) {
-    throw new Error(mediaMembershipsError.message || "Failed to load media folder item counts");
+  const { data, error } = await supabaseAdmin.rpc("get_media_folder_item_counts", {
+    p_user_id: userId,
+    p_folder_ids: folderIds,
+  });
+  if (error) {
+    throw new Error(error.message || "Failed to load media folder item counts");
   }
-  const { data: promptMemberships, error: promptMembershipsError } = promptMembershipsResult;
-  if (promptMembershipsError) {
-    throw new Error(promptMembershipsError.message || "Failed to load media folder item counts");
-  }
-
-  for (const row of mediaMemberships ?? []) {
-    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
-    if (!folderId || !counts.has(folderId)) continue;
-    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
-  }
-  for (const row of promptMemberships ?? []) {
-    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
-    if (!folderId || !counts.has(folderId)) continue;
-    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
-  }
-
-  return counts;
+  return buildFolderItemCountMap({ folderIds, rows: data as unknown[] | null | undefined });
 };
 
 const withFolderItemCount = (
@@ -214,6 +218,27 @@ const assertOwnedFolderExists = async ({
   if (!folderRow) {
     throw new Error(missingMessage);
   }
+};
+
+/**
+ * Validates that one caller-owned custom folder exists.
+ */
+export const assertMediaFolderAccessForUser = async ({
+  userId,
+  folderId,
+}: {
+  userId: string;
+  folderId: string;
+}): Promise<void> => {
+  if (!isCustomMediaFolderId(folderId)) {
+    throw new Error("Invalid folder id");
+  }
+  const supabaseAdmin = getSupabaseAdmin();
+  await assertOwnedFolderExists({
+    supabaseAdmin,
+    userId,
+    folderId,
+  });
 };
 
 const toOwnedIdsSet = async ({

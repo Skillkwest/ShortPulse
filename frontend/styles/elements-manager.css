@@ -141,6 +141,31 @@
 .elements-panel-action-btn {
   appearance: none;
   -webkit-appearance: none;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(24, 28, 33, 0.94);
+  color: rgba(228, 235, 243, 0.92);
+  -webkit-text-fill-color: currentColor;
+  min-width: 80px;
+  min-height: 32px;
+  padding: 0 9px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.elements-panel-action-btn:not(:disabled):hover {
+  border-color: rgba(240, 135, 172, 0.52);
+  transform: translateY(-1px);
 }
 
 .elements-panel-action-btn:disabled {
@@ -148,9 +173,34 @@
   cursor: not-allowed;
 }
 
+.elements-panel-action-btn.elements-panel-action-btn--picker-accent {
+  border-color: rgba(231, 92, 134, 0.58);
+  background: rgba(28, 32, 37, 0.94);
+  color: rgba(242, 156, 188, 0.96);
+  -webkit-text-fill-color: currentColor;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.elements-panel-action-btn.elements-panel-action-btn--picker-accent:not(:disabled):hover {
+  border-color: rgba(231, 92, 134, 0.58);
+  background: rgba(28, 32, 37, 0.98);
+  color: rgba(242, 156, 188, 0.96);
+  -webkit-text-fill-color: currentColor;
+  transform: none;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
 .elements-panel-action-btn.elements-panel-action-btn--picker-accent:focus-visible {
   outline: 2px solid rgba(231, 92, 134, 0.28);
   outline-offset: 2px;
+}
+
+.elements-panel-action-btn.elements-panel-action-btn--picker-accent:disabled {
+  border-color: rgba(242, 156, 188, 0.3);
+  color: rgba(74, 22, 37, 0.78);
+  -webkit-text-fill-color: currentColor;
+  filter: grayscale(0.18) saturate(0.78);
+  box-shadow: none;
 }
 
 .elements-panel-save-progress-spinner {

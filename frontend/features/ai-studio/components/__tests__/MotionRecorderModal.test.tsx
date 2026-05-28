@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MotionRecorderModal } from "../MotionRecorderModal";
 
@@ -118,6 +118,69 @@ describe("MotionRecorderModal", () => {
     expect(onApplyVideo).toHaveBeenCalledWith("https://example.com/staged-motion.webm");
     expect(onClose).toHaveBeenCalled();
     expect(mediaStreamTrackStop).toHaveBeenCalled();
+  });
+
+  it("shows only detected cameras in the camera picker", async () => {
+    const mediaStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
+    };
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mediaStream),
+        enumerateDevices: vi.fn().mockResolvedValue([
+          {
+            deviceId: "camera-1",
+            groupId: "group-camera-1",
+            kind: "videoinput",
+            label: "Front Camera",
+            toJSON: () => ({}),
+          },
+          {
+            deviceId: "camera-2",
+            groupId: "group-camera-2",
+            kind: "videoinput",
+            label: "Rear Camera",
+            toJSON: () => ({}),
+          },
+        ]),
+      },
+    });
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async ({ name }: { name: string }) => ({
+          name,
+          state: "granted",
+          onchange: null,
+        })),
+      },
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+
+      start() {}
+      stop() {}
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
+    await screen.findByText("Live preview");
+
+    const cameraSelect = screen.getByLabelText("Camera");
+    expect(within(cameraSelect).getByRole("option", { name: "Front Camera" })).toBeInTheDocument();
+    expect(within(cameraSelect).getByRole("option", { name: "Rear Camera" })).toBeInTheDocument();
+    expect(
+      within(cameraSelect).queryByRole("option", { name: "Browser default camera" })
+    ).toBeNull();
   });
 
   it("surfaces blocked camera recovery guidance and only opens settings on explicit action", async () => {

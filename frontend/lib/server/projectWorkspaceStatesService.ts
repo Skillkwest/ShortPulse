@@ -662,46 +662,6 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
   };
 };
 
-const hydrateProjectWorkspaceSnapshotAfterSave = async ({
-  userId,
-  projectId,
-  snapshot,
-  ownedMediaFileIds,
-  ownedPromptIds,
-  ownedGenerationIds,
-}: {
-  userId: string;
-  projectId: string;
-  snapshot: Record<string, unknown>;
-  ownedMediaFileIds: string[];
-  ownedPromptIds: string[];
-  ownedGenerationIds: string[];
-}): Promise<Record<string, unknown>> => {
-  let hydratedSnapshot = snapshot;
-  try {
-    hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
-      userId,
-      projectId,
-      snapshot,
-    });
-  } catch (error) {
-    logProjectWorkspaceBestEffortFailure({
-      stage: "generated output hydration",
-      projectId,
-      error,
-    });
-  }
-  const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
-
-  return sanitizeProjectWorkspaceOutputs({
-    userId,
-    snapshot: hydratedSnapshot,
-    ownedMediaFileIds,
-    ownedPromptIds,
-    ownedGenerationIds: [...new Set([...ownedGenerationIds, ...hydratedGenerationIds])],
-  });
-};
-
 const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   userId,
   projectId,
@@ -736,6 +696,9 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       projectId,
       snapshot: sanitizedOutputsSnapshot,
     });
+    if (hydratedSnapshot === sanitizedOutputsSnapshot) {
+      return sanitizedOutputsSnapshot;
+    }
     const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
 
     return sanitizeProjectWorkspaceOutputs({
@@ -932,18 +895,9 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
   }
 
-  const returnSnapshot = await hydrateProjectWorkspaceSnapshotAfterSave({
-    userId,
-    projectId,
-    snapshot: preparedSnapshot.snapshot,
-    ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
-    ownedPromptIds: preparedSnapshot.ownedPromptIds,
-    ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
-  });
-
   return toProjectWorkspaceStateRecord({
     row: savedRow,
-    snapshot: returnSnapshot,
+    snapshot: preparedSnapshot.snapshot,
     saveOutcome: {
       status: "saved",
     },

@@ -424,6 +424,28 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
+  it("blocks generate when billed credit state is unresolved and surfaces the guardrail message", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      isGenerateDisabled: true,
+      isCreditGuardrail: false,
+      generationGuardrail: "Unable to load spendable credits. Retry in a moment.",
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("prompt");
+    });
+
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+    expect(setUiError).toHaveBeenCalledWith("Unable to load spendable credits. Retry in a moment.");
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
   it("does not self-throttle generate when current balance already covers the run", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 6);

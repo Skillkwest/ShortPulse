@@ -101,7 +101,7 @@ describe("ModelModal", () => {
       },
       {
         value: "fal-ai/veo3.1/image-to-video",
-        label: "Google Veo 3.1 I2V",
+        label: "Google Veo 3.1",
         mediaType: "image-to-video",
       },
       {
@@ -128,7 +128,7 @@ describe("ModelModal", () => {
 
     expect(readChipTitles(container)).toEqual([]);
     expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Google Veo 3.1 I2V" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Google Veo 3.1 (First/Last Frame)" })
     ).not.toBeInTheDocument();
@@ -143,7 +143,7 @@ describe("ModelModal", () => {
       },
       {
         value: "kie-ai/veo-3.1-fast-i2v",
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
     ];
@@ -158,7 +158,7 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast"]);
     expect(screen.queryByRole("button", { name: "Kling 3.0 (Fal)" })).not.toBeInTheDocument();
   });
 
@@ -166,7 +166,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
       {
@@ -189,9 +189,9 @@ describe("ModelModal", () => {
 
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.queryByText("Text-to-Video")).not.toBeInTheDocument();
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V", "Kling 3.0", "Seedance 2.0"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast", "Kling 3.0", "Seedance 2.0"]);
     expect(readFamilyColumns()).toEqual([
-      { family: "Veo", chips: ["Veo 3.1 Fast I2V"] },
+      { family: "Veo", chips: ["Veo 3.1 Fast"] },
       { family: "Kling", chips: ["Kling 3.0"] },
       { family: "Seedance", chips: ["Seedance 2.0"] },
     ]);
@@ -202,7 +202,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
       {
@@ -228,7 +228,7 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual([
-      "Veo 3.1 Fast I2V",
+      "Veo 3.1 Fast",
       "Seedance 2.0",
       "Seedance 2.0 Fast",
     ]);
@@ -254,7 +254,7 @@ describe("ModelModal", () => {
       },
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
     ];
@@ -270,13 +270,13 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual([
-      "Veo 3.1 Fast I2V",
+      "Veo 3.1 Fast",
       "Kling 3.0",
       "Seedance 2.0",
       "Seedance 2.0 Fast",
     ]);
     expect(readFamilyColumns()).toEqual([
-      { family: "Veo", chips: ["Veo 3.1 Fast I2V"] },
+      { family: "Veo", chips: ["Veo 3.1 Fast"] },
       { family: "Kling", chips: ["Kling 3.0"] },
       {
         family: "Seedance",
@@ -464,7 +464,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
       {
@@ -483,9 +483,9 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V", "Kling 3.0"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast", "Kling 3.0"]);
     expect(readFamilyColumns()).toEqual([
-      { family: "Veo", chips: ["Veo 3.1 Fast I2V"] },
+      { family: "Veo", chips: ["Veo 3.1 Fast"] },
       { family: "Kling", chips: ["Kling 3.0"] },
     ]);
   });
@@ -495,7 +495,7 @@ describe("ModelModal", () => {
       { value: KIE_SEEDANCE_2_MODEL_ID, label: "Seedance 2.0", mediaType: "image-to-video" },
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
       {
@@ -515,9 +515,9 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V", "Kling 3.0", "Seedance 2.0"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast", "Kling 3.0", "Seedance 2.0"]);
     expect(readFamilyColumns()).toEqual([
-      { family: "Veo", chips: ["Veo 3.1 Fast I2V"] },
+      { family: "Veo", chips: ["Veo 3.1 Fast"] },
       { family: "Kling", chips: ["Kling 3.0"] },
       { family: "Seedance", chips: ["Seedance 2.0"] },
     ]);
@@ -527,7 +527,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-        label: "Veo 3.1 Fast I2V",
+        label: "Veo 3.1 Fast",
         mediaType: "image-to-video",
       },
       {
@@ -546,7 +546,7 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast"]);
     expect(
       screen.queryByRole("button", { name: "Google Veo 3.1 (First/Last Frame)" })
     ).not.toBeInTheDocument();
@@ -561,7 +561,7 @@ describe("ModelModal", () => {
         options={[
           {
             value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-            label: "Veo 3.1 Fast I2V",
+            label: "Veo 3.1 Fast",
             mediaType: "image-to-video",
           },
         ]}
@@ -584,7 +584,7 @@ describe("ModelModal", () => {
         options={[
           {
             value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-            label: "Veo 3.1 Fast I2V",
+            label: "Veo 3.1 Fast",
             mediaType: "image-to-video",
           },
         ]}
@@ -649,7 +649,7 @@ describe("ModelModal", () => {
           options={[
             {
               value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-              label: "Veo 3.1 Fast I2V",
+              label: "Veo 3.1 Fast",
               mediaType: "image-to-video",
             },
           ]}
@@ -657,7 +657,7 @@ describe("ModelModal", () => {
         />
       );
 
-      fireEvent.mouseEnter(screen.getByRole("button", { name: /Veo 3\.1 Fast I2V/i }));
+      fireEvent.mouseEnter(screen.getByRole("button", { name: /Veo 3\.1 Fast/i }));
       act(() => {
         vi.advanceTimersByTime(500);
       });

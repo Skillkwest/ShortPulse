@@ -817,7 +817,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           : {}),
         aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
         duration: resolveSeedance2Duration(requestedDurationSeconds),
-        resolution: resolveSeedance2Resolution(requestedResolution),
+        resolution: resolveSeedance2Resolution(requestedResolution, modelConfig),
         generate_audio: requestedAudio,
         return_last_frame: seedance2ReturnLastFrame,
         web_search: seedance2WebSearch,

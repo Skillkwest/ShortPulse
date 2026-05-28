@@ -1211,6 +1211,42 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Play source audio preview" })).toBeInTheDocument();
   });
 
+  it("treats a staged audio webm as audio even when the local file initially looks like video", async () => {
+    uploadVoiceChangerSourceFileMock.mockResolvedValueOnce({
+      storagePath: "user-1/voice-changer/source-audio/ambiguous.webm",
+      signedUrl: "https://signed.example/ambiguous.webm",
+      mimeType: "audio/webm",
+      name: "ambiguous.webm",
+      size: 4,
+    });
+
+    const { container } = render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["webm"], "ambiguous.webm");
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready for conversion")).toBeInTheDocument();
+    });
+
+    expect(uploadVoiceChangerSourceFileMock).toHaveBeenCalledWith({
+      file,
+      kind: "video",
+    });
+    expect(extractVoiceChangerVideoSourceMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Play source audio preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
   it("prefers a native local audio file over external plain-text URLs in voice changer mode", async () => {
     render(<VoicesPropertiesPanel />);
 

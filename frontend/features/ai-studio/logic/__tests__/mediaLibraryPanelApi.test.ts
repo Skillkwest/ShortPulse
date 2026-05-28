@@ -140,7 +140,16 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     expect(folders[0]?.itemCount).toBe(4);
   });
 
-  it("uses project folder routes when a projectId is provided", async () => {
+  it("preserves folder-list HTTP status on non-OK responses", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(jsonResponse({ error: "Project not found" }, 404));
+
+    await expect(listMediaFolders("project-1")).rejects.toMatchObject({
+      message: "Project not found",
+      status: 404,
+    });
+  });
+
+  it("uses global folder routes even when a projectId is provided", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -159,7 +168,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     const folders = await listMediaFolders("project-1");
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/projects/project-1/media/folders/list",
+      "/api/media/folders/list",
       expect.objectContaining({
         method: "GET",
       })
@@ -167,7 +176,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     expect(folders[0]?.itemCount).toBe(6);
   });
 
-  it("uses project membership routes when a projectId is provided", async () => {
+  it("uses global membership routes even when a projectId is provided", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -197,7 +206,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     );
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/projects/project-1/media/folders/membership-batch",
+      "/api/media/folders/membership-batch",
       expect.objectContaining({
         method: "POST",
       })
@@ -231,7 +240,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     );
   });
 
-  it("uses project folder canvas read routes when a projectId is provided", async () => {
+  it("uses global folder canvas read routes even when a projectId is provided", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -249,14 +258,14 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     await getMediaFolderCanvasState("folder-1", "project-1");
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/projects/project-1/media/folders/folder-1/canvas",
+      "/api/ai/media-folder-canvas/folder-1",
       expect.objectContaining({
         method: "GET",
       })
     );
   });
 
-  it("uses project folder canvas save routes when a projectId is provided", async () => {
+  it("uses global folder canvas save routes even when a projectId is provided", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -275,9 +284,9 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/projects/project-1/media/folders/folder-1/canvas",
+      "/api/ai/media-folder-canvas/save",
       expect.objectContaining({
-        method: "PUT",
+        method: "POST",
         body: expect.stringContaining('"folderId":"folder-1"'),
       })
     );

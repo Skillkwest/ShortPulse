@@ -57,6 +57,8 @@ type ViewModelInput = {
   seedance2ReferenceVideoUrls?: string[];
   seedance2ReferenceAudioUrls?: string[];
   balanceCredits: number | null;
+  balanceLoading?: boolean;
+  balanceError?: string | null;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (
     modelId: string,
@@ -93,6 +95,8 @@ export const useAiStudioViewModel = ({
   seedance2ReferenceVideoUrls = [],
   seedance2ReferenceAudioUrls = [],
   balanceCredits,
+  balanceLoading = false,
+  balanceError = null,
   editSubmitIntent,
   costParamsForModel,
   pricingPolicy = null,
@@ -373,6 +377,19 @@ export const useAiStudioViewModel = ({
     (isCreateWorkflowSelected && (mode === "image" || mode === "video")) ||
     isVideoTool ||
     isEditWorkflowSelected;
+  const billableSubmitFlow =
+    (isCreateWorkflowSelected &&
+      (mode === "image" || mode === "video" || (mode === "text" && !isDescribeMode))) ||
+    isVideoTool ||
+    isEditWorkflowSelected;
+  const creditStateGuardrail = useMemo(() => {
+    if (!billableSubmitFlow) return null;
+    if (balanceLoading) return "Loading spendable credits. Retry in a moment.";
+    if (balanceError != null || balanceCredits == null) {
+      return "Unable to load spendable credits. Retry in a moment.";
+    }
+    return null;
+  }, [balanceCredits, balanceError, balanceLoading, billableSubmitFlow]);
 
   const hasSufficientCreditsForCost =
     !costedFlow || balanceCredits == null || currentCostCredits == null
@@ -427,6 +444,9 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
+    if (creditStateGuardrail) {
+      return creditStateGuardrail;
+    }
     if (isVideoTool && isSeedance2Model) {
       if (
         hasSeedance2LinkedAssetReferences &&
@@ -472,6 +492,7 @@ export const useAiStudioViewModel = ({
     resolvedVideoLane,
     seedance2InputMode,
     videoReferenceMode,
+    creditStateGuardrail,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);

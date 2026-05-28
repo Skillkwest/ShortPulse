@@ -106,4 +106,27 @@ describe("groupVisibleFailuresForAlertStack", () => {
       },
     ]);
   });
+
+  it("de-brands legacy Veo provider labels and I2V suffixes before grouping failure alerts", () => {
+    const grouped = groupVisibleFailuresForAlertStack([
+      {
+        id: "out-1",
+        model: "Kie VEO 3.1 Fast I2V",
+        modelId: "legacy-kie-veo",
+        prompt: "first",
+        errorMessage: "Generation failed",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Kie VEO 3.1 Fast I2V submit requires an image URL.",
+      },
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        ids: ["out-1"],
+        modelLabel: "Veo 3.1 Fast",
+        failureMessage: "Veo 3.1 Fast submit requires an image URL.",
+        count: 1,
+      },
+    ]);
+  });
 });

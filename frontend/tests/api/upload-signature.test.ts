@@ -81,6 +81,12 @@ describe("upload signature helpers", () => {
     expect(areCompatibleMimeTypes("image/heif", "image/heic")).toBe(true);
     expect(areCompatibleMimeTypes("video/mp4", "video/x-m4v")).toBe(true);
     expect(areCompatibleMimeTypes("audio/x-m4a", "audio/mp4")).toBe(true);
+    expect(areCompatibleMimeTypes("audio/wave", "audio/wav")).toBe(true);
+    expect(areCompatibleMimeTypes("audio/vnd.wave", "audio/wav")).toBe(true);
+    expect(areCompatibleMimeTypes("audio/mp3", "audio/mpeg")).toBe(true);
+    expect(areCompatibleMimeTypes("audio/x-flac", "audio/flac")).toBe(true);
+    expect(areCompatibleMimeTypes("application/ogg", "audio/ogg")).toBe(true);
+    expect(areCompatibleMimeTypes("video/x-quicktime", "video/quicktime")).toBe(true);
     expect(areCompatibleMimeTypes("image/png", "image/jpeg")).toBe(false);
   });
 });

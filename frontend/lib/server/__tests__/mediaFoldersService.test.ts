@@ -116,6 +116,10 @@ const createSupabaseBatchMock = (options: BatchMockOptions = {}) => {
   }));
 
   const supabaseMock = {
+    rpc: vi.fn(async () => ({
+      data: [{ folder_id: SOURCE_FOLDER_ID, item_count: 0 }],
+      error: null,
+    })),
     from: vi.fn((table: string) => {
       if (table === "media_folders") {
         return {
@@ -269,6 +273,10 @@ const createSupabaseMoveMock = ({
   });
 
   const supabaseMock = {
+    rpc: vi.fn(async () => ({
+      data: [{ folder_id: SOURCE_FOLDER_ID, item_count: 0 }],
+      error: null,
+    })),
     from: vi.fn((table: string) => {
       if (table === "media_folders") {
         return {
@@ -523,29 +531,23 @@ describe("mediaFoldersService helpers", () => {
         })),
       })),
     };
-    const countQuery = {
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(async () => ({
-            data: [],
-            error: null,
-          })),
-        })),
-      })),
-    };
     const supabaseMock = {
-      from: vi
-        .fn()
-        .mockReturnValueOnce(listQuery)
-        .mockReturnValueOnce(countQuery)
-        .mockReturnValueOnce(countQuery),
+      from: vi.fn().mockReturnValueOnce(listQuery),
+      rpc: vi.fn(async () => ({
+        data: [{ folder_id: SOURCE_FOLDER_ID, item_count: "3" }],
+        error: null,
+      })),
     };
     getSupabaseAdminMock.mockReturnValue(
       supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
     );
 
     await expect(ensureDefaultMediaFolderForUserExists("user-1")).resolves.toBeNull();
-    expect(supabaseMock.from).toHaveBeenCalledTimes(3);
+    expect(supabaseMock.from).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith("get_media_folder_item_counts", {
+      p_user_id: "user-1",
+      p_folder_ids: [SOURCE_FOLDER_ID],
+    });
   });
 
   it("returns null when moving a missing folder", async () => {

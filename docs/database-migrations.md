@@ -253,6 +253,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 131.  `sql/migrations/131_add_user_issue_reports.sql`
 132.  `sql/migrations/132_harden_public_data_api_default_privileges.sql`
 133.  `sql/migrations/133_restore_model_pricing_policy_function_grants.sql`
+134.  `sql/migrations/135_add_media_folder_count_rpcs.sql`
+135.  `sql/migrations/136_restore_global_media_folder_authority.sql`
       Rollback files:
 
 
@@ -319,6 +321,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/093_add_project_generation_associations_rollback.sql`
     - `sql/migrations/rollback/094_add_project_media_folders_rollback.sql`
     - `sql/migrations/rollback/095_add_project_media_folder_canvas_states_rollback.sql`
+    - `sql/migrations/rollback/136_restore_global_media_folder_authority_rollback.sql`
     - `sql/migrations/rollback/097_retire_model_pricing_rounding_exceptions_rollback.sql`
     - `sql/migrations/rollback/098_add_billing_plan_creation_metadata_rollback.sql`
     - `sql/migrations/rollback/099_add_admin_global_stats_rpcs_rollback.sql`
@@ -411,6 +414,7 @@ Billing safety note:
 - Migration `122_retire_character_sheet_alias_compat.sql` removes the legacy `reference_pack_*` compatibility bridge after verified zero-drift audits across staging and production, scrubs legacy metadata keys, drops alias sync triggers/constraints, and removes the retired alias columns.
 - Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
 - Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
+- Migration `136_restore_global_media_folder_authority.sql` backfills project-scoped Media Library folder trees, memberships, and folder-canvas snapshots into the canonical global `media_folders*` and `media_folder_canvas_states` authority, preserving folder ids and suffixing only imported sibling-name collisions.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

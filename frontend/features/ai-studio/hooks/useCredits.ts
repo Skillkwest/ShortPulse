@@ -55,6 +55,7 @@ let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
 let skipBalanceTableProbe = false;
 let preferLegacyLedgerQuery = false;
 let creditSnapshotRetryAfterMs = 0;
+let creditSnapshotInFlightPromise: Promise<CreditSnapshotApiResponse | null> | null = null;
 const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
 
 const createBalanceState = (
@@ -80,6 +81,7 @@ export const resetUseCreditsTestState = () => {
   skipBalanceTableProbe = false;
   preferLegacyLedgerQuery = false;
   creditSnapshotRetryAfterMs = 0;
+  creditSnapshotInFlightPromise = null;
 };
 
 const isSchemaCompatibilityError = (message: string) => {
@@ -252,27 +254,42 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
   if (creditSnapshotRetryAfterMs > Date.now()) {
     return null;
   }
-  try {
-    const response = await fetchWithAuth("/api/credits/snapshot", {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        "cache-control": "no-cache",
-        pragma: "no-cache",
-      },
-      shortpulseLogScope: "generation",
-      shortpulseSkipErrorLogging: true,
-    });
-    if (!response.ok) {
+  if (creditSnapshotInFlightPromise) {
+    return await creditSnapshotInFlightPromise;
+  }
+
+  const request = (async () => {
+    try {
+      const response = await fetchWithAuth("/api/credits/snapshot", {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "cache-control": "no-cache",
+          pragma: "no-cache",
+        },
+        shortpulseLogScope: "generation",
+        shortpulseSkipErrorLogging: true,
+      });
+      if (!response.ok) {
+        creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
+        return null;
+      }
+      const payload = await response.json();
+      creditSnapshotRetryAfterMs = 0;
+      return parseCreditSnapshot(payload);
+    } catch {
       creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
       return null;
     }
-    const payload = await response.json();
-    creditSnapshotRetryAfterMs = 0;
-    return parseCreditSnapshot(payload);
-  } catch {
-    creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
-    return null;
+  })();
+
+  creditSnapshotInFlightPromise = request;
+  try {
+    return await request;
+  } finally {
+    if (creditSnapshotInFlightPromise === request) {
+      creditSnapshotInFlightPromise = null;
+    }
   }
 };
 

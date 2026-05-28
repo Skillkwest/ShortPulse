@@ -326,12 +326,24 @@ describe("dragDrop payload extraction", () => {
   it("accepts internal reference drags for video targets during dragover", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-video-2",
+      "text/reference-media-kind": "video",
       "text/reference-url": "",
       "text/uri-list": "",
       "text/plain": "",
     });
 
     expect(isVideoDragTransfer(transfer)).toBe(true);
+  });
+
+  it("rejects internal image reference drags for video targets during dragover", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "ref-image-2",
+      "text/reference-media-kind": "image",
+      "text/reference-url": "https://cdn.example.com/reference-image.png",
+      "image/url": "https://cdn.example.com/reference-image.png",
+    });
+
+    expect(isVideoDragTransfer(transfer)).toBe(false);
   });
 
   it("detects internal reference drag hints from transfer types when dragover data is unavailable", () => {

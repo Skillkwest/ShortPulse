@@ -69,6 +69,7 @@ describe("POST /api/upload-audio", () => {
       url: "https://signed.example/reference-audio",
       path: expect.stringMatching(/^user-1\/audio\/reference-grid\//),
       size: rawBody.length,
+      mimeType: "audio/mpeg",
     });
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -83,5 +84,35 @@ describe("POST /api/upload-audio", () => {
         }),
       })
     );
+  });
+
+  it("accepts WAV aliases through the dedicated audio adapter", async () => {
+    const rawBody = Buffer.from("RIFF0000WAVE", "ascii");
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "audio/wave",
+        "x-shortpulse-upload-filename": "reference.wav",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/reference-audio",
+      path: expect.stringMatching(/^user-1\/audio\/reference-grid\//),
+      size: rawBody.length,
+      mimeType: "audio/wav",
+    });
   });
 });

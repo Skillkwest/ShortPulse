@@ -15,8 +15,6 @@ import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTrans
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
-import { assertProjectMediaFolderAccessForUser } from "../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../lib/server/projectsService";
 import {
   normalizeMediaSearchTerm,
   withMediaSearchFilter,
@@ -24,11 +22,15 @@ import {
   type MediaQueryDataTab,
 } from "../../../features/media-library/logic/mediaQueryModel";
 import {
-  isCustomMediaFolderId,
+  assertMediaFolderAccessForUser,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../lib/server/mediaFoldersService";
 
-type MediaListSurface = "media-library-modal" | "media-library-panel" | "elements-media-panel";
+type MediaListSurface =
+  | "media-library-modal"
+  | "media-library-panel"
+  | "elements-media-panel"
+  | "character-media-panel";
 type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
 type MediaListCursor = {
@@ -90,6 +92,7 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
   "media-library-panel": 36,
   "elements-media-panel": 36,
+  "character-media-panel": 36,
 };
 
 const INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE: Partial<Record<MediaListSurface, number>> = {
@@ -97,6 +100,7 @@ const INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE: Partial<Record<MediaListSurface, num
   // Seed enough signed previews to cover that promoted window before client visibility signing catches up.
   "media-library-panel": 5,
   "elements-media-panel": 5,
+  "character-media-panel": 5,
 };
 
 const shouldSeedInitialSignedUrls = ({
@@ -151,7 +155,8 @@ const toSurface = (value: unknown): MediaListSurface | null => {
   if (
     value === "media-library-modal" ||
     value === "media-library-panel" ||
-    value === "elements-media-panel"
+    value === "elements-media-panel" ||
+    value === "character-media-panel"
   ) {
     return value;
   }
@@ -182,14 +187,6 @@ const toFolderId = (value: unknown): string | null => {
   const normalized = value.trim();
   return normalized || null;
 };
-
-const toProjectId = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  return parseProjectId(value);
-};
-
-const hasProjectIdInput = (value: unknown): boolean =>
-  typeof value === "string" && value.trim().length > 0;
 
 const toCursor = (value: unknown): MediaListCursor | null => {
   if (!value || typeof value !== "object") return null;
@@ -512,42 +509,12 @@ const resolveInitialSignedById = async ({
 const assertFolderAccess = async ({
   userId,
   folderId,
-  projectId,
 }: {
   userId: string;
   folderId: string;
-  projectId: string | null;
 }): Promise<void> => {
   if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-  if (projectId) {
-    const project = await getProjectForUser({ userId, projectId });
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    await assertProjectMediaFolderAccessForUser({
-      userId,
-      projectId,
-      folderId,
-    });
-    return;
-  }
-  if (!isCustomMediaFolderId(folderId)) {
-    throw new Error("Invalid folder id");
-  }
-
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data: folderRow, error: folderError } = await supabaseAdmin
-    .from("media_folders")
-    .select("id")
-    .eq("id", folderId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (folderError) {
-    throw new Error(folderError.message || "Failed to load folder");
-  }
-  if (!folderRow) {
-    throw new Error("Folder not found");
-  }
+  await assertMediaFolderAccessForUser({ userId, folderId });
 };
 
 /**
@@ -571,10 +538,6 @@ export default async function handler(
     const surface = toSurface(requestBody.surface);
     const profile = toProfile(requestBody.profile);
     const folderId = toFolderId(requestBody.folderId) ?? MEDIA_LIBRARY_ROOT_FOLDER_ID;
-    const projectId = toProjectId(requestBody.projectId);
-    if (hasProjectIdInput(requestBody.projectId) && !projectId) {
-      return res.status(400).json({ error: "Invalid project id" });
-    }
     if (!surface || !profile || (!tab && !mediaKind)) {
       return res.status(400).json({ error: "Invalid tab, surface, or profile" });
     }
@@ -593,7 +556,6 @@ export default async function handler(
       await assertFolderAccess({
         userId: user.id,
         folderId,
-        projectId,
       });
     } catch (folderError) {
       if (folderError instanceof Error) {
@@ -602,9 +564,6 @@ export default async function handler(
         }
         if (folderError.message === "Folder not found") {
           return res.status(404).json({ error: "Folder not found" });
-        }
-        if (folderError.message === "Project not found") {
-          return res.status(404).json({ error: "Project not found" });
         }
       }
       throw folderError;
@@ -617,9 +576,7 @@ export default async function handler(
         .from("media_files")
         .select(
           folderScoped
-            ? projectId
-              ? `${selectColumns}, folder_membership:project_media_folder_media_items!project_media_folder_media_items_media_file_fk!inner(folder_id,user_id,project_id)`
-              : `${selectColumns}, folder_membership:media_folder_media_items!media_folder_media_items_media_file_fk!inner(folder_id,user_id)`
+            ? `${selectColumns}, folder_membership:media_folder_media_items!media_folder_media_items_media_file_fk!inner(folder_id,user_id)`
             : selectColumns
         )
         .eq("user_id", user.id);
@@ -630,9 +587,6 @@ export default async function handler(
         queryBuilder = queryBuilder
           .eq("folder_membership.folder_id", folderId)
           .eq("folder_membership.user_id", user.id);
-        if (projectId) {
-          queryBuilder = queryBuilder.eq("folder_membership.project_id", projectId);
-        }
       }
       if (mediaKind) {
         queryBuilder = withMediaKindFilter(queryBuilder, mediaKind);

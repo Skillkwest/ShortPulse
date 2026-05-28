@@ -46,12 +46,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/prompts/list.ts`
   - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
   - `frontend/pages/api/ai/media-folder-canvas/save.ts`
-  - `frontend/lib/server/projectApiRoutes/mediaFolders/canvas.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
 - Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
-- Project folder canvas persistence service: `frontend/lib/server/projectMediaFolderCanvasService.ts`
 - Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
   - `sql/migrations/063_add_media_folder_canvas_states.sql`
+  - `sql/migrations/136_restore_global_media_folder_authority.sql`
   - `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
   - `sql/check_media_all_media_completeness_drift.sql`
 
@@ -77,7 +76,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 1. `All Media` remains the aggregate master view across all user-owned media/prompt items.
 2. Folder navigation should not rely on creation-order proxies once real ancestry is active.
-3. Current membership APIs remain compatibility behavior until the folder-contents cutover lands.
+3. Folder membership is one global user-owned authority across AI Studio, including when a project is active.
 4. Folder moves/assignments must not create duplicate underlying media/prompt rows.
 
 ### 4) `all_media` display contract
@@ -120,10 +119,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Media cards expose a dedicated selection affordance in addition to card-click toggle behavior; prompt cards use card-click toggle behavior only.
 5. The bulk action bar appears only when one or more visible media rows are selected and must show the selected count plus `Clear`.
 6. In `All Media`, bulk actions allow:
-   - `Move to folder` using project folder membership assignment semantics.
+   - `Move to folder` using the global folder membership assignment semantics.
    - `Delete from library` for permanent library removal.
 7. In custom folders, bulk actions allow:
-   - `Move to folder` using project folder membership move semantics.
+   - `Move to folder` using the global folder membership move semantics.
    - `Remove from folder` for membership removal only.
 8. Selection must be pruned whenever folder, tab, or visible result scope changes so off-scope media cannot be mutated silently.
 9. Character-scoped media and unsupported audio rows remain out of scope for v1 bulk actions.

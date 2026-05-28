@@ -5,6 +5,7 @@
  */
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
+  buildFolderItemCountMap,
   isCustomMediaFolderId,
   listOwnedCharacterScopedMediaIds,
   sanitizeMediaFolderName,
@@ -129,42 +130,15 @@ const toProjectFolderItemCountMap = async ({
   }
   if (!folderIds.length) return counts;
 
-  const [mediaMembershipsResult, promptMembershipsResult] = await Promise.all([
-    supabaseAdmin
-      .from("project_media_folder_media_items")
-      .select("folder_id")
-      .eq("user_id", userId)
-      .eq("project_id", projectId)
-      .in("folder_id", folderIds),
-    supabaseAdmin
-      .from("project_media_folder_prompt_items")
-      .select("folder_id")
-      .eq("user_id", userId)
-      .eq("project_id", projectId)
-      .in("folder_id", folderIds),
-  ]);
-
-  const { data: mediaMemberships, error: mediaMembershipsError } = mediaMembershipsResult;
-  if (mediaMembershipsError) {
-    throw new Error(mediaMembershipsError.message || "Failed to load project folder item counts");
+  const { data, error } = await supabaseAdmin.rpc("get_project_media_folder_item_counts", {
+    p_user_id: userId,
+    p_project_id: projectId,
+    p_folder_ids: folderIds,
+  });
+  if (error) {
+    throw new Error(error.message || "Failed to load project folder item counts");
   }
-  const { data: promptMemberships, error: promptMembershipsError } = promptMembershipsResult;
-  if (promptMembershipsError) {
-    throw new Error(promptMembershipsError.message || "Failed to load project folder item counts");
-  }
-
-  for (const row of mediaMemberships ?? []) {
-    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
-    if (!folderId || !counts.has(folderId)) continue;
-    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
-  }
-  for (const row of promptMemberships ?? []) {
-    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
-    if (!folderId || !counts.has(folderId)) continue;
-    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
-  }
-
-  return counts;
+  return buildFolderItemCountMap({ folderIds, rows: data as unknown[] | null | undefined });
 };
 
 const withProjectFolderItemCount = (

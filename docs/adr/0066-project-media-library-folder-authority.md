@@ -1,21 +1,28 @@
 # ADR 0066: Project Media Library Folder Authority
 
+Superseded by ADR 0085.
+
 ## Status
+
 Accepted
 
 ## Date
+
 2026-04-24
 
 ## Context
+
 ADR 0064 kept `media_files` and `media_prompts` as the canonical user-global inventory. That was the right base, but the visible Media Library custom-folder area still used the legacy user-scoped `media_folders` authority. Under that model, creating folders inside one project would leak those folders into every other project for the same user.
 
 The product contract for Projects is narrower than "make the whole Media Library project-local":
+
 - left-rail libraries remain broadly user-global
 - `All Media` remains the caller's global saved inventory
 - the project title and visible custom-folder area are project-specific
 - project folders can organize saved media and saved prompts without duplicating the underlying assets
 
 ## Decision
+
 1. Keep `All Media` global and continue using `media_files` / `media_prompts` as the canonical saved inventory.
 2. Introduce project-scoped folder tables:
    - `project_media_folders`
@@ -28,6 +35,7 @@ The product contract for Projects is narrower than "make the whole Media Library
 7. Leave legacy user-global folder routes in place for non-project surfaces until later cleanup.
 
 ## Consequences
+
 - Positive:
   - Project folder trees and folder memberships are now isolated per project.
   - The shipped product behavior matches the intended UX: switching projects does not carry custom folders across.
@@ -38,6 +46,7 @@ The product contract for Projects is narrower than "make the whole Media Library
   - `All Media` still exposes the global inventory even on project routes, so project filtering is intentionally incomplete by design.
 
 ## Follow-ups
+
 1. Decide whether project folder canvases get their own project-scoped persistence tables or a broader folder-canvas redesign.
 2. Continue retiring legacy user-global folder paths once all project-facing Media Library entry points are cut over.
 3. Keep generated-output authority moving toward project-owned seams so project reopen and live runtime behavior stay aligned.

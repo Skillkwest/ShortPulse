@@ -427,60 +427,60 @@ async function main() {
     const folderListResult = await apiRequest({
       token,
       method: "GET",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/list`,
+      path: "/api/media/folders/list",
     });
-    assertJsonApiResult("Project media folder list", folderListResult, 200);
+    assertJsonApiResult("Global media folder list", folderListResult, 200);
     if (!folderListResult.ok || !Array.isArray(folderListResult.payload?.folders)) {
-      throw new Error(`Project media folder list failed: ${summarizeApiResult(folderListResult)}`);
+      throw new Error(`Global media folder list failed: ${summarizeApiResult(folderListResult)}`);
     }
 
     const folderCreateResult = await apiRequest({
       token,
       method: "POST",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/create`,
+      path: "/api/media/folders/create",
       body: {
         name: `Audit Folder ${Date.now()}`,
         parentFolderId: null,
       },
     });
-    assertJsonApiResult("Project media folder create", folderCreateResult, 200);
+    assertJsonApiResult("Global media folder create", folderCreateResult, 200);
     const folderId = folderCreateResult.payload?.folder?.id;
     if (!folderId) {
       throw new Error(
-        `Project media folder create failed: ${summarizeApiResult(folderCreateResult)}`
+        `Global media folder create failed: ${summarizeApiResult(folderCreateResult)}`
       );
     }
 
     const folderRenameResult = await apiRequest({
       token,
       method: "POST",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/rename`,
+      path: "/api/media/folders/rename",
       body: {
         folderId,
         name: `Renamed Audit Folder ${Date.now()}`,
       },
     });
-    assertJsonApiResult("Project media folder rename", folderRenameResult, 200);
+    assertJsonApiResult("Global media folder rename", folderRenameResult, 200);
 
     const folderMoveResult = await apiRequest({
       token,
       method: "POST",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/move`,
+      path: "/api/media/folders/move",
       body: {
         folderId,
         parentFolderId: null,
       },
     });
-    assertJsonApiResult("Project media folder move", folderMoveResult, 200);
+    assertJsonApiResult("Global media folder move", folderMoveResult, 200);
 
     const invalidMembershipBatchResult = await apiRequest({
       token,
       method: "POST",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/membership-batch`,
+      path: "/api/media/folders/membership-batch",
       body: {},
     });
     assertJsonApiResult(
-      "Project media folder membership validation",
+      "Global media folder membership validation",
       invalidMembershipBatchResult,
       400
     );
@@ -492,25 +492,22 @@ async function main() {
     };
     const folderCanvasSaveResult = await apiRequest({
       token,
-      method: "PUT",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/${encodeURIComponent(
-        folderId
-      )}/canvas`,
+      method: "POST",
+      path: "/api/ai/media-folder-canvas/save",
       body: {
+        folderId,
         schemaVersion: 1,
         snapshot: canvasSnapshot,
       },
     });
-    assertJsonApiResult("Project media folder canvas save", folderCanvasSaveResult, 200);
+    assertJsonApiResult("Global media folder canvas save", folderCanvasSaveResult, 200);
 
     const folderCanvasReadResult = await apiRequest({
       token,
       method: "GET",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/${encodeURIComponent(
-        folderId
-      )}/canvas`,
+      path: `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`,
     });
-    assertJsonApiResult("Project media folder canvas read", folderCanvasReadResult, 200);
+    assertJsonApiResult("Global media folder canvas read", folderCanvasReadResult, 200);
 
     const legacySnapshot = buildLegacyOrphanSnapshot();
     const saveResult = await apiRequest({
@@ -540,12 +537,12 @@ async function main() {
     const folderDeleteResult = await apiRequest({
       token,
       method: "POST",
-      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/delete`,
+      path: "/api/media/folders/delete",
       body: {
         folderId,
       },
     });
-    assertJsonApiResult("Project media folder delete", folderDeleteResult, 200);
+    assertJsonApiResult("Global media folder delete", folderDeleteResult, 200);
 
     const persistedSnapshot = readResult.payload.workspace.snapshot;
     const persistedOutputs = persistedSnapshot?.outputs ?? {};

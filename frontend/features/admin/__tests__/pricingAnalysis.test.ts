@@ -821,7 +821,7 @@ describe("pricingAnalysis", () => {
   it("recomputes shared-policy credits at cost from provider usd instead of marked runtime raw credits", () => {
     const model = buildModelRow({
       id: "kie-ai/veo-3.1-fast-i2v",
-      label: "Veo 3.1 Fast I2V",
+      label: "Veo 3.1 Fast",
       provider: "kie",
       sourceUrl: "https://docs.kie.ai/",
       workflowType: "Text to video",

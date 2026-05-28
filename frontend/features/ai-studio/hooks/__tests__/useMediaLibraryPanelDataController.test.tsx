@@ -297,11 +297,18 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("requests library total count in the reset page load and skips a follow-up count-only request", async () => {
+  it("loads media rows first and requests library total count separately", async () => {
     fetchMediaListPageMock.mockResolvedValueOnce({
       rows: [],
       nextCursor: "cursor-1",
       hasMore: true,
+      signedById: new Map(),
+      libraryTotalCount: null,
+    });
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
       signedById: new Map(),
       libraryTotalCount: 5,
     });
@@ -322,30 +329,57 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          includeLibraryTotalCount: true,
+          includeLibraryTotalCount: false,
         })
       );
     });
-
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaListPageMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        countOnly: true,
-      })
+    expect(fetchMediaListPageMock.mock.calls[0]?.[0]).not.toEqual(
+      expect.objectContaining({ countOnly: true })
     );
 
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeLibraryTotalCount: true,
+          countOnly: true,
+        })
+      );
+      expect(result.current.libraryTotalCount).toBe(5);
+    });
+
     fetchMediaListPageMock.mockClear();
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [],
+      nextCursor: "cursor-2",
+      hasMore: true,
+      signedById: new Map(),
+      libraryTotalCount: null,
+    });
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 6,
+    });
 
     await act(async () => {
       await result.current.loadMediaPage({ reset: true });
     });
 
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        includeLibraryTotalCount: true,
-      })
-    );
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeLibraryTotalCount: false,
+        })
+      );
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeLibraryTotalCount: true,
+          countOnly: true,
+        })
+      );
+    });
   });
 
   it("derives library total count from loaded rows when the first page exhausts the scope", async () => {
@@ -734,7 +768,7 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("uses the minimal media list profile for dedicated image and video tabs", async () => {
+  it("uses the minimal media list profile for images and keeps videos expanded for duration metadata", async () => {
     const { rerender } = renderHook(
       ({ itemType }: { itemType: "images" | "videos" }) =>
         useMediaLibraryPanelDataController({
@@ -769,7 +803,7 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          profile: "minimal",
+          profile: "expanded",
         })
       );
     });

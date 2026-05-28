@@ -48,9 +48,11 @@ const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ")
 const stripHiddenVideoProviderBranding = (value: string): string =>
   collapseWhitespace(
     value
-      .replace(/\s+\((?:Kie|Kai(?:\.ai)?)\)/gi, "")
-      .replace(/\bKie AI\b/gi, "")
-      .replace(/\bKie (?=(?:Veo|Kling|Seedance|temporary upload failed\b))/gi, "")
+      .replace(/\s+\((?:Kie|Kai(?:\.ai)?|Chi(?:\.ai)?)\)/gi, "")
+      .replace(/\b(?:Kie|Chi) AI\b/gi, "")
+      .replace(/\b(?:Kie|Chi) (?=(?:VEO|Veo|Kling|Seedance|temporary upload failed\b))/gi, "")
+      .replace(/\bVEO\b/g, "Veo")
+      .replace(/\bI2V\b/gi, "")
   );
 
 const humanizeIdentifier = (value: string): string =>

@@ -57,8 +57,18 @@ const baseInput = {
   seedance2ReferenceImageUrls: [] as string[],
   seedance2ReferenceVideoUrls: [] as string[],
   seedance2ReferenceAudioUrls: [] as string[],
-  balanceCredits: null,
+  balanceCredits: 999,
   costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
+};
+
+const editInput = {
+  ...baseInput,
+  mode: "image" as const,
+  model: "fal-ai/nano-banana-2/edit",
+  selectedTool: "edit" as const,
+  videoReferenceMode: "standard" as const,
+  motionReferenceVideoUrl: null,
+  costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2/edit"),
 };
 
 describe("useAiStudioViewModel motion guardrails", () => {
@@ -168,6 +178,80 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(requiredCredits);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("blocks billed create-text generate while spendable credits are still loading", () => {
+    const modelId = "fal-ai/nano-banana-2";
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        costParamsForModel: makeCostParamsForModel(modelId),
+        balanceCredits: null,
+        balanceLoading: true,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Loading spendable credits. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.isCreditGuardrail).toBe(false);
+  });
+
+  it("blocks billed edit generate when spendable credit refresh failed", () => {
+    const modelId = "fal-ai/nano-banana-pro/edit";
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: modelId,
+        aspect: "1:1",
+        prompt: "Clean up edges and relight subtly",
+        referenceImageUrl: "https://example.com/reference.png",
+        costParamsForModel: makeCostParamsForModel(modelId),
+        balanceCredits: 999,
+        balanceError: "Unable to load spendable credit snapshot.",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Unable to load spendable credits. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.isCreditGuardrail).toBe(false);
+  });
+
+  it("does not block helper-only describe flows when spendable credits are unresolved", () => {
+    const modelId = "fal-ai/nano-banana-2";
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        prompt: "Describe this look",
+        useReferenceImageIndicator: true,
+        referenceImageUrl: "https://example.com/reference.png",
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        costParamsForModel: makeCostParamsForModel(modelId),
+        balanceCredits: null,
+        balanceLoading: true,
+      })
+    );
+
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
   });
@@ -669,16 +753,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
 });
 
 describe("useAiStudioViewModel edit guardrails", () => {
-  const editInput = {
-    ...baseInput,
-    mode: "image" as const,
-    model: "fal-ai/nano-banana-2/edit",
-    selectedTool: "edit" as const,
-    videoReferenceMode: "standard" as const,
-    motionReferenceVideoUrl: null,
-    costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2/edit"),
-  };
-
   it("requires a primary reference image in edit workflow", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

@@ -3,6 +3,25 @@
  * Detects mime types from magic bytes so uploads do not trust client headers.
  */
 
+const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
+  "audio/m4a": "audio/mp4",
+  "audio/mp3": "audio/mpeg",
+  "audio/mpeg3": "audio/mpeg",
+  "audio/vnd.wave": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/x-aac": "audio/aac",
+  "audio/x-flac": "audio/flac",
+  "audio/x-m4a": "audio/mp4",
+  "audio/x-mp3": "audio/mpeg",
+  "audio/x-mpeg-3": "audio/mpeg",
+  "audio/x-ogg": "audio/ogg",
+  "audio/x-pn-wav": "audio/wav",
+  "audio/x-wav": "audio/wav",
+  "application/ogg": "audio/ogg",
+  "video/mov": "video/quicktime",
+  "video/x-quicktime": "video/quicktime",
+};
+
 const hasBytes = (buffer: Buffer, bytes: number[]): boolean =>
   bytes.every((byte, index) => buffer[index] === byte);
 
@@ -230,21 +249,27 @@ export const detectAudioMimeType = (buffer: Buffer): string | null => {
   return null;
 };
 
+export const normalizeSupportedMimeType = (value: string | null | undefined): string => {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (!normalized) return "";
+  return MIME_ALIAS_TO_CANONICAL[normalized] ?? normalized;
+};
+
 export const areCompatibleMimeTypes = (
   declaredMimeType: string,
   detectedMimeType: string
 ): boolean => {
-  if (!declaredMimeType) return true;
-  if (declaredMimeType === detectedMimeType) return true;
+  const normalizedDeclaredMimeType = normalizeSupportedMimeType(declaredMimeType);
+  const normalizedDetectedMimeType = normalizeSupportedMimeType(detectedMimeType);
+  if (!normalizedDeclaredMimeType) return true;
+  if (normalizedDeclaredMimeType === normalizedDetectedMimeType) return true;
 
   const equivalentSets: string[][] = [
     ["image/heic", "image/heif"],
     ["video/mp4", "video/x-m4v"],
-    ["audio/wav", "audio/x-wav"],
-    ["audio/mp4", "audio/x-m4a", "audio/m4a"],
   ];
 
   return equivalentSets.some(
-    (set) => set.includes(declaredMimeType) && set.includes(detectedMimeType)
+    (set) => set.includes(normalizedDeclaredMimeType) && set.includes(normalizedDetectedMimeType)
   );
 };

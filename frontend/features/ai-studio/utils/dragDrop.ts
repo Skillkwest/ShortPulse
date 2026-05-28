@@ -919,6 +919,11 @@ export const isImageDragTransfer = (transfer: DataTransfer) => {
 export const isVideoDragTransfer = (transfer: DataTransfer) => {
   // For dragenter/dragover, some browsers do not expose payload text values yet.
   // Prefer transfer types for acceptance, then validate/resolve on drop.
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  if (mediaKind) return mediaKind === "video";
+  const videoFile = findVideoFile(transfer.files);
+  if (videoFile) return true;
+  if (transfer.files?.length) return false;
   if (transfer.types.includes("Files")) return true;
   if (
     transfer.types.includes("text/reference-url") ||
@@ -927,8 +932,6 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
     return true;
   }
   if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
-  const videoFile = findVideoFile(transfer.files);
-  if (videoFile) return true;
   const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
   return Boolean(plainText && looksLikeVideoUrl(plainText));
 };

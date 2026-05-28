@@ -11,13 +11,8 @@ import {
   useAiStudioInternalDropResolvers,
 } from "../useAiStudioInternalDropResolvers";
 
-const { getSignedMediaUrlMock, resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
-  getSignedMediaUrlMock: vi.fn(),
+const { resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
   resolveInternalReferenceSourceMock: vi.fn(),
-}));
-
-vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
-  getSignedMediaUrl: getSignedMediaUrlMock,
 }));
 
 vi.mock("../../logic/referenceSource/internalReferenceSource", () => ({
@@ -57,7 +52,6 @@ describe("useAiStudioInternalDropResolvers", () => {
   const originalCreateObjectURL = URL.createObjectURL;
 
   beforeEach(() => {
-    getSignedMediaUrlMock.mockReset();
     resolveInternalReferenceSourceMock.mockReset();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -352,7 +346,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toBeNull();
   });
 
-  it("resolves video frame drops to poster-backed image sources without changing shared image-drop policy", async () => {
+  it("fails closed for composer image drops when a video reference is dragged into an image-only slot", async () => {
     const output = makeOutput({
       mode: "video",
       previewUrl: "https://cdn.example.com/video-preview.mp4",
@@ -363,7 +357,6 @@ describe("useAiStudioInternalDropResolvers", () => {
       resultUrls: ["https://cdn.example.com/video-full.mp4"],
       savedMediaIds: ["media-video-1"],
     });
-    getSignedMediaUrlMock.mockResolvedValue("https://signed.example.com/video-poster.jpg");
     resolveInternalReferenceSourceMock.mockResolvedValue({
       kind: "internal",
       sourceKind: "generated_output",
@@ -410,25 +403,6 @@ describe("useAiStudioInternalDropResolvers", () => {
     await expect(
       result.current.resolveComposerInternalImageDropSource(makePayload({ mediaKind: "video" }))
     ).resolves.toBeNull();
-    await expect(
-      result.current.resolveVideoFrameInternalDropSource(makePayload({ mediaKind: "video" }))
-    ).resolves.toEqual(
-      expect.objectContaining({
-        kind: "internal",
-        sourceId: "media-video-1",
-        preview: expect.objectContaining({
-          url: "https://signed.example.com/video-poster.jpg",
-        }),
-        previewStoragePath: "user-1/variants/videos/out-1/poster_720.jpg",
-        fullStoragePath: "user-1/variants/videos/out-1/poster_720.jpg",
-        preparedImageUrl: "https://signed.example.com/video-poster.jpg",
-      })
-    );
-    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
-      bucket: "media_library",
-      storagePath: "user-1/variants/videos/out-1/poster_720.jpg",
-      previewProfile: "none",
-    });
   });
 
   it("awaits prompt persistence for media-library text drops before returning prompt ids", async () => {

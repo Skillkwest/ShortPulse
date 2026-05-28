@@ -780,9 +780,9 @@
   inset: 0;
   padding: 28px;
   background:
-    radial-gradient(circle at 18% 18%, rgba(56, 82, 128, 0.14), transparent 32%),
-    rgba(4, 8, 14, 0.72);
-  backdrop-filter: blur(18px) saturate(1.08);
+    radial-gradient(circle at 16% 18%, rgba(201, 205, 214, 0.06), transparent 30%),
+    rgba(6, 9, 13, 0.68);
+  backdrop-filter: blur(18px) saturate(1.02);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -792,12 +792,12 @@
 .motion-recorder-modal {
   width: min(920px, calc(100vw - 56px));
   max-height: min(760px, calc(100vh - 56px));
-  background:
-    radial-gradient(circle at top left, rgba(35, 89, 138, 0.22), transparent 32%),
-    linear-gradient(180deg, rgba(12, 16, 24, 0.98), rgba(9, 12, 18, 0.98));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #131518;
+  border: 1px solid rgba(201, 205, 214, 0.1);
   border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.48);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.44),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -810,7 +810,8 @@
   justify-content: space-between;
   gap: 16px;
   padding: 18px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(201, 205, 214, 0.08);
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.88), rgba(19, 21, 24, 0.94)), #131518;
 }
 
 .motion-recorder-modal-title-group {
@@ -882,9 +883,9 @@
   min-height: 360px;
   border-radius: 18px;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(17, 25, 38, 0.98), rgba(9, 12, 18, 0.98)), rgba(9, 12, 18, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.96), rgba(12, 15, 20, 0.98)), #101419;
+  border: 1px solid rgba(201, 205, 214, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .motion-recorder-modal-preview {
@@ -893,7 +894,7 @@
   min-height: 360px;
   display: block;
   object-fit: cover;
-  background: rgba(5, 8, 13, 0.98);
+  background: #0d1014;
 }
 
 .motion-recorder-modal-preview-overlay {
@@ -912,16 +913,16 @@
   gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(8, 12, 18, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 27, 36, 0.8);
+  border: 1px solid rgba(201, 205, 214, 0.12);
   color: rgba(235, 244, 255, 0.96);
   font-size: 12px;
   font-weight: 600;
 }
 
 .motion-recorder-modal-preview-badge.is-live {
-  background: rgba(116, 24, 36, 0.72);
-  border-color: rgba(255, 97, 127, 0.28);
+  background: rgba(86, 28, 38, 0.78);
+  border-color: rgba(255, 133, 153, 0.22);
 }
 
 .motion-recorder-modal-sidebar {
@@ -934,16 +935,22 @@
 .motion-recorder-modal-sidebar .voices-properties-voice-changer-record-panel {
   max-width: none;
   width: 100%;
-  background: rgba(10, 15, 23, 0.88);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.94), rgba(19, 21, 24, 0.96)), #131518;
+  border-color: rgba(201, 205, 214, 0.12);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
 }
 
 .motion-recorder-device-card,
 .motion-recorder-status-card {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(10, 15, 23, 0.88);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: linear-gradient(180deg, rgba(20, 27, 36, 0.94), rgba(19, 21, 24, 0.96)), #131518;
   padding: 14px;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
 }
 
 .motion-recorder-device-card-header h3 {
@@ -979,8 +986,8 @@
 .motion-recorder-device-field select {
   height: 42px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(14, 20, 31, 0.98);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: #141b24;
   color: rgba(245, 247, 250, 0.96);
   padding: 0 12px;
   font-size: 12px;
@@ -989,6 +996,18 @@
 .motion-recorder-device-field select:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.motion-recorder-device-empty-state {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px dashed rgba(201, 205, 214, 0.14);
+  background: rgba(20, 27, 36, 0.72);
+  color: rgba(201, 205, 214, 0.72);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
 }
 
 .motion-recorder-status-card {

@@ -52,7 +52,8 @@ export const useAiStudioPageBaseRuntime = () => {
   } = useExpertEditPresetPanelPreference({
     systemPresetDefinitions: expertEditSystemPresetDefinitions,
   });
-  const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
+  const { balanceCents, balanceReservedCents, balanceLoading, balanceError, refreshBalance } =
+    useCredits();
   const {
     modelPricingPolicy,
     modelPricingPolicyReady,
@@ -323,7 +324,6 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveComposerInternalImageDropSource,
-    resolveVideoFrameInternalDropSource,
     resolveElementProfileImageDropSource,
   } = useAiStudioInternalDropResolvers({
     getOutputById,
@@ -464,6 +464,7 @@ export const useAiStudioPageBaseRuntime = () => {
     archivedOutputs,
     aspect,
     balanceCredits,
+    balanceError,
     balanceLoading,
     buildSessionSnapshot,
     canvasSessionState,
@@ -587,7 +588,6 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveReferenceInputsForTool,
     resolveSelectedCharacterIdForTool,
     resolveStyleLibraryInternalDrop,
-    resolveVideoFrameInternalDropSource,
     resolveVoiceChangerInternalReferenceSource,
     restartPulse,
     restoreAllArchivedOutputs,

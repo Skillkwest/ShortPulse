@@ -18,14 +18,6 @@ vi.mock("../../logic/mediaLibraryPanelApi", () => ({
 }));
 
 describe("useMediaLibraryFoldersState", () => {
-  const createDeferred = <T,>() => {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((nextResolve) => {
-      resolve = nextResolve;
-    });
-    return { promise, resolve };
-  };
-
   beforeEach(() => {
     listMediaFoldersMock.mockReset();
     createMediaFolderMock.mockReset();
@@ -196,15 +188,15 @@ describe("useMediaLibraryFoldersState", () => {
       await result.current.deleteFolder("folder-parent");
     });
 
-    expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-parent", null);
+    expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-parent");
     expect(result.current.folders).toEqual([]);
     expect(result.current.activeFolderId).toBe("all_items");
     expect(result.current.editingFolderId).toBeNull();
     expect(result.current.editingFolderName).toBe("");
   });
 
-  it("ignores stale create results after the project scope changes", async () => {
-    listMediaFoldersMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+  it("keeps pending create results when the project changes because folders are global", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([]);
     let resolveCreate:
       | ((value: {
           id: string;
@@ -226,7 +218,7 @@ describe("useMediaLibraryFoldersState", () => {
     );
 
     await waitFor(() => {
-      expect(listMediaFoldersMock).toHaveBeenCalledWith("project-1");
+      expect(listMediaFoldersMock).toHaveBeenCalledTimes(1);
     });
 
     await act(async () => {
@@ -236,12 +228,7 @@ describe("useMediaLibraryFoldersState", () => {
     expect(result.current.visibleFolders[0]?.id).toContain("__pending_new_folder__");
 
     rerender({ projectId: "project-2" });
-
-    await waitFor(() => {
-      expect(listMediaFoldersMock).toHaveBeenCalledWith("project-2");
-      expect(result.current.folders).toEqual([]);
-      expect(result.current.activeFolderId).toBe("all_items");
-    });
+    expect(listMediaFoldersMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveCreate?.({
@@ -253,33 +240,27 @@ describe("useMediaLibraryFoldersState", () => {
       });
     });
 
-    expect(result.current.folders).toEqual([]);
-    expect(result.current.editingFolderId).toBeNull();
-    expect(result.current.activeFolderId).toBe("all_items");
+    await waitFor(() => {
+      expect(result.current.folders).toEqual([
+        expect.objectContaining({
+          id: "folder-project-1-created",
+          name: "New Folder",
+        }),
+      ]);
+      expect(result.current.editingFolderId).toBe("folder-project-1-created");
+    });
   });
 
-  it("clears visible folder state immediately when the project changes", async () => {
-    const projectTwoFolders = createDeferred<
-      Array<{
-        id: string;
-        name: string;
-        parentFolderId: string | null;
-        createdAt: string;
-        updatedAt: string;
-      }>
-    >();
-
-    listMediaFoldersMock
-      .mockResolvedValueOnce([
-        {
-          id: "project-1-folder",
-          name: "Project One",
-          parentFolderId: null,
-          createdAt: "2026-03-29T00:00:00.000Z",
-          updatedAt: "2026-03-29T00:00:00.000Z",
-        },
-      ])
-      .mockReturnValueOnce(projectTwoFolders.promise);
+  it("preserves visible folder state when the project changes", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "shared-folder",
+        name: "Shared Folder",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+      },
+    ]);
 
     const { result, rerender } = renderHook(
       ({ projectId }: { projectId: string | null }) => useMediaLibraryFoldersState(projectId),
@@ -287,33 +268,24 @@ describe("useMediaLibraryFoldersState", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.visibleFolders.map((folder) => folder.name)).toEqual(["Project One"]);
+      expect(result.current.visibleFolders.map((folder) => folder.name)).toEqual(["Shared Folder"]);
     });
 
     act(() => {
-      result.current.setActiveFolderId("project-1-folder");
-      result.current.startFolderRename("project-1-folder", "Project One");
+      result.current.setActiveFolderId("shared-folder");
+      result.current.startFolderRename("shared-folder", "Shared Folder");
     });
 
     rerender({ projectId: "project-2" });
 
-    expect(result.current.folders).toEqual([]);
-    expect(result.current.visibleFolders).toEqual([]);
-    expect(result.current.activeFolderId).toBe("all_items");
-    expect(result.current.editingFolderId).toBeNull();
-    expect(result.current.editingFolderName).toBe("");
-
-    await act(async () => {
-      projectTwoFolders.resolve([]);
-    });
-
-    await waitFor(() => {
-      expect(result.current.folders).toEqual([]);
-      expect(result.current.activeFolderId).toBe("all_items");
-    });
+    expect(listMediaFoldersMock).toHaveBeenCalledTimes(1);
+    expect(result.current.folders.map((folder) => folder.id)).toEqual(["shared-folder"]);
+    expect(result.current.activeFolderId).toBe("shared-folder");
+    expect(result.current.editingFolderId).toBe("shared-folder");
+    expect(result.current.editingFolderName).toBe("Shared Folder");
   });
 
-  it("passes projectId through folder load and create calls", async () => {
+  it("ignores projectId in folder load and create calls", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([]);
     createMediaFolderMock.mockResolvedValueOnce({
       id: "folder-project-real",
@@ -326,13 +298,13 @@ describe("useMediaLibraryFoldersState", () => {
     const { result } = renderHook(() => useMediaLibraryFoldersState("project-1"));
 
     await waitFor(() => {
-      expect(listMediaFoldersMock).toHaveBeenCalledWith("project-1");
+      expect(listMediaFoldersMock).toHaveBeenCalledWith();
     });
 
     await act(async () => {
       await result.current.createFolder();
     });
 
-    expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null, "project-1");
+    expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null);
   });
 });

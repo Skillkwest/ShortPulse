@@ -6,6 +6,7 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../../lib/errorText";
+import { getAiStudioProjectIdentityViaApi } from "../logic/projectWorkspaceApiClient";
 
 type AiStudioProjectRouteRecord = {
   id: string;
@@ -95,30 +96,6 @@ const toProjectIdentityRecord = ({
   };
 };
 
-const resolveProjectLoadError = (
-  status: number,
-  payload: AiStudioProjectRoutePayload | null
-): { message: string; kind: AiStudioProjectIdentityErrorKind } => {
-  if (status === 401) {
-    return { message: "Session expired. Retry project load.", kind: "unauthorized" };
-  }
-  if (status === 400) {
-    return { message: "Invalid project link.", kind: "invalid_id" };
-  }
-  if (status === 403) {
-    return { message: "You do not have access to this project.", kind: "forbidden" };
-  }
-  if (status === 404) {
-    return { message: "Project not found.", kind: "not_found" };
-  }
-  return {
-    message:
-      normalizeErrorText(payload?.error, { fallback: "" }) ||
-      normalizeErrorText(payload?.details, { fallback: "Failed to load project." }),
-    kind: "server",
-  };
-};
-
 const resolveProjectUpdateError = (
   status: number,
   payload: AiStudioProjectRoutePayload | null
@@ -205,19 +182,12 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
 
     let cancelled = false;
 
-    void fetchWithAuth(`/api/projects/${encodeURIComponent(verifiedRouteProjectId)}`, {
-      method: "GET",
-      shortpulseAuthTimeoutMs: 5000,
-      shortpulseRetryNetworkOnce: true,
+    void getAiStudioProjectIdentityViaApi({
+      projectId: verifiedRouteProjectId,
     })
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => ({}))) as AiStudioProjectRoutePayload;
-        if (!response.ok) {
-          const resolved = resolveProjectLoadError(response.status, payload);
-          throw new ProjectIdentityError(resolved.message, resolved.kind);
-        }
+      .then((project) => {
         const nextProject = toProjectIdentityRecord({
-          value: payload.project,
+          value: project,
           expectedProjectId: verifiedRouteProjectId,
         });
         if (!nextProject) {
@@ -234,13 +204,27 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
       })
       .catch((loadError) => {
         if (cancelled) return;
+        const normalizedMessage =
+          loadError instanceof Error ? loadError.message : "Failed to load project.";
         const errorKind =
-          loadError instanceof ProjectIdentityError ? loadError.kind : ("network" as const);
+          loadError instanceof ProjectIdentityError
+            ? loadError.kind
+            : normalizedMessage === "Session expired. Retry project load."
+              ? "unauthorized"
+              : normalizedMessage === "Invalid project link."
+                ? "invalid_id"
+                : normalizedMessage === "Project not found."
+                  ? "not_found"
+                  : normalizedMessage === "You do not have access to this project."
+                    ? "forbidden"
+                    : normalizedMessage === "Failed to load project."
+                      ? ("network" as const)
+                      : ("server" as const);
         setRequestState({
           key: requestKey,
           project: null,
           status: "error",
-          error: loadError instanceof Error ? loadError.message : "Failed to load project.",
+          error: normalizedMessage,
           errorKind,
         });
       });

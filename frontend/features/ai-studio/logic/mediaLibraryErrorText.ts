@@ -21,12 +21,25 @@ const AUTH_SESSION_TIMEOUT_FALLBACK_MESSAGE =
   "Media Library session timed out while checking your sign-in. Please refresh and try again.";
 const FORBIDDEN_FALLBACK_MESSAGE = "You no longer have access to this Media Library view.";
 const SERVER_FALLBACK_MESSAGE = "Media Library server error. Please retry.";
+const BAD_REQUEST_FALLBACK_MESSAGE =
+  "Media Library request is out of date. Please refresh and try again.";
+const NOT_FOUND_FALLBACK_MESSAGE =
+  "This Media Library folder or project no longer exists. Please refresh and try again.";
+const SERVICE_UNAVAILABLE_FALLBACK_MESSAGE =
+  "Media Library authentication is temporarily unavailable. Please retry.";
 
 const toErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
     return typeof error.message === "string" ? error.message : "";
   }
   return String(error ?? "");
+};
+
+const toErrorStatus = (error: unknown): number | null => {
+  if (!error || typeof error !== "object") return null;
+  const status = (error as { status?: unknown }).status;
+  if (typeof status !== "number" || !Number.isFinite(status)) return null;
+  return Math.trunc(status);
 };
 
 /**
@@ -53,6 +66,16 @@ export const toMediaLibraryErrorText = (error: unknown, fallback: string): strin
   }
   if (isMediaListRequestErrorCode(error, MEDIA_LIST_FORBIDDEN_CODE)) {
     return FORBIDDEN_FALLBACK_MESSAGE;
+  }
+  const status = toErrorStatus(error);
+  if (status === 400) {
+    return BAD_REQUEST_FALLBACK_MESSAGE;
+  }
+  if (status === 404) {
+    return NOT_FOUND_FALLBACK_MESSAGE;
+  }
+  if (status === 503) {
+    return SERVICE_UNAVAILABLE_FALLBACK_MESSAGE;
   }
   if (isMediaListRequestErrorCode(error, MEDIA_LIST_SERVER_ERROR_CODE)) {
     return SERVER_FALLBACK_MESSAGE;

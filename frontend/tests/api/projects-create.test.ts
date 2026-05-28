@@ -512,30 +512,6 @@ describe("projects routes", () => {
   it("resolves the supported dynamic project route tree", () => {
     expect(resolveProjectDynamicRoute(["project-1"])?.kind).toBe("item");
     expect(resolveProjectDynamicRoute(["project-1", "workspace"])?.kind).toBe("workspace");
-    expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "list"])?.kind).toBe(
-      "media-folders-list"
-    );
-    expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "create"])?.kind).toBe(
-      "media-folders-create"
-    );
-    expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "rename"])?.kind).toBe(
-      "media-folders-rename"
-    );
-    expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "move"])?.kind).toBe(
-      "media-folders-move"
-    );
-    expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "delete"])?.kind).toBe(
-      "media-folders-delete"
-    );
-    expect(
-      resolveProjectDynamicRoute(["project-1", "media", "folders", "membership-batch"])?.kind
-    ).toBe("media-folders-membership-batch");
-    expect(
-      resolveProjectDynamicRoute(["project-1", "media", "folders", "folder-1", "canvas"])
-    ).toMatchObject({
-      kind: "media-folder-canvas",
-      query: { projectId: "project-1", folderId: "folder-1" },
-    });
     expect(resolveProjectDynamicRoute(["project-1", "media", "folders", "folder-1"])).toBeNull();
     expect(resolveProjectDynamicRoute(["project-1", "unknown"])).toBeNull();
   });
@@ -562,6 +538,12 @@ describe("projects routes", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
+      project: {
+        id: "project-1",
+        title: "Untitled project",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
+      },
       workspace: {
         projectId: "project-1",
         schemaVersion: 2,
@@ -617,6 +599,12 @@ describe("projects routes", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
+      project: {
+        id: "project-1",
+        title: "Untitled project",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
+      },
       workspace: {
         projectId: "project-1",
         schemaVersion: 2,

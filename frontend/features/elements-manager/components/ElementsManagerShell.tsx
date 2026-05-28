@@ -165,7 +165,7 @@ const ELEMENT_EDITOR_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
 const ELEMENT_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  padding: "10px 16px 2px",
+  padding: "10px 16px 5px",
   boxSizing: "border-box",
 };
 const ELEMENT_NAME_COLUMN_INLINE_STYLE: React.CSSProperties = {

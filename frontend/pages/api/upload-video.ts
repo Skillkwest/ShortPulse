@@ -15,6 +15,7 @@ type UploadResponse = {
   url: string;
   path: string;
   size: number;
+  mimeType: string;
 };
 
 type ErrorResponse = {

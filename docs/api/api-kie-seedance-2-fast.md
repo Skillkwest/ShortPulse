@@ -3,13 +3,15 @@
 This document tracks the internal ShortPulse runtime contract for `kie-ai/seedance-2-fast`.
 
 ## Scope
+
 - Provider: `kie`
 - Model id: `kie-ai/seedance-2-fast`
 - Canonical source reference: [Kie Seedance 2.0 Fast](https://docs.kie.ai/market/bytedance/seedance-2-fast)
 - Runtime status: active always-on Kie video lane
-- Primary-source snapshot: captured from Kie docs on `2026-04-06`
+- Primary-source snapshot: captured from Kie docs on `2026-04-30`
 
 ## Current Runtime Contract
+
 - Endpoint: `POST /api/v1/jobs/createTask`
 - Status/details polling:
   - `https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}`
@@ -17,7 +19,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - root: `model="bytedance/seedance-2-fast"`, optional `callBackUrl`
   - payload body under `input`
 - Allowed aspects: `1:1`, `21:9`, `4:3`, `3:4`, `16:9`, `9:16`
-- Allowed resolutions: `720p`, `1080p`
+- Allowed resolutions: `480p`, `720p`
 - Allowed durations: `5`, `10`, `15` (seconds)
 - Required fields:
   - `prompt`
@@ -36,6 +38,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
 
 ## Product-facing payload rules
+
 - Active product support:
   - prompt-only text-to-video
   - first-frame image-to-video
@@ -45,5 +48,6 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
 - Frame mode and multimodal reference mode are mutually exclusive.
 
 ## Related Routes
+
 - Submit proxy: `/api/fal/kie-seedance-2-fast-submit`
 - Status proxy: `/api/fal/kie-seedance-2-fast-status`

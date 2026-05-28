@@ -7,9 +7,12 @@ import {
 } from "../../../media-library/logic/mediaListApi";
 import { toMediaLibraryErrorText } from "../mediaLibraryErrorText";
 
-const createError = (code: string, message = "boom") => {
-  const error = new Error(message) as Error & { code: string };
+const createError = (code: string, message = "boom", status?: number) => {
+  const error = new Error(message) as Error & { code: string; status?: number };
   error.code = code;
+  if (typeof status === "number") {
+    error.status = status;
+  }
   return error;
 };
 
@@ -41,6 +44,27 @@ describe("toMediaLibraryErrorText", () => {
     expect(
       toMediaLibraryErrorText(createError(MEDIA_LIST_SERVER_ERROR_CODE), "Unable to load media.")
     ).toBe("Media Library server error. Please retry.");
+  });
+
+  it("maps stale request failures to refresh guidance", () => {
+    expect(
+      toMediaLibraryErrorText(
+        createError(MEDIA_LIST_SERVER_ERROR_CODE, "Invalid tab, surface, or profile", 400),
+        "Unable to load media."
+      )
+    ).toBe("Media Library request is out of date. Please refresh and try again.");
+  });
+
+  it("maps missing folder or project failures to refresh guidance", () => {
+    expect(toMediaLibraryErrorText(Object.assign(new Error("missing"), { status: 404 }), "")).toBe(
+      "This Media Library folder or project no longer exists. Please refresh and try again."
+    );
+  });
+
+  it("maps auth verification outages to retry guidance", () => {
+    expect(
+      toMediaLibraryErrorText(Object.assign(new Error("unavailable"), { status: 503 }), "")
+    ).toBe("Media Library authentication is temporarily unavailable. Please retry.");
   });
 
   it("keeps transient browser fetch failures on the network retry copy", () => {

@@ -23,6 +23,7 @@ import {
   detectAudioMimeType,
   detectImageMimeType,
   detectVideoMimeType,
+  normalizeSupportedMimeType,
 } from "./uploadSignature";
 import {
   upsertVideoPosterVariantFromBuffer,
@@ -36,6 +37,7 @@ import {
   createSignedMediaUrl,
   type InsertedMediaRow,
   insertMediaFileRow,
+  MEDIA_BUCKET,
   type MediaLibraryFileType,
   MAX_IMAGE_MEDIA_BYTES,
   maxBytesForMediaFileType,
@@ -45,6 +47,8 @@ import {
   resolveMediaStorageExtension,
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
+import { MediaAudioExtractionInputError, readStoredMediaBuffer } from "./mediaAudioExtraction";
+import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 
 const PRIVATE_MEDIA_SOURCE = "private_upload";
 const MAX_UPLOAD_BYTES = MAX_VIDEO_MEDIA_BYTES;
@@ -128,7 +132,7 @@ type ParseUploadOptions = {
 
 const normalizeContentType = (value: string | string[] | undefined): string => {
   const header = Array.isArray(value) ? value[0] : value;
-  return header?.split(";")[0]?.trim().toLowerCase() ?? "";
+  return normalizeSupportedMimeType(header?.split(";")[0] ?? "");
 };
 
 const readHeaderString = (value: string | string[] | undefined): string => {
@@ -402,6 +406,61 @@ const resolveUploadFolder = (
 const resolveUploadSource = (destinationTab: MediaUploadDestinationTab): string =>
   destinationTab === "private" ? PRIVATE_MEDIA_SOURCE : "upload";
 
+const resolveVoiceChangerSourceStorageFolder = (kind: VoiceChangerSourceKind): string =>
+  kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio";
+
+const resolvePreparedVoiceChangerSourceMimeType = ({
+  kind,
+  declaredMimeType,
+}: {
+  kind: VoiceChangerSourceKind;
+  declaredMimeType: string;
+}): string => {
+  const normalizedMimeType = normalizeSupportedMimeType(declaredMimeType);
+  if (!normalizedMimeType) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Voice changer source mime type is required."
+    );
+  }
+  if (kind === "video") {
+    if (!ALLOWED_VIDEO_MIME_TYPES.has(normalizedMimeType)) {
+      throw new MediaUploadServiceError(
+        400,
+        "Invalid request",
+        "Voice changer source file is not a supported video format."
+      );
+    }
+    return normalizedMimeType;
+  }
+  if (!ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(normalizedMimeType)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Voice changer source file is not a supported audio format."
+    );
+  }
+  return normalizedMimeType;
+};
+
+const createSignedUploadTarget = async ({
+  storagePath,
+}: {
+  storagePath: string;
+}): Promise<{ path: string; token: string }> => {
+  const { data, error } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .createSignedUploadUrl(storagePath);
+  if (error || !data?.path || !data.token) {
+    throw new Error(error?.message || "Unable to create signed upload target.");
+  }
+  return {
+    path: data.path,
+    token: data.token,
+  };
+};
+
 const validateUpload = ({
   destinationTab,
   declaredMimeType,
@@ -515,6 +574,26 @@ const resolveExtensionFromFilename = (filename: string): string | null => {
     .trim()
     .toLowerCase();
   return extension || null;
+};
+
+const resolvePreparedVoiceChangerStoredFileName = ({
+  filename,
+  mimeType,
+  kind,
+}: {
+  filename: string;
+  mimeType: string;
+  kind: VoiceChangerSourceKind;
+}): string => {
+  const extension =
+    resolveExtensionFromFilename(filename) ||
+    resolveMediaStorageExtension(
+      mimeType,
+      kind === "video" ? "mp4" : (VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "wav")
+    ) ||
+    (kind === "video" ? "mp4" : "wav");
+  const fileBaseName = resolveBaseFileName(filename);
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
 };
 
 const uploadScopedStorageBuffer = async ({
@@ -743,14 +822,68 @@ const uploadStorageAssetForUser = async ({
   };
 };
 
-export const uploadVoiceChangerSourceForUser = async ({
-  req,
+export const prepareVoiceChangerSourceUploadForUser = async ({
   userId,
   kind,
+  filename,
+  declaredMimeType,
 }: {
-  req: NextApiRequest;
   userId: string;
   kind: VoiceChangerSourceKind;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{
+  path: string;
+  token: string;
+  mimeType: string;
+  name: string;
+}> => {
+  const normalizedFilename =
+    filename.trim() || `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
+  const normalizedMimeType = resolvePreparedVoiceChangerSourceMimeType({
+    kind,
+    declaredMimeType,
+  });
+  const storagePath = buildScopedMediaStoragePath({
+    userId,
+    storageFolder: resolveVoiceChangerSourceStorageFolder(kind),
+    storedFileName: resolvePreparedVoiceChangerStoredFileName({
+      filename: normalizedFilename,
+      mimeType: normalizedMimeType,
+      kind,
+    }),
+    label: "Prepared voice changer source storage path",
+  });
+
+  try {
+    const target = await createSignedUploadTarget({ storagePath });
+    return {
+      path: target.path,
+      token: target.token,
+      mimeType: normalizedMimeType,
+      name: normalizedFilename,
+    };
+  } catch (error) {
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to prepare voice changer upload",
+      error instanceof Error ? error.message : "Unable to prepare voice changer upload."
+    );
+  }
+};
+
+export const finalizeVoiceChangerSourceUploadForUser = async ({
+  userId,
+  kind,
+  storagePath,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  kind: VoiceChangerSourceKind;
+  storagePath: string;
+  filename: string;
+  declaredMimeType: string;
 }): Promise<{
   url: string;
   path: string;
@@ -758,54 +891,83 @@ export const uploadVoiceChangerSourceForUser = async ({
   mimeType: string;
   name: string;
 }> => {
-  const maxBytes =
-    kind === "video" ? MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES : MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES;
-  const tooLargeError =
-    kind === "video"
-      ? new MediaUploadServiceError(
-          413,
-          "Invalid request",
-          "Voice changer source videos must be 40 MB or smaller. Trim the clip and try again."
-        )
-      : new MediaUploadServiceError(
-          413,
-          "Invalid request",
-          "Voice changer source audio must be 100 MB or smaller."
-        );
-  const filename =
-    readHeaderString(req.headers["x-shortpulse-upload-filename"]) ||
-    `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
-  const buffer = await readRawBody(req, { maxBytes, tooLargeError });
-  if (!buffer.length) {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Voice changer source storage path",
+  });
+  const expectedFolderPrefix = `${userId}/${resolveVoiceChangerSourceStorageFolder(kind)}/`;
+  if (!safeStoragePath.startsWith(expectedFolderPrefix)) {
     throw new MediaUploadServiceError(
       400,
       "Invalid request",
-      "Voice changer source upload is empty."
+      "Voice changer source storage path is outside the expected namespace."
     );
   }
 
-  const declaredMimeType = normalizeContentType(req.headers["content-type"]);
-  const mimeType = resolveVoiceChangerSourceMimeType({
-    kind,
-    declaredMimeType,
-    filename,
-    buffer,
-  });
-  const uploaded = await uploadScopedStorageBuffer({
-    userId,
-    storageFolder: kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio",
-    filename,
-    mimeType,
-    buffer,
-  });
+  const normalizedFilename =
+    filename.trim() ||
+    safeStoragePath.split("/").filter(Boolean).pop() ||
+    `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
+  const normalizedMimeType = declaredMimeType.trim();
+  const maxBytes =
+    kind === "video" ? MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES : MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES;
 
-  return {
-    url: uploaded.signedUrl,
-    path: uploaded.storagePath,
-    size: uploaded.size,
-    mimeType,
-    name: filename,
-  };
+  try {
+    const stored = await readStoredMediaBuffer({
+      storagePath: safeStoragePath,
+      maxBytes,
+    });
+    const mimeType =
+      kind === "video"
+        ? (() => {
+            const detectedVideoMimeType = detectVideoMimeType(stored.buffer);
+            if (detectedVideoMimeType && ALLOWED_VIDEO_MIME_TYPES.has(detectedVideoMimeType)) {
+              return detectedVideoMimeType;
+            }
+            const detectedAudioMimeType = detectAudioMimeType(stored.buffer);
+            if (
+              detectedAudioMimeType === "audio/webm" &&
+              (normalizedMimeType === "video/webm" ||
+                resolveExtensionFromFilename(normalizedFilename) === "webm")
+            ) {
+              return detectedAudioMimeType;
+            }
+            return resolveVoiceChangerSourceMimeType({
+              kind,
+              declaredMimeType: normalizedMimeType,
+              filename: normalizedFilename,
+              buffer: stored.buffer,
+            });
+          })()
+        : resolveVoiceChangerSourceMimeType({
+            kind,
+            declaredMimeType: normalizedMimeType,
+            filename: normalizedFilename,
+            buffer: stored.buffer,
+          });
+    const signedUrl = await createSignedMediaUrl(safeStoragePath);
+    return {
+      url: signedUrl,
+      path: safeStoragePath,
+      size: stored.size,
+      mimeType,
+      name: normalizedFilename,
+    };
+  } catch (error) {
+    await removeScopedMediaStorageObject(safeStoragePath);
+    if (error instanceof MediaUploadServiceError) {
+      throw error;
+    }
+    if (error instanceof MediaAudioExtractionInputError) {
+      throw new MediaUploadServiceError(error.statusCode, "Invalid request", error.message);
+    }
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to stage voice changer source",
+      error instanceof Error ? error.message : "Unable to stage voice changer source."
+    );
+  }
 };
 
 export const uploadVoiceCloneSourceForUser = async ({
@@ -877,6 +1039,7 @@ export const uploadSignedStorageAssetForUser = async ({
   url: string;
   path: string;
   size: number;
+  mimeType: string;
 }> => {
   let uploaded: UploadedStorageAsset | null = null;
   try {
@@ -891,6 +1054,7 @@ export const uploadSignedStorageAssetForUser = async ({
       url: uploaded.signedUrl,
       path: uploaded.storagePath,
       size: uploaded.size,
+      mimeType: uploaded.parsedUpload.declaredMimeType,
     };
   } finally {
     if (uploaded?.parsedUpload.tempFilePath) {

@@ -1,34 +1,31 @@
 /**
- * Voice Changer staged-source finalization route.
- * Confirms a browser-direct storage upload, validates the stored media bytes server-side,
- * and returns the signed source contract used by the Voices panel.
+ * Voice Changer direct-upload preparation route.
+ * Issues a user-scoped signed storage upload target for one local Voice Changer source file.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
-  finalizeVoiceChangerSourceUploadForUser,
   MediaUploadServiceError,
+  prepareVoiceChangerSourceUploadForUser,
 } from "../../../lib/server/mediaUploadService";
 
-type StageVoiceChangerSourceRequestBody = {
+type PrepareVoiceChangerSourceUploadRequestBody = {
   sourceKind?: unknown;
   sourceMimeType?: unknown;
   sourceName?: unknown;
-  sourceStoragePath?: unknown;
 };
 
-type StageVoiceChangerSourceSuccessResponse = {
-  source: {
+type PrepareVoiceChangerSourceUploadSuccessResponse = {
+  target: {
     storagePath: string;
-    previewUrl: string;
+    uploadToken: string;
     mimeType: string;
     name: string;
-    size: number;
   };
 };
 
-type StageVoiceChangerSourceErrorResponse = {
+type PrepareVoiceChangerSourceUploadErrorResponse = {
   error: string;
   details?: string;
 };
@@ -49,7 +46,7 @@ const resolveRequestedKind = (value: unknown): VoiceChangerSourceKind | null => 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<
-    StageVoiceChangerSourceSuccessResponse | StageVoiceChangerSourceErrorResponse
+    PrepareVoiceChangerSourceUploadSuccessResponse | PrepareVoiceChangerSourceUploadErrorResponse
   >
 ) {
   if (req.method !== "POST") {
@@ -60,11 +57,10 @@ export default async function handler(
   if (!user) return;
 
   try {
-    const body = (req.body ?? {}) as StageVoiceChangerSourceRequestBody;
+    const body = (req.body ?? {}) as PrepareVoiceChangerSourceUploadRequestBody;
     const sourceKind = resolveRequestedKind(body.sourceKind);
     const sourceName = normalizeOptionalString(body.sourceName);
     const sourceMimeType = normalizeOptionalString(body.sourceMimeType).toLowerCase();
-    const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);
 
     if (!sourceKind) {
       return res.status(400).json({
@@ -84,28 +80,20 @@ export default async function handler(
         details: "Voice changer source mime type is required.",
       });
     }
-    if (!sourceStoragePath) {
-      return res.status(400).json({
-        error: "Invalid request",
-        details: "Voice changer source storage path is required.",
-      });
-    }
 
-    const staged = await finalizeVoiceChangerSourceUploadForUser({
+    const prepared = await prepareVoiceChangerSourceUploadForUser({
       userId: user.id,
       kind: sourceKind,
-      storagePath: sourceStoragePath,
       filename: sourceName,
       declaredMimeType: sourceMimeType,
     });
 
     return res.status(200).json({
-      source: {
-        storagePath: staged.path,
-        previewUrl: staged.url,
-        mimeType: staged.mimeType,
-        name: staged.name,
-        size: staged.size,
+      target: {
+        storagePath: prepared.path,
+        uploadToken: prepared.token,
+        mimeType: prepared.mimeType,
+        name: prepared.name,
       },
     });
   } catch (error) {
@@ -114,13 +102,13 @@ export default async function handler(
         await logApiRouteException({
           req,
           error,
-          routeLabel: "media-stage-voice-changer-source",
+          routeLabel: "media-prepare-voice-changer-source-upload",
           scope: "generation",
           user,
         });
 
         return res.status(500).json({
-          error: "Unable to stage voice changer source",
+          error: "Unable to prepare voice changer upload",
         });
       }
 
@@ -133,13 +121,13 @@ export default async function handler(
     await logApiRouteException({
       req,
       error,
-      routeLabel: "media-stage-voice-changer-source",
+      routeLabel: "media-prepare-voice-changer-source-upload",
       scope: "generation",
       user,
     });
 
     return res.status(500).json({
-      error: "Unable to stage voice changer source",
+      error: "Unable to prepare voice changer upload",
     });
   }
 }

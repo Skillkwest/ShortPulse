@@ -36,6 +36,7 @@ const ALLOWED_SURFACE_VALUES = new Set([
   "media-library-modal",
   "media-library-panel",
   "elements-media-panel",
+  "character-media-panel",
   "reference-grid",
   "quick-slot",
   "character-grid",

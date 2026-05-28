@@ -14,6 +14,12 @@ import {
 } from "../projectWorkspaceStatesService";
 
 type ProjectWorkspaceSuccessResponse = {
+  project?: {
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+  };
   workspace: {
     projectId: string;
     schemaVersion: number;
@@ -151,6 +157,12 @@ export default async function handler(
           });
 
     return res.status(200).json({
+      project: {
+        id: project.id,
+        title: project.title,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      },
       workspace: workspace
         ? {
             projectId: workspace.projectId,

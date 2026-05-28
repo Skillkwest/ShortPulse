@@ -41,6 +41,293 @@ const IMAGE_REFERENCE_SLOT_LABELS = ["Primary View", "Secondary View", "Detail V
 const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 const ELEMENT_LIBRARY_AVATAR_SIZE_PX = 44;
 const ELEMENT_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
+const ELEMENT_PANEL_SHELL_BACKGROUND = "rgba(31, 35, 40, 0.94)";
+const ELEMENT_PANEL_FIELD_BACKGROUND = "rgba(15, 17, 22, 0.96)";
+const ELEMENT_PANEL_FIELD_BORDER_COLOR = "rgba(39, 45, 54, 0.96)";
+const ELEMENT_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  minWidth: "152px",
+  minHeight: "48px",
+  padding: "0 20px",
+  borderRadius: "14px",
+  fontSize: "0.9rem",
+  flexShrink: 0,
+  border: "1px solid rgba(255, 123, 167, 0.58)",
+  background: "rgba(28, 32, 37, 0.94)",
+  color: "rgba(255, 185, 217, 0.96)",
+  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+const ELEMENT_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "8px",
+  flexWrap: "wrap",
+  width: "100%",
+  minWidth: 0,
+};
+const ELEMENT_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  flexWrap: "wrap",
+};
+const ELEMENT_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: "8px",
+  flex: "1 1 0",
+  minWidth: 0,
+  marginLeft: "auto",
+};
+const ELEMENT_FOLDER_ICON_SIZE_PX = 20;
+const ELEMENT_FOLDER_ICON_INLINE_STYLE: React.CSSProperties = {
+  flex: `0 0 ${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  width: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  height: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  minWidth: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  minHeight: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  maxWidth: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  maxHeight: `${ELEMENT_FOLDER_ICON_SIZE_PX}px`,
+  display: "block",
+};
+const ELEMENT_BUTTON_LABEL_INLINE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  lineHeight: 1,
+  minHeight: "20px",
+};
+const ELEMENT_EDITOR_FIELDS_WRAPPER_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: "16px",
+  marginTop: "2px",
+  padding: "12px 8px 3px",
+  borderRadius: "15px",
+  border: "1px solid rgba(30, 35, 43, 0.96)",
+  background: ELEMENT_PANEL_SHELL_BACKGROUND,
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
+};
+const ELEMENT_TOP_FIELDS_GRID_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr)",
+  columnGap: "34px",
+  alignItems: "start",
+};
+const ELEMENT_TOP_FIELD_GROUP_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: "4px",
+  alignContent: "start",
+  minWidth: 0,
+};
+const ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
+  margin: 0,
+};
+const ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE: React.CSSProperties = {
+  display: "block",
+  margin: 0,
+  color: "#f0a4cb",
+  textShadow: "0 1px 4px rgba(0, 0, 0, 0.32)",
+  fontFamily:
+    '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
+  fontSize: "0.84rem",
+  lineHeight: 1.16,
+  fontWeight: 400,
+  letterSpacing: "0.06em",
+};
+const ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE: React.CSSProperties = {
+  minWidth: 0,
+};
+const ELEMENT_NAME_INPUT_INLINE_STYLE: React.CSSProperties = {
+  height: "36px",
+  minHeight: "36px",
+  padding: "6px 10px",
+  width: "100%",
+  borderRadius: "10px",
+  border: `1px solid ${ELEMENT_PANEL_FIELD_BORDER_COLOR}`,
+  background: ELEMENT_PANEL_FIELD_BACKGROUND,
+  color: "rgba(242, 246, 252, 0.96)",
+  boxSizing: "border-box",
+};
+const ELEMENT_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+  gridTemplateAreas: '"description references"',
+  columnGap: "34px",
+  rowGap: "18px",
+  alignItems: "start",
+};
+const ELEMENT_DESCRIPTION_COLUMN_INLINE_STYLE: React.CSSProperties = {
+  gridArea: "description",
+  minWidth: 0,
+  display: "grid",
+  alignContent: "start",
+};
+const ELEMENT_REFERENCE_COLUMN_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  alignContent: "start",
+  gap: "10px",
+  minWidth: 0,
+  gridArea: "references",
+};
+const ELEMENT_REFERENCE_TITLE_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: "2px",
+  margin: "0 0 4px",
+};
+const ELEMENT_REFERENCE_GRID_INLINE_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: "12px",
+  alignItems: "start",
+};
+const ELEMENT_REFERENCE_CARD_INLINE_STYLE: React.CSSProperties = {
+  width: "100%",
+  maxWidth: "156px",
+  minHeight: 0,
+  aspectRatio: "4 / 5",
+  display: "grid",
+  gridTemplateRows: "minmax(0, 1fr) 30px",
+  borderRadius: "10px",
+  border: `1px solid ${ELEMENT_PANEL_FIELD_BORDER_COLOR}`,
+  background: "rgba(12, 14, 19, 0.96)",
+  boxShadow: "0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)",
+  overflow: "hidden",
+  position: "relative",
+  boxSizing: "border-box",
+  alignSelf: "start",
+  justifySelf: "stretch",
+};
+const ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  zIndex: 2,
+};
+const ELEMENT_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  width: "18px",
+  height: "18px",
+  borderRadius: "999px",
+  border: "1px solid rgba(206, 93, 134, 0.9)",
+  background: "rgba(79, 21, 40, 0.94)",
+  color: "rgba(255, 214, 227, 0.98)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  cursor: "pointer",
+  boxShadow: "0 0 0 1px rgba(255, 123, 167, 0.12)",
+};
+const ELEMENT_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
+  height: "100%",
+  minHeight: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "14px 10px 8px",
+  background: "rgba(12, 14, 19, 0.96)",
+  borderBottom: "none",
+  aspectRatio: "auto",
+  boxSizing: "border-box",
+};
+const ELEMENT_REFERENCE_MEDIA_FILLED_INLINE_STYLE: React.CSSProperties = {
+  alignItems: "stretch",
+  justifyContent: "stretch",
+  padding: 0,
+};
+const ELEMENT_REFERENCE_IMAGE_INLINE_STYLE: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  display: "block",
+  objectFit: "cover",
+};
+const ELEMENT_REFERENCE_DROP_COPY_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "4px",
+  paddingInline: "8px",
+  textAlign: "center",
+  color: "rgba(137, 145, 161, 0.8)",
+  fontSize: "0.78rem",
+  lineHeight: 1.32,
+  whiteSpace: "pre-line",
+};
+const ELEMENT_REFERENCE_DROP_REQUIREMENT_BASE_STYLE: React.CSSProperties = {
+  marginTop: "2px",
+  fontSize: "0.76rem",
+  fontWeight: 700,
+};
+const ELEMENT_REFERENCE_HINT_INLINE_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "22px",
+  padding: "0 8px",
+  borderTop: "1px dashed rgba(50, 57, 67, 0.9)",
+  background: ELEMENT_PANEL_FIELD_BACKGROUND,
+  color: "rgba(150, 159, 176, 0.82)",
+  fontSize: "0.74rem",
+  fontWeight: 600,
+  lineHeight: 1.1,
+  textAlign: "center",
+  boxSizing: "border-box",
+};
+const ELEMENT_SECONDARY_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  minWidth: "84px",
+  minHeight: "30px",
+  padding: "0 8px",
+  fontSize: "0.72rem",
+  gap: "4px",
+};
+const ELEMENT_TOP_ACTION_BUTTON_SIDE_PX = 38;
+const ELEMENT_SAVE_ICON_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  width: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  minWidth: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  maxWidth: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  height: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  minHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  maxHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+  padding: 0,
+  borderRadius: "12px",
+};
+const ELEMENT_TOP_ACTION_BUTTON_TRANSITION =
+  "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease";
+const ELEMENT_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  minHeight: "28px",
+  padding: "0 10px",
+  borderRadius: "999px",
+  border: "1px solid rgba(255, 123, 167, 0.22)",
+  background: "rgba(58, 18, 37, 0.54)",
+  color: "rgba(255, 206, 225, 0.94)",
+  fontSize: "0.75rem",
+  fontWeight: 700,
+  letterSpacing: "0.01em",
+};
+const ELEMENT_SAVE_PROGRESS_BADGE_INLINE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "7px",
+  minHeight: "28px",
+  padding: "0 10px",
+  borderRadius: "999px",
+  border: "1px solid rgba(255, 123, 167, 0.28)",
+  background: "rgba(64, 18, 40, 0.62)",
+  color: "rgba(255, 206, 225, 0.95)",
+  boxShadow: "0 0 0 1px rgba(255, 123, 167, 0.08)",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  letterSpacing: "0",
+  whiteSpace: "nowrap",
+};
 
 const buildElementInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -52,6 +339,8 @@ export function ElementsManagerShell({
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
 }: ElementsManagerShellProps) {
+  const editorColumnPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const elementNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const {
     elements,
     selectedElementId,
@@ -81,7 +370,18 @@ export function ElementsManagerShell({
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
   const [isElementLibraryModalOpen, setIsElementLibraryModalOpen] = React.useState(false);
   const [showSaveSuccessIndicator, setShowSaveSuccessIndicator] = React.useState(false);
+  const [hoveredTopActionButton, setHoveredTopActionButton] = React.useState<
+    "elements" | "save" | "create" | null
+  >(null);
+  const [hoveredReferenceCardIndex, setHoveredReferenceCardIndex] = React.useState<number | null>(
+    null
+  );
+  const [measuredReferenceCardHeightPx, setMeasuredReferenceCardHeightPx] = React.useState<
+    number | null
+  >(null);
+  const [editorPanelWidth, setEditorPanelWidth] = React.useState(0);
   const saveSuccessHideTimerRef = React.useRef<number | null>(null);
+  const referenceCardMeasureObserverRef = React.useRef<ResizeObserver | null>(null);
   const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
   const pendingDeleteElement =
     elements.find((item) => item.id === pendingDeleteElementId) ?? selectedElement ?? null;
@@ -93,6 +393,224 @@ export function ElementsManagerShell({
   const librarySelectionDisabled = pageBusy;
   const createActionDisabled = pageBusy;
   const saveActionDisabled = pageBusy;
+
+  const topRowActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_ROW_ACTIONS_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const topRowPrimaryActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_ROW_PRIMARY_ACTIONS_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const topRowSecondaryActionsStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_ROW_SECONDARY_ACTIONS_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const elementsButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_BUTTON_INLINE_STYLE,
+      boxSizing: "border-box",
+      width: "134px",
+      minWidth: "134px",
+      maxWidth: "134px",
+      height: "38px",
+      minHeight: "38px",
+      maxHeight: "38px",
+      padding: "0 18px",
+      borderRadius: "11px",
+      fontSize: "0.92rem",
+      lineHeight: 1,
+    }),
+    []
+  );
+
+  const secondaryActionButtonStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_BUTTON_INLINE_STYLE,
+      ...ELEMENT_SECONDARY_ACTION_BUTTON_INLINE_STYLE,
+      borderColor: "rgba(201, 205, 214, 0.16)",
+      background: "rgba(24, 28, 33, 0.94)",
+      color: "rgba(228, 235, 243, 0.94)",
+      boxShadow: "none",
+    }),
+    []
+  );
+
+  const saveIconButtonBaseStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...secondaryActionButtonStyle,
+      ...ELEMENT_SAVE_ICON_BUTTON_INLINE_STYLE,
+    }),
+    [secondaryActionButtonStyle]
+  );
+
+  const createActionButtonBaseStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...secondaryActionButtonStyle,
+      width: "fit-content",
+      minWidth: "fit-content",
+      height: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+      minHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+      maxHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
+      flex: "0 0 auto",
+      borderColor: "rgba(255, 123, 167, 0.58)",
+      background: "rgba(28, 32, 37, 0.94)",
+      color: "rgba(255, 185, 217, 0.96)",
+      boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
+    }),
+    [secondaryActionButtonStyle]
+  );
+
+  const getTopActionButtonStyle = React.useCallback(
+    (
+      baseStyle: React.CSSProperties,
+      isHovered: boolean,
+      disabled: boolean
+    ): React.CSSProperties => ({
+      ...baseStyle,
+      transition: ELEMENT_TOP_ACTION_BUTTON_TRANSITION,
+      transform: !disabled && isHovered ? "translateY(-2px)" : "translateY(0)",
+      borderColor: !disabled && isHovered ? "rgba(255, 161, 200, 0.84)" : baseStyle.borderColor,
+      background: !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.background,
+      backgroundColor:
+        !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.backgroundColor,
+      boxShadow:
+        !disabled && isHovered
+          ? "0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 123, 167, 0.12)"
+          : baseStyle.boxShadow,
+    }),
+    []
+  );
+
+  const elementsTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        elementsButtonStyle,
+        hoveredTopActionButton === "elements",
+        libraryButtonDisabled && elements.length === 0
+      ),
+    [
+      elements.length,
+      elementsButtonStyle,
+      getTopActionButtonStyle,
+      hoveredTopActionButton,
+      libraryButtonDisabled,
+    ]
+  );
+
+  const saveTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        saveIconButtonBaseStyle,
+        hoveredTopActionButton === "save",
+        saveActionDisabled
+      ),
+    [getTopActionButtonStyle, hoveredTopActionButton, saveActionDisabled, saveIconButtonBaseStyle]
+  );
+
+  const createTopButtonStyle = React.useMemo(
+    () =>
+      getTopActionButtonStyle(
+        createActionButtonBaseStyle,
+        hoveredTopActionButton === "create",
+        createActionDisabled
+      ),
+    [
+      createActionButtonBaseStyle,
+      createActionDisabled,
+      getTopActionButtonStyle,
+      hoveredTopActionButton,
+    ]
+  );
+
+  const profileCardStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      display: "flex",
+      flexDirection: "column",
+    }),
+    []
+  );
+
+  const editorFieldsWrapperStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_EDITOR_FIELDS_WRAPPER_STYLE,
+    }),
+    []
+  );
+
+  const topFieldsGridStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_FIELDS_GRID_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const topFieldGroupStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_FIELD_GROUP_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const nameInputStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_NAME_INPUT_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const presetContentGridStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_PRESET_CONTENT_GRID_INLINE_STYLE,
+      gridTemplateColumns:
+        editorPanelWidth > 0 && editorPanelWidth <= 1180
+          ? "minmax(0, 1fr)"
+          : "minmax(0, 1.02fr) minmax(0, 0.98fr)",
+      gridTemplateAreas:
+        editorPanelWidth > 0 && editorPanelWidth <= 1180
+          ? '"description" "references"'
+          : '"description references"',
+    }),
+    [editorPanelWidth]
+  );
+
+  const descriptionColumnStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_DESCRIPTION_COLUMN_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const referenceColumnStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_REFERENCE_COLUMN_INLINE_STYLE,
+    }),
+    []
+  );
+
+  const referenceGridStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_REFERENCE_GRID_INLINE_STYLE,
+      gridTemplateColumns:
+        draft.assetType === "image"
+          ? editorPanelWidth > 0 && editorPanelWidth <= 640
+            ? "minmax(0, 1fr)"
+            : editorPanelWidth > 0 && editorPanelWidth <= 860
+              ? "repeat(2, minmax(0, 1fr))"
+              : "repeat(3, minmax(0, 1fr))"
+          : "minmax(0, 156px)",
+    }),
+    [draft.assetType, editorPanelWidth]
+  );
 
   React.useEffect(() => {
     if (externalCreateRequestKey === 0) return;
@@ -111,6 +629,29 @@ export function ElementsManagerShell({
     },
     []
   );
+
+  React.useEffect(
+    () => () => {
+      referenceCardMeasureObserverRef.current?.disconnect();
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    const node = editorColumnPanelRef.current;
+    if (!node || typeof ResizeObserver !== "function") return;
+
+    const syncWidth = () => {
+      const nextWidth = Math.round(node.getBoundingClientRect().width || node.clientWidth || 0);
+      if (nextWidth <= 0) return;
+      setEditorPanelWidth((current) => (current === nextWidth ? current : nextWidth));
+    };
+
+    const observer = new ResizeObserver(syncWidth);
+    observer.observe(node);
+    syncWidth();
+    return () => observer.disconnect();
+  }, []);
 
   const canAcceptSheetDrop = React.useCallback(
     (transfer: DataTransfer | null | undefined): boolean => {
@@ -273,7 +814,14 @@ export function ElementsManagerShell({
     if (createActionDisabled) return;
     setIsElementLibraryModalOpen(false);
     setShowSaveSuccessIndicator(false);
-    onCreateElement();
+    Promise.resolve(onCreateElement()).then(() => {
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          elementNameInputRef.current?.focus();
+          elementNameInputRef.current?.select();
+        });
+      }
+    });
   }, [createActionDisabled, onCreateElement]);
 
   const triggerSaveSuccessIndicator = React.useCallback(() => {
@@ -295,6 +843,28 @@ export function ElementsManagerShell({
     }
   }, [onSaveElement, triggerSaveSuccessIndicator]);
 
+  const handleReferenceCardMeasureRef = React.useCallback((node: HTMLElement | null) => {
+    referenceCardMeasureObserverRef.current?.disconnect();
+    referenceCardMeasureObserverRef.current = null;
+
+    if (!node || typeof ResizeObserver !== "function") {
+      return;
+    }
+
+    const syncHeight = () => {
+      const nextHeight = Math.round(node.getBoundingClientRect().height || node.clientHeight || 0);
+      if (nextHeight <= 0) return;
+      setMeasuredReferenceCardHeightPx((current) =>
+        current === nextHeight ? current : nextHeight
+      );
+    };
+
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(node);
+    referenceCardMeasureObserverRef.current = observer;
+    syncHeight();
+  }, []);
+
   return (
     <div className="elements-manager-shell elements-manager-shell--panel" data-surface="panel">
       <div className="elements-panel-workspace">
@@ -310,28 +880,47 @@ export function ElementsManagerShell({
 
         <div className="elements-panel-library-workspace">
           <section className="elements-panel-editor-column" aria-label="Element editor">
-            <div className="elements-panel-editor-column-panel">
-              <div className="elements-profile-card">
-                <div className="elements-panel-profile-top-row">
-                  <div className="elements-panel-top-row-primary-actions">
+            <div className="elements-panel-editor-column-panel" ref={editorColumnPanelRef}>
+              <div className="elements-profile-card" style={profileCardStyle}>
+                <div className="elements-panel-profile-top-row" style={topRowActionsStyle}>
+                  <div
+                    className="elements-panel-top-row-primary-actions"
+                    style={topRowPrimaryActionsStyle}
+                  >
                     <button
                       type="button"
                       className="elements-panel-action-btn elements-panel-action-btn--picker-accent elements-panel-elements-btn"
+                      style={elementsTopButtonStyle}
                       onClick={() => setIsElementLibraryModalOpen(true)}
+                      onMouseEnter={() => setHoveredTopActionButton("elements")}
+                      onMouseLeave={() =>
+                        setHoveredTopActionButton((current) =>
+                          current === "elements" ? null : current
+                        )
+                      }
                       disabled={libraryButtonDisabled && elements.length === 0}
                     >
-                      <FolderSimple size={20} weight="fill" aria-hidden />
-                      <span>Elements</span>
+                      <FolderSimple
+                        size={20}
+                        weight="fill"
+                        aria-hidden
+                        style={ELEMENT_FOLDER_ICON_INLINE_STYLE}
+                      />
+                      <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Elements</span>
                     </button>
                   </div>
 
-                  <div className="elements-panel-top-row-secondary-actions">
+                  <div
+                    className="elements-panel-top-row-secondary-actions"
+                    style={topRowSecondaryActionsStyle}
+                  >
                     {isSavingElement ? (
                       <span
                         className="elements-panel-save-progress"
                         role="status"
                         aria-live="polite"
                         aria-label="Saving element"
+                        style={ELEMENT_SAVE_PROGRESS_BADGE_INLINE_STYLE}
                       >
                         <span className="elements-panel-save-progress-spinner" aria-hidden="true" />
                         <span>Saving...</span>
@@ -343,6 +932,7 @@ export function ElementsManagerShell({
                         role="status"
                         aria-live="polite"
                         aria-label={`${selectedElementName} saved`}
+                        style={ELEMENT_SAVE_SUCCESS_BADGE_INLINE_STYLE}
                       >
                         <CheckCircle size={14} weight="fill" aria-hidden />
                         <span>Saved</span>
@@ -353,9 +943,16 @@ export function ElementsManagerShell({
                       className="elements-panel-action-btn"
                       aria-label={isSavingElement ? "Saving..." : "Save"}
                       title={isSavingElement ? "Saving..." : "Save"}
+                      style={saveTopButtonStyle}
                       onClick={() => {
                         void handleSaveElement();
                       }}
+                      onMouseEnter={() => setHoveredTopActionButton("save")}
+                      onMouseLeave={() =>
+                        setHoveredTopActionButton((current) =>
+                          current === "save" ? null : current
+                        )
+                      }
                       disabled={saveActionDisabled}
                     >
                       <FloppyDisk size={20} weight="fill" aria-hidden />
@@ -363,144 +960,231 @@ export function ElementsManagerShell({
                     <button
                       type="button"
                       className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
+                      style={createTopButtonStyle}
                       onClick={() => {
                         handleCreateNewElement();
                       }}
+                      onMouseEnter={() => setHoveredTopActionButton("create")}
+                      onMouseLeave={() =>
+                        setHoveredTopActionButton((current) =>
+                          current === "create" ? null : current
+                        )
+                      }
                       disabled={createActionDisabled}
                     >
                       <Plus size={14} weight="bold" aria-hidden />
-                      <span>Create</span>
+                      <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Create</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="elements-panel-profile-fields-row">
-                  <label className="elements-profile-field" htmlFor="element-manager-name">
-                    <span className="input-label">Name:</span>
-                    <input
-                      id="element-manager-name"
-                      className="elements-name-input"
-                      type="text"
-                      value={draft.name}
-                      onChange={(event) => updateDraftField("name", event.target.value)}
-                      placeholder="Enter element name"
-                    />
-                  </label>
-                </div>
-
-                <div className="elements-panel-preset-content-grid">
-                  <div className="elements-panel-preset-description-column">
-                    <ElementsDescriptionEditorCard
-                      description={draft.description}
-                      maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
-                      rows={5}
-                      disabled={false}
-                      onChangeDescription={(value) => updateDraftField("description", value)}
-                    />
+                <div style={editorFieldsWrapperStyle}>
+                  <div className="elements-panel-profile-fields-row" style={topFieldsGridStyle}>
+                    <div className="elements-profile-field" style={topFieldGroupStyle}>
+                      <label
+                        htmlFor="element-manager-name"
+                        style={ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE}
+                      >
+                        <span style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
+                      </label>
+                      <div style={ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                        <input
+                          ref={elementNameInputRef}
+                          id="element-manager-name"
+                          className="elements-name-input"
+                          style={nameInputStyle}
+                          type="text"
+                          value={draft.name}
+                          onChange={(event) => updateDraftField("name", event.target.value)}
+                          placeholder="Enter element name"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="elements-panel-preset-references-column">
-                    <div className="elements-reference-title-row">
-                      <p className="input-label">Element References:</p>
-                    </div>
+                  <div
+                    className="elements-panel-preset-content-grid"
+                    style={presetContentGridStyle}
+                  >
                     <div
-                      className={`elements-references-grid ${
-                        draft.assetType === "image"
-                          ? "elements-references-grid--image"
-                          : "elements-references-grid--video"
-                      }`}
+                      className="elements-panel-preset-description-column"
+                      style={descriptionColumnStyle}
                     >
-                      {(draft.assetType === "image"
-                        ? IMAGE_REFERENCE_SLOT_LABELS
-                        : (["Motion Reference"] as const)
-                      ).map((slotLabel, index) => {
-                        const slotValue =
+                      <ElementsDescriptionEditorCard
+                        description={draft.description}
+                        maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
+                        rows={5}
+                        disabled={false}
+                        containerHeightPx={measuredReferenceCardHeightPx ?? 142.5}
+                        onChangeDescription={(value) => updateDraftField("description", value)}
+                      />
+                    </div>
+
+                    <div
+                      className="elements-panel-preset-references-column"
+                      style={referenceColumnStyle}
+                    >
+                      <div
+                        className="elements-reference-title-row"
+                        style={ELEMENT_REFERENCE_TITLE_INLINE_STYLE}
+                      >
+                        <p style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Element References:</p>
+                      </div>
+                      <div
+                        className={`elements-references-grid ${
                           draft.assetType === "image"
-                            ? (draft.imageReferenceUrls[index] ?? "")
-                            : draft.videoReferenceUrl;
-                        const isRequiredSlot = draft.assetType === "video" || index < 2;
-                        return (
-                          <article
-                            key={`${slotLabel}-${index + 1}`}
-                            className={`elements-reference-card ${
-                              slotValue ? "is-filled" : "is-empty"
-                            } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
-                            onDragEnter={handleSheetDragEnter(index)}
-                            onDragOver={handleSheetDragOver(index)}
-                            onDragLeave={() => {
-                              setActiveSheetDropIndex((current) =>
-                                current === index ? null : current
-                              );
-                            }}
-                            onDrop={(event) => {
-                              void handleSheetDrop(index)(event);
-                            }}
-                          >
-                            {slotValue ? (
-                              <button
-                                type="button"
-                                className="elements-reference-delete-btn"
-                                aria-label={`Clear ${slotLabel} reference`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  if (draft.assetType === "video") {
-                                    clearActiveVideoReference();
-                                    return;
-                                  }
-                                  clearActiveImageReferenceAtIndex(index);
+                            ? "elements-references-grid--image"
+                            : "elements-references-grid--video"
+                        }`}
+                        style={referenceGridStyle}
+                      >
+                        {(draft.assetType === "image"
+                          ? IMAGE_REFERENCE_SLOT_LABELS
+                          : (["Motion Reference"] as const)
+                        ).map((slotLabel, index) => {
+                          const slotValue =
+                            draft.assetType === "image"
+                              ? (draft.imageReferenceUrls[index] ?? "")
+                              : draft.videoReferenceUrl;
+                          const isRequiredSlot = draft.assetType === "video" || index < 2;
+                          const showDeleteButton =
+                            Boolean(slotValue) && hoveredReferenceCardIndex === index;
+                          return (
+                            <article
+                              key={`${slotLabel}-${index + 1}`}
+                              ref={index === 0 ? handleReferenceCardMeasureRef : null}
+                              className={`elements-reference-card ${
+                                slotValue ? "is-filled" : "is-empty"
+                              } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
+                              style={{
+                                ...ELEMENT_REFERENCE_CARD_INLINE_STYLE,
+                                borderColor:
+                                  activeSheetDropIndex === index
+                                    ? "rgba(255, 123, 167, 0.82)"
+                                    : ELEMENT_PANEL_FIELD_BORDER_COLOR,
+                                boxShadow:
+                                  activeSheetDropIndex === index
+                                    ? "0 0 0 1px rgba(255, 123, 167, 0.18), 0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)"
+                                    : ELEMENT_REFERENCE_CARD_INLINE_STYLE.boxShadow,
+                              }}
+                              onMouseEnter={() => setHoveredReferenceCardIndex(index)}
+                              onMouseLeave={() =>
+                                setHoveredReferenceCardIndex((current) =>
+                                  current === index ? null : current
+                                )
+                              }
+                              onDragEnter={handleSheetDragEnter(index)}
+                              onDragOver={handleSheetDragOver(index)}
+                              onDragLeave={() => {
+                                setActiveSheetDropIndex((current) =>
+                                  current === index ? null : current
+                                );
+                              }}
+                              onDrop={(event) => {
+                                void handleSheetDrop(index)(event);
+                              }}
+                            >
+                              <div
+                                className="elements-panel-slot-actions"
+                                style={ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
+                              >
+                                {slotValue ? (
+                                  <button
+                                    type="button"
+                                    className="elements-reference-delete-btn"
+                                    style={{
+                                      ...ELEMENT_REFERENCE_DELETE_BUTTON_INLINE_STYLE,
+                                      opacity: showDeleteButton ? 1 : 0,
+                                      pointerEvents: showDeleteButton ? "auto" : "none",
+                                      transition: "opacity 140ms ease",
+                                    }}
+                                    aria-label={`Clear ${slotLabel} reference`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      if (draft.assetType === "video") {
+                                        clearActiveVideoReference();
+                                        return;
+                                      }
+                                      clearActiveImageReferenceAtIndex(index);
+                                    }}
+                                  >
+                                    <Trash size={12} weight="bold" />
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div
+                                className="elements-reference-media"
+                                style={{
+                                  ...ELEMENT_REFERENCE_MEDIA_INLINE_STYLE,
+                                  ...(slotValue
+                                    ? ELEMENT_REFERENCE_MEDIA_FILLED_INLINE_STYLE
+                                    : null),
                                 }}
                               >
-                                <Trash size={12} weight="bold" />
-                              </button>
-                            ) : null}
-                            <div className="elements-reference-media">
-                              {slotValue ? (
-                                draft.assetType === "video" ? (
-                                  <video
-                                    src={slotValue}
-                                    aria-label={`${slotLabel} reference`}
-                                    className="elements-reference-image"
-                                    muted
-                                    playsInline
-                                    preload="metadata"
-                                  />
+                                {slotValue ? (
+                                  draft.assetType === "video" ? (
+                                    <video
+                                      src={slotValue}
+                                      aria-label={`${slotLabel} reference`}
+                                      className="elements-reference-image"
+                                      style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
+                                      muted
+                                      playsInline
+                                      preload="metadata"
+                                    />
+                                  ) : (
+                                    <Image
+                                      src={slotValue}
+                                      alt={`${slotLabel} reference`}
+                                      className="elements-reference-image"
+                                      style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
+                                      width={240}
+                                      height={300}
+                                      unoptimized
+                                    />
+                                  )
                                 ) : (
-                                  <Image
-                                    src={slotValue}
-                                    alt={`${slotLabel} reference`}
-                                    className="elements-reference-image"
-                                    width={240}
-                                    height={300}
-                                    unoptimized
-                                  />
-                                )
-                              ) : (
-                                <span className="elements-reference-drop-copy tiny">
-                                  <UploadSimple
-                                    size={14}
-                                    weight="bold"
-                                    className="elements-reference-drop-icon"
-                                    aria-hidden="true"
-                                  />
-                                  <span>
-                                    {draft.assetType === "video"
-                                      ? "Drop motion reference here"
-                                      : "Drop reference here"}
-                                  </span>
                                   <span
-                                    className={`elements-reference-drop-requirement ${
-                                      isRequiredSlot ? "is-required" : "is-optional"
-                                    }`}
+                                    className="elements-reference-drop-copy"
+                                    style={ELEMENT_REFERENCE_DROP_COPY_INLINE_STYLE}
                                   >
-                                    {isRequiredSlot ? "(Required)" : "(Optional)"}
+                                    <UploadSimple
+                                      size={14}
+                                      weight="bold"
+                                      className="elements-reference-drop-icon"
+                                      aria-hidden="true"
+                                    />
+                                    <span>
+                                      {draft.assetType === "video"
+                                        ? "Upload motion\nreference"
+                                        : "Upload\nreferences"}
+                                    </span>
+                                    <span
+                                      className={`elements-reference-drop-requirement ${
+                                        isRequiredSlot ? "is-required" : "is-optional"
+                                      }`}
+                                      style={{
+                                        ...ELEMENT_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
+                                        color: isRequiredSlot
+                                          ? "rgba(255, 185, 217, 0.96)"
+                                          : "rgba(167, 176, 192, 0.78)",
+                                      }}
+                                    >
+                                      {isRequiredSlot ? "(Required)" : "(Optional)"}
+                                    </span>
                                   </span>
-                                </span>
-                              )}
-                            </div>
-                            <span className="elements-reference-empty-hint">{slotLabel}</span>
-                          </article>
-                        );
-                      })}
+                                )}
+                              </div>
+                              <span
+                                className="elements-reference-empty-hint"
+                                style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}
+                              >
+                                {slotLabel}
+                              </span>
+                            </article>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>

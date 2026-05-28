@@ -196,11 +196,11 @@
   order: 1;
 }
 
-.video-properties-panel .video-setup-column--single .video-setup-settings-slot {
+.video-properties-panel .video-setup-column--single .video-setup-recorder-slot {
   order: 2;
 }
 
-.video-properties-panel .video-setup-column--single .video-setup-recorder-slot {
+.video-properties-panel .video-setup-column--single .video-setup-settings-slot {
   order: 3;
 }
 
@@ -489,6 +489,13 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.video-properties-panel
+  .motion-recorder-launch-block
+  .voices-properties-voice-changer-record-panel {
+  max-width: none;
+  width: 100%;
 }
 
 .video-properties-panel .video-multishot-card {

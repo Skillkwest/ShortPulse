@@ -173,7 +173,7 @@ export const useReferenceGridCardItemsController = ({
           resolvedMedia.isImagePreview && decodeBudgetEnabled
             ? hasHydratedSourceForCard
               ? (hydratedEntry.renderUrl ?? undefined)
-              : (resolvedMedia.fallbackUrl ?? resolvedMedia.previewUrl ?? undefined)
+              : (resolvedMedia.previewUrl ?? resolvedMedia.fallbackUrl ?? undefined)
             : (resolvedMedia.previewUrl ?? undefined);
         const dragDisplayArtifactUrl = resolvedMedia.isImagePreview
           ? hasHydratedSourceForCard

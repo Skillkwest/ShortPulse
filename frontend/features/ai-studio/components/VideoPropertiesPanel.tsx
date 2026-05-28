@@ -1303,21 +1303,21 @@ export function VideoPropertiesPanel({
                       <div className="video-setup-recorder-slot">
                         <div className="reference-dropzone-block motion-recorder-launch-block">
                           <AiStudioRecordPanelPrefab
-                            panelAriaLabel="Record motion reference"
-                            title="Record"
-                            helper="Record a motion clip to use as the source for Motion Control."
+                            panelAriaLabel="Record optional motion source"
+                            title="Need a clip?"
+                            helper="If you do not already have a motion video, record one here and we'll add it to the Motion upload slot."
                             buttonIdleAriaLabel={
                               motionVideoUrl
-                                ? "Open motion recorder to replace the current clip"
-                                : "Open motion recorder"
+                                ? "Open motion recorder to replace the current uploaded clip"
+                                : "Open motion recorder to add a motion clip"
                             }
-                            buttonRecordingAriaLabel="Open motion recorder"
-                            idleCue="Click to record"
+                            buttonRecordingAriaLabel="Open motion recorder to add a motion clip"
+                            idleCue="Or record one here"
                             isRecording={false}
-                            statusMessage={motionVideoUrl ? "Current clip attached" : null}
+                            statusMessage={motionVideoUrl ? "Motion clip already uploaded" : null}
                             recoveryHint={
                               motionVideoUrl
-                                ? "Recording a new take replaces the current motion reference video."
+                                ? "Recording a new take replaces the motion clip in the upload slot above."
                                 : null
                             }
                             onClick={handleOpenMotionRecorder}

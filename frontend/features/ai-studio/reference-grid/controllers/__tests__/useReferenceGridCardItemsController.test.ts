@@ -66,6 +66,51 @@ describe("useReferenceGridCardItemsController", () => {
     );
   });
 
+  it("paints the preview before full fallback while image hydration is pending", () => {
+    const item = output({
+      mediaSource: "generated",
+      previewUrl: "https://storage.example.com/generated-thumb.jpg",
+      resultUrls: ["https://storage.example.com/generated-full.png"],
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia: () =>
+          resolvedMedia({
+            previewUrl: "https://storage.example.com/generated-thumb.jpg",
+            fullUrl: "https://storage.example.com/generated-full.png",
+            fallbackUrl: "https://storage.example.com/generated-full.png",
+            authorityTier: "tracked",
+            normalizedPreviewUrl: "https://storage.example.com/generated-thumb.jpg",
+            normalizedFallbackUrl: "https://storage.example.com/generated-full.png",
+          }),
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(result.current.visibleCardItems[0]?.imageSrc).toBe(
+      "https://storage.example.com/generated-thumb.jpg"
+    );
+    expect(result.current.visibleCardItems[0]?.fallbackUrl).toBe(
+      "https://storage.example.com/generated-full.png"
+    );
+    expect(result.current.visibleCardItems[0]?.dragDisplayArtifactUrl).toBe(
+      "https://storage.example.com/generated-full.png"
+    );
+  });
+
   it("skips resolved media work for placeholder-only loading outputs", () => {
     const item = output({
       taskState: "pending",

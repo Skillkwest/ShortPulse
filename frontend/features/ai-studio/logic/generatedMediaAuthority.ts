@@ -105,6 +105,9 @@ export type GeneratedMediaFileRecord = {
 export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
   mediaFileId: string;
   fileType: "image" | "video";
+  fullStoragePath: string | null;
+  previewStoragePath: string | null;
+  thumbVariantPath: string | null;
   posterVariantPath: string | null;
   previewVariantPath: string | null;
 };
@@ -583,6 +586,9 @@ const toGeneratedMediaLibraryRow = (
   const mediaFileId = asTrimmedString(row?.id);
   const baseRecord = toGeneratedMediaFileRecord(row);
   if (!mediaFileId || !baseRecord) return null;
+  const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+  const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path));
+  const thumbVariantPath = asCanonicalStoragePath(asTrimmedString(row?.thumb_variant_path));
   return {
     mediaFileId,
     storagePath: baseRecord.storagePath,
@@ -590,6 +596,9 @@ const toGeneratedMediaLibraryRow = (
     fileType: asTrimmedString(row?.file_type)?.toLowerCase().startsWith("video")
       ? "video"
       : "image",
+    fullStoragePath,
+    previewStoragePath,
+    thumbVariantPath,
     posterVariantPath: asTrimmedString(row?.poster_variant_path),
     previewVariantPath: asTrimmedString(row?.preview_variant_path),
   };
@@ -977,16 +986,29 @@ const applyPublishedGeneratedMediaAuthority = (
     const mediaRow = mediaByGenerationId.get(output.generationId);
     if (!mediaRow) return output;
     const mediaStoragePath = asCanonicalStoragePath(mediaRow.storagePath);
+    const mediaFullStoragePath =
+      asCanonicalStoragePath(mediaRow.fullStoragePath) ?? mediaStoragePath;
+    const mediaPreviewStoragePath =
+      mediaRow.fileType === "video"
+        ? (asCanonicalStoragePath(mediaRow.previewVariantPath) ?? mediaFullStoragePath)
+        : (asCanonicalStoragePath(mediaRow.thumbVariantPath) ??
+          asCanonicalStoragePath(mediaRow.previewStoragePath) ??
+          mediaFullStoragePath);
     const mediaPosterStoragePath = normalizeVideoPosterStoragePathCandidate(
       mediaRow.posterVariantPath
     );
     const mediaPreviewVariantPath = asCanonicalStoragePath(mediaRow.previewVariantPath);
-    const nextFullStoragePath = asCanonicalStoragePath(output.fullStoragePath) ?? mediaStoragePath;
-    const nextPreviewStoragePath =
-      asCanonicalStoragePath(output.previewStoragePath) ??
-      (mediaRow.fileType === "video"
-        ? (mediaPreviewVariantPath ?? mediaStoragePath)
-        : mediaStoragePath);
+    const shouldPreferCanonicalImagePaths =
+      output.mode === "image" && mediaRow.fileType === "image";
+    const nextFullStoragePath = shouldPreferCanonicalImagePaths
+      ? mediaFullStoragePath
+      : (asCanonicalStoragePath(output.fullStoragePath) ?? mediaFullStoragePath);
+    const nextPreviewStoragePath = shouldPreferCanonicalImagePaths
+      ? mediaPreviewStoragePath
+      : (asCanonicalStoragePath(output.previewStoragePath) ??
+        (mediaRow.fileType === "video"
+          ? (mediaPreviewVariantPath ?? mediaFullStoragePath)
+          : mediaPreviewStoragePath));
     const nextPreviewPosterStoragePath =
       normalizeVideoPosterStoragePathCandidate(output.previewPosterStoragePath) ??
       mediaPosterStoragePath ??
@@ -1643,6 +1665,7 @@ export const listVisibleGeneratedOutputs = async ({
       .filter((output) => {
         if (!output.generationId) return false;
         if (output.mode === "video") return true;
+        if (output.mode === "image") return true;
         return (
           !asCanonicalStoragePath(output.previewStoragePath) ||
           !asCanonicalStoragePath(output.fullStoragePath)

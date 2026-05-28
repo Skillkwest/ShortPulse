@@ -348,6 +348,7 @@ const buildCanvasSceneItem = ({
             title: resolved.title?.trim() || null,
             companionArtUrl: resolved.companionArtUrl?.trim() || null,
             companionArtStoragePath: resolved.companionArtStoragePath?.trim() || null,
+            audioSourceMode: resolved.audioSourceMode ?? null,
             durationMs: resolved.durationMs ?? null,
             waveformPeaks: Array.isArray(resolved.waveformPeaks) ? resolved.waveformPeaks : null,
             width: width ?? CANVAS_AUDIO_ITEM_WIDTH,

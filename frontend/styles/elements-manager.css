@@ -325,9 +325,15 @@
 .elements-panel-preset-content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
-  grid-template-areas: "description references";
+  grid-template-areas:
+    "name empty"
+    "description references";
   align-items: stretch;
   gap: 18px;
+}
+
+.elements-panel-profile-fields-row--name {
+  grid-area: name;
 }
 
 .elements-panel-preset-description-column {
@@ -542,10 +548,11 @@
   pointer-events: auto;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 760px) {
   .elements-panel-preset-content-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
+      "name"
       "description"
       "references";
   }

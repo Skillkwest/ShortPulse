@@ -2,6 +2,8 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import { normalizeAudioSourceMode } from "./audioSourceMode";
+import type { StudioAudioSourceMode } from "../types";
 import {
   buildMediaSearchOrClause as buildMediaSearchOrClauseShared,
   normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
@@ -367,4 +369,13 @@ export const resolveMediaMetadataWaveformPeaks = (
     if (peaks.length > 0) return peaks;
   }
   return null;
+};
+
+export const resolveMediaMetadataAudioSourceMode = (
+  metadata?: Record<string, unknown> | null
+): StudioAudioSourceMode | null => {
+  if (!metadata) return null;
+  return normalizeAudioSourceMode(
+    metadata.source_mode ?? metadata.sourceMode ?? metadata.audio_mode
+  );
 };

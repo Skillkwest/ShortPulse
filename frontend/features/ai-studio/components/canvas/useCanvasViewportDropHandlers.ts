@@ -253,6 +253,9 @@ export const useCanvasViewportDropHandlers = ({
                 companionArtUrl: mediaLibraryPayload.payload.companionArtUrl ?? null,
                 companionArtStoragePath:
                   mediaLibraryPayload.payload.companionArtStoragePath ?? null,
+                audioSourceMode: mediaLibraryPayload.payload.audioSourceMode ?? null,
+                durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+                waveformPeaks: mediaLibraryPayload.payload.waveformPeaks ?? null,
                 width: CANVAS_AUDIO_ITEM_WIDTH,
                 height: CANVAS_AUDIO_ITEM_HEIGHT,
               },
@@ -295,6 +298,7 @@ export const useCanvasViewportDropHandlers = ({
                     mediaLibraryPayload.payload.promptText ||
                     "Canvas video"
                   ).trim() || null,
+                durationMs: mediaLibraryPayload.payload.durationMs ?? null,
                 width: fallbackWidth,
                 height: fallbackHeight,
               },

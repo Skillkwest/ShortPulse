@@ -10,7 +10,7 @@ import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio
 import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
 import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
 import { isVideoUrl } from "../../logic/stateParsers";
-import { formatMediaDurationClock, MediaDurationBadge } from "../shared/MediaDurationBadge";
+import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
@@ -18,6 +18,7 @@ import {
   createdAtTime,
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataWaveformPeaks,
   type MediaCardRefCallback,
@@ -517,6 +518,8 @@ function MediaLibraryAllItemsAudioCard({
   const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
   const signedUrlLoadedRef = React.useRef(false);
   const [isRequestingAudioUrl, setIsRequestingAudioUrl] = React.useState(false);
+  const audioSourceMode = resolveMediaMetadataAudioSourceMode(file.metadata);
+  const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
 
   const markSignedUrlLoaded = React.useCallback(() => {
     if (signedUrlLoadedRef.current) return;
@@ -609,7 +612,8 @@ function MediaLibraryAllItemsAudioCard({
             audioId={file.id}
             audioUrl={audioUrl}
             backgroundImageUrl={file.companion_art_url ?? null}
-            durationMs={resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type })}
+            audioSourceMode={audioSourceMode}
+            durationMs={durationMs}
             waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
             playLabel={`Play audio ${file.filename}`}
             pauseLabel={`Pause audio ${file.filename}`}
@@ -666,13 +670,12 @@ function MediaLibraryAllItemsAudioCard({
                     <span className="reference-card-audio-time-current">
                       {isRequestingAudioUrl ? "Loading…" : "Load audio"}
                     </span>
-                    <span className="reference-card-audio-time-total">
-                      {formatMediaDurationClock(
-                        resolveMediaMetadataDurationMs(file.metadata, {
-                          fileType: file.file_type,
-                        })
-                      )}
-                    </span>
+                    <MediaDurationBadge
+                      className="reference-card-audio-duration-badge"
+                      durationMs={durationMs}
+                      mediaKind="audio"
+                      audioSourceMode={audioSourceMode}
+                    />
                   </div>
                 </div>
               </div>

@@ -485,6 +485,7 @@ describe("sessionSnapshot", () => {
         createOutput({
           id: "audio-duration",
           mode: "audio",
+          audioSourceMode: "music",
           durationMs: 4_000,
           waveformPeaks: [10, 30, 20],
         }),
@@ -515,6 +516,7 @@ describe("sessionSnapshot", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "audio-duration",
+          audioSourceMode: "music",
           durationMs: 4_000,
           waveformPeaks: [10, 30, 20],
         }),

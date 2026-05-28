@@ -540,7 +540,7 @@ describe("MediaLibraryAllItemsGrid", () => {
         file_type: "audio/mpeg",
         created_at: "2026-04-08T18:00:00.000Z",
         signedUrl: null,
-        metadata: { durationMs: 15000 },
+        metadata: { durationMs: 15000, source_mode: "sound-effects" },
       },
     ];
 
@@ -550,6 +550,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" })).toBeInTheDocument();
     expect(screen.getByText("Load audio")).toBeInTheDocument();
     expect(screen.getByText("0:15")).toBeInTheDocument();
+    expect(container.querySelector('[data-media-duration-kind="sound-effects"]')).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" }));
 

@@ -28,6 +28,7 @@ import {
   type AiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
 import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
+import { normalizeAudioSourceMode } from "./audioSourceMode";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import {
   PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
@@ -501,6 +502,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
       typeof output.errorDetail === "string" || output.errorDetail === null
         ? output.errorDetail
         : null,
+    audioSourceMode: normalizeAudioSourceMode(output.audioSourceMode),
     durationMs:
       typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
         ? Math.max(0, Math.round(output.durationMs))

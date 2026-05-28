@@ -7,6 +7,7 @@ import type {
   ReferenceDragSourceSurface,
 } from "../../utils/dragDrop";
 import type { MediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import type { StudioAudioSourceMode } from "../../types";
 
 export type CanvasCamera = {
   x: number;
@@ -61,6 +62,7 @@ export type CanvasAudioItem = CanvasSceneItemBase & {
   title: string | null;
   companionArtUrl?: string | null;
   companionArtStoragePath?: string | null;
+  audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   width: number;
@@ -106,6 +108,7 @@ export type CanvasDropResolution =
       title?: string | null;
       companionArtUrl?: string | null;
       companionArtStoragePath?: string | null;
+      audioSourceMode?: StudioAudioSourceMode | null;
       durationMs?: number | null;
       waveformPeaks?: number[] | null;
       width?: number;

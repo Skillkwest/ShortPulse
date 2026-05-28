@@ -203,6 +203,11 @@ const resolvePermissionPreflightFeedback = ({
   return null;
 };
 
+const shouldAutoResumePreview = (permissionState: CapturePermissionState): boolean =>
+  permissionState === "granted" ||
+  permissionState === "prompt" ||
+  permissionState === "unsupported";
+
 const formatDeviceLabel = (
   device: MediaDeviceInfo,
   fallbackLabel: "Camera",
@@ -322,7 +327,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     }
   }, []);
 
-  const updatePermissions = React.useCallback(async () => {
+  const updatePermissions = React.useCallback(async (): Promise<CapturePermissionState> => {
     const camera = await queryPermissionState("camera" as PermissionName);
 
     permissionStatusRef.current.camera = camera.status;
@@ -339,6 +344,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         );
       };
     }
+    return camera.state;
   }, []);
 
   const startPreview = React.useCallback(
@@ -434,10 +440,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         const feedback = resolveRecordingStartErrorFeedback(error);
         setCaptureError(feedback.message);
         setCaptureRecoveryHint(feedback.recoveryHint);
-        if (isPermissionDeniedCaptureError(error)) {
-          hasAttemptedSettingsRecoveryRef.current = true;
-          void attemptSettingsRecovery();
-        }
         return false;
       } finally {
         if (previewRequestIdRef.current === requestId) {
@@ -445,13 +447,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         }
       }
     },
-    [
-      loadDeviceOptions,
-      selectedVideoDeviceId,
-      stopPreviewStream,
-      attemptSettingsRecovery,
-      updatePermissions,
-    ]
+    [loadDeviceOptions, selectedVideoDeviceId, stopPreviewStream, updatePermissions]
   );
 
   const closeModal = React.useCallback(() => {
@@ -507,6 +503,41 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   }, [closeModal, isOpen, isUploadingClip]);
 
   React.useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleVisibilityOrFocus = () => {
+      if (!isOpenRef.current || isRecording || isUploadingClip || Boolean(recordedClipUrl)) {
+        return;
+      }
+      void (async () => {
+        const nextPermissionState = await updatePermissions();
+        if (
+          didAttemptSettingsRecovery &&
+          !previewStreamRef.current &&
+          shouldAutoResumePreview(nextPermissionState)
+        ) {
+          await startPreview();
+        }
+      })();
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [
+    didAttemptSettingsRecovery,
+    isOpen,
+    isRecording,
+    isUploadingClip,
+    recordedClipUrl,
+    startPreview,
+    updatePermissions,
+  ]);
+
+  React.useEffect(() => {
     if (!isRecording) {
       setRecordingElapsedMs(0);
       return undefined;
@@ -530,17 +561,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     };
   }, [revokeRecordedObjectUrl, stopPreviewStream]);
 
-  React.useEffect(() => {
-    if (!isOpen) return;
-    if (hasAttemptedSettingsRecoveryRef.current) return;
-    if (cameraPermissionState !== "denied") {
-      return;
-    }
-
-    hasAttemptedSettingsRecoveryRef.current = true;
-    void attemptSettingsRecovery();
-  }, [attemptSettingsRecovery, cameraPermissionState, isOpen]);
-
   const handleRecordClick = React.useCallback(async () => {
     if (isRecording) {
       recorderRef.current?.stop();
@@ -550,11 +570,6 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     setCaptureError(null);
     setCaptureRecoveryHint(null);
     setUploadError(null);
-
-    if (cameraPermissionState === "denied") {
-      await attemptSettingsRecovery();
-      return;
-    }
 
     if (!previewStreamRef.current) {
       await startPreview();
@@ -631,15 +646,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     setRecordingElapsedMs(0);
     setIsRecording(true);
     recorder.start();
-  }, [
-    attemptSettingsRecovery,
-    cameraPermissionState,
-    isRecording,
-    resetRecordedClip,
-    revokeRecordedObjectUrl,
-    startPreview,
-    stopPreviewStream,
-  ]);
+  }, [isRecording, resetRecordedClip, revokeRecordedObjectUrl, startPreview, stopPreviewStream]);
 
   const handleRetakeClick = React.useCallback(() => {
     setCaptureError(null);
@@ -648,6 +655,16 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     resetRecordedClip();
     void startPreview();
   }, [resetRecordedClip, startPreview]);
+
+  const handleOpenSettingsClick = React.useCallback(async () => {
+    hasAttemptedSettingsRecoveryRef.current = true;
+    const didAttempt = await attemptSettingsRecovery();
+    if (!didAttempt) {
+      setCaptureRecoveryHint(
+        "Open your browser's site settings and your computer's system privacy settings for camera access, then try again."
+      );
+    }
+  }, [attemptSettingsRecovery]);
 
   const handleUseClipClick = React.useCallback(async () => {
     if (!recordedClipFile) return;
@@ -718,6 +735,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     permissionPreflightFeedback,
   ]);
   const isModalRecordError = Boolean(captureError) || cameraPermissionState === "denied";
+  const shouldShowSettingsRecoveryAction =
+    cameraPermissionState === "denied" || captureError === "Camera access is blocked.";
   const isShowingPlayback = Boolean(recordedClipUrl);
   const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record motion reference";
 
@@ -894,6 +913,16 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                   </>
                 ) : (
                   <>
+                    {shouldShowSettingsRecoveryAction ? (
+                      <button
+                        type="button"
+                        className="motion-recorder-secondary-btn"
+                        onClick={handleOpenSettingsClick}
+                        disabled={isUploadingClip}
+                      >
+                        Open camera settings
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="motion-recorder-secondary-btn"

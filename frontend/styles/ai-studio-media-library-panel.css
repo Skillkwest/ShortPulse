@@ -940,9 +940,10 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  overflow: visible;
+  overflow: hidden;
   transform: none;
   padding: 0;
+  isolation: isolate;
 }
 
 .media-library-panel .media-library-panel-media-card-button.media-card:hover {
@@ -964,13 +965,15 @@
   position: relative;
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
   padding: 1px;
+  isolation: isolate;
 }
 
 .media-library-panel .media-library-panel-media-duration {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
+  left: 10px;
+  bottom: 10px;
   z-index: 3;
 }
 

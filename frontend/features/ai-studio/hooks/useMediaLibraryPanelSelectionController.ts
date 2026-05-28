@@ -1,9 +1,11 @@
 import React from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
+import type { StudioAudioSourceMode } from "../types";
 import {
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
@@ -27,6 +29,7 @@ export type MediaLibrarySelectionPayload = {
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
+  audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
 };
@@ -106,6 +109,9 @@ export const useMediaLibraryPanelSelectionController = ({
         previewUrl,
         previewPosterUrl,
         fullUrl,
+        audioSourceMode: isAudioFile(file.file_type)
+          ? resolveMediaMetadataAudioSourceMode(file.metadata)
+          : null,
         durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
         waveformPeaks: isAudioFile(file.file_type)
           ? resolveMediaMetadataWaveformPeaks(file.metadata)

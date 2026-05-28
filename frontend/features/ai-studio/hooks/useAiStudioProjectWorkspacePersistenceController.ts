@@ -299,32 +299,36 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
       return emptySelection;
     }
+    let fullPreparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null = null;
     for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
-      try {
-        const serializedJson = JSON.stringify(candidate.snapshot);
-        const bytes = utf8ByteLength(serializedJson);
-        if (bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES) {
-          const resolvedSelection = {
-            snapshot: candidate.snapshot,
-            fallbackKind: candidate.kind,
-            preparedSnapshot: prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
-              serializedJson,
-              title: null,
-            }),
-          };
-          recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
-          return resolvedSelection;
-        }
-      } catch {
-        // try the next candidate
+      const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
+        title: null,
+      });
+      if (candidate.kind === "full") {
+        fullPreparedSnapshot = preparedSnapshot;
+      }
+      if (
+        preparedSnapshot.hash &&
+        Number.isFinite(preparedSnapshot.bytes) &&
+        preparedSnapshot.bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES
+      ) {
+        const resolvedSelection = {
+          snapshot: candidate.snapshot,
+          fallbackKind: candidate.kind,
+          preparedSnapshot,
+        };
+        recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
+        return resolvedSelection;
       }
     }
     const fallbackSelection = {
       snapshot: sessionSnapshot,
       fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-      preparedSnapshot: prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
-        title: null,
-      }),
+      preparedSnapshot:
+        fullPreparedSnapshot ??
+        prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
+          title: null,
+        }),
     };
     recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
     return fallbackSelection;

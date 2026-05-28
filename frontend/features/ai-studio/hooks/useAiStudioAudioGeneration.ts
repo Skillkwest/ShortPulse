@@ -229,6 +229,7 @@ const buildVoiceChangerRemuxedVideoOutput = ({
     fullStoragePath: payload.fullStoragePath,
     previewTier: "preview_loop",
     mimeType: payload.mimeType,
+    audioSourceMode: null,
     mediaSource: "generated",
     localObjectUrl: null,
     saveState: resolveGeneratedOutputSaveState(payload),
@@ -245,6 +246,7 @@ const applyAudioOutputToPlaceholder = ({
   promptText,
   modelLabel,
   payload,
+  audioSourceMode,
 }: {
   updateOutputById: UseAiStudioAudioGenerationParams["updateOutputById"];
   outputId: string;
@@ -254,6 +256,7 @@ const applyAudioOutputToPlaceholder = ({
     | VoicesGenerateSuccessResponse["output"]
     | MusicGenerateSuccessResponse["output"]
     | SoundEffectsGenerateSuccessResponse["output"];
+  audioSourceMode: StudioOutput["audioSourceMode"];
 }) => {
   const savedMediaIds = toSavedMediaIds(payload.mediaFileId);
   updateOutputById(outputId, (item) => ({
@@ -280,6 +283,7 @@ const applyAudioOutputToPlaceholder = ({
     companionArtStatus: payload.companionArtStatus,
     previewTier: "full",
     mimeType: payload.mimeType,
+    audioSourceMode,
     durationMs: payload.durationMs,
     waveformPeaks: payload.waveformPeaks,
     mediaSource: "generated",
@@ -436,6 +440,7 @@ export const useAiStudioAudioGeneration = ({
           promptText,
           modelLabel: buildVoicesOutputModelLabel(request),
           payload: payload.output,
+          audioSourceMode: request.mode,
         });
 
         if (request.mode === "voice-changer" && payload.remuxedVideo) {
@@ -532,6 +537,7 @@ export const useAiStudioAudioGeneration = ({
           promptText,
           modelLabel: buildMusicOutputModelLabel(),
           payload: payload.output,
+          audioSourceMode: "music",
         });
         return true;
       } catch (error) {
@@ -618,6 +624,7 @@ export const useAiStudioAudioGeneration = ({
           promptText,
           modelLabel: buildSoundEffectsOutputModelLabel(),
           payload: payload.output,
+          audioSourceMode: "sound-effects",
         });
       } catch (error) {
         const message = sanitizeCustomerFacingProviderText(

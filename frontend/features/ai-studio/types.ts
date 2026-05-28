@@ -82,6 +82,7 @@ export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "ful
 export type StudioOutputSubmissionMode = "provider-task" | "direct-request";
 export type StudioOutputCompanionArtStatus = "pending" | "processing" | "ready" | "failed";
 export type StudioOutputSaveState = "idle" | "saving" | "saved" | "failed" | "blocked_storage";
+export type StudioAudioSourceMode = "voiceover" | "voice-changer" | "sound-effects" | "music";
 
 export type StudioOutput = {
   id: string;
@@ -122,6 +123,7 @@ export type StudioOutput = {
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
   mimeType?: string | null;
+  audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   mediaSource?: StudioOutputMediaSource;

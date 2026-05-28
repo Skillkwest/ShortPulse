@@ -10,6 +10,8 @@ import {
   markExclusiveSoundPlaying,
   requestExclusiveSoundPlayback,
 } from "./exclusiveSoundPlayback";
+import { MediaDurationBadge } from "./MediaDurationBadge";
+import type { StudioAudioSourceMode } from "../../types";
 
 const AUDIO_WAVEFORM_BAR_COUNT = 28;
 
@@ -26,6 +28,7 @@ export type ReferenceAudioPlayerProps = {
   audioUrl: string;
   audioInstanceKey?: string;
   backgroundImageUrl?: string | null;
+  audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   playLabel: string;
@@ -44,6 +47,7 @@ export function ReferenceAudioPlayer({
   audioUrl,
   audioInstanceKey,
   backgroundImageUrl = null,
+  audioSourceMode = null,
   durationMs = null,
   waveformPeaks = null,
   playLabel,
@@ -276,9 +280,12 @@ export function ReferenceAudioPlayer({
                 <span className="reference-card-audio-time-current">
                   {formatPlaybackClock(currentAudioTimeMs)}
                 </span>
-                <span className="reference-card-audio-time-total">
-                  {formatPlaybackClock(resolvedAudioDurationMs)}
-                </span>
+                <MediaDurationBadge
+                  className="reference-card-audio-duration-badge"
+                  durationMs={resolvedAudioDurationMs ?? 0}
+                  mediaKind="audio"
+                  audioSourceMode={audioSourceMode}
+                />
               </div>
             </div>
           </div>

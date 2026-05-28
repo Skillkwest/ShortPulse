@@ -4,6 +4,7 @@
  */
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
 import { isAudioUrl, isVideoUrl } from "./stateParsers";
+import { normalizeAudioSourceMode } from "./audioSourceMode";
 
 const MEDIA_LIBRARY_DRAG_TYPE = "application/x-shortpulse-media-library-item";
 const MEDIA_LIBRARY_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-item";
@@ -31,6 +32,8 @@ const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_URL_TYPE =
   "text/shortpulse-media-library-companion-art-url";
 const MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE =
   "text/shortpulse-media-library-companion-art-storage-path";
+const MEDIA_LIBRARY_FALLBACK_AUDIO_SOURCE_MODE_TYPE =
+  "text/shortpulse-media-library-audio-source-mode";
 const MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE = "text/shortpulse-media-library-duration-ms";
 const MEDIA_LIBRARY_FALLBACK_WAVEFORM_PEAKS_TYPE = "text/shortpulse-media-library-waveform-peaks";
 const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
@@ -215,6 +218,9 @@ const readFallbackMediaLibraryDragPayload = (
         companionArtStoragePath: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE)
         ),
+        audioSourceMode: normalizeAudioSourceMode(
+          normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_AUDIO_SOURCE_MODE_TYPE))
+        ),
         durationMs: normalizeNonNegativeNumber(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE)
         ),
@@ -384,6 +390,11 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_COMPANION_ART_STORAGE_PATH_TYPE,
       payload.payload.companionArtStoragePath
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_AUDIO_SOURCE_MODE_TYPE,
+      payload.payload.audioSourceMode
     );
     setTransferNumberIfPresent(
       transfer,

@@ -5,6 +5,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../../lib/explicitContentFailure";
+import { resolveRequiredAudioMusicModelId } from "../../../../../lib/model-runtime/modelCatalog";
 import type { StudioOutput } from "../../../types";
 import { __resetExclusiveSoundPlaybackForTests } from "../../../components/shared/exclusiveSoundPlayback";
 import { ReferenceGridCard } from "../ReferenceGridCard";
@@ -420,7 +421,12 @@ describe("ReferenceGridCard", () => {
     render(
       <ReferenceGridCard
         {...createProps({
-          item: createOutput({ mode: "audio", taskState: "success", durationMs: 2000 }),
+          item: createOutput({
+            mode: "audio",
+            taskState: "success",
+            durationMs: 2000,
+            modelId: resolveRequiredAudioMusicModelId(),
+          }),
           isAudioPreview: true,
           cardPreviewUrl: "https://example.com/audio.mp3",
         })}
@@ -435,6 +441,7 @@ describe("ReferenceGridCard", () => {
     expect(document.querySelector(".reference-card-audio-time-row")).not.toBeNull();
     expect(screen.getByText("0:00")).toBeInTheDocument();
     expect(screen.getByText("0:02")).toBeInTheDocument();
+    expect(document.querySelector('[data-media-duration-kind="music"]')).not.toBeNull();
     expect(waveformBars.length).toBeGreaterThan(10);
     expect(waveformBars.length).toBeLessThan(40);
 

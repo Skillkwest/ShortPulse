@@ -38,6 +38,7 @@ import {
   type PastedMediaReference,
 } from "../reference-grid/controllers/referenceGridClipboard";
 import type { StudioOutput } from "../types";
+import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
@@ -198,6 +199,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
           companionArtUrl: output.companionArtUrl ?? null,
           companionArtStoragePath: output.companionArtStoragePath ?? null,
+          audioSourceMode: resolveOutputAudioSourceMode(output),
           durationMs: output.durationMs ?? null,
           waveformPeaks: output.waveformPeaks ?? null,
           width: CANVAS_AUDIO_ITEM_WIDTH,
@@ -473,6 +475,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
               null,
             companionArtUrl: payload.payload.companionArtUrl ?? null,
             companionArtStoragePath: payload.payload.companionArtStoragePath ?? null,
+            audioSourceMode: payload.payload.audioSourceMode ?? null,
+            durationMs: payload.payload.durationMs ?? null,
+            waveformPeaks: payload.payload.waveformPeaks ?? null,
             width: CANVAS_AUDIO_ITEM_WIDTH,
             height: CANVAS_AUDIO_ITEM_HEIGHT,
           };

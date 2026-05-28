@@ -5,6 +5,7 @@
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
+import { resolveOutputAudioSourceMode } from "../../logic/audioSourceMode";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
   canDownloadReferenceOutput,
@@ -233,6 +234,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   );
   const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
   const shouldRenderAudioElement = Boolean(audioPreviewUrl);
+  const audioSourceMode = resolveOutputAudioSourceMode(item);
   const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
   const primaryImageDataSrc = hasVideoPosterPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
   const dragImageSrc =
@@ -445,6 +447,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
           backgroundImageUrl={item.companionArtUrl ?? null}
+          audioSourceMode={audioSourceMode}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel="Play audio preview"

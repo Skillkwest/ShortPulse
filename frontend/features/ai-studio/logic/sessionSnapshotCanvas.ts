@@ -16,6 +16,7 @@ import type {
 } from "../components/canvas/canvasSceneState";
 import type { CanvasWorkspaceInstanceId } from "../components/canvas/canvasWorkspaceContracts";
 import type { ReferenceDragSourceSurface } from "../utils/dragDrop";
+import { normalizeAudioSourceMode } from "./audioSourceMode";
 
 export const AI_STUDIO_CANVAS_ITEM_HARD_CAP = 300;
 export const AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES = 900_000;
@@ -56,6 +57,7 @@ type CanvasSceneItemSnapshotV1 =
       title: string | null;
       companionArtUrl: string | null;
       companionArtStoragePath: string | null;
+      audioSourceMode: import("../types").StudioAudioSourceMode | null;
       durationMs: number | null;
       waveformPeaks: number[] | null;
       width: number;
@@ -281,6 +283,7 @@ const sanitizeCanvasSceneItem = (
         title: asNullableString(value.title),
         companionArtUrl: asNullableString(value.companionArtUrl),
         companionArtStoragePath: asNullableString(value.companionArtStoragePath),
+        audioSourceMode: normalizeAudioSourceMode(value.audioSourceMode),
         durationMs:
           typeof value.durationMs === "number" && Number.isFinite(value.durationMs)
             ? Math.max(0, Math.round(value.durationMs))
@@ -414,6 +417,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
             title: item.title ?? null,
             companionArtUrl: item.companionArtUrl ?? null,
             companionArtStoragePath: item.companionArtStoragePath ?? null,
+            audioSourceMode: item.audioSourceMode ?? null,
             durationMs: item.durationMs ?? null,
             waveformPeaks: item.waveformPeaks ?? null,
             width: item.width,
@@ -569,6 +573,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         title: asNullableString(record.title),
         companionArtUrl: asNullableString(record.companionArtUrl),
         companionArtStoragePath: asNullableString(record.companionArtStoragePath),
+        audioSourceMode: normalizeAudioSourceMode(record.audioSourceMode),
         durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
         waveformPeaks: sanitizeWaveformPeaks(record.waveformPeaks),
         width: Math.max(

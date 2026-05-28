@@ -563,11 +563,11 @@ export function ElementsManagerShell({
     () => ({
       ...ELEMENT_EDITOR_CONTENT_GRID_INLINE_STYLE,
       gridTemplateColumns:
-        editorPanelWidth > 0 && editorPanelWidth <= 980
+        editorPanelWidth > 0 && editorPanelWidth <= 760
           ? "minmax(0, 1fr)"
           : "minmax(0, 1.02fr) minmax(0, 0.98fr)",
       gridTemplateAreas:
-        editorPanelWidth > 0 && editorPanelWidth <= 980
+        editorPanelWidth > 0 && editorPanelWidth <= 760
           ? '"name" "description" "references"'
           : '"name empty" "description references"',
     }),

@@ -544,8 +544,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   min-width: 0;
   padding: 4px 7px;
+  max-width: 100%;
   border-radius: 999px;
   background: rgba(9, 13, 18, 0.84);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -560,6 +562,18 @@
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.media-duration-badge__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  flex: 0 0 auto;
+}
+
+.media-duration-badge__label {
+  min-width: 0;
 }
 
 .reference-card-media-duration {
@@ -779,9 +793,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  max-width: 78px;
+  max-width: 112px;
   color: rgba(200, 215, 227, 0.78);
   font-size: 10px;
   font-weight: 700;
@@ -792,6 +806,13 @@
 .reference-card-audio-time-current,
 .reference-card-audio-time-total {
   min-width: 0;
+}
+
+.reference-card-audio-duration-badge {
+  padding: 3px 6px;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  flex: 0 0 auto;
 }
 
 .reference-card-audio {

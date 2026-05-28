@@ -116,7 +116,7 @@ describe("MotionRecorderModal", () => {
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });
 
-  it("surfaces blocked camera recovery guidance when camera access is denied", async () => {
+  it("surfaces blocked camera recovery guidance and only opens settings on explicit action", async () => {
     Object.defineProperty(globalThis.navigator, "userAgent", {
       configurable: true,
       value:
@@ -162,6 +162,10 @@ describe("MotionRecorderModal", () => {
     expect(
       screen.getByText(/allow camera access in your browser's site settings/i)
     ).toBeInTheDocument();
+    expect(windowOpenMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open camera settings" }));
+
     await waitFor(() => {
       expect(windowOpenMock).toHaveBeenCalledWith(
         "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera",
@@ -169,6 +173,84 @@ describe("MotionRecorderModal", () => {
         "noopener,noreferrer"
       );
     });
+  });
+
+  it("retries camera access on record click after a blocked attempt instead of reopening settings", async () => {
+    const mediaStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
+    };
+    const getUserMediaMock = vi
+      .fn()
+      .mockRejectedValueOnce({
+        name: "NotAllowedError",
+        message: "Permission denied",
+      })
+      .mockResolvedValueOnce(mediaStream);
+
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: getUserMediaMock,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          {
+            deviceId: "camera-1",
+            groupId: "group-camera-1",
+            kind: "videoinput",
+            label: "Front Camera",
+            toJSON: () => ({}),
+          },
+        ]),
+      },
+    });
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async ({ name }: { name: string }) => ({
+          name,
+          state: "prompt",
+          onchange: null,
+        })),
+      },
+    });
+    const windowOpenMock = vi.fn();
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: windowOpenMock,
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported(type: string) {
+        return type === "video/webm;codecs=vp9,opus" || type === "video/webm";
+      }
+
+      mimeType: string;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      onstop: (() => void) | null = null;
+
+      constructor(_stream: MediaStream, options?: { mimeType?: string }) {
+        this.mimeType = options?.mimeType ?? "video/webm";
+      }
+
+      start() {}
+      stop() {}
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1);
+    expect(windowOpenMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
+    await waitFor(() => {
+      expect(getUserMediaMock).toHaveBeenCalledTimes(2);
+    });
+    expect(windowOpenMock).not.toHaveBeenCalled();
   });
 
   it("keeps the recorded clip when switching to a broken camera device", async () => {

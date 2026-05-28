@@ -95,6 +95,7 @@ export type AiStudioSessionOutputV1 = {
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
+  audioSourceMode?: import("../types").StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   resultUrls?: string[];
@@ -550,6 +551,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
     errorDetail: output.errorDetail ?? null,
+    audioSourceMode: output.audioSourceMode ?? null,
     durationMs:
       typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
         ? Math.max(0, Math.round(output.durationMs))

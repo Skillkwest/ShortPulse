@@ -33,6 +33,8 @@ Use:
 - the latest weekly review
 - and only the specific retained logs needed for the current maintenance question
 
+If the latest meaningful launch-state refresh, queue reset, or rerating pass postdates the newest relevant metric entries, treat the retained logs as historical until they are refreshed. Do not let a stale log look like living launch truth.
+
 ## What To Measure
 
 ### 1. Launch-state trend
@@ -156,6 +158,8 @@ Also update the right retained logs when:
 - a score changes or is intentionally held
 
 If a retained log stops changing or stops affecting decisions, prune it or demote it from the routine learning path.
+
+If a log is still useful for hindsight but is not being maintained tightly enough to support current-state reasoning, keep it retained but mark it as maintenance-only rather than pretending it is part of the live launch-control surface.
 
 ## Interpretation Rule
 

@@ -15,7 +15,8 @@ The space is no longer an initial setup area. It is the maintained retained-evid
 - `memory.md`: non-authoritative working memory retained with artifacts.
 - `sops.md`: workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.
-- `training-history.md`: supervised setup and future training runs.
+- `training-history.md`: compressed maintenance-facing summary of Copperknot setup, hardening milestones, and current training state.
+- `training-history-archive-through-2026-05.md`: detailed historical training chronology archived out of the default load path.
 - `metrics/`: time-based learning logs for launch-state trends, score movement, and queue-decision hindsight.
 - `reports/`: full audit, roadmap, dispatch tracking, and report intake area.
   - `reports/external-lane-closeouts/`: closeout reports written by execution agents for Copperknot review.
@@ -23,6 +24,8 @@ The space is no longer an initial setup area. It is the maintained retained-evid
 ## Authority
 
 These artifacts support training, traceability, and execution planning. They do not override canonical repo rules, system docs, ADRs, SOPs, user instructions, or direct validation evidence.
+
+Detailed training chronology and retained metrics are maintenance-only surfaces. They should stay out of routine Copperknot startup context unless the task is specifically a maintenance, pruning, or retrospective audit.
 
 ## Canonical Entry Points
 

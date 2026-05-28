@@ -30,6 +30,7 @@ Purpose: keep repo-visible memory for Money Stuff's customer commerce billing st
 - 2026-05-13: One-time-commerce history should preserve a historical commercial snapshot. Falling back from a credit purchase to the current mutable `billing_credit_packages` row can rewrite old package names or paid amounts after repricing/renaming.
 - 2026-05-13: For top-up history, fallback truth should prefer live Stripe Checkout session data first, then immutable ledger snapshot metadata, and only then the current package catalog row.
 - 2026-05-13: Direct recurring storage add-on upsells must fail closed on incomplete Stripe payment states and must check live Stripe subscription items before adding a new recurring item. Local webhook-projected add-on rows alone are not safe duplicate guards.
+- 2026-05-28: Gottspan-owned repo-steward surfaces are not part of the Money Stuff lane. Money Stuff must not edit or maintain `docs/agents/gottspan-the-admin/` or `docs/records/artifacts/agent/gottspan-the-admin/`, and must stop for reassignment if a task turns into Gottspan behavior, memory, prompt, report, or folder-maintenance work.
 
 ## Open Follow-Ups
 

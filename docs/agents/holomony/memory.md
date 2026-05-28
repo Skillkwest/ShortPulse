@@ -137,11 +137,13 @@ For this milestone, `stable and strong` means:
     - selection/drop to saved-character latency or failure evidence
     - save/reopen trust
     - `character_media_assets` isolation correctness
-- `reference-grid` now has its first retained production baseline.
+- `reference-grid` has a retained historical production baseline, but it must not be loaded as current health proof.
   - baseline date: `2026-05-25`
-  - retained report:
-    - `docs/records/artifacts/agent/holomony/reports/current/2026-05-25-reference-grid-production-baseline.md`
-  - current classification:
-    - `no clear blocker`
+  - archived historical report:
+    - `docs/records/artifacts/agent/holomony/reports/archive/2026-05-25-reference-grid-production-baseline.md`
+  - current status:
+    - reopened incident lane after later user-visible production reports of slow and broken Reference Grid media
+  - current root-cause focus:
+    - restore/signing/hydration hot path and stale media authority, not generic grid rendering alone
   - default next action:
-    - stop unless a fresh production incident or a deeper telemetry need justifies reopening the lane
+    - use fresh production evidence and a narrow owner-path audit before changing code; do not tune by momentum or cite the old `no clear blocker` result as present truth

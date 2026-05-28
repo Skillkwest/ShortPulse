@@ -102,6 +102,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/Create Workflow/create-panel-system-map.md`
 - `docs/agents/pulse/README.md`
 - `docs/agents/copperknot/README.md`
+- `docs/agents/copperknot/standard-operating-procedure.md`
+- `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
 - `docs/records/artifacts/agent/ophestivus/contract.md`

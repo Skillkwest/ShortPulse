@@ -10,14 +10,14 @@ The agent has a durable contract, repo-visible memory, helper tooling, and a ret
 
 ## Artifact Layout
 
-- `run-log.md`: append-only ledger of substantive Gear Ball runs.
+- `run-log.md`: legacy append-only ledger of notable older runs. Use only when direct historical comparison is needed.
 - `baseline-kpi.md`: frozen baseline for future Gear Ball quality comparisons.
 - `performance-scorecard.md`: stable scoring rubric for substantive supervised runs.
-- `performance-ledger.md`: concise scored ledger for runs that triggered retained training updates.
+- `performance-ledger.md`: primary compact scored ledger for substantive runs.
 - `tools.md`: helper inventory and future tooling needs.
-- `training-history.md`: current score band, failure classes, and priorities. Detailed narratives stay in `run-log.md` and `reports/`.
-- `conversation-training-dataset.jsonl`: structured conversation-derived training examples with trigger, failure mode, correct behavior, control, and metric.
-- `reports/`: dated run reports, templates, and evidence summaries when a Gear Ball run needs durable retained detail.
+- `training-history.md`: compressed active synthesis only. Detailed narratives stay in `performance-ledger.md` and `reports/`.
+- `conversation-training-dataset.jsonl`: training-only structured examples. Not part of normal startup load.
+- `reports/`: dated run reports, templates, and evidence summaries for exceptional or historically relevant runs.
 
 ## Authority
 
@@ -30,8 +30,9 @@ Retained evidence is exception-triggered, not mandatory on every ordinary run.
 Always:
 
 - keep the final response self-audit and score in chat
+- append the compact run row to `performance-ledger.md`
 
-Update retained surfaces when one of these is true:
+Update heavier retained surfaces when one of these is true:
 
 - the run was `production-critical`
 - the run scored below `9/10`
@@ -39,9 +40,8 @@ Update retained surfaces when one of these is true:
 - the process/tooling itself changed
 - the user explicitly asked for process hardening or retained records
 
-- append the run to `run-log.md`
-- update `training-history.md` with the self-audit, score out of 10, friction found, and capability-improvement decision
-- append the scored row to `performance-ledger.md`
+- update `training-history.md` with the current synthesized lesson set
+- append the run to `run-log.md` only when long-form historical traceability is useful
 - when a recurring user correction or instruction pattern appears, encode it into `conversation-training-dataset.jsonl`
 - create a dated report when the run is large, multi-batch, operationally risky, or exposes a new recurring failure mode
 - prefer using the Gear Ball report template for substantial runs

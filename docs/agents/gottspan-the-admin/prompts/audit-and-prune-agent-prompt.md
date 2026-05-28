@@ -1,25 +1,35 @@
-# Audit And Prune Agent Prompt
+# Audit And Prune Current Agent Prompt
 
-Purpose: reusable prompt for auditing Gottspan's operating space, re-checking the audit, and then pruning or compressing anything that degrades performance.
+Purpose: reusable prompt for auditing the current receiving agent's own operating space, re-checking the audit, and then pruning or compressing anything that degrades that agent's performance.
 
 ## Prompt
 
 ```text
-I want you to perform a full performance audit of your operating space in this repo.
+I want you to perform a full performance audit of your own operating space in this repo.
+
+Important target rule: this prompt applies to the agent receiving it in the current conversation. Do not run this prompt against Gottspan's folder, prompt library, reports, or memory unless you are explicitly operating as Gottspan in this conversation.
+
+Before auditing, identify your own agent identity and owned repo surface:
+- your canonical agent name,
+- your agent folder or contract file,
+- your durable memory/report/artifact area, if one exists,
+- and any scoped instructions that define your lane.
+
+If you cannot identify your own owned agent surface, pause and ask for the correct target instead of auditing or editing another agent's folder.
 
 Your goal is to identify anything that could slow you down, degrade your judgment, clutter your working context, or make your execution less reliable.
 
 This audit should cover three areas:
 
 1. Repo-facing operating space
-- agent docs
-- SOPs
-- memory files
-- reports
-- retained artifacts
-- templates
-- indexes
-- any repeated, stale, bloated, redundant, or low-value surfaces
+- your own agent docs
+- your own SOPs
+- your own memory files
+- your own reports
+- your own retained artifacts
+- your own templates
+- your own indexes
+- any repeated, stale, bloated, redundant, or low-value surfaces inside your owned agent lane
 
 2. Durable agent memory
 - what should remain in memory
@@ -37,7 +47,9 @@ This audit should cover three areas:
 ## Required workflow
 
 ### Phase 1: Audit
-Perform a structured audit of the current operating space and identify anything that creates drag, duplication, drift, or unnecessary context load.
+Perform a structured audit of your own current operating space and identify anything that creates drag, duplication, drift, or unnecessary context load.
+
+Stay inside your owned agent surface. If you discover another agent's workspace has problems, record a handoff or follow-up instead of editing it.
 
 ### Phase 2: Re-audit / verify
 After the first audit, stop and challenge your own conclusions.
@@ -62,7 +74,9 @@ Once you are confident, produce a final decision set:
 
 ### Phase 4: Execute
 After the audit and re-audit are complete, proceed to make the needed changes.
-You should create, rewrite, compress, archive, prune, or remove anything necessary to improve operating performance.
+You should create, rewrite, compress, archive, prune, or remove anything necessary to improve your own operating performance, limited to your owned agent surface.
+
+Do not edit Gottspan's prompt library, Gottspan's reports, or any other agent's workspace unless that workspace is the explicitly identified target for this conversation.
 
 ## Decision standard
 Optimize for:
@@ -81,6 +95,7 @@ Return your work in this order:
 
 1. Initial audit findings
 - what is currently slowing you down or creating unnecessary load
+- the agent identity and owned surface you audited
 
 2. Re-audit findings
 - what you rechecked

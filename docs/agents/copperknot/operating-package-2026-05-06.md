@@ -13,6 +13,7 @@ The catalog is a decision tool. It is not the mission.
 - Contract: `docs/agents/copperknot/README.md`
 - Memory: `docs/agents/copperknot/memory.md`
 - SOP: `docs/agents/copperknot/standard-operating-procedure.md`
+- SOP reference: `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - Production plan: `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
 - Handoff queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
 - Score criteria: `docs/agents/copperknot/system-score-criteria.md`

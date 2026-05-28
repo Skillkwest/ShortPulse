@@ -23,11 +23,15 @@ Purpose: store the time-based measurement logs that let the Copperknot judge whe
 
 These logs are retained learning artifacts.
 
+They are not default-load launch-control surfaces.
+
 They should be updated when:
 
 - a launch-state refresh changes the operating picture
 - a rerating changes a score
 - a queue decision proves especially good or especially weak in hindsight
+
+If the latest meaningful Copperknot launch-state or queue update postdates the newest relevant metric entry, treat the affected log as historical maintenance context until it is refreshed.
 
 ## Authority Rule
 

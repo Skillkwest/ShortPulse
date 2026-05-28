@@ -13,6 +13,7 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
 - training history
 - sparse artifact-side memory
 - tooling notes
+- archived training-history snapshots when the active summary becomes too long
 
 ## What Does Not Belong Here
 
@@ -27,6 +28,8 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
 - Use this folder to retain evidence and learning, not to create competing authorities.
 - If a file here becomes stale and is not helping current launch decisions or future learning, prune or demote it.
 - Historical reports may stay preserved, but mark them as non-default reading when they are no longer part of the active launch path.
+- Keep `training-history.md` compressed. Move long chronology into dated archive snapshots instead of letting the active file bloat again.
+- If retained metric logs lag the latest meaningful launch-state reset or queue change, treat them as historical maintenance aids, not as current truth.
 
 ## Special Paths
 

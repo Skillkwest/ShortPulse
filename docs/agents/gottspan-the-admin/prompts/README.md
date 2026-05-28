@@ -12,7 +12,7 @@ Purpose: store reusable prompts that improve Gottspan's repo-steward, audit, and
 
 ## Prompts
 
-- `audit-and-prune-agent-prompt.md`: full self-audit, re-audit, prune, and cleanup prompt for reducing context drag and improving operating performance.
+- `audit-and-prune-agent-prompt.md`: full self-audit, re-audit, prune, and cleanup prompt for the receiving/current agent's own workspace; it must not default to Gottspan unless pasted into Gottspan.
 - `agent-startup-spot-check-prompt.md`: lightweight diagnostic prompt for verifying an agent's startup freshness, loaded instructions, lane authority, and drift guard before relying on its work.
 - `product-understanding-audit-prompt.md`: deep product-understanding audit prompt covering technical, product, human, and business understanding.
 - `scaled-plan-first-workflow-prompt.md`: general-purpose task prompt that scales planning effort to task size while preserving stop condition, scope, source-of-truth, and no-drift controls.

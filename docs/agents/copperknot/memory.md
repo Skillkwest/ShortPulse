@@ -17,7 +17,6 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 
 - 2026-05-06: The current catalog is already meaningful and should be treated as a living authority, not as a placeholder. Ratings should be refined by repo evidence, not restarted from scratch each run.
 - 2026-05-06: The core doctrine is `ship bar over score vanity`. Scores are planning tools, not the goal. If work does not materially improve production readiness, it should not be prioritized just because it may lift a number.
-- 2026-05-06: The current weakest production-critical system is `Generation recovery / settlement` at `4/10`. It is the highest-priority hot-path hardening target until stronger evidence says otherwise.
 - 2026-05-06: Large orchestration surfaces remain a recurring signal of system fragility, especially in AI Studio and media/runtime control paths. Score-lift plans should explicitly consider decomposition, simplification, or rewrite when the architecture is too concentrated.
 - 2026-05-06: The user wants handoffs that other agents can execute directly. Handoffs should be treated as first-class deliverables, not as loose notes.
 - 2026-05-07: External agent completion is not enough to move a score. The Copperknot must ingest the closeout report, inspect the repo, and rerate only from repo-backed evidence.
@@ -52,8 +51,10 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-28: Copperknot stays healthiest when it remains the launch-control steward instead of absorbing many implementation lanes directly. Default to packaging, dispatching, reviewing, and rerating. Delegate bounded execution work once a real handoff exists, and only execute code locally when that is the cleanest way to preserve or restore launch-truth accuracy.
 - 2026-05-28: Delegation is not shared authority. Copperknot remains the accountable decision-maker in its lane and should absorb the management overhead of subagents itself. The user should not need to supervise Copperknot's subagent choices for Copperknot to be useful.
 - 2026-05-28: Dispatch readiness is a user checkpoint. Copperknot should prepare the next execution lane and be ready to recommend dispatch, but it should pause there until the user explicitly says to send the lane out.
+- 2026-05-28: Keep the active training-history surface compressed. Detailed chronology belongs in archived retained snapshots, not in a default maintenance file.
+- 2026-05-28: Retained metric logs are useful only when they stay fresh enough to inform hindsight. If they lag current launch-control truth, treat them as maintenance-only context rather than live operating evidence.
 
 ## Open Follow-Ups
 
 - Keep the prioritized handoff queue current as execution agents complete or narrow lanes.
-- Re-rate the ship-critical systems after the first hardening wave.
+- Refresh the retained learning logs whenever a major launch-state reset, rerating wave, or process miss would otherwise leave them visibly behind current launch-control truth.

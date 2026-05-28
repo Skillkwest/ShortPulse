@@ -2,6 +2,8 @@
 
 Purpose: retain the first production-only Holomony baseline for `reference-grid` using the checked-in browser perf harness against `https://shortpulse.ai`.
 
+Archive note: this remains useful historical evidence, but it is no longer current health proof after later user-visible production incidents involving slow and broken Reference Grid media.
+
 ## Task
 
 - Requested work:

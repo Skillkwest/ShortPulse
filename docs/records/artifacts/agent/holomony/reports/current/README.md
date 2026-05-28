@@ -9,7 +9,10 @@ Use this folder first when you need:
 - the current active density-plan reference
 - the current candidate-surface onboarding reference
 - the current Reference Grid onboarding plan and stop criteria
-- the current Reference Grid production baseline
+- current Reference Grid incident reports, if present
 - the latest incident/hotfix retained read
+- the latest Holomony self-maintenance audit/prune retained read
 
 If the answer is not in this folder, only then step into `../archive/`.
+
+Historical Reference Grid baselines live in `../archive/` and must not be treated as current health proof after later production incidents.

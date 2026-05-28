@@ -31,39 +31,18 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 
 ## Durable Lessons
 
-- Treat the user prompt sequence as an authorization ladder: analyze, organize/validate, fix, commit, and push are separate gates unless the user explicitly collapses them.
-- Before the first Git write on a large or mixed run:
-  - verify the current branch is `production` and `shortpulse.allowedBranch` is `production` during the pre-launch phase
-  - lock a batch manifest
-  - run `gear-ball:preflight`
-- Serialize all Git activity once the commit phase starts. Do not parallelize even read-only Git commands (`git status`, `git diff --cached`, `git show`, `git log`) alongside `git add`/`git commit`, because the mixed call pattern still produces avoidable `index.lock` churn in this repo.
-- On mixed runs, rebuild the next manifest from live `git status --short` after every commit and run an inter-batch leftover audit immediately.
-- After each commit, stay in a post-commit convergence loop until the live tree is either clean or only intentionally deferred unrelated lanes remain. If related tests, support files, or sibling seam files resurface, fold them back into the active lane before any push.
-- Do one fast whole-tree classification pass, then stop re-litigating obvious boundaries. If the first pass already yields 1 to 3 coherent lanes, move to validation instead of spending extra time refining labels.
-- Before every commit, inspect `git diff --cached --name-only` against the intended lane manifest. Do not assume `git add <paths>` gives a clean boundary when the index may already contain staged files from an earlier lane or tool run.
-- Do not commit the score loop or draft the final report while related repo-backed tails are still surfacing. Score-loop writeback belongs after the final product/docs commit set is truly complete.
-- Treat user corrections about what `run your SOP` should include as behavior/SOP-drift signals, not as ordinary preference notes. The user is usually checking whether Gear Ball is internalizing its real operating contract under pressure.
-- After a commit, if hook stash restore resurfaces unrelated unstaged files, treat them as a new lane by default instead of interrupting the active publish rhythm. Only pull them into the current ladder when they are direct correctness dependencies.
-- If new unrelated lanes appear more than once after manifest lock, stop treating the worktree as stable. Rebuild the plan once from live `git status --short`; if the worktree keeps moving, stop or explicitly re-scope instead of continuing to absorb tails.
-- A `run your SOP` request is partly a trust test: the user expects complete worktree accountability, not a best-effort pass over the most obvious lane. Missing or deferring unclassified real changes reads as role drift even when the shipped commits themselves are valid.
-- A clean build is not the same thing as a finished run. If live repo-backed changes still exist after the build, the run is not ready for closeout; classify, validate, and commit those tails before speaking in the completed tense.
-- Over-classification is a speed bug. Do not split a tree further just because files touch different folders, docs, or tests when they are clearly one shipped behavior change and one validation ladder can cover them honestly.
-- The post-run score loop is part of SOP completion, but it must stay lightweight. The default durable writeback is one concise ledger row per SOP run; broader memory/SOP/training-history edits happen only when the score is below target or the run taught a new durable lesson.
-- Once a final push-ready assessment has been invalidated once, bias toward finishing only correctness-critical tails and defer adjacent new lanes.
-- Use file-backed preflight manifests (`--files-from`, `--tests-from`) for large runs so the test plan is inspectable and shell-safe.
-- Prefer explicit local binaries in hooks and helper tooling. Do not assume `npm` or `npx` is available on `PATH` when a repo-local binary or direct Node entrypoint is available.
-- Shared frontend hooks/pages/API routes and `frontend/package.json` are early-build triggers. Generated docs, evidence packets, and agent artifacts are early-`docs:check` triggers.
-- If repo-local `node_modules/.bin/*` wrappers fail because they resolve the wrong runtime or a broken native module, rerun `build` and the full suite through the approved Node 22 binary plus direct package entrypoints instead of retrying the wrapper path.
-- If a blocking validation failure is fixed while a long-running build or full-suite session is already in flight, treat that older session as stale and rerun the required gates on the final tree before staging or pushing.
-- Shared-contract changes require first-manifest fan-out. Include downstream tests for preview delivery, KPI packets, route payloads, shared runtime helpers, and cross-surface layout contracts instead of relying on the final full suite to surface them.
-- For AI Studio media-library contract changes, treat `frontend/features/ai-studio/logic/mediaLibraryErrorText.ts` and `frontend/features/media-library/logic/mediaListApi.ts` as fan-out triggers for controller, panel, and composer consumer tests.
-- Interaction-heavy admin/frontend route changes need route-level browser smoke only when the selected profile or the user explicitly requires it. If qualifying smoke is required but cannot run, classify the run as `smoke-incomplete` and score it accordingly.
-- For optional browser smoke or visual QA, confirm the browser toolchain is actually available before paying setup or reasoning cost for it. If unavailable, skip it explicitly and report the limitation plainly.
-- When route-level smoke fails on a path that no longer exists in the product, treat that as an audit drift bug to classify and repair, not a product regression to cargo-cult back into the UI.
-- Historical one-off scars should be reviewed for demotion or expiry instead of staying permanent hot-path cost forever.
-- If a run grows past three real commit batches, treat that as a sign of unstable scope and prefer replan/stop over continued expansion unless the extra lane is required for correctness of the current publish.
-- A user correction about what Gear Ball should suggest is usually a role-boundary correction, not just a tone preference. Treat that as training data about task-shape expectations and preserve it in retained artifacts.
-- Treat tool-backed side effects as evidence-gated. If the tool has not succeeded yet, report intention or progress, not completion.
+- Treat the user prompt sequence as an authorization ladder unless the user explicitly collapses it with `run your SOP` or equivalent.
+- Before the first Git write on a mixed or risky run, verify `production` + `shortpulse.allowedBranch=production`, lock a file-backed manifest, and run the cheapest honest preflight.
+- Do one fast whole-tree classification pass, collapse to the fewest honest lanes, and stop refining labels once the split is decision-useful.
+- Full-worktree accountability is part of the job: every live non-temp repo-backed change must be classified before any push-ready claim.
+- Keep Git activity serialized, inspect `git diff --cached --name-only` before every commit, and assume the index may already be dirty.
+- After every commit, stay in the convergence loop until the live tree is clean or only intentionally deferred unrelated work remains.
+- A clean build is not a finished run. If repo-backed tails still exist after validation, keep classifying, validating, and committing before closeout.
+- The score loop and final report happen only after the final shipped tree is complete. Build the report from real pushed commits and fresh `git status --short`, not memory.
+- Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
+- Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
+- Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
+- Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.
 
 ## Open Follow-Ups
 

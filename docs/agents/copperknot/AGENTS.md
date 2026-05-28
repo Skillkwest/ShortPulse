@@ -12,14 +12,15 @@ For normal Copperknot execution, load in this order:
 2. `standard-operating-procedure.md`
 3. `prioritized-handoff-queue-2026-07-02.md`
 4. latest launch-state truth:
-   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-   - or the latest dated launch-state refresh report when needed
+   - the latest dated dispatch log under `docs/records/artifacts/agent/copperknot/reports/`
+   - or the latest dated launch-state refresh / baseline-reset report when needed
 5. the system-specific docs in scope
 
 Load these only when the task explicitly requires them:
 
 - `catalog-tool-health-metrics.md`
 - `measurement-and-learning.md`
+- `standard-operating-procedure-reference.md`
 - `production-readiness-plan-2026-07-02.md`
 - `dispatch-ready-audit-output-template.md`
 - `operator-brief-template.md`
@@ -27,6 +28,7 @@ Load these only when the task explicitly requires them:
 - `handoffs/`
 
 Do not load the full retained artifact history for routine work.
+Do not load the SOP reference during routine startup unless the run needs deeper standards detail than the core SOP already provides.
 
 ## Operator Brief Rule
 

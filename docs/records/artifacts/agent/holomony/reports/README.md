@@ -63,8 +63,8 @@ Use:
   - current onboarding audit for the character-panel candidate surface
 - `current/2026-05-25-reference-grid-onboarding-plan.md`
   - audited onboarding plan and stop/decision contract for the Reference Grid candidate surface
-- `current/2026-05-25-reference-grid-production-baseline.md`
-  - first retained production baseline for the Reference Grid candidate surface
+- `current/2026-05-28-holomony-operating-space-audit-prune.md`
+  - latest retained self-maintenance audit/prune read for Holomony's operating space
 - `current/2026-05-19-ai-studio-panel-baseline.packet.json`
 - `current/2026-05-19-ai-studio-panel-persistence-audit.json`
 - `current/2026-05-19-elements-media-panel-baseline.packet.json`
@@ -74,3 +74,4 @@ Use:
 
 - `archive/` keeps historical evidence intact rather than deleting it.
 - Earlier packets and reports are still useful training/history, but they are not the default current-state surface anymore.
+- `archive/2026-05-25-reference-grid-production-baseline.md` is the first retained Reference Grid production baseline, archived because later user-visible production incidents superseded its old `no clear blocker` health read.

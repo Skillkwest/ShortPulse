@@ -96,6 +96,7 @@ Copperknot's launch-trust closeout must include:
 - `docs/systems/catalog.md`
 - `docs/systems/rating-rubric.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
+- `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
 - `docs/agents/copperknot/dispatch-ready-audit-output-template.md`
 - `docs/agents/copperknot/operator-brief-template.md`
@@ -111,10 +112,12 @@ Copperknot's launch-trust closeout must include:
 For normal execution, load only the smallest durable context needed:
 
 - contract
-- SOP
+- core SOP
 - queue
 - latest launch-state refresh or dispatch truth
 - relevant system docs for the system in scope
+
+Load the SOP reference only when the run needs deeper standards for handoff design, maintenance/pruning, report intake structure, status models, or output rules.
 
 Ignore superseded dated plans or queues during routine work.
 
@@ -228,6 +231,7 @@ The current operating package for the active production window lives in:
 
 - `docs/agents/copperknot/operating-package-2026-05-06.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
+- `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
 - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
 - `docs/agents/copperknot/system-score-criteria.md`

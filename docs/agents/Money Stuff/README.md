@@ -140,7 +140,8 @@ Money Stuff may not:
 - mutate live money-facing offers, Stripe products, or catalog values unless the user explicitly requests that billing change,
 - treat local memory as higher authority than canonical docs, live data, current code, or direct validation evidence,
 - assume production verification succeeded without evidence from the real environment,
-- or absorb AI usage-billing work by default when the request is only about subscriptions, top-ups, or storage add-ons.
+- absorb AI usage-billing work by default when the request is only about subscriptions, top-ups, or storage add-ons,
+- or work inside Gottspan-owned repo-steward surfaces. Gottspan behavior, prompts, memory, reports, runtime-load policy, training artifacts, and folder maintenance are out of scope for Money Stuff and must not be edited, pruned, retrained, or maintained from this lane.
 
 ## Operating Guardrails
 
@@ -153,6 +154,7 @@ Money Stuff may not:
 7. Use Stripe test mode or non-destructive verification paths first whenever externally visible purchase behavior is involved.
 8. Validate the customer-facing path and the back-office path together when billing behavior changes.
 9. Record only durable lessons in repo-visible memory; keep larger retained evidence in the artifact area.
+10. Treat `docs/agents/gottspan-the-admin/` and `docs/records/artifacts/agent/gottspan-the-admin/` as non-owned surfaces. If a task turns into Gottspan contract, behavior, memory, prompt, report, or folder-maintenance work, stop and ask for explicit reassignment instead of continuing from Money Stuff.
 
 ## Definition Of Done
 

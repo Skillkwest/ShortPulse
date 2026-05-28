@@ -30,6 +30,13 @@ import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referen
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
+import {
+  ELEMENT_PANEL_ACCENT,
+  ELEMENT_PANEL_ACCENT_FAINT,
+  ELEMENT_PANEL_ACCENT_LABEL,
+  ELEMENT_PANEL_ACCENT_PROGRESS_TEXT,
+  ELEMENT_PANEL_ACCENT_SOFT,
+} from "../constants";
 import { ElementsDescriptionEditorCard } from "./ElementsDescriptionEditorCard";
 
 type ElementsManagerShellProps = {
@@ -51,9 +58,9 @@ const ELEMENT_BUTTON_INLINE_STYLE: React.CSSProperties = {
   borderRadius: "14px",
   fontSize: "0.9rem",
   flexShrink: 0,
-  border: "1px solid rgba(255, 123, 167, 0.58)",
+  border: `1px solid ${ELEMENT_PANEL_ACCENT}`,
   background: "rgba(28, 32, 37, 0.94)",
-  color: "rgba(255, 185, 217, 0.96)",
+  color: ELEMENT_PANEL_ACCENT_SOFT,
   boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
   display: "inline-flex",
   alignItems: "center",
@@ -124,7 +131,7 @@ const ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE: React.CSSProperties = {
 const ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE: React.CSSProperties = {
   display: "block",
   margin: 0,
-  color: "#f0a4cb",
+  color: ELEMENT_PANEL_ACCENT_LABEL,
   textShadow: "0 1px 4px rgba(0, 0, 0, 0.32)",
   fontFamily:
     '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
@@ -154,6 +161,12 @@ const ELEMENT_EDITOR_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
   columnGap: "34px",
   rowGap: "18px",
   alignItems: "start",
+};
+const ELEMENT_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  padding: "10px 16px 2px",
+  boxSizing: "border-box",
 };
 const ELEMENT_NAME_COLUMN_INLINE_STYLE: React.CSSProperties = {
   gridArea: "name",
@@ -210,15 +223,15 @@ const ELEMENT_REFERENCE_DELETE_BUTTON_INLINE_STYLE: React.CSSProperties = {
   width: "18px",
   height: "18px",
   borderRadius: "999px",
-  border: "1px solid rgba(206, 93, 134, 0.9)",
-  background: "rgba(79, 21, 40, 0.94)",
+  border: "1px solid rgba(187, 71, 108, 0.9)",
+  background: "rgba(69, 18, 35, 0.94)",
   color: "rgba(255, 214, 227, 0.98)",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   padding: 0,
   cursor: "pointer",
-  boxShadow: "0 0 0 1px rgba(255, 123, 167, 0.12)",
+  boxShadow: `0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`,
 };
 const ELEMENT_REFERENCE_MEDIA_INLINE_STYLE: React.CSSProperties = {
   height: "100%",
@@ -303,9 +316,9 @@ const ELEMENT_SAVE_SUCCESS_BADGE_INLINE_STYLE: React.CSSProperties = {
   minHeight: "28px",
   padding: "0 10px",
   borderRadius: "999px",
-  border: "1px solid rgba(255, 123, 167, 0.22)",
-  background: "rgba(58, 18, 37, 0.54)",
-  color: "rgba(255, 206, 225, 0.94)",
+  border: "1px solid rgba(231, 92, 134, 0.22)",
+  background: "rgba(55, 17, 34, 0.54)",
+  color: ELEMENT_PANEL_ACCENT_PROGRESS_TEXT,
   fontSize: "0.75rem",
   fontWeight: 700,
   letterSpacing: "0.01em",
@@ -317,10 +330,10 @@ const ELEMENT_SAVE_PROGRESS_BADGE_INLINE_STYLE: React.CSSProperties = {
   minHeight: "28px",
   padding: "0 10px",
   borderRadius: "999px",
-  border: "1px solid rgba(255, 123, 167, 0.28)",
-  background: "rgba(64, 18, 40, 0.62)",
-  color: "rgba(255, 206, 225, 0.95)",
-  boxShadow: "0 0 0 1px rgba(255, 123, 167, 0.08)",
+  border: "1px solid rgba(231, 92, 134, 0.28)",
+  background: "rgba(70, 20, 41, 0.62)",
+  color: ELEMENT_PANEL_ACCENT_PROGRESS_TEXT,
+  boxShadow: `0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`,
   fontSize: "0.72rem",
   fontWeight: 700,
   letterSpacing: "0",
@@ -460,9 +473,9 @@ export function ElementsManagerShell({
       minHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
       maxHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
       flex: "0 0 auto",
-      borderColor: "rgba(255, 123, 167, 0.58)",
+      borderColor: ELEMENT_PANEL_ACCENT,
       background: "rgba(28, 32, 37, 0.94)",
-      color: "rgba(255, 185, 217, 0.96)",
+      color: ELEMENT_PANEL_ACCENT_SOFT,
       boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
     }),
     [secondaryActionButtonStyle]
@@ -477,13 +490,13 @@ export function ElementsManagerShell({
       ...baseStyle,
       transition: ELEMENT_TOP_ACTION_BUTTON_TRANSITION,
       transform: !disabled && isHovered ? "translateY(-2px)" : "translateY(0)",
-      borderColor: !disabled && isHovered ? "rgba(255, 161, 200, 0.84)" : baseStyle.borderColor,
+      borderColor: !disabled && isHovered ? "rgba(240, 135, 172, 0.84)" : baseStyle.borderColor,
       background: !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.background,
       backgroundColor:
         !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.backgroundColor,
       boxShadow:
         !disabled && isHovered
-          ? "0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 123, 167, 0.12)"
+          ? `0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`
           : baseStyle.boxShadow,
     }),
     []
@@ -534,6 +547,13 @@ export function ElementsManagerShell({
     () => ({
       display: "flex",
       flexDirection: "column",
+    }),
+    []
+  );
+
+  const topSectionContentStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      ...ELEMENT_TOP_SECTION_CONTENT_STYLE,
     }),
     []
   );
@@ -879,311 +899,318 @@ export function ElementsManagerShell({
         <div className="elements-panel-library-workspace">
           <section className="elements-panel-editor-column" aria-label="Element editor">
             <div className="elements-panel-editor-column-panel" ref={editorColumnPanelRef}>
-              <div className="elements-profile-card" style={profileCardStyle}>
-                <div className="elements-panel-profile-top-row" style={topRowActionsStyle}>
-                  <div
-                    className="elements-panel-top-row-primary-actions"
-                    style={topRowPrimaryActionsStyle}
-                  >
-                    <button
-                      type="button"
-                      className="elements-panel-action-btn elements-panel-action-btn--picker-accent elements-panel-elements-btn"
-                      style={elementsTopButtonStyle}
-                      onClick={() => setIsElementLibraryModalOpen(true)}
-                      onMouseEnter={() => setHoveredTopActionButton("elements")}
-                      onMouseLeave={() =>
-                        setHoveredTopActionButton((current) =>
-                          current === "elements" ? null : current
-                        )
-                      }
-                      disabled={libraryButtonDisabled && elements.length === 0}
-                    >
-                      <FolderSimple
-                        size={20}
-                        weight="fill"
-                        aria-hidden
-                        style={ELEMENT_FOLDER_ICON_INLINE_STYLE}
-                      />
-                      <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Elements</span>
-                    </button>
-                  </div>
-
-                  <div
-                    className="elements-panel-top-row-secondary-actions"
-                    style={topRowSecondaryActionsStyle}
-                  >
-                    {isSavingElement ? (
-                      <span
-                        className="elements-panel-save-progress"
-                        role="status"
-                        aria-live="polite"
-                        aria-label="Saving element"
-                        style={ELEMENT_SAVE_PROGRESS_BADGE_INLINE_STYLE}
-                      >
-                        <span className="elements-panel-save-progress-spinner" aria-hidden="true" />
-                        <span>Saving...</span>
-                      </span>
-                    ) : null}
-                    {showSaveSuccessIndicator ? (
-                      <span
-                        className="elements-panel-save-success"
-                        role="status"
-                        aria-live="polite"
-                        aria-label={`${selectedElementName} saved`}
-                        style={ELEMENT_SAVE_SUCCESS_BADGE_INLINE_STYLE}
-                      >
-                        <CheckCircle size={14} weight="fill" aria-hidden />
-                        <span>Saved</span>
-                      </span>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="elements-panel-action-btn"
-                      aria-label={isSavingElement ? "Saving..." : "Save"}
-                      title={isSavingElement ? "Saving..." : "Save"}
-                      style={saveTopButtonStyle}
-                      onClick={() => {
-                        void handleSaveElement();
-                      }}
-                      onMouseEnter={() => setHoveredTopActionButton("save")}
-                      onMouseLeave={() =>
-                        setHoveredTopActionButton((current) =>
-                          current === "save" ? null : current
-                        )
-                      }
-                      disabled={saveActionDisabled}
-                    >
-                      <FloppyDisk size={20} weight="fill" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
-                      style={createTopButtonStyle}
-                      onClick={() => {
-                        handleCreateNewElement();
-                      }}
-                      onMouseEnter={() => setHoveredTopActionButton("create")}
-                      onMouseLeave={() =>
-                        setHoveredTopActionButton((current) =>
-                          current === "create" ? null : current
-                        )
-                      }
-                      disabled={createActionDisabled}
-                    >
-                      <Plus size={14} weight="bold" aria-hidden />
-                      <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Create</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div style={editorFieldsWrapperStyle}>
-                  <div
-                    className="elements-panel-preset-content-grid"
-                    style={editorContentGridStyle}
-                  >
+              <div style={topSectionContentStyle}>
+                <div className="elements-profile-card" style={profileCardStyle}>
+                  <div className="elements-panel-profile-top-row" style={topRowActionsStyle}>
                     <div
-                      className="elements-panel-profile-fields-row elements-panel-profile-fields-row--name"
-                      style={nameColumnStyle}
+                      className="elements-panel-top-row-primary-actions"
+                      style={topRowPrimaryActionsStyle}
                     >
-                      <div className="elements-profile-field" style={topFieldGroupStyle}>
-                        <label
-                          htmlFor="element-manager-name"
-                          style={ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE}
+                      <button
+                        type="button"
+                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent elements-panel-elements-btn"
+                        style={elementsTopButtonStyle}
+                        onClick={() => setIsElementLibraryModalOpen(true)}
+                        onMouseEnter={() => setHoveredTopActionButton("elements")}
+                        onMouseLeave={() =>
+                          setHoveredTopActionButton((current) =>
+                            current === "elements" ? null : current
+                          )
+                        }
+                        disabled={libraryButtonDisabled && elements.length === 0}
+                      >
+                        <FolderSimple
+                          size={20}
+                          weight="fill"
+                          aria-hidden
+                          style={ELEMENT_FOLDER_ICON_INLINE_STYLE}
+                        />
+                        <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Elements</span>
+                      </button>
+                    </div>
+
+                    <div
+                      className="elements-panel-top-row-secondary-actions"
+                      style={topRowSecondaryActionsStyle}
+                    >
+                      {isSavingElement ? (
+                        <span
+                          className="elements-panel-save-progress"
+                          role="status"
+                          aria-live="polite"
+                          aria-label="Saving element"
+                          style={ELEMENT_SAVE_PROGRESS_BADGE_INLINE_STYLE}
                         >
-                          <span style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
-                        </label>
-                        <div style={ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE}>
-                          <input
-                            ref={elementNameInputRef}
-                            id="element-manager-name"
-                            className="elements-name-input"
-                            style={nameInputStyle}
-                            type="text"
-                            value={draft.name}
-                            onChange={(event) => updateDraftField("name", event.target.value)}
-                            placeholder="Enter element name"
+                          <span
+                            className="elements-panel-save-progress-spinner"
+                            aria-hidden="true"
                           />
+                          <span>Saving...</span>
+                        </span>
+                      ) : null}
+                      {showSaveSuccessIndicator ? (
+                        <span
+                          className="elements-panel-save-success"
+                          role="status"
+                          aria-live="polite"
+                          aria-label={`${selectedElementName} saved`}
+                          style={ELEMENT_SAVE_SUCCESS_BADGE_INLINE_STYLE}
+                        >
+                          <CheckCircle size={14} weight="fill" aria-hidden />
+                          <span>Saved</span>
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="elements-panel-action-btn"
+                        aria-label={isSavingElement ? "Saving..." : "Save"}
+                        title={isSavingElement ? "Saving..." : "Save"}
+                        style={saveTopButtonStyle}
+                        onClick={() => {
+                          void handleSaveElement();
+                        }}
+                        onMouseEnter={() => setHoveredTopActionButton("save")}
+                        onMouseLeave={() =>
+                          setHoveredTopActionButton((current) =>
+                            current === "save" ? null : current
+                          )
+                        }
+                        disabled={saveActionDisabled}
+                      >
+                        <FloppyDisk size={20} weight="fill" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
+                        style={createTopButtonStyle}
+                        onClick={() => {
+                          handleCreateNewElement();
+                        }}
+                        onMouseEnter={() => setHoveredTopActionButton("create")}
+                        onMouseLeave={() =>
+                          setHoveredTopActionButton((current) =>
+                            current === "create" ? null : current
+                          )
+                        }
+                        disabled={createActionDisabled}
+                      >
+                        <Plus size={14} weight="bold" aria-hidden />
+                        <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Create</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={editorFieldsWrapperStyle}>
+                    <div
+                      className="elements-panel-preset-content-grid"
+                      style={editorContentGridStyle}
+                    >
+                      <div
+                        className="elements-panel-profile-fields-row elements-panel-profile-fields-row--name"
+                        style={nameColumnStyle}
+                      >
+                        <div className="elements-profile-field" style={topFieldGroupStyle}>
+                          <label
+                            htmlFor="element-manager-name"
+                            style={ELEMENT_TOP_FIELD_LABEL_INLINE_STYLE}
+                          >
+                            <span style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Name:</span>
+                          </label>
+                          <div style={ELEMENT_TOP_FIELD_CONTROL_INLINE_STYLE}>
+                            <input
+                              ref={elementNameInputRef}
+                              id="element-manager-name"
+                              className="elements-name-input"
+                              style={nameInputStyle}
+                              type="text"
+                              value={draft.name}
+                              onChange={(event) => updateDraftField("name", event.target.value)}
+                              placeholder="Enter element name"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div
-                      className="elements-panel-preset-description-column"
-                      style={descriptionColumnStyle}
-                    >
-                      <ElementsDescriptionEditorCard
-                        description={draft.description}
-                        maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
-                        rows={5}
-                        disabled={false}
-                        containerHeightPx={measuredReferenceCardHeightPx ?? 142.5}
-                        onChangeDescription={(value) => updateDraftField("description", value)}
-                      />
-                    </div>
-
-                    <div
-                      className="elements-panel-preset-references-column"
-                      style={referenceColumnStyle}
-                    >
                       <div
-                        className="elements-reference-title-row"
-                        style={ELEMENT_REFERENCE_TITLE_INLINE_STYLE}
+                        className="elements-panel-preset-description-column"
+                        style={descriptionColumnStyle}
                       >
-                        <p style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>Element References:</p>
+                        <ElementsDescriptionEditorCard
+                          description={draft.description}
+                          maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
+                          rows={5}
+                          disabled={false}
+                          containerHeightPx={measuredReferenceCardHeightPx ?? 142.5}
+                          onChangeDescription={(value) => updateDraftField("description", value)}
+                        />
                       </div>
+
                       <div
-                        className={`elements-references-grid ${
-                          draft.assetType === "image"
-                            ? "elements-references-grid--image"
-                            : "elements-references-grid--video"
-                        }`}
-                        style={referenceGridStyle}
+                        className="elements-panel-preset-references-column"
+                        style={referenceColumnStyle}
                       >
-                        {(draft.assetType === "image"
-                          ? IMAGE_REFERENCE_SLOT_LABELS
-                          : (["Motion Reference"] as const)
-                        ).map((slotLabel, index) => {
-                          const slotValue =
+                        <div
+                          className="elements-reference-title-row"
+                          style={ELEMENT_REFERENCE_TITLE_INLINE_STYLE}
+                        >
+                          <p style={ELEMENT_TOP_FIELD_LABEL_TEXT_INLINE_STYLE}>
+                            Element References:
+                          </p>
+                        </div>
+                        <div
+                          className={`elements-references-grid ${
                             draft.assetType === "image"
-                              ? (draft.imageReferenceUrls[index] ?? "")
-                              : draft.videoReferenceUrl;
-                          const isRequiredSlot = draft.assetType === "video" || index < 2;
-                          const showDeleteButton =
-                            Boolean(slotValue) && hoveredReferenceCardIndex === index;
-                          return (
-                            <article
-                              key={`${slotLabel}-${index + 1}`}
-                              ref={index === 0 ? handleReferenceCardMeasureRef : null}
-                              className={`elements-reference-card ${
-                                slotValue ? "is-filled" : "is-empty"
-                              } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
-                              style={{
-                                ...ELEMENT_REFERENCE_CARD_INLINE_STYLE,
-                                borderColor:
-                                  activeSheetDropIndex === index
-                                    ? "rgba(255, 123, 167, 0.82)"
-                                    : ELEMENT_PANEL_FIELD_BORDER_COLOR,
-                                boxShadow:
-                                  activeSheetDropIndex === index
-                                    ? "0 0 0 1px rgba(255, 123, 167, 0.18), 0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)"
-                                    : ELEMENT_REFERENCE_CARD_INLINE_STYLE.boxShadow,
-                              }}
-                              onMouseEnter={() => setHoveredReferenceCardIndex(index)}
-                              onMouseLeave={() =>
-                                setHoveredReferenceCardIndex((current) =>
-                                  current === index ? null : current
-                                )
-                              }
-                              onDragEnter={handleSheetDragEnter(index)}
-                              onDragOver={handleSheetDragOver(index)}
-                              onDragLeave={() => {
-                                setActiveSheetDropIndex((current) =>
-                                  current === index ? null : current
-                                );
-                              }}
-                              onDrop={(event) => {
-                                void handleSheetDrop(index)(event);
-                              }}
-                            >
-                              <div
-                                className="elements-panel-slot-actions"
-                                style={ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
-                              >
-                                {slotValue ? (
-                                  <button
-                                    type="button"
-                                    className="elements-reference-delete-btn"
-                                    style={{
-                                      ...ELEMENT_REFERENCE_DELETE_BUTTON_INLINE_STYLE,
-                                      opacity: showDeleteButton ? 1 : 0,
-                                      pointerEvents: showDeleteButton ? "auto" : "none",
-                                      transition: "opacity 140ms ease",
-                                    }}
-                                    aria-label={`Clear ${slotLabel} reference`}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      if (draft.assetType === "video") {
-                                        clearActiveVideoReference();
-                                        return;
-                                      }
-                                      clearActiveImageReferenceAtIndex(index);
-                                    }}
-                                  >
-                                    <Trash size={12} weight="bold" />
-                                  </button>
-                                ) : null}
-                              </div>
-                              <div
-                                className="elements-reference-media"
+                              ? "elements-references-grid--image"
+                              : "elements-references-grid--video"
+                          }`}
+                          style={referenceGridStyle}
+                        >
+                          {(draft.assetType === "image"
+                            ? IMAGE_REFERENCE_SLOT_LABELS
+                            : (["Motion Reference"] as const)
+                          ).map((slotLabel, index) => {
+                            const slotValue =
+                              draft.assetType === "image"
+                                ? (draft.imageReferenceUrls[index] ?? "")
+                                : draft.videoReferenceUrl;
+                            const isRequiredSlot = draft.assetType === "video" || index < 2;
+                            const showDeleteButton =
+                              Boolean(slotValue) && hoveredReferenceCardIndex === index;
+                            return (
+                              <article
+                                key={`${slotLabel}-${index + 1}`}
+                                ref={index === 0 ? handleReferenceCardMeasureRef : null}
+                                className={`elements-reference-card ${
+                                  slotValue ? "is-filled" : "is-empty"
+                                } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
                                 style={{
-                                  ...ELEMENT_REFERENCE_MEDIA_INLINE_STYLE,
-                                  ...(slotValue
-                                    ? ELEMENT_REFERENCE_MEDIA_FILLED_INLINE_STYLE
-                                    : null),
+                                  ...ELEMENT_REFERENCE_CARD_INLINE_STYLE,
+                                  borderColor:
+                                    activeSheetDropIndex === index
+                                      ? "rgba(231, 92, 134, 0.82)"
+                                      : ELEMENT_PANEL_FIELD_BORDER_COLOR,
+                                  boxShadow:
+                                    activeSheetDropIndex === index
+                                      ? "0 0 0 1px rgba(231, 92, 134, 0.18), 0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)"
+                                      : ELEMENT_REFERENCE_CARD_INLINE_STYLE.boxShadow,
+                                }}
+                                onMouseEnter={() => setHoveredReferenceCardIndex(index)}
+                                onMouseLeave={() =>
+                                  setHoveredReferenceCardIndex((current) =>
+                                    current === index ? null : current
+                                  )
+                                }
+                                onDragEnter={handleSheetDragEnter(index)}
+                                onDragOver={handleSheetDragOver(index)}
+                                onDragLeave={() => {
+                                  setActiveSheetDropIndex((current) =>
+                                    current === index ? null : current
+                                  );
+                                }}
+                                onDrop={(event) => {
+                                  void handleSheetDrop(index)(event);
                                 }}
                               >
-                                {slotValue ? (
-                                  draft.assetType === "video" ? (
-                                    <video
-                                      src={slotValue}
-                                      aria-label={`${slotLabel} reference`}
-                                      className="elements-reference-image"
-                                      style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
-                                      muted
-                                      playsInline
-                                      preload="metadata"
-                                    />
-                                  ) : (
-                                    <Image
-                                      src={slotValue}
-                                      alt={`${slotLabel} reference`}
-                                      className="elements-reference-image"
-                                      style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
-                                      width={240}
-                                      height={300}
-                                      unoptimized
-                                    />
-                                  )
-                                ) : (
-                                  <span
-                                    className="elements-reference-drop-copy"
-                                    style={ELEMENT_REFERENCE_DROP_COPY_INLINE_STYLE}
-                                  >
-                                    <UploadSimple
-                                      size={14}
-                                      weight="bold"
-                                      className="elements-reference-drop-icon"
-                                      aria-hidden="true"
-                                    />
-                                    <span>
-                                      {draft.assetType === "video"
-                                        ? "Upload motion\nreference"
-                                        : "Upload\nreferences"}
-                                    </span>
-                                    <span
-                                      className={`elements-reference-drop-requirement ${
-                                        isRequiredSlot ? "is-required" : "is-optional"
-                                      }`}
+                                <div
+                                  className="elements-panel-slot-actions"
+                                  style={ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
+                                >
+                                  {slotValue ? (
+                                    <button
+                                      type="button"
+                                      className="elements-reference-delete-btn"
                                       style={{
-                                        ...ELEMENT_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
-                                        color: isRequiredSlot
-                                          ? "rgba(255, 185, 217, 0.96)"
-                                          : "rgba(167, 176, 192, 0.78)",
+                                        ...ELEMENT_REFERENCE_DELETE_BUTTON_INLINE_STYLE,
+                                        opacity: showDeleteButton ? 1 : 0,
+                                        pointerEvents: showDeleteButton ? "auto" : "none",
+                                        transition: "opacity 140ms ease",
+                                      }}
+                                      aria-label={`Clear ${slotLabel} reference`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (draft.assetType === "video") {
+                                          clearActiveVideoReference();
+                                          return;
+                                        }
+                                        clearActiveImageReferenceAtIndex(index);
                                       }}
                                     >
-                                      {isRequiredSlot ? "(Required)" : "(Optional)"}
+                                      <Trash size={12} weight="bold" />
+                                    </button>
+                                  ) : null}
+                                </div>
+                                <div
+                                  className="elements-reference-media"
+                                  style={{
+                                    ...ELEMENT_REFERENCE_MEDIA_INLINE_STYLE,
+                                    ...(slotValue
+                                      ? ELEMENT_REFERENCE_MEDIA_FILLED_INLINE_STYLE
+                                      : null),
+                                  }}
+                                >
+                                  {slotValue ? (
+                                    draft.assetType === "video" ? (
+                                      <video
+                                        src={slotValue}
+                                        aria-label={`${slotLabel} reference`}
+                                        className="elements-reference-image"
+                                        style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                      />
+                                    ) : (
+                                      <Image
+                                        src={slotValue}
+                                        alt={`${slotLabel} reference`}
+                                        className="elements-reference-image"
+                                        style={ELEMENT_REFERENCE_IMAGE_INLINE_STYLE}
+                                        width={240}
+                                        height={300}
+                                        unoptimized
+                                      />
+                                    )
+                                  ) : (
+                                    <span
+                                      className="elements-reference-drop-copy"
+                                      style={ELEMENT_REFERENCE_DROP_COPY_INLINE_STYLE}
+                                    >
+                                      <UploadSimple
+                                        size={14}
+                                        weight="bold"
+                                        className="elements-reference-drop-icon"
+                                        aria-hidden="true"
+                                      />
+                                      <span>
+                                        {draft.assetType === "video"
+                                          ? "Upload motion\nreference"
+                                          : "Upload\nreferences"}
+                                      </span>
+                                      <span
+                                        className={`elements-reference-drop-requirement ${
+                                          isRequiredSlot ? "is-required" : "is-optional"
+                                        }`}
+                                        style={{
+                                          ...ELEMENT_REFERENCE_DROP_REQUIREMENT_BASE_STYLE,
+                                          color: isRequiredSlot
+                                            ? ELEMENT_PANEL_ACCENT_SOFT
+                                            : "rgba(167, 176, 192, 0.78)",
+                                        }}
+                                      >
+                                        {isRequiredSlot ? "(Required)" : "(Optional)"}
+                                      </span>
                                     </span>
-                                  </span>
-                                )}
-                              </div>
-                              <span
-                                className="elements-reference-empty-hint"
-                                style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}
-                              >
-                                {slotLabel}
-                              </span>
-                            </article>
-                          );
-                        })}
+                                  )}
+                                </div>
+                                <span
+                                  className="elements-reference-empty-hint"
+                                  style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}
+                                >
+                                  {slotLabel}
+                                </span>
+                              </article>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>

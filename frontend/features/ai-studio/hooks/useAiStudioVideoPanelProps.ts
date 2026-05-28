@@ -78,6 +78,7 @@ type UseAiStudioVideoPanelPropsParams = {
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  resolveInternalReferenceVideoFrameDropSource?: ResolveInternalReferenceDrop;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   onCreateCharacter: () => void;
@@ -146,6 +147,7 @@ export const useAiStudioVideoPanelProps = ({
   referenceImageWarning,
   resolveOutputPreviewUrl,
   resolveInternalReferenceImageDropSource,
+  resolveInternalReferenceVideoFrameDropSource,
   isGenerateDisabled,
   generationGuardrail,
   onCreateCharacter,
@@ -213,6 +215,7 @@ export const useAiStudioVideoPanelProps = ({
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       resolveInternalReferenceImageDropSource,
+      resolveInternalReferenceVideoFrameDropSource,
       isGenerateDisabled,
       onCreateCharacter,
       onCreateElement,
@@ -244,6 +247,7 @@ export const useAiStudioVideoPanelProps = ({
       referenceImageUrl,
       referenceImageWarning,
       resolveInternalReferenceImageDropSource,
+      resolveInternalReferenceVideoFrameDropSource,
       resolveOutputPreviewUrl,
       seedance2InputMode,
       seedance2ReferenceAudioUrls,

@@ -3,6 +3,7 @@
  * Mirrors the Character editor card anatomy with Elements-specific copy and magenta accents.
  */
 import React from "react";
+import { ELEMENT_PANEL_ACCENT_HELPER, ELEMENT_PANEL_ACCENT_LABEL } from "../constants";
 
 const ELEMENTS_DESCRIPTION_INPUT_BACKGROUND = "rgba(15, 17, 22, 0.96)";
 const ELEMENTS_DESCRIPTION_BORDER = "rgba(39, 45, 54, 0.96)";
@@ -11,7 +12,7 @@ const ELEMENTS_DESCRIPTION_LABEL_STYLE: React.CSSProperties = {
   display: "block",
   margin: 0,
   marginBottom: "3px",
-  color: "#f0a4cb",
+  color: ELEMENT_PANEL_ACCENT_LABEL,
   fontFamily:
     '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif',
   fontSize: "0.84rem",
@@ -95,7 +96,7 @@ const ELEMENTS_DESCRIPTION_HELPER_ROW_STYLE: React.CSSProperties = {
 };
 const ELEMENTS_DESCRIPTION_HELPER_STYLE: React.CSSProperties = {
   margin: 0,
-  color: "rgba(255, 192, 219, 0.92)",
+  color: ELEMENT_PANEL_ACCENT_HELPER,
   fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   fontSize: "12px",
   lineHeight: 1.4,

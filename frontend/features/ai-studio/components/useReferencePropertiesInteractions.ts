@@ -21,6 +21,7 @@ import {
   createInternalMediaRefFromResolvedSource,
   registerInternalMediaRefForUrl,
 } from "../logic/referenceInputInternalMediaRegistry";
+import { hasInternalReferenceDragTypeHints } from "../../../lib/internalReferenceDragPayload";
 
 export type ReferenceStepKey =
   | "reference"
@@ -47,6 +48,7 @@ type UseReferencePropertiesInteractionsParams = {
   onMotionVideoChange?: (url: string | null) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  resolveInternalReferenceVideoFrameDropSource?: ResolveInternalReferenceDrop;
   klingMultiPrompts: KlingMultiPrompt[];
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
   klingElements: KlingElement[];
@@ -93,6 +95,7 @@ export const useReferencePropertiesInteractions = ({
   onMotionVideoChange,
   resolvePreviewUrlById,
   resolveInternalReferenceImageDropSource,
+  resolveInternalReferenceVideoFrameDropSource,
   klingMultiPrompts,
   onKlingMultiPromptsChange,
   klingElements,
@@ -269,19 +272,50 @@ export const useReferencePropertiesInteractions = ({
       const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
-      if (mediaKind && mediaKind !== "image") return;
+      const inferredInternalVideoDrop = Boolean(
+        resolveInternalReferenceVideoFrameDropSource &&
+        internalPayload &&
+        !internalPayload.mediaKind &&
+        looksLikeVideoUrl(internalPayload.referenceUrl ?? undefined)
+      );
+      const effectiveMediaKind = inferredInternalVideoDrop
+        ? "video"
+        : (internalPayload?.mediaKind ?? mediaKind ?? null);
       let nextUrl: string | null = null;
       let resolvedInternalMediaRef = null;
 
-      if (internalPayload && resolveInternalReferenceImageDropSource) {
-        const resolvedSource = await resolveInternalReferenceImageDropSource(internalPayload).catch(
-          () => null
-        );
+      if (internalPayload) {
+        if (
+          effectiveMediaKind &&
+          effectiveMediaKind !== "image" &&
+          effectiveMediaKind !== "video"
+        ) {
+          return;
+        }
+        if (effectiveMediaKind === "video" && !resolveInternalReferenceVideoFrameDropSource) {
+          return;
+        }
+        const dropResolver =
+          effectiveMediaKind === "video"
+            ? resolveInternalReferenceVideoFrameDropSource
+            : resolveInternalReferenceImageDropSource;
+        const resolvedSource = dropResolver
+          ? await dropResolver(internalPayload).catch(() => null)
+          : null;
         resolvedInternalMediaRef = resolvedSource
           ? createInternalMediaRefFromResolvedSource(resolvedSource)
           : null;
         nextUrl =
           resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
+        if (
+          !nextUrl &&
+          effectiveMediaKind === "video" &&
+          looksLikeImageUrl(internalPayload.referenceRenderUrl ?? undefined)
+        ) {
+          nextUrl = internalPayload.referenceRenderUrl?.trim() ?? null;
+        }
+      } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
+        return;
       }
 
       if (!nextUrl) {
@@ -321,6 +355,14 @@ export const useReferencePropertiesInteractions = ({
 
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
     if (isImageDragTransfer(event.dataTransfer)) {
+      event.preventDefault();
+      return true;
+    }
+    if (
+      resolveInternalReferenceVideoFrameDropSource &&
+      hasInternalReferenceDragTypeHints(event.dataTransfer) &&
+      isVideoDragTransfer(event.dataTransfer)
+    ) {
       event.preventDefault();
       return true;
     }

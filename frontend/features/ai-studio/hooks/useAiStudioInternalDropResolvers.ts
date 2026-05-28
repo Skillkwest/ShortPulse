@@ -3,6 +3,8 @@
  * Centralizes page-scoped drop resolution for character, media-library, styles, and element-profile surfaces.
  */
 import { useCallback } from "react";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type {
   PersistOutputSaveOptions,
@@ -15,6 +17,7 @@ import {
 } from "../logic/referenceSource/internalReferenceSource";
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload, ReferenceDragSourceSurface } from "../utils/dragDrop";
+import { looksLikeImageUrl } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 
 type OutputSnapshot = {
@@ -83,6 +86,7 @@ export const useAiStudioInternalDropResolvers = ({
     payload: InternalReferenceDragPayload
   ) => ReturnType<typeof resolveInternalReferenceSource>;
   resolveComposerInternalImageDropSource: ResolveInternalReferenceDrop;
+  resolveVideoFrameInternalDropSource: ResolveInternalReferenceDrop;
   resolveElementProfileImageDropSource: ResolveInternalReferenceDrop;
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
@@ -235,6 +239,70 @@ export const useAiStudioInternalDropResolvers = ({
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
+  const resolveVideoFrameInternalDropSource = useCallback(
+    async (payload: InternalReferenceDragPayload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const referencedOutput = outputId ? getOutputById(outputId) : null;
+      const effectiveMediaKind = payload.mediaKind ?? referencedOutput?.mode ?? null;
+      if (effectiveMediaKind && effectiveMediaKind !== "video") {
+        return null;
+      }
+
+      const resolvedSource = await resolveInternalReferenceSource({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        ensureOutputPersisted,
+        resolveSavedMediaIdFromOutput,
+        allowTrustedPreviewFallback: true,
+      });
+      if (!resolvedSource) return null;
+
+      const resolvedOutput = resolvedSource.outputId?.trim()
+        ? getOutputById(resolvedSource.outputId)
+        : null;
+      const posterStoragePath =
+        resolvedOutput?.mode === "video"
+          ? asCanonicalStoragePath(resolvedOutput.previewPosterStoragePath ?? null)
+          : null;
+      const posterUrlCandidate =
+        (resolvedOutput?.mode === "video" &&
+        looksLikeImageUrl(resolvedOutput.previewPosterUrl ?? undefined)
+          ? (resolvedOutput.previewPosterUrl?.trim() ?? null)
+          : null) ??
+        (looksLikeImageUrl(resolvedSource.preview.url ?? undefined)
+          ? (resolvedSource.preview.url?.trim() ?? null)
+          : null) ??
+        (looksLikeImageUrl(payload.referenceRenderUrl ?? undefined)
+          ? (payload.referenceRenderUrl?.trim() ?? null)
+          : null);
+      const signedPosterUrl = posterStoragePath
+        ? await getSignedMediaUrl({
+            bucket: "media_library",
+            storagePath: posterStoragePath,
+            previewProfile: "none",
+          }).catch(() => null)
+        : null;
+      const frameImageUrl = signedPosterUrl ?? posterUrlCandidate;
+      if (!frameImageUrl || !looksLikeImageUrl(frameImageUrl)) {
+        return null;
+      }
+
+      return {
+        ...resolvedSource,
+        preview: {
+          ...resolvedSource.preview,
+          url: frameImageUrl,
+        },
+        previewStoragePath: posterStoragePath ?? null,
+        fullStoragePath: posterStoragePath ?? null,
+        preparedImageUrl: frameImageUrl,
+        loadBlob: async () => await loadBlobFromUrl(frameImageUrl),
+      } satisfies ResolvedInternalReferenceSource;
+    },
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
+  );
+
   const resolveElementProfileImageDropSource = useCallback(
     async (payload: InternalReferenceDragPayload) => {
       const resolvedSource = await resolveInternalReferenceSource({
@@ -309,6 +377,7 @@ export const useAiStudioInternalDropResolvers = ({
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveComposerInternalImageDropSource,
+    resolveVideoFrameInternalDropSource,
     resolveElementProfileImageDropSource,
   };
 };

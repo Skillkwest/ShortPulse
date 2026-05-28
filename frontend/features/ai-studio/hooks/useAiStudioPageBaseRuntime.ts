@@ -323,6 +323,7 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveComposerInternalImageDropSource,
+    resolveVideoFrameInternalDropSource,
     resolveElementProfileImageDropSource,
   } = useAiStudioInternalDropResolvers({
     getOutputById,
@@ -586,6 +587,7 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveReferenceInputsForTool,
     resolveSelectedCharacterIdForTool,
     resolveStyleLibraryInternalDrop,
+    resolveVideoFrameInternalDropSource,
     resolveVoiceChangerInternalReferenceSource,
     restartPulse,
     restoreAllArchivedOutputs,

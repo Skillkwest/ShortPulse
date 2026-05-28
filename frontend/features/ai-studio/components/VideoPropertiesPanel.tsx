@@ -116,6 +116,7 @@ export type VideoPropertiesPanelProps = {
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  resolveInternalReferenceVideoFrameDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   referenceImageWarning?: string | null;
@@ -172,6 +173,7 @@ export function VideoPropertiesPanel({
   onRegenerate,
   resolvePreviewUrlById,
   resolveInternalReferenceImageDropSource,
+  resolveInternalReferenceVideoFrameDropSource,
   costCredits,
   isGenerateDisabled = false,
   referenceImageWarning = null,
@@ -251,6 +253,7 @@ export function VideoPropertiesPanel({
     onMotionVideoChange,
     resolvePreviewUrlById,
     resolveInternalReferenceImageDropSource,
+    resolveInternalReferenceVideoFrameDropSource,
     klingMultiPrompts,
     onKlingMultiPromptsChange,
     klingElements,

@@ -11,8 +11,13 @@ import {
   useAiStudioInternalDropResolvers,
 } from "../useAiStudioInternalDropResolvers";
 
-const { resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
+const { getSignedMediaUrlMock, resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
+  getSignedMediaUrlMock: vi.fn(),
   resolveInternalReferenceSourceMock: vi.fn(),
+}));
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: getSignedMediaUrlMock,
 }));
 
 vi.mock("../../logic/referenceSource/internalReferenceSource", () => ({
@@ -52,6 +57,7 @@ describe("useAiStudioInternalDropResolvers", () => {
   const originalCreateObjectURL = URL.createObjectURL;
 
   beforeEach(() => {
+    getSignedMediaUrlMock.mockReset();
     resolveInternalReferenceSourceMock.mockReset();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -344,6 +350,85 @@ describe("useAiStudioInternalDropResolvers", () => {
     await expect(
       result.current.resolveComposerInternalImageDropSource(makePayload())
     ).resolves.toBeNull();
+  });
+
+  it("resolves video frame drops to poster-backed image sources without changing shared image-drop policy", async () => {
+    const output = makeOutput({
+      mode: "video",
+      previewUrl: "https://cdn.example.com/video-preview.mp4",
+      previewPosterUrl: "https://cdn.example.com/video-poster.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/out-1/poster_720.jpg",
+      previewStoragePath: "user-1/generations/videos/out-1.mp4",
+      fullStoragePath: "user-1/generations/videos/out-1.mp4",
+      resultUrls: ["https://cdn.example.com/video-full.mp4"],
+      savedMediaIds: ["media-video-1"],
+    });
+    getSignedMediaUrlMock.mockResolvedValue("https://signed.example.com/video-poster.jpg");
+    resolveInternalReferenceSourceMock.mockResolvedValue({
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-video-1",
+      outputId: "out-1",
+      mediaId: "media-video-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/fallback-video-poster.jpg",
+      },
+      previewStoragePath: "user-1/generations/videos/out-1.mp4",
+      fullStoragePath: "user-1/generations/videos/out-1.mp4",
+      promptText: "User visible prompt",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-video-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path",
+      },
+      preparedImageUrl: "https://signed.example.com/video-full.mp4",
+      loadBlob: vi.fn(async () => new Blob(["video"])),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-video-1"],
+          delivery: null,
+          error: null,
+        })),
+      })
+    );
+
+    await expect(
+      result.current.resolveComposerInternalImageDropSource(makePayload({ mediaKind: "video" }))
+    ).resolves.toBeNull();
+    await expect(
+      result.current.resolveVideoFrameInternalDropSource(makePayload({ mediaKind: "video" }))
+    ).resolves.toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        sourceId: "media-video-1",
+        preview: expect.objectContaining({
+          url: "https://signed.example.com/video-poster.jpg",
+        }),
+        previewStoragePath: "user-1/variants/videos/out-1/poster_720.jpg",
+        fullStoragePath: "user-1/variants/videos/out-1/poster_720.jpg",
+        preparedImageUrl: "https://signed.example.com/video-poster.jpg",
+      })
+    );
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/variants/videos/out-1/poster_720.jpg",
+      previewProfile: "none",
+    });
   });
 
   it("awaits prompt persistence for media-library text drops before returning prompt ids", async () => {

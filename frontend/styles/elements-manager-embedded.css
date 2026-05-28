@@ -6,10 +6,6 @@
   .elements-manager-shell--panel .elements-panel-top-row-secondary-actions {
     gap: 6px;
   }
-
-  .elements-manager-shell--panel .elements-reference-card {
-    min-height: 228px;
-  }
 }
 
 @media (max-width: 640px) {

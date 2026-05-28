@@ -262,7 +262,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     [composerImageArtifact?.displayArtifactUrl, dragImageSrc, primaryImageDataSrc, primaryImageSrc]
   );
   const effectiveIsLoading = isLoading && !hasMediaRenderError;
-  const shouldShowLoadingOverlay = loadingVisual !== "none" && !hasMediaRenderError;
+  const shouldShowLoadingOverlay = effectiveIsLoading && loadingVisual !== "none";
 
   React.useEffect(() => {
     setHasPosterImageError(false);
@@ -347,6 +347,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     primaryImageSrc,
     resolvedHoverVideoUrl,
   ]);
+
+  const handleImageRenderError = React.useCallback(() => {
+    if (hasVideoPosterPreview && resolvedHoverVideoUrl) {
+      setHasPosterImageError(true);
+      return;
+    }
+    if (hasMediaRenderError) return;
+    setHasMediaRenderError(true);
+    markLoaded(item.id, { notifyAutoSave: false });
+  }, [hasMediaRenderError, hasVideoPosterPreview, item.id, markLoaded, resolvedHoverVideoUrl]);
 
   return (
     <div
@@ -437,14 +447,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
             onLoad={() => markLoaded(item.id)}
-            onError={() => {
-              if (hasVideoPosterPreview && resolvedHoverVideoUrl) {
-                setHasPosterImageError(true);
-                return;
-              }
-              setHasMediaRenderError(true);
-              markLoaded(item.id, { notifyAutoSave: false });
-            }}
+            onError={handleImageRenderError}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -456,6 +459,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             loading={imageLoading}
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
+            onError={handleImageRenderError}
           />
         </>
       ) : null}

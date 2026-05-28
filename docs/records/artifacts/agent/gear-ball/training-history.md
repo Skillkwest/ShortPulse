@@ -12,7 +12,7 @@ Canonical detailed surfaces:
 
 - Recent substantive-run range: `6/10` to `9.2/10`
 - Current working band: `8.4/10` to `9.0/10`
-- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, and rare command-shape misses on mixed manifests
+- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, and sibling source tails that surface only during the last convergence pass
 
 ## Active Synthesis
 
@@ -39,5 +39,5 @@ Canonical detailed surfaces:
 
 1. Make the first cleanup pass one-shot more often, especially on mixed manifests and macOS shell invocations.
 2. Keep broad shared-runtime lanes collapsed when one validation seam can honestly carry them.
-3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails.
+3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails, and one last `git diff --name-only` scan before the score loop when a broad lane touched shared runtime seams.
 4. Keep startup and retained-history loading lean by default.

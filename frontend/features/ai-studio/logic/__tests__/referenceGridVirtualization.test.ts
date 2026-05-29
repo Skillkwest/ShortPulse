@@ -32,14 +32,14 @@ describe("referenceGridVirtualization", () => {
         itemCount: 60,
         pressureLevel: 0,
       })
-    ).toBe(4);
+    ).toBe(8);
     expect(
       resolveReferenceGridMaxColumns({
         requestedMaxColumns: 8,
         itemCount: 60,
         pressureLevel: 2,
       })
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("resolves density pressure before watchdog samples under large grids", () => {

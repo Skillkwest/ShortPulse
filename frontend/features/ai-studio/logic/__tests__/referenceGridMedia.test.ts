@@ -86,9 +86,9 @@ describe("referenceGridMedia", () => {
     );
 
     expect(level0.previewQualityBand).toBe("high");
-    expect(level0.targetLongEdgePx).toBe(640);
+    expect(level0.targetLongEdgePx).toBe(448);
     expect(level2.previewQualityBand).toBe("compact");
-    expect(level2.targetLongEdgePx).toBe(448);
+    expect(level2.targetLongEdgePx).toBe(320);
   });
 
   it("keeps supabase object URLs direct in right-rail grid surfaces", () => {
@@ -176,8 +176,8 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
-    expect(resolved.previewUrl).toContain("width=448");
-    expect(resolved.previewUrl).toContain("quality=34");
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
   });
 
   it("applies direct supabase render transforms without image extension when mode is image", () => {
@@ -198,8 +198,8 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
-    expect(resolved.previewUrl).toContain("width=512");
-    expect(resolved.previewUrl).toContain("quality=34");
+    expect(resolved.previewUrl).toContain("width=384");
+    expect(resolved.previewUrl).toContain("quality=30");
   });
 
   it("does not transform supabase object URLs without extension when mode is video", () => {
@@ -242,8 +242,8 @@ describe("referenceGridMedia", () => {
 
     expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
     expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
-    expect(resolved.previewUrl).toContain("w=448");
-    expect(resolved.previewUrl).toContain("q=34");
+    expect(resolved.previewUrl).toContain("w=384");
+    expect(resolved.previewUrl).toContain("q=28");
     expect(resolved.fullUrl).toBe(sourceUrl);
   });
 
@@ -283,8 +283,8 @@ describe("referenceGridMedia", () => {
 
     expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
     expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
-    expect(resolved.previewUrl).toContain("w=512");
-    expect(resolved.previewUrl).toContain("q=34");
+    expect(resolved.previewUrl).toContain("w=384");
+    expect(resolved.previewUrl).toContain("q=30");
   });
 
   it("ignores root-relative workspace storage key paths and falls back to preview URL", () => {
@@ -349,9 +349,9 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.targetLongEdgePx).toBe(448);
-    expect(resolved.previewUrl).toContain("width=448");
-    expect(resolved.previewUrl).toContain("quality=34");
+    expect(resolved.targetLongEdgePx).toBe(320);
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
   });
 
   it("compacts adaptive long-edge target at pressure level 2 when flag is enabled", async () => {
@@ -373,9 +373,9 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.targetLongEdgePx).toBe(385);
-    expect(resolved.previewUrl).toContain("width=385");
-    expect(resolved.previewUrl).toContain("quality=34");
+    expect(resolved.targetLongEdgePx).toBe(320);
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
   });
 
   it("uses quick-slot compaction policy at pressure level 2 when flag is enabled", async () => {
@@ -398,8 +398,8 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.targetLongEdgePx).toBe(346);
-    expect(resolved.previewUrl).toContain("width=346");
-    expect(resolved.previewUrl).toContain("quality=34");
+    expect(resolved.targetLongEdgePx).toBe(259);
+    expect(resolved.previewUrl).toContain("width=259");
+    expect(resolved.previewUrl).toContain("quality=28");
   });
 });

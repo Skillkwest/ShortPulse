@@ -154,6 +154,7 @@
 .create-composer-panel .create-composer-right-panel-inner.is-drop-active {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   border-radius: 8px;
   background:
     linear-gradient(rgba(14, 19, 24, 0.94), rgba(14, 19, 24, 0.94)),
@@ -166,11 +167,20 @@
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 5;
   border-radius: inherit;
   pointer-events: none;
   background: rgba(52, 200, 255, 0.018);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
+}
+
+.create-composer-panel
+  .create-composer-right-panel-inner.is-drop-active
+  .create-composer-prompt-step
+  .agent-composer-row {
+  position: relative;
+  z-index: 6;
 }
 
 .create-composer-panel .create-composer-right-panel-topbar {

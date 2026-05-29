@@ -31,6 +31,9 @@ const resolveTunedLongEdgeBounds = (surface: AdaptiveSurface): { min: number; ma
   if (surface === "quick-slot") {
     return { min: 240, max: 640 };
   }
+  if (surface === "reference-grid") {
+    return { min: 288, max: 960 };
+  }
   if (surface === "media-library-panel-grid") {
     return { min: 240, max: 960 };
   }
@@ -38,15 +41,21 @@ const resolveTunedLongEdgeBounds = (surface: AdaptiveSurface): { min: number; ma
 };
 
 const PARITY_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
-  high: 40,
-  balanced: 34,
-  compact: 34,
+  high: 34,
+  balanced: 30,
+  compact: 28,
 };
 
 const TUNED_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
   high: 70,
   balanced: 60,
   compact: 50,
+};
+
+const REFERENCE_SURFACE_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
+  high: 34,
+  balanced: 30,
+  compact: 28,
 };
 
 const PARITY_LOCAL_TRANSCODE_QUALITY: Record<AdaptiveQualityBand, number> = {
@@ -61,6 +70,12 @@ const TUNED_LOCAL_TRANSCODE_QUALITY: Record<AdaptiveQualityBand, number> = {
   compact: 0.62,
 };
 
+const REFERENCE_SURFACE_LOCAL_TRANSCODE_QUALITY: Record<AdaptiveQualityBand, number> = {
+  high: 0.42,
+  balanced: 0.34,
+  compact: 0.3,
+};
+
 const GRID_SURFACE_SET = new Set<AdaptiveSurface>([
   "reference-grid",
   "media-library-grid",
@@ -68,6 +83,8 @@ const GRID_SURFACE_SET = new Set<AdaptiveSurface>([
   "media-library-panel-grid",
   "character-grid",
 ]);
+
+const REFERENCE_SURFACE_SET = new Set<AdaptiveSurface>(["reference-grid", "quick-slot"]);
 
 const resolveParityTargetLongEdgePx = ({
   surface,
@@ -77,9 +94,14 @@ const resolveParityTargetLongEdgePx = ({
   qualityBand: AdaptiveQualityBand;
 }): number => {
   if (surface === "quick-slot") {
-    if (qualityBand === "compact") return 384;
-    if (qualityBand === "balanced") return 448;
-    return 512;
+    if (qualityBand === "compact") return 288;
+    if (qualityBand === "balanced") return 320;
+    return 384;
+  }
+  if (surface === "reference-grid") {
+    if (qualityBand === "compact") return 320;
+    if (qualityBand === "balanced") return 384;
+    return 448;
   }
   if (qualityBand === "compact") return 448;
   if (qualityBand === "balanced") return 512;
@@ -141,9 +163,19 @@ export const resolveAdaptivePolicyDecision = (input: AdaptiveInput): AdaptiveDec
     input.mediaKind === "image";
 
   const tuned = ADAPTIVE_MEDIA_V2_TUNED_POLICY;
-  const qualityParam = (tuned ? TUNED_QUALITY_Q : PARITY_QUALITY_Q)[qualityBand];
+  const qualityParam = (
+    REFERENCE_SURFACE_SET.has(input.surface)
+      ? REFERENCE_SURFACE_QUALITY_Q
+      : tuned
+        ? TUNED_QUALITY_Q
+        : PARITY_QUALITY_Q
+  )[qualityBand];
   const localTranscodeQuality = (
-    tuned ? TUNED_LOCAL_TRANSCODE_QUALITY : PARITY_LOCAL_TRANSCODE_QUALITY
+    REFERENCE_SURFACE_SET.has(input.surface)
+      ? REFERENCE_SURFACE_LOCAL_TRANSCODE_QUALITY
+      : tuned
+        ? TUNED_LOCAL_TRANSCODE_QUALITY
+        : PARITY_LOCAL_TRANSCODE_QUALITY
   )[qualityBand];
 
   const targetLongEdgePxBase = tuned

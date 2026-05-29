@@ -309,7 +309,8 @@ describe("ReferenceGridCard", () => {
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
-  it("shows a hydrating placeholder instead of rendering an image before the source is ready", () => {
+  it("keeps the hydrating spinner active before the image source is ready", async () => {
+    const markLoaded = vi.fn();
     const { container } = render(
       <ReferenceGridCard
         {...createProps({
@@ -322,6 +323,7 @@ describe("ReferenceGridCard", () => {
           isImagePreview: true,
           cardPreviewUrl: "https://example.com/hydrating.png",
           imageSrc: undefined,
+          markLoaded,
         })}
       />
     );
@@ -329,6 +331,13 @@ describe("ReferenceGridCard", () => {
     expect(container.querySelector(".reference-card-image")).toBeNull();
     expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
     expect(screen.queryByText("Preview unavailable")).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(markLoaded).not.toHaveBeenCalled();
+    expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
   });
 
   it("keeps hydrating image errors from becoming terminal unavailable placeholders", () => {

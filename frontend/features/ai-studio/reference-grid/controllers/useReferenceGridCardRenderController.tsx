@@ -12,6 +12,10 @@ import { isVideoUrl } from "../../logic/stateParsers";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
 import { isLocalVideoReferencePendingPersistence } from "../logic/referenceGridCardVisualState";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import {
+  applyAdaptivePreviewTransform,
+  type ReferenceGridPreviewQualityBand,
+} from "../../logic/referenceGridMediaAdaptivePreview";
 import type { ReferenceGridSingleAudioPlaybackController } from "./useReferenceGridSingleAudioPlaybackController";
 import {
   incrementFreezeInvestigationCounter,
@@ -26,6 +30,8 @@ export type ReferenceGridVisibleCard = {
   isImagePreview: boolean;
   isAudioPreview?: boolean;
   isPriorityHydration: boolean;
+  previewQualityBand?: ReferenceGridPreviewQualityBand;
+  targetLongEdgePx?: number;
   imageSrc?: string;
   dragDisplayArtifactUrl?: string;
   dragDisplayArtifactKind?: "blob" | "data" | "url";
@@ -221,6 +227,16 @@ export const useReferenceGridCardRenderController = ({
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
       const renderContainPreview = perfDegradeLevel === 0 && activeOutputId === currentOutput.id;
+      const audioBackgroundImageUrl =
+        currentOutput.mode === "audio" && currentOutput.companionArtUrl
+          ? applyAdaptivePreviewTransform({
+              url: currentOutput.companionArtUrl,
+              qualityBand: card.previewQualityBand ?? "compact",
+              targetLongEdgePx: card.targetLongEdgePx ?? 320,
+              mediaKindHint: "image",
+              surface: options.isCuratedSurface ? "quick-slot" : "reference-grid",
+            })
+          : null;
       return (
         <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
@@ -249,6 +265,7 @@ export const useReferenceGridCardRenderController = ({
           imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
           imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
           renderContainPreview={renderContainPreview}
+          audioBackgroundImageUrl={audioBackgroundImageUrl}
           onSelectOutput={onSelectOutput}
           onOpenDetails={onOpenDetails}
           onCardDragStart={onCardDragStart}

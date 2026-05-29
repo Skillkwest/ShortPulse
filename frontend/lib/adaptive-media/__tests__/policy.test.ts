@@ -28,8 +28,8 @@ describe("adaptive-media policy", () => {
     });
 
     expect(decision.qualityBand).toBe("high");
-    expect(decision.qualityParam).toBe(40);
-    expect(decision.targetLongEdgePx).toBe(640);
+    expect(decision.qualityParam).toBe(34);
+    expect(decision.targetLongEdgePx).toBe(448);
     expect(decision.localTranscodeQuality).toBeCloseTo(0.42, 4);
   });
 
@@ -128,10 +128,10 @@ describe("adaptive-media policy", () => {
       adaptivePreviewQuality: true,
     });
 
-    expect(level2ReferenceGrid.targetLongEdgePx).toBe(385);
-    expect(level2QuickSlot.targetLongEdgePx).toBe(346);
-    expect(level2ReferenceGrid.qualityParam).toBe(34);
-    expect(level2QuickSlot.qualityParam).toBe(34);
+    expect(level2ReferenceGrid.targetLongEdgePx).toBe(320);
+    expect(level2QuickSlot.targetLongEdgePx).toBe(259);
+    expect(level2ReferenceGrid.qualityParam).toBe(28);
+    expect(level2QuickSlot.qualityParam).toBe(28);
   });
 
   it("does not apply heavy-load compaction below pressure level 2", async () => {
@@ -149,6 +149,6 @@ describe("adaptive-media policy", () => {
       adaptivePreviewQuality: true,
     });
 
-    expect(level1Decision.targetLongEdgePx).toBe(512);
+    expect(level1Decision.targetLongEdgePx).toBe(384);
   });
 });

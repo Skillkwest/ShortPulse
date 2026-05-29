@@ -72,6 +72,7 @@ export type ReferenceGridCardProps = {
   imageLoading: "eager" | "lazy";
   imageFetchPriority: "high" | "low";
   renderContainPreview?: boolean;
+  audioBackgroundImageUrl?: string | null;
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   onCardDragStart: (
@@ -158,6 +159,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   imageLoading,
   imageFetchPriority,
   renderContainPreview = true,
+  audioBackgroundImageUrl = null,
   onSelectOutput,
   onOpenDetails,
   onCardDragStart,
@@ -340,9 +342,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     if (!effectiveIsLoading || loadingVisual !== "hydrating") return;
-    const hasRenderableMedia = Boolean(
-      normalizedPrimaryImageSrc || primaryImageDataSrc || resolvedHoverVideoUrl || cardPreviewUrl
-    );
+    const hasRenderableMedia = Boolean(normalizedPrimaryImageSrc || resolvedHoverVideoUrl);
     if (!hasRenderableMedia) return;
     // Some preview URLs never emit a terminal load/error event in the grid runtime.
     // Fail open so completed generations do not look indefinitely in-flight.
@@ -351,12 +351,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     }, HYDRATION_FALLBACK_LOADED_MS);
     return () => window.clearTimeout(timeoutId);
   }, [
-    cardPreviewUrl,
     effectiveIsLoading,
     item.id,
     loadingVisual,
     markLoaded,
-    primaryImageDataSrc,
     normalizedPrimaryImageSrc,
     resolvedHoverVideoUrl,
   ]);
@@ -493,7 +491,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioId={item.id}
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
-          backgroundImageUrl={item.companionArtUrl ?? null}
+          backgroundImageUrl={audioBackgroundImageUrl ?? item.companionArtUrl ?? null}
           audioSourceMode={audioSourceMode}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}

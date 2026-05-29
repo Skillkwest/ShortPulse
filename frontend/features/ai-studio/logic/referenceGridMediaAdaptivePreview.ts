@@ -26,9 +26,9 @@ const getSupabaseOrigin = (): string | null => {
 };
 
 const resolvePreviewQualityParam = (qualityBand: ReferenceGridPreviewQualityBand): number => {
-  if (qualityBand === "compact") return 34;
-  if (qualityBand === "balanced") return 34;
-  return 40;
+  if (qualityBand === "compact") return 28;
+  if (qualityBand === "balanced") return 30;
+  return 34;
 };
 
 const resolveNextImageWidth = (targetLongEdgePx: number): number =>
@@ -119,7 +119,12 @@ export const applyAdaptivePreviewTransform = ({
         qualityBand,
       });
     }
-    parsed.searchParams.set("width", String(Math.max(320, Math.min(1280, targetLongEdgePx))));
+    const minRenderWidth = surface === "quick-slot" ? 240 : 288;
+    const maxRenderWidth = surface === "quick-slot" ? 640 : 960;
+    parsed.searchParams.set(
+      "width",
+      String(Math.max(minRenderWidth, Math.min(maxRenderWidth, targetLongEdgePx)))
+    );
     parsed.searchParams.set("quality", String(resolvePreviewQualityParam(qualityBand)));
     return parsed.toString();
   }
@@ -146,12 +151,12 @@ export const resolvePreviewQualityTarget = ({
   const qualityBand: ReferenceGridPreviewQualityBand =
     pressureLevel >= 2 ? "compact" : pressureLevel >= 1 ? "balanced" : "high";
   const targetLongEdgePxBase =
-    qualityBand === "compact" ? 448 : qualityBand === "balanced" ? 512 : 640;
+    qualityBand === "compact" ? 320 : qualityBand === "balanced" ? 384 : 448;
   const targetLongEdgePx = (() => {
     if (!REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION) return targetLongEdgePxBase;
     if (pressureLevel !== 2) return targetLongEdgePxBase;
     if (surface === "reference-grid") {
-      return Math.round(Math.max(320, Math.min(1280, targetLongEdgePxBase * 0.86)));
+      return Math.round(Math.max(288, Math.min(960, targetLongEdgePxBase * 0.9)));
     }
     if (surface === "quick-slot") {
       return Math.round(Math.max(240, Math.min(640, targetLongEdgePxBase * 0.9)));

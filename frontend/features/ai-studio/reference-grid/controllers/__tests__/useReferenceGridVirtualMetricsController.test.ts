@@ -254,7 +254,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
       })
     );
 
-    expect(result.current.virtualMetrics.columnCount).toBe(3);
+    expect(result.current.virtualMetrics.columnCount).toBe(4);
   });
 
   it("pins prepends to the top when the user is already at the top", () => {

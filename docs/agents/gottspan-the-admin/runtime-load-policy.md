@@ -13,8 +13,6 @@ These are the default Gottspan runtime surfaces:
 - `docs/README.md`
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
-- `frontend/AGENTS.md`
-- `docs/AGENTS.md`
 - `docs/agents/gottspan-the-admin/README.md`
 - `docs/agents/gottspan-the-admin/memory.md`
 - this file
@@ -23,6 +21,10 @@ These are the default Gottspan runtime surfaces:
 
 Load these only when the lane requires them:
 
+- `docs/AGENTS.md`
+  - when touching docs, docs indexes, SOPs, prompts, reports, or retained artifacts
+- `frontend/AGENTS.md`
+  - when touching frontend code, frontend tests, frontend styles, routes, or browser/UI behavior
 - `docs/agents/gottspan-the-admin/standard-operating-procedure.md`
   - when doing substantive repo-steward execution, governance updates, or route/authority decisions
 - `docs/agents/gottspan-the-admin/repo-state-audit-checklist.md`
@@ -66,6 +68,6 @@ When in doubt:
 
 1. load the core repo rules
 2. load Gottspan contract + memory + this policy
-3. load one additional Gottspan surface only if the current lane truly needs it
+3. load scoped `AGENTS.md` files and one additional Gottspan surface only if the current lane truly needs them
 
 Do not load retained history just because it exists.

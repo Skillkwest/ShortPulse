@@ -10,15 +10,12 @@ The agent has a durable contract, repo-visible memory, retained artifact area, a
 
 ## Artifact Layout
 
-- `memory.md`: non-authoritative training memory retained with artifacts.
-- `sops.md`: Nuclo workflow references and emerging SOP needs.
-- `tools.md`: helper inventory and future tooling needs.
-- `training-history.md`: supervised setup and future training runs.
+- `training-history.md`: supervised setup and training-era record that is no longer part of active startup context.
 - `reports/`: full environment audits, cutover packets, and validation summaries.
 
 ## Authority
 
-These artifacts support training, traceability, and operational planning. They do not override canonical repo rules, deployment docs, current user instructions, live provider state, or direct validation evidence.
+These artifacts support training, traceability, and historical operational planning. They do not override canonical repo rules, deployment docs, current user instructions, live provider state, or direct validation evidence.
 
 Current branch-policy note:
 
@@ -35,3 +32,8 @@ Current branch-policy note:
 - Database migration guide: `docs/database-migrations.md`
 - Security checklist: `docs/security-checklist.md`
 - Owned workspace folder: `docs/agents/nuclo/workspace/`
+
+## Retention Rule
+
+- Keep only evidence-heavy reports and minimal training history here.
+- Do not recreate duplicate handoff pointers, shadow memory files, or helper inventories when the canonical source already lives in `docs/agents/nuclo/` or the main repo docs/scripts.

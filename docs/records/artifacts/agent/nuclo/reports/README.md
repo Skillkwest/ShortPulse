@@ -8,19 +8,56 @@ Current context note:
 - They may describe earlier branch-ladder decisions, cutover posture, or environment mappings that are useful for traceability but are not Nuclo's current standing branch instruction.
 - For the current operating rule, use `docs/agents/nuclo/README.md` and `docs/agents/nuclo/memory.md`.
 
-## Current Reports
+## Load Policy
 
-- `2026-05-08-environment-separation-and-production-cutover-plan.md`: audited environment-separation, production-readiness, and cutover plan based on live Vercel, GitHub, and Supabase inspection.
-- `2026-05-08-operator-runbook-and-environment-ledger.md`: exact approved environment ledger, value-mapping model, and execution order for production bootstrap and later cutover.
-- `2026-05-08-production-bootstrap-progress-and-blockers.md`: live production bootstrap progress, current missing-table gap against staging, and the blocker that still prevents production cutover.
-- `2026-05-08-production-data-migration-gates.md`: evidence that staging is already carrying live runtime data and storage objects, making data/auth/storage migration the new cutover gate.
-- `2026-05-09-storage-parity-and-live-drift-freeze-gate.md`: evidence that storage parity is now solved and the remaining cutover gate is a coordinated freeze window for continued live writes.
-- `2026-05-09-freeze-window-cutover-checklist.md`: audited freeze-window checklist for mandatory maintenance-window freeze, final sync, and Vercel/GitHub production rewiring.
-- `2026-05-09-cutover-preflight-and-rollback-packet.md`: non-secret live Vercel/GitHub environment inventory and rollback-relevant facts captured before the final cutover window, preserved as a historical pre-cutover snapshot.
-- `2026-05-09-production-cutover-execution-and-residual-risks.md`: execution record for the production Supabase cutover, the final live deployment IDs/aliases, validation evidence, and the post-cutover governance/config hardening that followed.
-- `2026-05-09-post-cutover-secret-rotation-runbook.md`: exact non-secret rotation sequence for the credentials exposed during the production cutover lane.
+- Do not load this whole folder by default.
+- Start from the group below that matches the current task.
+- Use `docs/agents/nuclo/README.md`, `docs/agents/nuclo/memory.md`, and `docs/agents/nuclo/CURRENT-HANDOFF.md` first for active operating guidance.
+
+## Report Groups
+
+### Foundation And Environment Model
+
+- `2026-05-08-environment-separation-and-production-cutover-plan.md`: environment-separation audit, production-readiness posture, and the original cutover plan.
+- `2026-05-08-operator-runbook-and-environment-ledger.md`: approved environment ledger, value-mapping model, and execution order.
+
+Load when:
+- you need the original branch-to-environment-to-database model
+- you need the earliest production cutover rationale
+- you need the historical environment ledger
+
+### Production Bootstrap And Migration Gates
+
+- `2026-05-08-production-bootstrap-progress-and-blockers.md`: production bootstrap progress and missing-schema blocker state.
+- `2026-05-08-production-data-migration-gates.md`: why production became a data/auth/storage migration problem rather than a schema-only problem.
+- `2026-05-09-storage-parity-and-live-drift-freeze-gate.md`: storage parity proof and the freeze-window gate created by continued live writes.
+
+Load when:
+- you need schema/bootstrap history
+- you need storage parity or migration-gate evidence
+- you need to explain why historical cutover required a freeze window
+
+### Cutover Execution Packet
+
+- `2026-05-09-freeze-window-cutover-checklist.md`: maintenance-window checklist for final sync and production rewiring.
+- `2026-05-09-cutover-preflight-and-rollback-packet.md`: non-secret pre-cutover inventory and rollback facts.
+- `2026-05-09-production-cutover-execution-and-residual-risks.md`: execution record, validation evidence, deployment IDs, and residual risks after cutover.
+
+Load when:
+- you need the exact historical production cutover sequence
+- you need rollback-relevant facts
+- you need deployment-alias or validation evidence from the cutover run
+
+### Post-Cutover Follow-On
+
+- `2026-05-09-post-cutover-secret-rotation-runbook.md`: non-secret follow-on sequence for rotating credentials exposed during the cutover lane.
+
+Load when:
+- you need the historical secret-rotation sequence
+- you need to separate cutover validation from later credential hygiene
 
 ## Organization Rule
 
 - Use this folder for evidence-heavy environment audits, promotion plans, deployment-readiness packets, and cutover summaries.
 - Keep short durable lessons in Nuclo memory instead of creating unnecessary reports.
+- Prefer adding one targeted report to the right group over creating a new top-level pointer or duplicate summary file.

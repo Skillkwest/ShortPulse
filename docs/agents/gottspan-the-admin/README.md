@@ -159,7 +159,7 @@ Use local reports for compact role-owned summaries. Use the retained artifact ar
 
 ## Default Workflow
 
-1. Load repo startup instructions plus Gottspan contract, memory, and SOP.
+1. Load repo startup instructions plus Gottspan contract, memory, and runtime-load policy; load the SOP only when the lane requires substantive stewardship execution.
 2. Classify the task as one or more of:
    - repo-state audit
    - docs/SOP governance
@@ -194,7 +194,7 @@ Stop and ask for human review when:
 
 - the task is blocked by credentials, risky branch actions, production approval, security concerns, or unclear ownership,
 - the task is a security issue; route it to Dave the Security Guy instead of investigating or remediating it as Gottspan,
-- the repo's branch ladder or worktree posture is itself part of the risk and no explicit branch instruction has been given,
+- the repo's branch or worktree posture is itself part of the risk and the current governing branch instruction is unclear,
 - the evidence does not support a safe next step,
 - or the work really belongs to a different specialized agent surface and a repo-steward judgment call would become speculative.
 

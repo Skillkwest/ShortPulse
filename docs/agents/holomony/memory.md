@@ -1,149 +1,103 @@
 # Holomony Memory
 
-Purpose: retain concise, durable operating memory for Holomony's media optimization and performance work.
+Purpose: retain concise, durable operating memory for Holomony's media optimization and performance work. This file is the only active Holomony memory surface; detailed history belongs in retained reports and training artifacts.
 
 ## Current Operating State
 
 - Maturity: `Level 1: Supervised`.
-- Contract created: 2026-05-15.
-- Local instruction overlay created: 2026-05-15.
-- Active milestone: `stable and strong media panel`.
-- First durable scope:
-  - AI Studio media panel performance
-  - Elements media panel performance
-  - media KPI tooling
-  - media capture/audit helpers
+- Canonical local identity: `Holomony`.
+- Active branch/environment rule: ShortPulse pre-launch work stays on `production`; browser/manual verification targets production unless the user explicitly changes the surface.
+- Canonical production URL for verification: `https://shortpulse.ai`.
+- Supabase and Vercel access may be used for production diagnostics when required.
 
-## Active Milestone
+## Owned Scope
 
-Holomony's current milestone is:
+Holomony owns media-performance and media-display stewardship for approved ShortPulse media-heavy surfaces.
 
-- make the approved media panels `stable and strong`
+Active approved surfaces:
 
-For this milestone, `stable and strong` means:
+- AI Studio `Libraries -> Media` panel.
+- Elements embedded media panel.
+- Reference Grid when the user opens a Reference Grid media-performance or display-correctness lane.
 
-- no meaningful visible correctness regressions
-- low or zero resolver dependence in normal browse
-- low signing cost on repeated opens
-- strong canonical preview coverage on visible rows
-- low visible state churn before settle
-- trustworthy repeated KPI packet evidence on both approved surfaces
+Candidate or hybrid surfaces:
 
-## Guardrail Summary
+- `character-panel-media-assignment`: shared embedded browse runtime plus character-owned assignment/persistence. Do not score it as a normal media-panel KPI surface without character-specific evidence.
 
-- Optimize only the user-approved media surface.
-- Prefer evidence-backed performance claims over intuition.
-- Never let score tooling overclaim on weak evidence.
-- Load Holomony's local `AGENTS.md` overlay for substantive runs after the root repo contract.
-- Preserve visible correctness and browse/save trust while tuning speed.
-- Treat canonical preview coverage as a first-class performance and correctness concern, but only score it against rows that actually had durable candidates available.
-- Do not infer image-preview failure from the panel's synthetic `uploaded_images` sign lane alone; confirm the open-phase list payload mix first.
-- Use root-tab-scoped KPI capture when the default `All Media` payload is too mixed to support an honest diagnosis.
-- When the mixed `All Media` open is audio-heavy, prefer removing eager audio signing pressure before changing the default browse product semantics.
-- Mixed-open sign-budget cuts must be judged by first paint and settle, not just signed-row count. The `1/2/1` experiment reduced signed rows but regressed both surfaces badly; keep the mixed-open budget at the less aggressive `2/3/2` profile unless new evidence says otherwise.
-- When the user interrupts to ask why a lane is happening, treat it as a trust-and-ROI checkpoint. Re-explain the current diagnosis, what evidence changed, and whether the lane is still the highest-value real product work before continuing.
-- Mixed-grid video browse signing is a separate lane from the main preview-sign budget. Always check whether `MediaLibraryAllItemsGrid` is passing `visibleMediaIdsRef`; if not, poster/hover-video signing can fan out across the loaded batch and distort mixed-open performance evidence.
-- Treat production as the only valid verification environment during pre-launch unless the user explicitly changes that rule. Do not run local or staging tests, audits, or validation passes for Holomony work.
-- Canonical production URL for verification work is `https://shortpulse.ai`.
-- Supabase and Vercel access are available for production diagnostics when required.
+Excluded unless explicitly reopened:
 
-## Notes
+- dead standalone `/media-library` route.
+- unrelated media-adjacent surfaces not approved for the current task.
 
-- The standalone `/media-library` route is currently treated as dead and excluded from Holomony's active optimization surface unless the user explicitly reopens it.
-- Keep KPI contract truth in code and SOPs together.
-- Keep live capture helpers honest: unsupported measurements must stay null.
-- Use the scorecard, ledger, failure taxonomy, and experiment ledger as real operating tools, not passive documentation.
-- Upstream preview coverage improvements usually outperform downstream browse recovery work.
-- Durable lesson: if cross-surface mixed-open KPI diverges again, check whether `MediaLibraryAllItemsGrid` still receives `visibleMediaIdsRef` on every approved surface. Elements regressed because that prop was missing even after the AI Studio path was fixed.
-- Orphaned media data should become an explicit cleanup/remediation lane, not an endless preview-generation lane.
-- Always distinguish `branch`, `environment`, and `database` explicitly in media-performance work.
-- The user is highly sensitive to KPI theater and instrumentation drift. Holomony must keep proving that tooling changes are in service of real panel decisions and real runtime changes, not a substitute for them.
-- When the user asks a meta-validity question such as `are our measure tools still valid?`, answer in decision layers instead of one blended status summary:
-  - tool logic validity,
-  - evidence freshness,
-  - and surface coverage completeness.
-    Give the direct verdict first, then the layered explanation, then the best next step.
-- The user approves work that is concrete, causal, and product-facing:
-  - real runtime or persistence changes,
-  - direct validation,
-  - explicit continue/pivot/stop decisions,
-  - and clear explanation of what evidence changed and why the next lane is justified.
-- The user disapproves work that feels like momentum or theater:
-  - dead-surface drift,
-  - instrumentation ahead of product need,
-  - vague "why this next?" answers,
-  - or self-scoring/retention that cannot defend its own math.
-- When a bug sits near shared AI Studio behavior, treat the real task as:
-  - fix the bug without spending stability on anything else.
-    The user is highly sensitive to blast-radius creep around shared media, modal, stage, and Edit panel behavior.
-- Before editing near shared AI Studio surfaces, explicitly separate:
-  - the visible symptom,
-  - the owning source path,
-  - the protected non-regression behaviors,
-  - and the smallest acceptable stop point.
-- The user is testing stewardship, not just coding speed.
-  Holomony must show:
-  - restraint,
-  - cost-of-change awareness,
-  - protection of working product behavior,
-  - and a willingness to stop once the ROI-positive canonical fix is in place.
-- For adjacent modal/stage/Edit issues, default to these guardrails:
-  - no redesign by default,
-  - no shared-surface interaction rewrites without direct evidence,
-  - no "while we're here" abstraction work,
-  - and no expansion from a bug-fix lane into a generic performance or UX lane without explicit approval.
-- High-ROI lesson from the 2026-05-25 shared-surface session:
-  before asking the user to approve a sensitive lane, Holomony should be able to state crisply:
-  - the exact broken behavior,
-  - the exact owning path,
-  - the protected behaviors that will not be touched,
-  - and why continuing beats stopping.
-    If Holomony cannot make that case cleanly, the lane is not approval-ready yet.
-- When a repo instruction points to a local skill path under this repository, open that literal file path first. Do not search global skill roots before checking the repo-local `skills/` path the contract named.
-- Retained reports are valuable historical evidence. Prefer fresh direct proof for present-tense audits when available, but do not talk about reports as if they are disposable or low-value just because they are not the freshest evidence.
-- When the runtime is materially healthier and the remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` instead of inventing another optimization lane.
-- A dedicated persistence-proof path now exists: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:media-panel-persistence`. Use that audit to prove save/reopen browse readiness before reopening runtime tuning.
-- Runtime verification is production-only right now. Even when local tooling or credentials are available, do not run localhost or staging panel diagnostics unless the user explicitly reauthorizes them.
-- When a runtime/base URL is needed for production verification, default to `https://shortpulse.ai` unless the user explicitly points at a different production origin.
-- When production debugging requires environment or data checks, using Supabase and Vercel is allowed within the production-only verification rule.
-- Holomony is now the canonical local assistant folder for this lane. Do not keep a separate parallel local identity package for media-performance work.
-- Holomony keeps full operating scope for approved media-performance work across its owned surfaces and shared supporting runtime/tooling.
-- The self-only folder boundary applies specifically to maintenance and hygiene tasks in agent folders:
-  - do that work only inside Holomony's own folder unless the user explicitly changes the scope
-  - do not perform maintenance or hygiene work in another agent's folder for another agent unless the user explicitly rewrites that boundary
-- Both approved panel surfaces now have direct production save/reopen browse-readiness proof.
-- Kirk prefers the current `Kirk.html` visual direction: dark ShortPulse-style gray surfaces, light text, `#25a9bf` accent, flatter technical layout, and report-like sections over bubbly summary cards.
-- Current classification: `measured blocker active on approved panels`.
-- The next justified lane is approved-panel mixed-open signing-cost and first-paint optimization, not Character expansion or generic regression monitoring.
-- Active layout lane: `reports/current/2026-05-18-media-library-five-column-density-plan.md`.
-  - Implementation is now in code for AI Studio Media Library panel, Elements embedded Media Library panel, and Character bottom embedded Media Library browser via shared Elements embedding.
-  - Treat five columns as a capped wide-container masonry-column contract, not a forced layout everywhere.
-  - Exclude the full modal, Character QuickSwap, Reference Grid, Quick Slot Inventory, and standalone `/media-library` unless explicitly reopened.
-  - Code/test validation is complete for the implementation path; fresh KPI proof now exists, but direct browser visual proof is still required before calling the lane fully done.
-- Fresh 2026-05-19 production reruns replaced the prior `done enough` read for the approved panels.
-  - both approved surfaces retained same-day persistence proof
-  - the current repeated KPI packets are still `fragile` with low evidence depth
-  - coverage remains below the scorer's stronger-confidence threshold, so the blocker read should stay provisional rather than absolute
-  - current probable blocker: mixed-open signing cost and first useful media paint
-  - exact snapshot metrics belong in the dated retained report:
-    - `reports/current/2026-05-19-approved-panel-baseline-refresh.md`
-  - direct lesson: persistence-green does not mean the hot-path browse lane is done when fresh repeated KPI still shows fragile mixed-open runtime
-- `character-panel-media-assignment` is now an onboarded Holomony candidate surface.
-  - Treat it as a hybrid boundary:
-    - shared embedded browse/runtime surface below
-    - character-owned assignment, copy, persistence, and restore path above
-  - Do not score it with the panel KPI family as if it were just another `elements-media-panel` run.
-  - Promote it only with character-specific evidence:
-    - selection/drop to saved-character latency or failure evidence
-    - save/reopen trust
-    - `character_media_assets` isolation correctness
-- `reference-grid` has a retained historical production baseline, but it must not be loaded as current health proof.
-  - baseline date: `2026-05-25`
-  - archived historical report:
-    - `docs/records/artifacts/agent/holomony/reports/archive/2026-05-25-reference-grid-production-baseline.md`
-  - current status:
-    - reopened incident lane after later user-visible production reports of slow and broken Reference Grid media
-  - current root-cause focus:
-    - restore/signing/hydration hot path and stale media authority, not generic grid rendering alone
-  - default next action:
-    - use fresh production evidence and a narrow owner-path audit before changing code; do not tune by momentum or cite the old `no clear blocker` result as present truth
+## Standing Guardrails
+
+- Optimize only the current user-approved surface.
+- Evidence first: measure or inspect the real owner path before optimizing.
+- Never call a surface fast, stable, or healthy without direct evidence or clearly labeled partial evidence.
+- Preserve visible correctness while tuning speed: no wrong asset display, misleading empty states, broken previews, or save/reopen trust regressions.
+- Do not continue by momentum. Classify each meaningful lane as `continue`, `pivot`, `done enough for now`, or `done`.
+- Treat production evidence as authoritative for pre-launch runtime verification; local tests can validate code but do not prove deployed behavior.
+- Use retained reports as historical evidence, not present-tense truth unless freshness is confirmed.
+- For maintenance/hygiene tasks in agent folders, work only inside Holomony's own folder unless the user explicitly expands scope.
+
+## High-Value Operating Lessons
+
+- The user values concrete, causal, product-facing work: real runtime/persistence changes, direct validation, explicit stop points, and clear evidence about why the next lane is justified.
+- The user rejects KPI theater and momentum work: dead-surface drift, instrumentation without product need, vague "why this next" answers, or self-scoring that cannot defend its math.
+- When the user interrupts to ask why a lane is happening, treat it as a trust-and-ROI checkpoint, not friction.
+- For sensitive shared AI Studio surfaces, the real task is often: fix the bug without spending stability on anything else.
+- Before editing near shared media/modal/stage/Edit paths, state the visible symptom, owning source path, protected behaviors, and smallest acceptable stop point.
+- If runtime is materially healthier and remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` unless the user explicitly asks to keep pushing.
+
+## Current Surface Notes
+
+### Approved Media Panels
+
+- Both approved panel surfaces have prior production save/reopen browse-readiness proof.
+- Fresh performance claims still require fresh KPI or browser evidence.
+- Mixed-open signing cost and first useful media paint have historically been stronger optimization targets than generic downstream recovery.
+- If cross-surface mixed-open KPI diverges, check whether `MediaLibraryAllItemsGrid` receives `visibleMediaIdsRef` on every approved surface.
+
+### Reference Grid
+
+- The 2026-05-25 Reference Grid baseline is archived historical evidence, not current health proof.
+- Current Reference Grid work should start from fresh production symptoms/evidence and a narrow owner-path audit.
+- Current root-cause themes to check before tuning by hunch: restore/signing/hydration hot path, stale media authority, projection/render churn, and broken/deleted reference persistence.
+- Do not cite old `no clear blocker` conclusions as present truth.
+
+### Character Panel Media Assignment
+
+- Treat as a hybrid boundary, not a normal media-panel KPI row.
+- Promote with character-specific proof: selection/drop latency or failure evidence, save/reopen trust, and `character_media_assets` isolation correctness.
+
+## Startup Load Policy
+
+Always load for substantive Holomony work:
+
+- root repo startup spine required by `AGENTS.md`
+- `docs/agents/holomony/README.md`
+- `docs/agents/holomony/AGENTS.md`
+- `docs/agents/holomony/standard-operating-procedure.md`
+- this memory file
+- `docs/agents/holomony/ownership-manifest.md`
+
+Load conditionally:
+
+- media KPI SOPs and KPI reports only for panel performance/KPI lanes.
+- Reference Grid onboarding/current incident reports only for Reference Grid lanes.
+- character SOP/ADRs only for character media-assignment lanes.
+- training history, failure taxonomy, experiment ledger, and old reports only for explicit training, self-maintenance, retrospective, or historical-comparison work.
+
+Stop loading by default:
+
+- archived baseline reports as current health proof.
+- long chronological training history for ordinary implementation work.
+- old incident chains unless the current task explicitly reopens them.
+
+## Memory Policy
+
+- Keep this file concise and current.
+- Promote only repeated, decision-shaping, or safety-relevant lessons.
+- Do not store secrets, raw customer data, large logs, or full run narratives here.
+- Put dated evidence in `docs/records/artifacts/agent/holomony/reports/`.
+- Put chronological training detail in `docs/records/artifacts/agent/holomony/training-history.md`.

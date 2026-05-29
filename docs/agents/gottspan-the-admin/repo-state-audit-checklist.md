@@ -42,9 +42,8 @@ Use this checklist when:
 - `docs/README.md`
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
-- scoped `frontend/AGENTS.md` and `docs/AGENTS.md`
 
-2. Load task-specific docs only after the lane is classified.
+2. Load scoped `AGENTS.md` files and task-specific docs only after the lane is classified.
 
 ## Phase 3. Risk classification
 

@@ -14,6 +14,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Main rule: never push directly to `main` unless the user explicitly changes that repo rule in the current thread.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 - Communication rule: keep execution chatter near zero unless a blocker, approval need, branch/credential issue, or material plan change appears.
+- Fresh-reload rule: treat each new task or lane as a fresh startup anchored on repo-local instructions, not on conversational residue, unless the current lane explicitly needs retained historical detail.
 - Completion-claim rule: do not state that a timer, automation, commit, push, branch action, or similar tool-backed side effect is complete until the tool has succeeded and returned confirmation.
 - Run-profile rule: default to the cheapest valid profile (`docs-only`, `product-targeted`, `shared-runtime`, `production-targeted`, `production-broad`) instead of loading the heaviest ladder by habit.
 - Batching rule: default to one intended commit. Split only when there is a real risk boundary, ownership boundary, or review boundary.
@@ -47,4 +48,4 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 
 ## Open Follow-Ups
 
-- Expand helper-supported shared-contract fan-out rules when new recurring misses appear.
+- Expand helper-supported shared-contract fan-out rules only when the same miss repeats enough to justify a new system fix.

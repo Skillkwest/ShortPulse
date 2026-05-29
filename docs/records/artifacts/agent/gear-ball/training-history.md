@@ -2,12 +2,6 @@
 
 Purpose: keep the current training synthesis short and actionable.
 
-Canonical detailed surfaces:
-
-- `docs/records/artifacts/agent/gear-ball/conversation-training-dataset.jsonl`
-- `docs/records/artifacts/agent/gear-ball/run-log.md`
-- `docs/records/artifacts/agent/gear-ball/reports/`
-
 ## Current Score Snapshot
 
 - Recent substantive-run range: `6/10` to `9.2/10`
@@ -21,19 +15,12 @@ Canonical detailed surfaces:
 - Keep training capture compact by default: one ledger row every run, heavier retained updates only when the lesson is genuinely new or the score falls below target.
 - Keep closeout suggestions inside Gear Ball’s own lane unless the user explicitly asks for broader recommendations.
 - Treat tool-backed side effects as evidence-gated; do not use completion language before the tool confirms success.
+- Treat each new lane as a fresh startup and reload from repo-local authority instead of carrying conversational residue by default.
 
-## What Stays In Active Memory
+## Load Boundary
 
-- The current score band and main recurring drag.
-- The smallest current operating pivots that consistently raise score.
-- Only the durable lessons that should shape every normal SOP run.
-
-## What Stays Out Of Active Memory
-
-- Full narrative run history
-- Older supervised corrections whose durable rule is already captured in `memory.md`
-- Per-run detail that already lives in `performance-ledger.md`
-- Conversation-derived examples unless this is explicitly a training lane
+- Keep only the score band, main recurring drag, and durable pivots active.
+- Keep run history, conversation-derived examples, and detailed narratives in cold surfaces unless the current task is explicitly training or historical review.
 
 ## Current Priorities
 

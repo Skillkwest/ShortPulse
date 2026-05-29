@@ -6,7 +6,7 @@ Purpose: provide Nuclo with an owned workspace folder inside the repo for manage
 
 - `inbox/`: place user-provided files or exports that Nuclo needs to inspect.
 - `working-notes/`: temporary structured notes and draft planning material.
-- `handoffs/`: prepared matrices, cutover checklists, and operator handoff packets before they are promoted into canonical docs.
+- `handoffs/`: live in-progress handoff packets only, before promotion into canonical docs or retained history.
 
 ## Authority
 
@@ -14,6 +14,7 @@ This folder is operational workspace only.
 
 - It is not source of truth over canonical docs, code, env configuration, provider dashboards, or retained artifacts.
 - Temporary files here must not be used as authoritative env values unless the user explicitly says to use that exact file for the task.
+- Completed or stale handoff packets should not remain here once they stop being active workspace material.
 - Durable contract and memory live at:
   - `docs/agents/nuclo/README.md`
   - `docs/agents/nuclo/memory.md`

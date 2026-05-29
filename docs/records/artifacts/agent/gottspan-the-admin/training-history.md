@@ -2,6 +2,8 @@
 
 Purpose: track supervised Gottspan runs, learned behavior, SOP changes, and next training focus.
 
+Historical note, 2026-05-29: early entries that describe `production` work as an exception to a branch ladder are retained training history only. Current governing policy is the pre-launch production-only rule in root `AGENTS.md`, effective through the Copperknot launch decision window ending `2026-07-02`.
+
 ## History
 
 ### 2026-05-20 - Repo-steward pivot

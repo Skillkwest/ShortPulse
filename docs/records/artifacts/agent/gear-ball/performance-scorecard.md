@@ -1,31 +1,26 @@
 # Gear Ball Performance Scorecard
 
-Purpose: define a stable scoring system for Gear Ball's supervised SOP execution so each substantive run can be rated consistently out of 10.
-
-This score is for one supervised Gear Ball run, not for the whole branch or release.
+Purpose: score one substantive Gear Ball SOP run consistently out of `10.0`.
 
 ## Scoring Method
 
-Score each category from `0.0` to the category maximum.
-
-Total possible: `10.0`
-
-This is a behavior-and-operations score.
-Good paperwork cannot compensate for weak scope control, stale validation, or slow mixed-lane judgment.
+Score each category from `0.0` to its maximum.
+Total possible: `10.0`.
+This is an execution score, not a paperwork score.
 
 ## Categories
 
 ### 1. Scope control (`2.0`)
 
-- `2.0`: classified the whole live worktree correctly, split it at the right boundaries, deferred adjacent tails explicitly, and kept each commit lane coherent.
-- `1.0`: mostly coherent, but one lane was broader or messier than it should have been, or one real leftover needed a late classification pass.
-- `0.0`: absorbed unrelated work, left real repo-backed changes unclassified, or lost the intended lane.
+- `2.0`: full live tree classified correctly; lanes coherent; adjacent tails deferred explicitly.
+- `1.0`: mostly right, but one lane was broader/noisier than needed or one real leftover needed late classification.
+- `0.0`: unrelated work absorbed, real changes left unclassified, or intended lane lost.
 
 ### 2. Validation discipline (`2.0`)
 
-- `2.0`: chose the cheapest valid ladder, caught real failures early, and based publish decisions on the exact final tree.
-- `1.0`: validation was mostly right but had one stale rerun, underreaching first manifest, or unnecessary heavy rung.
-- `0.0`: claimed completion on stale or insufficient validation.
+- `2.0`: cheapest honest ladder, real failures caught early, publish based on the exact final tree.
+- `1.0`: mostly right, but one stale rerun, underreaching first manifest, or unnecessary heavy rung.
+- `0.0`: completion claimed on stale or insufficient validation.
 
 ### 3. Commit and leftover discipline (`1.5`)
 
@@ -41,61 +36,34 @@ Good paperwork cannot compensate for weak scope control, stale validation, or sl
 
 ### 5. Operational judgment (`1.5`)
 
-- `1.5`: made good calls on branch discipline, stop conditions, tooling limits, and what to defer.
+- `1.5`: good calls on branch discipline, stop conditions, tooling limits, and what to defer.
 - `0.75`: one judgment call was safe but not sharp.
 - `0.0`: poor operational choices or unjustified assumptions.
 
 ### 6. Communication integrity (`0.75`)
 
-- `0.75`: reported what was done, what was not verified, and what was deferred plainly.
-- `0.75`: post-run suggestions also stayed inside Gear Ball's actual lane unless the user asked for broader recommendations.
-- `0.75`: completion language for timers, automations, commits, pushes, and similar side effects matched actual tool-confirmed state.
+- `0.75`: status was plain, verification limits were explicit, suggestions stayed in-lane, and completion language matched tool-confirmed reality.
 - `0.4`: mostly clear, but some status or verification language was fuzzy.
 - `0.0`: overstated certainty or blurred validation status.
 
 ### 7. Training capture (`0.75`)
 
-- `0.75`: the run recorded a compact post-run score loop with what went right, what went wrong, and the smallest score-lift action; broader retained updates were added when the run taught a new durable lesson or scored below target.
+- `0.75`: compact score loop captured; broader retained updates added only when the lesson was new or the score was below target.
 - `0.4`: some retained learning was captured, but the per-run score loop or the score-lift writeback was incomplete.
 - `0.0`: training capture was skipped when it should have happened.
 
 ## Hard Gates
 
-### Gate 1. No stale validation
-
-If a blocking fix lands after a build/test session starts and the run does not rerun the required gates on the corrected tree, the total score is capped at `6.9`.
-
-### Gate 2. No elite score on unstable mixed trees
-
-If new unrelated files surface repeatedly during the run and Gear Ball keeps absorbing them instead of re-scoping or deferring, the total score is capped at `8.4`.
-
-### Gate 3. Paperwork cannot hide slow scope handling
-
-If `scope control + validation discipline + time-to-clean-push efficiency` totals below `3.5`, the final score cannot exceed `7.9`.
-
-### Gate 4. No false verification claims
-
-If smoke or visual QA is unavailable and the run still implies it was completed, the total score is capped at `6.9`.
-
-### Gate 5. No false completion claims
-
-If Gear Ball says a timer, automation, commit, push, branch change, or similar tool-backed side effect already happened before the tool confirmation exists, the total score is capped at `6.4`.
-
-### Gate 6. No partial-worktree SOP claims
-
-If Gear Ball presents a `run your SOP` execution as complete before classifying all live non-temp repo-backed worktree changes, the total score is capped at `7.2`.
-
-### Gate 7. No stale final-report snapshot
-
-If Gear Ball drafts the final SOP report before rechecking the post-build live tree and the report omits still-live repo-backed work, the total score is capped at `8.2`.
-
-### Gate 8. No early score-loop writeback
-
-If Gear Ball records or commits the score loop before the final shipped lane has converged cleanly and later related tails still have to be committed, the total score is capped at `8.0`.
+- stale validation after a blocking fix: cap `6.9`
+- repeated unrelated-tail absorption on unstable mixed trees: cap `8.4`
+- `scope control + validation discipline + time-to-clean-push efficiency < 3.5`: cap `7.9`
+- false verification claim when smoke/visual QA was unavailable: cap `6.9`
+- false completion claim before tool confirmation: cap `6.4`
+- partial-worktree SOP claim: cap `7.2`
+- stale final-report snapshot that omits still-live repo-backed work: cap `8.2`
+- early score-loop writeback before lane convergence: cap `8.0`
 
 ## Confidence Tag
-
-Each scored run should also carry a confidence tag:
 
 - `high`: evidence and self-audit are strong
 - `medium`: one part of the score depends on judgment
@@ -110,37 +78,28 @@ Each scored run should also carry a confidence tag:
 
 ## Ledger Rule
 
-Each substantive SOP run should append one concise row to:
-
+Each substantive run appends one concise row to:
 - `docs/records/artifacts/agent/gear-ball/performance-ledger.md`
 
 Include:
-
-- run date
+- date
 - run label
 - total score
 - confidence
 - what went right
 - what went wrong
-- smallest mechanical improvement for the next run
+- smallest mechanical improvement
 
 ## Improvement Rule
 
-For every substantive SOP run, Gear Ball should record:
+For every substantive run, record:
+- what went right
+- what went wrong
+- the smallest mechanical score-lift change
 
-- what it did right
-- what it did wrong
-- the smallest mechanical change that would raise the next score
-
-When a substantive run scores below `9.0`, Gear Ball should additionally record:
-
+When a run scores below `9.0`, also record:
 - the weakest category
 - whether the fix belongs in a helper, checklist, SOP, or training note
 
-This is meant to stay compact. Gear Ball should not rewrite large training surfaces after every clean run unless the run exposed a new durable lesson.
-
-User corrections that redefine what `run your SOP` is supposed to cover should be treated as behavior/SOP-drift supervision and synthesized into those same operating surfaces.
-
-User corrections about report usefulness or stale closeout timing should be treated as execution-integrity and closeout-discipline training data, not merely formatting feedback.
-
-When the same weakest category appears in `3` consecutive substantive runs, escalate to one concrete system fix.
+Keep this compact. Rewrite broader training surfaces only when the lesson is new.
+If the same weakest category appears in `3` consecutive substantive runs, escalate to one concrete system fix.

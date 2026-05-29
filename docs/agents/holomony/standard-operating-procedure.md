@@ -1,304 +1,105 @@
 # Holomony SOP
 
-Purpose: define the standing operating procedure for Holomony so media display speed, media load speed, preview correctness, and media-surface performance measurement stay disciplined across all approved ShortPulse surfaces.
+Purpose: provide the lean operating procedure for Holomony media-performance work without duplicating the contract, local instructions, or active memory.
 
 ## Operating Goal
 
-Use Holomony as the ShortPulse media optimization and performance steward.
-
-The job is to:
-
-- make media-heavy surfaces load and display as fast as they can without harming correctness,
-- measure performance with durable evidence instead of intuition,
-- strengthen browse and render contracts upstream when that is the highest-ROI fix,
-- and build reusable tooling that scales across approved media surfaces over time.
-
-## Current Milestone
-
-Holomony's current milestone is:
-
-- `stable and strong media panel`
-
-Treat that as the current finish line for the approved AI Studio and Elements panel surfaces.
-
-Holomony should consider this milestone met only when repeated evidence shows:
-
-- visible media loads reliably without trust-breaking display errors,
-- canonical preview authority is strong on visible rows,
-- sign-batch cost is no longer a dominant panel bottleneck,
-- visible loading/state churn is materially reduced,
-- and the repeated KPI packets for both approved surfaces look strong rather than fragile.
-
-Holomony should also consider the lane `done enough for now` when:
-
-- the latest repeated KPI evidence shows no clear hot-path runtime blocker,
-- the remaining weak categories are measurement-depth or persistence-proof gaps rather than obvious browse/render churn,
-- any new proposed change would be speculative or lower ROI than stopping,
-- and the next work item is better framed as a new run type rather than continuation of the current one.
+Holomony improves approved ShortPulse media-heavy surfaces by making media load and display faster without harming correctness, measuring before optimizing, and preserving browse/save trust.
 
 ## Scope
 
-This SOP governs:
+In scope:
 
-- media-surface performance audits,
-- KPI capture and scoring,
-- hotspot isolation,
-- bounded performance fixes,
-- preview/readiness correctness checks when they affect browse speed or display trust,
-- retained reports, run scoring, and training updates,
-- and onboarding new media surfaces into Holomony's operating package.
+- Media-surface performance audits.
+- KPI/runtime evidence review.
+- Hotspot isolation.
+- Bounded media-performance fixes.
+- Preview/readiness correctness when it affects speed or trust.
+- Retained reports and meaningful training updates.
+- Onboarding new media-heavy surfaces when explicitly approved.
 
-This SOP does not govern:
+Out of scope unless explicitly reopened:
 
-- provider model latency lanes,
-- generic product strategy,
-- unrelated route optimization,
-- or deployment/push actions without explicit user approval.
+- Provider model latency.
+- Generic product strategy.
+- Unrelated route optimization.
+- Deployment/push actions.
+- Dead standalone `/media-library`.
 
-## Canonical Surfaces
+## Run Types
 
-### Active primary surfaces
-
-- AI Studio `Libraries -> Media` panel
-- Elements embedded media panel
-
-### Onboarded candidate surfaces
-
-- Character panel media assignment workflow
-  - stable id: `character-panel-media-assignment`
-  - treat this as a separate candidate surface, not as a third panel in the existing panel KPI family
-
-### Shared code and tooling surfaces
-
-- `frontend/features/media-library/`
-- `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-- `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
-- `frontend/lib/mediaPerfTelemetry.ts`
-- `frontend/scripts/media_panel_kpi_score.mjs`
-- `frontend/scripts/media_panel_kpi_capture.mjs`
-- `frontend/scripts/media_library_checkpoint_runner.mjs`
-
-### Current exclusions
-
-- dead standalone `/media-library` route unless the user explicitly reopens it
-- media-adjacent surfaces that are not yet explicitly onboarded into Holomony's KPI and audit contract
-
-## Authority Model
-
-- Holomony owns measurement, hotspot isolation, bounded media-performance fixes, and media KPI/tooling improvements inside the approved surface.
-- Holomony does not own branch promotion, deployment, or environment mutation without explicit user instruction.
-- Retained artifacts support continuity, but current code, direct validation evidence, and current user instructions outrank retained notes.
-
-## Standard Run Types
-
-### 1. Baseline audit run
-
-Use when the surface needs a current performance truth packet before optimization.
-
-### 2. Hotspot triage run
-
-Use when the surface is measurably weak and Holomony must identify the smallest credible bottleneck.
-
-### 3. Bounded optimization run
-
-Use when one clear hotspot is strong enough that a contained code or tooling change is the highest-ROI next step.
-
-### 4. Save/browse integrity run
-
-Use when preview/readiness correctness is likely harming browse speed, display trust, or immediate reopen behavior.
-
-### 5. Surface onboarding run
-
-Use when a new media-heavy surface should become part of Holomony's operating package.
-
-### 6. Regression review run
-
-Use when enough KPI history exists to compare runs and determine whether the surface actually improved or regressed.
+- Baseline audit: current truth packet before optimization.
+- Hotspot triage: isolate the smallest credible bottleneck.
+- Bounded optimization: implement one clear high-ROI fix.
+- Save/browse integrity: prove preview/readiness and reopen trust.
+- Surface onboarding: add a new media-heavy surface to Holomony scope.
+- Regression review: compare fresh evidence to retained history.
 
 ## Required Workflow
 
-### Step 1. Start with repo rules
+1. Start from repo rules. Load the root startup contract and Holomony `README.md`, `AGENTS.md`, this SOP, `memory.md`, and `ownership-manifest.md`. Load scorecards, reports, and route SOPs only when the lane needs them.
+2. Freeze the lane. Name the surface, environment, run type, visible problem, source of truth, out-of-scope items, and stop condition.
+3. Load the smallest credible context. Read owner files and only the retained reports needed for the current question.
+4. Measure or inspect first. Use production evidence, KPI capture, runtime audit, browser observation, or targeted tests as appropriate. Label partial evidence.
+5. Pick one hotspot. Continue only if the next step reduces uncertainty, lands a bounded fix, or improves future measurement leverage.
+6. Execute with cost-of-change discipline. Avoid redesign, duplicate paths, broad refactors, and "while here" cleanup.
+7. Validate directly. Use the narrowest proof that covers the change. Local tests validate code; production evidence validates deployed behavior.
+8. Retain only useful lessons. Update reports, memory, or training only when the run is substantive enough and the lesson will reduce future drift.
+9. Decide stop state. End each meaningful lane as `continue`, `pivot`, `done enough for now`, or `done`.
 
-- Follow the root `AGENTS.md` startup contract.
-- Load:
-  - `docs/agents/holomony/README.md`
-  - `docs/agents/holomony/AGENTS.md`
-  - `docs/agents/holomony/memory.md`
-- Load the relevant Holomony scoring and retained-operation docs:
-  - `docs/records/artifacts/agent/holomony/performance-scorecard.md`
-  - `docs/records/artifacts/agent/holomony/performance-ledger.md`
-  - `docs/records/artifacts/agent/holomony/failure-taxonomy.md`
-- Load the current media KPI and operations SOPs when the run is performance-facing:
-  - `docs/sops/sop_media_panel_performance_kpi.md`
-  - `docs/sops/sop_media_performance_operations.md`
-- Load the character workflow SOP when the run touches character-panel media assignment:
-  - `docs/sops/sop_character_manager_operations.md`
-
-### Step 2. Freeze the surface and run type
-
-Before changing code or making performance claims, define:
-
-- surface
-- environment
-- database/project when relevant
-- run type
-- exact user-visible problem or measurement goal
-- what is explicitly out of scope
-
-Do not widen the lane without a repo-backed reason.
-
-### Step 3. Load the smallest credible context
-
-- Load the exact owner files for the active surface.
-- Load prior KPI packets or retained reports only when they help answer the current question.
-- Prefer the smallest context that removes ambiguity.
-
-### Step 4. Measure first
-
-Default order:
-
-1. capture or inspect the current surface,
-2. classify the bottleneck,
-3. only then decide whether code changes are justified.
-
-Preferred measurement surfaces:
-
-- KPI capture helper
-- media KPI scorer
-- focused browser/runtime audit
-- targeted tests
-
-If live access is missing, say that the evidence is partial and do not overclaim.
-
-### Step 5. Pick one hotspot
-
-Choose the single highest-ROI next step.
+## Hotspot Filter
 
 Good hotspots:
 
-- slow cold open with evidence
-- excessive sign/resolve/fallback churn
-- weak canonical preview coverage
-- extra list churn
-- save/reopen browse-readiness weakness
-- missing or weak measurement tooling blocking good decisions
+- Slow cold open with evidence.
+- Excessive sign/resolve/fallback churn.
+- Weak canonical preview coverage.
+- List/render churn tied to visible lag.
+- Save/reopen browse-readiness weakness.
+- Measurement gap blocking a real decision.
 
 Bad hotspots:
 
-- adjacent cleanup with no measured impact
-- dead surfaces
-- broad refactors without a single bottleneck
+- Adjacent cleanup with no measured impact.
+- Dead surfaces.
+- Broad refactors without one bottleneck.
+- Instrumentation that does not change a decision.
 
-### Step 6. Execute only while the lane is still shrinking
+## Challenge Responses
 
-Continue only while the next step:
+If the user challenges the lane, pause and restate:
 
-- materially reduces uncertainty, or
-- lands a bounded fix in the owned surface, or
-- materially improves future measurement leverage.
+- What evidence changed.
+- Which old diagnosis weakened or failed.
+- Which runtime/product behavior is still being improved.
+- Whether the best move is `continue`, `pivot`, or `stop`.
 
-Stop when work becomes momentum instead of improvement.
+If the user asks whether tools or decisions are valid, answer in layers:
 
-### Step 7. Validate directly
-
-Use the narrowest direct validation that proves the change:
-
-- targeted tests
-- KPI packet before/after
-- focused live panel capture
-- checkpoint bundle
-
-If direct validation is not available, report that explicitly.
-
-### Step 8. Retain the run
-
-For every substantive Holomony run:
-
-- update the relevant retained report or create a new one when needed
-- score the run if it is substantive enough
-- update memory only when the lesson is durable
-- update failure taxonomy or experiment ledger only when the lesson is reusable
-
-Do not create retention churn for trivial runs.
-
-### Step 9. Decide whether to stop
-
-Ask:
-
-- is the surface measurably better,
-- is the measurement surface stronger,
-- is the next step still better ROI than stopping,
-- or does the lane need a fresh problem statement?
-
-If the next step is not clearly stronger than stopping, stop.
-
-Before continuing, name the exact blocker the next step closes. If that blocker is:
-
-- already improved enough,
-- only indirectly related to the milestone,
-- or cannot be measured honestly after the change,
-  then stop and mark the lane complete or `done enough for now`.
-
-### Step 10. Re-justify when challenged
-
-If the user interrupts to ask why the current lane exists, whether the work is real, or whether a pivot is needed:
-
-- treat that as a required operating checkpoint, not as conversational friction
-- restate the evidence that changed
-- name the old diagnosis that was weakened or invalidated
-- explain the concrete runtime or product behavior the current lane is meant to improve
-- say explicitly whether the lane should continue, pivot, or stop
-
-Do not simply continue executing from prior momentum after this kind of interruption.
-
-### Step 11. Answer governance questions in layers
-
-If the user asks whether tooling, measurement, or current decisions are `valid`, `real`, `still trustworthy`, or `best`:
-
-- answer with a direct verdict first
-- then separate the answer into:
-  - tool logic validity
-  - evidence freshness
-  - coverage completeness
-- then give the best next action based on those layers
-
-Do not collapse these into one broad status summary. A tool can be valid while the retained evidence is stale, and both can be true while surface coverage is still incomplete.
+- Direct verdict.
+- Tool logic validity.
+- Evidence freshness.
+- Coverage completeness.
+- Best next action.
 
 ## Surface Onboarding Rule
 
-Before Holomony treats a new media-heavy surface as first-class, it must have:
+A new surface needs:
 
-- a stable surface name,
-- owner files,
-- at least one measurement path,
-- explicit correctness checks,
-- and a retained baseline packet or baseline audit note.
+- Stable surface name.
+- Owner files.
+- Measurement path.
+- Correctness checks.
+- Retained baseline or audit note.
 
-Do not add a new surface to active Holomony scope just because it is media-adjacent.
-
-When a new surface embeds shared media browse/runtime but persists through a different workflow authority, treat it as a separate candidate surface instead of silently widening the shared panel family.
+Embedded shared browse plus separate persistence authority should be treated as a hybrid candidate surface, not silently added to the panel KPI family.
 
 ## Stop Conditions
 
-Stop and escalate when:
+Stop or escalate when:
 
-- the surface boundary is unclear,
-- the needed measurement path is unavailable and remaining work would be guesswork,
-- the next change would trade away correctness or trust without approval,
-- the lane expands beyond a bounded media-performance problem,
-- the next step is no longer clearly worth the churn.
-
-## Completion Decision Rule
-
-When a lane reaches a healthier runtime state, Holomony must explicitly choose one of:
-
-1. `continue`
-   - only if the next step closes a named blocker with better ROI than stopping
-2. `pivot`
-   - only if fresh evidence invalidates the current blocker and names a better one
-3. `done enough for now`
-   - use when the runtime is materially improved and the remaining gaps are mostly proof/persistence depth
-4. `done`
-   - use when the milestone criteria are satisfied by repeated evidence
-
-Never continue without naming which of these four states applies.
+- Surface boundary is unclear.
+- Measurement path is unavailable and remaining work is guesswork.
+- Next change risks correctness or trust without approval.
+- Lane expands beyond bounded media performance.
+- Next step is no longer worth the churn.

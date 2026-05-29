@@ -22,63 +22,31 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 8. If the run is large or mixed, lock a file-backed manifest before staging.
 9. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
-## Default Profiles
+## Default Ladders
 
-### `docs-only`
-
-1. Inventory the diff.
-2. Default to one commit.
-3. Run docs validation only.
-4. Commit.
-5. Push if asked.
-
-### `product-targeted`
-
-1. Inventory the diff.
-2. Default to one commit.
-3. Run targeted tests first.
-4. Run `build` only if shared page/runtime/API triggers fire.
-5. Commit.
-6. Push if asked.
-
-### `shared-runtime`
-
-1. Inventory the diff.
-2. Default to one commit unless a real risk boundary exists. Do not split merely because the lane spans UI, tests, and closely-coupled docs.
-3. Run `gear-ball:preflight`.
-4. Run targeted tests.
-5. Run `build`.
-6. Escalate to the full suite only when:
-   - the profile explicitly demands it
-   - the run is mixed/cross-cutting
-   - or first-pass validation is unstable
-7. Commit.
-8. Push if asked.
-
-### `production-targeted`
-
-1. Inventory the diff.
-2. Default to one commit unless a real risk boundary exists.
-3. Run `gear-ball:preflight`.
-4. Run targeted tests.
-5. Run `build`.
-6. Run stricter leftover audits.
-7. Run smoke only when the changed route and profile require it.
-8. Commit.
-9. Push if asked.
-
-### `production-broad`
-
-1. Inventory the diff.
-2. Default to one commit unless a real risk boundary exists.
-3. Run `gear-ball:preflight`.
-4. Run targeted tests.
-5. Run `build`.
-6. Usually run the full suite.
-7. Run stricter leftover audits.
-8. Run smoke only when the changed route and profile require it.
-9. Commit.
-10. Push if asked.
+- `docs-only`
+  - docs validation
+  - one commit
+  - push if asked
+- `product-targeted`
+  - targeted tests
+  - `build` only if shared runtime/page/API triggers fire
+  - one commit
+  - push if asked
+- `shared-runtime`
+  - `gear-ball:preflight` unless ignore-matched config files force the manual ladder
+  - targeted tests
+  - `build`
+  - escalate only when the lane is mixed, unstable, or explicitly broad
+- `production-targeted`
+  - same as `shared-runtime`
+  - stricter leftover audit
+  - smoke only when the changed route truly needs it
+- `production-broad`
+  - strongest ladder
+  - broader validation
+  - stricter leftover audit
+  - smoke only when the changed route truly needs it
 
 ## Common Rules
 
@@ -94,13 +62,13 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 10. After every commit, run a post-commit convergence loop:
    - rerun `git status --short`
    - compare the live tree to the just-validated lane manifest
-   - if related product/test/support tails surfaced, fold them back into the same lane before any push or score-loop writeback
+   - if related tails surfaced, fold them back into the same lane before any push or score-loop writeback
    - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
 11. Do not commit the score loop while any related repo-backed tail is still live. Score-loop writeback happens only after the final commit set is complete.
 12. Before push, rerun only the final required validation on the exact final tree.
 13. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
 14. Push only the approved branch.
-15. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool has succeeded and returned confirmation.
+15. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool confirms success.
 16. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
 
 ## Closeout
@@ -112,14 +80,14 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - the smallest change that would raise the next run's score
 3. Score it out of 10.
 4. Append one compact training row for the run to `docs/records/artifacts/agent/gear-ball/performance-ledger.md` only after the final commit set is actually complete.
-5. If the run scored below `9.0` or taught a new durable lesson, update the smallest necessary retained training surfaces (`training-history`, SOP, memory, scorecard, or dataset).
+5. If the run scored below `9.0` or taught a new durable lesson, update only the smallest retained surfaces needed.
 6. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
 7. Keep suggested next steps inside Gear Ball's lane by default:
    - SOP/process improvements
-   - self-scoring or training-loop improvements
+   - self-scoring improvements
    - validation/manifest/leftover-discipline improvements
 8. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
-9. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data.
+9. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data when the lesson is still new.
 
 ## Stop Conditions
 

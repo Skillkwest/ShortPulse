@@ -248,9 +248,21 @@
   margin: 0;
 }
 
+.elements-panel-workspace .elements-name-input {
+  border-color: rgba(201, 205, 214, 0.08);
+  background: var(--elements-panel-tab-tray-bg);
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.96rem;
+}
+
 .elements-name-input::placeholder,
 .elements-description-input::placeholder {
   color: rgba(157, 166, 178, 0.6);
+}
+
+.elements-name-input::placeholder {
+  font-size: 0.96rem;
 }
 
 .elements-name-input:focus-visible,
@@ -311,7 +323,7 @@
 }
 
 .elements-reference-drop-icon {
-  color: rgba(242, 156, 188, 0.92);
+  color: currentColor;
 }
 
 .elements-reference-drop-requirement {

@@ -27,7 +27,7 @@ import {
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
-import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
+import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
 import {
@@ -49,8 +49,8 @@ const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 const ELEMENT_LIBRARY_AVATAR_SIZE_PX = 44;
 const ELEMENT_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
 const ELEMENT_PANEL_SHELL_BACKGROUND = "rgba(31, 35, 40, 0.94)";
-const ELEMENT_PANEL_FIELD_BACKGROUND = "rgba(15, 17, 22, 0.96)";
-const ELEMENT_PANEL_FIELD_BORDER_COLOR = "rgba(39, 45, 54, 0.96)";
+const ELEMENT_PANEL_FIELD_BACKGROUND = "#131518";
+const ELEMENT_PANEL_FIELD_BORDER_COLOR = "rgba(34, 40, 49, 0.96)";
 const ELEMENT_BUTTON_INLINE_STYLE: React.CSSProperties = {
   minWidth: "152px",
   minHeight: "48px",
@@ -364,10 +364,10 @@ export function ElementsManagerShell({
     isSwitchingElement,
     isSavingElement,
     updateDraftField,
-    assignActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveImageReferenceAtIndex,
     clearActiveVideoReference,
+    onHandleImageReferenceTransferAtIndex,
     onCreateElement,
     onSaveElement,
     onSelectElement,
@@ -387,6 +387,9 @@ export function ElementsManagerShell({
   const [hoveredReferenceCardIndex, setHoveredReferenceCardIndex] = React.useState<number | null>(
     null
   );
+  const [pendingReferenceUploadCounts, setPendingReferenceUploadCounts] = React.useState<
+    Record<number, number>
+  >({});
   const [measuredReferenceCardHeightPx, setMeasuredReferenceCardHeightPx] = React.useState<
     number | null
   >(null);
@@ -631,6 +634,18 @@ export function ElementsManagerShell({
     [draft.assetType, editorPanelWidth]
   );
 
+  const setReferenceSlotPending = React.useCallback((slotIndex: number, direction: 1 | -1) => {
+    setPendingReferenceUploadCounts((current) => ({
+      ...current,
+      [slotIndex]: Math.max(0, (current[slotIndex] ?? 0) + direction),
+    }));
+  }, []);
+
+  const isReferenceSlotPending = React.useCallback(
+    (slotIndex: number) => (pendingReferenceUploadCounts[slotIndex] ?? 0) > 0,
+    [pendingReferenceUploadCounts]
+  );
+
   React.useEffect(() => {
     if (externalCreateRequestKey === 0) return;
     if (lastHandledExternalCreateRequestKeyRef.current === externalCreateRequestKey) return;
@@ -676,15 +691,19 @@ export function ElementsManagerShell({
     (transfer: DataTransfer | null | undefined): boolean => {
       if (!transfer) return false;
       const libraryPayload = readMediaLibraryDragPayload(transfer);
+      if (draft.assetType === "image") {
+        const canAcceptLibraryImage =
+          libraryPayload?.kind === "libraryMedia" && libraryPayload.payload.fileType === "image";
+        return Boolean(
+          canAcceptLibraryImage ||
+          extractInternalReferenceDragPayload(transfer) ||
+          hasInternalReferenceDragTypeHints(transfer) ||
+          hasDroppedImageReferenceTransfer(transfer)
+        );
+      }
       const canAcceptLibraryMedia =
-        libraryPayload?.kind === "libraryMedia" &&
-        ((draft.assetType === "image" && libraryPayload.payload.fileType === "image") ||
-          (draft.assetType === "video" && libraryPayload.payload.fileType === "video"));
-      const canAcceptLocalImageFile =
-        draft.assetType === "image" &&
-        Array.from(transfer.files ?? []).some((file) => file.type.startsWith("image/"));
+        libraryPayload?.kind === "libraryMedia" && libraryPayload.payload.fileType === "video";
       return Boolean(
-        canAcceptLocalImageFile ||
         canAcceptLibraryMedia ||
         extractInternalReferenceDragPayload(transfer) ||
         hasInternalReferenceDragTypeHints(transfer)
@@ -693,129 +712,62 @@ export function ElementsManagerShell({
     [draft.assetType]
   );
 
-  const resolveDroppedReferenceUrl = React.useCallback(
-    async (transfer: DataTransfer): Promise<string | null> => {
-      const localImageFile =
-        draft.assetType === "image"
-          ? (Array.from(transfer.files ?? []).find((file) => file.type.startsWith("image/")) ??
-            null)
-          : null;
-      if (localImageFile) {
-        const localObjectUrl = URL.createObjectURL(localImageFile);
-        try {
-          return await uploadImageToStorage(localObjectUrl);
-        } finally {
-          URL.revokeObjectURL(localObjectUrl);
-        }
-      }
-
-      const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
-      if (mediaLibraryPayload?.kind === "libraryMedia") {
-        if (
-          (draft.assetType === "image" && mediaLibraryPayload.payload.fileType !== "image") ||
-          (draft.assetType === "video" && mediaLibraryPayload.payload.fileType !== "video")
-        ) {
-          return null;
-        }
-        const mediaLibraryUrl =
-          mediaLibraryPayload.payload.fullUrl?.trim() ||
-          mediaLibraryPayload.payload.url?.trim() ||
-          mediaLibraryPayload.payload.previewUrl?.trim() ||
-          null;
-        if (!mediaLibraryUrl) return null;
-        if (
-          draft.assetType === "image" &&
-          (mediaLibraryUrl.startsWith("blob:") || mediaLibraryUrl.startsWith("data:image/"))
-        ) {
-          return await uploadImageToStorage(mediaLibraryUrl);
-        }
-        return mediaLibraryUrl;
-      }
-
-      const payload = extractInternalReferenceDragPayload(transfer);
-      if (!payload) return null;
-
-      const directReferenceUrl =
-        payload.referenceUrl?.trim() || payload.referenceRenderUrl?.trim() || null;
-
-      if (!resolveProfileImageDropSource) {
-        if (
-          directReferenceUrl?.startsWith("blob:") ||
-          directReferenceUrl?.startsWith("data:image/")
-        ) {
-          return await uploadImageToStorage(directReferenceUrl);
-        }
-        return directReferenceUrl;
-      }
-
-      try {
-        const resolvedSource = await resolveProfileImageDropSource(payload);
-        const resolvedReferenceUrl =
-          resolvedSource?.preparedImageUrl?.trim() ||
-          resolvedSource?.preview.url?.trim() ||
-          directReferenceUrl;
-        if (!resolvedReferenceUrl) return null;
-        if (
-          resolvedReferenceUrl.startsWith("blob:") ||
-          resolvedReferenceUrl.startsWith("data:image/")
-        ) {
-          return await uploadImageToStorage(resolvedReferenceUrl);
-        }
-        return resolvedReferenceUrl;
-      } catch {
-        if (!directReferenceUrl) return null;
-        if (
-          directReferenceUrl.startsWith("blob:") ||
-          directReferenceUrl.startsWith("data:image/")
-        ) {
-          return await uploadImageToStorage(directReferenceUrl);
-        }
-        return directReferenceUrl;
-      }
-    },
-    [draft.assetType, resolveProfileImageDropSource]
-  );
-
   const handleSheetDragEnter = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
+      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptSheetDrop]
+    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending]
   );
 
   const handleSheetDragOver = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
+      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptSheetDrop]
+    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending]
   );
 
   const handleSheetDrop = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
+      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       setActiveSheetDropIndex(null);
-      void resolveDroppedReferenceUrl(event.dataTransfer).then((droppedReferenceUrl) => {
-        if (!droppedReferenceUrl) return;
-        if (draft.assetType === "video") {
+      if (draft.assetType === "video") {
+        const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
+        const droppedReferenceUrl =
+          mediaLibraryPayload?.kind === "libraryMedia" &&
+          mediaLibraryPayload.payload.fileType === "video"
+            ? mediaLibraryPayload.payload.fullUrl?.trim() ||
+              mediaLibraryPayload.payload.url?.trim() ||
+              mediaLibraryPayload.payload.previewUrl?.trim() ||
+              null
+            : null;
+        if (droppedReferenceUrl) {
           assignActiveVideoReference(droppedReferenceUrl);
-          return;
         }
-        assignActiveImageReferenceAtIndex(slotIndex, droppedReferenceUrl);
+        return;
+      }
+
+      setReferenceSlotPending(slotIndex, 1);
+      void onHandleImageReferenceTransferAtIndex(slotIndex, event.dataTransfer).finally(() => {
+        setReferenceSlotPending(slotIndex, -1);
       });
     },
     [
-      assignActiveImageReferenceAtIndex,
       assignActiveVideoReference,
       canAcceptSheetDrop,
       draft.assetType,
-      resolveDroppedReferenceUrl,
+      isReferenceSlotPending,
+      onHandleImageReferenceTransferAtIndex,
+      setReferenceSlotPending,
     ]
   );
 
@@ -1233,7 +1185,7 @@ export function ElementsManagerShell({
           <div className="model-modal-header-actions">
             <button
               type="button"
-              className="ai-character-picker-library-btn kling-entity-picker-create-btn kling-entity-picker-create-btn--elements"
+              className="ai-character-picker-library-btn ai-character-picker-library-btn--elements"
               disabled={createActionDisabled}
               onClick={() => {
                 handleCreateNewElement();

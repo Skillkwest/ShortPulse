@@ -4,8 +4,17 @@
  */
 import React from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
-import type { InternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
+import {
+  extractInternalReferenceDragPayload,
+  type InternalReferenceDragPayload,
+} from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
+import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
+import {
+  extractDroppedFiles,
+  resolveDroppedImageReference,
+} from "../../character-manager/logic/characterDropPayload";
+import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import { createEmptyElementDraft } from "../constants";
 import type { ElementAssetType, ElementDraft, ElementLibraryItem } from "../types";
 import {
@@ -318,6 +327,19 @@ const hasRequiredReferencesForInitialSave = (draft: ElementDraft): boolean => {
     return Boolean(draft.videoReferenceUrl.trim());
   }
   return Boolean(draft.imageReferenceUrls[0]?.trim() && draft.imageReferenceUrls[1]?.trim());
+};
+
+const uploadElementReferenceBlob = async (blob: Blob): Promise<string> => {
+  const normalizedMimeType = blob.type.trim().toLowerCase();
+  if (normalizedMimeType && !normalizedMimeType.startsWith("image/")) {
+    throw new Error("Dropped content is not an image.");
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await uploadImageToStorage(objectUrl);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 };
 
 type UseElementsManagerViewStateParams = {
@@ -798,6 +820,161 @@ export const useElementsManagerViewState = ({
     [onSetProfileImageFromUrl, resolveProfileImageDropSource]
   );
 
+  const onSetImageReferenceFromUrlAtIndex = React.useCallback(
+    async (index: number, source: string | ElementProfileImageDropSource) => {
+      const normalizedSource: ElementProfileImageDropSource =
+        typeof source === "string" ? { url: source.trim() } : source;
+      const normalizedSourceUrl = normalizedSource.url?.trim() ?? "";
+      if (!normalizedSourceUrl && !normalizedSource.loadBlob) return;
+      setError(null);
+      try {
+        let resolvedReferenceUrl = normalizedSourceUrl;
+        if (normalizedSource.loadBlob) {
+          const { blob } = await downloadDroppedProfileImageBlob({
+            ...normalizedSource,
+            url: normalizedSourceUrl,
+          });
+          resolvedReferenceUrl = await uploadElementReferenceBlob(blob);
+        } else if (
+          normalizedSourceUrl.startsWith("blob:") ||
+          normalizedSourceUrl.startsWith("data:image/")
+        ) {
+          resolvedReferenceUrl = await uploadImageToStorage(normalizedSourceUrl);
+        }
+        assignActiveImageReferenceAtIndex(index, resolvedReferenceUrl);
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to add element reference."));
+      }
+    },
+    [assignActiveImageReferenceAtIndex]
+  );
+
+  const onSetImageReferenceFileAtIndex = React.useCallback(
+    async (index: number, file: File) => {
+      if (!file.type.startsWith("image/")) {
+        setError("Dropped content is not an image.");
+        return;
+      }
+      setError(null);
+      const objectUrl = URL.createObjectURL(file);
+      try {
+        const uploadedReferenceUrl = await uploadImageToStorage(objectUrl);
+        assignActiveImageReferenceAtIndex(index, uploadedReferenceUrl);
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to add element reference."));
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    },
+    [assignActiveImageReferenceAtIndex]
+  );
+
+  const onSetImageReferenceFromInternalDropAtIndex = React.useCallback(
+    async (index: number, payload: InternalReferenceDragPayload) => {
+      const referenceUrl =
+        payload.referenceUrl?.trim() || payload.referenceRenderUrl?.trim() || null;
+      const fallbackSource: ElementProfileImageDropSource | null =
+        referenceUrl || payload.mediaId?.trim() || payload.fullStoragePath?.trim()
+          ? {
+              ...(referenceUrl ? { url: referenceUrl } : {}),
+              mediaId: payload.mediaId?.trim() || null,
+              storagePath:
+                payload.fullStoragePath?.trim() || payload.previewStoragePath?.trim() || null,
+            }
+          : null;
+
+      if (!resolveProfileImageDropSource) {
+        if (fallbackSource) {
+          await onSetImageReferenceFromUrlAtIndex(index, fallbackSource);
+        }
+        return;
+      }
+
+      try {
+        const resolvedSource = await resolveProfileImageDropSource(payload);
+        if (resolvedSource) {
+          await onSetImageReferenceFromUrlAtIndex(index, {
+            url:
+              resolvedSource.preparedImageUrl?.trim() ||
+              resolvedSource.preview.url?.trim() ||
+              referenceUrl,
+            mediaId: resolvedSource.mediaId?.trim() || payload.mediaId?.trim() || null,
+            storagePath:
+              resolvedSource.fullStoragePath?.trim() ||
+              resolvedSource.previewStoragePath?.trim() ||
+              payload.fullStoragePath?.trim() ||
+              payload.previewStoragePath?.trim() ||
+              null,
+            loadBlob: resolvedSource.loadBlob,
+          });
+          return;
+        }
+      } catch (nextError) {
+        if (!fallbackSource) {
+          setError(toErrorMessage(nextError, "Failed to add element reference."));
+          return;
+        }
+      }
+
+      if (fallbackSource) {
+        await onSetImageReferenceFromUrlAtIndex(index, fallbackSource);
+      }
+    },
+    [onSetImageReferenceFromUrlAtIndex, resolveProfileImageDropSource]
+  );
+
+  const onHandleImageReferenceTransferAtIndex = React.useCallback(
+    async (index: number, transfer: DataTransfer) => {
+      const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+      if (
+        mediaLibraryPayload?.kind === "libraryMedia" &&
+        mediaLibraryPayload.payload.fileType === "image"
+      ) {
+        await onSetImageReferenceFromUrlAtIndex(index, {
+          url:
+            mediaLibraryPayload.payload.fullUrl?.trim() ||
+            mediaLibraryPayload.payload.url?.trim() ||
+            mediaLibraryPayload.payload.previewUrl?.trim() ||
+            "",
+          mediaId: mediaLibraryPayload.payload.id,
+          storagePath:
+            mediaLibraryPayload.payload.fullStoragePath ??
+            mediaLibraryPayload.payload.previewStoragePath ??
+            null,
+        });
+        return;
+      }
+
+      const droppedFile = extractDroppedFiles(transfer).find((file) =>
+        file.type.startsWith("image/")
+      );
+      if (droppedFile) {
+        await onSetImageReferenceFileAtIndex(index, droppedFile);
+        return;
+      }
+
+      const internalPayload = extractInternalReferenceDragPayload(transfer);
+      if (internalPayload) {
+        await onSetImageReferenceFromInternalDropAtIndex(index, internalPayload);
+        return;
+      }
+
+      const droppedReference = resolveDroppedImageReference(transfer);
+      if (droppedReference) {
+        await onSetImageReferenceFromUrlAtIndex(index, {
+          url: droppedReference.url,
+          mediaId: droppedReference.characterMediaId,
+          storagePath: droppedReference.storagePath ?? null,
+        });
+      }
+    },
+    [
+      onSetImageReferenceFileAtIndex,
+      onSetImageReferenceFromInternalDropAtIndex,
+      onSetImageReferenceFromUrlAtIndex,
+    ]
+  );
+
   const onSaveProfileImageTransform = React.useCallback(
     async (transform: ElementDraft["profileImageTransform"]) => {
       const targetId = selectedElementIdRef.current;
@@ -949,6 +1126,7 @@ export const useElementsManagerViewState = ({
     updateDraftField,
     onSetAssetType,
     assignActiveImageReferenceAtIndex,
+    onHandleImageReferenceTransferAtIndex,
     clearActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveVideoReference,

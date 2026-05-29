@@ -312,6 +312,26 @@
   outline-offset: 2px;
 }
 
+.ai-character-picker-library-btn--elements {
+  border-color: rgba(255, 123, 167, 0.58);
+  color: rgba(255, 185, 217, 0.96);
+}
+
+.ai-character-picker-library-btn--elements:hover {
+  border-color: rgba(255, 123, 167, 0.58);
+  background: rgba(28, 32, 37, 0.98);
+  color: rgba(255, 185, 217, 0.96);
+}
+
+.ai-character-picker-library-btn--elements:focus-visible {
+  outline-color: rgba(255, 123, 167, 0.32);
+}
+
+.ai-character-picker-library-btn--elements:disabled {
+  border-color: rgba(255, 123, 167, 0.3);
+  color: rgba(61, 18, 34, 0.72);
+}
+
 .ai-character-picker-modal .kling-entity-picker-create-btn {
   min-height: 36px;
   min-width: 204px;

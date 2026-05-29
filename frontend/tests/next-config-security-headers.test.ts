@@ -1,11 +1,11 @@
 /**
- * Guards the global Next.js security headers so browser microphone prompts stay
+ * Guards the global Next.js security headers so browser camera/microphone prompts stay
  * available on ShortPulse-owned recording surfaces.
  */
 import { describe, expect, it } from "vitest";
 
 describe("next.config security headers", () => {
-  it("allows microphone permissions on the app origin", async () => {
+  it("allows camera and microphone permissions on the app origin", async () => {
     const nextConfigModule = await import("../next.config.js");
     const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
     const headerEntries = await nextConfig.headers();
@@ -27,6 +27,8 @@ describe("next.config security headers", () => {
     if (!permissionsPolicy) {
       throw new Error("Expected Permissions-Policy header.");
     }
+    expect(permissionsPolicy.value).toContain("camera=(self)");
+    expect(permissionsPolicy.value).not.toContain("camera=()");
     expect(permissionsPolicy.value).toContain("microphone=(self)");
     expect(permissionsPolicy.value).not.toContain("microphone=()");
   });

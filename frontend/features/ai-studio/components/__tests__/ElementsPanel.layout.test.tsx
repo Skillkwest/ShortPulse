@@ -430,6 +430,73 @@ describe("ElementsPanel layout", () => {
     });
   });
 
+  it("resolves internal reference drops through the internal source resolver when no direct reference url is present", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => "blob:resolved-internal-reference"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    const resolveElementProfileImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "output-elements-blob",
+      provenance: {
+        origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+        outputId: "output-elements-blob",
+        mediaId: "media-elements-blob",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "local_object_url" as const,
+      },
+      outputId: "output-elements-blob",
+      generationId: null,
+      mediaId: "media-elements-blob",
+      mediaSource: "generated" as const,
+      preview: { url: null },
+      previewStoragePath: null,
+      fullStoragePath: null,
+      promptText: null,
+      loadBlob: async () => new Blob(["resolver-image"], { type: "image/png" }),
+    }));
+
+    render(<ElementsPanel resolveProfileImageDropSource={resolveElementProfileImageDropSource} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-elements-blob",
+      mediaId: "media-elements-blob",
+      sourceSurface: "all-refs",
+    });
+
+    fireEvent.dragOver(targetZone, { dataTransfer: internalDrag });
+    fireEvent.drop(targetZone, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(resolveElementProfileImageDropSource).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:resolved-internal-reference");
+  });
+
   it("accepts a local image file drop into an unsaved element reference slot", async () => {
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -468,6 +535,68 @@ describe("ElementsPanel layout", () => {
       );
     });
     expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
+  it("allows another slot upload to finish while a different slot upload is still pending", async () => {
+    let resolvePrimaryUpload: ((value: string) => void) | null = null;
+    const primaryUploadPromise = new Promise<string>((resolve) => {
+      resolvePrimaryUpload = resolve;
+    });
+
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn((file: Blob) => {
+        const name =
+          file instanceof File && typeof file.name === "string" ? file.name : "reference.png";
+        return name.includes("primary") ? "blob:primary-reference" : "blob:secondary-reference";
+      }),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    vi.mocked(uploadImageToStorage)
+      .mockImplementationOnce(async () => primaryUploadPromise)
+      .mockImplementationOnce(async () => "https://example.com/uploaded/secondary-reference.png");
+
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const primaryZone = screen.getByText("Primary View").closest("article");
+    const secondaryZone = screen.getByText("Secondary View").closest("article");
+    if (!primaryZone || !secondaryZone) {
+      throw new Error("Expected primary and secondary reference zones.");
+    }
+
+    const primaryFile = new File(["primary"], "primary-angle.png", { type: "image/png" });
+    const secondaryFile = new File(["secondary"], "secondary-angle.png", { type: "image/png" });
+
+    fireEvent.drop(primaryZone, { dataTransfer: createFileDataTransfer(primaryFile) });
+    fireEvent.drop(secondaryZone, { dataTransfer: createFileDataTransfer(secondaryFile) });
+
+    await waitFor(() => {
+      expect(uploadImageToStorage).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/secondary-reference.png"
+      );
+    });
+
+    resolvePrimaryUpload?.("https://example.com/uploaded/primary-reference.png");
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Primary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/primary-reference.png"
+      );
+    });
   });
 
   it("keeps profile photo controls out of the embedded element editor", async () => {

@@ -12,7 +12,7 @@ Canonical detailed surfaces:
 
 - Recent substantive-run range: `6/10` to `9.2/10`
 - Current working band: `8.4/10` to `9.0/10`
-- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
+- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, wrapper noise on ignore-matched config files, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
 
 ## Active Synthesis
 
@@ -37,7 +37,7 @@ Canonical detailed surfaces:
 
 ## Current Priorities
 
-1. Make the first cleanup pass one-shot more often, especially on mixed manifests and macOS shell invocations, then do one explicit build-minded seam scan before the final rung on broad shared-runtime lanes.
+1. Make the first cleanup pass one-shot more often, especially on mixed manifests and macOS shell invocations, and skip the wrapper immediately when ignore-matched config files like `frontend/next.config.js` are in the lane.
 2. Keep broad shared-runtime lanes collapsed when one validation seam can honestly carry them.
 3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails, and one last `git diff --name-only` scan before the score loop when a broad lane touched shared runtime seams.
 4. Keep startup and retained-history loading lean by default.

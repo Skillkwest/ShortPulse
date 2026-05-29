@@ -40,6 +40,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - A clean build is not a finished run. If repo-backed tails still exist after validation, keep classifying, validating, and committing before closeout.
 - The score loop and final report happen only after the final shipped tree is complete. Build the report from real pushed commits and fresh `git status --short`, not memory.
 - Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
+- If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.

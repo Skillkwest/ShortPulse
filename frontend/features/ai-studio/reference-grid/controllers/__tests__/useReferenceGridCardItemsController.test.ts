@@ -35,7 +35,7 @@ const resolvedMedia = (
 });
 
 describe("useReferenceGridCardItemsController", () => {
-  it("carries authority tier into visible card projections", () => {
+  it("keeps non-priority image cards placeholder-gated until hydration completes", () => {
     const item = output({
       mediaSource: "generated",
       previewUrl: "https://provider.example.com/generated-preview.png",
@@ -61,9 +61,8 @@ describe("useReferenceGridCardItemsController", () => {
     );
 
     expect(result.current.visibleCardItems[0]?.authorityTier).toBe("preview-only");
-    expect(result.current.visibleCardItems[0]?.imageSrc).toBe(
-      "https://provider.example.com/generated-preview.png"
-    );
+    expect(result.current.visibleCardItems[0]?.imageSrc).toBeUndefined();
+    expect(result.current.hydrationLoadingCardIdSet.has("out-1")).toBe(true);
   });
 
   it("paints the preview before full fallback while image hydration is pending", () => {

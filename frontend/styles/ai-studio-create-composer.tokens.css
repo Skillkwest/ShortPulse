@@ -151,8 +151,10 @@
 }
 
 .create-composer-panel .create-composer-right-panel-inner.is-drop-active {
+  border-radius: 8px;
   background:
     linear-gradient(rgba(14, 19, 24, 0.94), rgba(14, 19, 24, 0.94)),
+    linear-gradient(rgba(52, 200, 255, 0.045), rgba(52, 200, 255, 0.045)),
     radial-gradient(circle at top, rgba(52, 200, 255, 0.18), transparent 56%);
   box-shadow: inset 0 0 0 1px rgba(52, 200, 255, 0.42);
 }

@@ -362,6 +362,107 @@ describe("ReferenceGridCard", () => {
     expect(markLoaded).not.toHaveBeenCalled();
   });
 
+  it("keeps passive image load completion local to the card", () => {
+    const markLoaded = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/passive.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/passive.png",
+          imageSrc: "https://example.com/passive.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const image = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+
+    fireEvent.load(image as HTMLImageElement);
+
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+  });
+
+  it("omits the secondary contain image when dense rendering does not request it", () => {
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/passive.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/passive.png",
+          imageSrc: "https://example.com/passive.png",
+          renderContainPreview: false,
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-card-image--cover")).not.toBeNull();
+    expect(container.querySelector(".reference-card-image--contain")).toBeNull();
+    expect(
+      container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
+    ).toBe(false);
+  });
+
+  it("renders the secondary contain image only when requested", () => {
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/active.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/active.png",
+          imageSrc: "https://example.com/active.png",
+          renderContainPreview: true,
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-card-image--cover")).not.toBeNull();
+    expect(container.querySelector(".reference-card-image--contain")).not.toBeNull();
+    expect(
+      container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
+    ).toBe(true);
+  });
+
+  it("notifies parent readiness when the active image loads", () => {
+    const markLoaded = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/active.png",
+          }),
+          activeOutputId: "out-1",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/active.png",
+          imageSrc: "https://example.com/active.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const image = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+
+    fireEvent.load(image as HTMLImageElement);
+
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: true });
+  });
+
   it("shows a controlled unavailable placeholder when an image preview fails", () => {
     const markLoaded = vi.fn();
     const { container } = render(

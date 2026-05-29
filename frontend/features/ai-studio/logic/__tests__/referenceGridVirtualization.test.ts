@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateReferenceGridWindow,
+  resolveReferenceGridDensityPressureLevel,
   resolveReferenceGridMaxColumns,
   resolveReferenceGridOverscanRows,
   resolveReferenceGridPrependAnchorScrollTop,
@@ -39,6 +40,18 @@ describe("referenceGridVirtualization", () => {
         pressureLevel: 2,
       })
     ).toBe(3);
+  });
+
+  it("resolves density pressure before watchdog samples under large grids", () => {
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 80 })).toBe(0);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 120 })).toBe(1);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 240 })).toBe(2);
+    expect(
+      resolveReferenceGridDensityPressureLevel({
+        itemCount: 20,
+        curatedItemCount: 240,
+      })
+    ).toBe(2);
   });
 
   it("disables virtualization below threshold", () => {

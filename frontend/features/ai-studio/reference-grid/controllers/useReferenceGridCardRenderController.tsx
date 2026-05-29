@@ -220,6 +220,7 @@ export const useReferenceGridCardRenderController = ({
           : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
+      const renderContainPreview = perfDegradeLevel === 0 && activeOutputId === currentOutput.id;
       return (
         <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
@@ -247,6 +248,7 @@ export const useReferenceGridCardRenderController = ({
           imageSrc={card.imageSrc}
           imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
           imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
+          renderContainPreview={renderContainPreview}
           onSelectOutput={onSelectOutput}
           onOpenDetails={onOpenDetails}
           onCardDragStart={onCardDragStart}

@@ -26,6 +26,7 @@ import { useReferenceGridHydrationBudget } from "../../hooks/useReferenceGridHyd
 import { useReferenceGridPerfWatchdog } from "../../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../../hooks/useReferenceGridHorizontalSplit";
+import { resolveReferenceGridDensityPressureLevel } from "../../logic/referenceGridVirtualization";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../logic/referenceGridAdaptivePreview";
 import { useReferenceGridHeaderMeasurements } from "./useReferenceGridHeaderMeasurements";
 import { useReferenceGridPreviewRuntime } from "./useReferenceGridPreviewRuntime";
@@ -130,11 +131,22 @@ export const useReferenceGridRuntimeScaffold = ({
     enabled: PERF_FLAG_REFERENCE_GRID_PERF_WATCHDOG,
     memoryGuardEnabled: PERF_FLAG_REFERENCE_GRID_MEMORY_GUARD,
   });
-  const previewQualityPressureLevel = perfWatchdog.previewQualityPressureLevel;
-  const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
+  const densityPressureLevel = resolveReferenceGridDensityPressureLevel({
+    itemCount: allOutputIds.length,
+    curatedItemCount: curatedOutputIds.length,
+  });
+  const effectivePerfDegradeLevel = Math.max(perfWatchdog.degradeLevel, densityPressureLevel) as
+    | 0
+    | 1
+    | 2;
+  const previewQualityPressureLevel = Math.max(
+    perfWatchdog.previewQualityPressureLevel,
+    densityPressureLevel
+  ) as 0 | 1 | 2;
+  const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(effectivePerfDegradeLevel);
   const hydrationBudget = useReferenceGridHydrationBudget({
     enabled: PERF_FLAG_REFERENCE_GRID_DECODE_BUDGET,
-    pressureLevel: perfWatchdog.degradeLevel,
+    pressureLevel: effectivePerfDegradeLevel,
   });
 
   const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
@@ -304,12 +316,12 @@ export const useReferenceGridRuntimeScaffold = ({
   }, []);
 
   React.useEffect(() => {
-    liveWatchdogDegradeLevelRef.current = perfWatchdog.degradeLevel;
-  }, [perfWatchdog.degradeLevel]);
+    liveWatchdogDegradeLevelRef.current = effectivePerfDegradeLevel;
+  }, [effectivePerfDegradeLevel]);
 
   const mediaWorkBudget = useReferenceGridMediaWorkBudget({
     enabled: PERF_FLAG_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET,
-    pressureLevel: perfWatchdog.degradeLevel,
+    pressureLevel: effectivePerfDegradeLevel,
     constrainedProfile: hydrationBudget.constrainedProfile,
     desiredImageDecodeInflight: hydrationBudget.maxInflightHydrations,
     desiredVideoAttachSlots: desiredVideoAttachBudget,
@@ -372,6 +384,7 @@ export const useReferenceGridRuntimeScaffold = ({
     gridRef,
     curatedScrollContainerRef,
     curatedGridRef,
+    perfDegradeLevel: effectivePerfDegradeLevel,
     setVirtualMetrics,
     setCuratedVirtualMetrics,
     config: {
@@ -406,7 +419,7 @@ export const useReferenceGridRuntimeScaffold = ({
     curatedOutputIds,
     activeOutputId,
     isCuratedSplitEnabled: isCuratedSplitActive,
-    perfDegradeLevel: perfWatchdog.degradeLevel,
+    perfDegradeLevel: effectivePerfDegradeLevel,
     virtualMetrics,
     curatedVirtualMetrics,
     config: {
@@ -458,6 +471,8 @@ export const useReferenceGridRuntimeScaffold = ({
     isWideLayout,
     isCuratedSplitActive,
     perfWatchdog,
+    densityPressureLevel,
+    effectivePerfDegradeLevel,
     previewQualityPressureLevel,
     liveWatchdogDegradeLevelRef,
     hydrationBudget,

@@ -11,7 +11,10 @@ import {
   type SetStateAction,
 } from "react";
 import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
-import { resolveReferenceGridPrependAnchorScrollTop } from "../../logic/referenceGridVirtualization";
+import {
+  resolveReferenceGridMaxColumns,
+  resolveReferenceGridPrependAnchorScrollTop,
+} from "../../logic/referenceGridVirtualization";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -27,6 +30,7 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
   curatedOutputsLength: number;
   outputIds: readonly string[];
   curatedOutputIds: readonly string[];
+  perfDegradeLevel: 0 | 1 | 2;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
   gridRef: MutableRefObject<HTMLDivElement | null>;
   curatedScrollContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -54,6 +58,7 @@ export const useReferenceGridVirtualMetricsController = ({
   curatedOutputsLength,
   outputIds,
   curatedOutputIds,
+  perfDegradeLevel,
   scrollContainerRef,
   gridRef,
   curatedScrollContainerRef,
@@ -91,7 +96,11 @@ export const useReferenceGridVirtualMetricsController = ({
         surface === "curated"
           ? Math.min(config.quickSlotInventoryMaxColumns, config.referenceGridMaxColumnsWide)
           : defaultRequestedMaxColumns;
-      const maxColumns = Math.max(config.referenceGridMinColumns, Math.floor(requestedMaxColumns));
+      const maxColumns = resolveReferenceGridMaxColumns({
+        requestedMaxColumns,
+        itemCount: nextOutputIds.length,
+        pressureLevel: perfDegradeLevel,
+      });
       const minCardWidth = isWideLayout
         ? config.referenceGridMinCardPxWide
         : config.referenceGridMinCardPx;
@@ -157,6 +166,7 @@ export const useReferenceGridVirtualMetricsController = ({
       config.referenceGridMinCardPxWide,
       config.referenceGridMinColumns,
       isWideLayout,
+      perfDegradeLevel,
     ]
   );
 

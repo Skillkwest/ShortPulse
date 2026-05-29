@@ -667,7 +667,7 @@ describe("ReferenceGrid curated split", () => {
     const allRefsImage = allRefsCard?.querySelector(
       ".reference-card-image"
     ) as HTMLImageElement | null;
-    expect(allRefsImage?.getAttribute("loading")).toBe("lazy");
+    expect(allRefsImage).toBeNull();
     expect(curatedCard?.querySelector(".reference-loading")).toBeTruthy();
     expect(allRefsCard?.querySelector(".reference-loading")).toBeNull();
   });

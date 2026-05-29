@@ -32,6 +32,11 @@ type ResolveReferenceGridMaxColumnsInput = {
   pressureLevel?: number;
 };
 
+type ResolveReferenceGridDensityPressureInput = {
+  itemCount: number;
+  curatedItemCount?: number;
+};
+
 type ReferenceGridPrependAnchorInput = {
   previousOutputIds: readonly string[];
   nextOutputIds: readonly string[];
@@ -70,6 +75,19 @@ export const resolveReferenceGridMaxColumns = ({
   if (itemCount < 40) return safeRequested;
   const highDensityCap = pressureLevel >= 2 ? 3 : 4;
   return Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.min(safeRequested, highDensityCap));
+};
+
+/**
+ * Provides an immediate pressure floor for large restored grids before runtime watchdog samples.
+ */
+export const resolveReferenceGridDensityPressureLevel = ({
+  itemCount,
+  curatedItemCount = 0,
+}: ResolveReferenceGridDensityPressureInput): 0 | 1 | 2 => {
+  const largestSurfaceCount = Math.max(0, Math.floor(Math.max(itemCount, curatedItemCount)));
+  if (largestSurfaceCount >= 240) return 2;
+  if (largestSurfaceCount >= 120) return 1;
+  return 0;
 };
 
 /**

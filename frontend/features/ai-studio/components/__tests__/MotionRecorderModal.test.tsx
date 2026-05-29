@@ -306,6 +306,79 @@ describe("MotionRecorderModal", () => {
     });
   });
 
+  it("retries camera access after returning from settings even when permission state stays denied", async () => {
+    const mediaStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
+    };
+    const getUserMediaMock = vi
+      .fn()
+      .mockRejectedValueOnce({
+        name: "NotAllowedError",
+        message: "Permission denied",
+      })
+      .mockResolvedValueOnce(mediaStream);
+
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async ({ name }: { name: string }) => ({
+          name,
+          state: "denied",
+          onchange: null,
+        })),
+      },
+    });
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: getUserMediaMock,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          {
+            deviceId: "camera-1",
+            groupId: "group-camera-1",
+            kind: "videoinput",
+            label: "Front Camera",
+            toJSON: () => ({}),
+          },
+        ]),
+      },
+    });
+    const windowOpenMock = vi.fn();
+    Object.defineProperty(window, "open", {
+      configurable: true,
+      value: windowOpenMock,
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
+    expect(await screen.findByText(/camera access is blocked/i)).toBeInTheDocument();
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open camera settings" }));
+
+    await waitFor(() => {
+      expect(windowOpenMock).toHaveBeenCalled();
+    });
+
+    fireEvent.focus(window);
+
+    await waitFor(() => {
+      expect(getUserMediaMock).toHaveBeenCalledTimes(2);
+    });
+    await screen.findByText("Live preview");
+  });
+
   it("keeps the blocked state in the record flow until camera access is resolved", async () => {
     const mediaStream = {
       getTracks: () => [{ stop: vi.fn() }],

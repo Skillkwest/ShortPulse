@@ -71,6 +71,7 @@ export type ReferenceGridCardProps = {
   imageSrc: string | undefined;
   imageLoading: "eager" | "lazy";
   imageFetchPriority: "high" | "low";
+  renderContainPreview?: boolean;
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   onCardDragStart: (
@@ -156,6 +157,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   imageSrc,
   imageLoading,
   imageFetchPriority,
+  renderContainPreview = true,
   onSelectOutput,
   onOpenDetails,
   onCardDragStart,
@@ -271,6 +273,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const effectiveIsLoading = isLoading && !hasMediaRenderError;
   const shouldShowLoadingOverlay = effectiveIsLoading && loadingVisual !== "none";
   const shouldShowMediaUnavailable = hasMediaRenderError && !effectiveIsLoading && !isFailing;
+  const markCardMediaLoaded = React.useCallback(() => {
+    markLoaded(item.id, { notifyAutoSave: isSelected });
+  }, [isSelected, item.id, markLoaded]);
 
   React.useEffect(() => {
     setHasPosterImageError(false);
@@ -376,7 +381,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 
   return (
     <div
-      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasVideoPosterPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasVideoPosterPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${effectiveIsLoading ? "is-loading" : ""} ${hasMediaRenderError ? "is-media-unavailable" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasVideoPosterPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasVideoPosterPreview ? "has-video-poster" : ""} ${renderContainPreview ? "has-contain-preview" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${effectiveIsLoading ? "is-loading" : ""} ${hasMediaRenderError ? "is-media-unavailable" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
       role="button"
       aria-busy={effectiveIsLoading}
       data-loading={effectiveIsLoading ? "true" : "false"}
@@ -428,7 +433,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           playsInline
           preload={videoPreload}
           onLoadedData={() => {
-            markLoaded(item.id);
+            markCardMediaLoaded();
             if (isHoveringVideo && videoNodeRef.current?.paused) {
               startHoverPlayback();
             }
@@ -464,21 +469,23 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             loading={imageLoading}
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-            onLoad={() => markLoaded(item.id)}
+            onLoad={markCardMediaLoaded}
             onError={handleImageRenderError}
           />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={normalizedPrimaryImageSrc}
-            data-src={primaryImageDataSrc ?? undefined}
-            alt=""
-            aria-hidden="true"
-            className={`reference-card-image reference-card-image--contain ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
-            loading={imageLoading}
-            decoding="async"
-            {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-            onError={handleImageRenderError}
-          />
+          {renderContainPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={normalizedPrimaryImageSrc}
+              data-src={primaryImageDataSrc ?? undefined}
+              alt=""
+              aria-hidden="true"
+              className={`reference-card-image reference-card-image--contain ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+              loading={imageLoading}
+              decoding="async"
+              {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
+              onError={handleImageRenderError}
+            />
+          ) : null}
         </>
       ) : null}
       {shouldRenderAudioElement ? (
@@ -493,7 +500,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           playLabel="Play audio preview"
           pauseLabel="Pause audio preview"
           onActivate={() => onSelectOutput(item.id)}
-          onReady={() => markLoaded(item.id)}
+          onReady={markCardMediaLoaded}
           onError={() => {
             if (!effectiveIsLoading) {
               setHasMediaRenderError(true);

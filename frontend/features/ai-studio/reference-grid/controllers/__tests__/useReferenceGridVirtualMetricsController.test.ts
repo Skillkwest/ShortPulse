@@ -67,6 +67,7 @@ type HarnessProps = {
   isWideLayout: boolean;
   outputsLength: number;
   curatedOutputsLength: number;
+  perfDegradeLevel?: 0 | 1 | 2;
   outputIds?: string[];
   curatedOutputIds?: string[];
 };
@@ -78,6 +79,7 @@ const useHarness = ({
   isWideLayout,
   outputsLength,
   curatedOutputsLength,
+  perfDegradeLevel = 0,
   outputIds,
   curatedOutputIds,
 }: HarnessProps) => {
@@ -117,6 +119,7 @@ const useHarness = ({
     curatedOutputsLength,
     outputIds: resolvedOutputIds,
     curatedOutputIds: resolvedCuratedOutputIds,
+    perfDegradeLevel,
     scrollContainerRef,
     gridRef,
     curatedScrollContainerRef,
@@ -239,6 +242,19 @@ describe("useReferenceGridVirtualMetricsController", () => {
     });
 
     expect(result.current.virtualMetrics.scrollTop).toBe(312);
+  });
+
+  it("caps measured columns for high-density pressure", () => {
+    const { result } = renderHook(() =>
+      useHarness({
+        isWideLayout: true,
+        outputsLength: 260,
+        curatedOutputsLength: 0,
+        perfDegradeLevel: 2,
+      })
+    );
+
+    expect(result.current.virtualMetrics.columnCount).toBe(3);
   });
 
   it("pins prepends to the top when the user is already at the top", () => {

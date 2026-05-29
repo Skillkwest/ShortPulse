@@ -113,6 +113,8 @@ function ReferenceGridComponent({
     isWideLayout,
     isCuratedSplitActive,
     perfWatchdog,
+    densityPressureLevel,
+    effectivePerfDegradeLevel,
     previewQualityPressureLevel,
     hydrationBudget,
     selectionTheme,
@@ -253,7 +255,7 @@ function ReferenceGridComponent({
     activeOutputId,
     suspendAutoplaySelection: suspendBackgroundVisualWork,
     videoAttachBudget: mediaWorkBudget.videoAttachBudget,
-    perfDegradeLevel: perfWatchdog.degradeLevel,
+    perfDegradeLevel: effectivePerfDegradeLevel,
     runNonUrgentUpdate,
     setAutoplayEnabledIds,
     videoVisibleKeySetRef,
@@ -380,7 +382,7 @@ function ReferenceGridComponent({
     isHighDensity,
     imageHydrationQueueSize: imageHydrationState.queueSize,
     imageDecodeInflight: imageHydrationState.decodeInflight,
-    perfDegradeLevel: perfWatchdog.degradeLevel,
+    perfDegradeLevel: effectivePerfDegradeLevel,
     previewSwapRatePerMinute: previewSwapMetrics.swapRatePerMinute,
     previewRepaintSpikeCount: previewSwapMetrics.repaintSpikeCount,
     previewLastSwapBurstCount: previewSwapMetrics.lastSwapBurstCount,
@@ -467,7 +469,7 @@ function ReferenceGridComponent({
     loadingCardIdSet,
     generationLoadingCardIdSet,
     hydrationLoadingCardIdSet,
-    perfDegradeLevel: perfWatchdog.degradeLevel,
+    perfDegradeLevel: effectivePerfDegradeLevel,
     visibleCardItems,
     curatedVisibleCardItems,
     visibleQuickSlotIdSet,
@@ -507,13 +509,14 @@ function ReferenceGridComponent({
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT ? " is-loading-placeholder-timeout-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}${isCuratedSplitActive ? " is-curated-split-mode" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT ? " is-loading-placeholder-timeout-mode" : ""}${effectivePerfDegradeLevel >= 1 ? " is-grid-pressure-mode" : ""}${isCuratedSplitActive ? " is-curated-split-mode" : ""}`}
       data-selection-theme={selectionTheme}
       data-grid-surface="reference-grid"
       data-rendered-item-count={renderedItemCount}
       data-image-hydration-queue-size={imageHydrationState.queueSize}
       data-image-decode-inflight-count={imageHydrationState.decodeInflight}
-      data-grid-perf-degrade-level={perfWatchdog.degradeLevel}
+      data-grid-perf-degrade-level={effectivePerfDegradeLevel}
+      data-grid-density-pressure-level={densityPressureLevel}
       data-grid-media-work-tokens={mediaWorkBudget.totalTokens}
       data-grid-video-attach-budget={mediaWorkBudget.videoAttachBudget}
       data-grid-watchdog-longtask-p95={perfWatchdog.longTaskP95Ms ?? ""}

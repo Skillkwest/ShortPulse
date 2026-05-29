@@ -186,13 +186,6 @@ const resolvePermissionPreflightFeedback = ({
 }: {
   cameraPermissionState: CapturePermissionState;
 }): CaptureFeedback | null => {
-  if (cameraPermissionState === "denied") {
-    return {
-      message: "Camera access is blocked.",
-      recoveryHint:
-        "Allow camera access in your browser's site settings. Browser and system settings are managed outside ShortPulse.",
-    };
-  }
   if (cameraPermissionState === "prompt") {
     return {
       message: "ShortPulse will ask for camera access.",
@@ -202,11 +195,6 @@ const resolvePermissionPreflightFeedback = ({
   }
   return null;
 };
-
-const shouldAutoResumePreview = (permissionState: CapturePermissionState): boolean =>
-  permissionState === "granted" ||
-  permissionState === "prompt" ||
-  permissionState === "unsupported";
 
 const buildVideoDeviceOptions = (devices: MediaDeviceInfo[]): DeviceOption[] => {
   const filtered = devices.filter(
@@ -503,12 +491,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
         return;
       }
       void (async () => {
-        const nextPermissionState = await updatePermissions();
-        if (
-          didAttemptSettingsRecovery &&
-          !previewStreamRef.current &&
-          shouldAutoResumePreview(nextPermissionState)
-        ) {
+        await updatePermissions();
+        if (didAttemptSettingsRecovery && !previewStreamRef.current) {
           await startPreview();
         }
       })();
@@ -721,25 +705,17 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (isRecording) return "Click Stop when the motion reference is complete.";
     if (isRequestingAccess) return null;
     if (!hasRequestedCameraAccess) return null;
-    if (didAttemptSettingsRecovery && cameraPermissionState === "denied") {
-      return "We tried to open your computer's camera settings. If nothing opened, allow access in your browser's site settings and system privacy settings, then try again.";
-    }
     return permissionPreflightFeedback?.recoveryHint ?? null;
   }, [
     captureError,
-    cameraPermissionState,
     captureRecoveryHint,
-    didAttemptSettingsRecovery,
     hasRequestedCameraAccess,
     isRecording,
     isRequestingAccess,
     permissionPreflightFeedback,
   ]);
-  const isModalRecordError =
-    Boolean(captureError) || (hasRequestedCameraAccess && cameraPermissionState === "denied");
-  const shouldShowSettingsRecoveryAction =
-    (hasRequestedCameraAccess && cameraPermissionState === "denied") ||
-    captureError === "Camera access is blocked.";
+  const isModalRecordError = Boolean(captureError);
+  const shouldShowSettingsRecoveryAction = captureError === "Camera access is blocked.";
   const isShowingPlayback = Boolean(recordedClipUrl);
   const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record a motion clip";
   const cameraPickerEmptyMessage = React.useMemo(() => {
@@ -749,11 +725,11 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     if (!hasRequestedCameraAccess) {
       return "Click record to allow camera access and load your available cameras.";
     }
-    if (cameraPermissionState === "denied") {
-      return "Allow camera access to load your available cameras.";
+    if (captureError === "Camera access is blocked.") {
+      return "Allow camera access and click record again to load your available cameras.";
     }
     return "No labeled cameras detected yet.";
-  }, [cameraPermissionState, hasRequestedCameraAccess, isRequestingAccess]);
+  }, [captureError, hasRequestedCameraAccess, isRequestingAccess]);
 
   if (!isOpen) {
     return null;

@@ -31,7 +31,7 @@ import {
   useCharacterManagerDroppedReferenceController,
   type ResolveCharacterDropReference,
 } from "../hooks/useCharacterManagerDroppedReferenceController";
-import { useCharacterPanelDraft } from "../hooks/useCharacterPanelDraft";
+import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { EmbeddedCharacterLooksControl } from "./EmbeddedCharacterLooksControl";
 import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
@@ -382,6 +382,7 @@ export function CharacterPanelWorkspace({
     isSwitchingCharacter,
     isSavingCharacterSheetPreset,
     isDeletingCharacterSheetPreset,
+    hasUnsavedCharacterDraftChanges,
     setCharacterName,
     setCharacterDescription,
     setActiveCharacterSheetPreset,
@@ -395,7 +396,7 @@ export function CharacterPanelWorkspace({
     selectCharacter,
     deleteCharacter,
     clearMessages,
-  } = useCharacterPanelDraft({
+  } = useCharacterManagerDraft({
     preferredCharacterId,
     suppressSelectedCharacterPersistence,
     onSelectedCharacterIdChange,
@@ -420,6 +421,8 @@ export function CharacterPanelWorkspace({
     characterId: string;
     characterName: string;
   } | null>(null);
+  const [isDiscardUnsavedDraftConfirmOpen, setIsDiscardUnsavedDraftConfirmOpen] =
+    React.useState(false);
   const [showSaveSuccessIndicator, setShowSaveSuccessIndicator] = React.useState(false);
   const [hoveredTopActionButton, setHoveredTopActionButton] = React.useState<
     "characters" | "save" | "create" | null
@@ -854,8 +857,9 @@ export function CharacterPanelWorkspace({
       characterSheetZoneMimeType: DND_CHARACTER_SHEET_ZONE_KEY,
     });
 
-  const handleCreateNewCharacter = React.useCallback(async () => {
+  const createNewCharacter = React.useCallback(async () => {
     clearMessages();
+    setIsDiscardUnsavedDraftConfirmOpen(false);
     setIsCharacterLibraryModalOpen(false);
     await createCharacter();
     if (typeof window !== "undefined") {
@@ -865,6 +869,14 @@ export function CharacterPanelWorkspace({
       });
     }
   }, [clearMessages, createCharacter]);
+
+  const handleCreateNewCharacter = React.useCallback(async () => {
+    if (hasUnsavedCharacterDraftChanges) {
+      setIsDiscardUnsavedDraftConfirmOpen(true);
+      return;
+    }
+    await createNewCharacter();
+  }, [createNewCharacter, hasUnsavedCharacterDraftChanges]);
 
   const triggerSaveSuccessIndicator = React.useCallback(() => {
     setShowSaveSuccessIndicator(true);
@@ -1526,6 +1538,27 @@ export function CharacterPanelWorkspace({
           onCancel={() => setDeleteTargetCharacter(null)}
           onConfirm={() => {
             void confirmDeleteCharacter();
+          }}
+        />
+      ) : null}
+
+      {isDiscardUnsavedDraftConfirmOpen ? (
+        <ConfirmationModal
+          title="Start a new character?"
+          titleId="discard-unsaved-character-draft-title"
+          body={
+            <p>
+              Your current unsaved character draft will be discarded. Save it first if you want to
+              keep these changes.
+            </p>
+          }
+          confirmLabel="Discard Draft"
+          cancelDisabled={isCreatingCharacter}
+          confirmDisabled={isCreatingCharacter}
+          confirmBusyLabel={isCreatingCharacter ? "Discarding..." : undefined}
+          onCancel={() => setIsDiscardUnsavedDraftConfirmOpen(false)}
+          onConfirm={() => {
+            void createNewCharacter();
           }}
         />
       ) : null}

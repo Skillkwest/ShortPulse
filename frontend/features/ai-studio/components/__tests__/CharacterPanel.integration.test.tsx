@@ -10,7 +10,7 @@ import {
 } from "../../../character-manager/constants";
 
 const embeddedMediaPanelSpy = vi.fn();
-const useCharacterPanelDraftSpy = vi.fn();
+const useCharacterManagerDraftSpy = vi.fn();
 
 const createDraftState = () => ({
   characters: [
@@ -50,6 +50,7 @@ const createDraftState = () => ({
   isSavingCharacterSheetPreset: false,
   isDeletingCharacterSheetPreset: false,
   hasUnsavedCharacterDraft: false,
+  hasUnsavedCharacterDraftChanges: false,
   setCharacterName: () => undefined,
   setCharacterDescription: () => undefined,
   setActiveCharacterSheetPreset: async () => true,
@@ -87,9 +88,9 @@ vi.mock("../../hooks/useCharacterPanelPropertiesScrollLock", () => ({
   useCharacterPanelPropertiesScrollLock: () => undefined,
 }));
 
-vi.mock("../../../character-manager/hooks/useCharacterPanelDraft", () => ({
-  useCharacterPanelDraft: (args: Record<string, unknown>) => {
-    useCharacterPanelDraftSpy(args);
+vi.mock("../../../character-manager/hooks/useCharacterManagerDraft", () => ({
+  useCharacterManagerDraft: (args: Record<string, unknown>) => {
+    useCharacterManagerDraftSpy(args);
     return currentDraftState;
   },
 }));
@@ -197,7 +198,7 @@ describe("CharacterPanel integration", () => {
     expect(container.querySelector(".character-panel-top-section")).not.toBeNull();
     expect(container.querySelector(".character-panel-bottom-section")).not.toBeNull();
 
-    expect(useCharacterPanelDraftSpy).toHaveBeenCalledWith(
+    expect(useCharacterManagerDraftSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         preferredCharacterId: "character-1",
         suppressSelectedCharacterPersistence: true,

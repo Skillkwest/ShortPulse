@@ -112,7 +112,8 @@ Current set:
 - `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`
 - `057_add_user_preferences_ai_studio_deleted_style_ids.sql`
 - `058_add_user_preferences_ai_studio_style_details_overrides.sql`
-- `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
+- `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` (historical; removed from current schema by `138_retire_character_quickswap_tip_preference.sql`)
+- `138_retire_character_quickswap_tip_preference.sql`
 - `090_add_user_preferences_ai_studio_style_panel_ids.sql`
 - `060_add_media_folders_and_membership.sql`
 - `061_backfill_media_image_dimensions_metadata.sql`

@@ -111,7 +111,7 @@ describe("adaptive-media resolver", () => {
     expect(result.previewUrl).toBe("https://v3b.fal.media/files/b/0a8fb9ad/example.png");
   });
 
-  it("keeps supabase signed object URLs direct in right-rail grid surfaces", () => {
+  it("routes supabase signed object URLs through native render images in right-rail grid surfaces", () => {
     const sourceUrl =
       "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc";
     const result = resolveAdaptiveMedia({
@@ -127,7 +127,11 @@ describe("adaptive-media resolver", () => {
       pressureLevel: 2,
     });
 
-    expect(result.previewUrl).toBe(sourceUrl);
+    expect(result.previewUrl).toContain("/storage/v1/render/image/sign/");
+    expect(result.previewUrl).toContain("width=320");
+    expect(result.previewUrl).toContain("quality=28");
+    expect(result.previewUrl).toContain("token=abc");
+    expect(result.fullUrl).toBe(sourceUrl);
   });
 
   it("normalizes canonical storage paths and rejects runtime URLs", () => {

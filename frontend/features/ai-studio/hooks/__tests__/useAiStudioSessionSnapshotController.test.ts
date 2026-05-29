@@ -7,6 +7,7 @@ import type { StudioOutput } from "../../types";
 const addBreadcrumbMock = vi.hoisted(() => vi.fn());
 const buildAiStudioSessionHydrationPayloadMock = vi.hoisted(() => vi.fn());
 const getSignedMediaUrlsBatchMock = vi.hoisted(() => vi.fn());
+const prepareVideoUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
@@ -19,6 +20,10 @@ vi.mock("../../logic/sessionSnapshotHydrator", () => ({
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
+}));
+
+vi.mock("../../utils/videoUpload", () => ({
+  prepareVideoUrl: (...args: unknown[]) => prepareVideoUrlMock(...args),
 }));
 
 import { useAiStudioSessionSnapshotController } from "../useAiStudioSessionSnapshotController";
@@ -137,6 +142,7 @@ describe("useAiStudioSessionSnapshotController", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    prepareVideoUrlMock.mockImplementation(async (value: string | null) => value);
   });
 
   afterEach(() => {
@@ -425,6 +431,167 @@ describe("useAiStudioSessionSnapshotController", () => {
       setExpertCreateMode.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
     );
     expect(setSelectedTool).toHaveBeenCalledWith("edit");
+  });
+
+  it("refreshes restored motion reference video urls for workspace and create-mode state", async () => {
+    const setReferenceSelectionStateForCreateMode = vi.fn();
+    const setMotionReferenceVideoUrl = vi.fn();
+    const payload = createHydrationPayload([]);
+    const createModeReferenceStates = payload.workspace.createModeReferenceStates!;
+    buildAiStudioSessionHydrationPayloadMock.mockReturnValue({
+      ...payload,
+      workspace: {
+        ...payload.workspace,
+        expertCreateMode: "standard",
+        motionReferenceVideoUrl: "https://example.com/signed/workspace-motion.mp4?token=old",
+        createModeReferenceStates: {
+          standard: {
+            ...createModeReferenceStates.standard,
+            motionReferenceVideoUrl: "https://example.com/signed/standard-motion.mp4?token=old",
+          },
+          pulse: {
+            ...createModeReferenceStates.pulse,
+            motionReferenceVideoUrl: "https://example.com/signed/pulse-motion.mp4?token=old",
+          },
+        },
+      },
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    prepareVideoUrlMock.mockImplementation(async (value: string | null) => {
+      if (!value) return value;
+      if (value.includes("workspace-motion")) {
+        return "https://example.com/signed/workspace-motion.mp4?token=fresh";
+      }
+      if (value.includes("standard-motion")) {
+        return "https://example.com/signed/standard-motion.mp4?token=fresh";
+      }
+      if (value.includes("pulse-motion")) {
+        return "https://example.com/signed/pulse-motion.mp4?token=fresh";
+      }
+      return value;
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioSessionSnapshotController({
+        mode: "image",
+        selectedTool: "create",
+        standardCreatePrompt: "",
+        pulseCreatePrompt: "",
+        model: null,
+        aspect: "1:1",
+        pulseWorkspaceState: { expertCreateMode: "standard" } as never,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        seedance2InputMode: "text",
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: [],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [],
+        archivedOutputs: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+        sessionHydrationSigningRevisionRef: { current: 0 },
+        setMode: vi.fn(),
+        setSelectedTool: vi.fn(),
+        setStandardCreatePrompt: vi.fn(),
+        setPulseCreatePrompt: vi.fn(),
+        setModel: vi.fn(),
+        setAspect: vi.fn(),
+        setExpertCreateMode: vi.fn(),
+        setActivePulsePresetId: vi.fn(),
+        setPulseSessionInstanceId: vi.fn(),
+        setReferenceImageUrl: vi.fn(),
+        setReferenceSelectionStateForCreateMode,
+        getReferenceSelectionStateForCreateMode: vi.fn(() => ({
+          selectedTool: "create" as const,
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+          referenceImageInternalMediaRefs: [],
+          motionReferenceVideoUrl: null,
+        })),
+        setExtraImageUrl: vi.fn(),
+        setEditReferenceText: vi.fn(),
+        setVideoReferenceText: vi.fn(),
+        setVideoReferenceMode: vi.fn(),
+        setVideoDurationSeconds: vi.fn(),
+        setVideoResolution: vi.fn(),
+        setImageResolution: vi.fn(),
+        setVideoGenerateAudio: vi.fn(),
+        setVideoCameraFixed: vi.fn(),
+        setVideoAutoFix: vi.fn(),
+        setKlingNegativePrompt: vi.fn(),
+        setKlingCfgScale: vi.fn(),
+        setKlingWorkflowMode: vi.fn(),
+        setSeedance2InputMode: vi.fn(),
+        setSeedance2ReferenceImageUrls: vi.fn(),
+        setSeedance2ReferenceVideoUrls: vi.fn(),
+        setSeedance2ReferenceAudioUrls: vi.fn(),
+        setSeedance2ReturnLastFrame: vi.fn(),
+        setSeedance2WebSearch: vi.fn(),
+        setKlingShotType: vi.fn(),
+        setKlingVoiceIds: vi.fn(),
+        setKlingMultiPrompts: vi.fn(),
+        setKlingElements: vi.fn(),
+        setMotionReferenceVideoUrl,
+        setOutputCollectionsForCreateMode: vi.fn(),
+        setOutputsState: vi.fn(),
+        setArchivedOutputs: vi.fn(),
+        setRuntimeUiStateForCreateMode: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      result.current.hydrateFromSessionSnapshot({} as never);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+      "https://example.com/signed/workspace-motion.mp4?token=old"
+    );
+    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+      "https://example.com/signed/standard-motion.mp4?token=old"
+    );
+    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+      "https://example.com/signed/pulse-motion.mp4?token=old"
+    );
+    expect(setMotionReferenceVideoUrl).toHaveBeenLastCalledWith(
+      "https://example.com/signed/workspace-motion.mp4?token=fresh"
+    );
+    expect(setReferenceSelectionStateForCreateMode).toHaveBeenCalledWith("standard", {
+      selectedTool: "create",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      referenceImageInternalMediaRefs: [],
+      motionReferenceVideoUrl: "https://example.com/signed/standard-motion.mp4?token=fresh",
+    });
+    expect(setReferenceSelectionStateForCreateMode).toHaveBeenCalledWith("pulse", {
+      selectedTool: "create",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      referenceImageInternalMediaRefs: [],
+      motionReferenceVideoUrl: "https://example.com/signed/pulse-motion.mp4?token=fresh",
+    });
   });
 
   it("keeps the snapshot builder stable across project-nonpersistent draft edits while reading latest values", () => {

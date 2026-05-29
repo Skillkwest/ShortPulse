@@ -6,7 +6,7 @@ describe("useStandardCreatePrimarySubmit", () => {
   it("generates directly from the visible Standard chat composer", async () => {
     const handleGenerate = vi.fn();
     const handleProviderPrimarySubmit = vi.fn();
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -17,7 +17,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -26,7 +26,7 @@ describe("useStandardCreatePrimarySubmit", () => {
     });
 
     expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
-    expect(setSharedPrompt).toHaveBeenCalledWith("standard draft");
+    expect(setVisibleCreatePrompt).toHaveBeenCalledWith("standard draft");
     expect(handleGenerate).toHaveBeenCalledWith(
       "standard draft",
       expect.objectContaining({
@@ -38,7 +38,7 @@ describe("useStandardCreatePrimarySubmit", () => {
 
   it("does not fall back to hidden Standard prompt state when the chat composer is empty", async () => {
     const handleGenerate = vi.fn();
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -49,7 +49,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit: vi.fn(),
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -58,13 +58,13 @@ describe("useStandardCreatePrimarySubmit", () => {
     });
 
     expect(handleGenerate).not.toHaveBeenCalled();
-    expect(setSharedPrompt).not.toHaveBeenCalled();
+    expect(setVisibleCreatePrompt).not.toHaveBeenCalled();
   });
 
   it("submits directly to generation when Standard chat mode is off", () => {
     const handleProviderPrimarySubmit = vi.fn();
     const handleGenerate = vi.fn();
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -75,7 +75,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -91,13 +91,13 @@ describe("useStandardCreatePrimarySubmit", () => {
         toolOverride: "create",
       })
     );
-    expect(setSharedPrompt).not.toHaveBeenCalled();
+    expect(setVisibleCreatePrompt).not.toHaveBeenCalled();
   });
 
   it("uses the visible Standard chat composer even when the page mode is image", async () => {
     const handleGenerate = vi.fn();
     const handleProviderPrimarySubmit = vi.fn();
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -108,7 +108,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -117,7 +117,7 @@ describe("useStandardCreatePrimarySubmit", () => {
     });
 
     expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
-    expect(setSharedPrompt).toHaveBeenCalledWith("image-mode standard draft");
+    expect(setVisibleCreatePrompt).toHaveBeenCalledWith("image-mode standard draft");
     expect(handleGenerate).toHaveBeenCalledWith(
       "image-mode standard draft",
       expect.objectContaining({
@@ -130,7 +130,7 @@ describe("useStandardCreatePrimarySubmit", () => {
   it("uses the authored Standard prompt in chat-off mode even when the page mode is image", () => {
     const handleProviderPrimarySubmit = vi.fn();
     const handleGenerate = vi.fn();
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -141,7 +141,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -157,7 +157,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         toolOverride: "create",
       })
     );
-    expect(setSharedPrompt).not.toHaveBeenCalled();
+    expect(setVisibleCreatePrompt).not.toHaveBeenCalled();
   });
 
   it("falls back to the provider submit path for non-Standard-create tools", () => {
@@ -173,7 +173,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt: vi.fn(),
+        setVisibleCreatePrompt: vi.fn(),
       })
     );
 
@@ -199,7 +199,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 3,
         handleGenerate,
         handleProviderPrimarySubmit,
-        setSharedPrompt: vi.fn(),
+        setVisibleCreatePrompt: vi.fn(),
       })
     );
 
@@ -223,7 +223,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 7,
         handleGenerate,
         handleProviderPrimarySubmit: vi.fn(),
-        setSharedPrompt: vi.fn(),
+        setVisibleCreatePrompt: vi.fn(),
       })
     );
 
@@ -245,7 +245,7 @@ describe("useStandardCreatePrimarySubmit", () => {
       resolveFirstSubmit = resolve;
     });
     const handleGenerate = vi.fn(() => firstSubmitSettled);
-    const setSharedPrompt = vi.fn();
+    const setVisibleCreatePrompt = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -256,7 +256,7 @@ describe("useStandardCreatePrimarySubmit", () => {
         createGenerateCostCredits: 7,
         handleGenerate,
         handleProviderPrimarySubmit: vi.fn(),
-        setSharedPrompt,
+        setVisibleCreatePrompt,
       })
     );
 
@@ -266,7 +266,7 @@ describe("useStandardCreatePrimarySubmit", () => {
     });
 
     expect(handleGenerate).toHaveBeenCalledTimes(1);
-    expect(setSharedPrompt).toHaveBeenCalledTimes(1);
+    expect(setVisibleCreatePrompt).toHaveBeenCalledTimes(1);
 
     resolveFirstSubmit();
     await act(async () => {

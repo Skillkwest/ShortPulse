@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -79,6 +80,7 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
 
 describe("handleVideoModelSubmission (Kling 3 motion)", () => {
   afterEach(() => {
+    forgetObjectUrlBlob("blob:video-remembered");
     vi.restoreAllMocks();
   });
 
@@ -237,6 +239,35 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       "Video upload failed: network failure"
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
+  });
+
+  it("uploads remembered blob motion video when the object url can no longer be fetched", async () => {
+    const args = makeArgs({ motionReferenceVideoUrl: "blob:video-remembered" });
+    const blob = new Blob(["video"], { type: "video/mp4" });
+    rememberObjectUrlBlob("blob:video-remembered", blob);
+    vi.spyOn(global, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.mocked(fetchWithAuth).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        url: "https://cdn.example.com/motion-remembered.mp4",
+        path: "user-1/videos/motion-remembered.mp4",
+        size: blob.size,
+      }),
+    } as Response);
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/upload-video",
+      expect.objectContaining({ method: "POST", body: blob })
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video_urls: ["https://cdn.example.com/motion-remembered.mp4"],
+      })
+    );
   });
 
   it("refreshes expiring Supabase signed motion videos before submit", async () => {

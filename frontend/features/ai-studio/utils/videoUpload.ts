@@ -4,6 +4,7 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 
 export type VideoUploadResult = {
@@ -149,11 +150,18 @@ export const uploadVideoAssetToStorage = async (
   const normalizedLocalVideoUrl = localVideoUrl.replace(/#video=1$/i, "");
   const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalVideoUrl);
   try {
-    const response = await fetch(normalizedLocalVideoUrl);
-    if (!response.ok) {
-      throw new Error(`Unable to read local video input (${response.status}).`);
-    }
-    const blob = await response.blob();
+    const rememberedBlob = normalizedLocalVideoUrl.startsWith("blob:")
+      ? readRememberedObjectUrlBlob(normalizedLocalVideoUrl)
+      : null;
+    const blob =
+      rememberedBlob ??
+      (await (async () => {
+        const response = await fetch(normalizedLocalVideoUrl);
+        if (!response.ok) {
+          throw new Error(`Unable to read local video input (${response.status}).`);
+        }
+        return response.blob();
+      })());
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);

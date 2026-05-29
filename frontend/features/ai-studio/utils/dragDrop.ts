@@ -92,6 +92,7 @@ export type DragDropPayload = {
 
 export type VideoDragDropPayload = {
   videoUrl: string | null;
+  videoFile?: File | null;
   promptText: string | null;
   referenceId?: string | null;
   fromFile?: boolean;
@@ -742,7 +743,8 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
 
   if (videoFile) {
     return {
-      videoUrl: URL.createObjectURL(videoFile),
+      videoUrl: null,
+      videoFile,
       promptText: null,
       referenceId,
       fromFile: true,

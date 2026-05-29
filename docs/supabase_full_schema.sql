@@ -489,7 +489,6 @@ create table if not exists user_preferences (
     ai_studio_deleted_style_ids text[] not null default array[]::text[],
     ai_studio_style_details_overrides jsonb not null default '{}'::jsonb,
     ai_studio_saved_voices jsonb not null default '[]'::jsonb,
-    ai_studio_character_quickswap_tip_hidden boolean not null default false,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -523,9 +522,6 @@ alter table if exists user_preferences
 
 alter table if exists user_preferences
     add column if not exists ai_studio_saved_voices jsonb default '[]'::jsonb;
-
-alter table if exists user_preferences
-    add column if not exists ai_studio_character_quickswap_tip_hidden boolean default false;
 
 update user_preferences
    set media_autosave_enabled = true
@@ -567,10 +563,6 @@ update user_preferences
    set ai_studio_saved_voices = '[]'::jsonb
  where ai_studio_saved_voices is null;
 
-update user_preferences
-   set ai_studio_character_quickswap_tip_hidden = false
- where ai_studio_character_quickswap_tip_hidden is null;
-
 alter table if exists user_preferences
     alter column media_autosave_enabled set default true;
 
@@ -602,9 +594,6 @@ alter table if exists user_preferences
     alter column ai_studio_saved_voices set default '[]'::jsonb;
 
 alter table if exists user_preferences
-    alter column ai_studio_character_quickswap_tip_hidden set default false;
-
-alter table if exists user_preferences
     alter column media_autosave_enabled set not null;
 
 alter table if exists user_preferences
@@ -633,9 +622,6 @@ alter table if exists user_preferences
 
 alter table if exists user_preferences
     alter column ai_studio_saved_voices set not null;
-
-alter table if exists user_preferences
-    alter column ai_studio_character_quickswap_tip_hidden set not null;
 
 alter table user_preferences enable row level security;
 drop policy if exists select_user_preferences_isolation on user_preferences;

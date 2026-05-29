@@ -13,6 +13,16 @@ export const utf8ByteLength = (value: string): number => {
   return value.length;
 };
 
+const computeAutosaveSemanticHash = (value: string): string => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  const normalized = (hash >>> 0).toString(16).padStart(8, "0");
+  return `fnv1a32:${normalized}`;
+};
+
 const stripVolatileSnapshotFields = (
   snapshot: AiStudioSessionSnapshot
 ): Record<string, unknown> => {
@@ -45,7 +55,7 @@ export const prepareAiStudioSessionAutosaveSnapshot = (
     const json = options?.serializedJson ?? JSON.stringify(snapshot);
     const semanticJson = JSON.stringify(stripVolatileSnapshotFields(snapshot));
     return {
-      hash: semanticJson,
+      hash: computeAutosaveSemanticHash(semanticJson),
       bytes: utf8ByteLength(json),
       title: options?.title ?? null,
     };

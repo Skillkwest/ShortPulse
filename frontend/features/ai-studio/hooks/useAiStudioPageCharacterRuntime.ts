@@ -158,9 +158,17 @@ export const useAiStudioPageCharacterRuntime = ({
     setCharacterCreateRequestKey((current) => current + 1);
   }, [setCharacterCreateRequestKey, setSelectedToolWithEditIntentReset]);
 
-  const handleOpenCharacterLibrary = useCallback(() => {
-    setSelectedToolWithEditIntentReset("character");
-  }, [setSelectedToolWithEditIntentReset]);
+  const handleCharacterPanelSelectedCharacterChange = useCallback(
+    (characterId: string | null) => {
+      const normalizedCharacterId = characterId?.trim() ?? "";
+      if ((createSelectedCharacterId?.trim() ?? "") === normalizedCharacterId) {
+        return;
+      }
+      setCreateSelectedCharacterId(normalizedCharacterId);
+      setCreateSelectedCharacterLookId("");
+    },
+    [createSelectedCharacterId, setCreateSelectedCharacterId, setCreateSelectedCharacterLookId]
+  );
 
   const handleOpenElementCreate = useCallback(() => {
     setSelectedToolWithEditIntentReset("elements");
@@ -170,9 +178,9 @@ export const useAiStudioPageCharacterRuntime = ({
   return {
     characterOptions,
     createSelectedCharacterId,
+    handleCharacterPanelSelectedCharacterChange,
     handleCreateCharacterSelection,
     handleOpenCharacterCreate,
-    handleOpenCharacterLibrary,
     handleOpenElementCreate,
     isCharacterOptionsLoading,
     loadCreateCharacterLookOptions,

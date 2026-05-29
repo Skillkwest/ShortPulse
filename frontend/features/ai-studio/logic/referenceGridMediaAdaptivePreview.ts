@@ -73,6 +73,29 @@ const isLikelyVideoPath = (pathname: string): boolean => VIDEO_EXTENSION_PATTERN
 const isLikelyImagePath = (pathname: string): boolean => IMAGE_EXTENSION_PATTERN.test(pathname);
 const isSupabaseRenderImagePath = (pathname: string): boolean =>
   pathname.includes("/storage/v1/render/image/");
+const toSupabaseRenderImageUrl = ({
+  parsed,
+  targetLongEdgePx,
+  qualityBand,
+  surface,
+}: {
+  parsed: URL;
+  targetLongEdgePx: number;
+  qualityBand: ReferenceGridPreviewQualityBand;
+  surface: AdaptiveSurface;
+}): string => {
+  if (!isSupabaseRenderImagePath(parsed.pathname)) {
+    parsed.pathname = parsed.pathname.replace("/storage/v1/object/", "/storage/v1/render/image/");
+  }
+  const minRenderWidth = surface === "quick-slot" ? 240 : 288;
+  const maxRenderWidth = surface === "quick-slot" ? 640 : 960;
+  parsed.searchParams.set(
+    "width",
+    String(Math.max(minRenderWidth, Math.min(maxRenderWidth, targetLongEdgePx)))
+  );
+  parsed.searchParams.set("quality", String(resolvePreviewQualityParam(qualityBand)));
+  return parsed.toString();
+};
 
 const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
   if (!parsedUrl.pathname.includes("/storage/v1/")) return false;
@@ -111,7 +134,12 @@ export const applyAdaptivePreviewTransform = ({
     if (!hasImageSignal) return url;
     if (!isRenderImagePath) {
       if (surface === "reference-grid" || surface === "quick-slot") {
-        return url;
+        return toSupabaseRenderImageUrl({
+          parsed,
+          targetLongEdgePx,
+          qualityBand,
+          surface,
+        });
       }
       return toNextImageOptimizedUrl({
         sourceUrl: url,
@@ -119,14 +147,12 @@ export const applyAdaptivePreviewTransform = ({
         qualityBand,
       });
     }
-    const minRenderWidth = surface === "quick-slot" ? 240 : 288;
-    const maxRenderWidth = surface === "quick-slot" ? 640 : 960;
-    parsed.searchParams.set(
-      "width",
-      String(Math.max(minRenderWidth, Math.min(maxRenderWidth, targetLongEdgePx)))
-    );
-    parsed.searchParams.set("quality", String(resolvePreviewQualityParam(qualityBand)));
-    return parsed.toString();
+    return toSupabaseRenderImageUrl({
+      parsed,
+      targetLongEdgePx,
+      qualityBand,
+      surface,
+    });
   }
   const nextSourceUrl = isRelativeInput ? `${parsed.pathname}${parsed.search}` : url;
   if (!canUseNextImageOptimizerForUrl(nextSourceUrl)) {

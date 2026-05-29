@@ -10,7 +10,58 @@ import {
   UploadSimple,
   VideoCamera,
 } from "phosphor-react";
+import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
+import { MediaDurationBadge } from "./shared/MediaDurationBadge";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
+
+const MOTION_VIDEO_POSTER_CAPTURE_TIME_SECONDS = 3;
+
+const useMotionVideoPreviewMetadata = (motionVideoUrl: string | null) => {
+  const [preview, setPreview] = React.useState<{
+    durationMs: number | null;
+    posterUrl: string | null;
+  }>({
+    durationMs: null,
+    posterUrl: null,
+  });
+
+  React.useEffect(() => {
+    if (!motionVideoUrl) {
+      setPreview({
+        durationMs: null,
+        posterUrl: null,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setPreview({
+      durationMs: null,
+      posterUrl: null,
+    });
+
+    void loadVideoPreviewMetadata(motionVideoUrl, {
+      posterCaptureTimeSeconds: MOTION_VIDEO_POSTER_CAPTURE_TIME_SECONDS,
+    })
+      .then((nextPreview) => {
+        if (cancelled) return;
+        setPreview(nextPreview);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPreview({
+          durationMs: null,
+          posterUrl: null,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [motionVideoUrl]);
+
+  return preview;
+};
 
 type ReferenceMediaStepProps = {
   referenceOrder: number;
@@ -32,6 +83,8 @@ type ReferenceMediaStepProps = {
   extraDragActive: boolean[];
   primaryImageLoading?: boolean;
   extraImageLoading?: boolean[];
+  motionVideoLoading?: boolean;
+  motionVideoError?: string | null;
   motionVideoDragActive: boolean;
   setMotionVideoDragActive: (value: boolean) => void;
   handlePrimaryDrop: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -52,6 +105,7 @@ type ReferenceMediaStepProps = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onMotionVideoChange?: (url: string | null) => void;
+  onClearMotionVideo?: () => void;
   handleFileSelection: (
     setter: (url: string | null) => void
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -83,6 +137,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   extraDragActive,
   primaryImageLoading = false,
   extraImageLoading = [false, false, false],
+  motionVideoLoading = false,
+  motionVideoError = null,
   motionVideoDragActive,
   setMotionVideoDragActive,
   handlePrimaryDrop,
@@ -103,11 +159,13 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   onPrimaryImageChange,
   onExtraImageChange,
   onMotionVideoChange,
+  onClearMotionVideo,
   handleFileSelection,
   handleMotionVideoSelection,
   topContent,
   inlineAside,
 }) => {
+  const motionVideoPreview = useMotionVideoPreviewMetadata(motionVideoUrl);
   const showHeader = !isVideoVariant;
   const isCollapsed = showHeader ? collapsedReference : false;
   const shouldShowPrimaryOptionalPill =
@@ -123,91 +181,121 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   const mediaContent = (
     <>
       {isMotionMode ? (
-        <div className="drop-image-row motion-drop-row">
-          <div className="primary-drop">
-            <div
-              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
-              onDrop={handlePrimaryDrop}
-              onDragEnter={handlePrimaryDragEnter}
-              onDragOver={handlePrimaryDragOver}
-              onDragLeave={handlePrimaryDragLeave}
-              onClick={() => primaryInputRef.current?.click()}
-              style={
-                referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
-              }
-            >
-              {primaryImageLoading ? renderLoadingOverlay() : null}
-              <span className="dropzone-tag">Character</span>
-              {referenceImageUrl ? (
-                <button
-                  type="button"
-                  className="dropzone-clear"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onPrimaryImageChange(null);
-                  }}
-                >
-                  ×
-                </button>
-              ) : (
-                <div className="reference-drop-content image-drop-content">
-                  <ImageSquare size={24} weight="regular" />
-                  <p className="reference-drop-title helper-text">Upload a character image</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="primary-drop">
-            <div
-              className={`reference-dropzone video-dropzone ${motionVideoUrl ? "has-preview" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
-              onDrop={handleMotionVideoDrop}
-              onDragEnter={(event) => {
-                if (allowVideoDrag(event)) {
-                  setMotionVideoDragActive(true);
+        <>
+          <div className="drop-image-row motion-drop-row">
+            <div className="primary-drop">
+              <div
+                className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                onDrop={handlePrimaryDrop}
+                onDragEnter={handlePrimaryDragEnter}
+                onDragOver={handlePrimaryDragOver}
+                onDragLeave={handlePrimaryDragLeave}
+                onClick={() => primaryInputRef.current?.click()}
+                style={
+                  referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
                 }
-              }}
-              onDragOver={(event) => {
-                if (allowVideoDrag(event)) {
-                  setMotionVideoDragActive(true);
-                }
-              }}
-              onDragLeave={() => setMotionVideoDragActive(false)}
-              onClick={() => motionVideoInputRef.current?.click()}
-            >
-              <span className="dropzone-tag">Motion</span>
-              {motionVideoUrl ? (
-                <>
-                  <video
-                    className="reference-dropzone-video"
-                    src={motionVideoUrl}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                  />
+              >
+                {primaryImageLoading ? renderLoadingOverlay() : null}
+                <span className="dropzone-tag">Character</span>
+                {referenceImageUrl ? (
                   <button
                     type="button"
                     className="dropzone-clear"
                     onClick={(event) => {
                       event.stopPropagation();
-                      onMotionVideoChange?.(null);
+                      onPrimaryImageChange(null);
                     }}
                   >
                     ×
                   </button>
-                </>
-              ) : (
-                <div className="reference-drop-content video-drop-content">
-                  <VideoCamera size={24} weight="regular" />
-                  <p className="reference-drop-title helper-text">
-                    Upload an MP4, MOV, or WEBM clip
-                  </p>
-                </div>
-              )}
+                ) : (
+                  <div className="reference-drop-content image-drop-content">
+                    <ImageSquare size={24} weight="regular" />
+                    <p className="reference-drop-title helper-text">Upload a character image</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="primary-drop">
+              <div
+                className={`reference-dropzone video-dropzone ${motionVideoUrl ? "has-preview" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
+                onDrop={handleMotionVideoDrop}
+                onDragEnter={(event) => {
+                  if (allowVideoDrag(event)) {
+                    setMotionVideoDragActive(true);
+                  }
+                }}
+                onDragOver={(event) => {
+                  if (allowVideoDrag(event)) {
+                    setMotionVideoDragActive(true);
+                  }
+                }}
+                onDragLeave={() => setMotionVideoDragActive(false)}
+                onClick={() => motionVideoInputRef.current?.click()}
+              >
+                {motionVideoLoading ? renderLoadingOverlay() : null}
+                <span className="dropzone-tag">Motion</span>
+                {motionVideoUrl ? (
+                  <>
+                    {motionVideoPreview.posterUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="reference-dropzone-poster"
+                        src={motionVideoPreview.posterUrl}
+                        alt=""
+                      />
+                    ) : (
+                      <div className="reference-dropzone-preview-fallback" aria-hidden="true">
+                        <VideoCamera size={24} weight="regular" />
+                      </div>
+                    )}
+                    <div className="reference-dropzone-preview-overlay" aria-hidden="true" />
+                    <MediaDurationBadge
+                      className="reference-card-media-duration"
+                      durationMs={motionVideoPreview.durationMs}
+                      mediaUrl={motionVideoPreview.durationMs == null ? motionVideoUrl : null}
+                      mediaKind="video"
+                    />
+                    <button
+                      type="button"
+                      className="dropzone-clear"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (onClearMotionVideo) {
+                          onClearMotionVideo();
+                          return;
+                        }
+                        onMotionVideoChange?.(null);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <div className="reference-drop-content video-drop-content">
+                    <VideoCamera size={24} weight="regular" />
+                    <p className="reference-drop-title helper-text">
+                      Upload an MP4, MOV, or WEBM clip
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+          {motionVideoLoading ? (
+            <p className="motion-drop-status tiny helper-text" role="status" aria-live="polite">
+              Adding motion clip...
+            </p>
+          ) : motionVideoError ? (
+            <p
+              className="motion-drop-status motion-drop-status--error tiny helper-text"
+              role="alert"
+            >
+              {motionVideoError}
+            </p>
+          ) : null}
+        </>
       ) : isKling3Mode ? (
         <div className="drop-image-row kling-drop-row">
           <div className="primary-drop">

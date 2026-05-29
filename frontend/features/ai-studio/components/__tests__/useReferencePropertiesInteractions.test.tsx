@@ -5,6 +5,15 @@ import {
   forgetObjectUrlBlob,
   readRememberedObjectUrlBlob,
 } from "../../utils/objectUrlBlobRegistry";
+import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
+
+const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
+const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../utils/videoUpload", () => ({
+  uploadVideoFileToStorage: (...args: unknown[]) => uploadVideoFileToStorageMock(...args),
+  uploadVideoAssetToStorage: (...args: unknown[]) => uploadVideoAssetToStorageMock(...args),
+}));
 
 const makeInternalReferenceDragEvent = (overrides?: {
   mediaKind?: "image" | "video" | "audio" | "text";
@@ -89,6 +98,8 @@ describe("useReferencePropertiesInteractions", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    uploadVideoFileToStorageMock.mockReset();
+    uploadVideoAssetToStorageMock.mockReset();
   });
 
   afterEach(() => {
@@ -200,10 +211,10 @@ describe("useReferencePropertiesInteractions", () => {
 
   it("marks a frame slot as loading while an internal image drop is resolving", async () => {
     const onExtraImageChange = vi.fn();
-    let resolveDrop: ((value: Awaited<ReturnType<typeof Promise.resolve>>) => void) | null = null;
+    let resolveDrop: ((value: ResolvedInternalReferenceSource | null) => void) | null = null;
     const resolveInternalReferenceImageDropSource = vi.fn(
       () =>
-        new Promise((resolve) => {
+        new Promise<ResolvedInternalReferenceSource | null>((resolve) => {
           resolveDrop = resolve;
         })
     );
@@ -300,6 +311,39 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
+  it("prefers the authoritative video resolver for motion drops when preview urls are poster images", async () => {
+    const onMotionVideoChange = vi.fn();
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/reference-video-poster.jpg");
+    const resolveMotionVideoUrlById = vi.fn(() => "https://example.com/reference-video.mp4");
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        resolvePreviewUrlById,
+        resolveMotionVideoUrlById,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = createMotionDropEvent({
+      referenceId: "out-1",
+    });
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(event);
+    });
+
+    expect(resolveMotionVideoUrlById).toHaveBeenCalledWith("out-1");
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+    expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
+  });
+
   it("remembers file-selected image blobs for later submission reuse", () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");
@@ -330,6 +374,128 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");
     expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
+  it("stages file-selected motion videos before committing them", async () => {
+    const onMotionVideoChange = vi.fn();
+    const onMotionVideoLoadingChange = vi.fn();
+    const file = new File(["motion"], "motion.webm", { type: "video/webm" });
+    let resolveUpload: ((value: { url: string; path: string; size: number }) => void) | null = null;
+    uploadVideoFileToStorageMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        onMotionVideoLoadingChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    let selectionPromise: Promise<void> | undefined;
+    await act(async () => {
+      selectionPromise = result.current.handleMotionVideoSelection({
+        target: {
+          files: [file],
+          value: "motion.webm",
+        },
+      } as never);
+    });
+
+    expect(result.current.motionVideoLoading).toBe(true);
+    expect(onMotionVideoLoadingChange).toHaveBeenNthCalledWith(1, false);
+    expect(onMotionVideoLoadingChange).toHaveBeenNthCalledWith(2, true);
+
+    await act(async () => {
+      resolveUpload?.({
+        url: "https://example.com/staged-motion.webm",
+        path: "videos/motion-control/staged-motion.webm",
+        size: 128,
+      });
+      await selectionPromise;
+    });
+
+    expect(uploadVideoFileToStorageMock).toHaveBeenCalledWith(file);
+    expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/staged-motion.webm");
+    expect(result.current.motionVideoLoading).toBe(false);
+    expect(result.current.motionVideoError).toBeNull();
+    expect(onMotionVideoLoadingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("stages dropped local motion videos before committing them", async () => {
+    const onMotionVideoChange = vi.fn();
+    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    uploadVideoFileToStorageMock.mockResolvedValue({
+      url: "https://example.com/staged-drop.mp4",
+      path: "videos/motion-control/staged-drop.mp4",
+      size: 256,
+    });
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(
+        createMotionDropEvent({
+          files: [file],
+        })
+      );
+    });
+
+    expect(uploadVideoFileToStorageMock).toHaveBeenCalledWith(file);
+    expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/staged-drop.mp4");
+  });
+
+  it("surfaces motion upload failures without clearing the previous durable selection", async () => {
+    const onMotionVideoChange = vi.fn();
+    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    uploadVideoFileToStorageMock.mockRejectedValue(new Error("Upload failed"));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleMotionVideoSelection({
+        target: {
+          files: [file],
+          value: "motion.mp4",
+        },
+      } as never);
+    });
+
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+    expect(result.current.motionVideoLoading).toBe(false);
+    expect(result.current.motionVideoError).toBe("Upload failed");
   });
 
   it("clones blob-backed internal image drops so slots own stable object urls", async () => {

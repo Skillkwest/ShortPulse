@@ -189,7 +189,7 @@ export const useAiStudioCreatePanelRuntime = ({
     createGenerateCostCredits,
     handleGenerate,
     handleProviderPrimarySubmit,
-    setSharedPrompt: setStandardCreatePrompt,
+    setVisibleCreatePrompt: setStandardCreatePrompt,
   });
   const { assistantBubbleMedia } = useAiStudioAgentOutputGenerationBridge({
     outputs: base.outputs.filter((output) => !removedFromAllRefsIds.includes(output.id)),
@@ -205,7 +205,7 @@ export const useAiStudioCreatePanelRuntime = ({
     promptReferenceGenerateCostCredits,
     setVideoReferenceText,
     setEditReferenceText,
-    setSharedPrompt: setStandardCreatePrompt,
+    setCreatePrompt: setStandardCreatePrompt,
     setSelectedToolWithEditIntentReset,
     setMode,
     setPromptOrigin,

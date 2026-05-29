@@ -495,6 +495,7 @@ export const useAiStudioState = ({
   });
 
   const {
+    buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     generateOutput,
     handleReferenceOutputMediaLoaded,
@@ -799,6 +800,7 @@ export const useAiStudioState = ({
     addLibraryPromptReferenceToQuickSlot,
     ingestReferenceFiles,
     addOutputsFromFiles,
+    buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     hydrateFromSessionSnapshot,
     toggleReferenceIndicator,

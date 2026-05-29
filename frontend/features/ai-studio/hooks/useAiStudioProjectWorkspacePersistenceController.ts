@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
-  createAiStudioProjectWorkspaceSnapshot,
   createAiStudioProjectWorkspaceAutosaveCandidates,
   type AiStudioProjectWorkspaceAutosaveCandidateKind,
   type AiStudioSessionSnapshot,
@@ -255,9 +254,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const baseSessionSnapshot = useMemo(() => {
     if (!sessionId || !projectBootstrapReady) return null;
     const startedAt = resolvePerfNow();
-    const nextSnapshot = createAiStudioProjectWorkspaceSnapshot(
-      buildBaseSessionSnapshot(sessionId)
-    );
+    const nextSnapshot = buildBaseSessionSnapshot(sessionId);
     recordProjectWorkspaceAutosavePerf("baseSnapshotBuild", resolvePerfNow() - startedAt);
     return nextSnapshot;
   }, [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]);

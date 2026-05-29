@@ -16,7 +16,7 @@ describe("resolveReferenceGridMediaWorkBudget", () => {
     expect(budget.imageDecodeBudget).toBe(2);
   });
 
-  it("reduces tokens and budgets under pressure level 2", () => {
+  it("prioritizes image hydration lanes under pressure level 2", () => {
     const budget = resolveReferenceGridMediaWorkBudget({
       enabled: true,
       pressureLevel: 2,
@@ -25,12 +25,12 @@ describe("resolveReferenceGridMediaWorkBudget", () => {
       desiredVideoAttachSlots: 3,
     });
 
-    expect(budget.totalTokens).toBe(3);
+    expect(budget.totalTokens).toBe(5);
     expect(budget.videoAttachBudget).toBe(1);
-    expect(budget.imageDecodeBudget).toBe(1);
+    expect(budget.imageDecodeBudget).toBe(3);
   });
 
-  it("keeps at least one image lane when image work is requested", () => {
+  it("reserves image lanes before optional video attach work under pressure", () => {
     const budget = resolveReferenceGridMediaWorkBudget({
       enabled: true,
       pressureLevel: 1,
@@ -39,9 +39,9 @@ describe("resolveReferenceGridMediaWorkBudget", () => {
       desiredVideoAttachSlots: 2,
     });
 
-    expect(budget.totalTokens).toBe(5);
+    expect(budget.totalTokens).toBe(6);
     expect(budget.videoAttachBudget).toBe(2);
-    expect(budget.imageDecodeBudget).toBe(1);
+    expect(budget.imageDecodeBudget).toBe(2);
   });
 
   it("caps tokens for constrained profiles", () => {

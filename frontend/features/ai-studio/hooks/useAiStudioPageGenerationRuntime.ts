@@ -65,6 +65,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   modelPricingPolicyError?: string | null;
   modelPricingPolicyLoading?: boolean;
   modelPricingPolicyReady?: boolean;
+  motionReferenceVideoPending: boolean;
   motionReferenceVideoUrl: string | null;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   optimisticDebitEntries: OptimisticDebitEntry[];
@@ -125,7 +126,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   setOptimisticDebitEntries: Dispatch<SetStateAction<OptimisticDebitEntry[]>>;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
-  setSharedPrompt: (value: string) => void;
+  setCreatePromptForActiveMode: (value: string) => void;
   setShowCreateTools: Dispatch<SetStateAction<boolean>>;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
@@ -178,6 +179,7 @@ export const useAiStudioPageGenerationRuntime = ({
   modelPricingPolicyError,
   modelPricingPolicyLoading,
   modelPricingPolicyReady,
+  motionReferenceVideoPending,
   motionReferenceVideoUrl,
   notifyGenerationFailure,
   optimisticDebitEntries,
@@ -209,7 +211,7 @@ export const useAiStudioPageGenerationRuntime = ({
   setOptimisticDebitEntries,
   setOutputs,
   setPromptOrigin,
-  setSharedPrompt,
+  setCreatePromptForActiveMode,
   setShowCreateTools,
   setUiError,
   setUiNotice,
@@ -279,6 +281,7 @@ export const useAiStudioPageGenerationRuntime = ({
     videoDurationSeconds,
     videoResolution,
     videoReferenceMode,
+    motionReferenceVideoPending,
     motionReferenceVideoUrl,
     extraImageUrls,
     imageResolution,
@@ -322,7 +325,7 @@ export const useAiStudioPageGenerationRuntime = ({
     setShowCreateTools,
     setVideoReferenceText,
     setEditReferenceText,
-    setSharedPrompt,
+    setSharedPrompt: setCreatePromptForActiveMode,
     setPromptOrigin,
     openModelModal,
     closeModelModal,

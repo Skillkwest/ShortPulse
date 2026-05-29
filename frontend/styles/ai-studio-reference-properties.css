@@ -1018,13 +1018,45 @@
   display: none;
 }
 
-.reference-drop-video {
+.reference-drop-video,
+.reference-dropzone-poster,
+.reference-dropzone-preview-fallback {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.reference-drop-video,
+.reference-dropzone-poster {
+  object-fit: cover;
+}
+
+.reference-dropzone-preview-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 28% 24%, rgba(123, 149, 168, 0.26) 0%, transparent 44%),
+    linear-gradient(180deg, rgba(20, 25, 34, 0.94) 0%, rgba(8, 12, 18, 0.98) 100%);
+  color: rgba(219, 228, 236, 0.82);
+}
+
+.reference-dropzone-preview-fallback svg {
+  width: 30px;
+  height: 30px;
+}
+
+.reference-dropzone-preview-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 18, 0.08) 0%, rgba(8, 12, 18, 0.42) 100%),
+    linear-gradient(0deg, rgba(4, 7, 10, 0.64) 0%, rgba(4, 7, 10, 0) 42%);
   pointer-events: none;
   z-index: 1;
 }
@@ -1117,6 +1149,21 @@
 .motion-drop-row .reference-dropzone {
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.motion-drop-row .reference-dropzone .reference-card-media-duration {
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+}
+
+.motion-drop-status {
+  margin: 8px 2px 0;
+  color: rgba(214, 221, 229, 0.72);
+}
+
+.motion-drop-status--error {
+  color: rgba(255, 173, 173, 0.92);
 }
 
 .motion-drop-row .reference-drop-content {

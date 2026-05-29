@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
+import { resolveReferenceTransferUrl } from "../utils/dragDrop";
 import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
 import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions";
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
@@ -111,6 +112,15 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     },
     [base]
   );
+  const resolveOutputVideoUrl = useCallback(
+    (id: string | null | undefined) => {
+      if (!id) return null;
+      const output = base.findOutputById(id);
+      if (!output || output.mode !== "video") return null;
+      return resolveReferenceTransferUrl(output, "video");
+    },
+    [base]
+  );
   const videoPanelProps = useAiStudioVideoPanelProps({
     aspect: base.aspect,
     model: base.model,
@@ -158,6 +168,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     setKlingMultiPrompts: base.setKlingMultiPrompts,
     setKlingElements: base.setKlingElements,
     motionReferenceVideoUrl: base.motionReferenceVideoUrl,
+    onMotionVideoLoadingChange: base.setMotionReferenceVideoPending,
     isModelModalOpen: base.isModelModalOpen,
     modelModalAnchor: base.modelModalAnchor,
     handleOpenModelModal,
@@ -169,6 +180,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     currentCostCredits,
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    resolveOutputVideoUrl,
     resolveInternalReferenceImageDropSource: base.resolveComposerInternalImageDropSource,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,

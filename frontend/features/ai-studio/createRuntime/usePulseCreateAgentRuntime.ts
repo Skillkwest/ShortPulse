@@ -15,7 +15,6 @@ import {
 import type {
   AgentAssistantMessageEditRequest,
   AgentContext,
-  AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
@@ -28,19 +27,19 @@ import { runPulsePresetStartRuntime } from "../hooks/agentOrchestration/runPulse
 import { usePulseWorkflowSessionReconciliation } from "../hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
-import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
-import { isEphemeralLocalImageAttachment } from "../logic/ephemeralComposerImage";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
-import type {
-  AiStudioSessionAgentMessageV1,
-  AiStudioSessionAgentV1,
-} from "../logic/sessionSnapshot";
+import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolvePulseWorkflowArtifactPrompt } from "../hooks/createAgentRuntime/pulseRuntimeState";
 import type { PulseCreatePageAgentRuntime } from "./contracts";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import {
+  canUseAssistantMessageAsPrompt,
+  resolveLinkedPromptReferenceIds,
+  serializeAgentMessageForSnapshot,
+} from "./agentRuntimeShared";
 
 type PulseCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -69,64 +68,6 @@ type UsePulseCreateAgentRuntimeParams = {
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
-
-const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
-  message.role === "assistant" &&
-  message.canUseAsPrompt === true &&
-  typeof message.outputPrompt === "string" &&
-  message.outputPrompt.trim().length > 0;
-
-const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgentMessageV1 => {
-  const attachments = message.attachments
-    ?.filter((attachment) => !isEphemeralLocalImageAttachment(attachment))
-    .map((attachment) => {
-      const projectedImageAttachment =
-        attachment.kind === "image"
-          ? projectAgentAttachmentToComposerImageAttachment(attachment)
-          : null;
-      return {
-        id: attachment.id,
-        kind: attachment.kind,
-        referenceId: attachment.referenceId ?? null,
-        mediaId: attachment.mediaId ?? null,
-        text: attachment.text ?? null,
-        previewStoragePath: attachment.previewStoragePath ?? null,
-        fullStoragePath: attachment.fullStoragePath ?? null,
-        referenceUrl: attachment.referenceUrl ?? null,
-        referenceRenderUrl: attachment.referenceRenderUrl ?? null,
-        imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
-        imageFallbackUrls:
-          projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls,
-        aspect: attachment.aspect ?? null,
-        deliveryStatus: attachment.deliveryStatus,
-        deliveryError: attachment.deliveryError ?? null,
-      };
-    });
-  return {
-    id: message.id ?? null,
-    role: message.role,
-    content: message.content,
-    ...(typeof message.outputPrompt === "string" || message.outputPrompt === null
-      ? { outputPrompt: message.outputPrompt }
-      : {}),
-    ...(typeof message.canUseAsPrompt === "boolean"
-      ? { canUseAsPrompt: message.canUseAsPrompt }
-      : {}),
-    ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
-    ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
-    ...(message.decision ? { decision: message.decision } : {}),
-    ...(attachments?.length ? { attachments } : {}),
-  };
-};
-
-const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>
-  Array.from(
-    new Set(
-      attachments
-        .map((attachment) => attachment.referenceId)
-        .filter((referenceId): referenceId is string => Boolean(referenceId))
-    )
-  );
 
 const resolvePulseAgentSessionNamespace = ({
   sessionId,
@@ -486,7 +427,7 @@ export const usePulseCreateAgentRuntime = ({
 
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
     () => ({
-      messages: agentMessages.map(serializeMessageForSnapshot),
+      messages: agentMessages.map(serializeAgentMessageForSnapshot),
       input: agentInput,
       latestAgentPrompt: effectiveLatestAgentPrompt,
       promptOrigin: effectivePromptOrigin,

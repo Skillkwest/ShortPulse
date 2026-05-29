@@ -45,6 +45,7 @@ type ViewModelInput = {
   videoDurationSeconds: number;
   videoResolution: string;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  motionReferenceVideoPending?: boolean;
   motionReferenceVideoUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   imageResolution: string;
@@ -83,6 +84,7 @@ export const useAiStudioViewModel = ({
   videoDurationSeconds,
   videoResolution,
   videoReferenceMode,
+  motionReferenceVideoPending = false,
   motionReferenceVideoUrl,
   extraImageUrls,
   imageResolution,
@@ -414,6 +416,9 @@ export const useAiStudioViewModel = ({
       return "Add both first and last frame images before generating.";
     }
     if (isVideoTool && resolvedVideoLane === "motion") {
+      if (motionReferenceVideoPending) {
+        return "Motion clip is still uploading. Retry in a moment.";
+      }
       const hasCharacterImage = Boolean(referenceImageUrl);
       const hasMotionVideo = Boolean(motionReferenceVideoUrl);
       if (!hasCharacterImage && !hasMotionVideo) {
@@ -482,6 +487,7 @@ export const useAiStudioViewModel = ({
     isDescribeMode,
     isModelSelected,
     model,
+    motionReferenceVideoPending,
     motionReferenceVideoUrl,
     referenceImageUrl,
     requiresModelSelection,

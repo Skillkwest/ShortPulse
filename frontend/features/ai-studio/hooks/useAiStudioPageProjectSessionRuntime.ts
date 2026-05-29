@@ -8,7 +8,6 @@ import {
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotOutputs,
-  patchAiStudioSessionSnapshotWorkspace,
   type AiStudioSessionAgentRuntimesV2,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
@@ -28,6 +27,10 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   activeCreateAgentKind: CreatePageAgentRuntime["kind"];
   activeCreatePulsePresetId: string | null;
   activeSessionPersistenceSessionId: string | null;
+  buildProjectWorkspaceSnapshot: (args: {
+    sessionId: string;
+    updatedAt?: string;
+  }) => AiStudioSessionSnapshotV2;
   buildSessionSnapshot: (args: {
     sessionId: string;
     agentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
@@ -72,6 +75,10 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   setVoiceDesignPromptDraft: (value: string) => void;
   setVoiceScriptDraft: (value: string) => void;
 };
+
+type BuildSessionSnapshotArgs = Parameters<
+  UseAiStudioPageProjectSessionRuntimeParams["buildSessionSnapshot"]
+>[0];
 
 const normalizeProjectRestoreOutputIds = (
   value: string[] | undefined,
@@ -122,10 +129,8 @@ export const useAiStudioPageProjectSessionRuntime = ({
   activeCreateAgentKind,
   activeCreatePulsePresetId,
   activeSessionPersistenceSessionId,
-  buildSessionSnapshot,
+  buildProjectWorkspaceSnapshot,
   canvasSessionState,
-  createSelectedCharacterId,
-  createSelectedCharacterLookId,
   expertCreateMode,
   expertEditSessionRevision,
   getExpertEditSessionState,
@@ -218,26 +223,14 @@ export const useAiStudioPageProjectSessionRuntime = ({
   );
 
   const buildProjectAwareBaseSessionSnapshot = useCallback(
-    (args: Parameters<typeof buildSessionSnapshot>[0]) =>
+    (args: BuildSessionSnapshotArgs) =>
       patchAiStudioSessionSnapshotCanvas(
-        patchAiStudioSessionSnapshotWorkspace(
-          buildSessionSnapshot({
-            ...args,
-            expertEditSessionState: null,
-          }),
-          {
-            selectedCharacterId: createSelectedCharacterId || null,
-            selectedCharacterLookId: createSelectedCharacterLookId || null,
-          }
-        ),
+        buildProjectWorkspaceSnapshot({
+          sessionId: args.sessionId,
+        }),
         canvasSessionState
       ),
-    [
-      buildSessionSnapshot,
-      canvasSessionState,
-      createSelectedCharacterId,
-      createSelectedCharacterLookId,
-    ]
+    [buildProjectWorkspaceSnapshot, canvasSessionState]
   );
 
   const hydrateProjectAwareSessionSnapshot = useCallback(

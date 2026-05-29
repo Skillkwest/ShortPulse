@@ -311,8 +311,8 @@ export const useAiStudioStateRuntimeControllers = ({
     ensureGenerationRecord,
   });
 
-  const { hydrateFromSessionSnapshot, buildSessionSnapshot } = useAiStudioSessionSnapshotController(
-    {
+  const { hydrateFromSessionSnapshot, buildSessionSnapshot, buildProjectWorkspaceSnapshot } =
+    useAiStudioSessionSnapshotController({
       mode,
       selectedTool,
       standardCreatePrompt: createPrompts.standard,
@@ -391,10 +391,10 @@ export const useAiStudioStateRuntimeControllers = ({
       setOutputsState,
       setArchivedOutputs,
       setRuntimeUiStateForCreateMode,
-    }
-  );
+    });
 
   return {
+    buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     generateOutput,
     handleReferenceOutputMediaLoaded,

@@ -2,11 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAiStudioPageCharacterRuntime } from "../useAiStudioPageCharacterRuntime";
 
+const lifecycleSetSelectedCharacterIdMock = vi.fn();
+
 vi.mock("../useAiStudioCharacterModeLifecycle", () => ({
   useAiStudioCharacterModeLifecycle: () => ({
     characterOptions: [],
     selectedCharacterId: "",
-    setSelectedCharacterId: vi.fn(),
+    setSelectedCharacterId: lifecycleSetSelectedCharacterIdMock,
     isCharacterOptionsLoading: false,
     refreshCharacterOptions: vi.fn(),
     loadCharacterSnapshot: vi.fn(),
@@ -95,7 +97,7 @@ describe("useAiStudioPageCharacterRuntime", () => {
     expect(result.current.resolveIsCharacterModeEnabledForTool("text")).toBe(true);
   });
 
-  it("opens Characters for both create and library entry actions", () => {
+  it("opens Characters for the create entry action", () => {
     const setSelectedToolWithEditIntentReset = vi.fn();
     const setCharacterCreateRequestKey = vi.fn();
 
@@ -129,13 +131,47 @@ describe("useAiStudioPageCharacterRuntime", () => {
     act(() => {
       result.current.handleOpenCharacterCreate();
     });
-    act(() => {
-      result.current.handleOpenCharacterLibrary();
-    });
 
-    expect(setSelectedToolWithEditIntentReset).toHaveBeenNthCalledWith(1, "character");
-    expect(setSelectedToolWithEditIntentReset).toHaveBeenNthCalledWith(2, "character");
+    expect(setSelectedToolWithEditIntentReset).toHaveBeenCalledWith("character");
     expect(setCharacterCreateRequestKey).toHaveBeenCalledTimes(1);
     expect(setCharacterCreateRequestKey.mock.calls[0]?.[0](4)).toBe(5);
+  });
+
+  it("clears the create look override when the Character panel changes the selected character", () => {
+    const setCreateSelectedCharacterLookId = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioPageCharacterRuntime({
+        createCharacterModeInjectionBundle: null,
+        createSelectedCharacterLookId: "2",
+        editCharacterModeInjectionBundle: null,
+        editSelectedCharacterId: "",
+        expertCreateMode: "standard",
+        isCreateCharacterBundleLoading: false,
+        isCreateCharacterModeEnabled: true,
+        isEditCharacterBundleLoading: false,
+        isEditCharacterModeEnabled: false,
+        projectId: null,
+        projectRouteRequested: false,
+        selectedTool: "character",
+        setCharacterCreateRequestKey: vi.fn(),
+        setCreateCharacterModeInjectionBundle: vi.fn(),
+        setCreateSelectedCharacterLookId,
+        setEditCharacterModeInjectionBundle: vi.fn(),
+        setElementCreateRequestKey: vi.fn(),
+        setIsCreateCharacterBundleLoading: vi.fn(),
+        setIsEditCharacterBundleLoading: vi.fn(),
+        setSelectedToolWithEditIntentReset: vi.fn(),
+        setUiError: vi.fn(),
+        trackCharacterModeEvent: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.handleCharacterPanelSelectedCharacterChange("char-2");
+    });
+
+    expect(lifecycleSetSelectedCharacterIdMock).toHaveBeenCalledWith("char-2");
+    expect(setCreateSelectedCharacterLookId).toHaveBeenCalledWith("");
   });
 });

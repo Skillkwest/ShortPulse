@@ -96,6 +96,21 @@ const isLikelyImagePath = (pathname: string): boolean => IMAGE_EXTENSION_PATTERN
 const isSupabaseRenderImagePath = (pathname: string): boolean =>
   pathname.includes("/storage/v1/render/image/");
 
+const toSupabaseRenderImageUrl = ({
+  parsed,
+  decision,
+}: {
+  parsed: URL;
+  decision: AdaptiveDecision;
+}): string => {
+  if (!isSupabaseRenderImagePath(parsed.pathname)) {
+    parsed.pathname = parsed.pathname.replace("/storage/v1/object/", "/storage/v1/render/image/");
+  }
+  parsed.searchParams.set("width", String(decision.targetLongEdgePx));
+  parsed.searchParams.set("quality", String(decision.qualityParam));
+  return parsed.toString();
+};
+
 const getSupabaseOrigin = (): string | null => {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   if (!raw) return null;
@@ -153,7 +168,10 @@ const applyAdaptivePreviewTransform = ({
     if (!hasImageSignal) return { url, usedOptimizerTransform: false };
     if (!isRenderImagePath) {
       if (surface === "reference-grid" || surface === "quick-slot") {
-        return { url, usedOptimizerTransform: false };
+        return {
+          url: toSupabaseRenderImageUrl({ parsed, decision }),
+          usedOptimizerTransform: true,
+        };
       }
       const nextUrl = toNextImageOptimizedUrl({
         sourceUrl: url,
@@ -163,10 +181,8 @@ const applyAdaptivePreviewTransform = ({
       return { url: nextUrl, usedOptimizerTransform: true };
     }
 
-    parsed.searchParams.set("width", String(decision.targetLongEdgePx));
-    parsed.searchParams.set("quality", String(decision.qualityParam));
     return {
-      url: parsed.toString(),
+      url: toSupabaseRenderImageUrl({ parsed, decision }),
       usedOptimizerTransform: true,
     };
   }

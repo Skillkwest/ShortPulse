@@ -14,6 +14,7 @@ const setErrorMessageMock = vi.fn();
 const handleCharacterSheetCardClickMock = vi.fn();
 const clearCharacterSheetAssignmentMock = vi.fn();
 const deleteCharacterSheetPresetMock = vi.fn();
+const createCharacterDraftMock = vi.fn();
 
 const createDraftState = () => ({
   characters: [
@@ -53,6 +54,7 @@ const createDraftState = () => ({
   isSavingCharacterSheetPreset: false,
   isDeletingCharacterSheetPreset: false,
   hasUnsavedCharacterDraft: false,
+  hasUnsavedCharacterDraftChanges: false,
   setCharacterName: () => undefined,
   setCharacterDescription: () => undefined,
   setActiveCharacterSheetPreset: async () => true,
@@ -61,7 +63,7 @@ const createDraftState = () => ({
   renameCharacterSheetPreset: async () => true,
   deleteCharacterSheetPreset: deleteCharacterSheetPresetMock,
   setCharacterSheetPresetFile: setCharacterSheetPresetFileMock,
-  createCharacter: async () => undefined,
+  createCharacter: createCharacterDraftMock,
   saveCharacter: async () => true,
   selectCharacter: async () => undefined,
   deleteCharacter: async () => true,
@@ -79,8 +81,8 @@ vi.mock("next/image", () => ({
   },
 }));
 
-vi.mock("../../hooks/useCharacterPanelDraft", () => ({
-  useCharacterPanelDraft: () => currentDraftState,
+vi.mock("../../hooks/useCharacterManagerDraft", () => ({
+  useCharacterManagerDraft: () => currentDraftState,
 }));
 
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
@@ -162,6 +164,8 @@ describe("CharacterPanelWorkspace", () => {
     clearCharacterSheetAssignmentMock.mockReset();
     deleteCharacterSheetPresetMock.mockReset();
     deleteCharacterSheetPresetMock.mockResolvedValue(true);
+    createCharacterDraftMock.mockReset();
+    createCharacterDraftMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -287,6 +291,46 @@ describe("CharacterPanelWorkspace", () => {
 
     expect(createCharacterMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog", { name: "Character library" })).not.toBeInTheDocument();
+  });
+
+  it("confirms before discarding an unsaved draft when starting a new character", async () => {
+    currentDraftState = {
+      ...createDraftState(),
+      hasUnsavedCharacterDraft: true,
+      hasUnsavedCharacterDraftChanges: true,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(screen.getByRole("dialog", { name: "Start a new character?" })).toBeInTheDocument();
+    expect(createCharacterDraftMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard Draft" }));
+
+    await waitFor(() => {
+      expect(createCharacterDraftMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("starts a new character immediately when the local draft has no changes", async () => {
+    currentDraftState = {
+      ...createDraftState(),
+      hasUnsavedCharacterDraft: true,
+      hasUnsavedCharacterDraftChanges: false,
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(createCharacterDraftMock).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.queryByRole("dialog", { name: "Start a new character?" })
+    ).not.toBeInTheDocument();
   });
 
   it("opens character deletion from the modal card trash icon", () => {

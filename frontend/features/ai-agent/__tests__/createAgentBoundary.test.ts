@@ -213,7 +213,7 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("const activeCreateAgentRuntime =");
     expect(pageSource).toContain("activeCreateAgentRuntime={activeCreateAgentRuntime}");
     expect(pageSource).not.toContain("setSharedPrompt: base.setSharedPrompt");
-    expect(pageSource).toContain("setSharedPrompt: setActiveCreatePrompt");
+    expect(pageSource).toContain("setCreatePromptForActiveMode");
     expect(pageSource).not.toContain("\n    setSharedPrompt,\n");
     expect(pageSource).toContain("const createPulsePageRuntime = useCreatePulsePresetPageRuntime");
     expect(pageSource).not.toContain("base.standardCreateAgentContextResolver");
@@ -404,9 +404,6 @@ describe("Create agent mode boundaries", () => {
     const standardPrimarySubmitSource = readFrontendFile(
       "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts"
     );
-    const standardInlineGenerateSource = readFrontendFile(
-      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate.ts"
-    );
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
     );
@@ -510,8 +507,6 @@ describe("Create agent mode boundaries", () => {
     expect(standardPrimarySubmitSource).toContain(
       "const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();"
     );
-    expect(standardInlineGenerateSource).toContain("resolveChatOffCreatePrompt");
-    expect(standardInlineGenerateSource).not.toContain("Pulse");
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {

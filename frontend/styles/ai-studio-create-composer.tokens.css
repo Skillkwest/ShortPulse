@@ -33,6 +33,7 @@
   --create-composer-left-rail-width: 214px;
   --create-composer-inline-gutter: clamp(9px, 2.05vw, 25px);
   --create-composer-column-inline-padding: clamp(18px, 2.8vw, 40px);
+  --create-composer-column-bottom-padding: 22px;
   --create-composer-character-toggle-gap: 6px;
   --create-composer-selector-height: 40px;
   --create-composer-selector-bg: var(--color-bg);
@@ -144,7 +145,8 @@
   width: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 12px var(--create-composer-column-inline-padding);
+  padding: 12px var(--create-composer-column-inline-padding)
+    var(--create-composer-column-bottom-padding);
   border: 0;
   border-radius: 0;
   background: #131518;
@@ -178,7 +180,11 @@
 .create-composer-panel
   .create-composer-right-panel-inner.is-drop-active
   .create-composer-prompt-step
-  .agent-composer-row {
+  .agent-composer-input-shell,
+.create-composer-panel
+  .create-composer-right-panel-inner.is-drop-active
+  .create-composer-prompt-step
+  .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   position: relative;
   z-index: 6;
 }

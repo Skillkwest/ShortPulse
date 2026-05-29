@@ -86,7 +86,8 @@ describe("useReferenceGridPreviewRuntime", () => {
     vi.unstubAllGlobals();
   });
 
-  it("commits loaded-map immediately when stabilization is disabled", () => {
+  it("batches loaded-map commits when stabilization is disabled", () => {
+    const { requestAnimationFrameMock, flushNextFrame } = installRafQueue();
     const onOutputMediaLoaded = vi.fn();
     const harness = createHarness({
       stabilizeLoadingVisual: false,
@@ -95,14 +96,24 @@ describe("useReferenceGridPreviewRuntime", () => {
 
     act(() => {
       harness.result.current.markLoaded("out-1");
+      harness.result.current.markLoaded("out-2");
     });
 
-    expect(harness.result.current.loadedMap).toEqual({ "out-1": true });
+    expect(harness.result.current.loadedMap).toEqual({});
     expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-1");
+    expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-2");
+    expect(requestAnimationFrameMock).toHaveBeenCalledTimes(1);
+    expect(harness.runNonUrgentUpdate).not.toHaveBeenCalled();
+
+    act(() => {
+      flushNextFrame();
+    });
+
+    expect(harness.result.current.loadedMap).toEqual({ "out-1": true, "out-2": true });
     expect(harness.runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it("defers loaded-map commit by two animation frames when stabilization is enabled", () => {
+  it("defers and batches loaded-map commits by two animation frames when stabilization is enabled", () => {
     const { flushNextFrame } = installRafQueue();
     const onOutputMediaLoaded = vi.fn();
     const harness = createHarness({
@@ -112,9 +123,11 @@ describe("useReferenceGridPreviewRuntime", () => {
 
     act(() => {
       harness.result.current.markLoaded("out-1");
+      harness.result.current.markLoaded("out-2");
     });
 
     expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-1");
+    expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-2");
     expect(harness.result.current.loadedMap).toEqual({});
 
     act(() => {
@@ -127,7 +140,7 @@ describe("useReferenceGridPreviewRuntime", () => {
       flushNextFrame();
     });
 
-    expect(harness.result.current.loadedMap).toEqual({ "out-1": true });
+    expect(harness.result.current.loadedMap).toEqual({ "out-1": true, "out-2": true });
     expect(harness.runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
 

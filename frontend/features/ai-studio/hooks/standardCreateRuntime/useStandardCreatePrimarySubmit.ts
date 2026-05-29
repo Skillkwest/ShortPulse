@@ -20,7 +20,7 @@ type UseStandardCreatePrimarySubmitParams = {
   createGenerateCostCredits: number | null;
   handleGenerate: GenerateStandardCreateOutput;
   handleProviderPrimarySubmit: () => void;
-  setSharedPrompt: (value: string) => void;
+  setVisibleCreatePrompt: (value: string) => void;
 };
 
 const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
@@ -39,7 +39,7 @@ export const useStandardCreatePrimarySubmit = ({
   createGenerateCostCredits,
   handleGenerate,
   handleProviderPrimarySubmit,
-  setSharedPrompt = () => undefined,
+  setVisibleCreatePrompt = () => undefined,
 }: UseStandardCreatePrimarySubmitParams) => {
   const handlePrimarySubmit = useCallback(() => {
     if (!enabled) return;
@@ -47,7 +47,7 @@ export const useStandardCreatePrimarySubmit = ({
       const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();
       if (!visibleComposerPrompt) return;
       if (chatModeEnabled) {
-        setSharedPrompt(visibleComposerPrompt);
+        setVisibleCreatePrompt(visibleComposerPrompt);
       }
       return handleGenerate(visibleComposerPrompt, {
         modeOverride: "image",
@@ -65,7 +65,7 @@ export const useStandardCreatePrimarySubmit = ({
     handleProviderPrimarySubmit,
     prompt,
     selectedTool,
-    setSharedPrompt,
+    setVisibleCreatePrompt,
   ]);
 
   return useAiStudioCreateSubmitSingleFlight(handlePrimarySubmit);

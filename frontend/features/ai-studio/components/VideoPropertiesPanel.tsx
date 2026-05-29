@@ -77,6 +77,7 @@ export type VideoPropertiesPanelProps = {
   onKlingElementsChange?: (value: AiStudioKlingElement[]) => void;
   motionVideoUrl?: string | null;
   onMotionVideoChange?: (url: string | null) => void;
+  onMotionVideoLoadingChange?: (isLoading: boolean) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -115,6 +116,7 @@ export type VideoPropertiesPanelProps = {
   onPromptTextChange: (value: string) => void;
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
@@ -152,6 +154,7 @@ export function VideoPropertiesPanel({
   onKlingElementsChange,
   motionVideoUrl = null,
   onMotionVideoChange,
+  onMotionVideoLoadingChange,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -172,6 +175,7 @@ export function VideoPropertiesPanel({
   onPromptTextChange,
   onRegenerate,
   resolvePreviewUrlById,
+  resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
   costCredits,
   isGenerateDisabled = false,
@@ -223,8 +227,11 @@ export function VideoPropertiesPanel({
     extraDragActive,
     primaryImageLoading,
     extraImageLoading,
+    motionVideoLoading,
+    motionVideoError,
     motionVideoDragActive,
     setMotionVideoDragActive,
+    clearMotionVideoSelection,
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,
@@ -253,7 +260,9 @@ export function VideoPropertiesPanel({
     onExtraImageChange,
     onPromptTextChange,
     onMotionVideoChange,
+    onMotionVideoLoadingChange,
     resolvePreviewUrlById,
+    resolveMotionVideoUrlById,
     resolveInternalReferenceImageDropSource,
     klingMultiPrompts,
     onKlingMultiPromptsChange,
@@ -1276,6 +1285,8 @@ export function VideoPropertiesPanel({
                         extraDragActive={extraDragActive}
                         primaryImageLoading={primaryImageLoading}
                         extraImageLoading={extraImageLoading}
+                        motionVideoLoading={motionVideoLoading}
+                        motionVideoError={motionVideoError}
                         motionVideoDragActive={motionVideoDragActive}
                         setMotionVideoDragActive={setMotionVideoDragActive}
                         handlePrimaryDrop={handlePrimaryDrop}
@@ -1296,6 +1307,7 @@ export function VideoPropertiesPanel({
                         onPrimaryImageChange={onPrimaryImageChange}
                         onExtraImageChange={onExtraImageChange}
                         onMotionVideoChange={onMotionVideoChange}
+                        onClearMotionVideo={clearMotionVideoSelection}
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={
@@ -1305,27 +1317,17 @@ export function VideoPropertiesPanel({
                         }
                       />
                     </div>
-                    {isMotionMode ? (
+                    {isMotionMode && !motionVideoUrl ? (
                       <div className="video-setup-recorder-slot">
                         <div className="reference-dropzone-block motion-recorder-launch-block">
                           <AiStudioRecordPanelPrefab
                             panelAriaLabel="Record optional motion source"
                             title="Need a clip?"
                             helper="If you do not already have a motion video, you can record one here."
-                            buttonIdleAriaLabel={
-                              motionVideoUrl
-                                ? "Open motion recorder to replace the current uploaded clip"
-                                : "Open motion recorder to add a motion clip"
-                            }
+                            buttonIdleAriaLabel="Open motion recorder to add a motion clip"
                             buttonRecordingAriaLabel="Open motion recorder to add a motion clip"
                             idleCue="Click to record"
                             isRecording={false}
-                            statusMessage={motionVideoUrl ? "Motion clip already uploaded" : null}
-                            recoveryHint={
-                              motionVideoUrl
-                                ? "Recording a new take replaces the motion clip in the upload slot above."
-                                : null
-                            }
                             onClick={handleOpenMotionRecorder}
                           />
                         </div>

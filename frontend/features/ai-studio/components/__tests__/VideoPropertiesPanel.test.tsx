@@ -246,7 +246,10 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
     primaryDragActive: false,
     extraDragActive: [false, false, false],
     motionVideoDragActive: false,
+    motionVideoLoading: false,
+    motionVideoError: null,
     setMotionVideoDragActive: vi.fn(),
+    clearMotionVideoSelection: vi.fn(),
     collapsedSteps: { reference: false, prompt: false, klingAdvanced: false, klingAssets: false },
     toggleStep: vi.fn(),
     expandIfCollapsed: vi.fn(),
@@ -468,6 +471,28 @@ describe("VideoPropertiesPanel", () => {
     expect(
       screen.getByRole("button", { name: "Open motion recorder to add a motion clip" })
     ).toBeInTheDocument();
+  });
+
+  it("hides the recorder panel once a motion video is already present", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        motionVideoUrl="https://example.com/motion-reference.webm"
+      />
+    );
+
+    expect(screen.queryByText("Need a clip?")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Open motion recorder to add a motion clip" })
+    ).toBeNull();
   });
 
   it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {

@@ -112,14 +112,16 @@ const resolveReferenceCardUrlsLegacy = (
   const authorityTier = resolveReferenceOutputAuthorityTier(output);
   const isPreviewOnlyGenerated = authorityTier === "preview-only" && isGeneratedOutput(output);
   const strictPreviewLadder = options?.strictPreviewLadder === true;
+  const surface = options?.surface ?? "reference-grid";
   const adaptivePreviewQuality = options?.adaptivePreviewQuality === true;
+  const isReferenceRailSurface = surface === "reference-grid" || surface === "quick-slot";
   const shouldApplyAdaptivePreviewQuality =
-    adaptivePreviewQuality && !hasDistinctDurablePreviewAsset(output);
+    adaptivePreviewQuality && (isReferenceRailSurface || !hasDistinctDurablePreviewAsset(output));
   const pressureLevel = options?.pressureLevel ?? 0;
   const mediaKindHint = inferReferenceMediaKind(output);
   const { qualityBand, targetLongEdgePx } = resolvePreviewQualityTarget({
     pressureLevel,
-    surface: options?.surface ?? "reference-grid",
+    surface,
     cardLongEdgePx: options?.cardLongEdgePx ?? null,
     devicePixelRatio: options?.devicePixelRatio ?? 1,
   });
@@ -141,7 +143,7 @@ const resolveReferenceCardUrlsLegacy = (
             qualityBand,
             targetLongEdgePx,
             mediaKindHint,
-            surface: options?.surface ?? "reference-grid",
+            surface,
           })
         : resolvedPreviewUrl;
     return {
@@ -163,7 +165,7 @@ const resolveReferenceCardUrlsLegacy = (
           qualityBand,
           targetLongEdgePx,
           mediaKindHint,
-          surface: options?.surface ?? "reference-grid",
+          surface,
         })
       : resolvedPreviewUrl;
 
@@ -203,8 +205,10 @@ export const resolveReferenceCardUrls = (
 ) => {
   const authorityTier = resolveReferenceOutputAuthorityTier(output);
   const surface = options?.surface ?? "reference-grid";
+  const isReferenceRailSurface = surface === "reference-grid" || surface === "quick-slot";
   const shouldApplyAdaptivePreviewQuality =
-    options?.adaptivePreviewQuality === true && !hasDistinctDurablePreviewAsset(output);
+    options?.adaptivePreviewQuality === true &&
+    (isReferenceRailSurface || !hasDistinctDurablePreviewAsset(output));
   const shouldUseV2 = isAdaptiveSurfaceEnabled(surface);
   const legacy = resolveReferenceCardUrlsLegacy(output, options);
 

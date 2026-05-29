@@ -331,6 +331,7 @@ describe("ElementsPanel layout", () => {
     );
     expect(screen.getByAltText("Primary View reference")).toBeInTheDocument();
     expect(screen.getByAltText("Secondary View reference")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Delete this element?" })).not.toBeInTheDocument();
   });
 
   it("requires the first two references before the first save and then persists the staged draft", async () => {
@@ -401,6 +402,7 @@ describe("ElementsPanel layout", () => {
     });
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Delete this element?" })).not.toBeInTheDocument();
   });
 
   it("accepts an internal reference-grid drop into the staged element sheet before first save", async () => {

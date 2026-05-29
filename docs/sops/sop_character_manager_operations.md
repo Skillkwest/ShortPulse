@@ -13,14 +13,11 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 ## Current Product Contract
 
 1. Users can upload reference images by drag/drop or file picker in the Drop References card.
-2. QuickSwap Deck persists an unlimited number of references per character:
-   - Active deck keeps newest 500 references.
-   - Overflow references are auto-archived (restorable).
-3. Uploaded references persist to Supabase per character in `character_quick_swap_items`.
-4. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
+2. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
    - `Create New Character` opens a local unsaved Character Profile draft only.
    - The character is first created in Supabase and added to the library when the user presses `Save Character`.
-   - Until the first save, persistence-dependent actions stay blocked (for example profile image uploads, QuickSwap uploads, and preset/shot uploads).
+   - Until the first save, persistence-dependent actions stay blocked (for example profile image uploads and preset/shot uploads).
+   - Starting a fresh character from an unsaved draft requires explicit confirmation when the current draft contains unsaved changes.
    - New users start with four visible preset tabs (`1`..`4`).
    - A `+` control at the end of the tab rail appends the next preset id and activates it.
    - Double-clicking a tab enters rename mode; `Enter`/blur autosaves and `Escape` cancels.
@@ -40,61 +37,59 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
    - Dropping onto an occupied zone replaces the previous assignment.
    - Dragging from one drop zone to another swaps assignments.
    - Assignments are saved to character metadata (`character_sheet_presets_v1`).
-   - Preset zone uploads are independent of QuickSwap Deck capacity/archival.
-   - Removing a QuickSwap Deck reference does not clear preset zone assignments.
    - No activation gate or completion requirement is enforced in the current UI.
    - Character Profile voice controls are currently hidden from the UI.
    - Dormant voice state/modal code remains quarantined for a later rollout; see `docs/character-profile-voice-quarantine.md`.
-5. Dropped external reference URLs are trust-scoped:
-   - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
+3. Dropped external reference URLs are trust-scoped:
+   - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet drop flows.
    - Arbitrary external hosts are blocked from drop ingestion.
    - Internal AI Studio Reference Grid drags are accepted when payload origin is `ai-studio-reference-grid` and the drag is backed by the same-document internal drag session token, or when resolver recovery proves real internal media/storage authority.
    - Internal drops resolve to trusted `mediaId` first when available; URL host allowlist checks apply only to non-internal drops.
-   - If an internal drop has no `mediaId`, Character Manager may ingest the trusted internal preview URL directly into Character Manager storage (QuickSwap/Character Sheet) without forcing an AI Studio Media Library save, but only for session-backed internal drags.
-   - Internal payload parse/resolve/fallback failures fail closed (no partial quickswap/sheet mutation).
-6. Character selection persistence:
+   - If an internal drop has no `mediaId`, Character Manager may ingest the trusted internal preview URL directly into Character Manager storage without forcing an AI Studio Media Library save, but only for session-backed internal drags.
+   - Internal payload parse/resolve/fallback failures fail closed (no partial Character Sheet mutation).
+4. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
    - Local persistence must be scoped per authenticated `user_id` to prevent cross-account leakage on shared browsers.
    - The persisted selection is used as the preferred default on reload for the AI Studio embedded Character panel and related AI Studio character workflows.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
-7. AI Studio Create Character Mode consumes Character Manager data at generation time:
+5. AI Studio Create Character Mode consumes Character Manager data at generation time:
    - Selected character description is injected from the chosen Create look when AI Studio supplies a local look override; otherwise it uses active preset `tab_descriptions[active_preset_id]`.
    - If active preset description is empty, injection falls back to legacy `characters.description`.
    - Character Mode resolves ordered references from the chosen Create look first (`portrait`, `close_up`, `front_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - AI Studio Create look selection is local to that generation workflow and does not mutate `character_sheet_presets_v1.active_preset_id`.
+   - When the Character panel changes the selected character without an explicit Create-picker look choice, AI Studio clears the prior local look override and rehydrates the current character's active/default look.
    - Missing description is non-blocking when usable look refs still exist, but missing character image refs remain submit-blocking for Character Mode Create because the generation lane is image-to-image only.
    - When storage authority is known, Character Mode must hand Character Sheet refs to AI Studio as canonical internal media refs so replay/reroll and submit do not depend on durable signed URLs.
-8. Character Library responsiveness contract:
+6. Character Library responsiveness contract:
    - `0-50` characters: full-list smooth rendering target.
    - `51-100` characters: progressive rendering mode (`show 50` by default, `+25` expansion steps, optional `show all`).
    - Selected character remains visible when list is windowed.
-   - QuickSwap active/archive grids use visible-window rendering (viewport rows + deterministic overscan) for large datasets while preserving ordering and interaction semantics.
-9. Character Mode stale-selection safety:
+7. Character Mode stale-selection safety:
    - Submit-time character bundle refresh must fail closed when selected character is no longer available.
    - Cached bundle reuse is allowed only for transient refresh failures.
-10. Create-workspace layout order contract:
+8. Create-workspace layout contract:
 
-- Desktop (`>1100px`): Character Sheet renders on the left and QuickSwap Deck renders on the right.
-- Tablet/mobile (`<=1100px`): sections stack in order `QuickSwap Deck -> Character Sheet`.
-- DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
-- The legacy Identity section is removed from create mode.
-- The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
-- In AI Studio embedded Character Properties (`surface='panel'`), the QuickSwap section uses leaner chrome than the standalone route: the legacy helper paragraph is hidden, the QuickSwap collapse toggle is hidden, the deck stays expanded, and the panel lands on `Character Profile` by default.
-- The embedded `Looks` control now uses a compact segmented layout with explicit manage actions for switching, renaming, and deleting persisted looks instead of relying on double-click rename and hover-only delete affordances.
+- The embedded Character panel is the live character-management surface in AI Studio.
+- The top workspace is a Character Profile editor with `Characters`, `Save`, and `Create` actions instead of a persistent left-side manage rail.
+- Saved characters are browsed through the `Characters` modal, not a permanently mounted list.
+- The profile photo and character name editor card render above the look tab row.
+- The embedded `Looks` control uses the compact segmented layout with explicit manage actions for switching, renaming, and deleting persisted looks instead of relying on double-click rename and hover-only delete affordances.
+- The legacy Identity section and the legacy QuickSwap shell copy are removed from the shipped embedded surface.
 
-11. Internal drag observability contract:
+9. Internal drag observability contract:
 
 - Emit `character_drop_attempt` for every internal drop parsed at target boundary.
 - Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.
 - Emit `character_drop_rejected` on malformed payloads, unsupported targets, or policy rejection.
 - Emit `character_drop_failed_autosave` when the internal resolver path throws before assignment can proceed.
 
-12. Character panel media isolation contract:
+10. Character panel media isolation contract:
 
 - Character panel uploads persist to `character_media_assets`.
-- Character Sheet and QuickSwap internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
+- Character Sheet internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
 - `character_media_id` is the required persisted reference for Character Manager assets. Legacy metadata keys and row-level `media_file_id` linkage are retired from the live runtime path.
+- Legacy `character_quick_swap_items` compatibility handling remains in cleanup/orphan-protection code for historical datasets, but QuickSwap is not an active embedded Character panel UX contract.
 
 ## Architecture Map
 
@@ -104,8 +99,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 - AI Studio embedded looks control seam: `frontend/features/character-manager/components/EmbeddedCharacterLooksControl.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
-- QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`
-- QuickSwap state orchestration: `frontend/features/character-manager/hooks/useCharacterQuickSwapDeck.ts`
+- Persistence core / cleanup compatibility boundary: `frontend/features/character-manager/logic/characterManagerPersistenceCore.ts`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
 - AI Studio internal drag payload + parser: `frontend/features/ai-studio/utils/dragDrop.ts`
@@ -118,14 +112,13 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 
 - Load the preferred/latest persisted character draft on entry when one exists; otherwise stage a local unsaved Character Profile draft.
 - Prefer the persisted selected character id when available.
-- Hydrate profile image, name, description, and persisted QuickSwap active/archive state.
+- Hydrate profile image, name, description, look metadata, and persisted Character Sheet references.
 
 2. Reference intake
 
 - Accept only `image/*` MIME files.
 - Enforce max file size using `CHARACTER_MANAGER_MAX_IMAGE_BYTES`.
-- Persist quickswap metadata through `appendQuickSwapFiles(...)`.
-- Enforce active-limit archive semantics (500 active, oldest overflow archived).
+- Persist Character Sheet/profile media through the Character Manager draft persistence path.
 
 3. Character Sheet presets and drag/drop (persisted)
 
@@ -133,7 +126,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 - Persist active tab id, visible tab ids, tab labels, and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
 - For internal Reference Grid drags, resolve to `mediaId` first when present; when absent, fall back to direct trusted preview-URL ingestion into Character Manager storage, then mutate target slot/deck atomically.
-- Keep preset media lifecycle independent from QuickSwap Deck entries.
+- Keep preset media lifecycle isolated from legacy compatibility rows such as historical quick-swap records.
 
 4. Character lifecycle
 
@@ -184,19 +177,12 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Multi-file drag/drop upload works and appends all valid references.
 - Non-image files are rejected with clear message.
 - Oversize images are rejected with clear message.
-- Deleting one QuickSwap reference removes only that item and persists.
 - Dragging a reference into a Character Sheet zone assigns it.
 - Dropping another reference into that same zone replaces it.
 - Dragging zone-to-zone swaps assignments.
 - Dropped external reference URLs are accepted only from trusted local/internal/supabase-hosted sources.
-- Dragging from AI Studio Reference Grid to QuickSwap empty slot fills it.
-- Dragging from AI Studio Reference Grid to occupied QuickSwap slot replaces it.
 - Dragging from AI Studio Reference Grid to Character Sheet slot replaces the targeted slot.
-- Internal drag payload failures show user-visible error and do not mutate quickswap/sheet state.
-- QuickSwap deck is scrollable and remains interactive at high active counts.
-- QuickSwap active/archive virtualization keeps only viewport-visible rows mounted and still preserves drag/drop, remove/restore, and preview behavior.
-- Uploading beyond 500 active references archives oldest active references.
-- Archived references can be restored back into active deck.
+- Internal drag payload failures show user-visible error and do not mutate Character Sheet state.
 - New users start with four visible preset tabs (`1`..`4`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
 - Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.
 - Editing Character Profile description on one preset tab does not mutate descriptions on other preset tabs.
@@ -204,9 +190,10 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Deleting an active preset tab deterministically selects nearest-left remaining tab (or nearest-right when no left tab exists).
 - Deleting a preset tab does not auto-delete shared media used by other tabs/surfaces.
 - Character Sheet preset assignments persist after refresh and character switching.
-- Untrusted external dropped URLs are blocked in Character Sheet and QuickSwap drop surfaces.
+- Starting a new character from an unsaved draft requires confirmation when that draft contains unsaved changes.
+- Untrusted external dropped URLs are blocked in Character Sheet drop surfaces.
 - Selected character persists after refresh/re-entry and becomes the preferred default for future sessions.
-- Preset uploads do not consume QuickSwap Deck capacity.
+- Character-panel character changes clear stale Create look overrides and resolve the current character's active/default look before generation.
 - Creating/switching/deleting characters preserves expected per-character state.
 - Manage Characters list stays smooth through `<=50` entries and supports progressive reveal behavior for larger libraries.
 - If selected character is deleted/archived, Character Mode submit path does not reuse stale cached bundle injection.

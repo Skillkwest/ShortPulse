@@ -397,8 +397,9 @@ export function ElementsManagerShell({
   const saveSuccessHideTimerRef = React.useRef<number | null>(null);
   const referenceCardMeasureObserverRef = React.useRef<ResizeObserver | null>(null);
   const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
-  const pendingDeleteElement =
-    elements.find((item) => item.id === pendingDeleteElementId) ?? selectedElement ?? null;
+  const pendingDeleteElement = pendingDeleteElementId
+    ? (elements.find((item) => item.id === pendingDeleteElementId) ?? null)
+    : null;
   const selectedElementName = selectedElement?.name || "Untitled element";
   const structuralBusy = loading || isSwitchingElement || isCreatingElement || isDeletingElement;
   const pageBusy = structuralBusy || isSavingElement;

@@ -12,11 +12,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type {
-  AgentAssistantMessageEditRequest,
-  AgentContext,
-  AgentMessage,
-} from "../../../prefabs/agent";
+import type { AgentAssistantMessageEditRequest, AgentContext } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { standardCreateAgentRuntimeBinding } from "../hooks/createAgentRuntime/standardCreateAgentRuntimeBinding";
@@ -24,18 +20,18 @@ import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStandardCreateAgentSend";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
-import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
-import { isEphemeralLocalImageAttachment } from "../logic/ephemeralComposerImage";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import type {
-  AiStudioSessionAgentMessageV1,
-  AiStudioSessionAgentV1,
-} from "../logic/sessionSnapshot";
+import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { StandardCreatePageAgentRuntime } from "./contracts";
+import {
+  canUseAssistantMessageAsPrompt,
+  resolveLinkedPromptReferenceIds,
+  serializeAgentMessageForSnapshot,
+} from "./agentRuntimeShared";
 
 type StandardCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -48,83 +44,14 @@ type UseStandardCreateAgentRuntimeParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
-  projectId?: string | null;
-  projectRouteRequested?: boolean;
   getAgentContext: StandardCreateAgentContextResolver;
   setStandardCreatePrompt: (value: string) => void;
-  addAgentPromptReference: (promptText: string, title?: string) => void;
-  editReferenceText: string;
-  setEditReferenceText: (value: string) => void;
-  videoReferenceText: string;
-  setVideoReferenceText: (value: string) => void;
   findOutputById: (id: string) => StudioOutput | null;
   resolvePanelOutputPreviewUrl: (id: string | null | undefined) => string | null;
   resolveInternalImageDropSource?: ResolveInternalReferenceDrop;
-  aspect: string;
-  model: string | null;
-  setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-  setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
-
-const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
-  message.role === "assistant" &&
-  message.canUseAsPrompt === true &&
-  typeof message.outputPrompt === "string" &&
-  message.outputPrompt.trim().length > 0;
-
-const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgentMessageV1 => {
-  const attachments = message.attachments
-    ?.filter((attachment) => !isEphemeralLocalImageAttachment(attachment))
-    .map((attachment) => {
-      const projectedImageAttachment =
-        attachment.kind === "image"
-          ? projectAgentAttachmentToComposerImageAttachment(attachment)
-          : null;
-      return {
-        id: attachment.id,
-        kind: attachment.kind,
-        referenceId: attachment.referenceId ?? null,
-        mediaId: attachment.mediaId ?? null,
-        text: attachment.text ?? null,
-        previewStoragePath: attachment.previewStoragePath ?? null,
-        fullStoragePath: attachment.fullStoragePath ?? null,
-        referenceUrl: attachment.referenceUrl ?? null,
-        referenceRenderUrl: attachment.referenceRenderUrl ?? null,
-        imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
-        imageFallbackUrls:
-          projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls,
-        aspect: attachment.aspect ?? null,
-        deliveryStatus: attachment.deliveryStatus,
-        deliveryError: attachment.deliveryError ?? null,
-      };
-    });
-  return {
-    id: message.id ?? null,
-    role: message.role,
-    content: message.content,
-    ...(typeof message.outputPrompt === "string" || message.outputPrompt === null
-      ? { outputPrompt: message.outputPrompt }
-      : {}),
-    ...(typeof message.canUseAsPrompt === "boolean"
-      ? { canUseAsPrompt: message.canUseAsPrompt }
-      : {}),
-    ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
-    ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
-    ...(message.decision ? { decision: message.decision } : {}),
-    ...(attachments?.length ? { attachments } : {}),
-  };
-};
-
-const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>
-  Array.from(
-    new Set(
-      attachments
-        .map((attachment) => attachment.referenceId)
-        .filter((referenceId): referenceId is string => Boolean(referenceId))
-    )
-  );
 
 const resolveRestoredStandardComposerPrompt = ({
   workspacePrompt,
@@ -166,36 +93,14 @@ export const useStandardCreateAgentRuntime = ({
   mode,
   selectedTool,
   prompt,
-  projectId,
-  projectRouteRequested,
   getAgentContext,
   setStandardCreatePrompt,
-  addAgentPromptReference,
-  editReferenceText,
-  setEditReferenceText,
-  videoReferenceText,
-  setVideoReferenceText,
   findOutputById,
   resolvePanelOutputPreviewUrl,
   resolveInternalImageDropSource,
-  aspect,
-  model,
-  setOutputs,
-  setActiveOutputId,
   setUiNotice,
   trackAgentUiEvent,
 }: UseStandardCreateAgentRuntimeParams): StandardCreatePageAgentRuntime => {
-  void addAgentPromptReference;
-  void editReferenceText;
-  void setEditReferenceText;
-  void videoReferenceText;
-  void setVideoReferenceText;
-  void projectId;
-  void projectRouteRequested;
-  void aspect;
-  void model;
-  void setOutputs;
-  void setActiveOutputId;
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
@@ -407,7 +312,7 @@ export const useStandardCreateAgentRuntime = ({
   );
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
     () => ({
-      messages: agentMessages.map(serializeMessageForSnapshot),
+      messages: agentMessages.map(serializeAgentMessageForSnapshot),
       input: agentInput,
       latestAgentPrompt,
       promptOrigin,

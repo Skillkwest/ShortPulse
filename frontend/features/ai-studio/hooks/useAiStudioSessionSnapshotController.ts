@@ -15,6 +15,8 @@ import {
   type AiStudioSessionCreateModeReferenceStateV1,
   type AiStudioSessionCreateModeReferenceStatesV1,
   buildAiStudioSessionSnapshot,
+  createAiStudioProjectWorkspaceSnapshot,
+  createEmptyAiStudioSessionAgentState,
   type AiStudioSessionAgentV1,
   type AiStudioSessionAgentRuntimesV2,
   type AiStudioSessionSnapshot,
@@ -37,6 +39,7 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
+import { prepareVideoUrl } from "../utils/videoUpload";
 
 const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
   const hasResultMedia =
@@ -55,6 +58,21 @@ const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
 
 const SESSION_RESTORE_SIGN_RETRY_DELAY_MS = 1500;
 const SESSION_RESTORE_SIGN_MAX_ATTEMPTS = 2;
+const EMPTY_PROJECT_WORKSPACE_REFERENCE_STATE: AiStudioSessionCreateModeReferenceStateV1 = {
+  selectedTool: "create",
+  showCreateTools: false,
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null],
+  referenceImageInternalMediaRefs: [],
+  motionReferenceVideoUrl: null,
+  useReferenceImageIndicator: false,
+  detailOutputId: null,
+};
+const EMPTY_PROJECT_WORKSPACE_REFERENCE_STATES: AiStudioSessionCreateModeReferenceStatesV1 = {
+  standard: EMPTY_PROJECT_WORKSPACE_REFERENCE_STATE,
+  pulse: EMPTY_PROJECT_WORKSPACE_REFERENCE_STATE,
+};
+const EMPTY_PROJECT_AGENT_RUNTIME = createEmptyAiStudioSessionAgentState();
 
 const resolveReferenceUrlsFromInternalMediaRefs = async (
   primaryUrl: string | null,
@@ -75,6 +93,16 @@ const resolveReferenceUrlsFromInternalMediaRefs = async (
       extraUrls[2] ?? signedUrls[3] ?? null,
     ],
   };
+};
+
+const resolveRestoredMotionVideoUrl = async (url: string | null): Promise<string | null> => {
+  const normalizedUrl = typeof url === "string" ? url.trim() : "";
+  if (!normalizedUrl) return null;
+  try {
+    return await prepareVideoUrl(normalizedUrl);
+  } catch {
+    return normalizedUrl;
+  }
 };
 
 type UseAiStudioSessionSnapshotControllerParams = {
@@ -432,36 +460,51 @@ export const useAiStudioSessionSnapshotController = ({
           pulseReferenceSelectionState.extraImageUrls,
           pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
         ),
+        resolveRestoredMotionVideoUrl(workspace.motionReferenceVideoUrl),
+        resolveRestoredMotionVideoUrl(standardReferenceSelectionState.motionReferenceVideoUrl),
+        resolveRestoredMotionVideoUrl(pulseReferenceSelectionState.motionReferenceVideoUrl),
       ])
-        .then(([restoredWorkspaceRefs, restoredStandardRefs, restoredPulseRefs]) => {
-          if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
-          registerInternalMediaRefsForUrls(
-            [restoredWorkspaceRefs.referenceImageUrl, ...restoredWorkspaceRefs.extraImageUrls],
-            workspace.referenceImageInternalMediaRefs ?? []
-          );
-          registerInternalMediaRefsForUrls(
-            [restoredStandardRefs.referenceImageUrl, ...restoredStandardRefs.extraImageUrls],
-            standardReferenceSelectionState.referenceImageInternalMediaRefs ?? []
-          );
-          registerInternalMediaRefsForUrls(
-            [restoredPulseRefs.referenceImageUrl, ...restoredPulseRefs.extraImageUrls],
-            pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
-          );
-          setReferenceSelectionStateForCreateMode("standard", {
-            ...standardReferenceSelectionState,
-            referenceImageUrl: restoredStandardRefs.referenceImageUrl,
-            extraImageUrls: restoredStandardRefs.extraImageUrls,
-          });
-          setReferenceSelectionStateForCreateMode("pulse", {
-            ...pulseReferenceSelectionState,
-            referenceImageUrl: restoredPulseRefs.referenceImageUrl,
-            extraImageUrls: restoredPulseRefs.extraImageUrls,
-          });
-          setReferenceImageUrl(restoredWorkspaceRefs.referenceImageUrl);
-          restoredWorkspaceRefs.extraImageUrls.forEach((url, index) => {
-            setExtraImageUrl(index, url);
-          });
-        })
+        .then(
+          ([
+            restoredWorkspaceRefs,
+            restoredStandardRefs,
+            restoredPulseRefs,
+            restoredWorkspaceMotionVideoUrl,
+            restoredStandardMotionVideoUrl,
+            restoredPulseMotionVideoUrl,
+          ]) => {
+            if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+            registerInternalMediaRefsForUrls(
+              [restoredWorkspaceRefs.referenceImageUrl, ...restoredWorkspaceRefs.extraImageUrls],
+              workspace.referenceImageInternalMediaRefs ?? []
+            );
+            registerInternalMediaRefsForUrls(
+              [restoredStandardRefs.referenceImageUrl, ...restoredStandardRefs.extraImageUrls],
+              standardReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+            );
+            registerInternalMediaRefsForUrls(
+              [restoredPulseRefs.referenceImageUrl, ...restoredPulseRefs.extraImageUrls],
+              pulseReferenceSelectionState.referenceImageInternalMediaRefs ?? []
+            );
+            setReferenceSelectionStateForCreateMode("standard", {
+              ...standardReferenceSelectionState,
+              referenceImageUrl: restoredStandardRefs.referenceImageUrl,
+              extraImageUrls: restoredStandardRefs.extraImageUrls,
+              motionReferenceVideoUrl: restoredStandardMotionVideoUrl,
+            });
+            setReferenceSelectionStateForCreateMode("pulse", {
+              ...pulseReferenceSelectionState,
+              referenceImageUrl: restoredPulseRefs.referenceImageUrl,
+              extraImageUrls: restoredPulseRefs.extraImageUrls,
+              motionReferenceVideoUrl: restoredPulseMotionVideoUrl,
+            });
+            setReferenceImageUrl(restoredWorkspaceRefs.referenceImageUrl);
+            restoredWorkspaceRefs.extraImageUrls.forEach((url, index) => {
+              setExtraImageUrl(index, url);
+            });
+            setMotionReferenceVideoUrl(restoredWorkspaceMotionVideoUrl);
+          }
+        )
         .catch(() => undefined);
       const attemptRestoreSigning = (attemptIndex: number) => {
         void resolveSessionRestoreSignedMediaAuthority(hydrationOutputs)
@@ -662,8 +705,75 @@ export const useAiStudioSessionSnapshotController = ({
     ]
   );
 
+  const buildProjectWorkspaceSnapshot = useCallback(
+    ({
+      sessionId,
+      updatedAt,
+    }: {
+      sessionId: string;
+      updatedAt?: string;
+    }): AiStudioSessionSnapshotV2 => {
+      const baseSnapshot = buildAiStudioSessionSnapshot({
+        sessionId,
+        updatedAt,
+        mode: "text",
+        selectedTool: "create",
+        prompt: "",
+        standardCreatePrompt: "",
+        pulseCreatePrompt: "",
+        model: null,
+        aspect: "9:16",
+        pulseWorkspaceState: {
+          expertCreateMode: "standard",
+          activePulsePresetId: null,
+          pulseSessionInstanceId: null,
+        },
+        createModeReferenceStates: EMPTY_PROJECT_WORKSPACE_REFERENCE_STATES,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        seedance2InputMode: "text",
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: [],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs,
+        archivedOutputs: [],
+        activeOutputId: null,
+        curatedReferenceIds,
+        removedFromAllRefsIds,
+        agentMessages: EMPTY_PROJECT_AGENT_RUNTIME.messages,
+        agentInput: EMPTY_PROJECT_AGENT_RUNTIME.input,
+        latestAgentPrompt: EMPTY_PROJECT_AGENT_RUNTIME.latestAgentPrompt,
+        promptOrigin: EMPTY_PROJECT_AGENT_RUNTIME.promptOrigin,
+        chatModeEnabled: EMPTY_PROJECT_AGENT_RUNTIME.chatModeEnabled,
+        pulseWorkflowSession: EMPTY_PROJECT_AGENT_RUNTIME.pulseWorkflowSession,
+      });
+      return createAiStudioProjectWorkspaceSnapshot(baseSnapshot) as AiStudioSessionSnapshotV2;
+    },
+    [curatedReferenceIds, outputs, removedFromAllRefsIds]
+  );
+
   return {
     hydrateFromSessionSnapshot,
     buildSessionSnapshot,
+    buildProjectWorkspaceSnapshot,
   };
 };

@@ -30,9 +30,23 @@ const resolveTotalTokens = ({
   pressureLevel: 0 | 1 | 2;
   constrainedProfile: boolean;
 }) => {
-  const baseTokens = pressureLevel >= 2 ? 3 : pressureLevel >= 1 ? 5 : 8;
+  const baseTokens = pressureLevel >= 2 ? 5 : pressureLevel >= 1 ? 6 : 8;
   if (!constrainedProfile) return baseTokens;
   return Math.max(3, Math.min(baseTokens, pressureLevel >= 1 ? 3 : 5));
+};
+
+const resolveReservedImageDecodeBudget = ({
+  pressureLevel,
+  totalTokens,
+  desiredImageDecodeInflight,
+}: {
+  pressureLevel: 0 | 1 | 2;
+  totalTokens: number;
+  desiredImageDecodeInflight: number;
+}): number => {
+  if (desiredImageDecodeInflight <= 0 || pressureLevel === 0) return 0;
+  const pressureImageFloor = pressureLevel >= 2 ? 3 : 2;
+  return Math.min(desiredImageDecodeInflight, pressureImageFloor, totalTokens);
 };
 
 /**
@@ -62,7 +76,15 @@ export const resolveReferenceGridMediaWorkBudget = ({
     pressureLevel,
     constrainedProfile,
   });
-  const maxVideoByTokens = Math.floor(totalTokens / VIDEO_ATTACH_TOKEN_COST);
+  const reservedImageDecodeBudget = resolveReservedImageDecodeBudget({
+    pressureLevel,
+    totalTokens,
+    desiredImageDecodeInflight: safeDesiredImageInflight,
+  });
+  const remainingTokensAfterImageReservation = Math.max(0, totalTokens - reservedImageDecodeBudget);
+  const maxVideoByTokens = Math.floor(
+    remainingTokensAfterImageReservation / VIDEO_ATTACH_TOKEN_COST
+  );
   let videoAttachBudget = Math.min(safeDesiredVideoSlots, maxVideoByTokens);
   let remainingTokens = Math.max(0, totalTokens - videoAttachBudget * VIDEO_ATTACH_TOKEN_COST);
   let imageDecodeBudget = Math.min(safeDesiredImageInflight, remainingTokens);

@@ -323,6 +323,17 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBe("camera move");
   });
 
+  it("returns the dropped file directly for local video drags", () => {
+    const file = new File(["video"], "motion.mp4", { type: "video/mp4" });
+    const transfer = makeTransferWithFiles({}, [file]);
+
+    const payload = extractVideoDragDropPayload(transfer);
+
+    expect(payload.fromFile).toBe(true);
+    expect(payload.videoFile).toBe(file);
+    expect(payload.videoUrl).toBeNull();
+  });
+
   it("accepts internal reference drags for video targets during dragover", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-video-2",

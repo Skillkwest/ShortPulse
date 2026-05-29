@@ -74,7 +74,9 @@ export const useReferenceGridPreviewRuntime = ({
 }: UseReferenceGridPreviewRuntimeArgs) => {
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = useRef<Set<string>>(new Set());
+  const pendingLoadedMapIdsRef = useRef<Set<string>>(new Set());
   const pendingAnimationFrameIdsRef = useRef<number[]>([]);
+  const loadedMapFlushScheduledRef = useRef(false);
   const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
     useReferenceGridImageHydrationController({
       decodeBudgetEnabled,
@@ -87,45 +89,62 @@ export const useReferenceGridPreviewRuntime = ({
       liveWatchdogDegradeLevelRef,
     });
 
-  const flushLoadedMapForId = useCallback(
-    (id: string) => {
-      runNonUrgentUpdate(() => {
-        setLoadedMap((prev) => {
-          if (prev[id]) return prev;
-          incrementFreezeInvestigationCounter("referenceGrid.loadedMap.commit");
-          return { ...prev, [id]: true };
+  const flushPendingLoadedMap = useCallback(() => {
+    loadedMapFlushScheduledRef.current = false;
+    const pendingIds = Array.from(pendingLoadedMapIdsRef.current);
+    pendingLoadedMapIdsRef.current.clear();
+    if (!pendingIds.length) return;
+
+    runNonUrgentUpdate(() => {
+      setLoadedMap((prev) => {
+        let next: Record<string, boolean> | null = null;
+        pendingIds.forEach((id) => {
+          if (prev[id]) return;
+          next ??= { ...prev };
+          next[id] = true;
         });
+        if (!next) return prev;
+        incrementFreezeInvestigationCounter("referenceGrid.loadedMap.commit");
+        return next;
       });
+    });
+  }, [runNonUrgentUpdate]);
+
+  const schedulePendingLoadedMapFlush = useCallback(
+    (delayPaintFrames: number) => {
+      if (loadedMapFlushScheduledRef.current) return;
+      loadedMapFlushScheduledRef.current = true;
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        flushPendingLoadedMap();
+        return;
+      }
+
+      const scheduleFrame = (remainingFrames: number) => {
+        const frameId = window.requestAnimationFrame(() => {
+          pendingAnimationFrameIdsRef.current = pendingAnimationFrameIdsRef.current.filter(
+            (pendingFrameId) => pendingFrameId !== frameId
+          );
+          if (remainingFrames <= 1) {
+            flushPendingLoadedMap();
+            return;
+          }
+          scheduleFrame(remainingFrames - 1);
+        });
+        pendingAnimationFrameIdsRef.current.push(frameId);
+      };
+
+      scheduleFrame(Math.max(1, delayPaintFrames));
     },
-    [runNonUrgentUpdate]
+    [flushPendingLoadedMap]
   );
 
   const scheduleLoadedMapCommit = useCallback(
     (id: string) => {
-      if (!stabilizeLoadingVisual) {
-        flushLoadedMapForId(id);
-        return;
-      }
-      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-        flushLoadedMapForId(id);
-        return;
-      }
-      // Commit loaded-map state after two paint frames so the loading overlay exits cleanly.
-      const firstFrameId = window.requestAnimationFrame(() => {
-        pendingAnimationFrameIdsRef.current = pendingAnimationFrameIdsRef.current.filter(
-          (frameId) => frameId !== firstFrameId
-        );
-        const secondFrameId = window.requestAnimationFrame(() => {
-          pendingAnimationFrameIdsRef.current = pendingAnimationFrameIdsRef.current.filter(
-            (frameId) => frameId !== secondFrameId
-          );
-          flushLoadedMapForId(id);
-        });
-        pendingAnimationFrameIdsRef.current.push(secondFrameId);
-      });
-      pendingAnimationFrameIdsRef.current.push(firstFrameId);
+      pendingLoadedMapIdsRef.current.add(id);
+      const delayPaintFrames = stabilizeLoadingVisual ? 2 : 1;
+      schedulePendingLoadedMapFlush(delayPaintFrames);
     },
-    [flushLoadedMapForId, stabilizeLoadingVisual]
+    [schedulePendingLoadedMapFlush, stabilizeLoadingVisual]
   );
 
   const markLoaded = useCallback(
@@ -149,6 +168,8 @@ export const useReferenceGridPreviewRuntime = ({
         window.cancelAnimationFrame(frameId);
       });
       pendingAnimationFrameIdsRef.current = [];
+      pendingLoadedMapIdsRef.current.clear();
+      loadedMapFlushScheduledRef.current = false;
     },
     []
   );

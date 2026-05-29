@@ -201,7 +201,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
   });
 
   it("enables project autosave after bootstrap settles for the active project", () => {
-    const snapshot = createSnapshot();
+    const snapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
     const buildSessionSnapshot = vi.fn(() => snapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const applyEmptyProjectState = vi.fn();
@@ -246,7 +246,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         enabled: true,
       })
     );
-    expect(lastWriteShadowArgs?.snapshot).toEqual(createAiStudioProjectWorkspaceSnapshot(snapshot));
+    expect(lastWriteShadowArgs?.snapshot).toEqual(snapshot);
     expect(lastWriteShadowArgs?.preparedSnapshot).toEqual(
       expect.objectContaining({
         title: null,
@@ -717,7 +717,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         removedFromAllRefsIds: [],
       },
     } as unknown as AiStudioSessionSnapshot;
-    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const buildSessionSnapshot = vi.fn(() => createAiStudioProjectWorkspaceSnapshot(snapshot));
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 
@@ -775,7 +775,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         },
       },
     } as AiStudioSessionSnapshot;
-    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const buildSessionSnapshot = vi.fn(() => createAiStudioProjectWorkspaceSnapshot(snapshot));
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 

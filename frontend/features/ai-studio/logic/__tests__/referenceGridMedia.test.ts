@@ -91,7 +91,7 @@ describe("referenceGridMedia", () => {
     expect(level2.targetLongEdgePx).toBe(320);
   });
 
-  it("keeps supabase object URLs direct in right-rail grid surfaces", () => {
+  it("routes supabase object URLs through the native render endpoint in right-rail grid surfaces", () => {
     const resolved = resolveReferenceCardUrls(
       {
         previewStoragePath:
@@ -109,13 +109,14 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toBe(
-      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123"
-    );
+    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toContain("token=abc123");
     expect(resolved.fullUrl).not.toContain("width=");
   });
 
-  it("keeps supabase object URLs without image extension direct when mode is image", () => {
+  it("routes supabase object URLs without image extension when mode is image", () => {
     const sourceUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/reference_asset_12345?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -132,10 +133,13 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toContain("token=abc123");
   });
 
-  it("keeps signed durable preview URLs direct when preview and full storage paths differ", () => {
+  it("compresses signed durable preview URLs for right-rail grid display", () => {
     const durablePreviewUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/variants/images/ref-1/thumb_480?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -152,9 +156,12 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toBe(durablePreviewUrl);
-    expect(resolved.previewQualityBand).toBe("high");
-    expect(resolved.targetLongEdgePx).toBe(960);
+    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
+    expect(resolved.previewUrl).toContain("width=320");
+    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toContain("token=abc123");
+    expect(resolved.previewQualityBand).toBe("compact");
+    expect(resolved.targetLongEdgePx).toBe(320);
   });
 
   it("applies direct supabase render image transforms when already on render endpoint", () => {

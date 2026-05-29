@@ -36,7 +36,7 @@ type UseAiStudioAgentOutputGenerationBridgeParams = {
   promptReferenceGenerateCostCredits: number | null;
   setVideoReferenceText: (value: string) => void;
   setEditReferenceText: (value: string) => void;
-  setSharedPrompt: (value: string) => void;
+  setCreatePrompt: (value: string) => void;
   setSelectedToolWithEditIntentReset: (tool: ToolId | null) => void;
   setMode: (value: StudioMode) => void;
   setPromptOrigin: (value: PromptOrigin) => void;
@@ -61,7 +61,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
   promptReferenceGenerateCostCredits,
   setVideoReferenceText,
   setEditReferenceText,
-  setSharedPrompt,
+  setCreatePrompt,
   setSelectedToolWithEditIntentReset,
   setMode,
   setPromptOrigin,
@@ -87,7 +87,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
       } else if (workflowTool === "edit") {
         setEditReferenceText(request.prompt);
       } else {
-        setSharedPrompt(request.prompt);
+        setCreatePrompt(request.prompt);
         if (selectedTool !== "create" && selectedTool !== "text") {
           setSelectedToolWithEditIntentReset("create");
         }
@@ -122,7 +122,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
       setMode,
       setPromptOrigin,
       setSelectedToolWithEditIntentReset,
-      setSharedPrompt,
+      setCreatePrompt,
       setVideoReferenceText,
     ]
   );

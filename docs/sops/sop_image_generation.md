@@ -99,6 +99,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - If active preset zones are empty, the client falls back to legacy `character_sheet_assignments` slot mapping.
   - Character draft is refreshed before each Create/Text submit so preset switches and zone updates are applied immediately.
   - The Create picker look override is AI Studio-local and does not write back to Character Manager active-look metadata.
+  - When the Character panel changes the selected character without an explicit Create-picker look choice, AI Studio clears the previous local look override and rehydrates the current character's active/default look before generation.
   - App-owned Character Sheet refs must hand off as canonical internal media refs whenever storage authority is known; replay/reroll must persist that canonical identity instead of durable signed URLs.
   - Provider-facing signed URLs for app-owned character refs are minted at submit time by the image/edit submit boundary. Raw URL refs remain only for truly external references or URL-only fallback cases.
   - URL-based reference lists are still deduped and capped by provider limits for the external/fallback portion of the submit payload.

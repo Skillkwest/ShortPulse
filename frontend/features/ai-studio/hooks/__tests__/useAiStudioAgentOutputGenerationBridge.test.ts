@@ -35,7 +35,7 @@ const createParams = (
   promptReferenceGenerateCostCredits: 7,
   setVideoReferenceText: vi.fn(),
   setEditReferenceText: vi.fn(),
-  setSharedPrompt: vi.fn(),
+  setCreatePrompt: vi.fn(),
   setSelectedToolWithEditIntentReset: vi.fn(),
   setMode: vi.fn(),
   setPromptOrigin: vi.fn(),
@@ -66,7 +66,7 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
       await Promise.resolve();
     });
 
-    expect(params.setSharedPrompt).toHaveBeenCalledWith("refined prompt");
+    expect(params.setCreatePrompt).toHaveBeenCalledWith("refined prompt");
     expect(params.setSelectedToolWithEditIntentReset).toHaveBeenCalledWith("create");
     expect(params.setMode).toHaveBeenCalledWith("image");
     expect(params.setPromptOrigin).toHaveBeenCalledWith("agent");
@@ -97,7 +97,7 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
     });
 
     expect(videoParams.setVideoReferenceText).toHaveBeenCalledWith("video prompt");
-    expect(videoParams.setSharedPrompt).not.toHaveBeenCalled();
+    expect(videoParams.setCreatePrompt).not.toHaveBeenCalled();
     expect(videoParams.handleGenerate).toHaveBeenCalledWith("video prompt", {
       modeOverride: "video",
       toolOverride: "video",
@@ -170,7 +170,7 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
       });
     });
 
-    expect(params.setSharedPrompt).not.toHaveBeenCalled();
+    expect(params.setCreatePrompt).not.toHaveBeenCalled();
     expect(params.handleGenerate).not.toHaveBeenCalled();
     expect(result.current.assistantBubbleMedia).toEqual({});
     expect(result.current.disableAgentOutputGenerate).toBe(true);

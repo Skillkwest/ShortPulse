@@ -64,6 +64,7 @@ type UseCharacterManagerDraftResult = {
   isSavingCharacterSheetPreset: boolean;
   isDeletingCharacterSheetPreset: boolean;
   hasUnsavedCharacterDraft: boolean;
+  hasUnsavedCharacterDraftChanges: boolean;
   setCharacterName: (value: string) => void;
   setCharacterDescription: (value: string) => void;
   setProfileImageFile: (file: File) => Promise<void>;
@@ -985,6 +986,27 @@ export const useCharacterManagerDraft = ({
     [isCreatingCharacter, isDeletingCharacter, isSwitchingCharacter, loading, slotBusyKeys]
   );
 
+  const defaultCharacterSheetPresetState = createDefaultCharacterSheetPresetState();
+  const hasUnsavedCharacterDraftChanges =
+    !characterId &&
+    (characterName.trim() !== "New Character" ||
+      profileImageUrl !== null ||
+      Object.values(characterSheetAssignments).some((assignment) => assignment !== null) ||
+      Object.values(characterSheetPresets).some((assignments) =>
+        Object.values(assignments).some((assignment) => assignment !== null)
+      ) ||
+      Object.values(characterSheetPresetDescriptions).some((description) => description.trim()) ||
+      visibleCharacterSheetPresetIds.length !== defaultCharacterSheetPresetState.tabOrder.length ||
+      visibleCharacterSheetPresetIds.some(
+        (presetId, index) => presetId !== defaultCharacterSheetPresetState.tabOrder[index]
+      ) ||
+      CHARACTER_SHEET_PRESET_IDS.some(
+        (presetId) =>
+          (characterSheetPresetLabels[presetId] ?? "") !==
+          defaultCharacterSheetPresetState.tabLabels[presetId]
+      ) ||
+      Object.values(slots).some((slot) => slot !== null));
+
   return {
     characters,
     selectedCharacterId: characterId,
@@ -1007,6 +1029,7 @@ export const useCharacterManagerDraft = ({
     isSavingCharacterSheetPreset,
     isDeletingCharacterSheetPreset,
     hasUnsavedCharacterDraft: !characterId,
+    hasUnsavedCharacterDraftChanges,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,

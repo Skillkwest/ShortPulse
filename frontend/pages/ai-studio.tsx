@@ -64,22 +64,11 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
     mode: base.mode,
     selectedTool: base.selectedTool,
     prompt: base.standardPrompt,
-    projectId: base.projectId,
-    projectRouteRequested: base.projectRouteRequested,
     getAgentContext: base.getAgentContext,
     setStandardCreatePrompt: base.setStandardCreatePrompt,
-    addAgentPromptReference: base.addAgentPromptReference,
-    editReferenceText: base.editReferenceText,
-    setEditReferenceText: base.setEditReferenceText,
-    videoReferenceText: base.videoReferenceText,
-    setVideoReferenceText: base.setVideoReferenceText,
     findOutputById: base.findOutputById,
     resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
     resolveInternalImageDropSource: base.resolveComposerInternalImageDropSource,
-    aspect: base.aspect,
-    model: base.model,
-    setOutputs: base.setOutputs,
-    setActiveOutputId: base.setActiveOutputId,
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
@@ -144,6 +133,7 @@ const AiStudioPageRuntimeBody = ({
     balanceCredits,
     balanceError,
     balanceLoading,
+    buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     canvasSessionState,
     characterCreateRequestKey,
@@ -151,6 +141,7 @@ const AiStudioPageRuntimeBody = ({
     createCharacterModeInjectionBundle,
     createSelectedCharacterId,
     createSelectedCharacterLookId,
+    handleCharacterPanelSelectedCharacterChange,
     editReferenceText,
     editSubmitIntent,
     effectiveBalanceCredits,
@@ -180,6 +171,7 @@ const AiStudioPageRuntimeBody = ({
     modelPricingPolicyError,
     modelPricingPolicyLoading,
     modelPricingPolicyReady,
+    motionReferenceVideoPending,
     motionReferenceVideoUrl,
     notifyGenerationFailure,
     openModelModal,
@@ -287,7 +279,7 @@ const AiStudioPageRuntimeBody = ({
     },
     [setPromptOrigin, setPulseCreatePrompt]
   );
-  const setActiveCreatePrompt =
+  const setCreatePromptForActiveMode =
     activeCreateAgentRuntime.kind === "pulse" ? setPulseCreatePrompt : setStandardCreatePrompt;
 
   const handleCreatePulsePresetStart = useCallback(
@@ -361,6 +353,7 @@ const AiStudioPageRuntimeBody = ({
     activeCreateAgentKind: activeCreateAgentRuntime.kind,
     activeCreatePulsePresetId,
     activeSessionPersistenceSessionId,
+    buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     canvasSessionState,
     createSelectedCharacterId,
@@ -479,6 +472,7 @@ const AiStudioPageRuntimeBody = ({
     modelPricingPolicyError,
     modelPricingPolicyLoading,
     modelPricingPolicyReady,
+    motionReferenceVideoPending,
     motionReferenceVideoUrl,
     notifyGenerationFailure,
     optimisticDebitEntries,
@@ -509,7 +503,7 @@ const AiStudioPageRuntimeBody = ({
     setOptimisticDebitEntries,
     setOutputs,
     setPromptOrigin,
-    setSharedPrompt: setActiveCreatePrompt,
+    setCreatePromptForActiveMode,
     setShowCreateTools,
     setUiError,
     setUiNotice,
@@ -730,8 +724,7 @@ const AiStudioPageRuntimeBody = ({
     pendingCharacterUploadRequest,
     onCharacterUploadRequestHandled: clearPendingCharacterUploadRequest,
     createSelectedCharacterId,
-    onCreateSelectedCharacterIdChange: (characterId) =>
-      setCreateSelectedCharacterId(characterId ?? ""),
+    onCreateSelectedCharacterIdChange: handleCharacterPanelSelectedCharacterChange,
     resolveElementProfileImageDropSource,
     resolveVoiceChangerInternalReferenceSource,
     onSelectedStylePromptChange: setSelectedStylePrompt,

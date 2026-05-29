@@ -858,7 +858,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                       {uploadError
                         ? "The recording is still here. You can retry staging it without recording again."
                         : isUploadingClip
-                          ? "We're staging the clip now so it survives restore and can go straight into Motion Control."
+                          ? "Adding to Motion Control now."
                           : "Use clip replaces the current motion reference video. Retake keeps you in the recorder until you like the result."}
                     </p>
                   </>

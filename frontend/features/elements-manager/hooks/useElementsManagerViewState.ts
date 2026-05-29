@@ -465,6 +465,7 @@ export const useElementsManagerViewState = ({
       const nextDraft = createEmptyElementDraft();
       suppressNextPersistRef.current = true;
       lastPersistedDraftRef.current = serializeDraftState(nextDraft);
+      setPendingDeleteElementId(null);
       setSelectedElementId(null);
       resetDraft();
       setEditorMode("create");
@@ -504,6 +505,7 @@ export const useElementsManagerViewState = ({
           updatedAt: result.updatedAt,
           status: result.status,
         });
+        setPendingDeleteElementId(null);
         return true;
       }
 
@@ -529,6 +531,7 @@ export const useElementsManagerViewState = ({
       suppressNextPersistRef.current = true;
       lastPersistedDraftRef.current = serializeDraftState(nextDraft);
       updateElementListEntry(nextItem);
+      setPendingDeleteElementId(null);
       setSelectedElementId(snapshot.elementId);
       hydrateDraft(nextItem);
       setEditorMode("edit");
@@ -547,6 +550,7 @@ export const useElementsManagerViewState = ({
     async (elementId: string) => {
       if (!elementId) return;
       if (elementId === selectedElementIdRef.current) {
+        setPendingDeleteElementId(null);
         setEditorMode("edit");
         setPendingDiscardDraft(false);
         setIsEditorOpen(true);
@@ -564,6 +568,7 @@ export const useElementsManagerViewState = ({
         suppressNextPersistRef.current = true;
         lastPersistedDraftRef.current = serializeDraftState(nextDraft);
         updateElementListEntry(nextItem);
+        setPendingDeleteElementId(null);
         setSelectedElementId(elementId);
         hydrateDraft(nextItem);
         setEditorMode("edit");

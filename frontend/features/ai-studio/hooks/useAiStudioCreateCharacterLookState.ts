@@ -33,6 +33,10 @@ export const useAiStudioCreateCharacterLookState = ({
   const [createCharacterLookOptionsByCharacterId, setCreateCharacterLookOptionsByCharacterId] =
     useState<Record<string, CharacterModeLookOption[]>>({});
 
+  const resolveFallbackLookId = useCallback((options: CharacterModeLookOption[]): string => {
+    return options.find((option) => option.isDefault)?.id ?? options[0]?.id ?? "";
+  }, []);
+
   const loadCreateCharacterLookOptions = useCallback(
     async (characterId: string) => {
       const normalizedCharacterId = characterId.trim();
@@ -71,17 +75,39 @@ export const useAiStudioCreateCharacterLookState = ({
 
   useEffect(() => {
     const normalizedCharacterId = createSelectedCharacterId.trim();
+    const normalizedLookId = createSelectedCharacterLookId.trim();
     if (!normalizedCharacterId) {
-      setCreateSelectedCharacterLookId("");
+      if (normalizedLookId) {
+        setCreateSelectedCharacterLookId("");
+      }
       return;
     }
-    if (createCharacterLookOptionsByCharacterId[normalizedCharacterId]) return;
+
+    const cachedOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? null;
+    if (cachedOptions) {
+      if (normalizedLookId) return;
+      const fallbackLookId = resolveFallbackLookId(cachedOptions);
+      if (fallbackLookId) {
+        setCreateSelectedCharacterLookId(fallbackLookId);
+      }
+      return;
+    }
+
     let cancelled = false;
     globalThis.queueMicrotask(() => {
       if (cancelled) return;
-      void loadCreateCharacterLookOptions(normalizedCharacterId).catch(() => {
-        // Best-effort cache warm-up so selected look labels survive reload/restore.
-      });
+      void loadCreateCharacterLookOptions(normalizedCharacterId)
+        .then((options) => {
+          if (cancelled || normalizedLookId) return;
+          const fallbackLookId = resolveFallbackLookId(options);
+          if (!fallbackLookId) return;
+          setCreateSelectedCharacterLookId((current) =>
+            current.trim() ? current : fallbackLookId
+          );
+        })
+        .catch(() => {
+          // Best-effort cache warm-up so selected look labels survive reload/restore.
+        });
     });
     return () => {
       cancelled = true;
@@ -89,7 +115,9 @@ export const useAiStudioCreateCharacterLookState = ({
   }, [
     createCharacterLookOptionsByCharacterId,
     createSelectedCharacterId,
+    createSelectedCharacterLookId,
     loadCreateCharacterLookOptions,
+    resolveFallbackLookId,
     setCreateSelectedCharacterLookId,
   ]);
 
@@ -100,14 +128,14 @@ export const useAiStudioCreateCharacterLookState = ({
     const lookOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? [];
     if (lookOptions.length === 0) return;
     if (lookOptions.some((option) => option.id === normalizedLookId)) return;
-    const fallbackLookId =
-      lookOptions.find((option) => option.isDefault)?.id ?? lookOptions[0]?.id ?? "";
+    const fallbackLookId = resolveFallbackLookId(lookOptions);
     if (!fallbackLookId) return;
     setCreateSelectedCharacterLookId(fallbackLookId);
   }, [
     createCharacterLookOptionsByCharacterId,
     createSelectedCharacterId,
     createSelectedCharacterLookId,
+    resolveFallbackLookId,
     setCreateSelectedCharacterLookId,
   ]);
 

@@ -396,6 +396,22 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
   });
 
+  it("blocks generation while the motion clip is still uploading", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        referenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoPending: true,
+        motionReferenceVideoUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Motion clip is still uploading. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
   it("allows generation when both motion inputs are present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

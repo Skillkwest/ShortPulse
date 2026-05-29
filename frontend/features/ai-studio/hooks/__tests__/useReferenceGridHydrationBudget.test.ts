@@ -164,6 +164,6 @@ describe("useReferenceGridHydrationBudget", () => {
 
     expect(result.current.constrainedProfile).toBe(true);
     expect(result.current.maxInflightHydrations).toBe(2);
-    expect(result.current.priorityRows).toBe(1);
+    expect(result.current.priorityRows).toBe(2);
   });
 });

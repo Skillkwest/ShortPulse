@@ -17,6 +17,7 @@ import {
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import { uploadVideoAssetToStorage, uploadVideoFileToStorage } from "../utils/videoUpload";
 import {
   createInternalMediaRefFromResolvedSource,
   registerInternalMediaRefForUrl,
@@ -45,7 +46,9 @@ type UseReferencePropertiesInteractionsParams = {
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   onMotionVideoChange?: (url: string | null) => void;
+  onMotionVideoLoadingChange?: (isLoading: boolean) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   klingMultiPrompts: KlingMultiPrompt[];
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
@@ -53,32 +56,9 @@ type UseReferencePropertiesInteractionsParams = {
   onKlingElementsChange?: (value: KlingElement[]) => void;
 };
 
-const VIDEO_BLOB_MARKER = "#video=1";
-
 const isLocalMemoryVideoUrl = (value: string | null | undefined): value is string => {
   if (!value) return false;
   return value.startsWith("blob:") || /^data:video\//i.test(value);
-};
-
-const stripVideoBlobMarker = (value: string): string => value.replace(/#video=1$/i, "");
-
-const ensureVideoBlobMarker = (value: string): string => {
-  if (!value.startsWith("blob:")) return value;
-  const base = stripVideoBlobMarker(value);
-  return `${base}${VIDEO_BLOB_MARKER}`;
-};
-
-const cloneMotionBlobVideoUrl = async (value: string): Promise<string | null> => {
-  if (!value.startsWith("blob:")) return null;
-  try {
-    const source = stripVideoBlobMarker(value);
-    const response = await fetch(source);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    return `${URL.createObjectURL(blob)}${VIDEO_BLOB_MARKER}`;
-  } catch {
-    return null;
-  }
 };
 
 /**
@@ -91,7 +71,9 @@ export const useReferencePropertiesInteractions = ({
   onExtraImageChange,
   onPromptTextChange,
   onMotionVideoChange,
+  onMotionVideoLoadingChange,
   resolvePreviewUrlById,
+  resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
   klingMultiPrompts,
   onKlingMultiPromptsChange,
@@ -105,6 +87,7 @@ export const useReferencePropertiesInteractions = ({
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
+  const motionVideoUploadRequestIdRef = useRef(0);
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
@@ -112,6 +95,8 @@ export const useReferencePropertiesInteractions = ({
   const [primaryImageLoading, setPrimaryImageLoading] = useState(false);
   const [extraImageLoading, setExtraImageLoading] = useState([false, false, false]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
+  const [motionVideoLoading, setMotionVideoLoading] = useState(false);
+  const [motionVideoError, setMotionVideoError] = useState<string | null>(null);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
     model: false,
@@ -137,6 +122,16 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const canSwapFrames = Boolean(referenceImageUrl || extraImageUrls[0]);
+
+  useEffect(() => {
+    onMotionVideoLoadingChange?.(motionVideoLoading);
+  }, [motionVideoLoading, onMotionVideoLoadingChange]);
+
+  useEffect(() => {
+    return () => {
+      onMotionVideoLoadingChange?.(false);
+    };
+  }, [onMotionVideoLoadingChange]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -203,6 +198,50 @@ export const useReferencePropertiesInteractions = ({
     }
     setter(url);
   };
+
+  const commitMotionVideoUrl = useCallback(
+    (url: string | null) => {
+      onMotionVideoChange?.(url);
+    },
+    [onMotionVideoChange]
+  );
+
+  const clearMotionVideoSelection = useCallback(() => {
+    motionVideoUploadRequestIdRef.current += 1;
+    setMotionVideoLoading(false);
+    setMotionVideoError(null);
+    commitMotionVideoUrl(null);
+  }, [commitMotionVideoUrl]);
+
+  const resolveMotionVideoUploadErrorMessage = (error: unknown) =>
+    error instanceof Error && error.message.trim()
+      ? error.message.trim()
+      : "Unable to add this motion clip right now.";
+
+  const stageMotionVideoSelection = useCallback(
+    async ({ videoFile, videoUrl }: { videoFile?: File | null; videoUrl?: string | null }) => {
+      if (!videoFile && !videoUrl) return;
+      const requestId = motionVideoUploadRequestIdRef.current + 1;
+      motionVideoUploadRequestIdRef.current = requestId;
+      setMotionVideoLoading(true);
+      setMotionVideoError(null);
+      try {
+        const uploaded = videoFile
+          ? await uploadVideoFileToStorage(videoFile)
+          : await uploadVideoAssetToStorage(videoUrl as string);
+        if (motionVideoUploadRequestIdRef.current !== requestId) return;
+        commitMotionVideoUrl(uploaded.url);
+      } catch (error) {
+        if (motionVideoUploadRequestIdRef.current !== requestId) return;
+        setMotionVideoError(resolveMotionVideoUploadErrorMessage(error));
+      } finally {
+        if (motionVideoUploadRequestIdRef.current === requestId) {
+          setMotionVideoLoading(false);
+        }
+      }
+    },
+    [commitMotionVideoUrl]
+  );
 
   const stabilizeDroppedImageUrl = async ({
     imageUrl,
@@ -365,12 +404,12 @@ export const useReferencePropertiesInteractions = ({
 
   const handlePrimaryDrop = (event: DragEvent<HTMLDivElement>) => {
     setPrimaryDragActive(false);
-    handleImageDrop(onPrimaryImageChange, setPrimaryImageLoading)(event);
+    return handleImageDrop(onPrimaryImageChange, setPrimaryImageLoading)(event);
   };
 
   const handleExtraDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
     setExtraDragActiveAt(index, false);
-    handleImageDrop(
+    return handleImageDrop(
       (url) => onExtraImageChange(index, url),
       (value) => setExtraImageLoadingAt(index, value)
     )(event);
@@ -423,41 +462,47 @@ export const useReferencePropertiesInteractions = ({
 
     const payload = extractVideoDragDropPayload(event.dataTransfer);
     let nextVideoUrl = payload.videoUrl;
+    const nextVideoFile =
+      payload.videoFile ??
+      Array.from(event.dataTransfer.files ?? []).find((f) => f.type.startsWith("video/")) ??
+      null;
 
     if (
       (!nextVideoUrl || isLocalMemoryVideoUrl(nextVideoUrl)) &&
       payload.referenceId &&
-      resolvePreviewUrlById
+      (resolveMotionVideoUrlById || resolvePreviewUrlById)
     ) {
-      const resolvedUrl = resolvePreviewUrlById(payload.referenceId);
+      const resolvedUrl =
+        resolveMotionVideoUrlById?.(payload.referenceId) ??
+        resolvePreviewUrlById?.(payload.referenceId) ??
+        null;
       if (resolvedUrl && looksLikeVideoUrl(resolvedUrl)) {
         nextVideoUrl = resolvedUrl;
       }
     }
 
-    if (nextVideoUrl && nextVideoUrl.startsWith("blob:")) {
-      const stabilized = await cloneMotionBlobVideoUrl(nextVideoUrl);
-      nextVideoUrl = stabilized ?? ensureVideoBlobMarker(nextVideoUrl);
+    if (nextVideoFile) {
+      await stageMotionVideoSelection({ videoFile: nextVideoFile });
+      return;
+    }
+
+    if (nextVideoUrl && isLocalMemoryVideoUrl(nextVideoUrl)) {
+      await stageMotionVideoSelection({ videoUrl: nextVideoUrl });
+      return;
     }
 
     if (nextVideoUrl) {
-      onMotionVideoChange?.(nextVideoUrl);
-    } else if (event.dataTransfer.files?.length) {
-      const videoFile = Array.from(event.dataTransfer.files).find((f) =>
-        f.type.startsWith("video/")
-      );
-      if (videoFile) {
-        const url = URL.createObjectURL(videoFile);
-        onMotionVideoChange?.(`${url}#video=1`);
-      }
+      motionVideoUploadRequestIdRef.current += 1;
+      setMotionVideoLoading(false);
+      setMotionVideoError(null);
+      commitMotionVideoUrl(nextVideoUrl);
     }
   };
 
-  const handleMotionVideoSelection = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("video/")) {
-      const url = URL.createObjectURL(file);
-      onMotionVideoChange?.(`${url}#video=1`);
+      await stageMotionVideoSelection({ videoFile: file });
     }
     event.target.value = "";
   };
@@ -472,8 +517,11 @@ export const useReferencePropertiesInteractions = ({
     extraDragActive,
     primaryImageLoading,
     extraImageLoading,
+    motionVideoLoading,
+    motionVideoError,
     motionVideoDragActive,
     setMotionVideoDragActive,
+    clearMotionVideoSelection,
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,

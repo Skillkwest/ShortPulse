@@ -284,6 +284,28 @@ describe("useAiStudioSessionAutosave", () => {
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
   });
 
+  it("uses a compact semantic hash that ignores volatile timestamp metadata", () => {
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(createSnapshotV2(), {
+      title: "Prepared Project",
+    });
+    const preparedTimestampOnlyChange = prepareAiStudioSessionAutosaveSnapshot(
+      createSnapshotV2({
+        updatedAt: "2026-03-02T00:00:02.000Z",
+        meta: {
+          generatedAt: "2026-03-02T00:00:02.000Z",
+          checksum: "fnv1a32:cccccccc",
+        },
+      }),
+      {
+        title: "Prepared Project",
+      }
+    );
+
+    expect(preparedSnapshot.hash).toMatch(/^fnv1a32:/);
+    expect(preparedSnapshot.hash).toBe(preparedTimestampOnlyChange.hash);
+    expect(preparedSnapshot.hash?.length ?? 0).toBeLessThan(32);
+  });
+
   it("uses a prepared autosave snapshot when one is supplied", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshotV2();

@@ -252,4 +252,32 @@ describe("create composer layout contract", () => {
     expect(chatToggleShell).toContain("min-height: 64px;");
     expect(controlsRow).toContain("margin-top: 6px;");
   });
+
+  it("centers the no-history composer shell so growth is absorbed above and below the composer lane", () => {
+    const tokensCss = fs.readFileSync(createComposerTokensCssPath, "utf8");
+    const emptyStateShell = extractRuleBlock(
+      tokensCss,
+      ".create-composer-panel--no-history .create-composer-empty-state-shell"
+    );
+    const topSpacer = extractRuleBlock(
+      tokensCss,
+      ".create-composer-panel--no-history .create-composer-empty-preview-frame"
+    );
+    const centerStack = extractRuleBlock(
+      tokensCss,
+      ".create-composer-panel--no-history .create-composer-empty-center-stack"
+    );
+    const bottomBlock = extractRuleBlock(
+      tokensCss,
+      ".create-composer-panel--no-history .create-composer-bottom-block"
+    );
+
+    expect(emptyStateShell).toContain("grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);");
+    expect(emptyStateShell).toContain("align-items: stretch;");
+    expect(topSpacer).toContain("height: 100%;");
+    expect(topSpacer).toContain("max-height: 190px;");
+    expect(centerStack).toContain("grid-template-rows: auto auto auto;");
+    expect(centerStack).toContain("align-self: center;");
+    expect(bottomBlock).toContain("min-height: 0;");
+  });
 });

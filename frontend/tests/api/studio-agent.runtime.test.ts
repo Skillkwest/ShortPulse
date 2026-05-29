@@ -156,6 +156,9 @@ const resetRuntimeTestState = () => {
   delete process.env.STUDIO_AGENT_VISION_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_TURN_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT;
@@ -254,6 +257,22 @@ describe("AI Studio Create agent runtime boundaries", () => {
     ).toEqual({
       model: "gpt-standard",
       timeoutMs: 20000,
+      imageDetail: "high",
+    });
+
+    expect(
+      resolveStandardOpenAiExecutionProfile({
+        flow: "TEXT_ONLY",
+        openAiModel: "gpt-standard",
+        openAiVisionModel: "gpt-vision",
+        turnTimeoutMs: 20000,
+        visionTimeoutMs: 45000,
+        pulseTurnTimeoutMs: 45000,
+        textPayloadChars: 3000,
+      })
+    ).toEqual({
+      model: "gpt-standard",
+      timeoutMs: 45000,
       imageDetail: "high",
     });
   });
@@ -402,6 +421,8 @@ describe("AI Studio Create agent runtime boundaries", () => {
 
   it("records the Standard trace id in exception logs for upstream aborts", async () => {
     process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS = String(45000);
+    process.env.STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS = "0";
+    process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS = "0";
     (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
       new DOMException("aborted", "AbortError")
     );
@@ -424,7 +445,12 @@ describe("AI Studio Create agent runtime boundaries", () => {
           configured_turn_timeout_ms: 20000,
           configured_vision_timeout_ms: 20000,
           configured_pulse_turn_timeout_ms: 45000,
+          retry_count: 1,
           message_count: 1,
+          text_payload_chars: expect.any(Number),
+          latest_user_chars: expect.any(Number),
+          prompt_reference_chars: expect.any(Number),
+          prompt_reference_snippet_count: 1,
           reference_count: 2,
           image_reference_count: 1,
           prompt_reference_count: 1,
@@ -445,6 +471,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(typeof payload.traceId).toBe("string");
     expect(String(payload.traceId).length).toBeGreaterThan(0);
     expect(payload.detail).toBe("OpenAI request timed out");
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("maps Standard provider refusals to the safety refusal contract", async () => {
@@ -522,6 +549,89 @@ describe("AI Studio Create agent runtime boundaries", () => {
       .find((message) => message.role === "user");
     expect(latestUserMessage?.content).toBe(
       "Improve this prompt.\n\nAttached reference text:\n- Golden-hour portrait with soft rim light."
+    );
+  });
+
+  it("does not duplicate exact-match Standard prompt attachments into the latest user turn", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Thanks, I used the prompt text once.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [
+          {
+            role: "user",
+            content: "Golden-hour portrait with soft rim light.",
+          },
+        ],
+        context: {
+          modeHint: "reference",
+          references: [
+            {
+              id: "ref-prompt-1",
+              kind: "prompt",
+              promptSnippet: "Golden-hour portrait with soft rim light.",
+            },
+          ],
+          selectedReferenceIds: ["ref-prompt-1"],
+          focusedSource: "prompt",
+          focusedReferenceId: "ref-prompt-1",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const fetchBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as { messages?: Array<{ role: string; content: unknown }> };
+    const latestUserMessage = [...(fetchBody.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "user");
+    expect(latestUserMessage?.content).toBe("Golden-hour portrait with soft rim light.");
+  });
+
+  it("retries transient Standard upstream failures before succeeding", async () => {
+    process.env.STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS = "0";
+    process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS = "0";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new DOMException("aborted", "AbortError"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "Recovered after retry.",
+              },
+            },
+          ],
+        }),
+      });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Recovered after retry.",
+        traceId: expect.any(String),
+      })
     );
   });
 

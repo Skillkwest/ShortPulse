@@ -848,6 +848,7 @@ const patchSnapshotOutputRow = ({
   const nextModelId = asTrimmedString(projection.model_id);
   const nextSourceRef = asTrimmedString(projection.source_ref);
   const nextTaskId = asTrimmedString(projection.request_id);
+  const nextGenerationId = asTrimmedString(projection.generation_id);
   const nextGenerationReplay = asRecord(projection.generation_replay);
   const nextCharacterContext = asRecord(projection.character_context);
   const nextStyleContext = asRecord(projection.style_context);
@@ -867,6 +868,7 @@ const patchSnapshotOutputRow = ({
     provider: nextProvider ?? row.provider,
     modelId: nextModelId ?? row.modelId,
     sourceRef: nextSourceRef ?? row.sourceRef,
+    generationId: nextGenerationId ?? row.generationId,
     taskId: nextTaskId ?? row.taskId,
     taskState: nextTaskState ?? row.taskState,
     queueState: nextQueueState ?? row.queueState,
@@ -1084,6 +1086,18 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
           projectionByGenerationId,
         })
       : new Map<string, ProjectGenerationMediaDelivery>();
+  const projectionByTaskId = new Map<string, ProjectGenerationProjectionRow>();
+  const projectionBySourceRef = new Map<string, ProjectGenerationProjectionRow>();
+  projectionByGenerationId.forEach((projection) => {
+    const requestId = asTrimmedString(projection.request_id);
+    if (requestId && !projectionByTaskId.has(requestId)) {
+      projectionByTaskId.set(requestId, projection);
+    }
+    const sourceRef = asTrimmedString(projection.source_ref);
+    if (sourceRef && !projectionBySourceRef.has(sourceRef)) {
+      projectionBySourceRef.set(sourceRef, projection);
+    }
+  });
   const patchRows = (value: unknown): unknown => {
     if (!Array.isArray(value)) return value;
     return value
@@ -1093,10 +1107,13 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         if (generationId && !associatedSnapshotGenerationIds.has(generationId)) {
           return normalizedRow;
         }
-        if (!generationId) {
+        const projection =
+          (generationId ? projectionByGenerationId.get(generationId) : null) ??
+          projectionByTaskId.get(asTrimmedString(normalizedRow.taskId) ?? "") ??
+          projectionBySourceRef.get(asTrimmedString(normalizedRow.sourceRef) ?? "");
+        if (!generationId && !projection) {
           return row;
         }
-        const projection = projectionByGenerationId.get(generationId);
         if (!projection) {
           return normalizedRow;
         }

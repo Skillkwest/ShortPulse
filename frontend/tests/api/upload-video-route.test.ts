@@ -49,6 +49,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
+  end: vi.fn().mockReturnThis(),
 });
 
 const buildWebmTrackSignature = (trackType: number): Buffer =>
@@ -82,7 +83,7 @@ const buildWebmTrackSignature = (trackType: number): Buffer =>
     trackType,
   ]);
 
-describe("POST /api/upload-video", () => {
+describe("/api/upload-video", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
@@ -466,5 +467,71 @@ describe("POST /api/upload-video", () => {
       })
     );
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes stale motion-control uploads inside the caller namespace", async () => {
+    const removeMock = vi.fn(async () => ({ data: [], error: null }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          remove: removeMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", JSON.stringify({ path: "user-1/videos/motion-control/stale.mp4" }));
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(removeMock).toHaveBeenCalledWith(["user-1/videos/motion-control/stale.mp4"]);
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.end).toHaveBeenCalled();
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale motion cleanup requests outside the motion-control namespace", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", JSON.stringify({ path: "user-1/videos/other-folder/stale.mp4" }));
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "Uploaded asset storage path is outside the expected namespace.",
+    });
   });
 });

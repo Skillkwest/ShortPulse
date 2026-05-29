@@ -136,128 +136,245 @@ export function StandardCreatePanelView({
       {shouldShowPersistentEmptyShell ? (
         <>
           <div className="create-composer-empty-preview-frame" aria-hidden="true" />
-          <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
-            <p
-              className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
-            >
-              What do you want to make?
-            </p>
-          </div>
-          <div className="create-composer-lower-preview-frame" aria-hidden="true" />
-        </>
-      ) : null}
-      <div className="create-composer-bottom-block">
-        <PromptStep {...promptStepLayoutProps} />
-        {showCreateControlSet ? (
-          <div className="create-composer-secondary-row create-composer-controls-row">
-            <div className="create-composer-controls">
-              <div
-                className={`create-composer-control create-composer-character-mode-control ${
-                  characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
-                }`}
+          <div className="create-composer-empty-center-stack">
+            <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
+              <p
+                className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
               >
-                <div className="create-composer-character-mode-meta">
-                  <span className="create-composer-character-mode-title">Character</span>
-                  <button
-                    type="button"
-                    className={`audio-toggle ai-character-mode-toggle create-composer-toggle-control ${
-                      characterModeEnabled ? "is-active" : ""
-                    }`}
-                    aria-pressed={characterModeEnabled}
-                    aria-label={
-                      characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                    }
-                    onClick={onCharacterModeEnabledToggle}
-                  >
-                    <span className="audio-toggle-track" aria-hidden="true">
-                      <span className="audio-toggle-dot" />
-                    </span>
-                  </button>
-                </div>
-              </div>
-              {characterModeEnabled ? (
-                <div className="create-composer-control create-composer-character-picker-control">
-                  <button
-                    type="button"
-                    className={`model-picker-btn create-composer-picker-control create-composer-character-picker-trigger ${
-                      isCharacterSelectionEmpty ? "is-empty" : ""
-                    } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                    aria-haspopup="dialog"
-                    aria-expanded={isCharacterPickerOpen}
-                    aria-label="Open character picker"
-                    disabled={characterSelectDisabled}
-                    onClick={onCharacterPickerOpen}
-                  >
-                    {selectedCharacterProfileImageUrl ? (
-                      <Image
-                        src={selectedCharacterProfileImageUrl}
-                        alt={`${selectedCharacterName} profile`}
-                        className="ai-character-picker-trigger-avatar"
-                        width={20}
-                        height={20}
-                        unoptimized
-                        onError={onSelectedCharacterAvatarError}
-                        onLoad={onSelectedCharacterAvatarLoad}
-                      />
-                    ) : selectedCharacterInitials ? (
-                      <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
-                        {selectedCharacterInitials}
-                      </span>
+                What do you want to make?
+              </p>
+            </div>
+            <div className="create-composer-lower-preview-frame" aria-hidden="true" />
+            <div className="create-composer-bottom-block">
+              <PromptStep {...promptStepLayoutProps} />
+              {showCreateControlSet ? (
+                <div className="create-composer-secondary-row create-composer-controls-row">
+                  <div className="create-composer-controls">
+                    <div
+                      className={`create-composer-control create-composer-character-mode-control ${
+                        characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+                      }`}
+                    >
+                      <div className="create-composer-character-mode-meta">
+                        <span className="create-composer-character-mode-title">Character</span>
+                        <button
+                          type="button"
+                          className={`audio-toggle ai-character-mode-toggle create-composer-toggle-control ${
+                            characterModeEnabled ? "is-active" : ""
+                          }`}
+                          aria-pressed={characterModeEnabled}
+                          aria-label={
+                            characterModeEnabled
+                              ? "Disable character mode"
+                              : "Enable character mode"
+                          }
+                          onClick={onCharacterModeEnabledToggle}
+                        >
+                          <span className="audio-toggle-track" aria-hidden="true">
+                            <span className="audio-toggle-dot" />
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    {characterModeEnabled ? (
+                      <div className="create-composer-control create-composer-character-picker-control">
+                        <button
+                          type="button"
+                          className={`model-picker-btn create-composer-picker-control create-composer-character-picker-trigger ${
+                            isCharacterSelectionEmpty ? "is-empty" : ""
+                          } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                          aria-haspopup="dialog"
+                          aria-expanded={isCharacterPickerOpen}
+                          aria-label="Open character picker"
+                          disabled={characterSelectDisabled}
+                          onClick={onCharacterPickerOpen}
+                        >
+                          {selectedCharacterProfileImageUrl ? (
+                            <Image
+                              src={selectedCharacterProfileImageUrl}
+                              alt={`${selectedCharacterName} profile`}
+                              className="ai-character-picker-trigger-avatar"
+                              width={20}
+                              height={20}
+                              unoptimized
+                              onError={onSelectedCharacterAvatarError}
+                              onLoad={onSelectedCharacterAvatarLoad}
+                            />
+                          ) : selectedCharacterInitials ? (
+                            <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
+                              {selectedCharacterInitials}
+                            </span>
+                          ) : null}
+                          <span className="model-picker-name">
+                            {resolvedSelectedCharacterDisplayName}
+                          </span>
+                        </button>
+                      </div>
                     ) : null}
-                    <span className="model-picker-name">
-                      {resolvedSelectedCharacterDisplayName}
-                    </span>
-                  </button>
-                </div>
-              ) : null}
-              <div className="create-composer-control create-composer-model-control">
-                <span className="create-composer-control-label">Model</span>
-                <button
-                  type="button"
-                  className={`model-picker-btn create-composer-picker-control create-composer-model-picker-trigger ${
-                    isModelSelectionEmpty ? "is-empty" : ""
-                  } ${isCreateModelPickerOpen ? "is-open" : ""}`}
-                  data-model-anchor="create-model"
-                  aria-label="Open model picker"
-                  onClick={onCreateModelOpen}
-                >
-                  {effectiveModelLogoSrc ? (
-                    <Image
-                      className="model-chip-logo-img"
-                      src={effectiveModelLogoSrc}
-                      alt=""
-                      aria-hidden
-                      width={modelLogoWidth}
-                      height={modelLogoHeight}
-                      unoptimized={useUnoptimizedModelLogo}
-                      style={{ width: "auto" }}
-                    />
-                  ) : null}
-                  <span className="model-picker-name">{effectiveModelLabel}</span>
-                </button>
-              </div>
-              <div className="create-composer-control create-composer-aspect-control">
-                <span className="create-composer-control-label">Aspect</span>
-                <AspectDropdown
-                  aspect={aspect}
-                  onSelect={onAspectChange}
-                  options={aspectOptionsForModel}
-                />
-              </div>
-              {shouldShowImageResolutionCard ? (
-                <div className="create-composer-control create-composer-resolution-control">
-                  <span className="create-composer-control-label">Resolution</span>
-                  <ResolutionDropdown
-                    value={imageResolutionValue}
-                    options={imageResolutionOptions}
-                    onSelect={onImageResolutionChange}
-                  />
+                    <div className="create-composer-control create-composer-model-control">
+                      <span className="create-composer-control-label">Model</span>
+                      <button
+                        type="button"
+                        className={`model-picker-btn create-composer-picker-control create-composer-model-picker-trigger ${
+                          isModelSelectionEmpty ? "is-empty" : ""
+                        } ${isCreateModelPickerOpen ? "is-open" : ""}`}
+                        data-model-anchor="create-model"
+                        aria-label="Open model picker"
+                        onClick={onCreateModelOpen}
+                      >
+                        {effectiveModelLogoSrc ? (
+                          <Image
+                            className="model-chip-logo-img"
+                            src={effectiveModelLogoSrc}
+                            alt=""
+                            aria-hidden
+                            width={modelLogoWidth}
+                            height={modelLogoHeight}
+                            unoptimized={useUnoptimizedModelLogo}
+                            style={{ width: "auto" }}
+                          />
+                        ) : null}
+                        <span className="model-picker-name">{effectiveModelLabel}</span>
+                      </button>
+                    </div>
+                    <div className="create-composer-control create-composer-aspect-control">
+                      <span className="create-composer-control-label">Aspect</span>
+                      <AspectDropdown
+                        aspect={aspect}
+                        onSelect={onAspectChange}
+                        options={aspectOptionsForModel}
+                      />
+                    </div>
+                    {shouldShowImageResolutionCard ? (
+                      <div className="create-composer-control create-composer-resolution-control">
+                        <span className="create-composer-control-label">Resolution</span>
+                        <ResolutionDropdown
+                          value={imageResolutionValue}
+                          options={imageResolutionOptions}
+                          onSelect={onImageResolutionChange}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>
           </div>
-        ) : null}
-      </div>
+        </>
+      ) : (
+        <div className="create-composer-bottom-block">
+          <PromptStep {...promptStepLayoutProps} />
+          {showCreateControlSet ? (
+            <div className="create-composer-secondary-row create-composer-controls-row">
+              <div className="create-composer-controls">
+                <div
+                  className={`create-composer-control create-composer-character-mode-control ${
+                    characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+                  }`}
+                >
+                  <div className="create-composer-character-mode-meta">
+                    <span className="create-composer-character-mode-title">Character</span>
+                    <button
+                      type="button"
+                      className={`audio-toggle ai-character-mode-toggle create-composer-toggle-control ${
+                        characterModeEnabled ? "is-active" : ""
+                      }`}
+                      aria-pressed={characterModeEnabled}
+                      aria-label={
+                        characterModeEnabled ? "Disable character mode" : "Enable character mode"
+                      }
+                      onClick={onCharacterModeEnabledToggle}
+                    >
+                      <span className="audio-toggle-track" aria-hidden="true">
+                        <span className="audio-toggle-dot" />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                {characterModeEnabled ? (
+                  <div className="create-composer-control create-composer-character-picker-control">
+                    <button
+                      type="button"
+                      className={`model-picker-btn create-composer-picker-control create-composer-character-picker-trigger ${
+                        isCharacterSelectionEmpty ? "is-empty" : ""
+                      } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                      aria-haspopup="dialog"
+                      aria-expanded={isCharacterPickerOpen}
+                      aria-label="Open character picker"
+                      disabled={characterSelectDisabled}
+                      onClick={onCharacterPickerOpen}
+                    >
+                      {selectedCharacterProfileImageUrl ? (
+                        <Image
+                          src={selectedCharacterProfileImageUrl}
+                          alt={`${selectedCharacterName} profile`}
+                          className="ai-character-picker-trigger-avatar"
+                          width={20}
+                          height={20}
+                          unoptimized
+                          onError={onSelectedCharacterAvatarError}
+                          onLoad={onSelectedCharacterAvatarLoad}
+                        />
+                      ) : selectedCharacterInitials ? (
+                        <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
+                          {selectedCharacterInitials}
+                        </span>
+                      ) : null}
+                      <span className="model-picker-name">
+                        {resolvedSelectedCharacterDisplayName}
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+                <div className="create-composer-control create-composer-model-control">
+                  <span className="create-composer-control-label">Model</span>
+                  <button
+                    type="button"
+                    className={`model-picker-btn create-composer-picker-control create-composer-model-picker-trigger ${
+                      isModelSelectionEmpty ? "is-empty" : ""
+                    } ${isCreateModelPickerOpen ? "is-open" : ""}`}
+                    data-model-anchor="create-model"
+                    aria-label="Open model picker"
+                    onClick={onCreateModelOpen}
+                  >
+                    {effectiveModelLogoSrc ? (
+                      <Image
+                        className="model-chip-logo-img"
+                        src={effectiveModelLogoSrc}
+                        alt=""
+                        aria-hidden
+                        width={modelLogoWidth}
+                        height={modelLogoHeight}
+                        unoptimized={useUnoptimizedModelLogo}
+                        style={{ width: "auto" }}
+                      />
+                    ) : null}
+                    <span className="model-picker-name">{effectiveModelLabel}</span>
+                  </button>
+                </div>
+                <div className="create-composer-control create-composer-aspect-control">
+                  <span className="create-composer-control-label">Aspect</span>
+                  <AspectDropdown
+                    aspect={aspect}
+                    onSelect={onAspectChange}
+                    options={aspectOptionsForModel}
+                  />
+                </div>
+                {shouldShowImageResolutionCard ? (
+                  <div className="create-composer-control create-composer-resolution-control">
+                    <span className="create-composer-control-label">Resolution</span>
+                    <ResolutionDropdown
+                      value={imageResolutionValue}
+                      options={imageResolutionOptions}
+                      onSelect={onImageResolutionChange}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
     </>
   );
 

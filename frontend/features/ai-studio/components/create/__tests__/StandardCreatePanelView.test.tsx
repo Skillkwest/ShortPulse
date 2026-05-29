@@ -31,9 +31,12 @@ const baseProps: React.ComponentProps<typeof StandardCreatePanelView> = {
   isCreateModelPickerOpen: false,
   isModelSelectionEmpty: false,
   onCreateModelOpen: vi.fn(),
+  useUnoptimizedModelLogo: false,
   effectiveModelLabel: "Seedream 4.5",
   aspect: "9:16",
-  aspectOptionsForModel: [{ value: "9:16", label: "9:16" }],
+  aspectOptionsForModel: [
+    { value: "9:16", ratioLabel: "9:16", name: "Portrait", orientation: "vertical" },
+  ],
   onAspectChange: vi.fn(),
   showCreateControlSet: false,
   shouldShowImageResolutionCard: false,
@@ -121,5 +124,17 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
     expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+  });
+
+  it("renders the no-history shell with a centered composer stack", () => {
+    const { container } = render(<StandardCreatePanelView {...baseProps} />);
+
+    const shell = container.querySelector(".create-composer-empty-state-shell");
+    const centerStack = container.querySelector(".create-composer-empty-center-stack");
+    const composerBlock = centerStack?.querySelector(".create-composer-bottom-block");
+
+    expect(shell).toBeTruthy();
+    expect(centerStack).toBeTruthy();
+    expect(composerBlock).toBeTruthy();
   });
 });

@@ -18,7 +18,6 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
   const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
   const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
   const [isEditCharacterModeEnabled, setIsEditCharacterModeEnabled] = useState(false);
-  const [motionReferenceVideoPending, setMotionReferenceVideoPending] = useState(false);
   const [createSelectedCharacterLookId, setCreateSelectedCharacterLookId] = useState("");
   const [characterCreateRequestKey, setCharacterCreateRequestKey] = useState(0);
   const [elementCreateRequestKey, setElementCreateRequestKey] = useState(0);
@@ -56,7 +55,6 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
     isEditCharacterModeEnabled,
     isProjectsModalOpen,
     localSessionTitleOverride,
-    motionReferenceVideoPending,
     optimisticDebitEntries,
     selectedStyleContext,
     selectedStylePrompt,
@@ -71,7 +69,6 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
     setIsEditCharacterBundleLoading,
     setIsEditCharacterModeEnabled,
     setIsProjectsModalOpen,
-    setMotionReferenceVideoPending,
     setOptimisticDebitEntries,
     setSelectedStyleContext,
     setSelectedStylePrompt,

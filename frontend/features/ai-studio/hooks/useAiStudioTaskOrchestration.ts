@@ -198,6 +198,7 @@ export const useAiStudioTaskOrchestration = ({
           const projectionLifecycle = await resolveGenerationProjectionLifecycle({
             generationId: generationId || undefined,
             requestId: requestId || undefined,
+            ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
             ...(projectId ? { projectId } : {}),
           });
           if (
@@ -233,6 +234,7 @@ export const useAiStudioTaskOrchestration = ({
           const visibleGeneration = await resolveVisibleGenerationReconcile({
             generationId: generationId || undefined,
             requestId: requestId || undefined,
+            ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
             ...(projectId ? { projectId } : {}),
           });
           if (!visibleGeneration) {

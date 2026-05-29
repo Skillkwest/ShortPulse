@@ -63,7 +63,7 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  padding: 2px 12px 10px;
+  padding: 4px 12px 10px;
   background: var(--character-panel-wrapper-bg);
 }
 

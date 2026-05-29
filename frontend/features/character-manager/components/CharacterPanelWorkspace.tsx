@@ -208,7 +208,7 @@ const CHARACTER_PRESET_CONTENT_GRID_INLINE_STYLE: React.CSSProperties = {
 const CHARACTER_TOP_SECTION_CONTENT_STYLE: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  padding: "10px 16px 2px",
+  padding: "14px 16px 2px",
   boxSizing: "border-box",
 };
 const CHARACTER_TOP_SCROLL_HIDE_GUTTER_PX = 18;
@@ -719,7 +719,7 @@ export function CharacterPanelWorkspace({
   const topSectionContentStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...CHARACTER_TOP_SECTION_CONTENT_STYLE,
-      padding: `${Math.max(6, responsiveLayout.contentPaddingTopPx - 4)}px ${responsiveLayout.contentPaddingXpx}px ${Math.max(1, responsiveLayout.contentPaddingBottomPx - 1)}px`,
+      padding: `${responsiveLayout.contentPaddingTopPx}px ${responsiveLayout.contentPaddingXpx}px ${responsiveLayout.contentPaddingBottomPx}px`,
     }),
     [responsiveLayout]
   );

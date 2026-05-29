@@ -3,6 +3,7 @@
  * Owns profile image, look image, slot persistence, and assignment save flows.
  */
 import React from "react";
+import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
 import {
   CHARACTER_MANAGER_MAX_IMAGE_BYTES,
   createEmptyCharacterSheetPresetAssignments,
@@ -180,14 +181,15 @@ export const useCharacterManagerAssetController = ({
         setError("Only image files are supported for AI Studio Characters.");
         return;
       }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
+      const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
+      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
         setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
         return;
       }
       if (!characterId) {
         revokeObjectUrl(stagedProfileImagePreviewUrlRef.current);
-        const previewUrl = URL.createObjectURL(file);
-        stagedProfileImageFileRef.current = file;
+        const previewUrl = URL.createObjectURL(preparedFile);
+        stagedProfileImageFileRef.current = preparedFile;
         stagedProfileImagePreviewUrlRef.current = previewUrl;
         setProfileImageUrl(previewUrl);
         setProfileImageTransform(defaultProfileImageTransform);
@@ -198,7 +200,7 @@ export const useCharacterManagerAssetController = ({
       try {
         const savedProfileImage = await saveCharacterManagerProfileImage({
           characterId,
-          file,
+          file: preparedFile,
         });
         setProfileImageUrl(savedProfileImage.signedUrl);
         setProfileImageTransform(defaultProfileImageTransform);
@@ -401,7 +403,8 @@ export const useCharacterManagerAssetController = ({
         setError("Only image files are supported for AI Studio Characters.");
         return false;
       }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
+      const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
+      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
         setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
         return false;
       }
@@ -411,12 +414,12 @@ export const useCharacterManagerAssetController = ({
           characterSheetPresetsRef.current[activePresetId] ??
           createEmptyCharacterSheetPresetAssignments();
         revokeObjectUrl(currentAssignments[zoneKey]?.previewUrl ?? null);
-        const previewUrl = URL.createObjectURL(file);
+        const previewUrl = URL.createObjectURL(preparedFile);
         stagedPresetFilesRef.current = {
           ...stagedPresetFilesRef.current,
           [activePresetId]: {
             ...(stagedPresetFilesRef.current[activePresetId] ?? {}),
-            [zoneKey]: file,
+            [zoneKey]: preparedFile,
           },
         };
         return await saveCharacterSheetPresetAssignments({
@@ -434,7 +437,7 @@ export const useCharacterManagerAssetController = ({
       try {
         const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
           characterId,
-          file,
+          file: preparedFile,
         });
         const currentAssignments =
           characterSheetPresetsRef.current[targetPresetId] ??
@@ -473,7 +476,8 @@ export const useCharacterManagerAssetController = ({
         setError("Only image files are supported for AI Studio Characters.");
         return false;
       }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
+      const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
+      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
         setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
         return false;
       }
@@ -482,14 +486,14 @@ export const useCharacterManagerAssetController = ({
       try {
         const validation = await validateCharacterReferenceFile({
           slotKey,
-          file,
+          file: preparedFile,
           existingSlots: slotsRef.current,
         });
         if (!characterId || !characterSheetId) {
           revokeObjectUrl(slotsRef.current[slotKey]?.previewUrl ?? null);
           stagedSlotFilesRef.current = {
             ...stagedSlotFilesRef.current,
-            [slotKey]: file,
+            [slotKey]: preparedFile,
           };
           setSlots((prev) => {
             const next = {
@@ -499,10 +503,10 @@ export const useCharacterManagerAssetController = ({
                 storagePath: "",
                 validationStatus: validation.status,
                 validationNotes: validation.notes,
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                previewUrl: URL.createObjectURL(file),
+                name: preparedFile.name,
+                size: preparedFile.size,
+                type: preparedFile.type,
+                previewUrl: URL.createObjectURL(preparedFile),
                 updatedAt: new Date().toISOString(),
               },
             };
@@ -515,7 +519,7 @@ export const useCharacterManagerAssetController = ({
           characterId,
           characterSheetId,
           slotKey,
-          file,
+          file: preparedFile,
           validationStatus: validation.status,
           validationNotes: validation.notes,
         });

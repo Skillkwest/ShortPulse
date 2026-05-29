@@ -496,7 +496,7 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
-  it("does not locally timeout task-backed outputs that never resolve preview media", async () => {
+  it("fails task-backed outputs that never resolve preview media after the extended timeout", async () => {
     vi.useFakeTimers();
     try {
       const { result } = renderHook(() =>
@@ -516,17 +516,18 @@ describe("useAiStudioOutputLifecycle", () => {
       );
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(12 * 60 * 1000 + 16_000);
+        await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 16_000);
       });
 
-      expect(result.current.outputs[0]?.taskState).toBe("running");
-      expect(result.current.outputs[0]?.timestamp).toBe("Processing...");
-      expect(result.current.outputs[0]?.errorMessage).toBeUndefined();
-      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.timestamp).toBe("Generation timed out");
+      expect(result.current.outputs[0]?.errorMessage).toBe("Generation timed out. Please retry.");
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
         expect.objectContaining({
           source: "generation.task_backed_stale_timeout",
           metadata: expect.objectContaining({
             output_id: "generation-db-tasked-timeout",
+            failure_reason_code: "TASK_BACKED_TIMEOUT",
           }),
         })
       );
@@ -555,7 +556,7 @@ describe("useAiStudioOutputLifecycle", () => {
       );
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(12 * 60 * 1000 + 16_000);
+        await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 16_000);
       });
 
       expect(result.current.outputs[0]?.taskState).toBe("success");

@@ -18,6 +18,7 @@ import type { StudioOutput } from "../types";
 
 const SUBMIT_START_TIMEOUT_MS = 90_000;
 const DIRECT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+const TASK_BACKED_LOADING_TIMEOUT_MS = 30 * 60 * 1000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
@@ -104,16 +105,21 @@ export const useAiStudioOutputLifecycle = ({
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
       submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
       directRequestTimeoutMs: DIRECT_REQUEST_TIMEOUT_MS,
-      taskBackedLoadingTimeoutMs: 0,
+      taskBackedLoadingTimeoutMs: TASK_BACKED_LOADING_TIMEOUT_MS,
       queueWaitTimeoutMs: QUEUE_WAIT_TIMEOUT_MS,
       autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
     });
     const staleLoadingSet = new Set(cleanup.staleLoadingIds);
     const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
     const directRequestTimeoutSet = new Set(cleanup.directRequestTimeoutIds);
+    const taskBackedTimeoutSet = new Set(cleanup.taskBackedTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
-    const locallyFailedSet = new Set([...submitStartTimeoutSet, ...directRequestTimeoutSet]);
+    const locallyFailedSet = new Set([
+      ...submitStartTimeoutSet,
+      ...directRequestTimeoutSet,
+      ...taskBackedTimeoutSet,
+    ]);
 
     locallyFailedSet.forEach((id) => {
       const existing = cleanup.nextLifecycle[id] ?? {};
@@ -132,19 +138,24 @@ export const useAiStudioOutputLifecycle = ({
       if (!staleLoadingSet.has(staleOutput.id)) continue;
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
       const isDirectRequestTimeout = directRequestTimeoutSet.has(staleOutput.id);
+      const isTaskBackedTimeout = taskBackedTimeoutSet.has(staleOutput.id);
       void reportAppError({
         source: isSubmitStartTimeout
           ? "fal_submit_not_started"
           : isDirectRequestTimeout
             ? "generation.direct_request_timeout"
-            : "generation.queue_wait_timeout",
+            : isTaskBackedTimeout
+              ? "generation.task_backed_stale_timeout"
+              : "generation.queue_wait_timeout",
         scope: "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
           : isDirectRequestTimeout
             ? "Generation timed out before a direct result was returned."
-            : "Generation timed out while waiting in queue.",
+            : isTaskBackedTimeout
+              ? "Generation stopped making progress after provider handoff."
+              : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -157,7 +168,9 @@ export const useAiStudioOutputLifecycle = ({
             ? "SUBMIT_START_TIMEOUT"
             : isDirectRequestTimeout
               ? "DIRECT_REQUEST_TIMEOUT"
-              : "QUEUE_WAIT_TIMEOUT",
+              : isTaskBackedTimeout
+                ? "TASK_BACKED_TIMEOUT"
+                : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }
@@ -196,10 +209,16 @@ export const useAiStudioOutputLifecycle = ({
           ...item,
           status: "ready",
           taskState: "fail",
-          timestamp: "Failed to start",
-          errorMessage: "Generation failed to start. Please retry.",
-          errorMessageShort: "Generation failed to start.",
-          errorDetail: "The generation did not receive a provider task id. Please retry.",
+          timestamp: taskBackedTimeoutSet.has(item.id) ? "Generation timed out" : "Failed to start",
+          errorMessage: taskBackedTimeoutSet.has(item.id)
+            ? "Generation timed out. Please retry."
+            : "Generation failed to start. Please retry.",
+          errorMessageShort: taskBackedTimeoutSet.has(item.id)
+            ? "Generation timed out."
+            : "Generation failed to start.",
+          errorDetail: taskBackedTimeoutSet.has(item.id)
+            ? "The generation stopped making progress after provider handoff. Please retry."
+            : "The generation did not receive a provider task id. Please retry.",
         });
       });
 

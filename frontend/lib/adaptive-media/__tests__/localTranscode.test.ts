@@ -3,7 +3,10 @@
  * Verifies the browser resize/compress helper keeps small blobs intact and downscales large ones.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { maybeTranscodeLocalImageBlobForUpload } from "../localTranscode";
+import {
+  maybePreprocessLocalImageFileForUpload,
+  maybeTranscodeLocalImageBlobForUpload,
+} from "../localTranscode";
 
 const originalCreateImageBitmap = globalThis.createImageBitmap;
 const originalCreateElement = document.createElement.bind(document);
@@ -28,20 +31,12 @@ describe("localTranscode upload preprocessing", () => {
   });
 
   it("returns the original blob when preprocessing is unnecessary", async () => {
-    const close = vi.fn();
-    const bitmap = {
-      width: 1200,
-      height: 800,
-      close,
-    } as unknown as ImageBitmap;
-    globalThis.createImageBitmap = vi.fn(async () => bitmap) as typeof createImageBitmap;
     const createElementSpy = vi.spyOn(document, "createElement");
     const sourceBlob = new Blob(["tiny"], { type: "image/png" });
 
     const result = await maybeTranscodeLocalImageBlobForUpload(sourceBlob);
 
     expect(result).toBe(sourceBlob);
-    expect(close).toHaveBeenCalledTimes(1);
     expect(createElementSpy).not.toHaveBeenCalledWith("canvas");
   });
 
@@ -75,7 +70,7 @@ describe("localTranscode upload preprocessing", () => {
         ? fakeCanvas
         : originalCreateElement(tagName)) as typeof document.createElement);
 
-    const sourceBlob = new Blob(["oversized"], { type: "image/png" });
+    const sourceBlob = new Blob([new Uint8Array(9 * 1024 * 1024)], { type: "image/png" });
     const result = await maybeTranscodeLocalImageBlobForUpload(sourceBlob);
 
     expect(result).not.toBe(sourceBlob);
@@ -172,6 +167,51 @@ describe("localTranscode upload preprocessing", () => {
     expect(result.size).toBe(2 * 1024 * 1024);
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), "image/jpeg", 0.88);
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), "image/jpeg", 0.76);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps transcoded blobs back into files with an aligned filename extension", async () => {
+    const close = vi.fn();
+    const bitmap = {
+      width: 4096,
+      height: 3072,
+      close,
+    } as unknown as ImageBitmap;
+    globalThis.createImageBitmap = vi.fn(async () => bitmap) as typeof createImageBitmap;
+
+    const drawImage = vi.fn();
+    const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
+      callback(new Blob(["encoded"], { type: type ?? "image/webp" }));
+    });
+    const fakeContext = {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: "low",
+      drawImage,
+    } as unknown as CanvasRenderingContext2D;
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => fakeContext),
+      toBlob,
+    } as unknown as HTMLCanvasElement;
+
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string) =>
+      tagName === "canvas"
+        ? fakeCanvas
+        : originalCreateElement(tagName)) as typeof document.createElement);
+
+    const oversizedFile = new File([new Uint8Array(9 * 1024 * 1024)], "portrait.png", {
+      type: "image/png",
+      lastModified: 1234,
+    });
+
+    const result = await maybePreprocessLocalImageFileForUpload(oversizedFile);
+
+    expect(result).toBeInstanceOf(File);
+    expect(result).not.toBe(oversizedFile);
+    expect(result.type).toBe("image/webp");
+    expect(result.name).toBe("portrait.webp");
+    expect(result.lastModified).toBe(1234);
     expect(close).toHaveBeenCalledTimes(1);
   });
 });

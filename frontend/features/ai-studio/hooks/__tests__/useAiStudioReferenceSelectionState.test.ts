@@ -1,8 +1,24 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceSelectionState } from "../useAiStudioReferenceSelectionState";
 
+const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
+const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
+const deleteUploadedMotionVideoByPathMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../utils/videoUpload", () => ({
+  uploadVideoFileToStorage: (...args: unknown[]) => uploadVideoFileToStorageMock(...args),
+  uploadVideoAssetToStorage: (...args: unknown[]) => uploadVideoAssetToStorageMock(...args),
+  deleteUploadedMotionVideoByPath: (...args: unknown[]) =>
+    deleteUploadedMotionVideoByPathMock(...args),
+}));
+
 describe("useAiStudioReferenceSelectionState", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    deleteUploadedMotionVideoByPathMock.mockResolvedValue(undefined);
+  });
+
   it("defaults to Create workflow selection for new studio sessions", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null })
@@ -269,6 +285,133 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.modelModalContext).toBeNull();
     expect(result.current.resolveReferenceInputsForTool("edit").referenceImageUrl).toBeNull();
     expect(result.current.resolveReferenceInputsForTool("video").referenceImageUrl).toBeNull();
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+  });
+
+  it("commits staged motion videos back to the originating authority after switching away", async () => {
+    let resolveUpload: ((value: { url: string; path: string; size: number }) => void) | null = null;
+    uploadVideoFileToStorageMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:standard" },
+      }
+    );
+
+    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    let stagingPromise: Promise<void> | undefined;
+    await act(async () => {
+      stagingPromise = result.current.stageMotionVideoSelection({ videoFile: file });
+    });
+
+    expect(result.current.motionReferenceVideoPending).toBe(true);
+
+    rerender({ authorityKey: "session:test:create:pulse" });
+
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+
+    await act(async () => {
+      resolveUpload?.({
+        url: "https://example.com/staged-motion.mp4",
+        path: "videos/motion-control/staged-motion.mp4",
+        size: 256,
+      });
+      await stagingPromise;
+    });
+
+    expect(result.current.getAuthorityState("session:test:create:standard")).toEqual(
+      expect.objectContaining({
+        motionReferenceVideoUrl: "https://example.com/staged-motion.mp4",
+      })
+    );
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoError).toBeNull();
+    expect(result.current.motionReferenceVideoUrl).toBe("https://example.com/staged-motion.mp4");
+  });
+
+  it("ignores stale staged motion completions after the user clears the slot", async () => {
+    let resolveUpload: ((value: { url: string; path: string; size: number }) => void) | null = null;
+    uploadVideoFileToStorageMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    let stagingPromise: Promise<void> | undefined;
+    await act(async () => {
+      stagingPromise = result.current.stageMotionVideoSelection({ videoFile: file });
+    });
+
+    expect(result.current.motionReferenceVideoPending).toBe(true);
+
+    act(() => {
+      result.current.clearMotionVideoSelection();
+    });
+
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+
+    await act(async () => {
+      resolveUpload?.({
+        url: "https://example.com/stale-motion.mp4",
+        path: "videos/motion-control/stale-motion.mp4",
+        size: 256,
+      });
+      await stagingPromise;
+    });
+
+    expect(deleteUploadedMotionVideoByPathMock).toHaveBeenCalledWith(
+      "videos/motion-control/stale-motion.mp4"
+    );
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+    expect(result.current.motionReferenceVideoError).toBeNull();
+  });
+
+  it("retains staged motion upload errors on the originating authority after switching away", async () => {
+    uploadVideoFileToStorageMock.mockRejectedValue(new Error("Upload failed"));
+
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:standard" },
+      }
+    );
+
+    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    await act(async () => {
+      const pending = result.current.stageMotionVideoSelection({ videoFile: file });
+      rerender({ authorityKey: "session:test:create:pulse" });
+      await pending;
+    });
+
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoError).toBeNull();
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoError).toBe("Upload failed");
     expect(result.current.motionReferenceVideoUrl).toBeNull();
   });
 });

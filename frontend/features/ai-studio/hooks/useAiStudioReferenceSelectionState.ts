@@ -7,6 +7,11 @@ import type { ModelModalContext } from "../components/ModelModal";
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { ToolId } from "../types";
 import {
+  deleteUploadedMotionVideoByPath,
+  uploadVideoAssetToStorage,
+  uploadVideoFileToStorage,
+} from "../utils/videoUpload";
+import {
   isCreateModeAuthoritySwitch,
   isPulseCreateAuthorityKey,
   normalizeSelectedToolForAuthorityKey,
@@ -32,6 +37,12 @@ type ReferenceSelectionAuthorityState = {
   detailOutputId: string | null;
 };
 
+type MotionReferenceUploadUiState = {
+  pending: boolean;
+  error: string | null;
+  requestId: number;
+};
+
 export type ReferenceSelectionAuthorityStateSeed = {
   selectedTool: ToolId | null;
   showCreateTools?: boolean;
@@ -55,6 +66,12 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
   motionReferenceVideoUrl: null,
   useReferenceImageIndicator: false,
   detailOutputId: null,
+});
+
+const createEmptyMotionReferenceUploadUiState = (): MotionReferenceUploadUiState => ({
+  pending: false,
+  error: null,
+  requestId: 0,
 });
 
 const buildReferenceSelectionAuthorityStateFromSeed = ({
@@ -103,7 +120,9 @@ export const useAiStudioReferenceSelectionState = ({
   const [videoExtraImageUrls, setVideoExtraImageUrls] = useState<
     [string | null, string | null, string | null]
   >([null, null, null]);
-  const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
+  const [motionReferenceVideoUrl, setMotionReferenceVideoUrlState] = useState<string | null>(null);
+  const [motionReferenceVideoPending, setMotionReferenceVideoPending] = useState(false);
+  const [motionReferenceVideoError, setMotionReferenceVideoError] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -111,6 +130,40 @@ export const useAiStudioReferenceSelectionState = ({
   const [modelModalContext, setModelModalContext] = useState<ModelModalContext | null>(null);
   const activeAuthorityKeyRef = useRef(authorityKey);
   const stateByAuthorityKeyRef = useRef<Record<string, ReferenceSelectionAuthorityState>>({});
+  const motionReferenceUploadUiStateByAuthorityKeyRef = useRef<
+    Record<string, MotionReferenceUploadUiState>
+  >({});
+
+  const getMotionReferenceUploadUiStateForAuthority = useCallback((targetAuthorityKey: string) => {
+    return (
+      motionReferenceUploadUiStateByAuthorityKeyRef.current[targetAuthorityKey] ??
+      createEmptyMotionReferenceUploadUiState()
+    );
+  }, []);
+
+  const setMotionReferenceUploadUiStateForAuthority = useCallback(
+    (targetAuthorityKey: string, nextState: MotionReferenceUploadUiState) => {
+      motionReferenceUploadUiStateByAuthorityKeyRef.current[targetAuthorityKey] = nextState;
+      if (activeAuthorityKeyRef.current !== targetAuthorityKey) return;
+      setMotionReferenceVideoPending(nextState.pending);
+      setMotionReferenceVideoError(nextState.error);
+    },
+    []
+  );
+
+  const updateMotionReferenceUploadUiStateForAuthority = useCallback(
+    (
+      targetAuthorityKey: string,
+      updater:
+        | MotionReferenceUploadUiState
+        | ((current: MotionReferenceUploadUiState) => MotionReferenceUploadUiState)
+    ) => {
+      const current = getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey);
+      const nextState = typeof updater === "function" ? updater(current) : updater;
+      setMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, nextState);
+    },
+    [getMotionReferenceUploadUiStateForAuthority, setMotionReferenceUploadUiStateForAuthority]
+  );
 
   useEffect(() => {
     if (activeAuthorityKeyRef.current === authorityKey) return;
@@ -136,9 +189,16 @@ export const useAiStudioReferenceSelectionState = ({
       useReferenceImageIndicator,
       detailOutputId,
     };
+    updateMotionReferenceUploadUiStateForAuthority(previousAuthorityKey, (current) => ({
+      ...current,
+      pending: motionReferenceVideoPending,
+      error: motionReferenceVideoError,
+    }));
     activeAuthorityKeyRef.current = authorityKey;
     const restoredState =
       stateByAuthorityKeyRef.current[authorityKey] ?? createEmptyReferenceSelectionAuthorityState();
+    const restoredMotionReferenceUploadUiState =
+      getMotionReferenceUploadUiStateForAuthority(authorityKey);
     const normalizedRestoredSelectedTool = normalizeSelectedToolForAuthorityKey(
       authorityKey,
       restoredState.selectedTool
@@ -148,29 +208,33 @@ export const useAiStudioReferenceSelectionState = ({
       isCreateModeAuthoritySwitch(previousAuthorityKey, authorityKey) &&
       selectedTool != null &&
       selectedTool !== "create";
-    /* eslint-disable react-hooks/set-state-in-effect -- authority switches intentionally restore the reference-input lane for the newly active mode. */
     setSelectedTool(shouldPreserveCurrentTool ? selectedTool : normalizedRestoredSelectedTool);
     setShowCreateTools(restoredState.showCreateTools);
     setImageReferenceImageUrlState(restoredState.imageReferenceImageUrl);
     setImageExtraImageUrls(restoredState.imageExtraImageUrls);
     setVideoReferenceImageUrl(restoredState.videoReferenceImageUrl);
     setVideoExtraImageUrls(restoredState.videoExtraImageUrls);
-    setMotionReferenceVideoUrl(restoredState.motionReferenceVideoUrl);
+    setMotionReferenceVideoUrlState(restoredState.motionReferenceVideoUrl);
+    setMotionReferenceVideoPending(restoredMotionReferenceUploadUiState.pending);
+    setMotionReferenceVideoError(restoredMotionReferenceUploadUiState.error);
     setUseReferenceImageIndicator(restoredState.useReferenceImageIndicator);
     setDetailOutputId(restoredState.detailOutputId);
     setIsModelModalOpen(false);
     setModelModalAnchor(null);
     setModelModalContext(null);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [
     authorityKey,
     detailOutputId,
     imageExtraImageUrls,
     imageReferenceImageUrl,
+    motionReferenceVideoError,
+    motionReferenceVideoPending,
     motionReferenceVideoUrl,
     selectedTool,
     showCreateTools,
+    getMotionReferenceUploadUiStateForAuthority,
     useReferenceImageIndicator,
+    updateMotionReferenceUploadUiStateForAuthority,
     videoExtraImageUrls,
     videoReferenceImageUrl,
   ]);
@@ -244,8 +308,13 @@ export const useAiStudioReferenceSelectionState = ({
     setImageExtraImageUrls([null, null, null]);
     setVideoReferenceImageUrl(null);
     setVideoExtraImageUrls([null, null, null]);
-    setMotionReferenceVideoUrl(null);
-  }, []);
+    setMotionReferenceVideoUrlState(null);
+    updateMotionReferenceUploadUiStateForAuthority(activeAuthorityKeyRef.current, (current) => ({
+      pending: false,
+      error: null,
+      requestId: current.requestId + 1,
+    }));
+  }, [updateMotionReferenceUploadUiStateForAuthority]);
 
   const toggleReferenceIndicator = useCallback(() => {
     if (!activeOutputPreviewUrl) return;
@@ -278,7 +347,7 @@ export const useAiStudioReferenceSelectionState = ({
       setImageExtraImageUrls(resolvedState.imageExtraImageUrls);
       setVideoReferenceImageUrl(resolvedState.videoReferenceImageUrl);
       setVideoExtraImageUrls(resolvedState.videoExtraImageUrls);
-      setMotionReferenceVideoUrl(resolvedState.motionReferenceVideoUrl);
+      setMotionReferenceVideoUrlState(resolvedState.motionReferenceVideoUrl);
       setUseReferenceImageIndicator(resolvedState.useReferenceImageIndicator);
       setDetailOutputId(resolvedState.detailOutputId);
     },
@@ -348,6 +417,103 @@ export const useAiStudioReferenceSelectionState = ({
     ]
   );
 
+  const resolveMotionVideoUploadErrorMessage = useCallback((error: unknown) => {
+    return error instanceof Error && error.message.trim()
+      ? error.message.trim()
+      : "Unable to add this motion clip right now.";
+  }, []);
+
+  const clearMotionVideoSelection = useCallback(
+    (targetAuthorityKey = activeAuthorityKeyRef.current) => {
+      const nextAuthorityState = getAuthorityState(targetAuthorityKey);
+      setAuthorityState(targetAuthorityKey, {
+        ...nextAuthorityState,
+        motionReferenceVideoUrl: null,
+      });
+      updateMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, (current) => ({
+        pending: false,
+        error: null,
+        requestId: current.requestId + 1,
+      }));
+    },
+    [getAuthorityState, setAuthorityState, updateMotionReferenceUploadUiStateForAuthority]
+  );
+
+  const setMotionReferenceVideoUrl = useCallback(
+    (value: string | ((current: string | null) => string | null) | null) => {
+      const targetAuthorityKey = activeAuthorityKeyRef.current;
+      const currentValue = getAuthorityState(targetAuthorityKey).motionReferenceVideoUrl;
+      const nextValue = typeof value === "function" ? value(currentValue) : value;
+      const nextAuthorityState = getAuthorityState(targetAuthorityKey);
+      setAuthorityState(targetAuthorityKey, {
+        ...nextAuthorityState,
+        motionReferenceVideoUrl: nextValue,
+      });
+      updateMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, (current) => ({
+        pending: false,
+        error: null,
+        requestId: current.requestId + 1,
+      }));
+    },
+    [getAuthorityState, setAuthorityState, updateMotionReferenceUploadUiStateForAuthority]
+  );
+
+  const stageMotionVideoSelection = useCallback(
+    async ({ videoFile, videoUrl }: { videoFile?: File | null; videoUrl?: string | null }) => {
+      if (!videoFile && !videoUrl) return;
+      const targetAuthorityKey = activeAuthorityKeyRef.current;
+      const nextRequestId =
+        getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId + 1;
+      setMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, {
+        pending: true,
+        error: null,
+        requestId: nextRequestId,
+      });
+
+      try {
+        const uploaded = videoFile
+          ? await uploadVideoFileToStorage(videoFile)
+          : await uploadVideoAssetToStorage(videoUrl as string);
+        if (
+          getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==
+          nextRequestId
+        ) {
+          await deleteUploadedMotionVideoByPath(uploaded.path);
+          return;
+        }
+        const nextAuthorityState = getAuthorityState(targetAuthorityKey);
+        setAuthorityState(targetAuthorityKey, {
+          ...nextAuthorityState,
+          motionReferenceVideoUrl: uploaded.url,
+        });
+        setMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, {
+          pending: false,
+          error: null,
+          requestId: nextRequestId,
+        });
+      } catch (error) {
+        if (
+          getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==
+          nextRequestId
+        ) {
+          return;
+        }
+        setMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, {
+          pending: false,
+          error: resolveMotionVideoUploadErrorMessage(error),
+          requestId: nextRequestId,
+        });
+      }
+    },
+    [
+      getAuthorityState,
+      getMotionReferenceUploadUiStateForAuthority,
+      resolveMotionVideoUploadErrorMessage,
+      setAuthorityState,
+      setMotionReferenceUploadUiStateForAuthority,
+    ]
+  );
+
   return {
     selectedTool,
     setSelectedTool,
@@ -358,7 +524,11 @@ export const useAiStudioReferenceSelectionState = ({
     videoReferenceImageUrl,
     videoExtraImageUrls,
     motionReferenceVideoUrl,
+    motionReferenceVideoPending,
+    motionReferenceVideoError,
     setMotionReferenceVideoUrl,
+    stageMotionVideoSelection,
+    clearMotionVideoSelection,
     useReferenceImageIndicator,
     setUseReferenceImageIndicator,
     detailOutputId,

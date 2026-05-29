@@ -8,6 +8,7 @@ import {
   createEmptyCharacterSheetPresetAssignments,
   getDefaultCharacterSheetPresetTabLabel,
 } from "../../constants";
+import { resolveCharacterPanelResponsiveLayout } from "../../logic/characterPanelResponsiveLayout";
 
 const setCharacterSheetPresetFileMock = vi.fn();
 const setErrorMessageMock = vi.fn();
@@ -187,9 +188,10 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.queryByRole("tab", { name: "5" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Description:" })).toBeInTheDocument();
     expect(
-      screen.getByText("Describe the character's look, features, and build.")
+      screen.getByText(
+        "A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
+      )
     ).toBeInTheDocument();
-    expect(screen.queryByText(/A gorgeous woman in her early 30s/i)).not.toBeInTheDocument();
     expect(screen.getByText("0/150")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Saved characters" })).not.toBeInTheDocument();
     expect(screen.queryByText("No saved characters yet.")).not.toBeInTheDocument();
@@ -270,6 +272,19 @@ describe("CharacterPanelWorkspace", () => {
     expect(screen.getByRole("list", { name: "Saved characters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Selected Taylor" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Taylor" })).toBeInTheDocument();
+  });
+
+  it("keeps top padding above the character action row", () => {
+    render(<CharacterPanelWorkspace />);
+
+    const charactersButton = screen.getByRole("button", { name: "Characters" });
+    const topRow = charactersButton.closest(".character-panel-profile-top-row");
+    const responsiveLayout = resolveCharacterPanelResponsiveLayout({ panelWidthPx: 0 });
+
+    expect(topRow).not.toBeNull();
+    expect(topRow?.parentElement?.parentElement).toHaveStyle({
+      padding: `${responsiveLayout.contentPaddingTopPx}px ${responsiveLayout.contentPaddingXpx}px ${responsiveLayout.contentPaddingBottomPx}px`,
+    });
   });
 
   it("creates a new character from the Characters modal header action", async () => {

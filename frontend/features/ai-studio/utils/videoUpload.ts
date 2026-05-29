@@ -78,6 +78,28 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
   );
 };
 
+const deleteUploadedMotionVideoResult = async (storagePath: string): Promise<void> => {
+  const response = await fetchWithAuth("/api/upload-video", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ path: storagePath }),
+  });
+
+  if (response.ok) return;
+  const errorData = await response.json().catch(() => ({}));
+  const errorMessage =
+    typeof errorData?.error === "string" && errorData.error.trim().length
+      ? errorData.error.trim()
+      : "Motion video cleanup failed";
+  const errorDetails =
+    typeof errorData?.details === "string" && errorData.details.trim().length
+      ? errorData.details.trim()
+      : null;
+  throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
+};
+
 const uploadVideoBlob = async ({
   blob,
   mimeType,
@@ -227,3 +249,16 @@ export const prepareVideoUrl = async (url: string | null): Promise<string | null
  * Alias for pre-submit URL preparation to match naming used by image references.
  */
 export const prepareVideoUrlForSubmission = prepareVideoUrl;
+
+/**
+ * Best-effort cleanup for stale motion-control uploads that never became authoritative.
+ */
+export const deleteUploadedMotionVideoByPath = async (storagePath: string): Promise<void> => {
+  const normalizedStoragePath = storagePath.trim();
+  if (!normalizedStoragePath) return;
+  try {
+    await deleteUploadedMotionVideoResult(normalizedStoragePath);
+  } catch (error) {
+    console.warn("Failed to cleanup stale motion video upload:", error);
+  }
+};

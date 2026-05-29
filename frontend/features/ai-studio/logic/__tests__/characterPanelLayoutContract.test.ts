@@ -134,4 +134,11 @@ describe("character panel layout contract", () => {
     expect(libraryWorkspace).toContain("background: var(--character-panel-wrapper-bg);");
     expect(editorColumn).toContain("border: 0;");
   });
+
+  it("keeps top shell padding above the Character action row", () => {
+    const css = fs.readFileSync(characterEmbeddedCssPath, "utf8");
+    const libraryWorkspace = extractRuleBlock(css, ".character-panel-library-workspace");
+
+    expect(libraryWorkspace).toContain("padding: 4px 12px 10px;");
+  });
 });

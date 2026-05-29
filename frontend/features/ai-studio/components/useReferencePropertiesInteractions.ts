@@ -17,7 +17,6 @@ import {
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import { uploadVideoAssetToStorage, uploadVideoFileToStorage } from "../utils/videoUpload";
 import {
   createInternalMediaRefFromResolvedSource,
   registerInternalMediaRefForUrl,
@@ -46,7 +45,10 @@ type UseReferencePropertiesInteractionsParams = {
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   onMotionVideoChange?: (url: string | null) => void;
-  onMotionVideoLoadingChange?: (isLoading: boolean) => void;
+  onStageMotionVideoSelection?: (input: {
+    videoFile?: File | null;
+    videoUrl?: string | null;
+  }) => Promise<void>;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
@@ -71,7 +73,7 @@ export const useReferencePropertiesInteractions = ({
   onExtraImageChange,
   onPromptTextChange,
   onMotionVideoChange,
-  onMotionVideoLoadingChange,
+  onStageMotionVideoSelection,
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
@@ -87,7 +89,6 @@ export const useReferencePropertiesInteractions = ({
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
-  const motionVideoUploadRequestIdRef = useRef(0);
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
@@ -95,8 +96,6 @@ export const useReferencePropertiesInteractions = ({
   const [primaryImageLoading, setPrimaryImageLoading] = useState(false);
   const [extraImageLoading, setExtraImageLoading] = useState([false, false, false]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
-  const [motionVideoLoading, setMotionVideoLoading] = useState(false);
-  const [motionVideoError, setMotionVideoError] = useState<string | null>(null);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
     model: false,
@@ -122,16 +121,6 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const canSwapFrames = Boolean(referenceImageUrl || extraImageUrls[0]);
-
-  useEffect(() => {
-    onMotionVideoLoadingChange?.(motionVideoLoading);
-  }, [motionVideoLoading, onMotionVideoLoadingChange]);
-
-  useEffect(() => {
-    return () => {
-      onMotionVideoLoadingChange?.(false);
-    };
-  }, [onMotionVideoLoadingChange]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -204,43 +193,6 @@ export const useReferencePropertiesInteractions = ({
       onMotionVideoChange?.(url);
     },
     [onMotionVideoChange]
-  );
-
-  const clearMotionVideoSelection = useCallback(() => {
-    motionVideoUploadRequestIdRef.current += 1;
-    setMotionVideoLoading(false);
-    setMotionVideoError(null);
-    commitMotionVideoUrl(null);
-  }, [commitMotionVideoUrl]);
-
-  const resolveMotionVideoUploadErrorMessage = (error: unknown) =>
-    error instanceof Error && error.message.trim()
-      ? error.message.trim()
-      : "Unable to add this motion clip right now.";
-
-  const stageMotionVideoSelection = useCallback(
-    async ({ videoFile, videoUrl }: { videoFile?: File | null; videoUrl?: string | null }) => {
-      if (!videoFile && !videoUrl) return;
-      const requestId = motionVideoUploadRequestIdRef.current + 1;
-      motionVideoUploadRequestIdRef.current = requestId;
-      setMotionVideoLoading(true);
-      setMotionVideoError(null);
-      try {
-        const uploaded = videoFile
-          ? await uploadVideoFileToStorage(videoFile)
-          : await uploadVideoAssetToStorage(videoUrl as string);
-        if (motionVideoUploadRequestIdRef.current !== requestId) return;
-        commitMotionVideoUrl(uploaded.url);
-      } catch (error) {
-        if (motionVideoUploadRequestIdRef.current !== requestId) return;
-        setMotionVideoError(resolveMotionVideoUploadErrorMessage(error));
-      } finally {
-        if (motionVideoUploadRequestIdRef.current === requestId) {
-          setMotionVideoLoading(false);
-        }
-      }
-    },
-    [commitMotionVideoUrl]
   );
 
   const stabilizeDroppedImageUrl = async ({
@@ -482,19 +434,16 @@ export const useReferencePropertiesInteractions = ({
     }
 
     if (nextVideoFile) {
-      await stageMotionVideoSelection({ videoFile: nextVideoFile });
+      await onStageMotionVideoSelection?.({ videoFile: nextVideoFile });
       return;
     }
 
     if (nextVideoUrl && isLocalMemoryVideoUrl(nextVideoUrl)) {
-      await stageMotionVideoSelection({ videoUrl: nextVideoUrl });
+      await onStageMotionVideoSelection?.({ videoUrl: nextVideoUrl });
       return;
     }
 
     if (nextVideoUrl) {
-      motionVideoUploadRequestIdRef.current += 1;
-      setMotionVideoLoading(false);
-      setMotionVideoError(null);
       commitMotionVideoUrl(nextVideoUrl);
     }
   };
@@ -502,7 +451,7 @@ export const useReferencePropertiesInteractions = ({
   const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("video/")) {
-      await stageMotionVideoSelection({ videoFile: file });
+      await onStageMotionVideoSelection?.({ videoFile: file });
     }
     event.target.value = "";
   };
@@ -517,11 +466,8 @@ export const useReferencePropertiesInteractions = ({
     extraDragActive,
     primaryImageLoading,
     extraImageLoading,
-    motionVideoLoading,
-    motionVideoError,
     motionVideoDragActive,
     setMotionVideoDragActive,
-    clearMotionVideoSelection,
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,

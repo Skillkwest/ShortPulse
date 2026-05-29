@@ -61,7 +61,13 @@ type UseAiStudioVideoPanelPropsParams = {
   setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   motionReferenceVideoUrl: string | null;
   setMotionReferenceVideoUrl: (url: string | null) => void;
-  onMotionVideoLoadingChange?: (isLoading: boolean) => void;
+  stageMotionVideoSelection: (input: {
+    videoFile?: File | null;
+    videoUrl?: string | null;
+  }) => Promise<void>;
+  clearMotionVideoSelection: () => void;
+  motionReferenceVideoPending: boolean;
+  motionReferenceVideoError: string | null;
   videoReferenceText: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -135,7 +141,10 @@ export const useAiStudioVideoPanelProps = ({
   setKlingElements,
   motionReferenceVideoUrl,
   setMotionReferenceVideoUrl,
-  onMotionVideoLoadingChange,
+  stageMotionVideoSelection,
+  clearMotionVideoSelection,
+  motionReferenceVideoPending,
+  motionReferenceVideoError,
   videoReferenceText,
   isModelModalOpen,
   modelModalAnchor,
@@ -202,7 +211,10 @@ export const useAiStudioVideoPanelProps = ({
       onKlingElementsChange: setKlingElements,
       motionVideoUrl: motionReferenceVideoUrl,
       onMotionVideoChange: setMotionReferenceVideoUrl,
-      onMotionVideoLoadingChange,
+      onStageMotionVideoSelection: stageMotionVideoSelection,
+      onClearMotionVideo: clearMotionVideoSelection,
+      motionVideoLoading: motionReferenceVideoPending,
+      motionVideoError: motionReferenceVideoError,
       referenceText: videoReferenceText,
       aspectOptions,
       isModelModalOpen,
@@ -244,10 +256,12 @@ export const useAiStudioVideoPanelProps = ({
       klingVoiceIds,
       model,
       modelModalAnchor,
+      motionReferenceVideoError,
+      motionReferenceVideoPending,
       motionReferenceVideoUrl,
-      onMotionVideoLoadingChange,
       onCreateCharacter,
       onCreateElement,
+      clearMotionVideoSelection,
       referenceImageUrl,
       referenceImageWarning,
       resolveInternalReferenceImageDropSource,
@@ -275,6 +289,7 @@ export const useAiStudioVideoPanelProps = ({
       setSeedance2ReferenceVideoUrls,
       setSeedance2ReturnLastFrame,
       setSeedance2WebSearch,
+      stageMotionVideoSelection,
       setVideoDurationSeconds,
       setVideoGenerateAudio,
       setVideoReferenceMode,

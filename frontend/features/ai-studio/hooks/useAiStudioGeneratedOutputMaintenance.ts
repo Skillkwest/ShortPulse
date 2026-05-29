@@ -211,6 +211,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
             reconcile: await resolveVisibleGenerationReconcile({
               generationId: output.generationId ?? null,
               requestId: output.taskId ?? null,
+              ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
               projectId: projectId ?? null,
             }),
           }))
@@ -291,6 +292,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
           const reconcile = await resolveVisibleGenerationReconcile({
             generationId: output.generationId ?? null,
             requestId: output.taskId ?? null,
+            ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
             projectId: projectId ?? null,
           });
           return {

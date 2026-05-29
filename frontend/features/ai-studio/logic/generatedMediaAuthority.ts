@@ -703,6 +703,105 @@ const resolveProjectAssociatedGenerationId = async ({
   return asTrimmedString(projectionRow?.generation_id);
 };
 
+const resolveCanonicalGenerationId = async ({
+  supabase,
+  userId,
+  projectId,
+  generationId,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId?: string | null;
+  generationId: string | null;
+}): Promise<string | null> =>
+  await resolveProjectAssociatedGenerationId({
+    supabase,
+    userId,
+    projectId: projectId ?? null,
+    generationId,
+  });
+
+const resolveProjectionGenerationIdByColumn = async ({
+  supabase,
+  userId,
+  column,
+  value,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  column: "request_id" | "source_ref";
+  value: string | null;
+}): Promise<string | null> => {
+  const normalizedValue = asTrimmedString(value);
+  if (!normalizedValue) return null;
+
+  const { data: projectionData, error: projectionError } = await supabase
+    .from("generation_projection")
+    .select("generation_id")
+    .eq("user_id", userId)
+    .eq(column, normalizedValue)
+    .limit(1)
+    .maybeSingle();
+  if (projectionError) return null;
+
+  return asTrimmedString((projectionData as Record<string, unknown> | null)?.generation_id);
+};
+
+const resolveCanonicalGenerationIdFromRuntimeIdentity = async ({
+  supabase,
+  userId,
+  projectId,
+  generationId,
+  requestId,
+  sourceRef,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId?: string | null;
+  generationId?: string | null;
+  requestId?: string | null;
+  sourceRef?: string | null;
+}): Promise<string | null> => {
+  const triedGenerationIds = new Set<string>();
+
+  const resolveCandidate = async (candidateGenerationId: string | null): Promise<string | null> => {
+    const normalizedCandidateGenerationId = asTrimmedString(candidateGenerationId);
+    if (
+      !normalizedCandidateGenerationId ||
+      triedGenerationIds.has(normalizedCandidateGenerationId)
+    ) {
+      return null;
+    }
+    triedGenerationIds.add(normalizedCandidateGenerationId);
+    return await resolveCanonicalGenerationId({
+      supabase,
+      userId,
+      projectId,
+      generationId: normalizedCandidateGenerationId,
+    });
+  };
+
+  const requestScopedGenerationId = await resolveProjectionGenerationIdByColumn({
+    supabase,
+    userId,
+    column: "request_id",
+    value: requestId ?? null,
+  });
+  const resolvedRequestScopedGenerationId = await resolveCandidate(requestScopedGenerationId);
+  if (resolvedRequestScopedGenerationId) return resolvedRequestScopedGenerationId;
+
+  const sourceScopedGenerationId = await resolveProjectionGenerationIdByColumn({
+    supabase,
+    userId,
+    column: "source_ref",
+    value: sourceRef ?? null,
+  });
+  const resolvedSourceScopedGenerationId = await resolveCandidate(sourceScopedGenerationId);
+  if (resolvedSourceScopedGenerationId) return resolvedSourceScopedGenerationId;
+
+  return await resolveCandidate(generationId ?? null);
+};
+
 export const resolveGenerationIdForRequestId = async ({
   supabase,
   requestId,
@@ -726,22 +825,15 @@ export const resolveGenerationIdForRequestId = async ({
     .eq("request_id", normalizedRequestId)
     .limit(1)
     .maybeSingle();
-  if (!projectionError) {
-    const generationId = asTrimmedString(
+  if (projectionError) return null;
+  return await resolveCanonicalGenerationId({
+    supabase,
+    userId: resolvedUserId,
+    projectId,
+    generationId: asTrimmedString(
       (projectionData as Record<string, unknown> | null)?.generation_id
-    );
-    if (generationId) {
-      const resolvedGenerationId = await resolveProjectAssociatedGenerationId({
-        supabase,
-        userId: resolvedUserId,
-        projectId: projectId ?? null,
-        generationId,
-      });
-      if (resolvedGenerationId) return resolvedGenerationId;
-    }
-  }
-
-  return null;
+    ),
+  });
 };
 
 export const resolvePublishedGenerationOutputStoragePathByIndex = async ({
@@ -1380,36 +1472,29 @@ export const resolveVisibleGenerationDelivery = async ({
 export const resolveGenerationProjectionLifecycle = async ({
   generationId,
   requestId,
+  sourceRef,
   projectId,
 }: {
   generationId?: string | null;
   requestId?: string | null;
+  sourceRef?: string | null;
   projectId?: string | null;
 }): Promise<GenerationProjectionLifecycle | null> => {
   const normalizedGenerationId = asTrimmedString(generationId);
   const normalizedRequestId = asTrimmedString(requestId);
-  if (!normalizedGenerationId && !normalizedRequestId) return null;
+  const normalizedSourceRef = asTrimmedString(sourceRef);
+  if (!normalizedGenerationId && !normalizedRequestId && !normalizedSourceRef) return null;
 
   const supabase = ensureSupabaseQueryClient();
   const userId = await readSupabaseUserId();
   if (!userId) return null;
-  const normalizedProjectId = resolveProjectId(projectId);
-
-  const candidateGenerationId =
-    normalizedGenerationId ??
-    (await resolveGenerationIdForRequestId({
-      supabase,
-      requestId: normalizedRequestId,
-      userId,
-      projectId: normalizedProjectId,
-    }));
-  if (!candidateGenerationId) return null;
-
-  const resolvedGenerationId = await resolveProjectAssociatedGenerationId({
+  const resolvedGenerationId = await resolveCanonicalGenerationIdFromRuntimeIdentity({
     supabase,
     userId,
-    projectId: normalizedProjectId,
-    generationId: candidateGenerationId,
+    projectId,
+    generationId: normalizedGenerationId,
+    requestId: normalizedRequestId,
+    sourceRef: normalizedSourceRef,
   });
   if (!resolvedGenerationId) return null;
 
@@ -1429,40 +1514,30 @@ export const resolveGenerationProjectionLifecycle = async ({
 export const resolveVisibleGenerationReconcile = async ({
   generationId,
   requestId,
+  sourceRef,
   projectId,
 }: {
   generationId?: string | null;
   requestId?: string | null;
+  sourceRef?: string | null;
   projectId?: string | null;
 }): Promise<VisibleGenerationReconcile | null> => {
   const normalizedGenerationId = asTrimmedString(generationId);
   const normalizedRequestId = asTrimmedString(requestId);
-  if (!normalizedGenerationId && !normalizedRequestId) return null;
+  const normalizedSourceRef = asTrimmedString(sourceRef);
+  if (!normalizedGenerationId && !normalizedRequestId && !normalizedSourceRef) return null;
 
   const supabase = ensureSupabaseQueryClient();
   const userId = await readSupabaseUserId();
   if (!userId) return null;
-  const normalizedProjectId = resolveProjectId(projectId);
-
-  const candidateGenerationId =
-    normalizedGenerationId ??
-    (await resolveGenerationIdForRequestId({
-      supabase,
-      requestId: normalizedRequestId,
-      userId,
-      projectId: normalizedProjectId,
-    }));
-  if (!candidateGenerationId) return null;
-
-  let resolvedGenerationId: string | null = candidateGenerationId;
-  if (normalizedProjectId) {
-    resolvedGenerationId = await resolveProjectAssociatedGenerationId({
-      supabase,
-      userId,
-      projectId: normalizedProjectId,
-      generationId: candidateGenerationId,
-    });
-  }
+  const resolvedGenerationId = await resolveCanonicalGenerationIdFromRuntimeIdentity({
+    supabase,
+    userId,
+    projectId,
+    generationId: normalizedGenerationId,
+    requestId: normalizedRequestId,
+    sourceRef: normalizedSourceRef,
+  });
   if (!resolvedGenerationId) return null;
 
   const delivery = await resolveVisibleGenerationDeliveryByGenerationId({

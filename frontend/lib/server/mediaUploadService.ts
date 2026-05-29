@@ -1067,6 +1067,31 @@ export const uploadSignedStorageAssetForUser = async ({
   }
 };
 
+export const deleteSignedStorageAssetForUser = async ({
+  userId,
+  storagePath,
+  storageFolderOverride,
+}: {
+  userId: string;
+  storagePath: string;
+  storageFolderOverride: string;
+}): Promise<void> => {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Uploaded asset storage path",
+  });
+  const expectedPrefix = `${userId}/${storageFolderOverride}/`;
+  if (!safeStoragePath.startsWith(expectedPrefix)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Uploaded asset storage path is outside the expected namespace."
+    );
+  }
+  await removeScopedMediaStorageObject(safeStoragePath);
+};
+
 const insertUploadedMediaRow = async ({
   userId,
   parsedUpload,

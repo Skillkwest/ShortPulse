@@ -9,9 +9,32 @@ const LOCAL_IMAGE_UPLOAD_SIZE_THRESHOLD_BYTES = 8 * 1024 * 1024;
 const LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES = 23 * 1024 * 1024;
 const LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS = [0.88, 0.76, 0.64, 0.52];
 const LOCAL_IMAGE_UPLOAD_LONG_EDGE_STEPS = [2048, 1792, 1536, 1280, 1024];
+export const CANONICAL_IMAGE_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
 const isLocalImageBlob = (blob: Blob): boolean =>
   typeof blob.type === "string" && blob.type.toLowerCase().startsWith("image/");
+
+const inferImageExtensionFromMimeType = (mimeType: string): string => {
+  const normalizedMimeType = mimeType.trim().toLowerCase();
+  if (normalizedMimeType === "image/png") return "png";
+  if (normalizedMimeType === "image/webp") return "webp";
+  if (normalizedMimeType === "image/gif") return "gif";
+  if (normalizedMimeType === "image/avif") return "avif";
+  if (normalizedMimeType === "image/bmp") return "bmp";
+  if (normalizedMimeType === "image/heic") return "heic";
+  if (normalizedMimeType === "image/heif") return "heif";
+  return "jpg";
+};
+
+const replaceFileExtension = (filename: string, nextExtension: string): string => {
+  const trimmedFilename = filename.trim();
+  if (!trimmedFilename) return `upload.${nextExtension}`;
+  const dotIndex = trimmedFilename.lastIndexOf(".");
+  if (dotIndex <= 0) {
+    return `${trimmedFilename}.${nextExtension}`;
+  }
+  return `${trimmedFilename.slice(0, dotIndex)}.${nextExtension}`;
+};
 
 const loadImageElement = (src: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -186,6 +209,7 @@ export const transcodeLocalImageToObjectUrl = async ({
  */
 export const maybeTranscodeLocalImageBlobForUpload = async (blob: Blob): Promise<Blob> => {
   if (!isLocalImageBlob(blob)) return blob;
+  if (blob.size <= LOCAL_IMAGE_UPLOAD_SIZE_THRESHOLD_BYTES) return blob;
 
   const resolvedSource = await resolveLocalImageSource(blob);
   if (!resolvedSource) return blob;
@@ -247,4 +271,23 @@ export const maybeTranscodeLocalImageBlobForUpload = async (blob: Blob): Promise
   }
 
   return blob;
+};
+
+/**
+ * Downscales and re-encodes a local image file when needed while keeping filename and MIME aligned.
+ */
+export const maybePreprocessLocalImageFileForUpload = async (file: File): Promise<File> => {
+  const nextBlob = await maybeTranscodeLocalImageBlobForUpload(file);
+  if (nextBlob === file) return file;
+
+  const nextMimeType = nextBlob.type.trim().toLowerCase() || file.type || "image/jpeg";
+  const nextFilename = replaceFileExtension(
+    file.name,
+    inferImageExtensionFromMimeType(nextMimeType)
+  );
+
+  return new File([nextBlob], nextFilename, {
+    type: nextMimeType,
+    lastModified: file.lastModified,
+  });
 };

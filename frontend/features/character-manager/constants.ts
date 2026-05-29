@@ -2,6 +2,7 @@
  * Character Manager constants.
  * Provides canonical reference-slot definitions and lightweight client-side constraints.
  */
+import { CANONICAL_IMAGE_UPLOAD_MAX_BYTES } from "../../lib/adaptive-media/localTranscode";
 import type {
   CharacterSheetPresetDescriptionMap,
   CharacterSheetAssignments,
@@ -79,7 +80,7 @@ export const CHARACTER_MANAGER_SLOT_DEFINITIONS: CharacterReferenceSlotDefinitio
   },
 ];
 
-export const CHARACTER_MANAGER_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+export const CHARACTER_MANAGER_MAX_IMAGE_BYTES = CANONICAL_IMAGE_UPLOAD_MAX_BYTES;
 export const CHARACTER_QUICK_SWAP_ACTIVE_LIMIT = 500;
 export const CHARACTER_PANEL_TWO_COLUMN_GRID_TEMPLATE = "minmax(0, 1.02fr) minmax(0, 0.98fr)";
 export const CHARACTER_PANEL_TWO_COLUMN_GRID_AREAS = '"description references"';

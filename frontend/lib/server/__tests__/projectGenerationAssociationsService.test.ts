@@ -341,6 +341,95 @@ describe("associateGenerationWithProjectForUser", () => {
     expect(recentProjectionBuilder.eq).toHaveBeenCalledWith("project_id", "project-1");
   });
 
+  it("patches restored rows without generation ids from project-scoped request and source identities", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-projection-restore-1",
+          updated_at: "2026-04-18T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-projection-restore-1",
+          project_id: "project-1",
+          request_id: "req-project-projection-restore-1",
+          source_ref: "source-project-projection-restore-1",
+          provider: "fal",
+          model_id: "fal-ai/nano-banana-2",
+          display_prompt: "A restored project output",
+          preview_url: "https://fal.test/project-restore-preview.png",
+          result_urls: ["https://fal.test/project-restore-full.png"],
+          saved_media_ids: [],
+          save_state: "idle",
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message: null,
+          error_message_short: null,
+          error_detail: null,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockReturnValue(associationBuilder);
+    generationProjectionSelectMock
+      .mockImplementationOnce(() => recentProjectionBuilder)
+      .mockImplementationOnce(() => projectionDetailsBuilder);
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "out-restored-pending",
+              mediaSource: "generated",
+              taskId: "req-project-projection-restore-1",
+              sourceRef: "source-project-projection-restore-1",
+              taskState: "running",
+              status: "ready",
+              timestamp: "Processing...",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "out-restored-pending",
+              generationId: "gen-project-projection-restore-1",
+              taskId: "req-project-projection-restore-1",
+              sourceRef: "source-project-projection-restore-1",
+              previewUrl: "https://fal.test/project-restore-preview.png",
+              resultUrls: ["https://fal.test/project-restore-full.png"],
+              taskState: "success",
+            }),
+          ],
+        }),
+      })
+    );
+  });
+
   it("orders restored project generated outputs by newest project generation recency", async () => {
     const associationBuilder = createAwaitableSelectBuilder({
       data: [

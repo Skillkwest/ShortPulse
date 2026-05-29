@@ -338,6 +338,7 @@ export function useAiStudioTasks({
       const projectionLifecycle = await resolveGenerationProjectionLifecycle({
         generationId: asTrimmedString(existingOutput?.generationId),
         requestId: taskId,
+        ...(existingOutput?.sourceRef ? { sourceRef: existingOutput.sourceRef } : {}),
         ...(projectId ? { projectId } : {}),
       }).catch(() => null);
       if (
@@ -392,6 +393,7 @@ export function useAiStudioTasks({
       const visibleGeneration = await resolveVisibleGenerationReconcile({
         generationId: asTrimmedString(existingOutput?.generationId),
         requestId: taskId,
+        ...(existingOutput?.sourceRef ? { sourceRef: existingOutput.sourceRef } : {}),
         ...(projectId ? { projectId } : {}),
       }).catch(() => null);
       if (!visibleGeneration) return false;

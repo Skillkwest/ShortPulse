@@ -30,7 +30,7 @@
   }
 
   .create-composer-panel--no-history .create-composer-empty-state-shell {
-    justify-content: center;
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
     padding-top: 24px;
     padding-bottom: 12px;
   }

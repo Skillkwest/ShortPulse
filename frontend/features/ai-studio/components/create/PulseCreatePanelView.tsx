@@ -161,19 +161,25 @@ const PulseCreatePanelViewContent = ({
       {shouldShowPersistentEmptyShell ? (
         <>
           <div className="create-composer-empty-preview-frame" aria-hidden="true" />
-          <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
-            <p
-              className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
-            >
-              What do you want to make?
-            </p>
+          <div className="create-composer-empty-center-stack">
+            <div className="create-composer-ready-row" aria-hidden={shouldHideReadyTitle}>
+              <p
+                className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
+              >
+                What do you want to make?
+              </p>
+            </div>
+            <div className="create-composer-lower-preview-frame" aria-hidden="true" />
+            <div className="create-composer-bottom-block">
+              <PulsePromptStep {...promptStepLayoutProps} />
+            </div>
           </div>
-          <div className="create-composer-lower-preview-frame" aria-hidden="true" />
         </>
-      ) : null}
-      <div className="create-composer-bottom-block">
-        <PulsePromptStep {...promptStepLayoutProps} />
-      </div>
+      ) : (
+        <div className="create-composer-bottom-block">
+          <PulsePromptStep {...promptStepLayoutProps} />
+        </div>
+      )}
     </>
   );
 

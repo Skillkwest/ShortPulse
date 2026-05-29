@@ -77,7 +77,13 @@ export type VideoPropertiesPanelProps = {
   onKlingElementsChange?: (value: AiStudioKlingElement[]) => void;
   motionVideoUrl?: string | null;
   onMotionVideoChange?: (url: string | null) => void;
-  onMotionVideoLoadingChange?: (isLoading: boolean) => void;
+  onStageMotionVideoSelection?: (input: {
+    videoFile?: File | null;
+    videoUrl?: string | null;
+  }) => Promise<void>;
+  onClearMotionVideo?: () => void;
+  motionVideoLoading?: boolean;
+  motionVideoError?: string | null;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -154,7 +160,10 @@ export function VideoPropertiesPanel({
   onKlingElementsChange,
   motionVideoUrl = null,
   onMotionVideoChange,
-  onMotionVideoLoadingChange,
+  onStageMotionVideoSelection,
+  onClearMotionVideo,
+  motionVideoLoading = false,
+  motionVideoError = null,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -227,11 +236,8 @@ export function VideoPropertiesPanel({
     extraDragActive,
     primaryImageLoading,
     extraImageLoading,
-    motionVideoLoading,
-    motionVideoError,
     motionVideoDragActive,
     setMotionVideoDragActive,
-    clearMotionVideoSelection,
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,
@@ -260,7 +266,7 @@ export function VideoPropertiesPanel({
     onExtraImageChange,
     onPromptTextChange,
     onMotionVideoChange,
-    onMotionVideoLoadingChange,
+    onStageMotionVideoSelection,
     resolvePreviewUrlById,
     resolveMotionVideoUrlById,
     resolveInternalReferenceImageDropSource,
@@ -1307,7 +1313,7 @@ export function VideoPropertiesPanel({
                         onPrimaryImageChange={onPrimaryImageChange}
                         onExtraImageChange={onExtraImageChange}
                         onMotionVideoChange={onMotionVideoChange}
-                        onClearMotionVideo={clearMotionVideoSelection}
+                        onClearMotionVideo={onClearMotionVideo}
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={

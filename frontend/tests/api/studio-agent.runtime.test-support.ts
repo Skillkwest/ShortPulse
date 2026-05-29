@@ -130,6 +130,9 @@ export const resetStudioAgentRuntimeTestState = () => {
   delete process.env.STUDIO_AGENT_VISION_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_TURN_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS;
+  delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS;
   delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
   delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;

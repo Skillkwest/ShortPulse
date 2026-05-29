@@ -34,6 +34,12 @@ import {
   isStudioAgentRefusalResponse,
   parseStudioAgentJsonWithStatus,
 } from "../studioAgentResponseNormalization";
+import {
+  classifyStudioAgentFailure,
+  computeStudioAgentRetryDelayMs,
+  shouldRetryStudioAgentFailure,
+  waitForStudioAgentRetry,
+} from "../studioAgentFailurePolicy";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
@@ -47,6 +53,9 @@ import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
+const STANDARD_EXTENDED_TEXT_TIMEOUT_CHAR_THRESHOLD = 2500;
+const STANDARD_MAX_PROMPT_REFERENCE_SNIPPETS = 8;
+const STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS = 320;
 
 type StandardOpenAiImageDetail = "high" | "auto";
 
@@ -76,14 +85,11 @@ const buildStandardOpenAiMessages = ({
   systemPrompt?: string | null;
   imageDetail?: StandardOpenAiImageDetail;
 }): OpenAiChatMessage[] => {
-  const promptReferenceSnippets = Array.from(
-    new Set(
-      context.references
-        ?.filter((item) => item.kind === "prompt")
-        .map((item) => item.promptSnippet?.trim() || "")
-        .filter((item) => item.length > 0) ?? []
-    )
-  ).slice(0, 8);
+  const latestUserText = resolveLatestStandardUserText(messages);
+  const promptReferenceSnippets = resolveStandardPromptReferenceSnippets({
+    context,
+    latestUserText,
+  });
   const promptReferenceBlock = promptReferenceSnippets.length
     ? `Attached reference text:\n${promptReferenceSnippets.map((snippet) => `- ${snippet}`).join("\n")}`
     : "";
@@ -131,6 +137,179 @@ const buildStandardOpenAiMessages = ({
     : conversationMessages;
 };
 
+const clipStandardPromptReferenceSnippet = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length > STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS
+    ? `${trimmed.slice(0, STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS - 1)}...`
+    : trimmed;
+};
+
+const resolveLatestStandardUserText = (messages: AgentMessage[]): string => {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "user" && message.content.trim().length > 0);
+  return latestUserMessage?.content.trim() ?? "";
+};
+
+const resolveStandardPromptReferenceSnippets = ({
+  context,
+  latestUserText,
+}: {
+  context: AgentContext;
+  latestUserText: string;
+}): string[] => {
+  const normalizedLatestUserText = latestUserText.trim();
+  return Array.from(
+    new Set(
+      context.references
+        ?.filter((item) => item.kind === "prompt")
+        .map((item) => clipStandardPromptReferenceSnippet(item.promptSnippet))
+        .filter((item): item is string => Boolean(item) && item !== normalizedLatestUserText) ?? []
+    )
+  ).slice(0, STANDARD_MAX_PROMPT_REFERENCE_SNIPPETS);
+};
+
+const measureStandardTextPayloadChars = ({
+  messages,
+  context,
+}: {
+  messages: AgentMessage[];
+  context: AgentContext;
+}): number => {
+  const latestUserText = resolveLatestStandardUserText(messages);
+  const promptReferenceChars = resolveStandardPromptReferenceSnippets({
+    context,
+    latestUserText,
+  }).reduce((total, snippet) => total + snippet.length, 0);
+  const messageChars = messages.reduce(
+    (total, message) => total + message.content.trim().length,
+    0
+  );
+  return messageChars + promptReferenceChars;
+};
+
+const summarizeStandardTextPayload = ({
+  messages,
+  context,
+}: {
+  messages: AgentMessage[];
+  context: AgentContext;
+}) => {
+  const latestUserText = resolveLatestStandardUserText(messages);
+  const promptReferenceSnippets = resolveStandardPromptReferenceSnippets({
+    context,
+    latestUserText,
+  });
+  const promptReferenceChars = promptReferenceSnippets.reduce(
+    (total, snippet) => total + snippet.length,
+    0
+  );
+  const textPayloadChars =
+    messages.reduce((total, message) => total + message.content.trim().length, 0) +
+    promptReferenceChars;
+  return {
+    latestUserChars: latestUserText.length,
+    promptReferenceChars,
+    promptReferenceSnippetCount: promptReferenceSnippets.length,
+    textPayloadChars,
+  };
+};
+
+const executeStandardOpenAiWithRetry = async ({
+  apiKey,
+  openAiUrl,
+  model,
+  messages,
+  timeoutMs,
+  maxAttempts,
+  retryBaseDelayMs,
+  retryMaxDelayMs,
+}: {
+  apiKey: string;
+  openAiUrl: string;
+  model: string;
+  messages: OpenAiChatMessage[];
+  timeoutMs: number;
+  maxAttempts: number;
+  retryBaseDelayMs: number;
+  retryMaxDelayMs: number;
+}): Promise<
+  | { ok: true; response: Response; retryCount: number }
+  | {
+      ok: false;
+      detail: string;
+      retryCount: number;
+      status?: number;
+      error?: unknown;
+    }
+> => {
+  let attempt = 1;
+  let retryCount = 0;
+
+  while (true) {
+    try {
+      const response = await fetchStudioAgentChatCompletion({
+        apiKey,
+        openAiUrl,
+        model,
+        messages,
+        timeoutMs,
+      });
+      if (response.ok) {
+        return { ok: true, response, retryCount };
+      }
+
+      const detail = await response.text();
+      const failureClass = classifyStudioAgentFailure({
+        status: response.status,
+        detail,
+      });
+      if (
+        !shouldRetryStudioAgentFailure({
+          failureClass,
+          attempt,
+          maxAttempts,
+        })
+      ) {
+        return {
+          ok: false,
+          status: response.status,
+          detail,
+          retryCount,
+        };
+      }
+    } catch (error) {
+      const detail = formatStudioAgentErrorMessage(error);
+      const failureClass = classifyStudioAgentFailure({ detail });
+      if (
+        !shouldRetryStudioAgentFailure({
+          failureClass,
+          attempt,
+          maxAttempts,
+        })
+      ) {
+        return {
+          ok: false,
+          detail,
+          retryCount,
+          error,
+        };
+      }
+    }
+
+    retryCount += 1;
+    const retryDelayMs = computeStudioAgentRetryDelayMs({
+      attempt,
+      baseDelayMs: retryBaseDelayMs,
+      maxDelayMs: retryMaxDelayMs,
+    });
+    await waitForStudioAgentRetry(retryDelayMs);
+    attempt += 1;
+  }
+};
+
 export const resolveStandardOpenAiExecutionProfile = ({
   flow,
   openAiModel,
@@ -138,6 +317,7 @@ export const resolveStandardOpenAiExecutionProfile = ({
   turnTimeoutMs,
   visionTimeoutMs,
   pulseTurnTimeoutMs,
+  textPayloadChars = 0,
 }: {
   flow: "TEXT_ONLY" | "MIXED";
   openAiModel: string;
@@ -145,6 +325,7 @@ export const resolveStandardOpenAiExecutionProfile = ({
   turnTimeoutMs: number;
   visionTimeoutMs: number;
   pulseTurnTimeoutMs: number;
+  textPayloadChars?: number;
 }): {
   model: string;
   timeoutMs: number;
@@ -160,7 +341,10 @@ export const resolveStandardOpenAiExecutionProfile = ({
 
   return {
     model: openAiModel,
-    timeoutMs: turnTimeoutMs,
+    timeoutMs:
+      textPayloadChars >= STANDARD_EXTENDED_TEXT_TIMEOUT_CHAR_THRESHOLD
+        ? Math.max(turnTimeoutMs, pulseTurnTimeoutMs)
+        : turnTimeoutMs,
     imageDetail: "high",
   };
 };
@@ -371,6 +555,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
+  const textPayloadChars = measureStandardTextPayloadChars({ messages, context });
+  const textPayloadSummary = summarizeStandardTextPayload({ messages, context });
   const executionProfile = resolveStandardOpenAiExecutionProfile({
     flow,
     openAiModel: openAiConfig.openAiModel,
@@ -378,26 +564,39 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     turnTimeoutMs: openAiConfig.turnTimeoutMs,
     visionTimeoutMs: openAiConfig.visionTimeoutMs,
     pulseTurnTimeoutMs: openAiConfig.pulseTurnTimeoutMs,
+    textPayloadChars,
   });
   const standardModel = executionProfile.model;
   const openAiRoundTripStartedAt = Date.now();
+  const standardOpenAiMessages = buildStandardOpenAiMessages({
+    messages,
+    context,
+    systemPrompt: resolvedSystemPrompt.promptBody,
+    imageDetail: executionProfile.imageDetail,
+  });
   try {
-    const directResponse = await fetchStudioAgentChatCompletion({
+    const directResponseResult = await executeStandardOpenAiWithRetry({
       apiKey,
       openAiUrl: openAiConfig.openAiUrl,
       model: standardModel,
-      messages: buildStandardOpenAiMessages({
-        messages,
-        context,
-        systemPrompt: resolvedSystemPrompt.promptBody,
-        imageDetail: executionProfile.imageDetail,
-      }),
+      messages: standardOpenAiMessages,
       timeoutMs: executionProfile.timeoutMs,
+      maxAttempts: openAiConfig.upstreamRetryMaxAttempts,
+      retryBaseDelayMs: openAiConfig.upstreamRetryBaseDelayMs,
+      retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
     });
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
 
-    if (!directResponse.ok) {
-      const detail = await directResponse.text();
+    if (!directResponseResult.ok) {
+      if (directResponseResult.error) {
+        throw Object.assign(
+          directResponseResult.error instanceof Error
+            ? directResponseResult.error
+            : new Error(directResponseResult.detail),
+          { retryCount: directResponseResult.retryCount }
+        );
+      }
+
       emitStudioAgentTurnTelemetry({
         flow,
         path: STANDARD_TELEMETRY_PATH,
@@ -405,7 +604,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         traceId,
         model: standardModel,
         outcomeClass: "upstream_error",
-        retryUsed: false,
+        retryUsed: directResponseResult.retryCount > 0,
+        retryCount: directResponseResult.retryCount,
         reasonCode: "UPSTREAM_ERROR",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
@@ -413,15 +613,15 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
           runtimeScopeKey: "studio-agent-standard",
         },
       });
-      return res.status(directResponse.status).json(
+      return res.status(directResponseResult.status ?? 502).json(
         buildStudioAgentUpstreamErrorPayload({
           traceId,
-          detail,
+          detail: directResponseResult.detail,
         })
       );
     }
 
-    const directPayload = await directResponse.json();
+    const directPayload = await directResponseResult.response.json();
     const directResult = extractStandardOpenAiResponse({
       payload: directPayload,
       fallbackPrompt: messages[messages.length - 1]?.content?.trim() || "",
@@ -434,7 +634,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         traceId,
         model: standardModel,
         outcomeClass: "upstream_error",
-        retryUsed: false,
+        retryUsed: directResponseResult.retryCount > 0,
+        retryCount: directResponseResult.retryCount,
         reasonCode: "UPSTREAM_ERROR",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
@@ -459,7 +660,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         traceId,
         model: standardModel,
         outcomeClass: "refusal_safety",
-        retryUsed: false,
+        retryUsed: directResponseResult.retryCount > 0,
+        retryCount: directResponseResult.retryCount,
         reasonCode: "SAFETY_OUTPUT_REFUSAL",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
@@ -479,7 +681,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       traceId,
       model: standardModel,
       outcomeClass: "success_prompt",
-      retryUsed: false,
+      retryUsed: directResponseResult.retryCount > 0,
+      retryCount: directResponseResult.retryCount,
       reasonCode: "SUCCESS_PROMPT",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
@@ -515,6 +718,14 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         configured_vision_timeout_ms: openAiConfig.visionTimeoutMs,
         configured_pulse_turn_timeout_ms: openAiConfig.pulseTurnTimeoutMs,
         message_count: messages.length,
+        retry_count:
+          typeof (error as { retryCount?: unknown })?.retryCount === "number"
+            ? ((error as { retryCount: number }).retryCount ?? 0)
+            : 0,
+        text_payload_chars: textPayloadSummary.textPayloadChars,
+        latest_user_chars: textPayloadSummary.latestUserChars,
+        prompt_reference_chars: textPayloadSummary.promptReferenceChars,
+        prompt_reference_snippet_count: textPayloadSummary.promptReferenceSnippetCount,
         stage_latency_ms: stageLatencyMs,
         ...summarizeStandardContextForExceptionLog(context),
       },
@@ -527,7 +738,13 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       traceId,
       model: standardModel,
       outcomeClass: "upstream_error",
-      retryUsed: false,
+      retryUsed:
+        typeof (error as { retryCount?: unknown })?.retryCount === "number" &&
+        ((error as { retryCount: number }).retryCount ?? 0) > 0,
+      retryCount:
+        typeof (error as { retryCount?: unknown })?.retryCount === "number"
+          ? ((error as { retryCount: number }).retryCount ?? 0)
+          : 0,
       reasonCode: "UPSTREAM_ERROR",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,

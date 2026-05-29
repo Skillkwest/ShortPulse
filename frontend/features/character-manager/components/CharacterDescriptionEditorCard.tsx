@@ -181,7 +181,8 @@ export function CharacterDescriptionEditorCard({
               right: `${resolvedContainerPaddingXpx + 4}px`,
             }}
           >
-            Describe the character&apos;s look, features, and build.
+            A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim,
+            toned waist, a curvy lower body, and thick thighs.
           </p>
         ) : null}
         <textarea

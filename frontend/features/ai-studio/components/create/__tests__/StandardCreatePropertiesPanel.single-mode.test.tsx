@@ -209,6 +209,18 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(button).not.toHaveAttribute("aria-busy");
   });
 
+  it("does not render the inline warning hint when generate is disabled", () => {
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        isGenerateDisabled
+        guardrailReason="Enter a prompt to generate."
+      />
+    );
+
+    expect(screen.queryByText("Enter a prompt to generate.")).not.toBeInTheDocument();
+  });
+
   it("keeps the create mode toggle in the standard panel path", () => {
     render(
       <StandardCreatePropertiesPanel {...baseProps} createModeToggle={<span>mode-toggle</span>} />

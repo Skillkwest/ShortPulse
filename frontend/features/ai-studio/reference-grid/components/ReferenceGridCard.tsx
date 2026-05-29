@@ -232,18 +232,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     !hasMediaRenderError &&
     ((isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview)
   );
-  const shouldRenderImageElement = Boolean(
-    !hasMediaRenderError &&
-    ((isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError))
-  );
   const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
-  const shouldRenderAudioElement = Boolean(!hasMediaRenderError && audioPreviewUrl);
   const audioSourceMode = resolveOutputAudioSourceMode(item);
   const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
+  const normalizedPrimaryImageSrc = primaryImageSrc?.trim() || "";
   const primaryImageDataSrc = hasVideoPosterPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
+  const shouldRenderImageElement = Boolean(
+    !hasMediaRenderError &&
+    normalizedPrimaryImageSrc &&
+    ((isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError))
+  );
+  const shouldRenderAudioElement = Boolean(!hasMediaRenderError && audioPreviewUrl);
   const dragImageSrc =
     dragPreviewKind === "image" || hasVideoPosterPreview
-      ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
+      ? normalizedPrimaryImageSrc || primaryImageDataSrc || undefined
       : undefined;
   const videoDurationMediaUrl =
     item.mode === "video"
@@ -253,16 +255,22 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const perfAuditDebugLabel = React.useMemo(
     () =>
       [
-        formatPerfAuditDebugLine("img", primaryImageSrc ?? primaryImageDataSrc ?? null),
+        formatPerfAuditDebugLine("img", normalizedPrimaryImageSrc || primaryImageDataSrc || null),
         formatPerfAuditDebugLine(
           "drag",
           composerImageArtifact?.displayArtifactUrl ?? dragImageSrc ?? null
         ),
       ].join(" | "),
-    [composerImageArtifact?.displayArtifactUrl, dragImageSrc, primaryImageDataSrc, primaryImageSrc]
+    [
+      composerImageArtifact?.displayArtifactUrl,
+      dragImageSrc,
+      normalizedPrimaryImageSrc,
+      primaryImageDataSrc,
+    ]
   );
   const effectiveIsLoading = isLoading && !hasMediaRenderError;
   const shouldShowLoadingOverlay = effectiveIsLoading && loadingVisual !== "none";
+  const shouldShowMediaUnavailable = hasMediaRenderError && !effectiveIsLoading && !isFailing;
 
   React.useEffect(() => {
     setHasPosterImageError(false);
@@ -272,7 +280,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     cardPreviewUrl,
     item.id,
     primaryImageDataSrc,
-    primaryImageSrc,
+    normalizedPrimaryImageSrc,
     resolvedHoverVideoUrl,
     resolvedVideoPosterUrl,
   ]);
@@ -328,7 +336,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     if (typeof window === "undefined") return;
     if (!effectiveIsLoading || loadingVisual !== "hydrating") return;
     const hasRenderableMedia = Boolean(
-      primaryImageSrc ?? primaryImageDataSrc ?? resolvedHoverVideoUrl ?? cardPreviewUrl
+      normalizedPrimaryImageSrc || primaryImageDataSrc || resolvedHoverVideoUrl || cardPreviewUrl
     );
     if (!hasRenderableMedia) return;
     // Some preview URLs never emit a terminal load/error event in the grid runtime.
@@ -344,7 +352,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     loadingVisual,
     markLoaded,
     primaryImageDataSrc,
-    primaryImageSrc,
+    normalizedPrimaryImageSrc,
     resolvedHoverVideoUrl,
   ]);
 
@@ -353,10 +361,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       setHasPosterImageError(true);
       return;
     }
+    if (effectiveIsLoading) return;
     if (hasMediaRenderError) return;
     setHasMediaRenderError(true);
     markLoaded(item.id, { notifyAutoSave: false });
-  }, [hasMediaRenderError, hasVideoPosterPreview, item.id, markLoaded, resolvedHoverVideoUrl]);
+  }, [
+    effectiveIsLoading,
+    hasMediaRenderError,
+    hasVideoPosterPreview,
+    item.id,
+    markLoaded,
+    resolvedHoverVideoUrl,
+  ]);
 
   return (
     <div
@@ -420,8 +436,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onError={() => {
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
-            setHasMediaRenderError(true);
-            markLoaded(item.id, { notifyAutoSave: false });
+            if (!effectiveIsLoading) {
+              setHasMediaRenderError(true);
+              markLoaded(item.id, { notifyAutoSave: false });
+            }
           }}
           onPlay={() => {
             setIsHoverVideoVisible(true);
@@ -439,7 +457,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={primaryImageSrc}
+            src={normalizedPrimaryImageSrc}
             data-src={primaryImageDataSrc ?? undefined}
             alt=""
             className={`reference-card-image reference-card-image--cover ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
@@ -451,7 +469,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={primaryImageSrc}
+            src={normalizedPrimaryImageSrc}
             data-src={primaryImageDataSrc ?? undefined}
             alt=""
             aria-hidden="true"
@@ -477,8 +495,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onActivate={() => onSelectOutput(item.id)}
           onReady={() => markLoaded(item.id)}
           onError={() => {
-            setHasMediaRenderError(true);
-            markLoaded(item.id, { notifyAutoSave: false });
+            if (!effectiveIsLoading) {
+              setHasMediaRenderError(true);
+              markLoaded(item.id, { notifyAutoSave: false });
+            }
           }}
           eagerWaveformDecode
           onRequestPlay={onRequestAudioPlay}
@@ -494,7 +514,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           mediaKind="video"
         />
       ) : null}
-      {hasMediaRenderError && !isFailing ? (
+      {shouldShowMediaUnavailable ? (
         <div className="reference-card-media-unavailable" aria-label="Preview unavailable">
           <span>Preview unavailable</span>
         </div>

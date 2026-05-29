@@ -45,6 +45,7 @@ import type {
 import type { ResolveVoiceChangerInternalReferenceSource } from "./VoiceChangerSourceDropzone";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
+import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
 import { useAiStudioStylesRuntime } from "../hooks/useAiStudioStylesRuntime";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
@@ -692,6 +693,7 @@ export function AiStudioPageContent({
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [activeVoiceChangerSourceVideo, setActiveVoiceChangerSourceVideo] =
     React.useState<ActiveVoiceChangerSourceVideo | null>(null);
+  const { voiceChangerSource, handleVoiceChangerSourceChange } = useVoiceChangerSourceController();
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
     "standard" | "pulse"
@@ -1372,6 +1374,8 @@ export function AiStudioPageContent({
             <VoicesPropertiesPanel
               selectedTool={selectedTool}
               {...propertiesVoices}
+              voiceChangerSource={voiceChangerSource}
+              onVoiceChangerSourceChange={handleVoiceChangerSourceChange}
               onActiveVoiceChangerSourceVideoChange={(source) => {
                 setActiveVoiceChangerSourceVideo(source);
                 propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
@@ -1402,6 +1406,7 @@ export function AiStudioPageContent({
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,
       handleToolSelection,
+      handleVoiceChangerSourceChange,
       mediaLibraryPropertiesPanelContent,
       propertiesMusic,
       propertiesSoundEffects,
@@ -1410,6 +1415,7 @@ export function AiStudioPageContent({
       presetsPropertiesPanelContent,
       selectedTool,
       stylesPropertiesPanelContent,
+      voiceChangerSource,
       videoPropertiesPanelContent,
     ]
   );

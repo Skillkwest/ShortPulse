@@ -183,6 +183,66 @@ describe("MotionRecorderModal", () => {
     ).toBeNull();
   });
 
+  it("does not invent generic numbered cameras when the browser has not exposed labels yet", async () => {
+    const mediaStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
+    };
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mediaStream),
+        enumerateDevices: vi.fn().mockResolvedValue([
+          {
+            deviceId: "camera-1",
+            groupId: "group-camera-1",
+            kind: "videoinput",
+            label: "",
+            toJSON: () => ({}),
+          },
+          {
+            deviceId: "camera-2",
+            groupId: "group-camera-2",
+            kind: "videoinput",
+            label: "",
+            toJSON: () => ({}),
+          },
+        ]),
+      },
+    });
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async ({ name }: { name: string }) => ({
+          name,
+          state: "granted",
+          onchange: null,
+        })),
+      },
+    });
+
+    class MockMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+
+      start() {}
+      stop() {}
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
+    await screen.findByText("Live preview");
+    expect(screen.getByText("No labeled cameras detected yet.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Camera")).toBeNull();
+    expect(screen.queryByText("Camera 1")).toBeNull();
+    expect(screen.queryByText("Camera 2")).toBeNull();
+  });
+
   it("surfaces blocked camera recovery guidance and only opens settings on explicit action", async () => {
     Object.defineProperty(globalThis.navigator, "userAgent", {
       configurable: true,

@@ -58,7 +58,6 @@ export const useAiStudioReferenceExperienceRuntime = ({
     addLibraryPromptReference,
     addPastedMediaReference,
     addPastedPromptReference,
-    archivedOutputs,
     clearGenerationOutput,
     curatedReferenceIds,
     deleteOutput,
@@ -70,7 +69,6 @@ export const useAiStudioReferenceExperienceRuntime = ({
     handleQuickSlotDroppedMediaReference,
     handleQuickSlotLibraryPromptDrop,
     onReferenceOutputMediaLoaded,
-    outputs,
     projectId,
     railCanvasProps,
     referenceGridReadyOutputIds,
@@ -99,8 +97,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     isMediaStorageFull,
   });
   const referenceGridHookProps = useAiStudioReferenceGridProps({
-    outputs,
-    archivedOutputs,
+    readOutputsFromStore: true,
     activeOutputId,
     topNotice: isMediaStorageFull ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
     curatedReferenceIds,

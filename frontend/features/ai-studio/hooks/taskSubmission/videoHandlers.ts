@@ -38,6 +38,7 @@ import {
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "kieai.redpandaai.co",
+  "tempfile.redpandaai.co",
   "tempfile.aiquickdraw.com",
   "tempfileb.aiquickdraw.com",
 ] as const;

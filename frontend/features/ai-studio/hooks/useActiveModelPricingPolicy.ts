@@ -25,6 +25,43 @@ type UseActiveModelPricingPolicyResult = {
   refreshModelPricingPolicy: () => Promise<void>;
 };
 
+let modelPricingPolicyInFlightPromise: Promise<ModelPricingPolicySnapshot> | null = null;
+
+const loadSharedModelPricingPolicySnapshot = async (): Promise<ModelPricingPolicySnapshot> => {
+  if (modelPricingPolicyInFlightPromise) {
+    return await modelPricingPolicyInFlightPromise;
+  }
+
+  const request = (async () => {
+    const response = await fetchWithAuth("/api/pricing/model-policy", {
+      method: "GET",
+      shortpulseRetryNetworkOnce: true,
+    });
+    const payload = (await response.json().catch(() => ({}))) as
+      | ModelPricingPolicyApiResponse
+      | { error?: string };
+
+    if (!response.ok) {
+      throw new Error(
+        payload && "error" in payload
+          ? (payload.error ?? "Failed to load model pricing policy.")
+          : "Failed to load model pricing policy."
+      );
+    }
+
+    return (payload as ModelPricingPolicyApiResponse).modelPolicy;
+  })();
+
+  modelPricingPolicyInFlightPromise = request;
+  try {
+    return await request;
+  } finally {
+    if (modelPricingPolicyInFlightPromise === request) {
+      modelPricingPolicyInFlightPromise = null;
+    }
+  }
+};
+
 export const useActiveModelPricingPolicy = ({
   enabled,
 }: UseActiveModelPricingPolicyParams): UseActiveModelPricingPolicyResult => {
@@ -40,23 +77,7 @@ export const useActiveModelPricingPolicy = ({
     setModelPricingPolicyError(null);
 
     try {
-      const response = await fetchWithAuth("/api/pricing/model-policy", {
-        method: "GET",
-        shortpulseRetryNetworkOnce: true,
-      });
-      const payload = (await response.json().catch(() => ({}))) as
-        | ModelPricingPolicyApiResponse
-        | { error?: string };
-
-      if (!response.ok) {
-        throw new Error(
-          payload && "error" in payload
-            ? (payload.error ?? "Failed to load model pricing policy.")
-            : "Failed to load model pricing policy."
-        );
-      }
-
-      setModelPricingPolicySnapshot((payload as ModelPricingPolicyApiResponse).modelPolicy);
+      setModelPricingPolicySnapshot(await loadSharedModelPricingPolicySnapshot());
     } catch (error) {
       setModelPricingPolicyError(
         error instanceof Error ? error.message : "Failed to load model pricing policy."

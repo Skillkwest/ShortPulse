@@ -62,7 +62,6 @@ export function ExpertEditPromptComposer({
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
-  inlineGuardrailReason = null,
 }: ExpertEditPromptComposerProps) {
   return (
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
@@ -191,9 +190,6 @@ export function ExpertEditPromptComposer({
           disabled={inlineGenerateDisabled}
           cost={costCredits != null ? costCredits : "—"}
         />
-        {inlineGenerateDisabled && inlineGuardrailReason ? (
-          <div className="inline-warning-hint">{inlineGuardrailReason}</div>
-        ) : null}
       </div>
     </div>
   );

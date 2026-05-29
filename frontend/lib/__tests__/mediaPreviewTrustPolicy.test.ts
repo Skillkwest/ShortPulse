@@ -55,6 +55,15 @@ describe("mediaPreviewTrustPolicy", () => {
 
     expect(
       isTrustedMediaDirectPreviewUrl(
+        "https://tempfile.redpandaai.co/user-1/generations/videos/a.mp4",
+        { userId: "user-1", requireUserScope: false }
+      )
+    ).toBe(true);
+    expect(
+      canUseNextImageOptimizerForUrl("https://tempfile.redpandaai.co/user-1/images/a.png")
+    ).toBe(true);
+    expect(
+      isTrustedMediaDirectPreviewUrl(
         "https://tempfile.aiquickdraw.com/user-1/generations/videos/a.mp4",
         { userId: "user-1", requireUserScope: false }
       )

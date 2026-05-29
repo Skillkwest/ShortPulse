@@ -208,21 +208,13 @@ const shouldAutoResumePreview = (permissionState: CapturePermissionState): boole
   permissionState === "prompt" ||
   permissionState === "unsupported";
 
-const formatDeviceLabel = (
-  device: MediaDeviceInfo,
-  fallbackLabel: "Camera",
-  index: number
-): string => {
-  const trimmedLabel = device.label.trim();
-  if (trimmedLabel) return trimmedLabel;
-  return `${fallbackLabel} ${index + 1}`;
-};
-
 const buildVideoDeviceOptions = (devices: MediaDeviceInfo[]): DeviceOption[] => {
-  const filtered = devices.filter((device) => device.kind === "videoinput");
-  return filtered.map((device, index) => ({
+  const filtered = devices.filter(
+    (device) => device.kind === "videoinput" && device.label.trim().length > 0
+  );
+  return filtered.map((device) => ({
     deviceId: device.deviceId,
-    label: formatDeviceLabel(device, "Camera", index),
+    label: device.label.trim(),
   }));
 };
 
@@ -750,6 +742,18 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     captureError === "Camera access is blocked.";
   const isShowingPlayback = Boolean(recordedClipUrl);
   const modalTitle = isShowingPlayback ? "Review recorded clip" : "Record a motion clip";
+  const cameraPickerEmptyMessage = React.useMemo(() => {
+    if (isRequestingAccess) {
+      return "Detecting cameras...";
+    }
+    if (!hasRequestedCameraAccess) {
+      return "Click record to allow camera access and load your available cameras.";
+    }
+    if (cameraPermissionState === "denied") {
+      return "Allow camera access to load your available cameras.";
+    }
+    return "No labeled cameras detected yet.";
+  }, [cameraPermissionState, hasRequestedCameraAccess, isRequestingAccess]);
 
   if (!isOpen) {
     return null;
@@ -858,7 +862,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                     </select>
                   ) : (
                     <div className="motion-recorder-device-empty-state" aria-live="polite">
-                      No cameras detected yet.
+                      {cameraPickerEmptyMessage}
                     </div>
                   )}
                 </label>

@@ -178,7 +178,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(generateButtons.every((button) => button.hasAttribute("disabled"))).toBe(true);
   });
 
-  it("shows the guardrail reason above disabled output generate pills", () => {
+  it("does not show a detached guardrail reason above disabled output generate pills", () => {
     const message = "Select a model before generating.";
 
     render(
@@ -201,7 +201,7 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 
   it("hides inline history generate controls when the chat panel is configured to suppress them", () => {

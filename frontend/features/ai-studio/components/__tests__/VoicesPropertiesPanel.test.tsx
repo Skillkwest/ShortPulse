@@ -7,6 +7,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
+import { useVoiceChangerSourceController } from "../../hooks/useVoiceChangerSourceController";
 import {
   buildVoiceoverElevenV3RequestConfig,
   hardcodedVoiceGenerationDefaults,
@@ -64,6 +65,17 @@ const openCreateVoiceModal = async () => {
   await openVoicesLibraryModal();
   fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
   return await screen.findByRole("dialog", { name: "Create New Voice" });
+};
+
+const createDeferred = <T,>() => {
+  let resolveValue!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolveValue = resolve;
+  });
+  return {
+    promise,
+    resolve: resolveValue,
+  };
 };
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
@@ -820,16 +832,6 @@ describe("VoicesPropertiesPanel", () => {
       name: string;
       size: number;
     };
-    const createDeferred = <T,>() => {
-      let resolveValue!: (value: T) => void;
-      const promise = new Promise<T>((resolve) => {
-        resolveValue = resolve;
-      });
-      return {
-        promise,
-        resolve: resolveValue,
-      };
-    };
     const uploadDeferred = createDeferred<UploadedVideoSource>();
     const extractDeferred = createDeferred<ExtractedAudioSource>();
 
@@ -892,6 +894,93 @@ describe("VoicesPropertiesPanel", () => {
     await waitFor(() => {
       expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("keeps the voice changer source loaded across panel unmounts within the page session", async () => {
+    type UploadedVideoSource = {
+      storagePath: string;
+      signedUrl: string;
+      mimeType: string;
+      name: string;
+      size: number;
+    };
+    type ExtractedAudioSource = {
+      storagePath: string;
+      signedUrl: string;
+      mimeType: "audio/wav";
+      name: string;
+      size: number;
+    };
+
+    const uploadDeferred = createDeferred<UploadedVideoSource>();
+    const extractDeferred = createDeferred<ExtractedAudioSource>();
+
+    uploadVoiceChangerSourceFileMock.mockImplementationOnce(() => uploadDeferred.promise);
+    extractVoiceChangerVideoSourceMock.mockImplementationOnce(() => extractDeferred.promise);
+
+    const SessionHarness = () => {
+      const [isVoiceChangerVisible, setIsVoiceChangerVisible] = React.useState(true);
+      const { voiceChangerSource, handleVoiceChangerSourceChange } =
+        useVoiceChangerSourceController();
+
+      return (
+        <div>
+          <button type="button" onClick={() => setIsVoiceChangerVisible(true)}>
+            Open Voice Changer
+          </button>
+          <button type="button" onClick={() => setIsVoiceChangerVisible(false)}>
+            Open Create
+          </button>
+          {isVoiceChangerVisible ? (
+            <VoicesPropertiesPanel
+              selectedTool="voice-changer"
+              voiceChangerSource={voiceChangerSource}
+              onVoiceChangerSourceChange={handleVoiceChangerSourceChange}
+            />
+          ) : (
+            <div>Create panel</div>
+          )}
+        </div>
+      );
+    };
+
+    const { container } = render(<SessionHarness />);
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    const file = new File(["video"], "background-demo.mp4", { type: "video/mp4" });
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await screen.findByText("Preparing voice sample from video");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Create" }));
+    expect(screen.getByText("Create panel")).toBeInTheDocument();
+    expect(screen.queryByText("Preparing voice sample from video")).toBeNull();
+
+    uploadDeferred.resolve({
+      storagePath: "user-1/voice-changer/source-video/background-demo.mp4",
+      signedUrl: "https://signed.example/background-demo.mp4",
+      mimeType: "video/mp4",
+      name: "background-demo.mp4",
+      size: 5,
+    });
+    extractDeferred.resolve({
+      storagePath: "user-1/voice-changer/staged-audio/background-demo.wav",
+      signedUrl: "https://signed.example/background-demo.wav",
+      mimeType: "audio/wav",
+      name: "background-demo.wav",
+      size: 128,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Voice Changer" }));
+
+    await screen.findByText("Ready for conversion");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
   it("records a local audio source from the voice changer recorder", async () => {

@@ -327,4 +327,54 @@ describe("POST /api/kie/upload-url", () => {
       mimeType: "image/png",
     });
   });
+
+  it("logs upstream shape when Kie returns success without a file URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => "<html><body>temporary upstream response</body></html>",
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "image/png",
+        "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        "x-shortpulse-upload-filename": "local-image.png",
+      },
+      body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie upload failed",
+      details: "Upload succeeded but returned no file URL.",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "kie-upload-url",
+        user: { id: "user-1", email: "user@example.com" },
+        metadata: expect.objectContaining({
+          kie_upload_failure: "missing_uploaded_url",
+          kie_upload_transport: "binary_stream_upload",
+          kie_upstream_status: 200,
+          kie_upstream_content_type: "text/html; charset=utf-8",
+          kie_upstream_body_format: "html_like",
+          kie_upstream_parse_source: "text",
+          kie_upstream_json_parsed: false,
+          kie_upstream_top_level_keys: [],
+          kie_upstream_data_keys: [],
+          kie_upstream_has_message: false,
+          kie_upstream_has_data: false,
+          kie_upstream_has_download_url: false,
+          kie_upstream_has_file_url: false,
+        }),
+      })
+    );
+  });
 });

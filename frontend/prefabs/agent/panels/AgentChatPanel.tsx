@@ -165,7 +165,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   highlightLatestAssistantOnly = false,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
-  outputGenerateGuardrailReason = null,
   hideOutputGenerateControls = false,
   preserveOutputGenerateLayoutWhenControlsHidden = false,
 }) => {
@@ -195,9 +194,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
   const shouldRenderThinkingInHistory =
     shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
-  const inlineOutputGenerateGuardrailReason = hideOutputGenerateControls
-    ? null
-    : outputGenerateGuardrailReason;
   const latestMessage = messages[messages.length - 1] ?? null;
   const latestMessageScrollKey = latestMessage
     ? [
@@ -575,9 +571,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               </button>
             ) : null}
           </div>
-          {disableOutputGenerate && inlineOutputGenerateGuardrailReason ? (
-            <div className="inline-warning-hint">{inlineOutputGenerateGuardrailReason}</div>
-          ) : null}
           {historyHeaderContent ? (
             <div className="agent-chat-history-header">{historyHeaderContent}</div>
           ) : null}

@@ -170,4 +170,56 @@ describe("useCreatePulseBuiltInCatalog", () => {
     expect(result.current.degraded).toBe(true);
     expect(result.current.isAuthoritative).toBe(false);
   });
+
+  it("dedupes overlapping built-in catalog loads across concurrent hook mounts", async () => {
+    let resolveResponse: ((response: Response) => void) | null = null;
+    vi.mocked(fetchWithAuth).mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveResponse = resolve;
+      })
+    );
+
+    const first = renderHook(() => useCreatePulseBuiltInCatalog());
+    const second = renderHook(() => useCreatePulseBuiltInCatalog());
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.(
+      new Response(
+        JSON.stringify({
+          source: "control_plane",
+          degraded: false,
+          builtInDefinitions: [
+            {
+              presetId: "catalog_test",
+              label: "Catalog Test",
+              description: "Server catalog entry.",
+              systemInstructions: "Use the control-plane catalog.",
+              runtimeMode: "workflow_gpt",
+              activationMode: "activate_and_start",
+              outputMode: "apply_prompt",
+              memoryPolicy: "session",
+              starterAssistantMessage: null,
+              workflowStageHints: null,
+              artifactTarget: "image_prompt",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.loading).toBe(false);
+      expect(second.result.current.loading).toBe(false);
+    });
+
+    expect(first.result.current.isAuthoritative).toBe(true);
+    expect(second.result.current.isAuthoritative).toBe(true);
+  });
 });

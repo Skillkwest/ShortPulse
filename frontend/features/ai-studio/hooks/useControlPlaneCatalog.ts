@@ -25,6 +25,32 @@ export type UseControlPlaneCatalogResult<T> = {
   refresh: () => Promise<ControlPlaneCatalogLoadResult<T> | null>;
 };
 
+type CatalogLoader = () => Promise<ControlPlaneCatalogLoadResult<unknown>>;
+
+const controlPlaneCatalogInFlightLoads = new WeakMap<
+  CatalogLoader,
+  Promise<ControlPlaneCatalogLoadResult<unknown>>
+>();
+
+const loadSharedControlPlaneCatalog = async <T>(
+  loadCatalog: () => Promise<ControlPlaneCatalogLoadResult<T>>
+): Promise<ControlPlaneCatalogLoadResult<T>> => {
+  const existing = controlPlaneCatalogInFlightLoads.get(loadCatalog);
+  if (existing) {
+    return (await existing) as ControlPlaneCatalogLoadResult<T>;
+  }
+
+  const request = loadCatalog() as Promise<ControlPlaneCatalogLoadResult<unknown>>;
+  controlPlaneCatalogInFlightLoads.set(loadCatalog, request);
+  try {
+    return (await request) as ControlPlaneCatalogLoadResult<T>;
+  } finally {
+    if (controlPlaneCatalogInFlightLoads.get(loadCatalog) === request) {
+      controlPlaneCatalogInFlightLoads.delete(loadCatalog);
+    }
+  }
+};
+
 export const useControlPlaneCatalog = <T>({
   enabled = true,
   getSeededValue,
@@ -55,7 +81,7 @@ export const useControlPlaneCatalog = <T>({
 
     setLoading(true);
     try {
-      const nextCatalog = await loadCatalog();
+      const nextCatalog = await loadSharedControlPlaneCatalog(loadCatalog);
       setValue(nextCatalog.value);
       setSource(nextCatalog.source);
       setDegraded(nextCatalog.degraded);

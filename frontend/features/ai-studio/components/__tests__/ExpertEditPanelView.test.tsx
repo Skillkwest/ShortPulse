@@ -431,7 +431,7 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 
   it("keeps the inline generate button enabled while edit generation is busy", () => {

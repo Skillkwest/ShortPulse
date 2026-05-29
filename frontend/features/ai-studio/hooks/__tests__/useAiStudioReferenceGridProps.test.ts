@@ -136,6 +136,29 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(restoreAllArchivedOutputs).toHaveBeenCalledTimes(1);
   });
 
+  it("omits direct output collections when live grid reads from the selector store", () => {
+    const archivedOutput: StudioOutput = {
+      ...output,
+      id: "archived-1",
+      prompt: "Archived",
+      archivedAt: "2026-02-17T00:00:00.000Z",
+      archiveReason: "cleanup",
+    };
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          archivedOutputs: [archivedOutput],
+          readOutputsFromStore: true,
+        })
+      )
+    );
+
+    expect(result.current.outputs).toBeUndefined();
+    expect(result.current.archivedOutputs).toBeUndefined();
+    expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
+    expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
+  });
+
   it("maps curated callbacks and reorder payloads", () => {
     const addCuratedReference = vi.fn();
     const removeCuratedReference = vi.fn();

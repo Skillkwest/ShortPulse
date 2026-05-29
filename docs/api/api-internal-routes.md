@@ -178,7 +178,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Legacy AI Studio session-persistence env flags are ignored by current client runtime policy.
   - `/api/ai/sessions/*` remains auth-guarded but returns retired responses instead of saving/restoring/listing snapshots.
 - Media preview trust policy:
-  - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts; extends built-in trusted provider result hosts such as `tempfile.aiquickdraw.com`)
+  - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts; extends built-in trusted provider result hosts such as `tempfile.redpandaai.co` and legacy `tempfile.aiquickdraw.com`)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (client-side trusted hosts for optimizer decisions)
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; mirror server value)

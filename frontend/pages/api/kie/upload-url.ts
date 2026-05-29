@@ -35,6 +35,25 @@ type ErrorResponse = {
   details?: string;
 };
 
+type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_upload";
+
+type UploadDiagnostics = {
+  transport: UploadTransport;
+  contentType: string | null;
+  bodyFormat: "empty" | "json_like" | "html_like" | "text_like" | "unavailable";
+  bodyLength: number | null;
+  parseSource: "text" | "json" | "none";
+  jsonParsed: boolean;
+  topLevelKeys: string[];
+  dataKeys: string[];
+  hasMessage: boolean;
+  hasData: boolean;
+  hasDownloadUrl: boolean;
+  hasFileUrl: boolean;
+  hasFileName: boolean;
+  hasMimeType: boolean;
+};
+
 class KieUploadRequestError extends Error {
   readonly statusCode: number;
 
@@ -187,6 +206,101 @@ const readUploadPayload = (
   };
 };
 
+const responseHeaderValue = (headers: Response["headers"], name: string): string | null => {
+  if (!headers || typeof headers.get !== "function") return null;
+  return asNonEmptyString(headers.get(name));
+};
+
+const objectKeys = (value: unknown): string[] => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.keys(value as Record<string, unknown>).slice(0, 10);
+};
+
+const classifyRawBody = (
+  rawText: string | null,
+  jsonParsed: boolean
+): UploadDiagnostics["bodyFormat"] => {
+  if (rawText === null) {
+    return jsonParsed ? "json_like" : "unavailable";
+  }
+
+  const trimmed = rawText.trim();
+  if (!trimmed) return "empty";
+  if (jsonParsed) return "json_like";
+  if (trimmed.startsWith("<")) return "html_like";
+  return "text_like";
+};
+
+const readUploadResponse = async ({
+  upstream,
+  transport,
+}: {
+  upstream: Response;
+  transport: UploadTransport;
+}) => {
+  let payload: unknown = {};
+  let rawText: string | null = null;
+  let parseSource: UploadDiagnostics["parseSource"] = "none";
+  let jsonParsed = false;
+
+  if (typeof upstream.text === "function") {
+    parseSource = "text";
+    rawText = await upstream.text().catch(() => null);
+    if (typeof rawText === "string" && rawText.trim().length > 0) {
+      try {
+        payload = JSON.parse(rawText);
+        jsonParsed = true;
+      } catch {
+        payload = {};
+      }
+    }
+  } else if (typeof upstream.json === "function") {
+    parseSource = "json";
+    try {
+      payload = await upstream.json();
+      jsonParsed = true;
+    } catch {
+      payload = {};
+    }
+  }
+
+  const parsed = readUploadPayload(payload);
+  const payloadObject =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as {
+          msg?: unknown;
+          data?: {
+            downloadUrl?: unknown;
+            fileUrl?: unknown;
+            fileName?: unknown;
+            mimeType?: unknown;
+          };
+        })
+      : null;
+  const dataPayload = payloadObject?.data;
+
+  return {
+    upstream,
+    parsed,
+    diagnostics: {
+      transport,
+      contentType: responseHeaderValue(upstream.headers, "content-type"),
+      bodyFormat: classifyRawBody(rawText, jsonParsed),
+      bodyLength: rawText === null ? null : rawText.length,
+      parseSource,
+      jsonParsed,
+      topLevelKeys: objectKeys(payloadObject),
+      dataKeys: objectKeys(dataPayload),
+      hasMessage: asNonEmptyString(payloadObject?.msg) !== null,
+      hasData: !!dataPayload && typeof dataPayload === "object" && !Array.isArray(dataPayload),
+      hasDownloadUrl: asNonEmptyString(dataPayload?.downloadUrl) !== null,
+      hasFileUrl: asNonEmptyString(dataPayload?.fileUrl) !== null,
+      hasFileName: asNonEmptyString(dataPayload?.fileName) !== null,
+      hasMimeType: asNonEmptyString(dataPayload?.mimeType) !== null,
+    },
+  };
+};
+
 const uploadFileUrlToKie = async ({
   apiKey,
   fileUrl,
@@ -211,9 +325,10 @@ const uploadFileUrlToKie = async ({
     }),
   });
 
-  const payload = await upstream.json().catch(() => ({}));
-  const parsed = readUploadPayload(payload);
-  return { upstream, parsed };
+  return await readUploadResponse({
+    upstream,
+    transport: "url_upload",
+  });
 };
 
 const isRedirectStatus = (status: number): boolean =>
@@ -301,9 +416,10 @@ const uploadFileStreamToKie = async ({
       body: formData,
     });
 
-    const payload = await upstream.json().catch(() => ({}));
-    const parsed = readUploadPayload(payload);
-    return { upstream, parsed };
+    return await readUploadResponse({
+      upstream,
+      transport: "remote_stream_upload",
+    });
   } finally {
     globalThis.clearTimeout(timeoutId);
   }
@@ -343,9 +459,10 @@ const uploadFileBufferToKie = async ({
     body: formData,
   });
 
-  const payload = await upstream.json().catch(() => ({}));
-  const parsed = readUploadPayload(payload);
-  return { upstream, parsed };
+  return await readUploadResponse({
+    upstream,
+    transport: "binary_stream_upload",
+  });
 };
 
 const readRawRequestBody = async (req: NextApiRequest): Promise<Buffer> =>
@@ -448,6 +565,30 @@ export default async function handler(
 
     const uploadedUrl = result.parsed.uploadedUrl;
     if (!uploadedUrl) {
+      await logApiRouteException({
+        req,
+        error: new Error("Kie upload succeeded without returned file URL"),
+        routeLabel: "kie-upload-url",
+        user,
+        metadata: {
+          kie_upload_failure: "missing_uploaded_url",
+          kie_upload_transport: result.diagnostics.transport,
+          kie_upstream_status: result.upstream.status,
+          kie_upstream_content_type: result.diagnostics.contentType,
+          kie_upstream_body_format: result.diagnostics.bodyFormat,
+          kie_upstream_body_length: result.diagnostics.bodyLength,
+          kie_upstream_parse_source: result.diagnostics.parseSource,
+          kie_upstream_json_parsed: result.diagnostics.jsonParsed,
+          kie_upstream_top_level_keys: result.diagnostics.topLevelKeys,
+          kie_upstream_data_keys: result.diagnostics.dataKeys,
+          kie_upstream_has_message: result.diagnostics.hasMessage,
+          kie_upstream_has_data: result.diagnostics.hasData,
+          kie_upstream_has_download_url: result.diagnostics.hasDownloadUrl,
+          kie_upstream_has_file_url: result.diagnostics.hasFileUrl,
+          kie_upstream_has_file_name: result.diagnostics.hasFileName,
+          kie_upstream_has_mime_type: result.diagnostics.hasMimeType,
+        },
+      });
       return res.status(502).json({
         error: "Kie upload failed",
         details: "Upload succeeded but returned no file URL.",

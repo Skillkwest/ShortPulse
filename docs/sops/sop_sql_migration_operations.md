@@ -175,6 +175,17 @@ Current set:
 - `123_add_audio_companion_art_projection_fields.sql`
 - `124_add_generation_projection_save_error.sql`
 - `125_add_expert_edit_system_preset_control_plane.sql`
+- `126_seed_standard_runtime_prompt.sql`
+- `127_add_generation_projection_transcript_text.sql`
+- `128_add_user_owned_custom_voices.sql`
+- `129_backfill_user_owned_custom_voices_from_preferences.sql`
+- `130_quarantine_legacy_migrated_custom_voice_ownership.sql`
+- `131_add_user_issue_reports.sql`
+- `132_harden_public_data_api_default_privileges.sql`
+- `133_restore_model_pricing_policy_function_grants.sql`
+- `135_add_media_folder_count_rpcs.sql`
+- `136_restore_global_media_folder_authority.sql`
+- `137_retire_project_media_folder_authority.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

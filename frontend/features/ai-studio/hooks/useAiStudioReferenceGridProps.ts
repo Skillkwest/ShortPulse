@@ -10,9 +10,12 @@ import type {
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
 
+const EMPTY_ARCHIVED_OUTPUTS: StudioOutput[] = [];
+
 export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
+  readOutputsFromStore?: boolean;
   activeOutputId: string | null;
   topNotice?: string | null;
   curatedReferenceIds?: string[];
@@ -48,7 +51,8 @@ export type UseAiStudioReferenceGridPropsParams = {
  */
 export const useAiStudioReferenceGridProps = ({
   outputs,
-  archivedOutputs = [],
+  archivedOutputs,
+  readOutputsFromStore = false,
   activeOutputId,
   topNotice = null,
   curatedReferenceIds = [],
@@ -74,10 +78,17 @@ export const useAiStudioReferenceGridProps = ({
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
 }: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract => {
+  const directOutputs = readOutputsFromStore ? undefined : outputs;
+  const directArchivedOutputs = readOutputsFromStore
+    ? undefined
+    : outputs === undefined && archivedOutputs === undefined
+      ? undefined
+      : (archivedOutputs ?? EMPTY_ARCHIVED_OUTPUTS);
+
   return useMemo(
     () => ({
-      outputs,
-      archivedOutputs,
+      outputs: directOutputs,
+      archivedOutputs: directArchivedOutputs,
       activeOutputId,
       topNotice,
       curatedReferenceIds,
@@ -111,7 +122,8 @@ export const useAiStudioReferenceGridProps = ({
     [
       activeOutputId,
       addCuratedReference,
-      archivedOutputs,
+      directArchivedOutputs,
+      directOutputs,
       curatedReferenceIds,
       removedFromAllRefsIds,
       topNotice,
@@ -128,7 +140,6 @@ export const useAiStudioReferenceGridProps = ({
       isMediaStorageFull,
       linkedPromptReferenceIds,
       onReferenceOutputMediaLoaded,
-      outputs,
       removeCuratedReference,
       reorderCuratedReference,
       restoreAllArchivedOutputs,

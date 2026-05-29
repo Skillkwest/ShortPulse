@@ -3,6 +3,7 @@ import { Power, Trash } from "phosphor-react";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
+import { resolveAgentComposerPanelDropKind } from "../promptStep/agentComposerDrop";
 import { CreatePulsePresetPanel } from "./CreatePulsePresetPanel";
 import {
   CreatePulsePreferenceProvider,
@@ -95,6 +96,44 @@ const PulseCreatePanelViewContent = ({
     onClearAgentChat: undefined,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
+  const isTargetInsideComposerInputShell = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) =>
+      event.target instanceof Element &&
+      Boolean(event.target.closest(".agent-composer-input-shell")),
+    []
+  );
+  const handlePanelMediaDragEnter = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isTargetInsideComposerInputShell(event)) return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      promptStepProps.onAgentAttachmentDragEnter?.(event);
+    },
+    [isTargetInsideComposerInputShell, promptStepProps]
+  );
+  const handlePanelMediaDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isTargetInsideComposerInputShell(event)) return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      promptStepProps.onAgentAttachmentDragOver?.(event);
+    },
+    [isTargetInsideComposerInputShell, promptStepProps]
+  );
+  const handlePanelMediaDragLeave = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isTargetInsideComposerInputShell(event)) return;
+      if (!promptStepProps.agentDropActive) return;
+      promptStepProps.onAgentAttachmentDragLeave?.(event);
+    },
+    [isTargetInsideComposerInputShell, promptStepProps]
+  );
+  const handlePanelMediaDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isTargetInsideComposerInputShell(event)) return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      promptStepProps.onAgentAttachmentDrop?.(event);
+    },
+    [isTargetInsideComposerInputShell, promptStepProps]
+  );
 
   const promptAndControls = (
     <>
@@ -167,7 +206,15 @@ const PulseCreatePanelViewContent = ({
           </div>
         </div>
         <div className="create-composer-right-panel">
-          <div className="create-composer-right-panel-inner">
+          <div
+            className={`create-composer-right-panel-inner ${
+              promptStepProps.agentDropActive ? "is-drop-active" : ""
+            }`.trim()}
+            onDragEnter={handlePanelMediaDragEnter}
+            onDragOver={handlePanelMediaDragOver}
+            onDragLeave={handlePanelMediaDragLeave}
+            onDrop={handlePanelMediaDrop}
+          >
             <div className="create-composer-right-panel-topbar">
               <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
               <div className="create-composer-topbar-actions">

@@ -2,6 +2,7 @@ import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload
 import {
   extractDragDropPayload,
   extractPromptDropText,
+  getNormalizedTransferTypes,
   looksLikeVideoUrl,
   normalizeReferenceTransferUrlCandidate,
 } from "../../utils/dragDrop";
@@ -11,6 +12,29 @@ type AgentComposerDropResolution = {
   droppedImageUrl: string | null;
   isVideoReference: boolean;
 };
+
+export type AgentComposerPanelDropKind = "none" | "text" | "media";
+
+const MEDIA_HINT_TRANSFER_TYPES = new Set([
+  "files",
+  "image/url",
+  "text/reference-drag-token",
+  "text/reference-id",
+  "text/reference-output-id",
+  "text/reference-media-id",
+  "text/reference-origin",
+  "text/reference-source-surface",
+  "text/reference-url",
+  "text/reference-render-url",
+  "text/uri-list",
+  "application/x-shortpulse-reference-drag-token",
+  "application/x-shortpulse-composer-image-drop-token",
+  "application/x-shortpulse-composer-image-drop",
+  "text/reference-composer-image-drop-token",
+  "text/reference-composer-image-payload",
+]);
+
+const PROMPT_HINT_TRANSFER_TYPES = new Set(["text/prompt", "text/plain", "text"]);
 
 export const insertDroppedPromptTextAtSelection = ({
   composerText,
@@ -56,4 +80,40 @@ export const resolveAgentComposerDrop = (
     droppedImageUrl,
     isVideoReference,
   };
+};
+
+export const resolveAgentComposerPanelDropKind = (
+  transfer: DataTransfer | null | undefined
+): AgentComposerPanelDropKind => {
+  if (!transfer) return "none";
+
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+  if (mediaLibraryPayload?.kind === "libraryMedia") return "media";
+  if (mediaLibraryPayload?.kind === "libraryPrompt") return "text";
+
+  const normalizedTransferTypes = getNormalizedTransferTypes(transfer);
+  const hasStrongMediaTransferHints = normalizedTransferTypes.some((type) =>
+    MEDIA_HINT_TRANSFER_TYPES.has(type)
+  );
+  if (hasStrongMediaTransferHints) return "media";
+
+  const payload = extractDragDropPayload(transfer);
+  if (payload?.imageFile || payload?.imageUrl) return "media";
+  if (
+    payload?.mediaKind === "image" ||
+    payload?.mediaKind === "video" ||
+    payload?.mediaKind === "audio"
+  ) {
+    return "media";
+  }
+
+  const hasPromptTransferHints = normalizedTransferTypes.some((type) =>
+    PROMPT_HINT_TRANSFER_TYPES.has(type)
+  );
+  if (hasPromptTransferHints) {
+    const droppedPromptText = extractPromptDropText(transfer);
+    if (droppedPromptText) return "text";
+  }
+
+  return extractPromptDropText(transfer) ? "text" : "none";
 };

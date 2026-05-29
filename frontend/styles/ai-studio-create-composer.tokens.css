@@ -150,6 +150,13 @@
   box-sizing: border-box;
 }
 
+.create-composer-panel .create-composer-right-panel-inner.is-drop-active {
+  background:
+    linear-gradient(rgba(14, 19, 24, 0.94), rgba(14, 19, 24, 0.94)),
+    radial-gradient(circle at top, rgba(52, 200, 255, 0.18), transparent 56%);
+  box-shadow: inset 0 0 0 1px rgba(52, 200, 255, 0.42);
+}
+
 .create-composer-panel .create-composer-right-panel-topbar {
   display: flex;
   justify-content: flex-end;

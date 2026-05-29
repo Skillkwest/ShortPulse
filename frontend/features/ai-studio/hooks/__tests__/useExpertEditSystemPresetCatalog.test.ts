@@ -142,4 +142,48 @@ describe("useExpertEditSystemPresetCatalog", () => {
     expect(result.current.degraded).toBe(true);
     expect(result.current.isAuthoritative).toBe(false);
   });
+
+  it("dedupes overlapping preset catalog loads across concurrent hook mounts", async () => {
+    let resolveResponse: ((response: Response) => void) | null = null;
+    vi.mocked(fetchWithAuth).mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveResponse = resolve;
+      })
+    );
+
+    const first = renderHook(() => useExpertEditSystemPresetCatalog());
+    const second = renderHook(() => useExpertEditSystemPresetCatalog());
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.(
+      new Response(
+        JSON.stringify({
+          source: "control_plane",
+          degraded: false,
+          presetDefinitions: [
+            {
+              presetId: "style_test",
+              label: "Style Test",
+              prompt: "Use the control-plane catalog.",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.loading).toBe(false);
+      expect(second.result.current.loading).toBe(false);
+    });
+
+    expect(first.result.current.isAuthoritative).toBe(true);
+    expect(second.result.current.isAuthoritative).toBe(true);
+  });
 });

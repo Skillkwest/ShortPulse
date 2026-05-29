@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
-const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = ["tempfile.aiquickdraw.com"];
+const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = [
+  "tempfile.redpandaai.co",
+  "tempfile.aiquickdraw.com",
+];
 
 const normalizeHostname = (value) => value.trim().toLowerCase().replace(/\.$/, "");
 

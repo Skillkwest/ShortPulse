@@ -95,4 +95,35 @@ describe("useActiveModelPricingPolicy", () => {
     expect(result.current.modelPricingPolicy).toEqual(previousPolicy);
     expect(result.current.modelPricingPolicyError).toBe("network down");
   });
+
+  it("dedupes overlapping model pricing loads across concurrent hook mounts", async () => {
+    let resolveResponse: ((response: Response) => void) | null = null;
+    fetchWithAuthMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveResponse = resolve;
+      })
+    );
+
+    const first = renderHook(() => useActiveModelPricingPolicy({ enabled: true }));
+    const second = renderHook(() => useActiveModelPricingPolicy({ enabled: true }));
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.(
+      new Response(JSON.stringify(createPolicyPayload()), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.modelPricingPolicyLoading).toBe(false);
+      expect(second.result.current.modelPricingPolicyLoading).toBe(false);
+    });
+
+    expect(first.result.current.modelPricingPolicyReady).toBe(true);
+    expect(second.result.current.modelPricingPolicyReady).toBe(true);
+  });
 });

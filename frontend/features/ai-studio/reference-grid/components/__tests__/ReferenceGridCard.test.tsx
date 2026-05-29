@@ -309,6 +309,59 @@ describe("ReferenceGridCard", () => {
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
+  it("shows a hydrating placeholder instead of rendering an image before the source is ready", () => {
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/hydrating.png",
+          }),
+          isLoading: true,
+          loadingVisual: "hydrating",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/hydrating.png",
+          imageSrc: undefined,
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-card-image")).toBeNull();
+    expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
+    expect(screen.queryByText("Preview unavailable")).toBeNull();
+  });
+
+  it("keeps hydrating image errors from becoming terminal unavailable placeholders", () => {
+    const markLoaded = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/hydrating.png",
+          }),
+          isLoading: true,
+          loadingVisual: "hydrating",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/hydrating.png",
+          imageSrc: "https://example.com/hydrating.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const image = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+
+    fireEvent.error(image as HTMLImageElement);
+
+    expect(screen.queryByText("Preview unavailable")).toBeNull();
+    expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
+    expect(markLoaded).not.toHaveBeenCalled();
+  });
+
   it("shows a controlled unavailable placeholder when an image preview fails", () => {
     const markLoaded = vi.fn();
     const { container } = render(

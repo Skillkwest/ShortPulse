@@ -558,6 +558,35 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     );
   });
 
+  it("reuses current Kie RedPanda temp-hosted frame URLs without re-uploading", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [
+        "https://tempfile.redpandaai.co/shortpulse/kie-video/images/first-frame.png",
+        "https://tempfile.redpandaai.co/shortpulse/kie-video/images/last-frame.png",
+      ],
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      aspect: "9:16",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "first-last",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        first_frame_url:
+          "https://tempfile.redpandaai.co/shortpulse/kie-video/images/first-frame.png",
+        last_frame_url: "https://tempfile.redpandaai.co/shortpulse/kie-video/images/last-frame.png",
+      })
+    );
+  });
+
   it("preserves selected 480p resolution for Seedance 2 submits", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,

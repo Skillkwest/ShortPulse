@@ -6,7 +6,10 @@
 const MEDIA_BUCKET = "media_library";
 const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
-const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = ["tempfile.aiquickdraw.com"];
+const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = [
+  "tempfile.redpandaai.co",
+  "tempfile.aiquickdraw.com",
+];
 
 const normalizeHostname = (value: string): string => value.trim().toLowerCase().replace(/\.$/, "");
 

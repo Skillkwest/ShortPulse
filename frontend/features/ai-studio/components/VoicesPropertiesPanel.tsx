@@ -16,6 +16,7 @@ import {
 } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
 import {
   resetSharedVoicesGridStore,
   useSharedVoicesGrid,
@@ -34,14 +35,10 @@ import {
 } from "./VoiceChangerSourceDropzone";
 import { VoicesLibraryModal } from "./VoicesLibraryModal";
 import {
-  extractVoiceChangerVideoSource,
   resolveVoiceChangerMediaDurationMs,
-  resolveVoiceChangerVideoAspect,
   resolveVoiceChangerSourceStoragePath,
   signVoiceSourceStoragePath,
-  signVoiceChangerStoragePath,
   uploadVoiceCloneSourceFile,
-  uploadVoiceChangerSourceFile,
 } from "../utils/voiceChangerSourceAsset";
 import {
   clearExclusiveSoundPlayback,
@@ -83,8 +80,6 @@ const maxVoiceChangerBottomSectionHeightPx = 600;
 const fixedVoiceChangerBottomSectionHeightPx = 600;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
-const voiceChangerAudioFilenamePattern = /\.(?:mp3|wav|m4a|aac|flac|ogg|oga)(?:$|[?#])/i;
-const voiceChangerVideoFilenamePattern = /\.(?:mp4|mov|m4v)(?:$|[?#])/i;
 const cloneVoiceSourceDropzoneCopy = {
   inputAriaLabel: "Voice clone source file input",
   dropzoneAriaLabel: "Voice clone source drop zone",
@@ -150,22 +145,6 @@ const loadedVoiceArrowInlineStyle: React.CSSProperties = {
   transform: "translateY(1px)",
 };
 
-const resolveVoiceChangerStagedKind = ({
-  fallbackKind,
-  mimeType,
-  name,
-}: {
-  fallbackKind: "audio" | "video";
-  mimeType: string | null;
-  name: string;
-}): "audio" | "video" => {
-  const normalizedMimeType = mimeType?.trim().toLowerCase() ?? "";
-  if (normalizedMimeType.startsWith("audio/")) return "audio";
-  if (normalizedMimeType.startsWith("video/")) return "video";
-  if (voiceChangerAudioFilenamePattern.test(name)) return "audio";
-  if (voiceChangerVideoFilenamePattern.test(name)) return "video";
-  return fallbackKind;
-};
 const loadedVoiceValueInlineStyle: React.CSSProperties = {
   color: "rgba(239, 255, 252, 1)",
   textShadow: "0 0 16px rgba(105, 220, 203, 0.28)",
@@ -330,10 +309,12 @@ export type VoicesPropertiesPanelProps = {
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
+  onVoiceChangerSourceChange?: (source: VoiceChangerSource | null) => void;
   onVoicePromptChange?: (value: string) => void;
   onVoiceScriptChange?: (value: string) => void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
+  voiceChangerSource?: VoiceChangerSource | null;
   voicePrompt?: string;
   voiceScript?: string;
 };
@@ -379,10 +360,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   pricingPolicyReady = true,
   selectedTool = null,
   onGenerate,
+  onVoiceChangerSourceChange: onControlledVoiceChangerSourceChange,
   onVoicePromptChange: onControlledVoicePromptChange,
   onVoiceScriptChange: onControlledVoiceScriptChange,
   onActiveVoiceChangerSourceVideoChange,
   resolveVoiceChangerInternalReferenceSource,
+  voiceChangerSource: controlledVoiceChangerSource,
   voicePrompt: controlledVoicePrompt,
   voiceScript: controlledVoiceScript,
 }: VoicesPropertiesPanelProps) {
@@ -434,9 +417,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
-  const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
-    null
-  );
+  const {
+    voiceChangerSource: uncontrolledVoiceChangerSource,
+    handleVoiceChangerSourceChange: handleUncontrolledVoiceChangerSourceChange,
+  } = useVoiceChangerSourceController();
   const handleVoiceNameChange = React.useCallback((nextValue: string) => {
     setVoiceName(clampCustomVoiceNameInput(nextValue));
   }, []);
@@ -476,14 +460,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const previewAudioVoiceIdRef = React.useRef<string | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const designedPreviewAudioIdRef = React.useRef<string | null>(null);
-  const previousVoiceChangerSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const previousCloneVoiceSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
   const shouldRestoreVoicesLibraryTriggerFocusRef = React.useRef(false);
   const shouldRestoreCreateVoiceTriggerFocusRef = React.useRef(false);
   const createVoiceTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const voiceChangerSourceRequestIdRef = React.useRef(0);
   const cloneVoiceSourceRequestIdRef = React.useRef(0);
+  const voiceChangerSource =
+    controlledVoiceChangerSource !== undefined
+      ? controlledVoiceChangerSource
+      : uncontrolledVoiceChangerSource;
   const loadedVoiceCueTimeoutRef = React.useRef<number | null>(null);
   const requiresProviderVoice = Boolean(onGenerate);
   const isCreateVoiceModalOpen = isCreatePanelOpen;
@@ -756,204 +742,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const handleVoiceChangerSourceChange = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
-      const requestId = voiceChangerSourceRequestIdRef.current + 1;
-      voiceChangerSourceRequestIdRef.current = requestId;
-
-      if (!nextSource) {
-        setVoiceChangerSource(null);
+      if (onControlledVoiceChangerSourceChange) {
+        onControlledVoiceChangerSourceChange(nextSource);
         return;
       }
-
-      const resolveErrorMessage = (error: unknown, fallback: string): string => {
-        if (error instanceof Error && error.message.trim()) return error.message.trim();
-        return fallback;
-      };
-
-      const initialStatus =
-        nextSource.kind === "video"
-          ? nextSource.file
-            ? "uploading"
-            : "extracting"
-          : nextSource.file
-            ? "uploading"
-            : "ready";
-      const initialSource: VoiceChangerSource = {
-        ...nextSource,
-        status: initialStatus,
-        storagePath:
-          nextSource.storagePath ?? resolveVoiceChangerSourceStoragePath(nextSource.sourceUrl),
-        durationMs: nextSource.durationMs,
-        errorMessage: null,
-        extractedFrom: null,
-      };
-
-      setVoiceChangerSource(initialSource);
-
-      void (async () => {
-        let stagedStoragePath = initialSource.storagePath;
-        let stagedSourceUrl = initialSource.sourceUrl;
-        let stagedMimeType = initialSource.mimeType;
-        let stagedName = initialSource.name;
-        const stagedAspect = initialSource.aspect;
-        let stagedDurationMs = initialSource.durationMs;
-
-        try {
-          if (initialSource.file) {
-            const uploaded = await uploadVoiceChangerSourceFile({
-              file: initialSource.file,
-              kind: initialSource.kind,
-            });
-            stagedStoragePath = uploaded.storagePath;
-            stagedSourceUrl = uploaded.signedUrl ?? stagedSourceUrl;
-            stagedMimeType = uploaded.mimeType;
-            stagedName = uploaded.name;
-          } else if (stagedStoragePath) {
-            stagedSourceUrl = await signVoiceChangerStoragePath(stagedStoragePath);
-          }
-
-          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
-
-          const stagedKind = resolveVoiceChangerStagedKind({
-            fallbackKind: initialSource.kind,
-            mimeType: stagedMimeType,
-            name: stagedName,
-          });
-
-          if (stagedKind === "audio") {
-            if (!stagedSourceUrl) {
-              throw new Error("Unable to resolve the staged audio source URL.");
-            }
-
-            stagedDurationMs =
-              stagedDurationMs ??
-              (await resolveVoiceChangerMediaDurationMs(stagedSourceUrl, "audio").catch(
-                () => null
-              ));
-
-            setVoiceChangerSource({
-              ...initialSource,
-              kind: stagedKind,
-              status: "ready",
-              aspect: null,
-              durationMs: stagedDurationMs,
-              name: stagedName,
-              mimeType: stagedMimeType,
-              file: null,
-              previewUrl: null,
-              sourceUrl: stagedSourceUrl,
-              objectUrl: initialSource.objectUrl,
-              storagePath: stagedStoragePath,
-              errorMessage: null,
-              extractedFrom: null,
-            });
-            return;
-          }
-
-          setVoiceChangerSource((current) => {
-            if (!current || voiceChangerSourceRequestIdRef.current !== requestId) return current;
-            return {
-              ...current,
-              status: "extracting",
-              aspect: stagedAspect,
-              name: stagedName,
-              mimeType: stagedMimeType,
-              file: null,
-              sourceUrl: stagedSourceUrl,
-              storagePath: stagedStoragePath,
-              errorMessage: null,
-            };
-          });
-
-          const aspectResolutionPromise = (
-            stagedAspect
-              ? Promise.resolve(stagedAspect)
-              : resolveVoiceChangerVideoAspect(initialSource.previewUrl ?? stagedSourceUrl)
-          ).catch(() => null);
-          const durationResolutionPromise = resolveVoiceChangerMediaDurationMs(
-            initialSource.previewUrl ?? stagedSourceUrl,
-            "video"
-          ).catch(() => null);
-
-          const extracted = await extractVoiceChangerVideoSource({
-            sourceName: stagedName,
-            sourceOrigin: initialSource.origin,
-            sourceMimeType: stagedMimeType,
-            sourceStoragePath: stagedStoragePath,
-            sourceUrl: stagedSourceUrl,
-          });
-
-          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
-
-          setVoiceChangerSource({
-            ...initialSource,
-            kind: "audio",
-            status: "ready",
-            aspect: null,
-            durationMs: await durationResolutionPromise,
-            name: extracted.name,
-            mimeType: extracted.mimeType,
-            file: null,
-            previewUrl: null,
-            sourceUrl: extracted.signedUrl,
-            objectUrl: null,
-            storagePath: extracted.storagePath,
-            errorMessage: null,
-            extractedFrom: {
-              kind: "video",
-              name: stagedName,
-              mimeType: stagedMimeType,
-              previewUrl: initialSource.previewUrl ?? stagedSourceUrl,
-              sourceUrl: stagedSourceUrl,
-              storagePath: stagedStoragePath,
-              aspect: stagedAspect,
-              referenceOutputId: initialSource.referenceOutputId,
-              referenceMediaId: initialSource.referenceMediaId,
-            },
-          });
-
-          void aspectResolutionPromise.then((resolvedAspect) => {
-            if (!resolvedAspect || voiceChangerSourceRequestIdRef.current !== requestId) return;
-            setVoiceChangerSource((current) => {
-              if (
-                !current ||
-                current.id !== initialSource.id ||
-                current.status !== "ready" ||
-                !current.extractedFrom
-              ) {
-                return current;
-              }
-              if (current.extractedFrom.aspect === resolvedAspect) {
-                return current;
-              }
-              return {
-                ...current,
-                extractedFrom: {
-                  ...current.extractedFrom,
-                  aspect: resolvedAspect,
-                },
-              };
-            });
-          });
-        } catch (error) {
-          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
-          setVoiceChangerSource({
-            ...initialSource,
-            status: "failed",
-            aspect: stagedAspect,
-            file: null,
-            sourceUrl: stagedSourceUrl,
-            storagePath: stagedStoragePath,
-            errorMessage: resolveErrorMessage(
-              error,
-              initialSource.kind === "video"
-                ? "Unable to prepare the selected video."
-                : "Unable to prepare the selected audio."
-            ),
-          });
-        }
-      })();
+      handleUncontrolledVoiceChangerSourceChange(nextSource);
     },
-    []
+    [handleUncontrolledVoiceChangerSourceChange, onControlledVoiceChangerSourceChange]
   );
 
   const handleCloneVoiceSourceChange = React.useCallback(
@@ -1053,14 +848,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   );
 
   React.useEffect(() => {
-    const previousSource = previousVoiceChangerSourceRef.current;
-    if (previousSource?.objectUrl && previousSource.objectUrl !== voiceChangerSource?.objectUrl) {
-      releaseVoiceChangerSource(previousSource);
-    }
-    previousVoiceChangerSourceRef.current = voiceChangerSource;
-  }, [voiceChangerSource]);
-
-  React.useEffect(() => {
     const previousSource = previousCloneVoiceSourceRef.current;
     if (previousSource?.objectUrl && previousSource.objectUrl !== cloneVoiceSource?.objectUrl) {
       releaseVoiceChangerSource(previousSource);
@@ -1079,7 +866,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   React.useEffect(() => {
     return () => {
-      releaseVoiceChangerSource(previousVoiceChangerSourceRef.current);
       releaseVoiceChangerSource(previousCloneVoiceSourceRef.current);
       const previewAudio = previewAudioRef.current;
       if (previewAudio) {
@@ -1103,7 +889,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       previewAudioVoiceIdRef.current = null;
       designedPreviewAudioRef.current = null;
       designedPreviewAudioIdRef.current = null;
-      voiceChangerSourceRequestIdRef.current += 1;
       cloneVoiceSourceRequestIdRef.current += 1;
     };
   }, []);

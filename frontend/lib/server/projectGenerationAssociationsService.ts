@@ -1125,7 +1125,9 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         return patchSnapshotOutputRow({
           row: normalizedRow,
           projection,
-          mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
+          mediaDelivery: generationId
+            ? (mediaDeliveryByGenerationId.get(generationId) ?? null)
+            : null,
         });
       })
       .filter((row): row is SnapshotRecord => Boolean(row));

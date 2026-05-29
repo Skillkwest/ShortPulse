@@ -41,3 +41,4 @@ Canonical detailed surfaces:
 2. Keep broad shared-runtime lanes collapsed when one validation seam can honestly carry them.
 3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails, and one last `git diff --name-only` scan before the score loop when a broad lane touched shared runtime seams.
 4. Keep startup and retained-history loading lean by default.
+5. On mixed frontend/docs/sql lanes, split the first cleanup pass by tool ownership so raw SQL does not steal time from the real validation ladder.

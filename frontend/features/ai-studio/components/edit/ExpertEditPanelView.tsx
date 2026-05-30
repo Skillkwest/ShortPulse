@@ -289,6 +289,7 @@ export function ExpertEditPanelView({
     isMorePresetsSurfaceOpen,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
+    resolveInternalReferenceImageDropSource,
     queuePanelHistoryBaselineFromCurrent,
   });
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
@@ -827,8 +828,6 @@ export function ExpertEditPanelView({
     handleUndoGeneralAction: handleUndoStageGeneralAction,
     handleRedoGeneralAction: handleRedoStageGeneralAction,
     handleResetGeneralAction,
-    isMoveTransformCentered,
-    isStageViewportAtRest,
     isGeneralResetDisabled,
     clearHistoryEphemera: clearStageHistoryEphemera,
   } = useExpertEditStageHistory({
@@ -1068,8 +1067,6 @@ export function ExpertEditPanelView({
     isGenerationModeToggleEnabled,
     effectiveEditSubmitIntent,
     moveStageZoomSliderValue,
-    isMoveTransformCentered,
-    isStageViewportAtRest,
     canUndoGeneralAction,
     canRedoGeneralAction,
     isGeneralResetDisabled,

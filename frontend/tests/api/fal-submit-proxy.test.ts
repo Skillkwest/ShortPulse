@@ -381,7 +381,7 @@ describe("createFalSubmitHandler", () => {
         host: "localhost:3000",
         "x-forwarded-proto": "http",
       },
-      url: "/api/fal/nano-banana-2-submit",
+      url: "/api/fal/nano-banana-2-edit-submit",
     };
     const res = createMockResponse();
 
@@ -394,6 +394,113 @@ describe("createFalSubmitHandler", () => {
         }),
       })
     );
+  });
+
+  it("falls back to external image refs when internal ref signing fails", async () => {
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/base.png",
+      },
+    ]);
+    resolveSignedUrlsForInternalMediaRefsMock.mockRejectedValue(
+      new Error("Unable to sign internal media refs: storage unavailable")
+    );
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2/edit",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
+      routeLabel: "Fal Nano Banana 2 Edit",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        image_urls: ["https://stale.internal/base.png", "https://external.example/ref.png"],
+        shortpulse_internal_media_refs: [{ version: 1 }],
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/nano-banana-2-edit-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          image_urls: ["https://external.example/ref.png"],
+        }),
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.internal_media_ref_sign_fallback",
+        statusCode: 200,
+        metadata: expect.objectContaining({
+          fallback_reference_count: 1,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns a structured 503 when only internal image refs are available and signing fails", async () => {
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/base.png",
+      },
+    ]);
+    resolveSignedUrlsForInternalMediaRefsMock.mockRejectedValue(
+      new Error("Unable to sign internal media refs: storage unavailable")
+    );
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2/edit",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
+      routeLabel: "Fal Nano Banana 2 Edit",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        image_urls: ["https://stale.internal/base.png"],
+        shortpulse_internal_media_refs: [{ version: 1 }],
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/nano-banana-2-edit-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.internal_media_ref_sign_failed",
+        statusCode: 503,
+      })
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Reference media could not be prepared. Please retry.",
+      detail: "Unable to refresh internal reference media URLs.",
+    });
   });
 
   it("overwrites inpaint image fields from canonical internal edit refs before direct submit", async () => {
@@ -458,6 +565,80 @@ describe("createFalSubmitHandler", () => {
           image_url: "https://fresh.internal/base.png",
           mask_url: "https://fresh.internal/mask.png",
           reference_image_url: "https://fresh.internal/ref.png",
+        }),
+      })
+    );
+  });
+
+  it("falls back to external edit refs when internal edit signing fails", async () => {
+    readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
+      baseImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/base.png",
+      },
+      maskRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/mask.png",
+      },
+      referenceImageRef: {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/ref.png",
+      },
+    });
+    resolveSignedUrlsForInternalEditMediaRefsMock.mockRejectedValue(
+      new Error("Unable to sign internal media refs: storage unavailable")
+    );
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/flux-kontext-lora/inpaint",
+      submitUrl: "https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint",
+      routeLabel: "Fal Flux Kontext Inpaint",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "fix this",
+        image_url: "https://external.example/base.png",
+        mask_url: "https://external.example/mask.png",
+        reference_image_url: "https://external.example/ref.png",
+        shortpulse_internal_edit_media_refs: {
+          base_image: {},
+          mask_image: {},
+          reference_image: {},
+        },
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/flux-kontext-inpaint-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          image_url: "https://external.example/base.png",
+          mask_url: "https://external.example/mask.png",
+          reference_image_url: "https://external.example/ref.png",
+        }),
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.internal_edit_media_ref_sign_fallback",
+        statusCode: 200,
+        metadata: expect.objectContaining({
+          fallback_reference_count: 3,
         }),
       })
     );

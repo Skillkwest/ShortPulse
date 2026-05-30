@@ -18,8 +18,6 @@ type UseExpertEditPanelControlsRuntimeArgs = {
   isGenerationModeToggleEnabled: boolean;
   effectiveEditSubmitIntent: "standard" | "inpaint" | "markup";
   moveStageZoomSliderValue: number;
-  isMoveTransformCentered: boolean;
-  isStageViewportAtRest: boolean;
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
   isGeneralResetDisabled: boolean;
@@ -55,8 +53,6 @@ export function useExpertEditPanelControlsRuntime({
   isGenerationModeToggleEnabled,
   effectiveEditSubmitIntent,
   moveStageZoomSliderValue,
-  isMoveTransformCentered,
-  isStageViewportAtRest,
   canUndoGeneralAction,
   canRedoGeneralAction,
   isGeneralResetDisabled,
@@ -99,16 +95,12 @@ export function useExpertEditPanelControlsRuntime({
     (scope: "inline" | "modal" | "rail") => (
       <ExpertEditMoveControlsContent
         scope={scope === "rail" ? "inline" : scope}
-        isAdvancedEditModesEnabled={isGenerationModeToggleEnabled}
         isMoveToolSelected={isMoveToolSelected}
         moveStageZoomSliderValue={moveStageZoomSliderValue}
-        isMoveTransformCentered={isMoveTransformCentered}
-        isStageViewportAtRest={isStageViewportAtRest}
         canUndoGeneralAction={canUndoGeneralAction}
         canRedoGeneralAction={canRedoGeneralAction}
         setSelectedRailTool={setSelectedRailTool}
         handleRecenterMoveAction={handleRecenterMoveAction}
-        openMarkupModal={openMarkupModal}
         handleMoveZoomSliderChange={handleMoveZoomSliderChange}
         handleUndoGeneralAction={handleUndoGeneralAction}
         handleRedoGeneralAction={handleRedoGeneralAction}
@@ -121,12 +113,8 @@ export function useExpertEditPanelControlsRuntime({
       handleRecenterMoveAction,
       handleRedoGeneralAction,
       handleUndoGeneralAction,
-      isGenerationModeToggleEnabled,
       isMoveToolSelected,
-      isMoveTransformCentered,
-      isStageViewportAtRest,
       moveStageZoomSliderValue,
-      openMarkupModal,
       setSelectedRailTool,
     ]
   );

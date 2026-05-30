@@ -278,16 +278,12 @@ export function ExpertEditMarkupControlsContent({
 
 type ExpertEditMoveControlsContentProps = {
   scope: "inline" | "modal";
-  isAdvancedEditModesEnabled?: boolean;
   isMoveToolSelected: boolean;
   moveStageZoomSliderValue: number;
-  isMoveTransformCentered: boolean;
-  isStageViewportAtRest: boolean;
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   handleRecenterMoveAction: () => void;
-  openMarkupModal: (tool?: RailTool) => void;
   handleMoveZoomSliderChange: (value: number) => void;
   handleUndoGeneralAction: () => void;
   handleRedoGeneralAction: () => void;
@@ -295,16 +291,12 @@ type ExpertEditMoveControlsContentProps = {
 
 export function ExpertEditMoveControlsContent({
   scope,
-  isAdvancedEditModesEnabled = true,
   isMoveToolSelected,
   moveStageZoomSliderValue,
-  isMoveTransformCentered,
-  isStageViewportAtRest,
   canUndoGeneralAction,
   canRedoGeneralAction,
   setSelectedRailTool,
   handleRecenterMoveAction,
-  openMarkupModal,
   handleMoveZoomSliderChange,
   handleUndoGeneralAction,
   handleRedoGeneralAction,
@@ -318,44 +310,35 @@ export function ExpertEditMoveControlsContent({
 
   return (
     <div className="edit-expert-move-controls-content">
-      <div
-        className={`edit-expert-move-mode-row ${isModalScope ? "edit-expert-move-mode-row--modal" : ""}`.trim()}
-        role="group"
-        aria-label="Move tool mode"
-      >
-        <button
-          type="button"
-          className={`edit-expert-move-mode-btn edit-expert-move-adjust-btn ${
-            isMoveToolSelected ? "is-active" : ""
-          }`.trim()}
-          aria-pressed={isMoveToolSelected}
-          aria-label="Adjust"
-          onClick={() => setSelectedRailTool("move")}
+      {isModalScope ? (
+        <div
+          className="edit-expert-move-mode-row edit-expert-move-mode-row--modal"
+          role="group"
+          aria-label="Move tool mode"
         >
-          <ArrowsOutCardinal size={modeIconSize} weight="regular" />
-          Adjust
-        </button>
-        <button
-          type="button"
-          className="edit-expert-move-mode-btn edit-expert-move-center-btn"
-          aria-label="Center move action"
-          onClick={handleRecenterMoveAction}
-          disabled={!isModalScope && isMoveTransformCentered && isStageViewportAtRest}
-        >
-          <ArrowsInCardinal size={recenterIconSize} weight="regular" />
-          Center
-        </button>
-        {!isModalScope && isAdvancedEditModesEnabled ? (
           <button
             type="button"
-            className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
-            aria-label="Expand markup tools"
-            onClick={() => openMarkupModal("markup")}
+            className={`edit-expert-move-mode-btn edit-expert-move-adjust-btn ${
+              isMoveToolSelected ? "is-active" : ""
+            }`.trim()}
+            aria-pressed={isMoveToolSelected}
+            aria-label="Adjust"
+            onClick={() => setSelectedRailTool("move")}
           >
-            <ArrowsOutSimple size={modeIconSize} weight="regular" />
+            <ArrowsOutCardinal size={modeIconSize} weight="regular" />
+            Adjust
           </button>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            className="edit-expert-move-mode-btn edit-expert-move-center-btn"
+            aria-label="Center move action"
+            onClick={handleRecenterMoveAction}
+          >
+            <ArrowsInCardinal size={recenterIconSize} weight="regular" />
+            Center
+          </button>
+        </div>
+      ) : null}
       <div className="edit-expert-move-zoom-row">
         <label className="edit-expert-move-zoom-label" htmlFor={zoomSliderId}>
           Zoom

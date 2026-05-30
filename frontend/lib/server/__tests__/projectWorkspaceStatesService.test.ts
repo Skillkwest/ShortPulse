@@ -89,6 +89,12 @@ const createSupabaseMock = ({
       )
       .map((row) => [row.id, row])
   );
+  const mediaIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
+    data: ids
+      .filter((id) => id === MEDIA_ID_1 || id === MEDIA_ID_2 || mediaRowsById.has(id))
+      .map((id) => mediaRowsById.get(id) ?? { id }),
+    error: null,
+  }));
   const mediaSelect = vi.fn((columns?: string) => ({
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => {
@@ -99,29 +105,26 @@ const createSupabaseMock = ({
             error: { message: mediaRowReadError },
           };
         }
-        return {
-          data: ids
-            .filter((id) => id === MEDIA_ID_1 || id === MEDIA_ID_2 || mediaRowsById.has(id))
-            .map((id) => mediaRowsById.get(id) ?? { id }),
-          error: null,
-        };
+        return mediaIdInMock(_column, ids);
       }),
     })),
   }));
+  const promptIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
+    data: ids.filter((id) => id === PROMPT_ID_1).map((id) => ({ id })),
+    error: null,
+  }));
   const promptSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
-      in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids.filter((id) => id === PROMPT_ID_1).map((id) => ({ id })),
-        error: null,
-      })),
+      in: promptIdInMock,
     })),
+  }));
+  const generationIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
+    data: ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
+    error: null,
   }));
   const generationSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
-      in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
-        error: null,
-      })),
+      in: generationIdInMock,
     })),
   }));
   const mediaAssociationUpsert = vi.fn(async () => ({
@@ -361,6 +364,9 @@ const createSupabaseMock = ({
     promptAssociationUpsert,
     generationAssociationUpsert,
     workspaceUpsert,
+    mediaIdInMock,
+    promptIdInMock,
+    generationIdInMock,
   };
 };
 
@@ -801,6 +807,75 @@ describe("projectWorkspaceStatesService", () => {
       activeOutputId: null,
       curatedReferenceIds: [],
       removedFromAllRefsIds: [],
+    });
+  });
+
+  it("batches owned media id resolution for large project workspace saves", async () => {
+    const largeMediaIds = Array.from(
+      { length: 205 },
+      (_, index) => `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+    );
+    const { mediaIdInMock, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+      mediaRows: largeMediaIds.map((id) => ({ id })),
+    });
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-large-owned-media-batch",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:large-owned-media-batch",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Project prompt",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-library-large",
+              mediaSource: "library",
+              savedMediaIds: largeMediaIds,
+              previewUrl: "https://cdn.example.com/library-large.png",
+              resultUrls: ["https://cdn.example.com/library-large.png"],
+            },
+          ],
+          archived: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.saveOutcome).toEqual({ status: "saved" });
+    expect(mediaIdInMock).toHaveBeenCalledTimes(3);
+    expect(mediaIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot).toMatchObject({
+      outputs: {
+        active: [
+          expect.objectContaining({
+            id: "out-library-large",
+            savedMediaIds: largeMediaIds,
+          }),
+        ],
+      },
     });
   });
 

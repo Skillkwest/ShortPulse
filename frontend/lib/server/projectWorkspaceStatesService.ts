@@ -12,6 +12,7 @@ import {
   backfillProjectGenerationAssociationsForSnapshot,
   hydrateProjectSnapshotGeneratedOutputs,
 } from "./projectGenerationAssociationsService";
+import { chunkValues } from "./queryBatching";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, created_at, updated_at" as const;
@@ -463,26 +464,30 @@ const resolveOwnedIds = async ({
   const canonicalIds = normalizeUuidList(ids);
   if (canonicalIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from(table)
-    .select(idColumn)
-    .eq("user_id", userId)
-    .in(idColumn, canonicalIds);
+  const ownedIds = new Set<string>();
 
-  if (error) {
-    const tableLabel = table === "media_files" ? "media ids" : "prompt ids";
-    throw new Error(error.message || `Failed to resolve owned ${tableLabel}`);
+  for (const idChunk of chunkValues(canonicalIds)) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(idColumn)
+      .eq("user_id", userId)
+      .in(idColumn, idChunk);
+
+    if (error) {
+      const tableLabel = table === "media_files" ? "media ids" : "prompt ids";
+      throw new Error(error.message || `Failed to resolve owned ${tableLabel}`);
+    }
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const record = asRecord(row);
+      const idValue = record[idColumn];
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedIds.add(idValue.trim());
+      }
+    });
   }
 
-  return Array.isArray(data)
-    ? data
-        .map((row) => {
-          const record = asRecord(row);
-          const idValue = record[idColumn];
-          return typeof idValue === "string" ? idValue.trim() : "";
-        })
-        .filter((value) => value.length > 0)
-    : [];
+  return [...ownedIds];
 };
 
 const resolveOwnedGenerationIds = async ({
@@ -495,24 +500,28 @@ const resolveOwnedGenerationIds = async ({
   const canonicalGenerationIds = normalizeUuidList(generationIds);
   if (canonicalGenerationIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("ai_generations")
-    .select("id")
-    .eq("user_id", userId)
-    .in("id", canonicalGenerationIds);
+  const ownedGenerationIds = new Set<string>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to resolve owned generation ids");
+  for (const generationIdChunk of chunkValues(canonicalGenerationIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("ai_generations")
+      .select("id")
+      .eq("user_id", userId)
+      .in("id", generationIdChunk);
+
+    if (error) {
+      throw new Error(error.message || "Failed to resolve owned generation ids");
+    }
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const idValue = asRecord(row).id;
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedGenerationIds.add(idValue.trim());
+      }
+    });
   }
 
-  return Array.isArray(data)
-    ? data
-        .map((row) => {
-          const idValue = asRecord(row).id;
-          return typeof idValue === "string" ? idValue.trim() : "";
-        })
-        .filter((value) => value.length > 0)
-    : [];
+  return [...ownedGenerationIds];
 };
 
 const resolveOwnedSnapshotAssociationIds = async ({

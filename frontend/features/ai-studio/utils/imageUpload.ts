@@ -267,6 +267,21 @@ const inferExtension = (mimeType: string): string => {
   }
 };
 
+const resolve413UploadErrorMessage = (payload: unknown): string => {
+  const error =
+    typeof (payload as { error?: unknown })?.error === "string"
+      ? (payload as { error: string }).error.trim() || null
+      : null;
+  const details =
+    typeof (payload as { details?: unknown })?.details === "string"
+      ? (payload as { details: string }).details.trim() || null
+      : null;
+
+  if (details) return details;
+  if (error && error !== "Upload failed: file too large") return error;
+  return UPLOAD_TOO_LARGE_ERROR_MESSAGE;
+};
+
 const normalizeUploadBlob = (blob: Blob): Blob => {
   if (blob.type && blob.type.startsWith("image/")) return blob;
   return new Blob([blob], { type: "image/jpeg" });
@@ -408,7 +423,7 @@ export const uploadImageAssetToStorage = async (
   if (!uploadResponse.ok) {
     const payload = await uploadResponse.json().catch(() => ({}));
     if (uploadResponse.status === 413) {
-      throw new Error(UPLOAD_TOO_LARGE_ERROR_MESSAGE);
+      throw new Error(resolve413UploadErrorMessage(payload));
     }
     const error =
       typeof payload?.error === "string" && payload.error.trim().length

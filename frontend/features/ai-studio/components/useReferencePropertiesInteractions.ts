@@ -21,6 +21,10 @@ import {
   createInternalMediaRefFromResolvedSource,
   registerInternalMediaRefForUrl,
 } from "../logic/referenceInputInternalMediaRegistry";
+import {
+  prepareLocalImageBlobForEditIngress,
+  prepareLocalImageFileForEditIngress,
+} from "../logic/editImageIngress";
 
 export type ReferenceStepKey =
   | "reference"
@@ -206,6 +210,11 @@ export const useReferencePropertiesInteractions = ({
   }): Promise<string | null> => {
     if (!imageUrl.startsWith("blob:")) return imageUrl;
     if (fromFile) {
+      if (sourceBlob instanceof File) {
+        const prepared = await prepareLocalImageFileForEditIngress(sourceBlob);
+        URL.revokeObjectURL(imageUrl);
+        return trackOwnedImageObjectUrl(prepared.url, prepared.blob);
+      }
       trackOwnedImageObjectUrl(imageUrl, sourceBlob ?? undefined);
       return imageUrl;
     }
@@ -213,8 +222,8 @@ export const useReferencePropertiesInteractions = ({
       const response = await fetch(imageUrl);
       if (!response.ok) return null;
       const blob = await response.blob();
-      const clonedUrl = URL.createObjectURL(blob);
-      return trackOwnedImageObjectUrl(clonedUrl, blob);
+      const prepared = await prepareLocalImageBlobForEditIngress(blob);
+      return trackOwnedImageObjectUrl(prepared.url, prepared.blob);
     } catch {
       return null;
     }
@@ -257,8 +266,10 @@ export const useReferencePropertiesInteractions = ({
         event.target.value = "";
         return;
       }
-      const url = URL.createObjectURL(file);
-      commitImageUrl(setter, trackOwnedImageObjectUrl(url, file));
+      void (async () => {
+        const prepared = await prepareLocalImageFileForEditIngress(file);
+        commitImageUrl(setter, trackOwnedImageObjectUrl(prepared.url, prepared.blob));
+      })();
       event.target.value = "";
     };
 
@@ -293,6 +304,10 @@ export const useReferencePropertiesInteractions = ({
         resolvedInternalMediaRef = resolvedSource
           ? createInternalMediaRefFromResolvedSource(resolvedSource)
           : null;
+        if (resolveInternalReferenceImageDropSource && !resolvedSource) {
+          setLoading(false);
+          return;
+        }
         nextUrl =
           resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
       } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
@@ -306,7 +321,12 @@ export const useReferencePropertiesInteractions = ({
             : null) ?? imageUrl;
       }
 
-      if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
+      if (
+        !internalPayload &&
+        (!nextUrl || nextUrl.startsWith("blob:")) &&
+        referenceId &&
+        resolvePreviewUrlById
+      ) {
         nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
       }
 

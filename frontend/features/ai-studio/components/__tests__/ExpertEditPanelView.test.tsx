@@ -6501,6 +6501,93 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.referenceInputsMode).toBe("replace");
   });
 
+  it("reuses durable internal drop authority for single-image standard edit generate", async () => {
+    const durableSignedUrl = "https://example.com/durable-internal-signed.png";
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/weak-preview.png");
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://example.com/durable-preview.png" },
+      previewStoragePath: "user/images/durable-preview.png",
+      fullStoragePath: "user/images/durable-full.png",
+      promptText: null,
+      preparedImageUrl: durableSignedUrl,
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+        resolvePreviewUrlById={resolvePreviewUrlById}
+        resolveInternalReferenceImageDropSource={resolveInternalReferenceImageDropSource}
+      />
+    );
+
+    const primaryCanvasFrameStack = container.querySelector(
+      '[data-testid="edit-expert-primary-canvas-frame-stack"]'
+    ) as HTMLDivElement;
+    const transfer = {
+      files: [],
+      types: [
+        "text/reference-origin",
+        "text/reference-id",
+        "text/reference-output-id",
+        "text/reference-media-kind",
+        "text/reference-url",
+        "image/url",
+      ],
+      setData: vi.fn(),
+      getData: vi.fn((type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-id" || type === "text/reference-output-id") return "out-1";
+        if (type === "text/reference-media-kind") return "image";
+        if (type === "text/reference-url" || type === "image/url") {
+          return "blob:weak-reference-render";
+        }
+        return "";
+      }),
+    } as unknown as DataTransfer;
+
+    await act(async () => {
+      fireEvent.drop(primaryCanvasFrameStack, { dataTransfer: transfer });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    const [referenceInputs, submitOptions] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[], { referenceInputsMode?: "merge" | "replace" }?]>;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs[0]).toBe(durableSignedUrl);
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
+  });
+
   it("does not open the custom stage actions menu from the blank primary stage", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

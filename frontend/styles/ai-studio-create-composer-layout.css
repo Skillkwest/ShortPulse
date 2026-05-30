@@ -202,7 +202,7 @@
   justify-content: center;
   gap: 6px;
   min-width: 72px;
-  min-height: 64px;
+  min-height: var(--create-composer-agent-input-min-height);
   padding: 8px 10px;
   border: 1px solid rgba(201, 205, 214, 0.02);
   border-radius: 12px;
@@ -412,7 +412,7 @@
   .agent-composer-row
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   flex-direction: column;
-  min-height: 64px;
+  min-height: var(--create-composer-agent-input-min-height);
   padding: 8px 10px;
   border-color: rgba(201, 205, 214, 0.02);
   background: rgba(201, 205, 214, 0.02);

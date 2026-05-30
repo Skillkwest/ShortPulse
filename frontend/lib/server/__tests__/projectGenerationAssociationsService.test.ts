@@ -204,6 +204,46 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
+  it("batches owned media validation when associating many media files to a project", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    const largeMediaIds = Array.from({ length: 205 }, (_, index) => `media-${index + 1}`);
+    ownedMediaSelectBuilder.in.mockImplementation((_column: string, ids: string[]) => {
+      ownedMediaQueryResult = {
+        data: ids.map((id) => ({ id })),
+        error: null,
+      };
+      return ownedMediaSelectBuilder;
+    });
+    mediaAssociationUpsertMock.mockResolvedValue({ error: null });
+
+    const associated = await associateMediaFilesWithProjectForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      mediaFileIds: largeMediaIds,
+    });
+
+    expect(associated).toBe(true);
+    expect(ownedMediaSelectBuilder.in).toHaveBeenCalledTimes(3);
+    expect(ownedMediaSelectBuilder.in.mock.calls.map(([, ids]) => ids.length)).toEqual([
+      100, 100, 5,
+    ]);
+    expect(mediaAssociationUpsertMock).toHaveBeenCalledWith(
+      largeMediaIds.map((mediaFileId) =>
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: mediaFileId,
+          user_id: "user-1",
+        })
+      ),
+      {
+        onConflict: "project_id,media_file_id",
+      }
+    );
+  });
+
   it("skips media association for ids not owned by the user", async () => {
     projectMaybeSingleMock.mockResolvedValue({
       data: { id: "project-1" },

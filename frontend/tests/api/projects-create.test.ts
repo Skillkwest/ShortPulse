@@ -695,10 +695,17 @@ describe("projects routes", () => {
       error: expect.any(Error),
       routeLabel: "projects-workspace-save",
       user: { id: "user-1" },
-      metadata: {
+      metadata: expect.objectContaining({
         workspace_failure_stage: "project lookup",
         source: "api.projects.workspace.save",
-      },
+        workspace_snapshot_bytes: expect.any(Number),
+        workspace_snapshot_active_output_count: 0,
+        workspace_snapshot_archived_output_count: 0,
+        workspace_snapshot_total_output_count: 0,
+        workspace_snapshot_media_id_count: 0,
+        workspace_snapshot_prompt_id_count: 0,
+        workspace_snapshot_generation_id_count: 0,
+      }),
     });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({

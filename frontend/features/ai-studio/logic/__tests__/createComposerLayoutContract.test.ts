@@ -240,7 +240,7 @@ describe("create composer layout contract", () => {
     );
     const controlsRow = extractRuleBlock(controlsCss, ".create-composer-controls-row");
 
-    expect(tokensCss).toContain("--create-composer-agent-input-min-height: 64px;");
+    expect(tokensCss).toContain("--create-composer-agent-input-min-height: 68px;");
     expect(tokensCss).toContain("--create-composer-agent-input-max-height: 520px;");
     expect(tokensCss).toContain("--create-composer-chat-composer-overlay-reserve: 126px;");
     expect(tokensCss).toContain("--create-composer-chat-composer-overlay-bottom-offset: 22px;");
@@ -249,7 +249,7 @@ describe("create composer layout contract", () => {
     expect(inputShell).toContain("overflow: hidden;");
     expect(inputSurface).toContain("background: var(--create-composer-agent-input-bg);");
     expect(inputField).toContain("transition: height 60ms cubic-bezier(0.22, 0.61, 0.36, 1);");
-    expect(chatToggleShell).toContain("min-height: 64px;");
+    expect(chatToggleShell).toContain("min-height: var(--create-composer-agent-input-min-height);");
     expect(controlsRow).toContain("margin-top: 6px;");
   });
 

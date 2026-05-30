@@ -52,6 +52,33 @@ const makeInternalVideoDropEvent = () =>
     ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
   >[0];
 
+const makeInternalImageDropEvent = () =>
+  ({
+    preventDefault: vi.fn(),
+    dataTransfer: {
+      files: emptyFileList,
+      types: [
+        "text/reference-origin",
+        "text/reference-id",
+        "text/reference-output-id",
+        "text/reference-media-kind",
+        "text/reference-url",
+        "image/url",
+      ],
+      getData: vi.fn((type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-id" || type === "text/reference-output-id")
+          return "out-image-1";
+        if (type === "text/reference-media-kind") return "image";
+        if (type === "text/reference-url") return "blob:weak-reference-render";
+        if (type === "image/url") return "blob:weak-reference-render";
+        return "";
+      }),
+    },
+  }) as unknown as Parameters<
+    ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
+  >[0];
+
 const makeImageDropEvent = (imageUrl: string) =>
   ({
     preventDefault: vi.fn(),
@@ -173,6 +200,75 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
     expect(createLayer).not.toHaveBeenCalled();
     expect(setLayers).not.toHaveBeenCalled();
+  });
+
+  it("prefers durable internal drop authority over weak preview fallbacks", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/weak-preview.png");
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-image-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-image-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://example.com/durable-preview.png" },
+      previewStoragePath: "user/images/durable-preview.png",
+      fullStoragePath: "user/images/durable-full.png",
+      promptText: null,
+      preparedImageUrl: "https://example.com/durable-signed.png",
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+    const event = makeInternalImageDropEvent();
+
+    const { result } = renderHook(() => {
+      const [layers, setHookLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1"),
+      ]);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex: 0,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        queuePanelHistoryBaselineFromCurrent: vi.fn(),
+        setLayers: setHookLayers,
+        setSelectedLayerIndex: vi.fn(),
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+        resolvePreviewUrlById,
+        resolveInternalReferenceImageDropSource,
+      });
+
+      return {
+        ingress,
+        layers,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+    expect(createLayer).not.toHaveBeenCalled();
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/durable-signed.png");
+    expect(result.current.layers[0]?.ownsImageUrl).toBe(false);
   });
 
   it("creates a new layer when an image is dropped onto a populated stage", async () => {

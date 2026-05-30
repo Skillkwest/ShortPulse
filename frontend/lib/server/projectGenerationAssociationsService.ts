@@ -4,6 +4,7 @@
  * without changing the global generation inventory/read models.
  */
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { chunkValues } from "./queryBatching";
 
 const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_id",
@@ -196,19 +197,26 @@ const resolveOwnedGenerationIds = async ({
 }): Promise<string[]> => {
   if (generationIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("ai_generations")
-    .select("id")
-    .eq("user_id", userId)
-    .in("id", generationIds);
+  const ownedGenerationIds = new Set<string>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to resolve owned ai_generations ids");
+  for (const generationIdChunk of chunkValues(generationIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("ai_generations")
+      .select("id")
+      .eq("user_id", userId)
+      .in("id", generationIdChunk);
+
+    if (error) {
+      throw new Error(error.message || "Failed to resolve owned ai_generations ids");
+    }
+
+    (Array.isArray(data) ? data : [])
+      .map((row) => asTrimmedString(asRecord(row).id))
+      .filter((id): id is string => Boolean(id))
+      .forEach((id) => ownedGenerationIds.add(id));
   }
 
-  return Array.isArray(data)
-    ? data.map((row) => asTrimmedString(asRecord(row).id)).filter((id): id is string => Boolean(id))
-    : [];
+  return [...ownedGenerationIds];
 };
 
 const readProjectAssociatedGenerationIds = async ({
@@ -222,37 +230,41 @@ const readProjectAssociatedGenerationIds = async ({
 }): Promise<Set<string>> => {
   if (generationIds.length === 0) return new Set<string>();
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("project_generation_items")
-    .select("generation_id")
-    .eq("user_id", userId)
-    .eq("project_id", projectId)
-    .in("generation_id", generationIds);
+  const associatedGenerationIds = new Set<string>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to resolve project-associated generations");
-  }
+  for (const generationIdChunk of chunkValues(generationIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("project_generation_items")
+      .select("generation_id")
+      .eq("user_id", userId)
+      .eq("project_id", projectId)
+      .in("generation_id", generationIdChunk);
 
-  const associatedGenerationIds = new Set(
+    if (error) {
+      throw new Error(error.message || "Failed to resolve project-associated generations");
+    }
+
     (Array.isArray(data) ? data : [])
       .map((row) => asTrimmedString(asRecord(row).generation_id))
       .filter((generationId): generationId is string => Boolean(generationId))
-  );
-  const { data: projectionData, error: projectionError } = await supabaseAdmin
-    .from("generation_projection")
-    .select("generation_id")
-    .eq("user_id", userId)
-    .eq("project_id", projectId)
-    .in("generation_id", generationIds);
+      .forEach((generationId) => associatedGenerationIds.add(generationId));
 
-  if (projectionError) {
-    throw new Error(projectionError.message || "Failed to resolve project-scoped projections");
+    const { data: projectionData, error: projectionError } = await supabaseAdmin
+      .from("generation_projection")
+      .select("generation_id")
+      .eq("user_id", userId)
+      .eq("project_id", projectId)
+      .in("generation_id", generationIdChunk);
+
+    if (projectionError) {
+      throw new Error(projectionError.message || "Failed to resolve project-scoped projections");
+    }
+
+    (Array.isArray(projectionData) ? projectionData : [])
+      .map((row) => asTrimmedString(asRecord(row).generation_id))
+      .filter((generationId): generationId is string => Boolean(generationId))
+      .forEach((generationId) => associatedGenerationIds.add(generationId));
   }
-
-  (Array.isArray(projectionData) ? projectionData : [])
-    .map((row) => asTrimmedString(asRecord(row).generation_id))
-    .filter((generationId): generationId is string => Boolean(generationId))
-    .forEach((generationId) => associatedGenerationIds.add(generationId));
 
   return associatedGenerationIds;
 };
@@ -425,17 +437,19 @@ const buildProjectionByGenerationId = async ({
 }): Promise<Map<string, ProjectGenerationProjectionRow>> => {
   if (generationIds.length === 0) return new Map();
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("generation_projection")
-    .select(PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS)
-    .eq("user_id", userId)
-    .in("generation_id", generationIds);
+  const projectionByGenerationId = new Map<string, ProjectGenerationProjectionRow>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to load generation projection rows");
-  }
+  for (const generationIdChunk of chunkValues(generationIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("generation_projection")
+      .select(PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS)
+      .eq("user_id", userId)
+      .in("generation_id", generationIdChunk);
 
-  return new Map(
+    if (error) {
+      throw new Error(error.message || "Failed to load generation projection rows");
+    }
+
     (Array.isArray(data) ? data : [])
       .map((row) => {
         const generationId = asTrimmedString(asRecord(row).generation_id);
@@ -443,7 +457,10 @@ const buildProjectionByGenerationId = async ({
         return [generationId, row as ProjectGenerationProjectionRow] as const;
       })
       .filter((entry): entry is readonly [string, ProjectGenerationProjectionRow] => Boolean(entry))
-  );
+      .forEach(([generationId, row]) => projectionByGenerationId.set(generationId, row));
+  }
+
+  return projectionByGenerationId;
 };
 
 const readPublishedGenerationRowsByGenerationId = async ({
@@ -455,27 +472,31 @@ const readPublishedGenerationRowsByGenerationId = async ({
 }): Promise<Map<string, ProjectGenerationPublicationRow>> => {
   if (!generationIds.length) return new Map();
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("generation_publications")
-    .select(
-      "generation_id, owned_media_file_id, preview_storage_path, full_storage_path, created_at"
-    )
-    .eq("user_id", userId)
-    .in("generation_id", generationIds)
-    .eq("publication_state", "published")
-    .order("created_at", { ascending: false });
+  const byGenerationId = new Map<string, ProjectGenerationPublicationRow>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to load project generation publication rows");
+  for (const generationIdChunk of chunkValues(generationIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("generation_publications")
+      .select(
+        "generation_id, owned_media_file_id, preview_storage_path, full_storage_path, created_at"
+      )
+      .eq("user_id", userId)
+      .in("generation_id", generationIdChunk)
+      .eq("publication_state", "published")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw new Error(error.message || "Failed to load project generation publication rows");
+    }
+
+    (Array.isArray(data) ? data : []).forEach((rawRow) => {
+      const row = rawRow as ProjectGenerationPublicationRow;
+      const generationId = asTrimmedString(row.generation_id);
+      if (!generationId || byGenerationId.has(generationId)) return;
+      byGenerationId.set(generationId, row);
+    });
   }
 
-  const byGenerationId = new Map<string, ProjectGenerationPublicationRow>();
-  (Array.isArray(data) ? data : []).forEach((rawRow) => {
-    const row = rawRow as ProjectGenerationPublicationRow;
-    const generationId = asTrimmedString(row.generation_id);
-    if (!generationId || byGenerationId.has(generationId)) return;
-    byGenerationId.set(generationId, row);
-  });
   return byGenerationId;
 };
 
@@ -492,7 +513,8 @@ const readMediaFileRowsById = async ({
   if (!normalizedMediaFileIds.length) return new Map();
 
   const supabaseAdmin = getSupabaseAdmin();
-  const runSelect = async (
+  const runSelectChunk = async (
+    mediaFileIdChunk: string[],
     fields:
       | "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       | "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
@@ -501,22 +523,25 @@ const readMediaFileRowsById = async ({
       .from("media_files")
       .select(fields)
       .eq("user_id", userId)
-      .in("id", normalizedMediaFileIds);
+      .in("id", mediaFileIdChunk);
 
-  let { data, error } = await runSelect(
-    "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-  );
-  if (error && isPreviewStoragePathSchemaError(error)) {
-    ({ data, error } = await runSelect(
-      "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-    ));
-  }
+  const mediaById = new Map<string, ProjectGenerationMediaFileRow>();
+  for (const mediaFileIdChunk of chunkValues(normalizedMediaFileIds)) {
+    let { data, error } = await runSelectChunk(
+      mediaFileIdChunk,
+      "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+    );
+    if (error && isPreviewStoragePathSchemaError(error)) {
+      ({ data, error } = await runSelectChunk(
+        mediaFileIdChunk,
+        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      ));
+    }
 
-  if (error) {
-    throw new Error(error.message || "Failed to load project generation media rows");
-  }
+    if (error) {
+      throw new Error(error.message || "Failed to load project generation media rows");
+    }
 
-  return new Map(
     (Array.isArray(data) ? data : [])
       .map((rawRow) => {
         const row = rawRow as ProjectGenerationMediaFileRow;
@@ -525,7 +550,10 @@ const readMediaFileRowsById = async ({
         return [mediaFileId, row] as const;
       })
       .filter((entry): entry is readonly [string, ProjectGenerationMediaFileRow] => Boolean(entry))
-  );
+      .forEach(([mediaFileId, row]) => mediaById.set(mediaFileId, row));
+  }
+
+  return mediaById;
 };
 
 const resolveDeliveryFromMediaRows = ({
@@ -687,19 +715,26 @@ const resolveOwnedMediaFileIdsForUser = async ({
   if (!normalizedMediaFileIds.length) return [];
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("media_files")
-    .select("id")
-    .eq("user_id", userId)
-    .in("id", normalizedMediaFileIds);
+  const ownedMediaFileIds = new Set<string>();
 
-  if (error) {
-    throw new Error(error.message || "Failed to verify owned media files before association");
+  for (const mediaFileIdChunk of chunkValues(normalizedMediaFileIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("media_files")
+      .select("id")
+      .eq("user_id", userId)
+      .in("id", mediaFileIdChunk);
+
+    if (error) {
+      throw new Error(error.message || "Failed to verify owned media files before association");
+    }
+
+    (Array.isArray(data) ? data : [])
+      .map((row) => asTrimmedString(asRecord(row).id))
+      .filter((value): value is string => Boolean(value))
+      .forEach((id) => ownedMediaFileIds.add(id));
   }
 
-  return (Array.isArray(data) ? data : [])
-    .map((row) => asTrimmedString(asRecord(row).id))
-    .filter((value): value is string => Boolean(value));
+  return [...ownedMediaFileIds];
 };
 
 /**

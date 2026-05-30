@@ -334,7 +334,7 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
   });
 
-  it("remembers file-selected image blobs for later submission reuse", () => {
+  it("remembers file-selected image blobs for later submission reuse", async () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");
 
@@ -358,8 +358,9 @@ describe("useReferencePropertiesInteractions", () => {
       },
     };
 
-    act(() => {
+    await act(async () => {
       result.current.handleFileSelection((url) => onExtraImageChange(0, url))(event as never);
+      await Promise.resolve();
     });
 
     expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");

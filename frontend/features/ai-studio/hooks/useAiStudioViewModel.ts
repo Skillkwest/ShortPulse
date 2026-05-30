@@ -18,6 +18,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { needsVideoUpload } from "../utils/videoUpload";
 import {
   getAiStudioKlingElementReferenceUrls,
   type AiStudioKlingElement,
@@ -46,6 +47,7 @@ type ViewModelInput = {
   videoResolution: string;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   motionReferenceVideoPending?: boolean;
+  motionReferenceVideoError?: string | null;
   motionReferenceVideoUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   imageResolution: string;
@@ -85,6 +87,7 @@ export const useAiStudioViewModel = ({
   videoResolution,
   videoReferenceMode,
   motionReferenceVideoPending = false,
+  motionReferenceVideoError = null,
   motionReferenceVideoUrl,
   extraImageUrls,
   imageResolution,
@@ -419,6 +422,9 @@ export const useAiStudioViewModel = ({
       if (motionReferenceVideoPending) {
         return "Motion clip is still uploading. Retry in a moment.";
       }
+      if (motionReferenceVideoError) {
+        return motionReferenceVideoError;
+      }
       const hasCharacterImage = Boolean(referenceImageUrl);
       const hasMotionVideo = Boolean(motionReferenceVideoUrl);
       if (!hasCharacterImage && !hasMotionVideo) {
@@ -429,6 +435,9 @@ export const useAiStudioViewModel = ({
       }
       if (!hasMotionVideo) {
         return "Add a motion reference video before generating in Motion Control.";
+      }
+      if (needsVideoUpload(motionReferenceVideoUrl)) {
+        return "Motion clip is not ready yet. Re-add it and wait for upload before generating.";
       }
     }
     if (
@@ -488,6 +497,7 @@ export const useAiStudioViewModel = ({
     isModelSelected,
     model,
     motionReferenceVideoPending,
+    motionReferenceVideoError,
     motionReferenceVideoUrl,
     referenceImageUrl,
     requiresModelSelection,

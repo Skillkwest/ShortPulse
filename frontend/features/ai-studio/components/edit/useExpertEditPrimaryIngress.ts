@@ -1,12 +1,20 @@
 import React from "react";
-import { rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
+import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
+import {
+  prepareLocalImageBlobForEditIngress,
+  prepareLocalImageFileForEditIngress,
+} from "../../logic/editImageIngress";
+import {
+  readRememberedObjectUrlBlob,
+  rememberObjectUrlBlob,
+} from "../../utils/objectUrlBlobRegistry";
 import {
   extractDragDropPayload,
+  extractInternalReferenceDragPayload,
   isImageDragTransfer,
   looksLikeImageUrl,
 } from "../../utils/dragDrop";
 import { MAX_LAYERS } from "./expertEditPanelViewContract";
-import { cloneBlobObjectUrl } from "./expertEditPanelUtilities";
 import {
   LAYER_OPACITY_DEFAULT,
   enforceLayerStackInvariants,
@@ -39,6 +47,7 @@ type UseExpertEditPrimaryIngressArgs = {
   setEditingLayerValue: React.Dispatch<React.SetStateAction<string>>;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   seedLayerImageDimensions?: (
     layerId: string,
     url: string,
@@ -59,6 +68,7 @@ export function useExpertEditPrimaryIngress({
   setEditingLayerValue,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
+  resolveInternalReferenceImageDropSource,
   seedLayerImageDimensions,
 }: UseExpertEditPrimaryIngressArgs) {
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
@@ -67,6 +77,9 @@ export function useExpertEditPrimaryIngress({
   const foundationLayerIdRef = React.useRef(foundationLayerId);
   const isMorePresetsSurfaceOpenRef = React.useRef(isMorePresetsSurfaceOpen);
   const resolvePreviewUrlByIdRef = React.useRef(resolvePreviewUrlById);
+  const resolveInternalReferenceImageDropSourceRef = React.useRef(
+    resolveInternalReferenceImageDropSource
+  );
 
   React.useLayoutEffect(() => {
     layersRef.current = layers;
@@ -74,10 +87,12 @@ export function useExpertEditPrimaryIngress({
     foundationLayerIdRef.current = foundationLayerId;
     isMorePresetsSurfaceOpenRef.current = isMorePresetsSurfaceOpen;
     resolvePreviewUrlByIdRef.current = resolvePreviewUrlById;
+    resolveInternalReferenceImageDropSourceRef.current = resolveInternalReferenceImageDropSource;
   }, [
     foundationLayerId,
     isMorePresetsSurfaceOpen,
     layers,
+    resolveInternalReferenceImageDropSource,
     resolvePreviewUrlById,
     selectedLayerIndex,
   ]);
@@ -223,9 +238,11 @@ export function useExpertEditPrimaryIngress({
         event.target.value = "";
         return;
       }
-      const objectUrl = URL.createObjectURL(file);
-      rememberObjectUrlBlob(objectUrl, file);
-      applyPrimaryImageIngress({ url: objectUrl, ownsImageUrl: true });
+      void (async () => {
+        const prepared = await prepareLocalImageFileForEditIngress(file);
+        rememberObjectUrlBlob(prepared.url, prepared.blob);
+        applyPrimaryImageIngress({ url: prepared.url, ownsImageUrl: true });
+      })();
       event.target.value = "";
     },
     [applyPrimaryImageIngress]
@@ -280,29 +297,80 @@ export function useExpertEditPrimaryIngress({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       const { imageUrl, imageFile, fromFile, referenceId, width, height, mediaKind } =
         extractDragDropPayload(event.dataTransfer);
       void (async () => {
-        if (mediaKind && mediaKind !== "image") return;
+        const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
+        if (effectiveMediaKind && effectiveMediaKind !== "image") return;
+
+        const resolvedInternalSource =
+          internalPayload && resolveInternalReferenceImageDropSourceRef.current
+            ? await resolveInternalReferenceImageDropSourceRef
+                .current(internalPayload)
+                .catch(() => null)
+            : null;
+        if (
+          internalPayload &&
+          resolveInternalReferenceImageDropSourceRef.current &&
+          !resolvedInternalSource
+        ) {
+          return;
+        }
+
         let nextUrl = imageUrl;
+        if (resolvedInternalSource) {
+          nextUrl =
+            resolvedInternalSource.preparedImageUrl?.trim() ||
+            resolvedInternalSource.preview.url?.trim() ||
+            null;
+        }
         const resolvePreview = resolvePreviewUrlByIdRef.current;
-        if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreview) {
+        const hasInternalResolver = Boolean(resolveInternalReferenceImageDropSourceRef.current);
+        if (
+          (!internalPayload || !hasInternalResolver) &&
+          (!nextUrl || nextUrl.startsWith("blob:")) &&
+          referenceId &&
+          resolvePreview
+        ) {
           nextUrl = resolvePreview(referenceId);
         }
         if (!nextUrl) return;
         if (!looksLikeImageUrl(nextUrl)) return;
         const isBlobUrl = nextUrl.startsWith("blob:");
-        const canAcceptBlob = fromFile || Boolean(referenceId);
+        const canAcceptBlob =
+          fromFile || Boolean(referenceId) || resolvedInternalSource?.sourceKind === "local_file";
         if (isBlobUrl && !canAcceptBlob) return;
-        let ownsImageUrl = Boolean(fromFile && isBlobUrl);
-        if (ownsImageUrl && imageFile instanceof Blob) {
-          rememberObjectUrlBlob(nextUrl, imageFile);
-        }
-        if (isBlobUrl && !ownsImageUrl) {
-          const clonedBlobUrl = await cloneBlobObjectUrl(nextUrl);
-          if (!clonedBlobUrl) return;
-          nextUrl = clonedBlobUrl;
+        let ownsImageUrl = false;
+        if (isBlobUrl && fromFile && imageFile instanceof File) {
+          const prepared = await prepareLocalImageFileForEditIngress(imageFile);
+          if (prepared.url !== nextUrl) {
+            URL.revokeObjectURL(nextUrl);
+          }
+          nextUrl = prepared.url;
+          rememberObjectUrlBlob(nextUrl, prepared.blob);
           ownsImageUrl = true;
+        } else if (isBlobUrl) {
+          if (resolvedInternalSource?.sourceKind === "local_file") {
+            const localBlob = await resolvedInternalSource.loadBlob().catch(() => null);
+            if (!(localBlob instanceof Blob) || localBlob.size <= 0) return;
+            const prepared = await prepareLocalImageBlobForEditIngress(localBlob);
+            nextUrl = prepared.url;
+            rememberObjectUrlBlob(nextUrl, prepared.blob);
+            ownsImageUrl = true;
+          } else {
+            const rememberedBlob = readRememberedObjectUrlBlob(nextUrl);
+            const sourceBlobData =
+              rememberedBlob ??
+              (await fetch(nextUrl)
+                .then((response) => (response.ok ? response.blob() : null))
+                .catch(() => null));
+            if (!(sourceBlobData instanceof Blob) || sourceBlobData.size <= 0) return;
+            const prepared = await prepareLocalImageBlobForEditIngress(sourceBlobData);
+            nextUrl = prepared.url;
+            rememberObjectUrlBlob(nextUrl, prepared.blob);
+            ownsImageUrl = true;
+          }
         }
         applyPrimaryImageIngress({
           url: nextUrl,

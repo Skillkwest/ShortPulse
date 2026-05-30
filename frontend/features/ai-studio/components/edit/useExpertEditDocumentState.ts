@@ -15,12 +15,14 @@ import type { ExpertEditLayerSessionState } from "./expertEditSessionState";
 import { useExpertEditLayerInteractionRuntime } from "./useExpertEditLayerInteractionRuntime";
 import { useExpertEditLayerImageDimensionRuntime } from "./useExpertEditLayerImageDimensionRuntime";
 import { useExpertEditPrimaryIngress } from "./useExpertEditPrimaryIngress";
+import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
 
 type UseExpertEditDocumentStateParams = {
   initialLayerState: ExpertEditLayerSessionState;
   isMorePresetsSurfaceOpen: boolean;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   queuePanelHistoryBaselineFromCurrent: () => void;
 };
 
@@ -38,6 +40,7 @@ export function useExpertEditDocumentState({
   isMorePresetsSurfaceOpen,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
+  resolveInternalReferenceImageDropSource,
   queuePanelHistoryBaselineFromCurrent,
 }: UseExpertEditDocumentStateParams) {
   const layerIdCounterRef = React.useRef(initialLayerState.layerIdCounter);
@@ -157,6 +160,7 @@ export function useExpertEditDocumentState({
     setEditingLayerValue,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
+    resolveInternalReferenceImageDropSource,
     seedLayerImageDimensions,
   });
 

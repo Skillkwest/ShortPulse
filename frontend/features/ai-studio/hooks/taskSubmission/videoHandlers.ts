@@ -845,7 +845,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       preparedImageInputs,
       modelConfig,
       notifyGenerationFailure,
-      updateOutputById,
       videoReferenceMode,
       videoReferenceImageUrl,
       motionReferenceVideoUrl,
@@ -872,35 +871,24 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         }
 
         let motionVideoUrlFinal = motionReferenceVideoUrl;
-        const requiresUpload = needsVideoUpload(motionReferenceVideoUrl);
+        if (needsVideoUpload(motionReferenceVideoUrl)) {
+          notifyGenerationFailure(
+            id,
+            "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+          );
+          return { handled: true };
+        }
         try {
-          if (requiresUpload) {
-            updateOutputById(id, (item) => ({
-              ...item,
-              timestamp: "Uploading video...",
-            }));
-          }
-
           const preparedMotionVideoUrl =
             await prepareVideoUrlForSubmission(motionReferenceVideoUrl);
           if (!preparedMotionVideoUrl) {
             throw new Error("Motion reference video is missing.");
           }
           motionVideoUrlFinal = preparedMotionVideoUrl;
-
-          if (requiresUpload) {
-            updateOutputById(id, (item) => ({
-              ...item,
-              timestamp: "Video uploaded",
-            }));
-          }
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Motion reference preparation failed";
-          const prefix = requiresUpload
-            ? "Video upload failed"
-            : "Motion reference preparation failed";
-          notifyGenerationFailure(id, `${prefix}: ${message}`);
+          notifyGenerationFailure(id, `Motion reference preparation failed: ${message}`);
           return { handled: true };
         }
 

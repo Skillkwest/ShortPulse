@@ -66,6 +66,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   modelPricingPolicyLoading?: boolean;
   modelPricingPolicyReady?: boolean;
   motionReferenceVideoPending: boolean;
+  motionReferenceVideoError: string | null;
   motionReferenceVideoUrl: string | null;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   optimisticDebitEntries: OptimisticDebitEntry[];
@@ -180,6 +181,7 @@ export const useAiStudioPageGenerationRuntime = ({
   modelPricingPolicyLoading,
   modelPricingPolicyReady,
   motionReferenceVideoPending,
+  motionReferenceVideoError,
   motionReferenceVideoUrl,
   notifyGenerationFailure,
   optimisticDebitEntries,
@@ -282,6 +284,7 @@ export const useAiStudioPageGenerationRuntime = ({
     videoResolution,
     videoReferenceMode,
     motionReferenceVideoPending,
+    motionReferenceVideoError,
     motionReferenceVideoUrl,
     extraImageUrls,
     imageResolution,

@@ -13,6 +13,7 @@ import {
   type ResolveInternalReferenceDrop,
   type ResolvedInternalReferenceSource,
 } from "../logic/referenceSource/internalReferenceSource";
+import { resolveAgentAttachmentPreviewUrl } from "../logic/agentAttachmentImage";
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload, ReferenceDragSourceSurface } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
@@ -204,7 +205,35 @@ export const useAiStudioInternalDropResolvers = ({
         return null;
       }
 
-      if (canCreateObjectUrl()) {
+      const hasStablePreviewAuthority = Boolean(
+        resolvedSource.preparedImageUrl?.trim() ||
+        resolvedSource.previewStoragePath?.trim() ||
+        resolvedSource.fullStoragePath?.trim()
+      );
+
+      if (hasStablePreviewAuthority) {
+        const durablePreviewUrl = await resolveAgentAttachmentPreviewUrl({
+          previewStoragePath: resolvedSource.previewStoragePath ?? null,
+          fullStoragePath: resolvedSource.fullStoragePath ?? null,
+          referenceRenderUrl: null,
+          referenceUrl: resolvedSource.preparedImageUrl ?? resolvedSource.preview.url ?? null,
+          imageUrl: resolvedSource.preview.url ?? null,
+          submissionImageUrl: resolvedSource.preparedImageUrl ?? null,
+        }).catch(() => null);
+        if (durablePreviewUrl) {
+          return {
+            ...resolvedSource,
+            preview: {
+              ...resolvedSource.preview,
+              url: durablePreviewUrl,
+            },
+            preparedImageUrl: durablePreviewUrl,
+          };
+        }
+        return resolvedSource;
+      }
+
+      if (resolvedSource.sourceKind === "local_file" && canCreateObjectUrl()) {
         try {
           const blob = await resolvedSource.loadBlob();
           if (blob instanceof Blob && blob.size > 0) {
@@ -220,17 +249,11 @@ export const useAiStudioInternalDropResolvers = ({
             };
           }
         } catch {
-          // Fall back to stable storage-backed or local-file preview authority only.
+          // Fall back to rejecting drops that cannot produce a stable local preview.
         }
       }
 
-      const hasStablePreviewAuthority = Boolean(
-        resolvedSource.preparedImageUrl?.trim() ||
-        resolvedSource.previewStoragePath?.trim() ||
-        resolvedSource.fullStoragePath?.trim()
-      );
-
-      return hasStablePreviewAuthority ? resolvedSource : null;
+      return null;
     },
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );

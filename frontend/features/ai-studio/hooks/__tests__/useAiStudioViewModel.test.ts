@@ -412,6 +412,38 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
+  it("blocks generation when the motion clip has a staging error", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        referenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoError: "Local motion reference video is no longer available.",
+        motionReferenceVideoUrl:
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/current.mp4?token=stub",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Local motion reference video is no longer available."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("blocks generation when a local motion video leaks into Motion Control state", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        referenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoUrl: "blob:motion-video-123",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
   it("allows generation when both motion inputs are present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

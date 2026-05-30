@@ -327,6 +327,35 @@ describe("imageUpload", () => {
     );
   });
 
+  it("preserves actionable 413 upload details when the server provides them", async () => {
+    const localUrl = "blob:animated-reference";
+    const imageBlob = new Blob(["image-data"], { type: "image/png" });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
+      ) as typeof fetch;
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Upload failed: file too large",
+          details:
+            "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again.",
+        }),
+        {
+          status: 413,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
+      "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again."
+    );
+  });
+
   it("maps local blob fetch failures to a re-add guidance message", async () => {
     const localUrl = "blob:missing-reference";
     global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch")) as typeof fetch;

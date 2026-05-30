@@ -39,7 +39,7 @@
   --create-composer-selector-bg: var(--color-bg);
   --create-composer-selector-hover-border: rgba(201, 205, 214, 0.3);
   --create-composer-output-generate-max-height: 140px;
-  --create-composer-agent-input-min-height: 64px;
+  --create-composer-agent-input-min-height: 68px;
   --create-composer-agent-input-max-height: 520px;
   --create-composer-chat-composer-overlay-reserve: 126px;
   --create-composer-chat-composer-overlay-bottom-offset: 22px;

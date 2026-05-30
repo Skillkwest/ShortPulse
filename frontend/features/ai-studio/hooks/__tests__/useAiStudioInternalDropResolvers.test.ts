@@ -14,9 +14,15 @@ import {
 const { resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
   resolveInternalReferenceSourceMock: vi.fn(),
 }));
+const { resolveAgentAttachmentPreviewUrlMock } = vi.hoisted(() => ({
+  resolveAgentAttachmentPreviewUrlMock: vi.fn(),
+}));
 
 vi.mock("../../logic/referenceSource/internalReferenceSource", () => ({
   resolveInternalReferenceSource: resolveInternalReferenceSourceMock,
+}));
+vi.mock("../../logic/agentAttachmentImage", () => ({
+  resolveAgentAttachmentPreviewUrl: resolveAgentAttachmentPreviewUrlMock,
 }));
 
 const makePayload = (
@@ -53,6 +59,7 @@ describe("useAiStudioInternalDropResolvers", () => {
 
   beforeEach(() => {
     resolveInternalReferenceSourceMock.mockReset();
+    resolveAgentAttachmentPreviewUrlMock.mockReset();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn((blob: Blob) => `blob:${blob.size}`),
@@ -225,8 +232,12 @@ describe("useAiStudioInternalDropResolvers", () => {
         sourceSurface: "all-refs",
         resolutionReason: "output_storage_path",
       },
+      preparedImageUrl: "https://signed.example.com/result-0.png",
       loadBlob: vi.fn(async () => new Blob(["img0"])),
     });
+    resolveAgentAttachmentPreviewUrlMock.mockResolvedValue(
+      "https://signed.example.com/result-0.png"
+    );
     const ensureOutputPersisted = vi.fn(async () => ({
       ok: true,
       mediaFileIds: ["media-0", "media-1"],
@@ -269,9 +280,9 @@ describe("useAiStudioInternalDropResolvers", () => {
         sourceId: "media-0",
         previewStoragePath: "user-1/generations/images/result-0.png",
         promptText: "User visible prompt",
-        preparedImageUrl: "blob:4",
+        preparedImageUrl: "https://signed.example.com/result-0.png",
         preview: expect.objectContaining({
-          url: "blob:4",
+          url: "https://signed.example.com/result-0.png",
         }),
       })
     );

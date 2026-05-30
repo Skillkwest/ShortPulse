@@ -43,6 +43,62 @@ type WorkspaceFailureStage =
   | "workspace save"
   | "workspace delete";
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const summarizeWorkspaceSaveSnapshotForLog = (
+  snapshot: unknown
+): Record<
+  | "workspace_snapshot_bytes"
+  | "workspace_snapshot_active_output_count"
+  | "workspace_snapshot_archived_output_count"
+  | "workspace_snapshot_total_output_count"
+  | "workspace_snapshot_media_id_count"
+  | "workspace_snapshot_prompt_id_count"
+  | "workspace_snapshot_generation_id_count",
+  number
+> => {
+  const snapshotRecord = asRecord(snapshot);
+  const outputsRecord = asRecord(snapshotRecord.outputs);
+  const activeRows = Array.isArray(outputsRecord.active) ? outputsRecord.active : [];
+  const archivedRows = Array.isArray(outputsRecord.archived) ? outputsRecord.archived : [];
+  const outputRows = [...activeRows, ...archivedRows];
+  const mediaIds = new Set<string>();
+  const promptIds = new Set<string>();
+  const generationIds = new Set<string>();
+  outputRows.forEach((row) => {
+    const record = asRecord(row);
+    const promptId = typeof record.promptId === "string" ? record.promptId.trim() : "";
+    const generationId = typeof record.generationId === "string" ? record.generationId.trim() : "";
+    const savedMediaIds = Array.isArray(record.savedMediaIds) ? record.savedMediaIds : [];
+    if (promptId) promptIds.add(promptId);
+    if (generationId) generationIds.add(generationId);
+    savedMediaIds.forEach((savedMediaId) => {
+      const mediaId = typeof savedMediaId === "string" ? savedMediaId.trim() : "";
+      if (mediaId) mediaIds.add(mediaId);
+    });
+  });
+
+  let snapshotBytes = 0;
+  try {
+    snapshotBytes = Buffer.byteLength(JSON.stringify(snapshotRecord), "utf8");
+  } catch {
+    snapshotBytes = 0;
+  }
+
+  return {
+    workspace_snapshot_bytes: snapshotBytes,
+    workspace_snapshot_active_output_count: activeRows.length,
+    workspace_snapshot_archived_output_count: archivedRows.length,
+    workspace_snapshot_total_output_count: outputRows.length,
+    workspace_snapshot_media_id_count: mediaIds.size,
+    workspace_snapshot_prompt_id_count: promptIds.size,
+    workspace_snapshot_generation_id_count: generationIds.size,
+  };
+};
+
 const toRequestBody = (value: unknown): Record<string, unknown> => {
   if (typeof value === "string") {
     try {
@@ -109,6 +165,9 @@ export default async function handler(
 ) {
   let user: Awaited<ReturnType<typeof requireApiUser>> | null = null;
   let failureStage: WorkspaceFailureStage | null = "auth resolution";
+  let workspaceSaveSnapshotLogSummary: ReturnType<
+    typeof summarizeWorkspaceSaveSnapshotForLog
+  > | null = null;
   try {
     if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {
       res.setHeader("Allow", "GET, PUT, DELETE");
@@ -124,6 +183,8 @@ export default async function handler(
     }
 
     const requestBody = req.method === "PUT" ? toRequestBody(req.body) : null;
+    workspaceSaveSnapshotLogSummary =
+      req.method === "PUT" ? summarizeWorkspaceSaveSnapshotForLog(requestBody?.snapshot) : null;
     failureStage = "project lookup";
     const project = await getProjectForUser({
       userId: user.id,
@@ -196,6 +257,7 @@ export default async function handler(
             : req.method === "DELETE"
               ? "api.projects.workspace.delete"
               : "api.projects.workspace.read",
+        ...(workspaceSaveSnapshotLogSummary ?? {}),
       },
     });
     return res.status(500).json({

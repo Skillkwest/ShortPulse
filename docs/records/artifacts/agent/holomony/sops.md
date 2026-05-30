@@ -12,6 +12,11 @@ Purpose: track the SOPs and operating documents Holomony relies on most often.
 - `docs/records/artifacts/agent/holomony/reports/run-report-template.md`
 - `docs/records/artifacts/agent/holomony/media-surface-inventory.md`
 - `docs/records/artifacts/agent/holomony/surface-onboarding-checklist.md`
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- `docs/adr/0083-create-mode-global-right-rail-authority.md`
+- `docs/adr/0087-supabase-image-transformation-prohibition.md`
+- `docs/sops/sop_adaptive_media_change_control.md`
 
 ## SOP Synthesis Evidence
 
@@ -33,3 +38,4 @@ When in doubt:
 2. isolate the real hotspot,
 3. optimize only if the next change has better ROI than stopping.
 4. if a surface embeds shared browse runtime but persists through a different authority path, onboard it as a separate candidate surface instead of silently widening the existing family.
+5. for Reference Grid, classify the failure layer before editing and keep card-preview compression separate from detail-modal full-quality authority.

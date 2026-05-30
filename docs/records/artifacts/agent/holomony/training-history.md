@@ -2,6 +2,46 @@
 
 Purpose: record supervised Holomony training runs, prompt patterns, learned behavior, tooling updates, and next training focus.
 
+## 2026-05-30: Reference Grid Ownership Expansion
+
+Task: promote Holomony from practical Reference Grid familiarity to explicit Reference Grid ownership authority.
+
+Interaction audited:
+
+- user challenged whether Holomony truly understood and owned the Reference Grid as part of the media-performance job
+- user identified patch-on-patch churn as a trust problem and asked what was needed for full ownership
+- user granted Holomony authority to explore, audit, and create the materials needed to own the Reference Grid entirely
+
+Actions taken:
+
+- audited current Holomony scope, memory, and operating rules
+- audited the Reference Grid owner paths across orchestration, projection, media URL authority, hydration/loading, virtualization, render controllers, card UI, detail-modal handoff, intake/drag, and telemetry
+- created `docs/agents/holomony/reference-grid-ownership-map.md`
+- created `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- updated Holomony README, AGENTS, SOP, ownership manifest, memory, artifact README, docs index, media-surface inventory, tool inventory, and SOP notes
+- promoted Reference Grid and Quick Slot Inventory from candidate/incident framing into approved Holomony surfaces for media-performance and display-correctness lanes
+
+Training result:
+
+- Holomony now has a durable owner-path model for Reference Grid work
+- Holomony must classify future Reference Grid issues before editing:
+  - projection/state
+  - URL authority
+  - hydration/loading
+  - render performance
+  - detail handoff
+  - ingestion/drag
+  - upstream failure
+- durable rule recorded: Reference Grid ownership includes saying no to grid edits when the real owner is upstream
+- durable rule recorded: card-preview compression and detail-modal full-quality authority are separate contracts
+- durable rule recorded: Supabase render-image transforms are never an acceptable Reference Grid or detail-modal fallback
+
+Next training focus:
+
+- build a compact current Reference Grid production evidence packet
+- apply the diagnostic SOP on the next grid incident before changing code
+- avoid patch loops by repairing one owner-layer contract per pass
+
 ## 2026-05-25: Shared-Surface Sensitivity And Stewardship Calibration
 
 Task: synthesize why the user was highly protective around the Media Library preview-modal lane and convert that sensitivity into durable Holomony operating behavior.

@@ -28,6 +28,10 @@ Purpose: list the current retained tools Holomony uses for media optimization an
   - frozen or provisional baseline for Holomony's own performance snapshot
 - `docs/records/artifacts/agent/holomony/media-surface-inventory.md`
   - cross-surface control sheet for approved and candidate Holomony surfaces
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+  - Reference Grid ownership map, owner-path model, failure classification, and handoff boundary
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+  - Reference Grid diagnostic sequence, proof matrix, and anti-patch-loop rules
 - `docs/records/artifacts/agent/holomony/surface-onboarding-checklist.md`
   - minimum gate checklist before a new media-heavy surface becomes first-class
 - `docs/records/artifacts/agent/holomony/reports/current/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
@@ -37,9 +41,31 @@ Purpose: list the current retained tools Holomony uses for media optimization an
 - `scripts/ops/holomony/holomony_media_performance_audit.sh`
   - verifies Holomony's core media-performance docs, scripts, tests, and telemetry entrypoints remain present and docs-clean
 
+## Reference Grid Test And Gate Map
+
+Use these existing checks selectively by owner layer:
+
+- Projection/state:
+  - `npm run test -- referenceProjections`
+  - `npm run test -- referenceDomain`
+  - `npm run test -- useReferenceGridOutputCollections useReferenceGridOutputViewModels`
+- URL authority and adaptive delivery:
+  - `npm run test -- referenceGridMedia mediaPreviewTrustPolicy`
+  - `npm run test -- useReferenceGridResolvedMediaController`
+  - `npm run test:adaptive-media-runtime` for protected adaptive/grid delivery changes
+- Hydration/loading:
+  - `npm run test -- useReferenceGridPreviewRuntime useReferenceGridImageHydrationController useReferenceGridHydrationQueueController`
+  - `npm run test -- referenceGridCardVisualState ReferenceGridCard useReferenceGridCardRenderController`
+- Render performance:
+  - `npm run test -- useReferenceGridViewportProjectionController useReferenceGridVirtualMetricsController useReferenceGridCardItemsController referenceGridPropsEquality`
+- Detail handoff:
+  - `npm run test -- DetailModal`
+
+Production behavior still requires production evidence from `https://www.shortpulse.ai` when the user-reported symptom is deployed-only.
+
 ## Current Gaps
 
-- no first-class Reference Grid KPI capture path yet
+- no compact first-class Reference Grid production evidence packet yet
 - repeated retained baseline packets are still thin across approved surfaces
 - some panel metrics still depend on what the live session exposes
 - no dedicated direct audit path yet for `character-panel-media-assignment`

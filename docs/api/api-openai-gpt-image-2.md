@@ -45,7 +45,7 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
 - Standard edit inputs:
   - up to 8 reference images through the current AI Studio client path
   - optional mask on the route contract for future/power-user parity
-  - optional internal media-ref extensions for app-owned inputs so the route can mint fresh provider-safe signed URLs at dispatch time instead of trusting stale durable signed URLs
+  - optional internal media-ref extensions for app-owned inputs so the route can resolve direct provider-safe file inputs at dispatch time instead of trusting stale durable signed URLs
 - Still not in scope:
   - streaming
   - Responses tool path
@@ -123,7 +123,7 @@ Validation rules:
 - `images` is required for `/api/openai/image-edit` and must contain `1..8` image URLs.
 - `input_fidelity` is optional compatibility input for `/api/openai/image-edit`; when omitted or supplied as a legacy `low | high` value, ShortPulse bills and records `high`. The OpenAI provider request must omit `input_fidelity` for `gpt-image-2`.
 - `mask` is optional for `/api/openai/image-edit`.
-- `shortpulse_internal_media_refs` is an optional ShortPulse extension carrying canonical app-owned media descriptors for general edit references. When present, the route resolves fresh provider-safe signed URLs immediately before provider dispatch and must prefer those over stale app-owned signed URLs supplied by the client.
+- `shortpulse_internal_media_refs` is an optional ShortPulse extension carrying canonical app-owned media descriptors for general edit references. When present, the route resolves direct provider-safe file inputs immediately before provider dispatch and must prefer those over stale app-owned signed URLs supplied by the client.
 - `shortpulse_internal_edit_media_refs` is an optional ShortPulse extension carrying canonical app-owned descriptors for edit-specific `base_image`, `mask_image`, and `reference_image` inputs.
 - `project_id` is optional; when present, successful direct-complete generations are eagerly associated to the owned project so restore/reopen can find them without waiting for later workspace-save backfill.
 - Server enforces `n = 1`; callers do not supply arbitrary counts.

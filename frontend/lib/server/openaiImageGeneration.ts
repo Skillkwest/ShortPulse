@@ -40,9 +40,22 @@ type OpenAiGenerateImageInput = {
   quality: OpenAiImage2Quality;
 };
 
+export type OpenAiEditImageSource =
+  | {
+      kind: "url";
+      imageUrl: string;
+    }
+  | {
+      kind: "file";
+      buffer: Buffer;
+      contentType: string;
+      filename: string;
+      sourceId?: string;
+    };
+
 type OpenAiEditImageInput = OpenAiGenerateImageInput & {
-  images: string[];
-  maskUrl?: string | null;
+  images: OpenAiEditImageSource[];
+  mask?: OpenAiEditImageSource | null;
 };
 
 type PersistGeneratedImageInput = {
@@ -139,6 +152,69 @@ const resolveOpenAiApiBase = (): string => {
   const raw = (process.env.OPENAI_API_BASE ?? "").trim();
   if (!raw.length) return DEFAULT_OPENAI_API_BASE;
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+};
+
+const buildOpenAiImageEditPayloadRef = async ({
+  apiKey,
+  image,
+}: {
+  apiKey: string;
+  image: OpenAiEditImageSource;
+}): Promise<{
+  payload: { image_url: string } | { file_id: string };
+  uploadedFileId: string | null;
+}> => {
+  if (image.kind === "url") {
+    return {
+      payload: { image_url: image.imageUrl },
+      uploadedFileId: null,
+    };
+  }
+
+  const formData = new FormData();
+  formData.set("purpose", "vision");
+  formData.set(
+    "file",
+    new Blob([image.buffer], { type: image.contentType || "application/octet-stream" }),
+    image.filename
+  );
+
+  const response = await fetch(`${resolveOpenAiApiBase()}/files`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(readOpenAiErrorMessage(payload));
+  }
+
+  const fileId = normalizeOptionalString(payload.id);
+  if (!fileId) {
+    throw new Error("OpenAI file upload returned no file id.");
+  }
+
+  return {
+    payload: { file_id: fileId },
+    uploadedFileId: fileId,
+  };
+};
+
+const deleteOpenAiUploadedFile = async ({
+  apiKey,
+  fileId,
+}: {
+  apiKey: string;
+  fileId: string;
+}): Promise<void> => {
+  await fetch(`${resolveOpenAiApiBase()}/files/${encodeURIComponent(fileId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  }).catch(() => undefined);
 };
 
 const readOpenAiErrorMessage = (payload: unknown): string => {
@@ -348,33 +424,67 @@ export const editOpenAiImage = async ({
   size,
   quality,
   images,
-  maskUrl = null,
+  mask = null,
 }: OpenAiEditImageInput): Promise<OpenAiImageGenerationResult> => {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const response = await fetch(`${resolveOpenAiApiBase()}/images/edits`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      images: images.map((imageUrl) => ({ image_url: imageUrl })),
-      prompt,
-      size,
-      quality,
-      n: 1,
-      output_format: "png",
-      moderation: "auto",
-      ...(maskUrl ? { mask: { image_url: maskUrl } } : {}),
-    }),
-  });
+  const uploadedFileIds: string[] = [];
 
-  return parseOpenAiImageResponse(response);
+  try {
+    const providerImages: Array<{ image_url: string } | { file_id: string }> = [];
+    for (const image of images) {
+      const resolved = await buildOpenAiImageEditPayloadRef({
+        apiKey,
+        image,
+      });
+      if (resolved.uploadedFileId) {
+        uploadedFileIds.push(resolved.uploadedFileId);
+      }
+      providerImages.push(resolved.payload);
+    }
+    const resolvedMask = mask
+      ? await buildOpenAiImageEditPayloadRef({
+          apiKey,
+          image: mask,
+        })
+      : null;
+    if (resolvedMask?.uploadedFileId) {
+      uploadedFileIds.push(resolvedMask.uploadedFileId);
+    }
+
+    const response = await fetch(`${resolveOpenAiApiBase()}/images/edits`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        images: providerImages,
+        prompt,
+        size,
+        quality,
+        n: 1,
+        output_format: "png",
+        moderation: "auto",
+        ...(resolvedMask ? { mask: resolvedMask.payload } : {}),
+      }),
+    });
+
+    return parseOpenAiImageResponse(response);
+  } finally {
+    await Promise.all(
+      uploadedFileIds.map((fileId) =>
+        deleteOpenAiUploadedFile({
+          apiKey,
+          fileId,
+        })
+      )
+    );
+  }
 };
 
 /**

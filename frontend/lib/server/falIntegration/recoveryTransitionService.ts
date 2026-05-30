@@ -1,5 +1,7 @@
 import { applyGenerationLifecycleTransition } from "../api/generationLifecycleTransitionService";
+import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { releaseMotionReferenceVideoLeasesForGeneration } from "../motionReferenceVideoAssetLease";
 import type { RecoveryGenerationRow } from "./recoveryGenerationLookup";
 
 type JsonObject = Record<string, unknown>;
@@ -90,5 +92,37 @@ export const applyRecoveryTransition = async ({
 
   if (!result.ok) {
     throw new Error(result.error);
+  }
+
+  const resolvedStatus =
+    generationUpdates && typeof generationUpdates.status === "string"
+      ? generationUpdates.status.trim().toLowerCase()
+      : null;
+  const resolvedCompletedAt =
+    generationUpdates && typeof generationUpdates.completed_at === "string"
+      ? generationUpdates.completed_at.trim()
+      : null;
+  const shouldReleaseMotionReferenceLease =
+    Boolean(resolvedCompletedAt) || resolvedStatus === "success" || resolvedStatus === "fail";
+  if (!shouldReleaseMotionReferenceLease) return;
+
+  try {
+    await releaseMotionReferenceVideoLeasesForGeneration({
+      generationId: generation.id,
+      userId: generation.user_id,
+    });
+  } catch (error) {
+    await writeAppErrorLog({
+      source: "telemetry.motion_reference_video.lease_release_failed",
+      message: "Motion reference video lease release failed after recovery transition.",
+      requestId: generation.request_id,
+      userId: generation.user_id,
+      statusCode: 200,
+      metadata: {
+        generation_id: generation.id,
+        recovery_status: resolvedStatus,
+        lease_error: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => undefined);
   }
 };

@@ -5,6 +5,8 @@ import { FAL_NANO_BANANA_PRO_EDIT_MODEL_ID } from "../../../lib/model-runtime/fa
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { analyzeExpertEditPromptTokens } from "./expertEditPromptReferences";
 
+const PUBLIC_ADVANCED_EXPERT_EDIT_MODES_ENABLED = false;
+
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 export const INPAINT_FLUX_FILL_MODEL_LABEL = "Pulse Fill v1";
 export const INPAINT_REFERENCE_MODEL_ID = "fal-ai/flux-kontext-lora/inpaint";
@@ -13,11 +15,15 @@ export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = FAL_NANO_BANANA_PRO_EDIT_MOD
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL = "Pulse Markup v1";
 export const isMarkupModelLockEnabled = (): boolean => true;
 
+export const areAdvancedExpertEditModesPubliclyAccessible = (): boolean =>
+  PUBLIC_ADVANCED_EXPERT_EDIT_MODES_ENABLED;
+
 export const isMarkupCollapsedOpenModalEnabled = (): boolean => false;
 
 export const isMarkupStrokeSecondaryReferenceEnabled = (): boolean => true;
 
-export const isEditGenerationModeToggleEnabled = (): boolean => true;
+export const isEditGenerationModeToggleEnabled = (): boolean =>
+  areAdvancedExpertEditModesPubliclyAccessible();
 
 export const MAX_INPAINT_SECONDARY_REFERENCE_IMAGES = 1;
 

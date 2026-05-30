@@ -70,6 +70,7 @@ type ExpertEditStageWorkspaceProps = {
     menuRef: React.Ref<HTMLDivElement>;
     x: number;
     y: number;
+    canExpand?: boolean;
     isMarkupExpandSelected: boolean;
     hasSelectedLayerImage: boolean;
     onResetView: () => void;
@@ -220,6 +221,7 @@ export function ExpertEditStageWorkspace({
           menuRef={contextMenu.menuRef}
           x={contextMenu.x}
           y={contextMenu.y}
+          canExpand={contextMenu.canExpand}
           isMarkupExpandSelected={contextMenu.isMarkupExpandSelected}
           hasSelectedLayerImage={contextMenu.hasSelectedLayerImage}
           onResetView={contextMenu.onResetView}

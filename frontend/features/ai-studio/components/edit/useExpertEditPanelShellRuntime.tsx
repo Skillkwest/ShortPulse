@@ -17,6 +17,7 @@ import { ExpertEditStageSidebar } from "./ExpertEditStageSidebar";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 
 type UseExpertEditPanelShellRuntimeArgs = {
+  isAdvancedEditModesEnabled: boolean;
   isGenerationModeToggleEnabled: boolean;
   generationModeTabsStyle: React.CSSProperties;
   effectiveEditSubmitIntent: EditSubmitIntent;
@@ -100,6 +101,7 @@ type UseExpertEditPanelShellRuntimeArgs = {
  * Builds the sidebar node and context-menu payload for the Expert Edit shell.
  */
 export function useExpertEditPanelShellRuntime({
+  isAdvancedEditModesEnabled,
   isGenerationModeToggleEnabled,
   generationModeTabsStyle,
   effectiveEditSubmitIntent,
@@ -245,6 +247,7 @@ export function useExpertEditPanelShellRuntime({
       menuRef: stageContextMenuRef,
       x: stageContextMenuState.x,
       y: stageContextMenuState.y,
+      canExpand: isAdvancedEditModesEnabled,
       isMarkupExpandSelected,
       hasSelectedLayerImage: Boolean(selectedLayerImageUrl),
       onResetView: handleStageContextMenuResetView,
@@ -259,6 +262,7 @@ export function useExpertEditPanelShellRuntime({
       handleStageContextMenuResetView,
       handleStageContextMenuRemoveImage,
       handleStageContextMenuReset,
+      isAdvancedEditModesEnabled,
       isMarkupExpandSelected,
       selectedLayerImageUrl,
       stageContextMenuRef,

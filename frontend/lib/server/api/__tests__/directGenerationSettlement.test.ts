@@ -10,6 +10,7 @@ const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const readGenerationAbandonmentContextMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const releaseMotionReferenceVideoLeasesForGenerationMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const updateGenerationEqMock = vi.fn();
 const updateGenerationUpdateMock = vi.fn();
@@ -68,6 +69,11 @@ vi.mock("../appErrorLogs", () => ({
 vi.mock("../../projectGenerationAssociationsService", () => ({
   associateGenerationWithProjectForUser: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
+}));
+
+vi.mock("../../motionReferenceVideoAssetLease", () => ({
+  releaseMotionReferenceVideoLeasesForGeneration: (...args: unknown[]) =>
+    releaseMotionReferenceVideoLeasesForGenerationMock(...args),
 }));
 
 vi.mock("../supabaseAdmin", () => ({
@@ -178,6 +184,7 @@ describe("directGenerationSettlement", () => {
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    releaseMotionReferenceVideoLeasesForGenerationMock.mockResolvedValue(undefined);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     settleGenerationOutcomeMock.mockResolvedValue({ settled: true, note: "captured" });
     readGenerationAbandonmentContextMock.mockResolvedValue({
@@ -214,6 +221,10 @@ describe("directGenerationSettlement", () => {
       }),
       mediaUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
       projectId: null,
+    });
+    expect(releaseMotionReferenceVideoLeasesForGenerationMock).toHaveBeenCalledWith({
+      generationId: "gen-1",
+      userId: "user-1",
     });
     expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
       1,

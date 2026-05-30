@@ -977,6 +977,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           snapshot_bytes: 950_000,
           max_snapshot_bytes: 900_000,
           fallback_kind: "full",
+          selected_total_b: expect.any(Number),
         }),
       })
     );

@@ -20,13 +20,15 @@ import {
 } from "../../../lib/server/api/generationBilling";
 import {
   filterExternalUrlsFromInternalRefs,
+  type ResolvedInternalMediaFile,
   readInternalEditMediaRefsFromPayload,
   readInternalMediaRefsFromPayload,
-  resolveSignedUrlsForInternalEditMediaRefs,
-  resolveSignedUrlsForInternalMediaRefs,
+  resolveOpenAiImageFilesForInternalEditMediaRefs,
+  resolveOpenAiImageFilesForInternalMediaRefs,
 } from "../../../lib/server/api/internalMediaRefResolution";
 import { readGenerationAbandonmentContext } from "../../../lib/server/api/generationAbandonment";
 import {
+  type OpenAiEditImageSource,
   editOpenAiImage,
   persistGeneratedImageAsset,
 } from "../../../lib/server/openaiImageGeneration";
@@ -119,17 +121,55 @@ const normalizeImageSources = (value: unknown): string[] | null => {
   return imageUrls;
 };
 
-const dedupeImageSources = (sources: Array<string | null | undefined>, limit = 8): string[] => {
+const createOpenAiFileSource = (
+  file: ResolvedInternalMediaFile | null
+): OpenAiEditImageSource | null => {
+  if (!file) return null;
+  return {
+    kind: "file",
+    buffer: file.buffer,
+    contentType: file.contentType,
+    filename: file.filename,
+    sourceId: file.storagePath,
+  };
+};
+
+const createOpenAiUrlSource = (
+  imageUrl: string | null | undefined
+): OpenAiEditImageSource | null => {
+  const normalized = normalizeRequiredString(imageUrl);
+  if (!normalized) return null;
+  return {
+    kind: "url",
+    imageUrl: normalized,
+  };
+};
+
+const dedupeProviderImageSources = (
+  sources: Array<OpenAiEditImageSource | null | undefined>,
+  limit = 8
+): OpenAiEditImageSource[] => {
   const seen = new Set<string>();
-  const deduped: string[] = [];
+  const deduped: OpenAiEditImageSource[] = [];
   sources.forEach((source) => {
-    const normalized = normalizeRequiredString(source);
-    if (!normalized || seen.has(normalized)) return;
-    seen.add(normalized);
-    deduped.push(normalized);
+    if (!source) return;
+    const key =
+      source.kind === "url"
+        ? `url:${source.imageUrl}`
+        : `file:${source.sourceId ?? `${source.filename}:${source.buffer.byteLength}`}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(source);
   });
   return deduped.slice(0, limit);
 };
+
+const buildBillingImageRef = (
+  source: OpenAiEditImageSource
+): { image_url: string } | { file_id: string } =>
+  source.kind === "url"
+    ? { image_url: source.imageUrl }
+    : { file_id: `internal:${source.filename}` };
 
 const normalizeOptionalMaskUrl = (value: unknown): string | null | undefined => {
   if (value == null) return undefined;
@@ -168,11 +208,11 @@ export default async function handler(
     const internalEditMediaRefs = readInternalEditMediaRefsFromPayload(
       body.shortpulse_internal_edit_media_refs
     );
-    const internalImages = await resolveSignedUrlsForInternalMediaRefs({
+    const internalImages = await resolveOpenAiImageFilesForInternalMediaRefs({
       refs: internalMediaRefs,
       userId: user.id,
     });
-    const internalEditSignedUrls = await resolveSignedUrlsForInternalEditMediaRefs({
+    const internalEditFiles = await resolveOpenAiImageFilesForInternalEditMediaRefs({
       refs: internalEditMediaRefs,
       userId: user.id,
     });
@@ -181,13 +221,14 @@ export default async function handler(
       internalEditMediaRefs.baseImageRef,
       internalEditMediaRefs.referenceImageRef,
     ]);
-    const images = dedupeImageSources([
-      internalEditSignedUrls.baseImageUrl,
-      internalEditSignedUrls.referenceImageUrl,
-      ...internalImages,
-      ...externalDirectImages,
+    const images = dedupeProviderImageSources([
+      createOpenAiFileSource(internalEditFiles.baseImageFile),
+      createOpenAiFileSource(internalEditFiles.referenceImageFile),
+      ...internalImages.map((file) => createOpenAiFileSource(file)),
+      ...externalDirectImages.map((imageUrl) => createOpenAiUrlSource(imageUrl)),
     ]);
-    const resolvedMaskUrl = internalEditSignedUrls.maskUrl ?? maskUrl;
+    const resolvedMask =
+      createOpenAiFileSource(internalEditFiles.maskFile) ?? createOpenAiUrlSource(maskUrl);
 
     if (
       !prompt ||
@@ -195,7 +236,7 @@ export default async function handler(
       !quality ||
       images.length < 1 ||
       !inputFidelity ||
-      (hasMaskPayload && !resolvedMaskUrl)
+      (hasMaskPayload && !resolvedMask)
     ) {
       return res.status(400).json({
         error: "Invalid request",
@@ -213,9 +254,9 @@ export default async function handler(
         size,
         quality,
         n: 1,
-        images: images.map((imageUrl) => ({ image_url: imageUrl })),
+        images: images.map((source) => buildBillingImageRef(source)),
         input_fidelity: inputFidelity,
-        ...(resolvedMaskUrl ? { mask: { image_url: resolvedMaskUrl } } : {}),
+        ...(resolvedMask ? { mask: buildBillingImageRef(resolvedMask) } : {}),
       },
       reason: "openai-gpt-image-2 edit",
     });
@@ -226,7 +267,7 @@ export default async function handler(
       size,
       quality,
       images,
-      maskUrl: resolvedMaskUrl,
+      mask: resolvedMask,
     });
     const providerRequestId = edited.providerRequestId ?? `openai:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
@@ -236,7 +277,7 @@ export default async function handler(
       requested_quality: quality,
       input_image_count: images.length,
       input_fidelity: inputFidelity,
-      mask_present: Boolean(resolvedMaskUrl),
+      mask_present: Boolean(resolvedMask),
     });
     if (!submitLink.ok) {
       throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
@@ -267,7 +308,7 @@ export default async function handler(
         openai_operation: "edit",
         input_image_count: images.length,
         input_fidelity: inputFidelity,
-        mask_present: Boolean(resolvedMaskUrl),
+        mask_present: Boolean(resolvedMask),
         provider_usage: edited.usage,
       },
     });

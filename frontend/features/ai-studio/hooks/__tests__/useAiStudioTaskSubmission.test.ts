@@ -247,6 +247,81 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
   });
 
+  it("threads motion reference asset identity into shortpulse context for motion-control submits", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const motionReferenceVideoUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion-ref.mp4?token=stub.invalid.token";
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "video",
+        model: KIE_KLING_30_MODEL_ID,
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "motion",
+        videoReferenceImageUrl:
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/reference/character.png?token=stub.invalid.token",
+        motionReferenceVideoUrl,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+        projectId: "project-1",
+      })
+    );
+
+    await act(async () => {
+      await result.current("Transfer motion", [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/reference/character.png?token=stub.invalid.token",
+      ]);
+    });
+
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shortpulseContext: expect.objectContaining({
+          motion_reference_asset: {
+            bucket: "media_library",
+            storage_path: "user-1/videos/motion-control/motion-ref.mp4",
+            source: "motion_control_upload",
+          },
+        }),
+      })
+    );
+  });
+
   it("runs ensureGenerationRecord after direct-complete submissions", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

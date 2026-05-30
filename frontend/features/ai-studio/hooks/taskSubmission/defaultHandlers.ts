@@ -117,7 +117,10 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
         : preparedImageInputs.slice(0, 8);
       const maskImageUrl = inpaintOverride?.maskInput?.trim();
       const response =
-        openAiReferenceImages.length > 0 || maskImageUrl || hasInternalMediaRefs(internalMediaRefs)
+        openAiReferenceImages.length > 0 ||
+        maskImageUrl ||
+        hasInternalMediaRefs(internalMediaRefs) ||
+        hasInternalEditMediaRefs(inpaintOverride)
           ? await submitOpenAiGptImage2Edit({
               prompt: cleanedPrompt,
               size,

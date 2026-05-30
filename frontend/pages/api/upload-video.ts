@@ -11,6 +11,7 @@ import {
   MediaUploadServiceError,
   uploadSignedStorageAssetForUser,
 } from "../../lib/server/mediaUploadService";
+import { retireMotionReferenceVideoStoragePathForUser } from "../../lib/server/motionReferenceVideoAssetLease";
 
 type UploadResponse = {
   url: string;
@@ -26,6 +27,7 @@ type ErrorResponse = {
 
 type DeleteRequestBody = {
   path?: unknown;
+  mode?: unknown;
 };
 
 export const config = {
@@ -86,13 +88,16 @@ const readJsonBody = async (req: NextApiRequest): Promise<unknown> =>
     req.on("aborted", onAborted);
   });
 
-const readCleanupStoragePath = async (req: NextApiRequest): Promise<string> => {
+const readCleanupRequest = async (
+  req: NextApiRequest
+): Promise<{ storagePath: string; mode: "stale" | "retire" }> => {
   const body = (await readJsonBody(req)) as DeleteRequestBody;
   const storagePath = typeof body?.path === "string" ? body.path.trim() : "";
   if (!storagePath) {
     throw new MediaUploadServiceError(400, "Invalid request", "Motion upload path is required.");
   }
-  return storagePath;
+  const mode = body?.mode === "retire" ? "retire" : "stale";
+  return { storagePath, mode };
 };
 
 /**
@@ -111,12 +116,19 @@ export default async function handler(
 
   try {
     if (req.method === "DELETE") {
-      const storagePath = await readCleanupStoragePath(req);
-      await deleteSignedStorageAssetForUser({
-        userId: user.id,
-        storagePath,
-        storageFolderOverride: MOTION_CONTROL_STORAGE_FOLDER,
-      });
+      const { storagePath, mode } = await readCleanupRequest(req);
+      if (mode === "retire") {
+        await retireMotionReferenceVideoStoragePathForUser({
+          userId: user.id,
+          storagePath,
+        });
+      } else {
+        await deleteSignedStorageAssetForUser({
+          userId: user.id,
+          storagePath,
+          storageFolderOverride: MOTION_CONTROL_STORAGE_FOLDER,
+        });
+      }
       return res.status(204).end();
     }
 

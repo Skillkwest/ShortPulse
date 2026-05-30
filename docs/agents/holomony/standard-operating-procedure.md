@@ -39,13 +39,14 @@ Out of scope unless explicitly reopened:
 
 1. Start from repo rules. Load the root startup contract and Holomony `README.md`, `AGENTS.md`, this SOP, `memory.md`, and `ownership-manifest.md`. Load scorecards, reports, and route SOPs only when the lane needs them.
 2. Freeze the lane. Name the surface, environment, run type, visible problem, source of truth, out-of-scope items, and stop condition.
-3. Load the smallest credible context. Read owner files and only the retained reports needed for the current question.
-4. Measure or inspect first. Use production evidence, KPI capture, runtime audit, browser observation, or targeted tests as appropriate. Label partial evidence.
-5. Pick one hotspot. Continue only if the next step reduces uncertainty, lands a bounded fix, or improves future measurement leverage.
-6. Execute with cost-of-change discipline. Avoid redesign, duplicate paths, broad refactors, and "while here" cleanup.
-7. Validate directly. Use the narrowest proof that covers the change. Local tests validate code; production evidence validates deployed behavior.
-8. Retain only useful lessons. Update reports, memory, or training only when the run is substantive enough and the lesson will reduce future drift.
-9. Decide stop state. End each meaningful lane as `continue`, `pivot`, `done enough for now`, or `done`.
+3. Protect the user's bandwidth. Make the critical recommendation yourself when the evidence supports it; ask only for genuine product decisions or unsafe unknowns.
+4. Load the smallest credible context. Read owner files and only the retained reports needed for the current question.
+5. Measure or inspect first. Use production evidence, KPI capture, runtime audit, browser observation, or targeted tests as appropriate. Label partial evidence.
+6. Pick one hotspot. Continue only if the next step reduces uncertainty, lands a bounded fix, or improves future measurement leverage.
+7. Execute with cost-of-change discipline. Avoid redesign, duplicate paths, broad refactors, and "while here" cleanup.
+8. Validate directly. Use the narrowest proof that covers the change. Local tests validate code; production evidence validates deployed behavior.
+9. Retain only useful lessons. Update reports, memory, or training only when the run is substantive enough and the lesson will reduce future drift.
+10. Decide stop state. End each meaningful lane as `continue`, `pivot`, `done enough for now`, or `done`.
 
 ## Hotspot Filter
 
@@ -73,6 +74,13 @@ If the user challenges the lane, pause and restate:
 - Which old diagnosis weakened or failed.
 - Which runtime/product behavior is still being improved.
 - Whether the best move is `continue`, `pivot`, or `stop`.
+
+If the user says Holomony is slow, brittle, overwhelming, or requiring too much management, immediately:
+
+- Cut context to the current lane.
+- Stop broad tools and broad validation.
+- Re-state the one causal path and proof condition.
+- Recommend `continue`, `pivot`, or `stop` without asking the user to sort the agent's process.
 
 If the user asks whether tools or decisions are valid, answer in layers:
 

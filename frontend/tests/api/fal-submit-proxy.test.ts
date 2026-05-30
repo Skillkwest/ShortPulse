@@ -3,11 +3,13 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const requireApiUserMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
+const createMotionReferenceVideoLeaseForGenerationMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
 const readInternalMediaRefsFromPayloadMock = vi.fn();
@@ -53,6 +55,7 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", () => ({
@@ -72,6 +75,11 @@ vi.mock("../../lib/server/providerIntegration/submitProviderDispatcher", () => (
 vi.mock("../../lib/server/api/generationAcceptedTransitionService", () => ({
   applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
     applyAcceptedRunningGenerationTransitionMock(...args),
+}));
+
+vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
+  createMotionReferenceVideoLeaseForGeneration: (...args: unknown[]) =>
+    createMotionReferenceVideoLeaseForGenerationMock(...args),
 }));
 
 vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
@@ -139,6 +147,7 @@ describe("createFalSubmitHandler", () => {
       providerDiagnostics: null,
     });
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
+    createMotionReferenceVideoLeaseForGenerationMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
     requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
@@ -261,6 +270,51 @@ describe("createFalSubmitHandler", () => {
         generationId: expect.any(String),
       })
     );
+  });
+
+  it("creates a motion reference lease when shortpulse context includes a motion asset", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitUrl: "https://queue.kie.ai/kling",
+      routeLabel: "Kie Kling",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "Transfer motion",
+        image_url: "https://example.com/character.png",
+        video_url: "https://example.com/motion.mp4",
+        shortpulse_context: {
+          motion_reference_asset: {
+            bucket: "media_library",
+            storage_path: "user-1/videos/motion-control/motion-ref.mp4",
+            source: "motion_control_upload",
+          },
+        },
+      },
+      headers: {
+        host: "shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createMotionReferenceVideoLeaseForGenerationMock).toHaveBeenCalledWith({
+      generationId: expect.any(String),
+      userId: "user-1",
+      shortpulseContext: expect.objectContaining({
+        motion_reference_asset: {
+          bucket: "media_library",
+          storage_path: "user-1/videos/motion-control/motion-ref.mp4",
+          source: "motion_control_upload",
+        },
+      }),
+    });
   });
 
   it("submits Fal edit image routes directly and skips the worker queue", async () => {

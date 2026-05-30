@@ -27,8 +27,8 @@ URLs even when the app still knew the canonical storage object identity.
 The repo already had the beginnings of a stronger pattern:
 
 1. App-owned media often retained storage-path authority elsewhere in the repo.
-2. Image/edit submit routes were the correct seam for last-mile provider URL
-   minting.
+2. Image/edit submit routes were the correct seam for last-mile provider input
+   resolution.
 3. Right-rail and workspace authority contracts already favored canonical shared
    state over per-lane derived copies.
 
@@ -42,7 +42,7 @@ Character Mode, and submit stop drifting apart.
 2. Provider-facing signed URLs are derived data, not durable app state, for
    app-owned image/edit refs.
 3. Image/edit submit routes own the final conversion from canonical internal
-   refs to fresh provider-fetchable signed URLs immediately before provider
+   refs to fresh provider-safe request inputs immediately before provider
    dispatch.
 4. Replay and reroll may still carry raw URL refs, but only for truly external
    references or URL-only fallback cases.
@@ -63,8 +63,8 @@ Positive:
    image/edit refs.
 2. Character Mode no longer reintroduces URL-authority drift after the generic
    image/edit path was hardened.
-3. Submit becomes the single authoritative seam that mints provider-facing URLs
-   for app-owned image/edit refs.
+3. Submit becomes the single authoritative seam that resolves provider-facing
+   request inputs for app-owned image/edit refs.
 4. The runtime carries fewer conflicting representations of the same internal
    media object.
 
@@ -87,7 +87,7 @@ This decision is implemented correctly only when:
 2. Reroll prefers canonical internal refs when replay `v2` exists.
 3. Character Mode hands app-owned refs into generation via canonical internal
    refs instead of durable signed URLs.
-4. Image/edit submit routes mint fresh provider URLs for canonical refs at
-   dispatch time.
+4. Image/edit submit routes resolve provider-safe request inputs for canonical
+   refs at dispatch time.
 5. External URLs still pass through unchanged when no internal storage authority
    exists.

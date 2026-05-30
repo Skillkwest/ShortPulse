@@ -13,7 +13,7 @@ import {
   resolveSignedUrlsForInternalMediaRefs,
 } from "./internalMediaRefResolution";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
-import { logGenerationFailure } from "./appErrorLogs";
+import { logGenerationFailure, writeAppErrorLog } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
@@ -55,6 +55,7 @@ import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTr
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
+import { createMotionReferenceVideoLeaseForGeneration } from "../motionReferenceVideoAssetLease";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -925,6 +926,35 @@ export const createFalSubmitHandler = ({
               applyGenerationMutation: buildGenerationMutation("upsert"),
               attemptInput,
             });
+          let motionReferenceLeaseAttempted = false;
+          const tryCreateMotionReferenceLease = async () => {
+            if (motionReferenceLeaseAttempted) return;
+            motionReferenceLeaseAttempted = true;
+            try {
+              await createMotionReferenceVideoLeaseForGeneration({
+                generationId,
+                userId: charge.userId,
+                shortpulseContext,
+              });
+            } catch (error) {
+              await writeAppErrorLog({
+                source: "telemetry.motion_reference_video.lease_create_failed",
+                message:
+                  "Motion reference video lease creation failed after provider submit acceptance.",
+                requestId: providerRequestId,
+                userId: charge.userId,
+                statusCode: 200,
+                metadata: {
+                  generation_id: generationId,
+                  route_label: routeLabel,
+                  provider: providerKey,
+                  model_id: modelId,
+                  motion_reference_asset: shortpulseContext.motion_reference_asset ?? null,
+                  lease_error: error instanceof Error ? error.message : String(error),
+                },
+              }).catch(() => undefined);
+            }
+          };
           const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
             generation_submit_authority: "direct",
             submit_route: req.url ?? routeLabel,
@@ -940,6 +970,9 @@ export const createFalSubmitHandler = ({
 
           if (!markSubmittedResult.ok) {
             const trackingRepairResult = await repairAcceptedTracking();
+            if (trackingRepairResult.ok) {
+              await tryCreateMotionReferenceLease();
+            }
             await charge.refund(
               "Auto-release: failed to bind provider request id after direct submit.",
               {
@@ -981,6 +1014,9 @@ export const createFalSubmitHandler = ({
 
           if (!transitionResult.ok) {
             const trackingRepairResult = await repairAcceptedTracking();
+            if (trackingRepairResult.ok) {
+              await tryCreateMotionReferenceLease();
+            }
             await logGenerationFailure({
               req,
               routeLabel,
@@ -1006,6 +1042,7 @@ export const createFalSubmitHandler = ({
               });
             }
           }
+          await tryCreateMotionReferenceLease();
 
           const projectId = readProjectIdFromShortpulseContext(shortpulseContext);
 

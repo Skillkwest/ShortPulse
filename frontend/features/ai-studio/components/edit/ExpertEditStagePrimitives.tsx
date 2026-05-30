@@ -270,6 +270,7 @@ type ExpertEditStageContextMenuProps = {
   menuRef: React.Ref<HTMLDivElement>;
   x: number;
   y: number;
+  canExpand?: boolean;
   isMarkupExpandSelected: boolean;
   hasSelectedLayerImage: boolean;
   onResetView: () => void;
@@ -283,6 +284,7 @@ export function ExpertEditStageContextMenu({
   menuRef,
   x,
   y,
+  canExpand = true,
   isMarkupExpandSelected,
   hasSelectedLayerImage,
   onResetView,
@@ -306,9 +308,11 @@ export function ExpertEditStageContextMenu({
       <button type="button" role="menuitem" onClick={onResetView}>
         Center
       </button>
-      <button type="button" role="menuitem" onClick={onExpand} disabled={isMarkupExpandSelected}>
-        Expand
-      </button>
+      {canExpand ? (
+        <button type="button" role="menuitem" onClick={onExpand} disabled={isMarkupExpandSelected}>
+          Expand
+        </button>
+      ) : null}
       <button type="button" role="menuitem" onClick={onAddImage}>
         Add Image
       </button>

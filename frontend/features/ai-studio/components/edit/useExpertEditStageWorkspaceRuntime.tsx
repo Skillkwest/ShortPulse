@@ -21,6 +21,7 @@ type StageInteractionRouterHandlers = StageInteractionHandlers & {
 };
 
 type UseExpertEditStageWorkspaceRuntimeArgs = {
+  isAdvancedEditModesEnabled: boolean;
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
   overlayCanvasRef: React.RefObject<HTMLCanvasElement>;
@@ -115,6 +116,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
  * Builds the heavy inline and modal stage workspace content for Expert Edit.
  */
 export function useExpertEditStageWorkspaceRuntime({
+  isAdvancedEditModesEnabled,
   layers,
   markupStrokes,
   overlayCanvasRef,
@@ -245,6 +247,7 @@ export function useExpertEditStageWorkspaceRuntime({
 
   const inlinePostStageTools = (
     <ExpertEditInlinePostStageTools
+      isAdvancedEditModesEnabled={isAdvancedEditModesEnabled}
       isInpaintCollapsed={isInpaintCollapsed}
       isInpaintCollapsing={isInpaintCollapsing}
       collapsedToolsThemeClass={collapsedToolsThemeClass}

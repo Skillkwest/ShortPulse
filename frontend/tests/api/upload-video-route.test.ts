@@ -7,6 +7,7 @@ const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const retireMotionReferenceVideoStoragePathForUserMock = vi.fn();
 
 let mockParseError: Error | null = null;
 let mockFile = {
@@ -44,6 +45,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
+  retireMotionReferenceVideoStoragePathForUser: (...args: unknown[]) =>
+    retireMotionReferenceVideoStoragePathForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -88,6 +94,10 @@ describe("/api/upload-video", () => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
+    retireMotionReferenceVideoStoragePathForUserMock.mockResolvedValue({
+      deleted: false,
+      waitingOnLease: true,
+    });
     mockParseError = null;
     mockFile = {
       filepath: "/tmp/mock-video",
@@ -533,5 +543,37 @@ describe("/api/upload-video", () => {
       error: "Invalid request",
       details: "Uploaded asset storage path is outside the expected namespace.",
     });
+  });
+
+  it("retires committed motion-control uploads through the lease-aware lifecycle", async () => {
+    const req = Object.assign(new EventEmitter(), {
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit(
+          "data",
+          JSON.stringify({
+            path: "user-1/videos/motion-control/retire.mp4",
+            mode: "retire",
+          })
+        );
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(retireMotionReferenceVideoStoragePathForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      storagePath: "user-1/videos/motion-control/retire.mp4",
+    });
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.end).toHaveBeenCalled();
   });
 });

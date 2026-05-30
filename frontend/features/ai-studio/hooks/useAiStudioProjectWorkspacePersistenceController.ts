@@ -103,6 +103,48 @@ type ProjectSnapshotByteBreakdown = {
   expertEditBytes: number | null;
 };
 
+const PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS = {
+  baseSnapshotBuild: 40,
+  sessionSnapshotCompose: 24,
+  candidateSelection: 24,
+} as const;
+const PROJECT_WORKSPACE_PHASE_TELEMETRY_THROTTLE_MS = 60_000;
+
+const flattenProjectSnapshotByteBreakdown = (
+  prefix: string,
+  breakdown: ProjectSnapshotByteBreakdown
+): Record<string, number> => {
+  const flattened: Record<string, number> = {};
+  const entries = {
+    total_b: breakdown.totalBytes,
+    ws_b: breakdown.workspaceBytes,
+    out_active_b: breakdown.outputsActiveBytes,
+    out_archived_b: breakdown.outputsArchivedBytes,
+    rt_std_b: breakdown.standardRuntimeBytes,
+    rt_pulse_b: breakdown.pulseRuntimeBytes,
+    canvas_b: breakdown.canvasBytes,
+    expert_b: breakdown.expertEditBytes,
+  } as const;
+  for (const [key, value] of Object.entries(entries)) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      flattened[`${prefix}_${key}`] = value;
+    }
+  }
+  return flattened;
+};
+
+const resolveProjectSnapshotOutputCounts = (snapshot: AiStudioSessionSnapshot | null) => {
+  const activeCount = Array.isArray(snapshot?.outputs?.active) ? snapshot.outputs.active.length : 0;
+  const archivedCount = Array.isArray(snapshot?.outputs?.archived)
+    ? snapshot.outputs.archived.length
+    : 0;
+  return {
+    activeCount,
+    archivedCount,
+    totalCount: activeCount + archivedCount,
+  };
+};
+
 const resolveProjectSnapshotByteBreakdown = (
   snapshot: AiStudioSessionSnapshot | null
 ): ProjectSnapshotByteBreakdown => {
@@ -251,25 +293,12 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionRestoreCandidate.status === "ready" &&
     bootstrappedProject?.projectId === projectId &&
     bootstrappedProject.revision === projectRuntimeRevision;
-  const baseSessionSnapshot = useMemo(() => {
-    if (!sessionId || !projectBootstrapReady) return null;
-    const startedAt = resolvePerfNow();
-    const nextSnapshot = buildBaseSessionSnapshot(sessionId);
-    recordProjectWorkspaceAutosavePerf("baseSnapshotBuild", resolvePerfNow() - startedAt);
-    return nextSnapshot;
-  }, [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]);
-  const sessionSnapshot = useMemo(() => {
-    if (!baseSessionSnapshot) return baseSessionSnapshot;
-    const startedAt = resolvePerfNow();
-    const nextSnapshot = patchSessionSnapshot
-      ? patchSessionSnapshot(baseSessionSnapshot)
-      : baseSessionSnapshot;
-    recordProjectWorkspaceAutosavePerf("sessionSnapshotCompose", resolvePerfNow() - startedAt);
-    return nextSnapshot;
-  }, [baseSessionSnapshot, patchSessionSnapshot]);
   const snapshotByteBreakdownCacheRef = useRef<WeakMap<object, ProjectSnapshotByteBreakdown>>(
     new WeakMap()
   );
+  const slowPhaseTelemetryRef = useRef<
+    Partial<Record<keyof typeof PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS, number>>
+  >({});
   const resolveCachedSnapshotByteBreakdown = useCallback(
     (snapshot: AiStudioSessionSnapshot | null): ProjectSnapshotByteBreakdown => {
       if (!snapshot) {
@@ -283,18 +312,121 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     },
     []
   );
+  const maybeReportSlowProjectWorkspacePhase = useCallback(
+    ({
+      phase,
+      durationMs,
+      snapshot,
+      fallbackKind,
+    }: {
+      phase: keyof typeof PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS;
+      durationMs: number;
+      snapshot: AiStudioSessionSnapshot | null;
+      fallbackKind?: AiStudioProjectWorkspaceAutosaveCandidateKind;
+    }) => {
+      if (!projectId || !projectBootstrapReady) return;
+      if (!Number.isFinite(durationMs)) return;
+      const thresholdMs = PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS[phase];
+      if (durationMs < thresholdMs) return;
+      const now = Date.now();
+      const lastEmittedAt = slowPhaseTelemetryRef.current[phase] ?? 0;
+      if (now - lastEmittedAt < PROJECT_WORKSPACE_PHASE_TELEMETRY_THROTTLE_MS) return;
+      slowPhaseTelemetryRef.current[phase] = now;
+      const breakdown = resolveCachedSnapshotByteBreakdown(snapshot);
+      const counts = resolveProjectSnapshotOutputCounts(snapshot);
+      addBreadcrumb({
+        type: "ui",
+        level: durationMs >= thresholdMs * 2 ? "warn" : "info",
+        message: "ai_studio_project_workspace_autosave_phase_slow",
+        data: {
+          project_id: projectId,
+          phase,
+          duration_ms: Math.round(durationMs * 100) / 100,
+          fallback_kind: fallbackKind ?? null,
+          active_outputs: counts.activeCount,
+          archived_outputs: counts.archivedCount,
+          total_outputs: counts.totalCount,
+          ...flattenProjectSnapshotByteBreakdown("snap", breakdown),
+        },
+      });
+    },
+    [projectBootstrapReady, projectId, resolveCachedSnapshotByteBreakdown]
+  );
+  const baseSessionSnapshotComputation = useMemo(() => {
+    if (!sessionId || !projectBootstrapReady) {
+      return {
+        snapshot: null as AiStudioSessionSnapshot | null,
+        durationMs: null as number | null,
+      };
+    }
+    const startedAt = resolvePerfNow();
+    const nextSnapshot = buildBaseSessionSnapshot(sessionId);
+    return {
+      snapshot: nextSnapshot,
+      durationMs: resolvePerfNow() - startedAt,
+    };
+  }, [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]);
+  const baseSessionSnapshot = baseSessionSnapshotComputation.snapshot;
+
+  useEffect(() => {
+    if (baseSessionSnapshotComputation.durationMs == null) return;
+    recordProjectWorkspaceAutosavePerf(
+      "baseSnapshotBuild",
+      baseSessionSnapshotComputation.durationMs
+    );
+    maybeReportSlowProjectWorkspacePhase({
+      phase: "baseSnapshotBuild",
+      durationMs: baseSessionSnapshotComputation.durationMs,
+      snapshot: baseSessionSnapshotComputation.snapshot,
+    });
+  }, [baseSessionSnapshotComputation, maybeReportSlowProjectWorkspacePhase]);
+
+  const sessionSnapshotComputation = useMemo(() => {
+    if (!baseSessionSnapshot) {
+      return {
+        snapshot: baseSessionSnapshot,
+        durationMs: null as number | null,
+      };
+    }
+    const startedAt = resolvePerfNow();
+    const nextSnapshot = patchSessionSnapshot
+      ? patchSessionSnapshot(baseSessionSnapshot)
+      : baseSessionSnapshot;
+    return {
+      snapshot: nextSnapshot,
+      durationMs: resolvePerfNow() - startedAt,
+    };
+  }, [baseSessionSnapshot, patchSessionSnapshot]);
+  const sessionSnapshot = sessionSnapshotComputation.snapshot;
+
+  useEffect(() => {
+    if (sessionSnapshotComputation.durationMs == null) return;
+    recordProjectWorkspaceAutosavePerf(
+      "sessionSnapshotCompose",
+      sessionSnapshotComputation.durationMs
+    );
+    maybeReportSlowProjectWorkspacePhase({
+      phase: "sessionSnapshotCompose",
+      durationMs: sessionSnapshotComputation.durationMs,
+      snapshot: sessionSnapshotComputation.snapshot,
+    });
+  }, [maybeReportSlowProjectWorkspacePhase, sessionSnapshotComputation]);
+
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
-  const autosaveSnapshotSelection = useMemo(() => {
+  const autosaveSnapshotSelectionComputation = (() => {
     const startedAt = resolvePerfNow();
     if (!sessionSnapshot) {
-      const emptySelection = {
-        snapshot: null as AiStudioSessionSnapshot | null,
-        fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-        preparedSnapshot: null as PreparedAiStudioSessionAutosaveSnapshot | null,
+      return {
+        selection: {
+          snapshot: null as AiStudioSessionSnapshot | null,
+          fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+          preparedSnapshot: null as PreparedAiStudioSessionAutosaveSnapshot | null,
+        },
+        durationMs: resolvePerfNow() - startedAt,
+        reportSnapshot: null as AiStudioSessionSnapshot | null,
+        reportFallbackKind: undefined as AiStudioProjectWorkspaceAutosaveCandidateKind | undefined,
       };
-      recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
-      return emptySelection;
     }
     let fullPreparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null = null;
     for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
@@ -309,27 +441,47 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         Number.isFinite(preparedSnapshot.bytes) &&
         preparedSnapshot.bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES
       ) {
-        const resolvedSelection = {
-          snapshot: candidate.snapshot,
-          fallbackKind: candidate.kind,
-          preparedSnapshot,
+        return {
+          selection: {
+            snapshot: candidate.snapshot,
+            fallbackKind: candidate.kind,
+            preparedSnapshot,
+          },
+          durationMs: resolvePerfNow() - startedAt,
+          reportSnapshot: candidate.snapshot,
+          reportFallbackKind: candidate.kind,
         };
-        recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
-        return resolvedSelection;
       }
     }
-    const fallbackSelection = {
-      snapshot: sessionSnapshot,
-      fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-      preparedSnapshot:
-        fullPreparedSnapshot ??
-        prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
-          title: null,
-        }),
+    return {
+      selection: {
+        snapshot: sessionSnapshot,
+        fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
+        preparedSnapshot:
+          fullPreparedSnapshot ??
+          prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
+            title: null,
+          }),
+      },
+      durationMs: resolvePerfNow() - startedAt,
+      reportSnapshot: sessionSnapshot,
+      reportFallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
     };
-    recordProjectWorkspaceAutosavePerf("candidateSelection", resolvePerfNow() - startedAt);
-    return fallbackSelection;
-  }, [sessionSnapshot]);
+  })();
+  const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
+
+  useEffect(() => {
+    recordProjectWorkspaceAutosavePerf(
+      "candidateSelection",
+      autosaveSnapshotSelectionComputation.durationMs
+    );
+    maybeReportSlowProjectWorkspacePhase({
+      phase: "candidateSelection",
+      durationMs: autosaveSnapshotSelectionComputation.durationMs,
+      snapshot: autosaveSnapshotSelectionComputation.reportSnapshot,
+      fallbackKind: autosaveSnapshotSelectionComputation.reportFallbackKind,
+    });
+  }, [autosaveSnapshotSelectionComputation, maybeReportSlowProjectWorkspacePhase]);
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {
@@ -366,8 +518,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         snapshot_updated_at: sessionSnapshot?.updatedAt ?? null,
         full_snapshot_bytes: fullSnapshotByteBreakdown.totalBytes,
         reduced_snapshot_bytes: reducedSnapshotByteBreakdown.totalBytes,
-        full_snapshot_breakdown: fullSnapshotByteBreakdown,
-        reduced_snapshot_breakdown: reducedSnapshotByteBreakdown,
+        ...flattenProjectSnapshotByteBreakdown("full", fullSnapshotByteBreakdown),
+        ...flattenProjectSnapshotByteBreakdown("reduced", reducedSnapshotByteBreakdown),
       },
     });
     onPersistenceWarning?.(
@@ -533,8 +685,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
             snapshot_bytes: details.snapshotBytes ?? selectedSnapshotByteBreakdown.totalBytes,
             max_snapshot_bytes: details.maxSnapshotBytes,
             fallback_kind: autosaveSnapshotSelection.fallbackKind,
-            full_snapshot_breakdown: fullSnapshotByteBreakdown,
-            selected_snapshot_breakdown: selectedSnapshotByteBreakdown,
+            ...flattenProjectSnapshotByteBreakdown("full", fullSnapshotByteBreakdown),
+            ...flattenProjectSnapshotByteBreakdown("selected", selectedSnapshotByteBreakdown),
             will_retry: details.willRetry ?? null,
             attempt: details.attempt ?? null,
           },

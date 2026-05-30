@@ -399,6 +399,65 @@ describe("Seedream submission payloads", () => {
     expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });
 
+  it("routes gpt-image-2 internal-only inpaint refs through the OpenAI edit lane", async () => {
+    const completeGenerationImmediately = vi.fn();
+    const args = makeArgs({
+      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
+      aspect: "1:1",
+      requestedResolution: "medium",
+      preparedImageInputs: [],
+      falReferencePayload: {},
+      inpaintOverride: {
+        baseImageInput: "",
+        maskInput: "",
+        referenceImageInput: "",
+        baseImageInternalMediaRef: {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user-1/base.png",
+        },
+        maskInternalMediaRef: {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user-1/mask.png",
+        },
+        referenceImageInternalMediaRef: null,
+      },
+      completeGenerationImmediately,
+    });
+
+    await handleDefaultModelSubmission(args);
+
+    expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A polished portrait",
+        size: "1024x1024",
+        quality: "medium",
+        images: [],
+        shortpulse_internal_edit_media_refs: {
+          base_image: {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/base.png",
+          },
+          mask_image: {
+            version: 1,
+            kind: "storage_object",
+            bucket: "media_library",
+            storagePath: "user-1/mask.png",
+          },
+          reference_image: null,
+        },
+      })
+    );
+    expect(submitOpenAiGptImage2).not.toHaveBeenCalled();
+    expect(completeGenerationImmediately).toHaveBeenCalledOnce();
+  });
+
   it("preserves reference payloads for Nano Banana 2 text submissions", async () => {
     const args = makeArgs({
       finalModel: FAL_NANO_BANANA_2_MODEL_ID,

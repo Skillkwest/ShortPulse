@@ -33,7 +33,7 @@
   --create-composer-left-rail-width: 214px;
   --create-composer-inline-gutter: clamp(9px, 2.05vw, 25px);
   --create-composer-column-inline-padding: clamp(18px, 2.8vw, 40px);
-  --create-composer-column-bottom-padding: 22px;
+  --create-composer-column-bottom-padding: 32px;
   --create-composer-character-toggle-gap: 6px;
   --create-composer-selector-height: 40px;
   --create-composer-selector-bg: var(--color-bg);

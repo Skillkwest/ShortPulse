@@ -164,6 +164,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   2. Inline prompt/composer row includes model/aspect/resolution selectors and inline Generate button.
   3. Generate remains disabled until primary reference image exists.
   4. Chat mode UI is hidden/off for Expert Edit.
+     4a. Launch surface is Standard-only: public Expert Edit hides the Standard/Inpaint/Markup selector plus public Inpaint/Markup rail/modal entry points, while the underlying non-standard implementation remains parked behind the launch gate for later re-enable.
   5. Inpaint editing can paint anywhere inside the primary drop zone (including outside the visible image bounds).
   6. Inpaint submit exports the visible image-area mask window (`imageRect`) and applies the same stage camera transform as base-image flatten so FLUX Fill mask pixels remain aligned under zoom/pan framing.
   7. `Remove Background` submits the currently selected layer image only, routes regenerate through hidden Bria RMBG (`fal-ai/bria/background/remove`) with prompt-optional submit policy, and debits 1 credit per run.

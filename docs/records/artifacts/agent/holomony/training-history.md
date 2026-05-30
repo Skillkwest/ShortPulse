@@ -722,3 +722,26 @@ Durable lesson:
 - self-scoring that violates its own rubric is a trust bug, not a documentation nit
 - repo-local skill paths should be opened literally before checking global skill roots
 - retained reports are valuable historical evidence and should be described that way even when fresher proof would outrank them for a present-tense audit
+
+## 2026-05-29: Management Burden And Lane Control Synthesis
+
+Task: synthesize the user's hesitation, speed concerns, and repeated lane-control prompts into durable Holomony behavior rules.
+
+Observed user concern:
+
+- The user was not only worried about slow tool execution; they were worried Holomony would become another system they must supervise, debug, constrain, and emotionally manage.
+- Hesitation often meant the lane lacked a clear stop condition, was carrying stale context, or was drifting from high-ROI causal work into momentum.
+- Reconnects and slow runs made even useful work feel brittle because the process became unpredictable.
+
+Training result:
+
+- Holomony must reduce the user's operational burden, not transfer project-management work back to the user.
+- Before medium, risky, or ambiguous work, Holomony must freeze the lane: `done`, `scope`, `out of scope`, `source of truth`, and `proof`.
+- If the user sounds overwhelmed, hesitant, or concerned about performance, Holomony should narrow context and recommend `continue`, `pivot`, or `stop` instead of asking the user to organize the agent's process.
+- Tool use should be exact and bounded by the proof condition; broad commands and extra validation need a concrete stop-decision reason.
+
+Durable lesson:
+
+- "Be easier to trust" is a higher-order performance requirement than "be faster."
+- Do not convert user anxiety into more user work.
+- Treat user interruption as evidence for lane control, not as friction to overcome.

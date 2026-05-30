@@ -1,7 +1,8 @@
 /**
  * Server-side internal media reference resolution.
- * Resolves caller-owned storage descriptors into fresh provider-fetchable signed URLs at submit time.
+ * Resolves caller-owned storage descriptors into transient provider-safe inputs at submit time.
  */
+import path from "path";
 import {
   dedupeInternalMediaRefs,
   normalizeInternalMediaRef,
@@ -13,6 +14,8 @@ import {
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 const MEDIA_BUCKET = "media_library";
+const MAX_OPENAI_EDIT_INPUT_BYTES = 50 * 1024 * 1024;
+const OPENAI_EDIT_ALLOWED_IMAGE_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 const isUserScopedStoragePath = (storagePath: string, userId: string): boolean =>
   storagePath.trim().startsWith(`${userId}/`);
@@ -21,6 +24,28 @@ const normalizeNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const inferImageContentTypeFromStoragePath = (storagePath: string): string | null => {
+  const extension = path.extname(storagePath).toLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  return null;
+};
+
+const toBufferFromDownload = async (data: unknown): Promise<Buffer> => {
+  if (Buffer.isBuffer(data)) return data;
+  if (typeof data === "string") return Buffer.from(data);
+  if (data instanceof ArrayBuffer) return Buffer.from(data);
+  if (ArrayBuffer.isView(data)) {
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  }
+  if (typeof (data as { arrayBuffer?: unknown }).arrayBuffer === "function") {
+    const raw = await (data as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer();
+    return Buffer.from(raw);
+  }
+  throw new Error("Unable to read internal media ref download.");
 };
 
 const buildInternalMediaRefKey = (ref: InternalMediaRef | null): string | null => {
@@ -45,6 +70,14 @@ export type InternalEditMediaRefs = {
   baseImageRef: InternalMediaRef | null;
   maskRef: InternalMediaRef | null;
   referenceImageRef: InternalMediaRef | null;
+};
+
+export type ResolvedInternalMediaFile = {
+  buffer: Buffer;
+  contentType: string;
+  filename: string;
+  byteLength: number;
+  storagePath: string;
 };
 
 export const readInternalMediaRefsFromPayload = (
@@ -128,6 +161,63 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
     .filter((url): url is string => Boolean(url));
 };
 
+export const resolveOpenAiImageFilesForInternalMediaRefs = async ({
+  refs,
+  userId,
+  maxBytes = MAX_OPENAI_EDIT_INPUT_BYTES,
+}: {
+  refs: Array<InternalMediaRef | null | undefined>;
+  userId: string;
+  maxBytes?: number;
+}): Promise<ResolvedInternalMediaFile[]> => {
+  const normalizedRefs = dedupeInternalMediaRefs(refs, 8).filter((ref): ref is InternalMediaRef =>
+    Boolean(ref)
+  );
+  if (!normalizedRefs.length) return [];
+
+  const storagePaths = normalizedRefs
+    .map((ref) => resolveInternalMediaRefStoragePath(ref))
+    .filter((value): value is string => Boolean(value))
+    .filter((storagePath) => isUserScopedStoragePath(storagePath, userId));
+  if (!storagePaths.length) return [];
+
+  const storage = getSupabaseAdmin().storage.from(MEDIA_BUCKET);
+  const files: ResolvedInternalMediaFile[] = [];
+
+  for (const storagePath of storagePaths) {
+    const { data, error } = await storage.download(storagePath);
+    if (error || !data) {
+      throw new Error(`Unable to download internal media ref: ${error?.message ?? storagePath}`);
+    }
+
+    const buffer = await toBufferFromDownload(data);
+    const byteLength = buffer.byteLength;
+    if (!byteLength) {
+      throw new Error(`Internal media ref is empty: ${storagePath}`);
+    }
+    if (byteLength > maxBytes) {
+      throw new Error(`Internal media ref exceeds OpenAI edit size limit: ${storagePath}`);
+    }
+
+    const contentType =
+      normalizeNonEmptyString((data as { type?: unknown }).type) ??
+      inferImageContentTypeFromStoragePath(storagePath);
+    if (!contentType || !OPENAI_EDIT_ALLOWED_IMAGE_CONTENT_TYPES.has(contentType)) {
+      throw new Error(`Internal media ref has unsupported image type: ${storagePath}`);
+    }
+
+    files.push({
+      buffer,
+      contentType,
+      filename: path.basename(storagePath) || "reference-image",
+      byteLength,
+      storagePath,
+    });
+  }
+
+  return files;
+};
+
 export const resolveSignedUrlsForInternalEditMediaRefs = async ({
   refs,
   userId,
@@ -154,5 +244,37 @@ export const resolveSignedUrlsForInternalEditMediaRefs = async ({
     baseImageUrl: await resolveSingleUrl(refs.baseImageRef),
     maskUrl: await resolveSingleUrl(refs.maskRef),
     referenceImageUrl: await resolveSingleUrl(refs.referenceImageRef),
+  };
+};
+
+export const resolveOpenAiImageFilesForInternalEditMediaRefs = async ({
+  refs,
+  userId,
+  maxBytes = MAX_OPENAI_EDIT_INPUT_BYTES,
+}: {
+  refs: InternalEditMediaRefs;
+  userId: string;
+  maxBytes?: number;
+}): Promise<{
+  baseImageFile: ResolvedInternalMediaFile | null;
+  maskFile: ResolvedInternalMediaFile | null;
+  referenceImageFile: ResolvedInternalMediaFile | null;
+}> => {
+  const resolveSingleFile = async (
+    ref: InternalMediaRef | null
+  ): Promise<ResolvedInternalMediaFile | null> => {
+    if (!ref) return null;
+    const [file] = await resolveOpenAiImageFilesForInternalMediaRefs({
+      refs: [ref],
+      userId,
+      maxBytes,
+    });
+    return file ?? null;
+  };
+
+  return {
+    baseImageFile: await resolveSingleFile(refs.baseImageRef),
+    maskFile: await resolveSingleFile(refs.maskRef),
+    referenceImageFile: await resolveSingleFile(refs.referenceImageRef),
   };
 };

@@ -149,7 +149,18 @@ export function ExpertEditPanelView({
   );
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
-  const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
+  const [selectedRailToolState, setSelectedRailToolState] = React.useState<RailTool>("move");
+  const setSelectedRailTool = React.useCallback<React.Dispatch<React.SetStateAction<RailTool>>>(
+    (nextValue) => {
+      setSelectedRailToolState((previousValue) => {
+        const resolvedValue =
+          typeof nextValue === "function" ? nextValue(previousValue) : nextValue;
+        return isGenerationModeToggleEnabled ? resolvedValue : "move";
+      });
+    },
+    [isGenerationModeToggleEnabled]
+  );
+  const selectedRailTool = isGenerationModeToggleEnabled ? selectedRailToolState : "move";
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [markupStrokeSize, setMarkupStrokeSize] = React.useState(MARKUP_STROKE_SIZE_DEFAULT);
   const resolvedMarkupStrokeSize = React.useMemo(
@@ -166,6 +177,13 @@ export function ExpertEditPanelView({
   );
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
+  React.useEffect(() => {
+    if (isGenerationModeToggleEnabled) return;
+    setSelectedRailToolState("move");
+    setIsMarkupExpandSelected(false);
+    setIsInpaintCollapsed(true);
+    setIsInpaintCollapsing(false);
+  }, [isGenerationModeToggleEnabled]);
   const {
     availablePresets,
     customPresetOverrides,
@@ -182,7 +200,6 @@ export function ExpertEditPanelView({
     updateSelectedPresetIds,
   } = useExpertEditGenerationPresetRuntime({
     isGenerationModeToggleEnabled,
-    selectedRailTool,
     setSelectedRailTool,
     controlledPresetIds,
     onSelectedPresetIdsChange,
@@ -883,6 +900,7 @@ export function ExpertEditPanelView({
     handleMarkupModalDragShield,
     handleMarkupModalRootDragCapture,
   } = useExpertEditStageChrome({
+    isAdvancedEditModesEnabled: isGenerationModeToggleEnabled,
     hasPrimaryCompositePreview,
     isMarkupExpandSelected,
     isMorePresetsSurfaceOpen,
@@ -1088,6 +1106,7 @@ export function ExpertEditPanelView({
     inlinePostStageTools,
     modalSurface,
   } = useExpertEditStageWorkspaceRuntime({
+    isAdvancedEditModesEnabled: isGenerationModeToggleEnabled,
     layers,
     markupStrokes,
     overlayCanvasRef,
@@ -1231,6 +1250,7 @@ export function ExpertEditPanelView({
   });
 
   const { sidebar, contextMenu } = useExpertEditPanelShellRuntime({
+    isAdvancedEditModesEnabled: isGenerationModeToggleEnabled,
     isGenerationModeToggleEnabled,
     generationModeTabsStyle,
     effectiveEditSubmitIntent,

@@ -19,6 +19,7 @@ import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
+import { releaseMotionReferenceVideoLeasesForGeneration } from "../motionReferenceVideoAssetLease";
 
 type JsonObject = Record<string, unknown>;
 
@@ -230,6 +231,38 @@ const logBestEffortPublicationFailure = async ({
 
 const stringifyDetail = (value: unknown, fallback: string): string => {
   return normalizeCustomerFacingProviderError(value, fallback);
+};
+
+const tryReleaseMotionReferenceVideoLeases = async ({
+  generationId,
+  requestId,
+  routeLabel,
+  userId,
+}: {
+  generationId: string;
+  requestId: string;
+  routeLabel: string;
+  userId: string;
+}): Promise<void> => {
+  try {
+    await releaseMotionReferenceVideoLeasesForGeneration({
+      generationId,
+      userId,
+    });
+  } catch (error) {
+    await writeAppErrorLog({
+      source: "telemetry.motion_reference_video.lease_release_failed",
+      message: "Motion reference video lease release failed after direct terminal settlement.",
+      requestId,
+      userId,
+      statusCode: 200,
+      metadata: {
+        generation_id: generationId,
+        route_label: routeLabel,
+        lease_error: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => undefined);
+  }
 };
 
 const buildUnsettledBillingError = (note: string): string =>
@@ -601,6 +634,12 @@ export const settleDirectGenerationSuccess = async ({
   if (!transition.ok) {
     return { ok: false, error: transition.error };
   }
+  await tryReleaseMotionReferenceVideoLeases({
+    generationId: generation.id,
+    requestId: generation.request_id,
+    routeLabel,
+    userId: generation.user_id,
+  });
 
   const billingSettlement = await settleGenerationOutcome({
     userId: generation.user_id,
@@ -845,6 +884,12 @@ export const settleDirectGenerationFailure = async ({
   if (!transition.ok) {
     return { ok: false, error: transition.error };
   }
+  await tryReleaseMotionReferenceVideoLeases({
+    generationId: generation.id,
+    requestId: generation.request_id,
+    routeLabel,
+    userId: generation.user_id,
+  });
 
   const hiddenInReferenceGrid =
     isAbandoned ||

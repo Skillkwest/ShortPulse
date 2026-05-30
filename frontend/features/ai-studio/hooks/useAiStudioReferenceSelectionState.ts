@@ -8,6 +8,7 @@ import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { ToolId } from "../types";
 import {
   deleteUploadedMotionVideoByPath,
+  retireCommittedMotionVideoByUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../utils/videoUpload";
@@ -304,6 +305,7 @@ export const useAiStudioReferenceSelectionState = ({
   );
 
   const clearReferenceImages = useCallback(() => {
+    const previousMotionVideoUrl = motionReferenceVideoUrl;
     setImageReferenceImageUrlState(null);
     setImageExtraImageUrls([null, null, null]);
     setVideoReferenceImageUrl(null);
@@ -314,7 +316,8 @@ export const useAiStudioReferenceSelectionState = ({
       error: null,
       requestId: current.requestId + 1,
     }));
-  }, [updateMotionReferenceUploadUiStateForAuthority]);
+    void retireCommittedMotionVideoByUrl(previousMotionVideoUrl);
+  }, [motionReferenceVideoUrl, updateMotionReferenceUploadUiStateForAuthority]);
 
   const toggleReferenceIndicator = useCallback(() => {
     if (!activeOutputPreviewUrl) return;
@@ -425,6 +428,7 @@ export const useAiStudioReferenceSelectionState = ({
 
   const clearMotionVideoSelection = useCallback(
     (targetAuthorityKey = activeAuthorityKeyRef.current) => {
+      const previousMotionVideoUrl = getAuthorityState(targetAuthorityKey).motionReferenceVideoUrl;
       const nextAuthorityState = getAuthorityState(targetAuthorityKey);
       setAuthorityState(targetAuthorityKey, {
         ...nextAuthorityState,
@@ -435,6 +439,7 @@ export const useAiStudioReferenceSelectionState = ({
         error: null,
         requestId: current.requestId + 1,
       }));
+      void retireCommittedMotionVideoByUrl(previousMotionVideoUrl);
     },
     [getAuthorityState, setAuthorityState, updateMotionReferenceUploadUiStateForAuthority]
   );
@@ -454,6 +459,9 @@ export const useAiStudioReferenceSelectionState = ({
         error: null,
         requestId: current.requestId + 1,
       }));
+      if (currentValue && currentValue !== nextValue) {
+        void retireCommittedMotionVideoByUrl(currentValue);
+      }
     },
     [getAuthorityState, setAuthorityState, updateMotionReferenceUploadUiStateForAuthority]
   );
@@ -482,6 +490,7 @@ export const useAiStudioReferenceSelectionState = ({
           return;
         }
         const nextAuthorityState = getAuthorityState(targetAuthorityKey);
+        const previousMotionVideoUrl = nextAuthorityState.motionReferenceVideoUrl;
         setAuthorityState(targetAuthorityKey, {
           ...nextAuthorityState,
           motionReferenceVideoUrl: uploaded.url,
@@ -491,6 +500,9 @@ export const useAiStudioReferenceSelectionState = ({
           error: null,
           requestId: nextRequestId,
         });
+        if (previousMotionVideoUrl && previousMotionVideoUrl !== uploaded.url) {
+          void retireCommittedMotionVideoByUrl(previousMotionVideoUrl);
+        }
       } catch (error) {
         if (
           getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==

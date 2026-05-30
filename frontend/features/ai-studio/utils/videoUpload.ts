@@ -4,6 +4,7 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { resolveMotionReferenceVideoStoragePathFromUrl } from "../../../lib/motionReferenceVideoStorage";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 
@@ -78,13 +79,19 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
   );
 };
 
-const deleteUploadedMotionVideoResult = async (storagePath: string): Promise<void> => {
+const deleteUploadedMotionVideoResult = async ({
+  storagePath,
+  mode,
+}: {
+  storagePath: string;
+  mode: "stale" | "retire";
+}): Promise<void> => {
   const response = await fetchWithAuth("/api/upload-video", {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ path: storagePath }),
+    body: JSON.stringify({ path: storagePath, mode }),
   });
 
   if (response.ok) return;
@@ -257,8 +264,24 @@ export const deleteUploadedMotionVideoByPath = async (storagePath: string): Prom
   const normalizedStoragePath = storagePath.trim();
   if (!normalizedStoragePath) return;
   try {
-    await deleteUploadedMotionVideoResult(normalizedStoragePath);
+    await deleteUploadedMotionVideoResult({
+      storagePath: normalizedStoragePath,
+      mode: "stale",
+    });
   } catch (error) {
     console.warn("Failed to cleanup stale motion video upload:", error);
+  }
+};
+
+export const retireCommittedMotionVideoByUrl = async (videoUrl: string | null): Promise<void> => {
+  const storagePath = resolveMotionReferenceVideoStoragePathFromUrl(videoUrl);
+  if (!storagePath) return;
+  try {
+    await deleteUploadedMotionVideoResult({
+      storagePath,
+      mode: "retire",
+    });
+  } catch (error) {
+    console.warn("Failed to retire committed motion video upload:", error);
   }
 };

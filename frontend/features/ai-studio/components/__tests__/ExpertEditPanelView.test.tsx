@@ -47,6 +47,15 @@ const { composePrimaryStageLayersToBlobMock, composeFlattenedMarkupReferenceBlob
   })
 );
 
+vi.mock("../../logic/inpaintSubmission", async () => {
+  const actual = await vi.importActual("../../logic/inpaintSubmission");
+  return {
+    ...(actual as Record<string, unknown>),
+    areAdvancedExpertEditModesPubliclyAccessible: () => true,
+    isEditGenerationModeToggleEnabled: () => true,
+  };
+});
+
 vi.mock("../../logic/expertEditStageFlatten", async () => {
   const actual = await vi.importActual("../../logic/expertEditStageFlatten");
   return {
@@ -1056,13 +1065,10 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
-    fireEvent.click(
-      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
-    );
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    fireEvent.click(within(modeTabs).getByRole("tab", { name: /^markup$/i }));
+    fireEvent.contextMenu(screen.getByLabelText("Primary composition surface"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^expand$/i }));
 
     const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
     await waitFor(() =>
@@ -2111,22 +2117,14 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByText("Chat Mode")).not.toBeInTheDocument();
   });
 
-  it("switches brush/lasso inpaint modes and expands to markup modal", async () => {
+  it("opens the expanded markup modal from inline inpaint controls", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /^inpaint$/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
 
-    const lassoBtn = await screen.findByRole("button", { name: /lasso/i });
-    const brushBtn = await screen.findByRole("button", { name: /brush/i });
-    const expandBtn = await screen.findByRole("button", { name: /expand markup tools/i });
-
-    expect(brushBtn).toHaveAttribute("aria-pressed", "true");
-    expect(lassoBtn).toHaveAttribute("aria-pressed", "false");
-
-    fireEvent.click(lassoBtn);
-    expect(lassoBtn).toHaveAttribute("aria-pressed", "true");
-    expect(brushBtn).toHaveAttribute("aria-pressed", "false");
-    expect(expandBtn).not.toHaveTextContent(/expand/i);
+    const inpaintPanel = screen.getByRole("group", { name: /inpaint controls group/i });
+    const expandBtn = within(inpaintPanel).getByRole("button", { name: /expand markup tools/i });
 
     fireEvent.click(expandBtn);
     expect(screen.getByRole("dialog", { name: /expanded markup canvas/i })).toBeInTheDocument();
@@ -2134,11 +2132,12 @@ describe("ExpertEditPanelView", () => {
 
   it("switches selection tabs between Select and Unselect", async () => {
     render(<ExpertEditPanelView {...baseProps} />);
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /^inpaint$/i }));
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    fireEvent.click(within(modeTabs).getByRole("tab", { name: /^inpaint$/i }));
 
-    const selectTab = await screen.findByRole("tab", { name: /^select$/i });
-    const unselectTab = await screen.findByRole("tab", { name: /^unselect$/i });
+    const inpaintPanel = screen.getByRole("group", { name: /left rail in-paint panel/i });
+    const selectTab = within(inpaintPanel).getByRole("tab", { name: /^select$/i });
+    const unselectTab = within(inpaintPanel).getByRole("tab", { name: /^unselect$/i });
 
     expect(selectTab).toHaveAttribute("aria-selected", "true");
     expect(unselectTab).toHaveAttribute("aria-selected", "false");
@@ -2288,7 +2287,7 @@ describe("ExpertEditPanelView", () => {
     expect(inpaintButton).toHaveAttribute("aria-pressed", "true");
     expect(videoButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "false");
-    const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint tools/i });
+    const inpaintSettingsPanel = screen.getByRole("group", { name: /inpaint controls group/i });
     expect(inpaintSettingsPanel).toHaveClass("is-themed-inpaint");
 
     fireEvent.click(videoButton);
@@ -5874,7 +5873,7 @@ describe("ExpertEditPanelView", () => {
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
 
-      const inpaintPanel = screen.getByRole("group", { name: /inpaint tools/i });
+      const inpaintPanel = screen.getByRole("group", { name: /inpaint controls group/i });
       fireEvent.click(within(inpaintPanel).getByRole("button", { name: /expand markup tools/i }));
 
       const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
@@ -6284,7 +6283,7 @@ describe("ExpertEditPanelView", () => {
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
-      const inlineInpaintPanel = screen.getByRole("group", { name: /inpaint tools/i });
+      const inlineInpaintPanel = screen.getByRole("group", { name: /inpaint controls group/i });
       fireEvent.click(
         within(inlineInpaintPanel).getByRole("button", { name: /expand markup tools/i })
       );

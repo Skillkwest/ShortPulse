@@ -1,9 +1,6 @@
 import React from "react";
 
-import {
-  resolveEditSubmitIntentFromRailSelection,
-  type EditSubmitIntent,
-} from "../../logic/editSubmitIntent";
+import { type EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { resolveRailToolForGenerationMode } from "./expertEditInteractionUtils";
 import { editGenerationModeOptions, type RailTool } from "./expertEditPanelViewContract";
 import {
@@ -19,7 +16,6 @@ import {
 
 type UseExpertEditGenerationPresetRuntimeParams = {
   isGenerationModeToggleEnabled: boolean;
-  selectedRailTool: RailTool;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   controlledPresetIds?: readonly ExpertEditPresetId[] | null;
   onSelectedPresetIdsChange?: ((value: ExpertEditPresetId[]) => void) | null;
@@ -30,7 +26,6 @@ type UseExpertEditGenerationPresetRuntimeParams = {
 
 export const useExpertEditGenerationPresetRuntime = ({
   isGenerationModeToggleEnabled,
-  selectedRailTool,
   setSelectedRailTool,
   controlledPresetIds,
   onSelectedPresetIdsChange,
@@ -38,7 +33,13 @@ export const useExpertEditGenerationPresetRuntime = ({
   onCustomPresetOverridesChange,
   systemPresetDefinitions,
 }: UseExpertEditGenerationPresetRuntimeParams) => {
-  const visibleEditGenerationModeOptions = React.useMemo(() => editGenerationModeOptions, []);
+  const visibleEditGenerationModeOptions = React.useMemo(
+    () =>
+      isGenerationModeToggleEnabled
+        ? editGenerationModeOptions
+        : editGenerationModeOptions.filter((modeOption) => modeOption.id === "standard"),
+    [isGenerationModeToggleEnabled]
+  );
   const [selectedGenerationMode, setSelectedGenerationMode] =
     React.useState<EditSubmitIntent>("standard");
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -145,17 +146,14 @@ export const useExpertEditGenerationPresetRuntime = ({
     [customPresetOverrides, selectedPresetIds, systemPresetDefinitions]
   );
 
-  const railSelectionSubmitIntent = React.useMemo(
-    () =>
-      resolveEditSubmitIntentFromRailSelection({
-        isInpaintSelected: selectedRailTool === "inpaint",
-        isMarkupSelected: selectedRailTool === "markup",
-      }),
-    [selectedRailTool]
-  );
+  React.useEffect(() => {
+    if (isGenerationModeToggleEnabled) return;
+    setSelectedGenerationMode("standard");
+    setSelectedRailTool("move");
+  }, [isGenerationModeToggleEnabled, setSelectedRailTool]);
   const effectiveEditSubmitIntent = isGenerationModeToggleEnabled
     ? selectedGenerationMode
-    : railSelectionSubmitIntent;
+    : "standard";
   const effectiveGenerationModeIndex = React.useMemo(() => {
     const resolvedIndex = visibleEditGenerationModeOptions.findIndex(
       (modeOption) => modeOption.id === effectiveEditSubmitIntent
@@ -173,10 +171,11 @@ export const useExpertEditGenerationPresetRuntime = ({
 
   const handleGenerationModeChange = React.useCallback(
     (nextMode: EditSubmitIntent) => {
+      if (!isGenerationModeToggleEnabled) return;
       setSelectedGenerationMode(nextMode);
       setSelectedRailTool(resolveRailToolForGenerationMode(nextMode));
     },
-    [setSelectedRailTool]
+    [isGenerationModeToggleEnabled, setSelectedRailTool]
   );
 
   const toggleMorePresetsSurface = React.useCallback(() => {

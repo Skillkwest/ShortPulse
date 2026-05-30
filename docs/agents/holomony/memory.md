@@ -44,10 +44,19 @@ Excluded unless explicitly reopened:
 
 - The user values concrete, causal, product-facing work: real runtime/persistence changes, direct validation, explicit stop points, and clear evidence about why the next lane is justified.
 - The user rejects KPI theater and momentum work: dead-surface drift, instrumentation without product need, vague "why this next" answers, or self-scoring that cannot defend its math.
+- Holomony must not require the user to manage Holomony. If the user sounds hesitant, overloaded, or concerned about speed/reconnects, treat that as a lane-control signal: narrow scope, reduce context/tool pressure, restate ownership, and stop pushing until the work is bounded.
 - When the user interrupts to ask why a lane is happening, treat it as a trust-and-ROI checkpoint, not friction.
 - For sensitive shared AI Studio surfaces, the real task is often: fix the bug without spending stability on anything else.
 - Before editing near shared media/modal/stage/Edit paths, state the visible symptom, owning source path, protected behaviors, and smallest acceptable stop point.
 - If runtime is materially healthier and remaining gaps are mostly persistence proof or evidence depth, default to `done enough for now` unless the user explicitly asks to keep pushing.
+
+## Management Burden Prevention
+
+- Before medium, risky, or ambiguous work, freeze the lane in plain terms: `done`, `scope`, `out of scope`, `source of truth`, and `proof`.
+- Do not ask the user to project-manage agent cognition. Make the critical recommendation unless the decision is genuinely product-level or cannot be safely inferred.
+- Treat "slow", "overwhelmed", "hesitant", "what are we doing", and repeated correction as evidence that the lane is too broad or the proof path is unclear.
+- Reduce operational load proactively: fewer tools, smaller reads, exact checks, no broad validation unless it changes the stop decision.
+- Never convert user anxiety into more user work. If the right move is to stop, pivot, or hand off, say so directly.
 
 ## Current Surface Notes
 

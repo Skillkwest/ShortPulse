@@ -5,6 +5,7 @@
 import { useCallback, useState } from "react";
 import { DEFAULT_EDIT_SUBMIT_INTENT, type EditSubmitIntent } from "../logic/editSubmitIntent";
 import { isEditWorkflow } from "../logic/workflowIdentity";
+import { areAdvancedExpertEditModesPubliclyAccessible } from "../logic/inpaintSubmission";
 import type { ToolId } from "../types";
 
 type UseAiStudioEditSubmitIntentParams = {
@@ -20,12 +21,17 @@ export const useAiStudioEditSubmitIntent = ({
   const [editSubmitIntent, setEditSubmitIntentState] = useState<EditSubmitIntent>(
     DEFAULT_EDIT_SUBMIT_INTENT
   );
+  const advancedEditModesAccessible = areAdvancedExpertEditModesPubliclyAccessible();
 
   const setEditSubmitIntent = useCallback(
     (intent: EditSubmitIntent) => {
-      setEditSubmitIntentState(isEditWorkflow(selectedTool) ? intent : DEFAULT_EDIT_SUBMIT_INTENT);
+      setEditSubmitIntentState(
+        isEditWorkflow(selectedTool) && advancedEditModesAccessible
+          ? intent
+          : DEFAULT_EDIT_SUBMIT_INTENT
+      );
     },
-    [selectedTool]
+    [advancedEditModesAccessible, selectedTool]
   );
 
   const resetEditSubmitIntent = useCallback(() => {
@@ -33,7 +39,10 @@ export const useAiStudioEditSubmitIntent = ({
   }, []);
 
   return {
-    editSubmitIntent: isEditWorkflow(selectedTool) ? editSubmitIntent : DEFAULT_EDIT_SUBMIT_INTENT,
+    editSubmitIntent:
+      isEditWorkflow(selectedTool) && advancedEditModesAccessible
+        ? editSubmitIntent
+        : DEFAULT_EDIT_SUBMIT_INTENT,
     setEditSubmitIntent,
     resetEditSubmitIntent,
   };

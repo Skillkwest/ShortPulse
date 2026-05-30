@@ -5,6 +5,7 @@ import type { RailTool } from "./expertEditPanelViewContract";
 import { inpaintRailTools } from "./expertEditPanelViewContract";
 
 type ExpertEditInlinePostStageToolsProps = {
+  isAdvancedEditModesEnabled: boolean;
   isInpaintCollapsed: boolean;
   isInpaintCollapsing: boolean;
   collapsedToolsThemeClass: string;
@@ -22,6 +23,7 @@ type ExpertEditInlinePostStageToolsProps = {
 };
 
 export function ExpertEditInlinePostStageTools({
+  isAdvancedEditModesEnabled,
   isInpaintCollapsed,
   isInpaintCollapsing,
   collapsedToolsThemeClass,
@@ -39,6 +41,21 @@ export function ExpertEditInlinePostStageTools({
 }: ExpertEditInlinePostStageToolsProps) {
   const activeCollapsedRailTool =
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
+
+  if (!isAdvancedEditModesEnabled) {
+    return (
+      <div className="edit-expert-inpaint-row edit-expert-inpaint-row--standard-only">
+        <div
+          className="edit-expert-inpaint-controls is-themed-move"
+          role="group"
+          aria-label="Move tools"
+        >
+          {renderMoveControlsContent("inline")}
+        </div>
+        {secondaryContent}
+      </div>
+    );
+  }
 
   return (
     <>

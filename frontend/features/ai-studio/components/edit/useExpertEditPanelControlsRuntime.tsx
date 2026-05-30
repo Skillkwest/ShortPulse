@@ -99,6 +99,7 @@ export function useExpertEditPanelControlsRuntime({
     (scope: "inline" | "modal" | "rail") => (
       <ExpertEditMoveControlsContent
         scope={scope === "rail" ? "inline" : scope}
+        isAdvancedEditModesEnabled={isGenerationModeToggleEnabled}
         isMoveToolSelected={isMoveToolSelected}
         moveStageZoomSliderValue={moveStageZoomSliderValue}
         isMoveTransformCentered={isMoveTransformCentered}
@@ -120,6 +121,7 @@ export function useExpertEditPanelControlsRuntime({
       handleRecenterMoveAction,
       handleRedoGeneralAction,
       handleUndoGeneralAction,
+      isGenerationModeToggleEnabled,
       isMoveToolSelected,
       isMoveTransformCentered,
       isStageViewportAtRest,

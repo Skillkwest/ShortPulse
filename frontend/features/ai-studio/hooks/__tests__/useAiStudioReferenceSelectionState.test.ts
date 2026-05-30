@@ -5,18 +5,22 @@ import { useAiStudioReferenceSelectionState } from "../useAiStudioReferenceSelec
 const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const deleteUploadedMotionVideoByPathMock = vi.hoisted(() => vi.fn());
+const retireCommittedMotionVideoByUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../utils/videoUpload", () => ({
   uploadVideoFileToStorage: (...args: unknown[]) => uploadVideoFileToStorageMock(...args),
   uploadVideoAssetToStorage: (...args: unknown[]) => uploadVideoAssetToStorageMock(...args),
   deleteUploadedMotionVideoByPath: (...args: unknown[]) =>
     deleteUploadedMotionVideoByPathMock(...args),
+  retireCommittedMotionVideoByUrl: (...args: unknown[]) =>
+    retireCommittedMotionVideoByUrlMock(...args),
 }));
 
 describe("useAiStudioReferenceSelectionState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     deleteUploadedMotionVideoByPathMock.mockResolvedValue(undefined);
+    retireCommittedMotionVideoByUrlMock.mockResolvedValue(undefined);
   });
 
   it("defaults to Create workflow selection for new studio sessions", () => {
@@ -286,6 +290,61 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.resolveReferenceInputsForTool("edit").referenceImageUrl).toBeNull();
     expect(result.current.resolveReferenceInputsForTool("video").referenceImageUrl).toBeNull();
     expect(result.current.motionReferenceVideoUrl).toBeNull();
+    expect(retireCommittedMotionVideoByUrlMock).toHaveBeenCalledWith(
+      "https://example.com/motion.mp4"
+    );
+  });
+
+  it("retires a committed motion-control upload when the slot is cleared", () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+    const motionUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/current.mp4?token=stub.invalid.token";
+
+    act(() => {
+      result.current.setMotionReferenceVideoUrl(motionUrl);
+    });
+
+    act(() => {
+      result.current.clearMotionVideoSelection();
+    });
+
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+    expect(retireCommittedMotionVideoByUrlMock).toHaveBeenCalledWith(motionUrl);
+  });
+
+  it("retires the previous committed motion-control upload after a replacement succeeds", async () => {
+    uploadVideoFileToStorageMock.mockResolvedValue({
+      url: "https://example.com/staged-motion.mp4",
+      path: "user-1/videos/motion-control/staged-motion.mp4",
+      size: 256,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+    const currentMotionUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/current.mp4?token=stub.invalid.token";
+
+    act(() => {
+      result.current.setMotionReferenceVideoUrl(currentMotionUrl);
+    });
+
+    await act(async () => {
+      await result.current.stageMotionVideoSelection({
+        videoFile: new File(["motion"], "replacement.mp4", { type: "video/mp4" }),
+      });
+    });
+
+    expect(result.current.motionReferenceVideoUrl).toBe("https://example.com/staged-motion.mp4");
+    expect(retireCommittedMotionVideoByUrlMock).toHaveBeenCalledWith(currentMotionUrl);
   });
 
   it("commits staged motion videos back to the originating authority after switching away", async () => {

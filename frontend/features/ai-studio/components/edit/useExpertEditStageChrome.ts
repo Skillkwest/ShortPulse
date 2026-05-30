@@ -8,6 +8,7 @@ import {
 } from "./expertEditInteractionUtils";
 
 type UseExpertEditStageChromeArgs = {
+  isAdvancedEditModesEnabled?: boolean;
   hasPrimaryCompositePreview: boolean;
   isMarkupExpandSelected: boolean;
   isMorePresetsSurfaceOpen: boolean;
@@ -34,6 +35,7 @@ type UseExpertEditStageChromeArgs = {
 };
 
 export function useExpertEditStageChrome({
+  isAdvancedEditModesEnabled = true,
   hasPrimaryCompositePreview,
   isMarkupExpandSelected,
   isMorePresetsSurfaceOpen,
@@ -135,6 +137,9 @@ export function useExpertEditStageChrome({
 
   const openMarkupModal = React.useCallback(
     (tool?: RailTool) => {
+      if (!isAdvancedEditModesEnabled) {
+        return;
+      }
       if (tool && tool !== selectedRailTool) {
         setSelectedRailTool(tool);
       }
@@ -152,6 +157,7 @@ export function useExpertEditStageChrome({
       setIsInpaintCollapsed,
       setIsInpaintCollapsing,
       setSelectedRailTool,
+      isAdvancedEditModesEnabled,
       shouldOpenMarkupModalFromCollapsedTools,
     ]
   );
@@ -190,9 +196,13 @@ export function useExpertEditStageChrome({
   }, [closeStageContextMenu, handleRecenterMoveAction]);
 
   const handleStageContextMenuExpand = React.useCallback(() => {
+    if (!isAdvancedEditModesEnabled) {
+      closeStageContextMenu();
+      return;
+    }
     openMarkupModal("markup");
     closeStageContextMenu();
-  }, [closeStageContextMenu, openMarkupModal]);
+  }, [closeStageContextMenu, isAdvancedEditModesEnabled, openMarkupModal]);
 
   const handleStageContextMenuAddImage = React.useCallback(() => {
     closeStageContextMenu();
@@ -311,6 +321,7 @@ export function useExpertEditStageChrome({
     handlePrimaryDropzoneDoubleClick,
     handleStageContextMenuResetView,
     handleStageContextMenuExpand,
+    isAdvancedEditModesEnabled,
     handleStageContextMenuAddImage,
     handleStageContextMenuReset,
     handleStageContextMenuRemoveImage,

@@ -10,6 +10,7 @@ import {
   dedupeInternalMediaRefs,
   type InternalMediaRef,
 } from "../../../lib/media/internalMediaRefs";
+import { buildMotionReferenceAssetShortpulseContext } from "../../../lib/motionReferenceVideoStorage";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -451,6 +452,9 @@ export const useAiStudioTaskSubmission = ({
           promptReferenceGenerateCostCredits ??
           currentCostCredits ??
           null;
+        const motionReferenceAssetContext = buildMotionReferenceAssetShortpulseContext({
+          motionReferenceVideoUrl,
+        });
         const shortpulseContext = {
           selected_tool: effectiveTool,
           mode: outputMode,
@@ -468,6 +472,9 @@ export const useAiStudioTaskSubmission = ({
           pricing_display_source: "shared_adapter",
           pricing_policy_ready: true,
           displayed_billed_credits: displayedBilledCredits,
+          ...(motionReferenceAssetContext
+            ? { motion_reference_asset: motionReferenceAssetContext }
+            : {}),
         };
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;

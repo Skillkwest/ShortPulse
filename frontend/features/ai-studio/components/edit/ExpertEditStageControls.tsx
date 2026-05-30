@@ -278,6 +278,7 @@ export function ExpertEditMarkupControlsContent({
 
 type ExpertEditMoveControlsContentProps = {
   scope: "inline" | "modal";
+  isAdvancedEditModesEnabled?: boolean;
   isMoveToolSelected: boolean;
   moveStageZoomSliderValue: number;
   isMoveTransformCentered: boolean;
@@ -294,6 +295,7 @@ type ExpertEditMoveControlsContentProps = {
 
 export function ExpertEditMoveControlsContent({
   scope,
+  isAdvancedEditModesEnabled = true,
   isMoveToolSelected,
   moveStageZoomSliderValue,
   isMoveTransformCentered,
@@ -343,7 +345,7 @@ export function ExpertEditMoveControlsContent({
           <ArrowsInCardinal size={recenterIconSize} weight="regular" />
           Center
         </button>
-        {!isModalScope ? (
+        {!isModalScope && isAdvancedEditModesEnabled ? (
           <button
             type="button"
             className="edit-expert-move-mode-btn edit-expert-move-expand-btn"

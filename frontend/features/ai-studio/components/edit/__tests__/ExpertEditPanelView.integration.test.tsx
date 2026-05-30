@@ -8,6 +8,15 @@ import {
   type ExpertEditSessionState,
 } from "../expertEditSessionState";
 
+vi.mock("../../../logic/inpaintSubmission", async () => {
+  const actual = await vi.importActual("../../../logic/inpaintSubmission");
+  return {
+    ...(actual as Record<string, unknown>),
+    areAdvancedExpertEditModesPubliclyAccessible: () => true,
+    isEditGenerationModeToggleEnabled: () => true,
+  };
+});
+
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
 const buildSessionState = ({

@@ -14,8 +14,8 @@ const editOpenAiImageMock = vi.fn();
 const persistGeneratedImageAssetMock = vi.fn();
 const readInternalMediaRefsFromPayloadMock = vi.fn();
 const readInternalEditMediaRefsFromPayloadMock = vi.fn();
-const resolveSignedUrlsForInternalMediaRefsMock = vi.fn();
-const resolveSignedUrlsForInternalEditMediaRefsMock = vi.fn();
+const resolveOpenAiImageFilesForInternalMediaRefsMock = vi.fn();
+const resolveOpenAiImageFilesForInternalEditMediaRefsMock = vi.fn();
 const filterExternalUrlsFromInternalRefsMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -42,10 +42,10 @@ vi.mock("../../lib/server/api/internalMediaRefResolution", () => ({
     readInternalMediaRefsFromPayloadMock(...args),
   readInternalEditMediaRefsFromPayload: (...args: unknown[]) =>
     readInternalEditMediaRefsFromPayloadMock(...args),
-  resolveSignedUrlsForInternalMediaRefs: (...args: unknown[]) =>
-    resolveSignedUrlsForInternalMediaRefsMock(...args),
-  resolveSignedUrlsForInternalEditMediaRefs: (...args: unknown[]) =>
-    resolveSignedUrlsForInternalEditMediaRefsMock(...args),
+  resolveOpenAiImageFilesForInternalMediaRefs: (...args: unknown[]) =>
+    resolveOpenAiImageFilesForInternalMediaRefsMock(...args),
+  resolveOpenAiImageFilesForInternalEditMediaRefs: (...args: unknown[]) =>
+    resolveOpenAiImageFilesForInternalEditMediaRefsMock(...args),
   filterExternalUrlsFromInternalRefs: (...args: unknown[]) =>
     filterExternalUrlsFromInternalRefsMock(...args),
 }));
@@ -60,6 +60,14 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 type MockResponse = ReturnType<typeof createMockResponse>;
+
+const createInternalFile = (filename: string) => ({
+  buffer: Buffer.from(`file:${filename}`),
+  contentType: "image/png",
+  filename,
+  byteLength: Buffer.byteLength(`file:${filename}`),
+  storagePath: `user-1/${filename}`,
+});
 
 describe("POST /api/openai/image-edit", () => {
   beforeEach(() => {
@@ -104,11 +112,11 @@ describe("POST /api/openai/image-edit", () => {
       maskRef: null,
       referenceImageRef: null,
     });
-    resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([]);
-    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
-      baseImageUrl: null,
-      maskUrl: null,
-      referenceImageUrl: null,
+    resolveOpenAiImageFilesForInternalMediaRefsMock.mockResolvedValue([]);
+    resolveOpenAiImageFilesForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageFile: null,
+      maskFile: null,
+      referenceImageFile: null,
     });
     filterExternalUrlsFromInternalRefsMock.mockImplementation((urls: unknown[]) =>
       urls.filter(
@@ -237,8 +245,11 @@ describe("POST /api/openai/image-edit", () => {
       prompt: "cinematic portrait edit",
       size: "1024x1024",
       quality: "medium",
-      images: ["https://example.com/base.png", "https://example.com/ref.png"],
-      maskUrl: "https://example.com/mask.png",
+      images: [
+        { kind: "url", imageUrl: "https://example.com/base.png" },
+        { kind: "url", imageUrl: "https://example.com/ref.png" },
+      ],
+      mask: { kind: "url", imageUrl: "https://example.com/mask.png" },
     });
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
@@ -310,7 +321,7 @@ describe("POST /api/openai/image-edit", () => {
     });
   });
 
-  it("replaces stale internal edit refs with fresh signed urls before provider edit", async () => {
+  it("replaces stale internal edit refs with direct provider file inputs before provider edit", async () => {
     editOpenAiImageMock.mockResolvedValue({
       buffer: Buffer.from("image-data"),
       contentType: "image/png",
@@ -346,10 +357,10 @@ describe("POST /api/openai/image-edit", () => {
         storagePath: "user-1/ref.png",
       },
     });
-    resolveSignedUrlsForInternalEditMediaRefsMock.mockResolvedValue({
-      baseImageUrl: "https://fresh.internal/base.png",
-      maskUrl: "https://fresh.internal/mask.png",
-      referenceImageUrl: "https://fresh.internal/ref.png",
+    resolveOpenAiImageFilesForInternalEditMediaRefsMock.mockResolvedValue({
+      baseImageFile: createInternalFile("base.png"),
+      maskFile: createInternalFile("mask.png"),
+      referenceImageFile: createInternalFile("ref.png"),
     });
 
     const req = {
@@ -378,8 +389,29 @@ describe("POST /api/openai/image-edit", () => {
       prompt: "cinematic portrait edit",
       size: "1024x1024",
       quality: "medium",
-      images: ["https://fresh.internal/base.png", "https://fresh.internal/ref.png"],
-      maskUrl: "https://fresh.internal/mask.png",
+      images: [
+        {
+          kind: "file",
+          buffer: createInternalFile("base.png").buffer,
+          contentType: "image/png",
+          filename: "base.png",
+          sourceId: "user-1/base.png",
+        },
+        {
+          kind: "file",
+          buffer: createInternalFile("ref.png").buffer,
+          contentType: "image/png",
+          filename: "ref.png",
+          sourceId: "user-1/ref.png",
+        },
+      ],
+      mask: {
+        kind: "file",
+        buffer: createInternalFile("mask.png").buffer,
+        contentType: "image/png",
+        filename: "mask.png",
+        sourceId: "user-1/mask.png",
+      },
     });
   });
 

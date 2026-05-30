@@ -4,7 +4,7 @@ import { useAiStudioEditSubmitIntent } from "../useAiStudioEditSubmitIntent";
 import type { ToolId } from "../../types";
 
 describe("useAiStudioEditSubmitIntent", () => {
-  it("resets to the default intent when explicitly reset after leaving the edit workflow", () => {
+  it("keeps launch-locked edit intent pinned to standard inside the edit workflow", () => {
     const { result, rerender } = renderHook(
       ({ selectedTool }: { selectedTool: ToolId | null }) =>
         useAiStudioEditSubmitIntent({ selectedTool }),
@@ -19,7 +19,7 @@ describe("useAiStudioEditSubmitIntent", () => {
       result.current.setEditSubmitIntent("markup");
     });
 
-    expect(result.current.editSubmitIntent).toBe("markup");
+    expect(result.current.editSubmitIntent).toBe("standard");
 
     rerender({ selectedTool: "create" });
     expect(result.current.editSubmitIntent).toBe("standard");
@@ -44,7 +44,7 @@ describe("useAiStudioEditSubmitIntent", () => {
     expect(result.current.editSubmitIntent).toBe("standard");
   });
 
-  it("preserves the prior edit intent until the explicit reset is invoked", () => {
+  it("does not preserve hidden non-standard intent when re-entering edit during launch lock", () => {
     const { result, rerender } = renderHook(
       ({ selectedTool }: { selectedTool: ToolId | null }) =>
         useAiStudioEditSubmitIntent({ selectedTool }),
@@ -57,11 +57,13 @@ describe("useAiStudioEditSubmitIntent", () => {
       result.current.setEditSubmitIntent("inpaint");
     });
 
+    expect(result.current.editSubmitIntent).toBe("standard");
+
     rerender({ selectedTool: "create" });
     expect(result.current.editSubmitIntent).toBe("standard");
 
     rerender({ selectedTool: "edit" });
-    expect(result.current.editSubmitIntent).toBe("inpaint");
+    expect(result.current.editSubmitIntent).toBe("standard");
 
     act(() => {
       result.current.resetEditSubmitIntent();

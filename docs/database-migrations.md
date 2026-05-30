@@ -257,6 +257,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 135.  `sql/migrations/136_restore_global_media_folder_authority.sql`
 136.  `sql/migrations/137_retire_project_media_folder_authority.sql`
 137.  `sql/migrations/138_retire_character_quickswap_tip_preference.sql`
+138.  `sql/migrations/139_add_motion_reference_video_generation_leases.sql`
       Rollback files:
 
 
@@ -285,6 +286,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/138_retire_character_quickswap_tip_preference_rollback.sql`
+    - `sql/migrations/rollback/139_add_motion_reference_video_generation_leases_rollback.sql`
     - `sql/migrations/rollback/117_add_create_pulse_builtin_control_plane_rollback.sql`
     - `sql/migrations/rollback/118_canonicalize_character_metadata_media_ids_rollback.sql`
     - `sql/migrations/rollback/119_require_character_media_id_on_character_links_rollback.sql`

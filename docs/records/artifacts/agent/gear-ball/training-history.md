@@ -6,7 +6,7 @@ Purpose: keep the current training synthesis short and actionable.
 
 - Recent substantive-run range: `6/10` to `9.2/10`
 - Current working band: `8.4/10` to `9.0/10`
-- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, wrapper noise on ignore-matched config files, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
+- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, tracked-diff manifests that can miss new source files, wrapper noise on ignore-matched config files, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
 
 ## Active Synthesis
 
@@ -30,3 +30,4 @@ Purpose: keep the current training synthesis short and actionable.
 4. Keep startup and retained-history loading lean by default.
 5. On mixed frontend/docs/sql lanes, split the first cleanup pass by tool ownership so raw SQL does not steal time from the real validation ladder.
 6. When one broad shared-runtime lane brushes a large stale UI suite, validate the exact touched expectations plus the modern integration/launch-lock seams first, and only reopen the full legacy suite if the runtime evidence genuinely points there.
+7. When validation commands derive from the manifest, build them from `git status --short` instead of tracked diffs alone so new source files join the first lint pass and page-to-hook contract seams surface earlier.
